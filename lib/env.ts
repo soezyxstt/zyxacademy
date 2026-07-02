@@ -99,6 +99,8 @@ export const env = createEnv({
  FEATURE_REFLECTION_EMAIL: z.string().optional(),
  /** Adaptive quiz difficulty: bias a quiz's easy/medium/hard mix by the student's course mastery. "1" enables. */
  FEATURE_ADAPTIVE_QUIZ: z.string().optional(),
+ /** Tutorial PKA campaign: free multi-stage PKA simulation course + auto-enroll link + admin announcements. "1" enables. */
+ FEATURE_PKA: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Active vector store: 'pinecone' (default) | 'dual' (write both) | 'vectorize' (read from VZ) */
  VECTOR_STORE: z.enum(['pinecone', 'vectorize', 'dual']).optional(),
@@ -186,6 +188,7 @@ export const env = createEnv({
  FEATURE_REFLECTION: process.env.FEATURE_REFLECTION,
  FEATURE_REFLECTION_EMAIL: process.env.FEATURE_REFLECTION_EMAIL,
  FEATURE_ADAPTIVE_QUIZ: process.env.FEATURE_ADAPTIVE_QUIZ,
+ FEATURE_PKA: process.env.FEATURE_PKA,
   NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTOR_STORE: process.env.VECTOR_STORE,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,

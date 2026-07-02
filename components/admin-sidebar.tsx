@@ -49,7 +49,7 @@ export function AdminSidebar() {
       return pathname === "/admin";
     }
     if (tab === "academic") {
-      const paths = ["/admin/courses", "/admin/tokens", "/admin/notifications"];
+      const paths = ["/admin/courses", "/admin/tokens", "/admin/notifications", "/admin/pka-announcements"];
       return paths.some((p) => pathname === p || pathname.startsWith(p + "/"));
     }
     if (tab === "files") {

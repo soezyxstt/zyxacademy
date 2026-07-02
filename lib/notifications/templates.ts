@@ -142,3 +142,29 @@ export function adminBroadcastPayload(
  },
  };
 }
+
+// ─── Tutorial PKA Announcement ────────────────────────────────────────────────
+
+/**
+ * Sent to all students enrolled in the Tutorial PKA campaign course when an
+ * admin announces a Google Meet review session.
+ *
+ * @param title - Admin-supplied announcement title.
+ * @param body - Admin-supplied announcement message.
+ * @param link - Deep link (e.g. back to /pka).
+ */
+export function pkaAnnouncementPayload(
+ title: string,
+ body: string,
+ link: string = "/pka"
+): NotificationPayload {
+ return {
+ title,
+ body,
+ type: "announcement",
+ link,
+ metadata: {
+ url: link,
+ },
+ };
+}

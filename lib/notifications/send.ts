@@ -32,6 +32,7 @@ import {
  tutorReminderPayload,
  paymentSuccessPayload,
  adminBroadcastPayload,
+ pkaAnnouncementPayload,
 } from "./templates";
 
 // ─── FCM error codes that signal an invalid / expired token ──────────────────
@@ -340,4 +341,29 @@ export async function sendAdminBroadcast(
  }
 
  return sendToMany(target, payload);
+}
+
+/**
+ * Notifies all students enrolled in the Tutorial PKA campaign course of an
+ * admin-scheduled Google Meet review session announcement.
+ *
+ * @param courseId - Tutorial PKA course id (see lib/pka-config.ts PKA_COURSE_ID).
+ * @param title - Admin-supplied announcement title.
+ * @param body - Admin-supplied announcement message.
+ * @param link - Deep link back into the campaign (defaults to /pka).
+ */
+export async function sendPkaAnnouncement(
+ courseId: string,
+ title: string,
+ body: string,
+ link: string = "/pka"
+): Promise<SendResult> {
+ const enrolled = await db
+ .select({ userId: enrollments.userId })
+ .from(enrollments)
+ .where(eq(enrollments.courseId, courseId));
+
+ const userIds = enrolled.map((e) => e.userId);
+ const payload = pkaAnnouncementPayload(title, body, link);
+ return sendToMany(userIds, payload);
 }

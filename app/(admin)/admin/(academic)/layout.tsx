@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import { AdminTabNav } from "@/components/admin/tab-nav";
+import { env } from "@/lib/env";
 
 export default function AcademicLayout({ children }: { children: ReactNode }) {
   const tabs = [
     { href: "/admin/courses", label: "Mata Kuliah" },
     { href: "/admin/tokens", label: "Token Aktivasi" },
     { href: "/admin/notifications", label: "Push Notification" },
+    ...(env.FEATURE_PKA === "1" ? [{ href: "/admin/pka-announcements", label: "Tutorial PKA" }] : []),
   ];
 
   return (

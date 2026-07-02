@@ -11,7 +11,8 @@ export type NotificationType =
   | "flashcard_reminder"
   | "tutor_reminder"
   | "payment_success"
-  | "admin_broadcast";
+  | "admin_broadcast"
+  | "announcement";
 
 // ─── Payload sent to FCM ──────────────────────────────────────────────────────
 

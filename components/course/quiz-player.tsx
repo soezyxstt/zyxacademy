@@ -27,9 +27,11 @@ type QuizPlayerProps = {
     };
   };
   attemptId: string;
+  /** Override the post-submit review redirect (defaults to the standard course quiz URL). */
+  getRedirectPath?: (attemptId: string) => string;
 };
 
-export function QuizPlayer({ courseId, exam, attemptId }: QuizPlayerProps) {
+export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath }: QuizPlayerProps) {
   const router = useRouter();
   const durationSeconds = (exam.settings?.timeLimitMinutes ?? 15) * 60;
   const timerStorageKey = useMemo(() => `zyx-quiz-timer-deadline-${attemptId}`, [attemptId]);
@@ -109,16 +111,17 @@ export function QuizPlayer({ courseId, exam, attemptId }: QuizPlayerProps) {
 
       setIsSubmitted(true);
       toast.success("Kuis berhasil dikumpulkan! Mengarahkan ke pembahasan...");
-      
+
       // Navigate to the review screen for this attempt
-      router.replace(`/courses/${courseId}/quiz/${exam.id}?attemptId=${attemptId}`);
+      const reviewPath = getRedirectPath ? getRedirectPath(attemptId) : `/courses/${courseId}/quiz/${exam.id}?attemptId=${attemptId}`;
+      router.replace(reviewPath);
       router.refresh();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Gagal mengumpulkan kuis. Silakan coba kembali.";
       toast.error(message);
       setSubmitting(false);
     }
-  }, [courseId, isSubmitted, submitting, router, timerStorageKey, attemptId, answers, durationSeconds, timeLeft, exam.id, exam.questions]);
+  }, [courseId, isSubmitted, submitting, router, timerStorageKey, attemptId, answers, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath]);
 
   useEffect(() => {
     const rawDeadline = window.localStorage.getItem(timerStorageKey);

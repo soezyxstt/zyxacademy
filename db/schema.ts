@@ -209,7 +209,8 @@ export const courses = sqliteTable("courses", {
  "Kewirausahaan",
  "TPB",
  "Rekayasa Umum",
- ] }).notNull(), 
+ "PKA",
+ ] }).notNull(),
  description: text("description"),
 });
 
@@ -1769,6 +1770,7 @@ export const notifications = sqliteTable(
  | "tutor_reminder"
  | "payment_success"
  | "admin_broadcast"
+ | "announcement"
  >()
  .notNull(),
  /** Whether the user has read/dismissed this notification. */
@@ -2613,5 +2615,95 @@ export const careerPathConceptsRelations = relations(careerPathConcepts, ({ one 
   concept: one(concepts, {
     fields: [careerPathConcepts.conceptId],
     references: [concepts.id],
+  }),
+}));
+
+// ─── Tutorial PKA Campaign ──────────────────────────────────────────────────
+// Free promotional "Tutorial PKA" course for incoming ITB freshmen, simulating
+// the multi-stage Pemetaan Kesiapan Akademik test (Stage 1 -> 2 -> 3 per
+// subject; passing an earlier stage skips the rest). Routed off a hardcoded
+// course id (see lib/pka-config.ts), not a courses.type discriminator, since
+// this is a single seasonal campaign, not a general course category. Gated
+// end-to-end behind FEATURE_PKA.
+
+// Static subject/stage -> quiz template mapping, admin/seed-authored.
+export const pkaSimulationStages = sqliteTable(
+  "pka_simulation_stages",
+  {
+    id: text("id").primaryKey(),
+    subject: text("subject").$type<"matematika" | "fisika" | "kimia">().notNull(),
+    stage: integer("stage").notNull(), // 1, 2, or 3
+    quizTemplateId: text("quiz_template_id")
+      .notNull()
+      .references(() => quizTemplates.id, { onDelete: "cascade" }),
+    passScoreThreshold: integer("pass_score_threshold").notNull(), // 0-100
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_pka_stages_subject_stage").on(table.subject, table.stage),
+  ]
+);
+
+// Per-student gating state machine for the simulation.
+export const pkaStageProgress = sqliteTable(
+  "pka_stage_progress",
+  {
+    id: text("id").primaryKey(),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    subject: text("subject").$type<"matematika" | "fisika" | "kimia">().notNull(),
+    stage: integer("stage").notNull(),
+    status: text("status").$type<"locked" | "unlocked" | "completed" | "skipped">().default("locked").notNull(),
+    bestScore: integer("best_score"),
+    passed: integer("passed", { mode: "boolean" }),
+    attemptId: text("attempt_id").references(() => studentQuizAttempts.id, { onDelete: "set null" }),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_pka_progress_student_subject_stage").on(table.studentId, table.subject, table.stage),
+  ]
+);
+
+// Admin-authored Google Meet review session broadcasts.
+export const pkaAnnouncements = sqliteTable("pka_announcements", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  meetLink: text("meet_link").notNull(),
+  sessionAt: integer("session_at", { mode: "timestamp" }).notNull(),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  sentAt: integer("sent_at", { mode: "timestamp" }),
+  recipientCount: integer("recipient_count"),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+});
+
+export const pkaSimulationStagesRelations = relations(pkaSimulationStages, ({ one }) => ({
+  quizTemplate: one(quizTemplates, {
+    fields: [pkaSimulationStages.quizTemplateId],
+    references: [quizTemplates.id],
+  }),
+}));
+
+export const pkaStageProgressRelations = relations(pkaStageProgress, ({ one }) => ({
+  student: one(user, {
+    fields: [pkaStageProgress.studentId],
+    references: [user.id],
+  }),
+  attempt: one(studentQuizAttempts, {
+    fields: [pkaStageProgress.attemptId],
+    references: [studentQuizAttempts.id],
+  }),
+}));
+
+export const pkaAnnouncementsRelations = relations(pkaAnnouncements, ({ one }) => ({
+  createdByUser: one(user, {
+    fields: [pkaAnnouncements.createdBy],
+    references: [user.id],
   }),
 }));

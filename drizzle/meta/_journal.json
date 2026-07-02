@@ -218,6 +218,13 @@
       "when": 1782792796825,
       "tag": "0030_modern_sunfire",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1782913361104,
+      "tag": "0031_stiff_xorn",
+      "breakpoints": true
     }
   ]
 }
