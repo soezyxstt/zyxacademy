@@ -14,9 +14,11 @@ type QuizStartButtonProps = {
   className?: string;
   /** Override the post-start redirect (defaults to the standard course quiz URL). */
   getRedirectPath?: (attemptId: string) => string;
+  /** Serializable variant of getRedirectPath for server-component callers; `?attemptId=` is appended. */
+  redirectBasePath?: string;
 };
 
-export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", className, getRedirectPath }: QuizStartButtonProps) {
+export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", className, getRedirectPath, redirectBasePath }: QuizStartButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +40,11 @@ export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", cl
 
       const data = await res.json();
       toast.success("Kuis dimulai! Semoga berhasil.");
-      const path = getRedirectPath ? getRedirectPath(data.attemptId) : `/courses/${courseId}/quiz/${templateId}?attemptId=${data.attemptId}`;
+      const path = getRedirectPath
+        ? getRedirectPath(data.attemptId)
+        : redirectBasePath
+          ? `${redirectBasePath}?attemptId=${data.attemptId}`
+          : `/courses/${courseId}/quiz/${templateId}?attemptId=${data.attemptId}`;
       router.push(path);
     } catch (err: any) {
       toast.error(err.message || "Gagal memulai kuis");

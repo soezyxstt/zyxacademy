@@ -7,7 +7,7 @@ export default function AcademicLayout({ children }: { children: ReactNode }) {
     { href: "/admin/courses", label: "Mata Kuliah" },
     { href: "/admin/tokens", label: "Token Aktivasi" },
     { href: "/admin/notifications", label: "Push Notification" },
-    ...(env.FEATURE_PKA === "1" ? [{ href: "/admin/pka-announcements", label: "Tutorial PKA" }] : []),
+    ...(env.FEATURE_PKA === "1" ? [{ href: "/admin/tutorial-pka", label: "Tutorial PKA" }] : []),
   ];
 
   return (

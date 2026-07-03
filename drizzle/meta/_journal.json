@@ -225,6 +225,20 @@
       "when": 1782913361104,
       "tag": "0031_stiff_xorn",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1783077343167,
+      "tag": "0032_lazy_rhino",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1783080478077,
+      "tag": "0033_bizarre_zemo",
+      "breakpoints": true
     }
   ]
 }

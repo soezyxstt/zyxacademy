@@ -350,13 +350,13 @@ export async function sendAdminBroadcast(
  * @param courseId - Tutorial PKA course id (see lib/pka-config.ts PKA_COURSE_ID).
  * @param title - Admin-supplied announcement title.
  * @param body - Admin-supplied announcement message.
- * @param link - Deep link back into the campaign (defaults to /pka).
+ * @param link - Deep link back into the campaign (defaults to /courses/tutorial-pka).
  */
 export async function sendPkaAnnouncement(
  courseId: string,
  title: string,
  body: string,
- link: string = "/pka"
+ link: string = "/courses/tutorial-pka"
 ): Promise<SendResult> {
  const enrolled = await db
  .select({ userId: enrollments.userId })

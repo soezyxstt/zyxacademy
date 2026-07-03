@@ -65,7 +65,7 @@ export function NavItem({
   const content = (
     <>
       <Icon className="size-5 shrink-0" />
-      {!collapsed && <span>{label}</span>}
+      {!collapsed && <span className="truncate whitespace-nowrap">{label}</span>}
     </>
   );
 
@@ -205,7 +205,7 @@ export function SidebarShell({
           "border-r border-border bg-card",
           "transition-transform duration-300 ease-in-out",
           "fixed inset-y-0 left-0 z-50 shadow-xl w-[clamp(248px,80vw,300px)] -translate-x-full",
-          "md:sticky md:top-0 md:translate-x-0 md:z-30 md:shadow-none",
+          "md:sticky md:top-0 md:self-start md:translate-x-0 md:z-30 md:shadow-none",
           isCollapsed ? "md:w-[64px]" : "md:w-[248px]"
         )}
       >

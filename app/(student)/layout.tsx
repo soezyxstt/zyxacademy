@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { StudentSidebar } from "@/components/student-sidebar";
-import { CoursesAmbient } from "@/components/course/courses-ambient";
+import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { env } from "@/lib/env";
 
 export default function StudentLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-row bg-landing-hero-shell overflow-x-clip">
-      <CoursesAmbient />
+    <div className="relative flex min-h-screen flex-row bg-background overflow-x-clip">
+      <PageOrnaments variant="about" />
       <StudentSidebar
         showStudyPath={env.FEATURE_STUDY_PATH === "1"}
         showMastery={env.FEATURE_MASTERY === "1"}

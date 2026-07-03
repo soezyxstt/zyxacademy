@@ -47,8 +47,8 @@ export function Navbar() {
  <header className="fixed top-0 left-0 right-0 z-50">
  <nav
  className={cn(
- "w-full transition-all duration-200",
- isScrolled ? "backdrop-blur-md bg-background/80 border-b border-border/40" : "bg-transparent border-b-0"
+ "w-full border-b transition-all duration-200",
+ isScrolled ? "backdrop-blur-md bg-background/80 border-border/40" : "bg-transparent border-transparent"
  )}
  aria-label="Primary"
  >

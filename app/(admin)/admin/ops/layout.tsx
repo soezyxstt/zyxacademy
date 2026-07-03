@@ -6,6 +6,7 @@ export default function OpsLayout({ children }: { children: ReactNode }) {
     { href: "/admin/ops", label: "Monitor Ops" },
     { href: "/admin/ops/analytics", label: "Analitik AI" },
     { href: "/admin/ops/keys", label: "API Keys" },
+    { href: "/admin/ops/short-links", label: "Short Links" },
   ];
 
   return (

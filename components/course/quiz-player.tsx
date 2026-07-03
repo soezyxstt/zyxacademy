@@ -29,9 +29,11 @@ type QuizPlayerProps = {
   attemptId: string;
   /** Override the post-submit review redirect (defaults to the standard course quiz URL). */
   getRedirectPath?: (attemptId: string) => string;
+  /** Serializable variant of getRedirectPath for server-component callers; `?attemptId=` is appended. */
+  redirectBasePath?: string;
 };
 
-export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath }: QuizPlayerProps) {
+export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath }: QuizPlayerProps) {
   const router = useRouter();
   const durationSeconds = (exam.settings?.timeLimitMinutes ?? 15) * 60;
   const timerStorageKey = useMemo(() => `zyx-quiz-timer-deadline-${attemptId}`, [attemptId]);
@@ -113,7 +115,11 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath }: QuizP
       toast.success("Kuis berhasil dikumpulkan! Mengarahkan ke pembahasan...");
 
       // Navigate to the review screen for this attempt
-      const reviewPath = getRedirectPath ? getRedirectPath(attemptId) : `/courses/${courseId}/quiz/${exam.id}?attemptId=${attemptId}`;
+      const reviewPath = getRedirectPath
+        ? getRedirectPath(attemptId)
+        : redirectBasePath
+          ? `${redirectBasePath}?attemptId=${attemptId}`
+          : `/courses/${courseId}/quiz/${exam.id}?attemptId=${attemptId}`;
       router.replace(reviewPath);
       router.refresh();
     } catch (err: unknown) {
@@ -121,7 +127,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath }: QuizP
       toast.error(message);
       setSubmitting(false);
     }
-  }, [courseId, isSubmitted, submitting, router, timerStorageKey, attemptId, answers, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath]);
+  }, [courseId, isSubmitted, submitting, router, timerStorageKey, attemptId, answers, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath, redirectBasePath]);
 
   useEffect(() => {
     const rawDeadline = window.localStorage.getItem(timerStorageKey);

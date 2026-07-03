@@ -42,6 +42,7 @@ import {
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 
 // Fetch extra actions from custom action file
 import { getFlashcardsForKOAction } from "@/app/actions/tutor-extra";
@@ -78,6 +79,8 @@ export function useTutor() {
 
 export function TutorProvider({ children }: { children: React.ReactNode }) {
  const pathname = usePathname();
+ const courseIdFromPath = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+ const caps = getTutorCapabilities(courseIdFromPath);
  const [isOpen, setIsOpen] = React.useState(false);
  const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
  
@@ -147,37 +150,6 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  scrollToBottom();
  }, [messages, chatLoading]);
 
- const openExplain = React.useCallback((id: string, initialMode: "content" | "analogy" | "simplification" = "content") => {
- setKoId(id);
- setQuestionId(null);
- setUserAnswer(null);
- setExplainMode(initialMode);
- setActiveMode("explain");
- setActiveAction("none");
- setMessages([]);
- setIsOpen(true);
- }, []);
-
- const openMistake = React.useCallback((qId: string, answerText: string) => {
- setKoId(null);
- setQuestionId(qId);
- setUserAnswer(answerText);
- setActiveMode("mistake");
- setActiveAction("none");
- setMessages([]);
- setIsOpen(true);
- }, []);
-
- const openStudyPlan = React.useCallback(() => {
- setKoId(null);
- setQuestionId(null);
- setUserAnswer(null);
- setActiveMode("study-plan");
- setActiveAction("none");
- setMessages([]);
- setIsOpen(true);
- }, []);
-
  const openChat = React.useCallback(async () => {
  setKoId(null);
  setQuestionId(null);
@@ -221,6 +193,45 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  }]);
  }
  }, [pathname]);
+
+ const openExplain = React.useCallback((id: string, initialMode: "content" | "analogy" | "simplification" = "content") => {
+ if (!caps.explain) {
+ openChat();
+ return;
+ }
+ setKoId(id);
+ setQuestionId(null);
+ setUserAnswer(null);
+ setExplainMode(initialMode);
+ setActiveMode("explain");
+ setActiveAction("none");
+ setMessages([]);
+ setIsOpen(true);
+ }, [caps.explain, openChat]);
+
+ const openMistake = React.useCallback((qId: string, answerText: string) => {
+ setKoId(null);
+ setQuestionId(qId);
+ setUserAnswer(answerText);
+ setActiveMode("mistake");
+ setActiveAction("none");
+ setMessages([]);
+ setIsOpen(true);
+ }, []);
+
+ const openStudyPlan = React.useCallback(() => {
+ if (!caps.studyPlan) {
+ openChat();
+ return;
+ }
+ setKoId(null);
+ setQuestionId(null);
+ setUserAnswer(null);
+ setActiveMode("study-plan");
+ setActiveAction("none");
+ setMessages([]);
+ setIsOpen(true);
+ }, [caps.studyPlan, openChat]);
 
  const close = React.useCallback(() => {
  setIsOpen(false);
@@ -486,11 +497,15 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  </button>
  )}
 
- <Sheet open={isOpen} onOpenChange={(open) => !open && close()}>
+ {/* modal={false} keeps the page scrollable; the modal scroll lock sets
+ overflow:hidden on body which breaks the sticky course sidebar. */}
+ <Sheet open={isOpen} onOpenChange={(open) => !open && close()} modal={false}>
  <SheetContent
  side="right"
  style={{ width: `min(${drawerWidth}px, 100vw)` }}
  className="p-0 flex flex-col h-full bg-background border-l border-border select-none !max-w-none"
+ onInteractOutside={(e) => e.preventDefault()}
+ onOpenAutoFocus={(e) => e.preventDefault()}
  >
  {/* Drag-to-resize handle */}
  <div
@@ -617,7 +632,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  })}
 
  {/* Socratic Helper triggers on last message */}
- {activeMode === "explain" && activeAction === "none" && !chatLoading && (
+ {caps.microApps && activeMode === "explain" && activeAction === "none" && !chatLoading && (
  <div className="grid grid-cols-2 gap-2 pt-2 self-start w-full">
  <Button 
  variant="outline" 
@@ -687,7 +702,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  )}
 
  {/* Socratic Practice Actions */}
- {activeMode === "explain" && activeAction === "none" && !chatLoading && (
+ {caps.microApps && activeMode === "explain" && activeAction === "none" && !chatLoading && (
  <div className="pt-4 border-t border-border space-y-2 w-full">
  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block mb-1">Latihan Pembelajaran:</span>
  <div className="flex flex-col gap-2">

@@ -47,8 +47,8 @@ export default function RootLayout({
  children: React.ReactNode;
 }>) {
  return (
- <html lang="id" suppressHydrationWarning className={`${inter.variable} ${lexend.variable}`}>
- <body className="font-sans min-h-screen flex flex-col">
+ <html lang="id" suppressHydrationWarning className={`${inter.variable} ${lexend.variable} overflow-x-clip`}>
+ <body className="font-sans min-h-screen flex flex-col overflow-x-clip">
   <QueryProvider>
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
   <NextSSRPlugin routerConfig={extractRouterConfig(uploadRouter)} />

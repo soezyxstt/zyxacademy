@@ -2673,8 +2673,19 @@ export const pkaAnnouncements = sqliteTable("pka_announcements", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   body: text("body").notNull(),
-  meetLink: text("meet_link").notNull(),
+  createdBy: text("created_by")
+    .notNull()
+    .references(() => user.id),
+  sentAt: integer("sent_at", { mode: "timestamp" }),
+  recipientCount: integer("recipient_count"),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+});
+
+export const pkaSchedules = sqliteTable("pka_schedules", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
   sessionAt: integer("session_at", { mode: "timestamp" }).notNull(),
+  meetLink: text("meet_link"), // Optional link
   createdBy: text("created_by")
     .notNull()
     .references(() => user.id),
@@ -2704,6 +2715,32 @@ export const pkaStageProgressRelations = relations(pkaStageProgress, ({ one }) =
 export const pkaAnnouncementsRelations = relations(pkaAnnouncements, ({ one }) => ({
   createdByUser: one(user, {
     fields: [pkaAnnouncements.createdBy],
+    references: [user.id],
+  }),
+}));
+
+export const pkaSchedulesRelations = relations(pkaSchedules, ({ one }) => ({
+  createdByUser: one(user, {
+    fields: [pkaSchedules.createdBy],
+    references: [user.id],
+  }),
+}));
+
+// ─── Short Links ────────────────────────────────────────────────────────────
+// Custom URL shortener (zyxacademy.com/s/[slug])
+
+export const shortLink = sqliteTable("short_link", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  url: text("url").notNull(),
+  userId: text("user_id").references(() => user.id, { onDelete: "set null" }), // Creator
+  clicks: integer("clicks").default(0).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+});
+
+export const shortLinkRelations = relations(shortLink, ({ one }) => ({
+  creator: one(user, {
+    fields: [shortLink.userId],
     references: [user.id],
   }),
 }));

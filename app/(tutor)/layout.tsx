@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { env } from "@/lib/env";
 import type { ReactNode } from "react";
 import { TutorSidebar } from "@/components/tutor/tutor-sidebar";
+import { PageOrnaments } from "@/components/ui/page-ornaments";
 
 export default async function TutorLayout({ children }: { children: ReactNode }) {
   if (env.FEATURE_TUTOR_ANALYTICS !== "1") redirect("/");
@@ -15,7 +16,8 @@ export default async function TutorLayout({ children }: { children: ReactNode })
   if (role !== "teacher" && role !== "admin") redirect("/");
 
   return (
-    <div className="relative flex min-h-screen flex-row bg-landing-hero-shell overflow-x-clip">
+    <div className="relative flex min-h-screen flex-row bg-background overflow-x-clip">
+      <PageOrnaments variant="about" />
       <TutorSidebar />
       <main
         id="main-content"

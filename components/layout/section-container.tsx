@@ -22,7 +22,7 @@ export function SectionContainer({
   const verticalPadding = tight
     ? "py-12 md:py-16"
     : density === "hero"
-      ? "pb-16 pt-5 md:pb-22 md:pt-8 lg:pb-24"
+      ? "pb-16 pt-20 md:pb-22 md:pt-24 lg:pb-24"
       : density === "compact"
         ? "py-14 md:py-18"
         : "py-20 md:py-28";

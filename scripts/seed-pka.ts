@@ -40,15 +40,20 @@ function sampleQuestions(subject: PkaSubject, stage: PkaStage) {
 async function main() {
   console.log("Seeding Tutorial PKA campaign...");
 
+  const pkaCourse = {
+    id: PKA_COURSE_ID,
+    title: "Tutorial PKA",
+    category: "PKA" as const,
+    description: "Persiapan Pemetaan Kesiapan Akademik (PKA) ITB; Matematika, Fisika, Kimia.",
+  };
+  // Upsert so re-running the seed refreshes stale course copy on existing rows.
   await db
     .insert(courses)
-    .values({
-      id: PKA_COURSE_ID,
-      title: "Tutorial PKA (Simulasi Gratis)",
-      category: "PKA",
-      description: "Simulasi gratis Pemetaan Kesiapan Akademik (PKA) ITB - Matematika, Fisika, Kimia.",
-    })
-    .onConflictDoNothing();
+    .values(pkaCourse)
+    .onConflictDoUpdate({
+      target: courses.id,
+      set: { title: pkaCourse.title, category: pkaCourse.category, description: pkaCourse.description },
+    });
 
   for (const subject of PKA_SUBJECTS) {
     for (const stage of PKA_STAGES) {

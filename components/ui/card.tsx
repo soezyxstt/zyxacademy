@@ -17,4 +17,8 @@ function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   return <div className={cn("p-6 pt-0", className)} {...props} />;
 }
 
-export { Card, CardHeader, CardTitle, CardContent };
+function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
+  return <p className={cn("text-body-sm text-muted-foreground", className)} {...props} />;
+}
+
+export { Card, CardHeader, CardTitle, CardDescription, CardContent };

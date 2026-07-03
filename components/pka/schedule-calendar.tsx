@@ -1,0 +1,208 @@
+"use client";
+
+import * as React from "react";
+import { CalendarDays, ChevronLeft, ChevronRight, Video } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+
+export interface PkaCalendarSession {
+  id: string;
+  title: string;
+  meetLink: string | null;
+  sessionAt: string; // ISO string (serializable across the RSC boundary)
+}
+
+const WEEKDAY_LABELS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+
+function dayKey(d: Date) {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+/** Opens on the month of the next upcoming session; falls back to the last session, then today. */
+function initialView(sessions: PkaCalendarSession[]): { year: number; month: number } {
+  const dates = sessions
+    .map((s) => new Date(s.sessionAt))
+    .sort((a, b) => a.getTime() - b.getTime());
+  const target = dates.find((d) => d.getTime() >= Date.now()) ?? dates[dates.length - 1] ?? new Date();
+  return { year: target.getFullYear(), month: target.getMonth() };
+}
+
+export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession[] }) {
+  const [initial] = React.useState(() => initialView(sessions));
+  const [viewYear, setViewYear] = React.useState(initial.year);
+  const [viewMonth, setViewMonth] = React.useState(initial.month);
+  const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
+
+  const sessionsByDay = React.useMemo(() => {
+    const map = new Map<string, PkaCalendarSession[]>();
+    for (const s of sessions) {
+      const key = dayKey(new Date(s.sessionAt));
+      const list = map.get(key) ?? [];
+      list.push(s);
+      map.set(key, list);
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => new Date(a.sessionAt).getTime() - new Date(b.sessionAt).getTime());
+    }
+    return map;
+  }, [sessions]);
+
+  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString("id-ID", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  // Monday-first offset: JS getDay() is 0 = Sunday.
+  const firstWeekday = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+
+  const todayKey = dayKey(new Date());
+
+  const shiftMonth = (delta: number) => {
+    const next = new Date(viewYear, viewMonth + delta, 1);
+    setViewYear(next.getFullYear());
+    setViewMonth(next.getMonth());
+  };
+
+  const selectedSessions = selectedKey ? (sessionsByDay.get(selectedKey) ?? []) : [];
+  const selectedDate =
+    selectedSessions.length > 0 ? new Date(selectedSessions[0].sessionAt) : null;
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <h3 className="font-heading text-body-base font-bold text-foreground capitalize">{monthLabel}</h3>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => shiftMonth(-1)}
+            aria-label="Bulan sebelumnya"
+            className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            aria-label="Bulan berikutnya"
+            className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {WEEKDAY_LABELS.map((label) => (
+          <span
+            key={label}
+            className="py-1 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
+          >
+            {label}
+          </span>
+        ))}
+
+        {Array.from({ length: firstWeekday }, (_, i) => (
+          <span key={`pad-${i}`} />
+        ))}
+
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const dayNum = i + 1;
+          const key = `${viewYear}-${viewMonth}-${dayNum}`;
+          const daySessions = sessionsByDay.get(key) ?? [];
+          const hasSessions = daySessions.length > 0;
+          const isToday = key === todayKey;
+
+          const cellClass = cn(
+            "relative flex aspect-square w-full flex-col items-center justify-center rounded-lg text-body-sm transition-colors duration-150",
+            hasSessions
+              ? "bg-brand-primary/10 font-bold text-brand-primary hover:bg-brand-primary/20 cursor-pointer"
+              : "text-foreground/80",
+            isToday && "ring-1 ring-brand-secondary",
+          );
+
+          return hasSessions ? (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSelectedKey(key)}
+              aria-label={`Lihat jadwal ${dayNum} ${monthLabel}`}
+              className={cellClass}
+            >
+              {dayNum}
+              <span className="absolute bottom-1 size-1.5 rounded-full bg-brand-primary" />
+            </button>
+          ) : (
+            <span key={key} className={cellClass}>
+              {dayNum}
+            </span>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 flex items-center gap-4 border-t border-border pt-3 text-body-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="size-1.5 rounded-full bg-brand-primary" />
+          Ada sesi tutorial
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-3 rounded-md ring-1 ring-brand-secondary" />
+          Hari ini
+        </span>
+      </div>
+
+      <Dialog open={selectedKey !== null} onOpenChange={(open) => !open && setSelectedKey(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-h6 font-bold text-foreground">
+              {selectedDate
+                ? selectedDate.toLocaleDateString("id-ID", { dateStyle: "full" })
+                : "Jadwal sesi"}
+            </DialogTitle>
+            <DialogDescription className="text-body-sm text-muted-foreground">
+              {selectedSessions.length} sesi tutorial pada tanggal ini.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {selectedSessions.map((s) => (
+              <div key={s.id} className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Judul Meet
+                  </span>
+                  <p className="text-body-base font-semibold text-foreground">{s.title}</p>
+                </div>
+                <p className="flex items-center gap-1.5 text-body-sm text-muted-foreground">
+                  <CalendarDays className="size-3.5" />
+                  {new Date(s.sessionAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                </p>
+                {s.meetLink ? (
+                  <a
+                    href={s.meetLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-body-sm font-semibold text-white transition-colors duration-150 hover:bg-brand-primary/90"
+                  >
+                    <Video className="size-4" />
+                    Gabung Meet
+                  </a>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-body-sm font-semibold text-muted-foreground">
+                    Link belum tersedia
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { PageOrnaments } from "@/components/ui/page-ornaments";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-row bg-background">
+    <div className="relative flex min-h-screen flex-row bg-background overflow-x-clip">
+      <PageOrnaments variant="about" />
       <AdminSidebar />
       <main
         id="main-content"

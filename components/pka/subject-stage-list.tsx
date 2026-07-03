@@ -51,10 +51,15 @@ export function SubjectStageList({ subject, stages }: { subject: string; stages:
           </div>
         );
 
+        const href =
+          s.status === "completed" && s.attemptId
+            ? `/courses/tutorial-pka/simulasi/${subject}/${s.stage}?attemptId=${s.attemptId}`
+            : `/courses/tutorial-pka/simulasi/${subject}/${s.stage}`;
+
         return (
           <li key={s.stage}>
             {clickable ? (
-              <Link href={`/pka/${subject}/stage/${s.stage}`} className="block transition-colors duration-150 hover:bg-muted/40 rounded-lg px-2 -mx-2">
+              <Link href={href} className="block transition-colors duration-150 hover:bg-muted/40 rounded-lg px-2 -mx-2">
                 {row}
               </Link>
             ) : (

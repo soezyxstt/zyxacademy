@@ -88,7 +88,7 @@ export function MathText({ children, className, as = "span" }: MathTextProps) {
             className={cn(
               segment.display
                 ? "my-3 block overflow-x-auto overflow-y-hidden py-1"
-                : "inline-block max-w-full align-baseline",
+                : "inline-block max-w-full align-baseline overflow-x-auto overflow-y-hidden",
             )}
             dangerouslySetInnerHTML={{ __html: renderMath(segment.value, segment.display) }}
           />

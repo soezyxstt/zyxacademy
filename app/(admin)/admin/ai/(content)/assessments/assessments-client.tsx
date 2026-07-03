@@ -236,6 +236,7 @@ export function AssessmentsClient({ sources, courses, chapters, courseMap }: Pro
 
       {/* Table Surface */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead className="bg-muted/50 border-b border-border">
             <tr>
@@ -331,6 +332,7 @@ export function AssessmentsClient({ sources, courses, chapters, courseMap }: Pro
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Upload/Add Modal */}

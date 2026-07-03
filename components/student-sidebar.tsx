@@ -23,7 +23,9 @@ import {
   Flame,
   Sparkles,
   Search,
+  BarChart3,
 } from "lucide-react";
+import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { useSession } from "@/lib/auth-client";
 import { getStudentEnrollments, getCourseAction } from "@/app/(student)/dashboard/actions";
@@ -157,91 +159,46 @@ export function StudentSidebar({
           )}
 
           <div className={cn("space-y-1", c && "w-full flex flex-col items-center")}>
-            <NavItem
-              href={`/courses/${activeCourse.id}`}
-              icon={LayoutDashboard}
-              label="Ringkasan"
-              active={pathname === `/courses/${activeCourse.id}`}
-              collapsed={c}
-            />
+            {(() => {
+              const base = `/courses/${activeCourse.id}`;
+              const isPka = activeCourse.id === PKA_COURSE_ID;
+              const items: Array<{
+                href: string;
+                icon: typeof LayoutDashboard;
+                label: string;
+                exact?: boolean;
+              }> = isPka
+                ? [
+                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
+                    { href: `${base}/jadwal`, icon: CalendarRange, label: "Jadwal" },
+                    { href: `${base}/simulasi`, icon: ClipboardList, label: "Simulasi" },
+                    { href: `${base}/material`, icon: FileText, label: "Materi" },
+                    { href: `${base}/laporan`, icon: BarChart3, label: "Laporan Diagnostik" },
+                  ]
+                : [
+                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
+                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
+                    { href: `${base}/material`, icon: FileText, label: "Dokumen" },
+                    { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
+                    { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
+                    { href: `${base}/tryout`, icon: GraduationCap, label: "Tryout" },
+                    ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung" }] : []),
+                    ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan" }] : []),
+                    { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
+                    { href: `${base}/my-results`, icon: History, label: "Hasil Ujian" },
+                  ];
 
-            {showStudyPath && (
-              <NavItem
-                href={`/courses/${activeCourse.id}/path`}
-                icon={Compass}
-                label="Alur Belajar"
-                active={pathname.startsWith(`/courses/${activeCourse.id}/path`)}
-                collapsed={c}
-              />
-            )}
-
-            <NavItem
-              href={`/courses/${activeCourse.id}/material`}
-              icon={FileText}
-              label="Dokumen"
-              active={pathname.startsWith(`/courses/${activeCourse.id}/material`)}
-              collapsed={c}
-            />
-
-            <NavItem
-              href={`/courses/${activeCourse.id}/flashcard`}
-              icon={Brain}
-              label="Flashcard"
-              active={pathname.startsWith(`/courses/${activeCourse.id}/flashcard`)}
-              collapsed={c}
-            />
-
-            <NavItem
-              href={`/courses/${activeCourse.id}/quiz`}
-              icon={ClipboardList}
-              label="Kuis"
-              active={pathname.startsWith(`/courses/${activeCourse.id}/quiz`)}
-              collapsed={c}
-            />
-
-            <NavItem
-              href={`/courses/${activeCourse.id}/tryout`}
-              icon={GraduationCap}
-              label="Tryout"
-              active={pathname.startsWith(`/courses/${activeCourse.id}/tryout`)}
-              collapsed={c}
-            />
-
-            {showLive && (
-              <NavItem
-                href={`/courses/${activeCourse.id}/live`}
-                icon={Play}
-                label="Kuis Langsung"
-                active={pathname.startsWith(`/courses/${activeCourse.id}/live`)}
-                collapsed={c}
-              />
-            )}
-
-            {showMastery && (
-              <NavItem
-                href={`/courses/${activeCourse.id}/mastery`}
-                icon={Target}
-                label="Penguasaan"
-                active={pathname.startsWith(`/courses/${activeCourse.id}/mastery`)}
-                collapsed={c}
-              />
-            )}
-
-            <NavItem
-              href={`/courses/${activeCourse.id}/leaderboard`}
-              icon={Trophy}
-              label="Peringkat"
-              active={pathname.startsWith(`/courses/${activeCourse.id}/leaderboard`)}
-              collapsed={c}
-            />
-
-            <NavItem
-              href={`/courses/${activeCourse.id}/my-results`}
-              icon={History}
-              label="Hasil Ujian"
-              active={pathname.startsWith(`/courses/${activeCourse.id}/my-results`)}
-              collapsed={c}
-            />
+              return items.map((item) => (
+                <NavItem
+                  key={item.href}
+                  href={item.href}
+                  icon={item.icon}
+                  label={item.label}
+                  active={item.exact ? pathname === item.href : pathname.startsWith(item.href)}
+                  collapsed={c}
+                />
+              ));
+            })()}
           </div>
 
           <div className="h-px bg-border/50 my-3 shrink-0 w-full" />

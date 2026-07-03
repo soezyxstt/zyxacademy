@@ -6,7 +6,7 @@ import { ArrowRight, BookOpen, ClipboardList, Sparkles } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { CoursesAmbient } from "@/components/course/courses-ambient";
+import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { Reveal } from "@/components/ui/reveal";
 import { StudentSidebar } from "@/components/student-sidebar";
 import { TutorSidebar } from "@/components/tutor/tutor-sidebar";
@@ -32,7 +32,8 @@ async function CoursesRoleFrame({ children }: { children: ReactNode }) {
 
   if (role === "admin") {
     return (
-      <div className="relative flex min-h-screen flex-row bg-background">
+      <div className="relative flex min-h-screen flex-row bg-background overflow-x-clip">
+        <PageOrnaments variant="about" />
         <AdminSidebar />
         <main
           id="main-content"
@@ -47,8 +48,8 @@ async function CoursesRoleFrame({ children }: { children: ReactNode }) {
 
   if (role === "teacher" && env.FEATURE_TUTOR_ANALYTICS === "1") {
     return (
-      <div className="relative flex min-h-screen flex-row overflow-x-clip bg-landing-hero-shell">
-        <CoursesAmbient />
+      <div className="relative flex min-h-screen flex-row overflow-x-clip bg-background">
+        <PageOrnaments variant="about" />
         <TutorSidebar />
         <main
           id="main-content"
@@ -62,8 +63,8 @@ async function CoursesRoleFrame({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-row overflow-x-clip bg-landing-hero-shell">
-      <CoursesAmbient />
+    <div className="relative flex min-h-screen flex-row overflow-x-clip bg-background">
+      <PageOrnaments variant="about" />
       <StudentSidebar
         showStudyPath={env.FEATURE_STUDY_PATH === "1"}
         showMastery={env.FEATURE_MASTERY === "1"}
@@ -130,7 +131,7 @@ export default async function CoursesPage() {
               return (
                 <Link
                   key={c.id}
-                  href={isPka ? "/pka" : `/courses/${c.id}`}
+                  href={`/courses/${c.id}`}
                   className="group grid gap-4 py-5 transition-colors duration-150 hover:bg-muted/35 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-3"
                 >
                   <div className="min-w-0">
@@ -140,7 +141,7 @@ export default async function CoursesPage() {
                       </span>
                       {isPka ? (
                         <span className="rounded-md bg-brand-secondary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-secondary ring-1 ring-brand-secondary/20">
-                          Gratis
+                          Maba ITB
                         </span>
                       ) : (
                         <span className="text-body-xs font-medium text-muted-foreground">
@@ -163,6 +164,7 @@ export default async function CoursesPage() {
                           <Sparkles className="size-3.5 text-brand-secondary" />
                           Simulasi 3 stage x 3 mapel
                         </span>
+                        <span className="font-semibold text-brand-primary">Mulai belajar</span>
                       </div>
                     ) : (
                       <div className="grid gap-1 text-body-xs text-muted-foreground">

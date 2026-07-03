@@ -151,12 +151,12 @@ export function adminBroadcastPayload(
  *
  * @param title - Admin-supplied announcement title.
  * @param body - Admin-supplied announcement message.
- * @param link - Deep link (e.g. back to /pka).
+ * @param link - Deep link (e.g. back to /courses/tutorial-pka).
  */
 export function pkaAnnouncementPayload(
  title: string,
  body: string,
- link: string = "/pka"
+ link: string = "/courses/tutorial-pka"
 ): NotificationPayload {
  return {
  title,
