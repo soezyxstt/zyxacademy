@@ -12,7 +12,7 @@ import { getMaterial, type CourseMaterial } from "@/lib/student-course-fixtures"
 import { getCourse } from "@/lib/course-utils";
 import { db } from "@/db";
 import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, notLike } from "drizzle-orm";
 import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
 import { buildCourseTermIndex } from "@/lib/term-index";
@@ -94,7 +94,8 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
       .from(websiteMaterials)
       .where(eq(websiteMaterials.id, materialId));
 
-    if (webMatRecord) {
+    // Drafts must never be reachable by direct URL ; fall through to 404.
+    if (webMatRecord && webMatRecord.status === "published") {
       return {
         id: webMatRecord.id,
         courseId,
@@ -140,7 +141,7 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
 
   try {
     const dbMaterial = await db.query.aiMaterialInstances.findFirst({
-      where: eq(aiMaterialInstances.id, materialId),
+      where: and(eq(aiMaterialInstances.id, materialId), notLike(aiMaterialInstances.title, "[DRAF]%")),
       with: {
         sections: {
           orderBy: (s, { asc }) => [asc(s.orderIndex)],

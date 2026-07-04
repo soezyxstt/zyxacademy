@@ -37,3 +37,16 @@ export interface CourseLearningSummary {
   recentActivities: RecentActivityData[];
   studyStatistics: StudyStatisticsData | null;
 }
+
+export interface CourseDailyPlanItem {
+  kind: "flashcards" | "quiz" | "module";
+  label: string;
+  meta: string;
+  href: string;
+}
+
+export interface CourseDailyPlan {
+  items: CourseDailyPlanItem[];
+  streakDays: number;
+  weakestConcept: string | null;
+}

@@ -63,7 +63,7 @@ export function InterventionBanner() {
       ? `/courses/${courseId}/quiz/${payload.quizTemplateIds[0]}`
       : `/courses/${courseId}/quiz`;
 
-  const flashcardHref = `/courses/${courseId}/flashcards`;
+  const flashcardHref = `/courses/${courseId}/flashcard`;
 
   const extraCount = interventions.length - 1;
 

@@ -9,11 +9,14 @@ import {
   learningEvents,
   studentConceptMastery,
   studentChapterMastery,
+  studentChapterProgress,
   chapters,
+  quizTemplates,
+  studentQuizAttempts,
 } from "@/db/schema";
-import { eq, and, lte, or, isNull, inArray, gte, sql, desc, asc } from "drizzle-orm";
+import { eq, and, lte, or, isNull, inArray, gte, sql, desc, asc, notInArray } from "drizzle-orm";
 import { getOrUpdateStreak } from "@/lib/streak-service";
-import { CourseLearningSummary } from "@/types/course-learning";
+import { CourseLearningSummary, CourseDailyPlan, CourseDailyPlanItem } from "@/types/course-learning";
 
 /**
  * Gets the start of today in UTC.
@@ -366,6 +369,144 @@ export async function getWeakestConcepts(studentId: string, courseId: string, li
     )
     .orderBy(asc(studentConceptMastery.masteryScore))
     .limit(limit);
+}
+
+/**
+ * Builds a course-scoped "today" plan for the course overview page.
+ * Deterministic (no AI): due flashcards, a quiz targeted at the weakest concept,
+ * and the next material to read. Mirrors the landing "Rencana Hari Ini" pane.
+ */
+export async function getCourseDailyPlan(
+  studentId: string,
+  courseId: string
+): Promise<CourseDailyPlan> {
+  const items: CourseDailyPlanItem[] = [];
+
+  // 1. Flashcards due today
+  const dueCount = await getCardsDueToday(studentId, courseId);
+  if (dueCount > 0) {
+    items.push({
+      kind: "flashcards",
+      label: "Flashcard jatuh tempo",
+      meta: `${dueCount} kartu`,
+      href: `/courses/${courseId}/flashcard`,
+    });
+  }
+
+  // 2. Weakest concept -> a quiz still worth taking
+  const weakest = await getWeakestConcepts(studentId, courseId, 1);
+  const weakestConcept = weakest[0]?.conceptName ?? null;
+
+  const passedRows = await db
+    .select({ templateId: studentQuizAttempts.templateId })
+    .from(studentQuizAttempts)
+    .where(
+      and(
+        eq(studentQuizAttempts.studentId, studentId),
+        eq(studentQuizAttempts.status, "completed"),
+        gte(studentQuizAttempts.score, 70)
+      )
+    );
+  const passedIds = passedRows.map((r) => r.templateId);
+
+  const quizzes = await db
+    .select({
+      id: quizTemplates.id,
+      title: quizTemplates.title,
+      category: quizTemplates.category,
+      selectionRules: quizTemplates.selectionRules,
+    })
+    .from(quizTemplates)
+    .where(
+      and(
+        eq(quizTemplates.courseId, courseId),
+        passedIds.length > 0 ? notInArray(quizTemplates.id, passedIds) : undefined
+      )
+    );
+
+  if (quizzes.length > 0) {
+    // Prefer a quiz whose selection rules tag the weakest concept, then weekly, then any.
+    const taggedForWeak = weakestConcept
+      ? quizzes.find((q) => {
+          const rules = q.selectionRules as Record<string, unknown> | null;
+          const tags = (rules?.tags as string[] | undefined) ?? [];
+          return tags.includes(weakestConcept);
+        })
+      : undefined;
+    const quiz = taggedForWeak ?? quizzes.find((q) => q.category === "weekly") ?? quizzes[0];
+
+    items.push({
+      kind: "quiz",
+      label: weakestConcept ? `Kuis: ${weakestConcept}` : quiz.title,
+      meta: weakestConcept ? "konsep terlemah" : "latihan",
+      href: `/courses/${courseId}/quiz/${quiz.id}`,
+    });
+  }
+
+  // 3. Next material: continue an open one, else the first unread published material
+  const lastProgress = await getContinueReading(studentId, courseId);
+  if (lastProgress && lastProgress.completionPercent < 90) {
+    const section = lastProgress.lastSectionId
+      ? `?section=${encodeURIComponent(lastProgress.lastSectionId)}`
+      : "";
+    items.push({
+      kind: "module",
+      label: `Lanjutkan: ${lastProgress.title}`,
+      meta: `${lastProgress.completionPercent}% selesai`,
+      href: `/courses/${courseId}/material/${lastProgress.materialId}${section}`,
+    });
+  } else {
+    const completedChapIds = await db
+      .select({ chapterId: studentChapterProgress.chapterId })
+      .from(studentChapterProgress)
+      .where(
+        and(
+          eq(studentChapterProgress.studentId, studentId),
+          eq(studentChapterProgress.completed, true)
+        )
+      );
+    const completedIds = completedChapIds.map((r) => r.chapterId);
+
+    const [nextMaterial] = await db
+      .select({
+        id: websiteMaterials.id,
+        title: websiteMaterials.title,
+      })
+      .from(websiteMaterials)
+      .innerJoin(chapters, eq(websiteMaterials.chapterId, chapters.id))
+      .where(
+        and(
+          eq(websiteMaterials.courseId, courseId),
+          eq(websiteMaterials.status, "published"),
+          eq(chapters.status, "published"),
+          completedIds.length > 0
+            ? notInArray(websiteMaterials.chapterId, completedIds)
+            : undefined
+        )
+      )
+      .orderBy(asc(chapters.orderIndex))
+      .limit(1);
+
+    if (nextMaterial) {
+      items.push({
+        kind: "module",
+        label: `Baca: ${nextMaterial.title}`,
+        meta: "materi",
+        href: `/courses/${courseId}/material/${nextMaterial.id}`,
+      });
+    }
+  }
+
+  // Streak (best-effort; deterministic day-streak service)
+  let streakDays = 0;
+  try {
+    const streakInfo = await getOrUpdateStreak(studentId);
+    streakDays = streakInfo.current;
+  } catch (e) {
+    console.error("Failed to load streak for course daily plan:", e);
+  }
+
+  return { items, streakDays, weakestConcept };
 }
 
 export async function getStrongestConcepts(studentId: string, courseId: string, limit: number = 5) {

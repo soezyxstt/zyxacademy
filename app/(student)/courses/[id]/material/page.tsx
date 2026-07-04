@@ -9,7 +9,7 @@ import { DocumentListClient } from "./document-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { aiMaterialInstances, websiteMaterials, diktats, courseMaterials, chapters } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, notLike } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { storage } from "@/lib/storage";
 
@@ -43,7 +43,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     .where(eq(chapters.courseId, id))
     .orderBy(chapters.orderIndex);
 
-  // Fetch db-backed materials
+  // Fetch db-backed materials (active only ; drafts and archived instances stay hidden)
   const dbMaterials = await db
     .select({
       id: aiMaterialInstances.id,
@@ -51,7 +51,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       chapterIds: aiMaterialInstances.chapterIds,
     })
     .from(aiMaterialInstances)
-    .where(eq(aiMaterialInstances.courseId, id));
+    .where(and(eq(aiMaterialInstances.courseId, id), notLike(aiMaterialInstances.title, "[DRAF]%")));
 
   // Fetch compiled diktats
   const courseDiktats = await db
@@ -65,7 +65,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     .from(diktats)
     .where(and(eq(diktats.courseId, id), eq(diktats.status, "ready")));
 
-  // Fetch website materials (AST articles, 1:1 with chapters)
+  // Fetch website materials (AST articles, 1:1 with chapters) ; published only
   const webMaterials = await db
     .select({
       id: websiteMaterials.id,
@@ -73,7 +73,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       chapterId: websiteMaterials.chapterId,
     })
     .from(websiteMaterials)
-    .where(eq(websiteMaterials.courseId, id));
+    .where(and(eq(websiteMaterials.courseId, id), eq(websiteMaterials.status, "published")));
 
   // Fetch manual PDF materials
   const manualMaterials = await db

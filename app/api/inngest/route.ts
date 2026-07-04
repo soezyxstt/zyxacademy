@@ -10,7 +10,8 @@ import {
   weeklyReflectionCron,
   masterySnapshotCron,
   assessmentIngestWorker,
-  contentQualityAuditCron
+  contentQualityAuditCron,
+  questionGenerationWorker
 } from "@/lib/inngest-functions";
 
 /**
@@ -29,7 +30,8 @@ export const { GET, POST, PUT } = serve({
     weeklyReflectionCron,
     masterySnapshotCron,
     assessmentIngestWorker,
-    contentQualityAuditCron
+    contentQualityAuditCron,
+    questionGenerationWorker
   ],
 });
 

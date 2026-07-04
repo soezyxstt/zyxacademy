@@ -1485,17 +1485,29 @@ export function ASTRenderer({ blocks, className }: { blocks: ASTBlock[]; classNa
 }
 
 export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+  // The compile step (parse + validate + diagnostics + stats) is expensive and
+  // depends only on the source string, so memoize it. Without this it re-runs on
+  // every parent re-render (e.g. every selection/progress tick in the reader).
+  const compiled = React.useMemo(() => {
+    if (typeof content !== "string" || !content) return null;
+    try {
+      return { ok: true as const, result: compileMarkdown(content) };
+    } catch (err) {
+      console.error("Visual compiler failed, fallback to raw rendering:", err);
+      return { ok: false as const, error: err };
+    }
+  }, [content]);
+
   if (!content) return null;
   if (typeof content !== "string") {
     if (!Array.isArray(content)) return null;
     return <ASTRenderer blocks={content} className={className} />;
   }
 
-  let result: ReturnType<typeof compileMarkdown>;
-  try {
-    result = compileMarkdown(content);
-  } catch (err) {
-    console.error("Visual compiler failed, fallback to raw rendering:", err);
+  if (!compiled) return null;
+
+  if (!compiled.ok) {
+    const err = compiled.error;
     return (
       <div className="p-4 bg-status-error/10 border border-status-error/25 text-status-error rounded-xl text-body-sm font-sans">
         <strong>Visual Compiler Error:</strong>
@@ -1504,7 +1516,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     );
   }
 
-  if (result.ast.blocks.length === 0) {
+  if (compiled.result.ast.blocks.length === 0) {
     return (
       <pre className="whitespace-pre-wrap text-body-xs font-mono text-muted-foreground border border-dashed border-border p-4 rounded-xl">
         {content}
@@ -1513,6 +1525,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
   }
 
   return (
-    <ASTRenderer blocks={result.ast.blocks} className={className} />
+    <ASTRenderer blocks={compiled.result.ast.blocks} className={className} />
   );
 }

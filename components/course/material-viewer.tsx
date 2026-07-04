@@ -569,6 +569,10 @@ const getConceptTags = (courseId: string, materialTitle: string) => {
 
 export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, materialLiveEnabled, course }: MaterialViewerProps) {
   const [done, setDone] = useState(material.completed);
+  const doneRef = useRef(material.completed);
+  useEffect(() => {
+    doneRef.current = done;
+  }, [done]);
   const [viewerType, setViewerType] = useState<"custom" | "chrome">("chrome");
   const [showDemoViewer, setShowDemoViewer] = useState(false);
 
@@ -670,9 +674,10 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
   const articleProgress = useScrollProgress(articleScrollRef);
   const progressPercent = useMemo(() => {
     if (material.kind === "article") return articleProgress;
-    if (material.kind === "pdf") return readingProgress;
+    // PDFs and other kinds are binary: completed or not. The mock page counter
+    // (readingProgress) only drives the dev-only integrated viewer's own bar.
     return done ? 100 : 0;
-  }, [material.kind, articleProgress, readingProgress, done]);
+  }, [material.kind, articleProgress, done]);
 
   const { openExplain } = useTutor();
   const [selectedText, setSelectedText] = useState("");
@@ -804,9 +809,11 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
         lastSectionId = articleSections[activeSectionIdx]?.title || `Section ${activeSectionIdx}`;
         lastPosition = { type: "article", section: activeSectionIdx.toString() };
       } else {
-        const total = MOCK_PAGES_META.length || 1;
-        completionPercent = Math.min(100, Math.round((visitedPages.size / total) * 100));
-        lastSectionId = `Page ${page}`;
+        // Real PDFs render in an iframe with no reliable page tracking, so
+        // completion is binary: only "Tandai Selesai" marks it done. Never
+        // derive a percentage from the dev-only mock pages.
+        completionPercent = doneRef.current ? 100 : 0;
+        lastSectionId = `Halaman ${page}`;
         lastPosition = { type: "pdf", page: page };
       }
 

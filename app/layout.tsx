@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Lexend } from "next/font/google";
 import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
 import { extractRouterConfig } from "uploadthing/server";
+import "@uploadthing/react/styles.css";
 import "./globals.css";
 import { uploadRouter } from "@/app/api/uploadthing/core";
 import { AppToaster } from "@/components/app-toaster";
@@ -48,6 +49,9 @@ export default function RootLayout({
 }>) {
  return (
  <html lang="id" suppressHydrationWarning className={`${inter.variable} ${lexend.variable} overflow-x-clip`}>
+ <head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css" crossOrigin="anonymous" />
+ </head>
  <body className="font-sans min-h-screen flex flex-col overflow-x-clip">
   <QueryProvider>
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

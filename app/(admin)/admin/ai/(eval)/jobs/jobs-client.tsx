@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Zap, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -126,6 +126,31 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  const updated = await res.json();
  setLocalJobs((prev) => prev.map((j) => (j.id === jobId ? updated : j)));
  }
+
+ // Auto-poll any in-flight job so status/logs update live without a manual click.
+ const activeIds = localJobs
+ .filter((j) => j.status === "pending" || j.status === "processing")
+ .map((j) => j.id);
+ const activeKey = activeIds.join(",");
+ const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+ useEffect(() => {
+ if (activeIds.length === 0) {
+ if (pollRef.current) {
+ clearInterval(pollRef.current);
+ pollRef.current = null;
+ }
+ return;
+ }
+ const interval = setInterval(() => {
+ activeKey.split(",").forEach((id) => {
+ if (id) refreshJob(id);
+ });
+ }, 3000);
+ pollRef.current = interval;
+ return () => clearInterval(interval);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [activeKey]);
 
  return (
  <div>

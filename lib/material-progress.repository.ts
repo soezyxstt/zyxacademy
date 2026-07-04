@@ -33,8 +33,11 @@ export async function updateMaterialProgress(progress: {
 }) {
   const now = new Date();
   const existing = await getStudentMaterialProgress(progress.studentId, progress.materialId);
-  const completionPercent = Math.max(0, Math.min(100, Math.round(progress.completionPercent)));
-  
+  const rawPercent = Math.max(0, Math.min(100, Math.round(progress.completionPercent)));
+  // Completion never regresses: an in-progress ping must not lower a higher
+  // recorded percentage (e.g. a periodic save after a material was completed).
+  const completionPercent = existing ? Math.max(existing.completionPercent, rawPercent) : rawPercent;
+
   const wasPreviouslyCompleted = existing ? (existing.completionPercent >= 90) : false;
   const isNowCompleted = completionPercent >= 90;
 

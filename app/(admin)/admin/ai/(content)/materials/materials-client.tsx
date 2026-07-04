@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn, cleanSummary } from "@/lib/utils";
@@ -101,6 +102,7 @@ interface Warning {
 type IngestionState = "source" | "analyzing" | "reviewing" | "ready";
 
 export function MaterialInstancesClient({ instances, assessments, webMaterials, courses, chapters, courseMap }: Props) {
+  const router = useRouter();
   const [activeDashboardTab, setActiveDashboardTab] = useState<"learning" | "assessment" | "website">("learning");
   const [documentType, setDocumentType] = useState<"learning" | "assessment">("learning");
   const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
@@ -257,17 +259,6 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
     reader.readAsText(file);
   };
 
-  const handleMockUpload = () => {
-    setForm((f) => ({
-      ...f,
-      rawText: `# Kalkulus 1 - Limit dan Kekontinuan\n\n## Bab 1: Pengantar Limit Intuitif\nLimit menggambarkan perilaku fungsi saat input mendekati suatu nilai. Bayangkan mendekati titik di grafik tanpa harus menyentuhnya.\n\n:::concept {koId="ko-calc-1-limit-def", title="Definisi Limit Intuisi"}\nLimit fungsi $f(x)$ saat $x \\to c$ adalah $L$, ditulis $\\lim_{x \\to c} f(x) = L$, jika nilai $f(x)$ dapat dibuat sedekat mungkin ke $L$ dengan membuat $x$ cukup dekat ke $c$.\n:::\n\n## Bab 2: Teorema Apit Limit\nTeorema Apit digunakan untuk mencari limit fungsi dengan membandingkannya dengan dua fungsi lain yang nilainya sudah diketahui.\n\n:::formula {koId="ko-calc-1-apit-formula"}\nJika $g(x) \\le f(x) \\le h(x)$ untuk semua $x$ dekat $c$ dan $\\lim_{x \\to c} g(x) = \\lim_{x \\to c} h(x) = L$, maka $$\\lim_{x \\to c} f(x) = L$$\n:::\n`,
-      title: form.title || "Kalkulus 1 - Limit dan Kekontinuan",
-      keywords: form.keywords || "limit, teorema apit, kalkulus",
-      learningObjectives:
-        form.learningObjectives || "Memahami limit secara intuitif\nMenerapkan Teorema Apit dalam limit",
-    }));
-    toast.success("Berkas 'materi_kalkulus_limit.md' berhasil diunggah dan diekstraksi!");
-  };
 
   async function handlePublishAssessment() {
     setSubmitting(true);
@@ -294,7 +285,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
       }
       toast.success(data.message || "Dokumen Asesmen berhasil diunggah.");
       setShowForm(false);
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Terjadi kesalahan jaringan.");
     } finally {
@@ -588,7 +579,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
       }
       toast.success(`Draf "${finalTitle}" berhasil disimpan.`);
       setShowForm(false);
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Terjadi kesalahan jaringan.");
     } finally {
@@ -633,7 +624,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
         `Materi "${finalTitle}" berhasil dipublikasikan. ${data.sectionsCreated} seksi dan ${data.chunksCreated} chunk diindeks ke basis pengetahuan.`
       );
       setShowForm(false);
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Terjadi kesalahan jaringan.");
     } finally {
@@ -1055,17 +1046,6 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                           </div>
                         )}
 
-                        {documentType === "learning" && !form.rawText && (
-                          <div className="text-center">
-                            <button
-                              type="button"
-                              className="text-xs text-primary hover:underline font-semibold cursor-pointer"
-                              onClick={handleMockUpload}
-                            >
-                              Atau gunakan berkas contoh Kalkulus 1 (Limit) &rarr;
-                            </button>
-                          </div>
-                        )}
                       </div>
                     )}
 
@@ -1706,6 +1686,7 @@ function InstanceRow({
   instance: Instance;
   courseMap: Record<string, string>;
 }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -1721,7 +1702,7 @@ function InstanceRow({
       if (res.ok) {
         toast.success("Materi berhasil dihapus.");
         setIsDeleteDialogOpen(false);
-        window.location.reload();
+        router.refresh();
       } else {
         const err = await res.json();
         toast.error("Gagal menghapus materi: " + (err.error ?? "Unknown error"));
@@ -1742,7 +1723,7 @@ function InstanceRow({
       if (res.ok) {
         const data = await res.json();
         toast.success(data.message ?? "Proses sinkronisasi ulang dimulai.");
-        window.location.reload();
+        router.refresh();
       } else {
         const err = await res.json();
         toast.error("Gagal sinkronisasi ulang: " + (err.error ?? "Unknown error"));
@@ -1952,6 +1933,7 @@ function AssessmentRow({
   assessment: AssessmentMTD;
   courseMap: Record<string, string>;
 }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -1965,7 +1947,7 @@ function AssessmentRow({
       if (res.ok) {
         toast.success("Dokumen asesmen berhasil dihapus.");
         setIsDeleteDialogOpen(false);
-        window.location.reload();
+        router.refresh();
       } else {
         const err = await res.json();
         toast.error("Gagal menghapus: " + (err.error ?? "Unknown error"));
@@ -2098,6 +2080,7 @@ function WebMaterialRow({
   courseMap: Record<string, string>;
   chapters: Chapter[];
 }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -2115,7 +2098,7 @@ function WebMaterialRow({
       if (res.ok) {
         toast.success("Materi website berhasil dihapus.");
         setIsDeleteDialogOpen(false);
-        window.location.reload();
+        router.refresh();
       } else {
         const err = await res.json();
         toast.error("Gagal menghapus materi website: " + (err.error ?? "Unknown error"));

@@ -82,7 +82,7 @@ async function buildPlan(
       kind: "flashcards",
       title: "Review flashcards",
       count: dueRows.length,
-      href: `/courses/${courseId}/flashcards`,
+      href: `/courses/${courseId}/flashcard`,
     });
   }
 
@@ -384,7 +384,7 @@ export async function buildPlanForConcepts(
       kind: "flashcards",
       title: `Review flashcards (${conceptNames.slice(0, 2).join(", ")}${conceptNames.length > 2 ? "..." : ""})`,
       count: dueRows.length,
-      href: `/courses/${courseId}/flashcards`,
+      href: `/courses/${courseId}/flashcard`,
     });
   }
 

@@ -1,6 +1,6 @@
 import { inngest } from "@/lib/inngest";
 import { db } from "@/db";
-import { vectorSyncQueue, knowledgeObjects, chapters, masterTeachingDocuments, enrollments, studentConceptMasteryHistory, studentConceptMastery, user } from "@/db/schema";
+import { vectorSyncQueue, knowledgeObjects, chapters, masterTeachingDocuments, enrollments, studentConceptMasteryHistory, studentConceptMastery, user, aiGenerationJobs } from "@/db/schema";
 import { computeSnapshotPayload } from "@/lib/cohort-analytics";
 import { recomputeTrends } from "@/lib/mastery-store";
 import { enqueueRecompute, processQueueBatch } from "@/lib/mastery-recompute";
@@ -11,6 +11,7 @@ import { shouldMirrorToVectorize, serializeVzMetadata, vectorizeUpsert } from "@
 import { eq, and, or, lt, gt, sql, inArray } from "drizzle-orm";
 import { generateFlashcardsForChapter } from "@/lib/flashcard-generator";
 import { generateQuestionsForKO, generateQuestionsForKOBatch } from "@/lib/question-generator";
+import { executeGenerationJob } from "@/lib/generation-pipeline";
 import { generateMarkdownForChapter } from "@/lib/material-generator";
 import { saveWebsiteMaterial } from "@/lib/material-storage";
 import { VECTOR_NAMESPACES } from "@/lib/vector-store";
@@ -716,6 +717,38 @@ export const masterySnapshotCron = inngest.createFunction(
       activeStudents: activeStudentIds.length,
       snapshotsWritten: result.snapshotsWritten,
     };
+  }
+);
+
+/**
+ * Event-driven worker for the KO question-generation pipeline.
+ * Replaces the old fire-and-forget promise in generation-pipeline.ts, which
+ * was terminated by Vercel the moment the HTTP response returned.
+ */
+export const questionGenerationWorker = inngest.createFunction(
+  {
+    id: "question-generation-worker",
+    name: "Question Generation Worker",
+    triggers: [{ event: "ai.generation.job.start" }],
+  },
+  async ({ event, step }) => {
+    const { jobId, params } = event.data as {
+      jobId: string;
+      params: Parameters<typeof executeGenerationJob>[2];
+    };
+
+    try {
+      return await executeGenerationJob(step, jobId, params);
+    } catch (err: any) {
+      const errorMessage = err?.message || String(err);
+      await step.run("fail-job", async () => {
+        await db
+          .update(aiGenerationJobs)
+          .set({ status: "failed", errorMessage, updatedAt: new Date() })
+          .where(eq(aiGenerationJobs.id, jobId));
+      });
+      return { success: false, error: errorMessage };
+    }
   }
 );
 

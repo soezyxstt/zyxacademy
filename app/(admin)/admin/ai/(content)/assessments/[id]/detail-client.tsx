@@ -145,12 +145,8 @@ export function AssessmentDetailClient({
         throw new Error("Gagal memicu ingesti ulang.");
       }
 
-      toast.success("Ingesti ulang berhasil dipicu. Silakan tunggu beberapa detik.");
+      toast.success("Ingesti ulang berhasil dipicu. Klasifikasi berjalan di latar belakang.");
       router.refresh();
-      // Polling status changes could be done, but a page reload after delay is simple for MVP
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Gagal memproses re-ingest.");
@@ -176,9 +172,6 @@ export function AssessmentDetailClient({
 
       toast.success(action === "archive" ? "Dokumen berhasil diarsipkan." : "Dokumen berhasil dipulihkan.");
       router.refresh();
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Gagal mengubah status arsip.");

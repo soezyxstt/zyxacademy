@@ -10,9 +10,11 @@ import {
   studentQuizAttempts,
   submissions,
   enrollments,
-  user
+  user,
+  chapters as chaptersTable,
+  studentMaterialProgress,
 } from "@/db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, notLike, inArray } from "drizzle-orm";
 // Fixture imports removed
 import { storage } from "@/lib/storage";
 
@@ -47,14 +49,14 @@ export async function getCourse(id: string) {
 }
 
 export async function getCourseMaterials(courseId: string, studentId?: string) {
-  // AI material instances
+  // AI material instances (active only ; drafts and archived stay hidden)
   const dbMaterials = await db
     .select({
       id: aiMaterialInstances.id,
       title: aiMaterialInstances.title,
     })
     .from(aiMaterialInstances)
-    .where(eq(aiMaterialInstances.courseId, courseId));
+    .where(and(eq(aiMaterialInstances.courseId, courseId), notLike(aiMaterialInstances.title, "[DRAF]%")));
 
   // Website materials (published AST articles, linked 1:1 with chapters)
   const webMaterials = await db
@@ -64,7 +66,7 @@ export async function getCourseMaterials(courseId: string, studentId?: string) {
       chapterId: websiteMaterials.chapterId,
     })
     .from(websiteMaterials)
-    .where(eq(websiteMaterials.courseId, courseId));
+    .where(and(eq(websiteMaterials.courseId, courseId), eq(websiteMaterials.status, "published")));
 
   // Diktats
   const courseDiktats = await db
@@ -130,6 +132,90 @@ export async function getCourseMaterials(courseId: string, studentId?: string) {
   }));
 
   return [...mappedDiktats, ...mappedDb, ...mappedWeb];
+}
+
+export type ChapterOutlineItem = {
+  id: string;
+  title: string;
+  orderIndex: number;
+  materialId: string | null;
+  hasMaterial: boolean;
+  completed: boolean;
+  completionPercent: number;
+};
+
+/**
+ * Published chapters for a course, each linked to its published website
+ * material (if any) and the student's completion state. Powers the course
+ * overview syllabus outline. Returns [] when the course has no published
+ * chapters yet.
+ */
+export async function getCourseChapterOutline(
+  courseId: string,
+  studentId?: string
+): Promise<ChapterOutlineItem[]> {
+  const chapterRows = await db
+    .select({ id: chaptersTable.id, title: chaptersTable.title, orderIndex: chaptersTable.orderIndex })
+    .from(chaptersTable)
+    .where(and(eq(chaptersTable.courseId, courseId), eq(chaptersTable.status, "published")))
+    .orderBy(chaptersTable.orderIndex);
+
+  if (chapterRows.length === 0) return [];
+
+  const webRows = await db
+    .select({ id: websiteMaterials.id, chapterId: websiteMaterials.chapterId })
+    .from(websiteMaterials)
+    .where(and(eq(websiteMaterials.courseId, courseId), eq(websiteMaterials.status, "published")));
+
+  const materialByChapter = new Map(webRows.map((w) => [w.chapterId, w.id]));
+
+  const completedSet = new Set<string>();
+  const percentByMaterial = new Map<string, number>();
+
+  if (studentId && webRows.length > 0) {
+    const matIds = webRows.map((w) => w.id);
+    const progRows = await db
+      .select({
+        materialId: studentMaterialProgress.materialId,
+        completionPercent: studentMaterialProgress.completionPercent,
+      })
+      .from(studentMaterialProgress)
+      .where(
+        and(
+          eq(studentMaterialProgress.studentId, studentId),
+          inArray(studentMaterialProgress.materialId, matIds)
+        )
+      );
+    for (const p of progRows) {
+      percentByMaterial.set(p.materialId, p.completionPercent);
+      if (p.completionPercent >= 90) completedSet.add(p.materialId);
+    }
+
+    const legacyRows = await db
+      .select({ materialId: progressTable.materialId })
+      .from(progressTable)
+      .where(and(eq(progressTable.userId, studentId), eq(progressTable.status, "completed")));
+    for (const l of legacyRows) {
+      if (l.materialId) completedSet.add(l.materialId);
+    }
+  }
+
+  return chapterRows.map((c) => {
+    const materialId = materialByChapter.get(c.id) ?? null;
+    const completed = materialId ? completedSet.has(materialId) : false;
+    const completionPercent = materialId
+      ? percentByMaterial.get(materialId) ?? (completed ? 100 : 0)
+      : 0;
+    return {
+      id: c.id,
+      title: c.title,
+      orderIndex: c.orderIndex,
+      materialId,
+      hasMaterial: Boolean(materialId),
+      completed,
+      completionPercent,
+    };
+  });
 }
 
 export async function getCourseQuizzes(courseId: string) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,7 @@ interface Props {
 }
 
 export function AssessmentsClient({ sources, courses, chapters, courseMap }: Props) {
+  const router = useRouter();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -164,8 +166,7 @@ export function AssessmentsClient({ sources, courses, chapters, courseMap }: Pro
       setForm({ courseId: "", title: "", rawText: "", pdfKey: "" });
       setPdfFileName(null);
       setPdfUploadState("idle");
-      // Reload page to see new entry
-      window.location.reload();
+      router.refresh();
     } catch (err) {
       console.error(err);
       toast.error("Terjadi kesalahan jaringan.");

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Target } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { pageTitle } from "@/lib/site";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
@@ -12,6 +12,8 @@ import { auth } from "@/lib/auth";
 import { eq, desc } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { getWeakestConcepts } from "@/lib/learning-analytics";
+import { env } from "@/lib/env";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -61,6 +63,12 @@ export default async function CourseQuizListPage({ params }: Props) {
         .where(eq(studentQuizAttempts.studentId, studentId))
     : [];
 
+  // Weakest concepts steer targeted practice, mirroring the landing "latihan terarah" promise.
+  const weakConcepts =
+    studentId && isEnrolled && env.FEATURE_MASTERY === "1"
+      ? (await getWeakestConcepts(studentId, id, 3)).map((c) => c.conceptName)
+      : [];
+
   return (
     <CoursePageShell
       title={`Kuis Latihan: ${course.title}`}
@@ -68,6 +76,19 @@ export default async function CourseQuizListPage({ params }: Props) {
       icon={ClipboardList}
     >
       <Reveal>
+        {weakConcepts.length > 0 && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-4">
+            <Target className="mt-0.5 size-5 shrink-0 text-brand-primary" aria-hidden />
+            <div>
+              <p className="text-body-sm font-semibold text-foreground">
+                Fokuskan latihan di konsep terlemahmu
+              </p>
+              <p className="mt-1 text-body-sm text-muted-foreground">
+                {weakConcepts.join(", ")}
+              </p>
+            </div>
+          </div>
+        )}
         <QuizListClient
           courseId={id}
           isEnrolled={isEnrolled}
