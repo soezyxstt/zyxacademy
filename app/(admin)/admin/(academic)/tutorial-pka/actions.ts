@@ -2,12 +2,13 @@
 
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { enrollments, pkaAnnouncements, pkaSchedules, user } from "@/db/schema";
+import { enrollments, pkaAnnouncements, pkaRegistrations, pkaSchedules, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { resend } from "@/lib/resend";
+import { storage } from "@/lib/storage";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { sendToMany } from "@/lib/notifications/send";
 import { pkaAnnouncementPayload } from "@/lib/notifications/templates";
@@ -39,12 +40,23 @@ function requirePkaFeature(): string | null {
   return null;
 }
 
+/**
+ * Broadcast recipients for announcements and schedules. Students who opted out
+ * of announcements on the intake form (receiveAnnouncements = false) are
+ * excluded; legacy enrollments without a registration row default to included.
+ */
 async function getEnrolledStudents() {
   return db
     .select({ userId: enrollments.userId, email: user.email })
     .from(enrollments)
     .innerJoin(user, eq(user.id, enrollments.userId))
-    .where(eq(enrollments.courseId, PKA_COURSE_ID));
+    .leftJoin(pkaRegistrations, eq(pkaRegistrations.userId, enrollments.userId))
+    .where(
+      and(
+        eq(enrollments.courseId, PKA_COURSE_ID),
+        or(isNull(pkaRegistrations.id), eq(pkaRegistrations.receiveAnnouncements, true)),
+      ),
+    );
 }
 
 const FROM_EMAIL = () => env.NEXT_PUBLIC_BRAND_EMAIL || "contact@zyxacademy.com";
@@ -264,10 +276,43 @@ export async function updatePkaScheduleAction(
     if ("error" in parsed) return { success: false, error: parsed.error };
     const { title, meetLink, sessionAt } = parsed;
 
+    const [existing] = await db.select().from(pkaSchedules).where(eq(pkaSchedules.id, scheduleId));
+    if (!existing) return { success: false, error: "Jadwal tidak ditemukan." };
+
     await db
       .update(pkaSchedules)
       .set({ title, meetLink, sessionAt })
       .where(eq(pkaSchedules.id, scheduleId));
+
+    if (meetLink && existing.meetLink !== meetLink && sessionAt.getTime() > Date.now()) {
+      const enrolled = await getEnrolledStudents();
+      const sessionLabel = sessionAt.toLocaleString("id-ID", {
+        dateStyle: "full",
+        timeStyle: "short",
+        timeZone: "Asia/Jakarta",
+      });
+
+      await sendToMany(
+        enrolled.map((e) => e.userId),
+        pkaAnnouncementPayload(
+          `Update Link Meet: ${title}`,
+          `Link Meet telah ditambahkan untuk sesi ${sessionLabel}.`,
+          `/courses/${PKA_COURSE_ID}/jadwal`,
+        ),
+      );
+
+      const emailHtml = scheduleEmailHtml(title, sessionAt, meetLink);
+      await Promise.allSettled(
+        enrolled.map((student) =>
+          resend.emails.send({
+            from: `Zyx Academy <${FROM_EMAIL()}>`,
+            to: student.email,
+            subject: `Update Link Meet PKA - ${title}`,
+            html: emailHtml,
+          }),
+        ),
+      );
+    }
 
     return { success: true };
   } catch (err) {
@@ -312,4 +357,45 @@ export async function getPkaSchedulesAction(): Promise<PkaScheduleRow[]> {
     })
     .from(pkaSchedules)
     .orderBy(desc(pkaSchedules.sessionAt));
+}
+
+// ─── REGISTRATIONS ──────────────────────────────────────────────────────────
+
+export interface PkaRegistrationRow {
+  id: string;
+  fullName: string;
+  faculty: string;
+  email: string;
+  instagramUsername: string;
+  proofUrl: string;
+  receiveAnnouncements: boolean;
+  accountName: string | null;
+  accountEmail: string | null;
+  createdAt: Date;
+}
+
+export async function getPkaRegistrationsAction(): Promise<PkaRegistrationRow[]> {
+  await requireAdmin();
+
+  const rows = await db
+    .select({
+      id: pkaRegistrations.id,
+      fullName: pkaRegistrations.fullName,
+      faculty: pkaRegistrations.faculty,
+      email: pkaRegistrations.email,
+      instagramUsername: pkaRegistrations.instagramUsername,
+      proofKey: pkaRegistrations.proofKey,
+      receiveAnnouncements: pkaRegistrations.receiveAnnouncements,
+      accountName: user.name,
+      accountEmail: user.email,
+      createdAt: pkaRegistrations.createdAt,
+    })
+    .from(pkaRegistrations)
+    .leftJoin(user, eq(user.id, pkaRegistrations.userId))
+    .orderBy(desc(pkaRegistrations.createdAt));
+
+  return rows.map(({ proofKey, ...r }) => ({
+    ...r,
+    proofUrl: storage.getUrl(proofKey),
+  }));
 }

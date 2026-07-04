@@ -7,7 +7,6 @@ import { pageTitle } from "@/lib/site";
 import { PKA_TOTAL_SESSIONS } from "@/lib/pka-config";
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { PkaScheduleCalendar } from "@/components/pka/schedule-calendar";
 import { Reveal } from "@/components/ui/reveal";
 
 export const metadata: Metadata = {
@@ -21,13 +20,6 @@ export default async function PkaJadwalPage() {
   const schedules = await db.select().from(pkaSchedules).orderBy(asc(pkaSchedules.sessionAt));
   const now = new Date();
 
-  const calendarSessions = schedules.map((s) => ({
-    id: s.id,
-    title: s.title,
-    meetLink: s.meetLink,
-    sessionAt: s.sessionAt.toISOString(),
-  }));
-
   return (
     <CoursePageShell
       title="Jadwal Live Tutorial"
@@ -37,23 +29,8 @@ export default async function PkaJadwalPage() {
       <div className="space-y-8">
         <Reveal>
           <section className="space-y-3">
-            <div className="border-b border-border pb-2">
-              <h2 className="font-heading text-h6 font-bold text-foreground">Kalender tutorial</h2>
-              <p className="mt-1 text-body-sm text-muted-foreground">
-                Klik tanggal yang ditandai untuk melihat detail sesi dan link Google Meet.
-              </p>
-            </div>
-            <PkaScheduleCalendar sessions={calendarSessions} />
-          </section>
-        </Reveal>
-
-        <Reveal>
-          <section className="space-y-3">
-          <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
+          <div className="border-b border-border pb-2">
             <h2 className="font-heading text-h6 font-bold text-foreground">Sesi tutorial</h2>
-            <span className="text-body-sm text-muted-foreground">
-              {Math.min(schedules.length, PKA_TOTAL_SESSIONS)} dari {PKA_TOTAL_SESSIONS} sesi dijadwalkan
-            </span>
           </div>
 
           {schedules.length === 0 ? (

@@ -13,8 +13,23 @@ import { sendToUser } from "@/lib/notifications/send";
 import { pkaAnnouncementPayload } from "@/lib/notifications/templates";
 import { pkaAnnouncementEmailHtml, scheduleEmailHtml } from "@/lib/pka-email-template";
 
-/** Idempotent auto-enroll into the Tutorial PKA course. */
-export async function ensurePkaEnrollment(userId: string): Promise<void> {
+/** True when the user already holds a Tutorial PKA enrollment row. */
+export async function isPkaEnrolled(userId: string): Promise<boolean> {
+  const [existing] = await db
+    .select({ id: enrollments.id })
+    .from(enrollments)
+    .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, PKA_COURSE_ID)))
+    .limit(1);
+  return Boolean(existing);
+}
+
+/**
+ * Idempotent enrollment into the Tutorial PKA course. Called from the
+ * registration action once the intake form is submitted (no longer an
+ * auto-enroll on page entry). When `notify` is false the catch-up emails and
+ * push notifications are skipped, honouring the student's announcement opt-out.
+ */
+export async function ensurePkaEnrollment(userId: string, notify = true): Promise<void> {
   const [existing] = await db
     .select({ id: enrollments.id })
     .from(enrollments)
@@ -31,6 +46,8 @@ export async function ensurePkaEnrollment(userId: string): Promise<void> {
     enrolledAt: now,
     expiresAt: getSemesterEndDate(now),
   });
+
+  if (!notify) return;
 
   const futureSchedules = await db
     .select()
@@ -92,17 +109,23 @@ export async function ensurePkaEnrollment(userId: string): Promise<void> {
   }
 }
 
+/** Registration intake route; unenrolled students are sent here to fill the form. */
+export const PKA_REGISTER_PATH = `/courses/${PKA_COURSE_ID}/daftar`;
+
 /**
  * Requires a session on every `/courses/tutorial-pka/*` entry point (not just
  * the course home), since simulation/report links may be shared or deep-linked
- * directly. Redirects to sign-in with `next` pointing back at `currentPath`,
- * then auto-enrolls. Returns the authenticated user id.
+ * directly. Redirects to sign-in with `next` pointing back at `currentPath`.
+ * Enrollment is no longer automatic: students who have not completed the intake
+ * form are redirected to it. Returns the authenticated user id.
  */
 export async function requirePkaSession(currentPath: string): Promise<string> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) {
     redirect(`/sign-in?next=${encodeURIComponent(currentPath)}`);
   }
-  await ensurePkaEnrollment(session.user.id);
+  if (!(await isPkaEnrolled(session.user.id))) {
+    redirect(PKA_REGISTER_PATH);
+  }
   return session.user.id;
 }

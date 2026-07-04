@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Search, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { LogOut, Search, PanelLeftOpen, PanelLeftClose, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
@@ -44,6 +44,7 @@ export function NavItem({
   onClick,
   className,
   collapsed,
+  isChild,
 }: {
   href?: string;
   icon: React.ElementType;
@@ -52,6 +53,7 @@ export function NavItem({
   onClick?: (e: React.MouseEvent) => void;
   className?: string;
   collapsed: boolean;
+  isChild?: boolean;
 }) {
   const baseClass = cn(
     "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors w-full",
@@ -59,12 +61,13 @@ export function NavItem({
       ? "bg-brand-primary/10 text-brand-primary font-semibold"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
     collapsed && "justify-center px-0 size-10 mx-auto",
+    isChild && !collapsed && "pl-11", // Indent children
     className
   );
 
   const content = (
     <>
-      <Icon className="size-5 shrink-0" />
+      <Icon className={cn("shrink-0", isChild ? "size-4" : "size-5")} />
       {!collapsed && <span className="truncate whitespace-nowrap">{label}</span>}
     </>
   );
@@ -83,6 +86,78 @@ export function NavItem({
     <SidebarTooltip label={label} collapsed={collapsed}>
       {inner}
     </SidebarTooltip>
+  );
+}
+
+export function NavCollapsible({
+  icon: Icon,
+  label,
+  active,
+  defaultOpen,
+  collapsed,
+  children,
+}: {
+  icon: React.ElementType;
+  label: string;
+  active?: boolean;
+  defaultOpen?: boolean;
+  collapsed: boolean;
+  children: ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen || active);
+
+  // If sidebar is collapsed, we hide children completely and clicking it could just expand the sidebar.
+  // But wait, the toggle function for sidebar is in SidebarShell, we don't have it here.
+  // We'll just let the user expand sidebar manually, or we can just ignore clicks if collapsed.
+
+  return (
+    <div className="flex flex-col gap-1 w-full">
+      <SidebarTooltip label={label} collapsed={collapsed}>
+        <button
+          type="button"
+          onClick={() => {
+            if (!collapsed) setIsOpen(!isOpen);
+          }}
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors w-full cursor-pointer",
+            active && !isOpen
+              ? "bg-brand-primary/10 text-brand-primary font-semibold"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            collapsed && "justify-center px-0 size-10 mx-auto"
+          )}
+        >
+          <Icon className="size-5 shrink-0" />
+          {!collapsed && (
+            <>
+              <span className="truncate whitespace-nowrap flex-1 text-left">{label}</span>
+              {isOpen ? (
+                <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+              )}
+            </>
+          )}
+        </button>
+      </SidebarTooltip>
+      {!collapsed && isOpen && (
+        <div className="flex flex-col gap-1 w-full animate-in slide-in-from-top-1 fade-in-50 duration-150">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function NavGroup({ label, collapsed }: { label: string; collapsed: boolean }) {
+  if (collapsed) {
+    return <div className="h-4 w-full" />; // Spacer
+  }
+  return (
+    <div className="px-3 pt-4 pb-1">
+      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {label}
+      </p>
+    </div>
   );
 }
 

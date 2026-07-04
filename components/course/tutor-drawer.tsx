@@ -482,6 +482,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  (overview, quiz, material viewer) regardless of sidebar state. */}
  {pathname?.startsWith("/courses/") &&
  !pathname.includes("/live/host") &&
+ !pathname.endsWith("/daftar") &&
  !isOpen && (
  <button
  type="button"

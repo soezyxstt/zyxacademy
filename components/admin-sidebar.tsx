@@ -17,10 +17,14 @@ import {
   Bell,
   Activity,
   BarChart3,
+  Users,
+  Megaphone,
+  Calendar,
+  Link as LinkIcon,
 } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
-import { SidebarShell, NavItem } from "@/components/sidebar-shell";
+import { SidebarShell, NavItem, NavGroup, NavCollapsible } from "@/components/sidebar-shell";
 
 export function AdminSidebar() {
   const { data: session } = useSession();
@@ -44,31 +48,8 @@ export function AdminSidebar() {
     window.location.href = "/";
   };
 
-  const isActiveTab = (tab: "dashboard" | "academic" | "files" | "rag" | "eval" | "ops") => {
-    if (tab === "dashboard") {
-      return pathname === "/admin";
-    }
-    if (tab === "academic") {
-      const paths = ["/admin/courses", "/admin/tokens", "/admin/notifications", "/admin/tutorial-pka"];
-      return paths.some((p) => pathname === p || pathname.startsWith(p + "/"));
-    }
-    if (tab === "files") {
-      return pathname === "/admin/files" || pathname.startsWith("/admin/files/");
-    }
-    if (tab === "rag") {
-      const paths = ["/admin/ai/materials", "/admin/ai/assessments", "/admin/ai/diktats", "/admin/ai/ast-inspector"];
-      return paths.some((p) => pathname === p || pathname.startsWith(p + "/"));
-    }
-    if (tab === "eval") {
-      const paths = ["/admin/ai/questions", "/admin/ai/jobs", "/admin/ai/quizzes", "/admin/ai/distractors"];
-      return paths.some((p) => pathname === p || pathname.startsWith(p + "/"));
-    }
-    if (tab === "ops") {
-      const paths = ["/admin/ops", "/admin/ops/analytics", "/admin/ops/keys"];
-      return paths.some((p) => pathname === p || pathname.startsWith(p + "/"));
-    }
-    return false;
-  };
+  const isExact = (path: string) => pathname === path;
+  const isPrefix = (path: string) => pathname === path || pathname.startsWith(path + "/");
 
   const topSection = (c: boolean) => {
     if (!session?.user) return null;
@@ -175,53 +156,45 @@ export function AdminSidebar() {
             : "px-3 overflow-y-auto sidebar-scroll"
         )}
       >
-        <NavItem
-          href="/admin"
-          icon={LayoutDashboard}
-          label="Panel Admin"
-          active={isActiveTab("dashboard")}
-          collapsed={c}
-        />
+        <NavGroup label="Utama" collapsed={c} />
+        <NavItem href="/admin" icon={LayoutDashboard} label="Panel Admin" active={isExact("/admin")} collapsed={c} />
+        <NavItem href="/admin/files" icon={FolderOpen} label="File Storage" active={isPrefix("/admin/files")} collapsed={c} />
 
-        <NavItem
-          href="/admin/courses"
-          icon={GraduationCap}
-          label="Manajemen Akademik"
-          active={isActiveTab("academic")}
-          collapsed={c}
-        />
+        <NavGroup label="Akademik" collapsed={c} />
+        <NavItem href="/admin/courses" icon={BookText} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} />
+        
+        <NavCollapsible 
+          icon={GraduationCap} 
+          label="Tutorial PKA" 
+          collapsed={c} 
+          active={isPrefix("/admin/tutorial-pka")}
+        >
+          <NavItem href="/admin/tutorial-pka/registrations" icon={Users} label="Pendaftar" active={isPrefix("/admin/tutorial-pka/registrations")} collapsed={c} isChild />
+          <NavItem href="/admin/tutorial-pka/announcements" icon={Megaphone} label="Pengumuman" active={isPrefix("/admin/tutorial-pka/announcements")} collapsed={c} isChild />
+          <NavItem href="/admin/tutorial-pka/schedules" icon={Calendar} label="Jadwal Live" active={isPrefix("/admin/tutorial-pka/schedules")} collapsed={c} isChild />
+        </NavCollapsible>
 
-        <NavItem
-          href="/admin/files"
-          icon={FolderOpen}
-          label="File Storage"
-          active={isActiveTab("files")}
-          collapsed={c}
-        />
+        <NavGroup label="Evaluasi & Kuis" collapsed={c} />
+        <NavItem href="/admin/ai/questions" icon={ClipboardList} label="Bank Soal" active={isPrefix("/admin/ai/questions")} collapsed={c} />
+        <NavItem href="/admin/ai/quizzes" icon={ListChecks} label="Template Kuis" active={isPrefix("/admin/ai/quizzes")} collapsed={c} />
+        <NavItem href="/admin/ai/jobs" icon={Zap} label="Generasi Soal" active={isPrefix("/admin/ai/jobs")} collapsed={c} />
+        <NavItem href="/admin/ai/distractors" icon={BarChart3} label="Analitik Distraktor" active={isPrefix("/admin/ai/distractors")} collapsed={c} />
 
-        <NavItem
-          href="/admin/ai/materials"
-          icon={BookText}
-          label="RAG & Konten AI"
-          active={isActiveTab("rag")}
-          collapsed={c}
-        />
+        <NavGroup label="AI & Konten" collapsed={c} />
+        <NavItem href="/admin/ai/materials" icon={BookText} label="Materi AI" active={isPrefix("/admin/ai/materials")} collapsed={c} />
+        <NavItem href="/admin/ai/assessments" icon={Archive} label="Asesmen Historis" active={isPrefix("/admin/ai/assessments")} collapsed={c} />
+        <NavItem href="/admin/ai/diktats" icon={FolderOpen} label="Kompilasi Diktat" active={isPrefix("/admin/ai/diktats")} collapsed={c} />
+        <NavItem href="/admin/ai/ast-inspector" icon={Activity} label="AST Inspector" active={isPrefix("/admin/ai/ast-inspector")} collapsed={c} />
 
-        <NavItem
-          href="/admin/ai/questions"
-          icon={ClipboardList}
-          label="Evaluasi & Kuis"
-          active={isActiveTab("eval")}
-          collapsed={c}
-        />
+        <NavGroup label="Pengguna & Akses" collapsed={c} />
+        <NavItem href="/admin/tokens" icon={KeyRound} label="Token Aktivasi" active={isPrefix("/admin/tokens")} collapsed={c} />
+        <NavItem href="/admin/notifications" icon={Bell} label="Push Notification" active={isPrefix("/admin/notifications")} collapsed={c} />
 
-        <NavItem
-          href="/admin/ops"
-          icon={Activity}
-          label="Sistem & Ops"
-          active={isActiveTab("ops")}
-          collapsed={c}
-        />
+        <NavGroup label="Sistem & Ops" collapsed={c} />
+        <NavItem href="/admin/ops" icon={Activity} label="Monitor Ops" active={isExact("/admin/ops")} collapsed={c} />
+        <NavItem href="/admin/ops/analytics" icon={BarChart3} label="Analitik AI" active={isPrefix("/admin/ops/analytics")} collapsed={c} />
+        <NavItem href="/admin/ops/keys" icon={KeyRound} label="API Keys" active={isPrefix("/admin/ops/keys")} collapsed={c} />
+        <NavItem href="/admin/ops/short-links" icon={LinkIcon} label="Short Links" active={isPrefix("/admin/ops/short-links")} collapsed={c} />
 
         <div className="flex-1" />
       </nav>

@@ -44,6 +44,12 @@ export default async function DiktatCompilerPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 space-y-6">
+      <div className="mb-6 text-left">
+        <h1 className="font-heading text-h4 font-bold text-foreground">Kompilasi Diktat</h1>
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          Kelola generasi PDF diktat otomatis.
+        </p>
+      </div>
       <DiktatCompilerClient
         initialDiktats={serializedDiktats}
         courses={allCourses}

@@ -32,6 +32,12 @@ export default async function AdminTokensPage() {
 
   return (
     <div className="space-y-6">
+      <div className="mb-6 text-left">
+        <h1 className="font-heading text-h4 font-bold text-foreground">Token Aktivasi</h1>
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          Kelola token pendaftaran siswa untuk kelas.
+        </p>
+      </div>
       <TokensDashboard initialTokens={tokensList} coursesList={coursesList} />
     </div>
   );

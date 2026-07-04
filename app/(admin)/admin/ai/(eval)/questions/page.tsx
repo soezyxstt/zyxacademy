@@ -45,6 +45,12 @@ export default async function AIQuestionsPage() {
 
   return (
     <div className="space-y-6">
+      <div className="mb-6 text-left">
+        <h1 className="font-heading text-h4 font-bold text-foreground">Bank Soal</h1>
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          Kelola bank soal hasil ekstraksi AI dan soal-soal historis.
+        </p>
+      </div>
       <Tabs defaultValue="historical" className="space-y-6">
         <TabsList className="w-full justify-start border-b border-border bg-transparent p-0 rounded-none h-auto">
           <TabsTrigger

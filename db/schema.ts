@@ -2694,6 +2694,30 @@ export const pkaSchedules = sqliteTable("pka_schedules", {
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
 });
 
+// Gated enrollment intake: incoming students fill this form (name, faculty,
+// contact, Instagram follow proof) before an enrollment row is created. The
+// receiveAnnouncements opt-in controls whether they get schedule/announcement
+// broadcasts. One row per user (uniqueIndex on user_id).
+export const pkaRegistrations = sqliteTable(
+  "pka_registrations",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    fullName: text("full_name").notNull(),
+    faculty: text("faculty").notNull(),
+    email: text("email").notNull(),
+    instagramUsername: text("instagram_username").notNull(),
+    proofKey: text("proof_key").notNull(), // R2 storage key for the follow screenshot
+    receiveAnnouncements: integer("receive_announcements", { mode: "boolean" })
+      .default(true)
+      .notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("uq_pka_registrations_user").on(table.userId)]
+);
+
 export const pkaSimulationStagesRelations = relations(pkaSimulationStages, ({ one }) => ({
   quizTemplate: one(quizTemplates, {
     fields: [pkaSimulationStages.quizTemplateId],
@@ -2722,6 +2746,13 @@ export const pkaAnnouncementsRelations = relations(pkaAnnouncements, ({ one }) =
 export const pkaSchedulesRelations = relations(pkaSchedules, ({ one }) => ({
   createdByUser: one(user, {
     fields: [pkaSchedules.createdBy],
+    references: [user.id],
+  }),
+}));
+
+export const pkaRegistrationsRelations = relations(pkaRegistrations, ({ one }) => ({
+  student: one(user, {
+    fields: [pkaRegistrations.userId],
     references: [user.id],
   }),
 }));

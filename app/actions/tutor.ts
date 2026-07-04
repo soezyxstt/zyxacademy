@@ -10,6 +10,10 @@ import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag } from "@/lib/tutor-rag";
 import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
+import { isEnrolled } from "@/lib/course-utils";
+
+/** Thrown when a signed-in user tries to use Zyra for a course they are not enrolled in. */
+const NOT_ENROLLED = "NOT_ENROLLED";
 
 async function requireUser() {
   const h = await headers();
@@ -22,11 +26,44 @@ async function requireUser() {
   return session.user;
 }
 
+/**
+ * Zyra is enrollment-gated: only students enrolled in a course (and admins) may
+ * invoke tutor actions scoped to it. Course-scoped actions resolve the course
+ * either directly (courseId arg) or via the referenced KO/question, then check
+ * enrollment. Keeps AI spend and course content behind the enrollment wall.
+ */
+async function requireCourseAccess(courseId: string | null | undefined) {
+  const user = await requireUser();
+  if ((user as { role?: string | null }).role === "admin") return user;
+  if (!courseId || !(await isEnrolled(user.id, courseId))) {
+    throw new Error(NOT_ENROLLED);
+  }
+  return user;
+}
+
+async function courseIdForKO(koId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ courseId: knowledgeObjects.courseId })
+    .from(knowledgeObjects)
+    .where(eq(knowledgeObjects.id, koId))
+    .limit(1);
+  return row?.courseId ?? null;
+}
+
+async function courseIdForQuestion(questionId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ courseId: aiQuestionBank.courseId })
+    .from(aiQuestionBank)
+    .where(eq(aiQuestionBank.id, questionId))
+    .limit(1);
+  return row?.courseId ?? null;
+}
+
 export async function explainConceptAction(
   koId: string,
   mode: "content" | "analogy" | "simplification"
 ) {
-  const user = await requireUser();
+  const user = await requireCourseAccess(await courseIdForKO(koId));
   return TutorActionService.explainConcept(koId, user.id, mode);
 }
 
@@ -34,7 +71,13 @@ export async function analyzeMistakeAction(
   questionId: string,
   userAnswerOrIndex: string | number
 ) {
-  const user = await requireUser();
+  // Resolve the owning course when the question lives in the AI question bank;
+  // enforce enrollment when known. Questions sourced elsewhere (e.g. fixtures)
+  // cannot be resolved, so they fall back to a plain auth check.
+  const questionCourseId = await courseIdForQuestion(questionId);
+  const user = questionCourseId
+    ? await requireCourseAccess(questionCourseId)
+    : await requireUser();
   let selectedIndex = 0;
 
   if (typeof userAnswerOrIndex === "number") {
@@ -91,7 +134,7 @@ export async function buildStudyPlanAction() {
 }
 
 export async function generatePracticeQuizAction(koId: string, difficulty: string) {
-  await requireUser();
+  await requireCourseAccess(await courseIdForKO(koId));
   return TutorActionService.generatePracticeQuiz(koId, difficulty);
 }
 
@@ -101,7 +144,7 @@ export async function reviewWeakConceptsAction() {
 }
 
 export async function startFlashcardReviewAction(koId: string) {
-  const user = await requireUser();
+  const user = await requireCourseAccess(await courseIdForKO(koId));
   return TutorActionService.startFlashcardReview(koId, user.id);
 }
 
@@ -111,8 +154,8 @@ export async function openMaterialAction(chapterId: string, sectionId: string) {
 }
 
 export async function findKoForMaterialSectionAction(courseId: string, selectedText: string) {
-  await requireUser();
-  
+  await requireCourseAccess(courseId);
+
   if (!selectedText || selectedText.trim().length < 3) {
     return { success: false, error: "Text too short" };
   }
@@ -165,7 +208,7 @@ export async function askTutorRagAction(
   question: string,
   sessionId?: string | null
 ) {
-  const user = await requireUser();
+  const user = await requireCourseAccess(courseId);
 
   const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, question.slice(0, 100));
   const startTime = Date.now();
@@ -192,7 +235,7 @@ export async function saveTutorMessagesAction(
   messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown }>,
   sessionId?: string | null
 ) {
-  const user = await requireUser();
+  const user = await requireCourseAccess(courseId);
 
   if (!messages.length) return { success: true };
 
@@ -240,7 +283,7 @@ export async function loadTutorHistoryAction(
   courseId: string,
   sessionId?: string | null
 ) {
-  const user = await requireUser();
+  const user = await requireCourseAccess(courseId);
 
   const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, "General Chat");
 
@@ -272,7 +315,7 @@ export async function clearTutorHistoryAction(
   courseId: string,
   sessionId?: string | null
 ) {
-  const user = await requireUser();
+  const user = await requireCourseAccess(courseId);
 
   const conditions = [
     eq(tutorChatMessages.studentId, user.id),

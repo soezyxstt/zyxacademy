@@ -51,6 +51,12 @@ export default async function DistractorAnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      <div className="mb-6 text-left">
+        <h1 className="font-heading text-h4 font-bold text-foreground">Analitik Distraktor</h1>
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          Analisis miskonsepsi siswa berdasarkan pilihan ganda yang salah.
+        </p>
+      </div>
       {ordered.length === 0 ? (
         <p className="text-body-sm text-muted-foreground">
           Belum ada data. Statistik terisi setelah siswa mengerjakan kuis dengan fitur ini aktif.

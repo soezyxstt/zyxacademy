@@ -9,11 +9,27 @@ import {
   exams,
   studentQuizAttempts,
   submissions,
+  enrollments,
   user
 } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 // Fixture imports removed
 import { storage } from "@/lib/storage";
+
+/**
+ * True when the user holds an enrollment row for the course. Access control
+ * source of truth for course-scoped features (e.g. the Zyra tutor). Mirrors
+ * `requirePkaSession`, which checks existence rather than expiry.
+ */
+export async function isEnrolled(userId: string, courseId: string): Promise<boolean> {
+  if (!userId || !courseId) return false;
+  const [row] = await db
+    .select({ id: enrollments.id })
+    .from(enrollments)
+    .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)))
+    .limit(1);
+  return Boolean(row);
+}
 
 export async function getCourse(id: string) {
   const dbCourse = await db.query.courses.findFirst({

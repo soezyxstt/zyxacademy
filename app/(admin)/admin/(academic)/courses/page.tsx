@@ -30,6 +30,12 @@ export default async function AdminCoursesPage() {
 
   return (
     <div className="space-y-6">
+      <div className="mb-6 text-left">
+        <h1 className="font-heading text-h4 font-bold text-foreground">Manajemen Mata Kuliah</h1>
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          Kelola data mata kuliah dan silabus kurikulum.
+        </p>
+      </div>
       <Tabs defaultValue="courses" className="space-y-6">
         <TabsList className="bg-muted p-1 rounded-xl w-fit flex gap-1">
           <TabsTrigger value="courses" className="rounded-lg font-semibold flex items-center gap-1.5 px-4 py-2">

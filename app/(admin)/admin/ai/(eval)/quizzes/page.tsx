@@ -31,6 +31,12 @@ export default async function AIQuizzesPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
+      <div className="mb-6 text-left">
+        <h1 className="font-heading text-h4 font-bold text-foreground">Template Kuis</h1>
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          Kelola kuis mandiri dan kurasi soal-soal AI.
+        </p>
+      </div>
       <QuizzesCurationClient
         initialTemplates={templates}
         courses={allCourses}

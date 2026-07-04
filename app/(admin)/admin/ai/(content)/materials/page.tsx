@@ -84,6 +84,12 @@ export default async function AIMaterialsPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 space-y-6">
+      <div className="mb-6 text-left">
+        <h1 className="font-heading text-h4 font-bold text-foreground">Materi AI</h1>
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          Kelola materi kuliah dan referensi RAG untuk AI tutor.
+        </p>
+      </div>
       <MaterialInstancesClient
         instances={formattedInstances}
         assessments={formattedAssessments}

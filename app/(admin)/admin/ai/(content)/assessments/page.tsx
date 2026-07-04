@@ -48,6 +48,12 @@ export default async function AssessmentsPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 space-y-6">
+      <div className="mb-6 text-left">
+        <h1 className="font-heading text-h4 font-bold text-foreground">Asesmen Historis</h1>
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          Kelola pustaka soal ujian sebelumnya untuk diolah oleh AI.
+        </p>
+      </div>
       <AssessmentsClient
         sources={formattedSources}
         courses={allCourses}

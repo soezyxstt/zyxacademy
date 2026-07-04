@@ -239,6 +239,13 @@
       "when": 1783080478077,
       "tag": "0033_bizarre_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1783174036173,
+      "tag": "0034_true_karnak",
+      "breakpoints": true
     }
   ]
 }

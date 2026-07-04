@@ -46,6 +46,12 @@ export default async function GenerationJobsPage() {
 
   return (
     <div className="space-y-6">
+      <div className="mb-6 text-left">
+        <h1 className="font-heading text-h4 font-bold text-foreground">Generasi Soal AI</h1>
+        <p className="mt-1 text-body-sm text-muted-foreground">
+          Pantau dan kelola background jobs untuk pembuatan soal berbasis AI.
+        </p>
+      </div>
       <GenerationJobsClient
         jobs={jobs}
         courses={allCourses}
