@@ -113,6 +113,7 @@ export function CommandMenuProvider({ children }: { children: React.ReactNode })
       .filter((d): d is SiteSearchDocument => d !== undefined);
   }, [docs]);
 
+
   const trimmed = search.trim();
 
   // Search execution using local Fuse.js
@@ -226,6 +227,7 @@ export function CommandMenuProvider({ children }: { children: React.ReactNode })
                     })}
                   </Command.Group>
                 )}
+
 
                 {trimmed && flatResults.length === 0 && (
                   <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">

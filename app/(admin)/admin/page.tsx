@@ -30,8 +30,10 @@ import {
   Bell,
   Activity,
   GraduationCap,
+  LineChart,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
+import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 
 export const dynamic = "force-dynamic";
 
@@ -276,6 +278,16 @@ export default async function AdminHomePage() {
           stat: null,
         },
         {
+          title: "Web Analytics",
+          description:
+            "Pantau wawasan lalu lintas pengunjung Zyx Academy secara live (GA4).",
+          icon: LineChart,
+          iconColor: "text-brand-primary",
+          href: "/admin/ops/web-analytics",
+          label: "Buka web analytics",
+          stat: null,
+        },
+        {
           title: "Ops",
           description:
             "Pantau penggunaan API harian, kuota KV write, serta performa sistem.",
@@ -291,12 +303,17 @@ export default async function AdminHomePage() {
 
   return (
     <Reveal className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-      <h1 className="font-heading text-h4 font-bold text-foreground">
-        Admin Panel
-      </h1>
-      <p className="mt-2 text-body-md text-muted-foreground">
-        Statistik operasional langsung dan pengaturan situs Zyx Academy.
-      </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-h4 font-bold text-foreground">
+            Admin Panel
+          </h1>
+          <p className="mt-2 text-body-md text-muted-foreground">
+            Statistik operasional langsung dan pengaturan situs Zyx Academy.
+          </p>
+        </div>
+        <RefreshAnalyticsButton />
+      </div>
 
       {failedJobs > 0 && (
         <div className="mt-6 flex items-start gap-3 rounded-xl border border-status-error/20 bg-status-error/5 p-4 text-body-sm text-status-error">

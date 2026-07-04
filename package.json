@@ -19,6 +19,7 @@
     "@aws-sdk/client-s3": "^3.1071.0",
     "@aws-sdk/s3-request-presigner": "^3.1071.0",
     "@cloudflare/workers-types": "^4.20260617.1",
+    "@google-analytics/data": "^6.1.0",
     "@google/genai": "^2.8.0",
     "@google/generative-ai": "^0.24.1",
     "@libsql/client": "^0.17.4",

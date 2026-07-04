@@ -2775,3 +2775,13 @@ export const shortLinkRelations = relations(shortLink, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+// ─── Analytics ────────────────────────────────────────────────────────────
+// Synchronization of GA4 popular pages cache
+
+export const pageAnalytics = sqliteTable("page_analytics", {
+  id: text("id").primaryKey(), // The path of the page, e.g., "/courses"
+  title: text("title").notNull(),
+  views: integer("views").default(0).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().notNull(),
+});
