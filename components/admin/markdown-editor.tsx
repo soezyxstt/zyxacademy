@@ -131,7 +131,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
       return;
     }
 
-    const mediaBlock = `\n:::media src="${mediaUrl}"${mediaCaption ? ` caption="${mediaCaption}"` : ""}${mediaSourceLabel ? ` sourceLabel="${mediaSourceLabel}"` : ""}${mediaSourceUrl ? ` sourceUrl="${mediaSourceUrl}"` : ""} \n:::\n`;
+    const mediaBlock = `\n:::media {src="${mediaUrl}"${mediaCaption ? ` caption="${mediaCaption}"` : ""}${mediaSourceLabel ? ` sourceLabel="${mediaSourceLabel}"` : ""}${mediaSourceUrl ? ` sourceUrl="${mediaSourceUrl}"` : ""}} \n:::\n`;
     
     insertTextAtCursor(mediaBlock);
     setIsMediaDialogOpen(false);

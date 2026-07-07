@@ -793,14 +793,40 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
           presenterType = null;
         }
 
-        const match = trimmed.match(/^:::(\w+)(?:\s+\{(.*?)\})?/);
+        const isSingleLineBlock = trimmed.endsWith(":::") && trimmed.length > 3;
+        const lineToParse = isSingleLineBlock ? trimmed.slice(0, -3).trim() : trimmed;
+
+        const match = lineToParse.match(/^:::(\w+)/);
         if (match) {
-          currentBlockType = match[1];
-          currentBlockAttrStr = match[2] || "";
-          currentBlockLines = [];
-          
-          const attrs = parseAttributes(currentBlockAttrStr);
-          currentBlockId = attrs.id || attrs.ref || attrs.koId || `block-${i}-${currentBlockType}`;
+          const blockType = match[1];
+          const rest = lineToParse.slice(3 + blockType.length).trim();
+          let blockAttrStr = "";
+          if (rest.startsWith("{") && rest.endsWith("}")) {
+            blockAttrStr = rest.slice(1, -1).trim();
+          } else {
+            blockAttrStr = rest;
+          }
+
+          const attrs = parseAttributes(blockAttrStr);
+          const blockId = attrs.id || attrs.ref || attrs.koId || `block-${i}-${blockType}`;
+
+          if (isSingleLineBlock) {
+            const block = parseBlockNode(
+              blockType,
+              blockAttrStr,
+              [],
+              blockId
+            );
+            if (block) {
+              block.globalOrderIndex = globalIndex++;
+              blocks.push(block);
+            }
+          } else {
+            currentBlockType = blockType;
+            currentBlockAttrStr = blockAttrStr;
+            currentBlockLines = [];
+            currentBlockId = blockId;
+          }
         }
       }
       continue;
