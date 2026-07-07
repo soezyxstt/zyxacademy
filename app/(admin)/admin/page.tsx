@@ -16,6 +16,7 @@ import {
   userPushTokens,
   aiUsageEvents,
   vectorSyncQueue,
+  blogArticles,
 } from "@/db/schema";
 import { sql, eq, gte, ne } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
@@ -31,6 +32,7 @@ import {
   Activity,
   GraduationCap,
   LineChart,
+  Newspaper,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -58,6 +60,7 @@ export default async function AdminHomePage() {
     quizCountRes,
     notificationStatsRes,
     opsStatsRes,
+    blogCountRes,
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(courses),
 
@@ -111,6 +114,8 @@ export default async function AdminHomePage() {
         .from(aiUsageEvents)
         .where(gte(aiUsageEvents.createdAt, todayStart)),
     ]),
+
+    db.select({ count: sql<number>`count(*)` }).from(blogArticles),
   ]);
 
   const totalCourses = courseCountRes[0]?.count ?? 0;
@@ -158,10 +163,23 @@ export default async function AdminHomePage() {
   const aiRequestsToday = opsStatsRes[1][0]?.count ?? 0;
   const opsStat = `${syncQueueDepth} sync job, ${aiRequestsToday} req`;
 
+  const totalArticles = blogCountRes[0]?.count ?? 0;
+  const blogStat = `${totalArticles} artikel`;
+
   const categories = [
     {
-      name: "Konten Kurikulum",
+      name: "Konten & Publikasi",
       items: [
+        {
+          title: "Kelola Blog",
+          description:
+            "Tulis, edit, dan publikasikan artikel, berita, dan tips untuk Zyx Blog.",
+          icon: Newspaper,
+          iconColor: "text-brand-primary",
+          href: "/admin/blog",
+          label: "Buka manajemen blog",
+          stat: blogStat,
+        },
         {
           title: "Mata Kuliah",
           description:

@@ -21,6 +21,7 @@ import {
   Megaphone,
   Calendar,
   Link as LinkIcon,
+  Newspaper,
 } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -158,6 +159,7 @@ export function AdminSidebar() {
       >
         <NavGroup label="Utama" collapsed={c} />
         <NavItem href="/admin" icon={LayoutDashboard} label="Panel Admin" active={isExact("/admin")} collapsed={c} />
+        <NavItem href="/admin/blog" icon={Newspaper} label="Kelola Blog" active={isPrefix("/admin/blog")} collapsed={c} />
         <NavItem href="/admin/files" icon={FolderOpen} label="File Storage" active={isPrefix("/admin/files")} collapsed={c} />
 
         <NavGroup label="Akademik" collapsed={c} />

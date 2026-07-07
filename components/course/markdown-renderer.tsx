@@ -1172,12 +1172,12 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "h": {
       const hLvl = block.level || 2;
       const headingClasses = {
-        1: "text-h2 font-heading font-bold mt-8 mb-4 border-b border-border/60 pb-2.5 tracking-tight",
-        2: "text-h3 font-heading font-bold mt-7 mb-3 tracking-tight",
-        3: "text-h4 font-heading font-bold mt-6 mb-3 tracking-tight",
-        4: "text-h5 font-heading font-semibold mt-5 mb-2.5 tracking-tight",
-        5: "text-h6 font-heading font-semibold mt-4 mb-2 tracking-tight",
-        6: "text-body-base font-heading font-semibold text-muted-foreground mt-4 mb-2 tracking-tight",
+        1: "text-h4 md:text-h3 font-heading font-bold mt-14 mb-4 border-b border-border/60 pb-2.5 tracking-tight",
+        2: "text-h5 md:text-h4 font-heading font-bold mt-12 mb-4 tracking-tight",
+        3: "text-h6 md:text-h5 font-heading font-bold mt-10 mb-3 tracking-tight",
+        4: "text-body-lg md:text-h6 font-heading font-semibold mt-8 mb-3 tracking-tight",
+        5: "text-body-base md:text-body-lg font-heading font-semibold mt-6 mb-2.5 tracking-tight",
+        6: "text-body-sm md:text-body-base font-heading font-semibold text-muted-foreground mt-6 mb-2 tracking-tight",
       };
       const cls = headingClasses[hLvl as 1 | 2 | 3 | 4 | 5 | 6] || headingClasses[2];
       const HeadingTag = `h${hLvl}` as any;

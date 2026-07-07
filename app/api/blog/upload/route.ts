@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     // Upload to R2 via generic storage interface
     const result = await storage.upload(buffer, key, file.type);
 
-    return NextResponse.json({ url: result.url });
+    return NextResponse.json({ url: storage.getUrl(result.key) });
   } catch (error: any) {
     console.error("Error in blog media upload:", error);
     return NextResponse.json(

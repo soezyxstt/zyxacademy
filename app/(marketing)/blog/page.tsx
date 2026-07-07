@@ -1,8 +1,10 @@
 import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 import { Calendar, Clock, ChevronRight, Sparkles, BookOpen, FileText, CreditCard, Target, ArrowRight } from "lucide-react";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { cn } from "@/lib/utils";
@@ -61,10 +63,19 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   const resolvedParams = await searchParams;
   const activeCategory = resolvedParams.category || null;
 
-  // Fetch all published articles
+  const h = await headers();
+  const session = await auth.api.getSession({ headers: h });
+  const userRole = session?.user?.role;
+  const isAdminOrTeacher = userRole === "admin" || userRole === "teacher";
+
+  const statusFilter = isAdminOrTeacher
+    ? inArray(blogArticles.status, ["published", "draft"])
+    : eq(blogArticles.status, "published");
+
+  // Fetch articles based on user permissions
   const allArticles = await db.query.blogArticles.findMany({
-    where: eq(blogArticles.status, "published"),
-    orderBy: [desc(blogArticles.publishedAt)],
+    where: statusFilter,
+    orderBy: [desc(blogArticles.publishedAt), desc(blogArticles.createdAt)],
     with: { author: true },
   });
 
@@ -184,8 +195,13 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                   <div key={article.id} className="w-[280px] sm:w-[380px] md:w-[460px] shrink-0">
                     <Link
                       href={`/blog/${article.slug}`}
-                      className="group flex flex-col h-full bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow"
+                      className="group flex flex-col h-full bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow relative"
                     >
+                      {article.status === "draft" && (
+                        <Badge className="absolute top-3 left-3 z-20 bg-status-warning text-status-warning-foreground hover:bg-status-warning/90 rounded-md">
+                          DRAFT
+                        </Badge>
+                      )}
                       <div className="aspect-[16/10] w-full bg-muted relative overflow-hidden border-b border-border/50">
                         {article.thumbnailUrl ? (
                           <img
@@ -266,11 +282,17 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
 
 // Reusable Article Card Component
 function ArticleCard({ article }: { article: any }) {
+  const isDraft = article.status === "draft";
   return (
     <Link
       href={`/blog/${article.slug}`}
-      className="group flex flex-col h-full bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow"
+      className="group flex flex-col h-full bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow relative"
     >
+      {isDraft && (
+        <Badge className="absolute top-3 left-3 z-20 bg-status-warning text-status-warning-foreground hover:bg-status-warning/90 rounded-md">
+          DRAFT
+        </Badge>
+      )}
       <div className="aspect-[4/3] w-full bg-muted relative overflow-hidden border-b border-border/50">
         {article.thumbnailUrl ? (
           <img

@@ -93,7 +93,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
             {/* Header info */}
             <div className="space-y-4">
               
-              <h1 className="text-h2 font-heading font-bold text-foreground leading-tight">
+              <h1 className="text-h4 md:text-h3 font-heading font-bold text-foreground leading-tight">
                 {article.title}
               </h1>
               

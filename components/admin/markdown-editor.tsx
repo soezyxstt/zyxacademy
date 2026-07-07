@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ImagePlus, Link as LinkIcon, Loader2 } from "lucide-react";
+import { ImagePlus, Link as LinkIcon, Loader2, Eye, Code } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import { saveArticle } from "@/app/(admin)/admin/blog/actions";
+import { cn } from "@/lib/utils";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 
 interface MarkdownEditorProps {
   initialData?: any;
@@ -33,6 +35,13 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Preview Mode State
+  const [activeMode, setActiveMode] = useState<"write" | "preview">("write");
+
+  // Thumbnail Upload State
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  const thumbnailFileInputRef = useRef<HTMLInputElement>(null);
+
   // Media Dialog State
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
   const [mediaType, setMediaType] = useState<"upload" | "youtube">("upload");
@@ -42,6 +51,31 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
   const [mediaSourceLabel, setMediaSourceLabel] = useState("");
   const [mediaSourceUrl, setMediaSourceUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingThumbnail(true);
+    const form = new FormData();
+    form.append("file", file);
+
+    try {
+      const res = await fetch("/api/blog/upload", {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      
+      setFormData((prev) => ({ ...prev, thumbnailUrl: data.url }));
+      toast.success("Thumbnail berhasil diunggah");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengunggah thumbnail");
+    } finally {
+      setIsUploadingThumbnail(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -146,7 +180,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
-        <h1 className="text-h2 font-heading">{formData.id ? "Sunting Artikel" : "Tulis Artikel Baru"}</h1>
+        <h1 className="text-h4 md:text-h3 font-heading">{formData.id ? "Sunting Artikel" : "Tulis Artikel Baru"}</h1>
         <div className="flex gap-4">
           <Button variant="outline" type="button" onClick={() => router.push("/admin/blog")}>
             Batal
@@ -161,139 +195,216 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="title">Judul Artikel</Label>
+            <Label htmlFor="title">Judul Artikel (Opsional)</Label>
             <Input
               id="title"
               name="title"
               value={formData.title}
               onChange={handleInputChange}
-              placeholder="Contoh: 5 Tips Lulus Cumlaude dari ITB"
-              required
+              placeholder="Dapat dikosongkan jika baris pertama konten menggunakan '# Judul'..."
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="summary">Ringkasan (Summary)</Label>
+            <Label htmlFor="summary">Ringkasan / Summary (Opsional)</Label>
             <Textarea
               id="summary"
               name="summary"
               value={formData.summary}
               onChange={handleInputChange}
-              placeholder="Ringkasan singkat yang akan muncul di kartu artikel..."
+              placeholder="Dapat dikosongkan untuk menghasilkan ringkasan otomatis menggunakan AI..."
               rows={3}
-              required
             />
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="content">Konten (Markdown)</Label>
-              <Dialog open={isMediaDialogOpen} onOpenChange={setIsMediaDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button type="button" variant="outline" size="sm">
-                    <ImagePlus className="w-4 h-4 mr-2" />
-                    Sisipkan Media
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Sisipkan Media (Gambar/Video/YouTube)</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="flex gap-4">
-                      <Button 
-                        type="button" 
-                        variant={mediaType === "upload" ? "default" : "outline"}
-                        onClick={() => setMediaType("upload")}
-                        className="flex-1"
-                      >
-                        Unggah Berkas
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant={mediaType === "youtube" ? "default" : "outline"}
-                        onClick={() => setMediaType("youtube")}
-                        className="flex-1"
-                      >
-                        YouTube Link
-                      </Button>
-                    </div>
-
-                    {mediaType === "upload" ? (
-                      <div className="space-y-2">
-                        <Label>Pilih Berkas</Label>
-                        <Input 
-                          type="file" 
-                          accept="image/*,video/mp4,video/webm" 
-                          ref={fileInputRef}
-                          onChange={handleFileUpload}
-                          disabled={isUploading}
-                        />
-                        {isUploading && <p className="text-sm text-muted-foreground flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin"/> Mengunggah...</p>}
-                        {mediaUrl && (
-                          <div className="mt-2">
-                            <Label>URL Berkas (Otomatis)</Label>
-                            <Input value={mediaUrl} readOnly />
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Label>Tautan YouTube</Label>
-                        <Input 
-                          placeholder="https://youtube.com/watch?v=..." 
-                          value={mediaUrl}
-                          onChange={(e) => setMediaUrl(e.target.value)}
-                        />
-                      </div>
+              <div className="flex items-center gap-3">
+                <Label htmlFor="content">Konten (Markdown)</Label>
+                
+                {/* Toggle Group */}
+                <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode("write")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-body-xs font-medium transition-all duration-150 cursor-pointer",
+                      activeMode === "write"
+                        ? "bg-background text-foreground shadow-sm border border-border/30"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
+                  >
+                    <Code className="w-3.5 h-3.5" />
+                    Tulis
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode("preview")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-body-xs font-medium transition-all duration-150 cursor-pointer",
+                      activeMode === "preview"
+                        ? "bg-background text-foreground shadow-sm border border-border/30"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Pratinjau
+                  </button>
+                </div>
+              </div>
 
-                    <div className="space-y-2">
-                      <Label>Keterangan (Caption) - Opsional</Label>
-                      <Input 
-                        placeholder="Deskripsi media..." 
-                        value={mediaCaption}
-                        onChange={(e) => setMediaCaption(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Label Sumber - Opsional</Label>
-                        <Input 
-                          placeholder="Contoh: ITB Official" 
-                          value={mediaSourceLabel}
-                          onChange={(e) => setMediaSourceLabel(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Tautan Sumber - Opsional</Label>
-                        <Input 
-                          placeholder="https://..." 
-                          value={mediaSourceUrl}
-                          onChange={(e) => setMediaSourceUrl(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <Button type="button" onClick={handleInsertMedia} className="w-full">
-                      Sisipkan ke Editor
+              {activeMode === "write" && (
+                <Dialog open={isMediaDialogOpen} onOpenChange={setIsMediaDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="cursor-pointer">
+                      <ImagePlus className="w-4 h-4 mr-2" />
+                      Sisipkan Media
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Sisipkan Media (Gambar/Video/YouTube)</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="flex gap-4">
+                        <Button 
+                          type="button" 
+                          variant={mediaType === "upload" ? "default" : "outline"}
+                          onClick={() => setMediaType("upload")}
+                          className="flex-1 cursor-pointer"
+                        >
+                          Unggah Berkas
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant={mediaType === "youtube" ? "default" : "outline"}
+                          onClick={() => setMediaType("youtube")}
+                          className="flex-1 cursor-pointer"
+                        >
+                          YouTube Link
+                        </Button>
+                      </div>
+
+                      {mediaType === "upload" ? (
+                        <div className="space-y-2">
+                          <Label>Pilih Berkas</Label>
+                          <Input 
+                            type="file" 
+                            accept="image/*,video/mp4,video/webm" 
+                            ref={fileInputRef}
+                            onChange={handleFileUpload}
+                            disabled={isUploading}
+                          />
+                          {isUploading && <p className="text-sm text-muted-foreground flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin"/> Mengunggah...</p>}
+                          {mediaUrl && (
+                            <div className="mt-2">
+                              <Label>URL Berkas (Otomatis)</Label>
+                              <Input value={mediaUrl} readOnly />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Label>Tautan YouTube</Label>
+                          <Input 
+                            placeholder="https://youtube.com/watch?v=..." 
+                            value={mediaUrl}
+                            onChange={(e) => setMediaUrl(e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <Label>Keterangan (Caption) - Opsional</Label>
+                        <Input 
+                          placeholder="Deskripsi media..." 
+                          value={mediaCaption}
+                          onChange={(e) => setMediaCaption(e.target.value)}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Label Sumber - Opsional</Label>
+                          <Input 
+                            placeholder="Contoh: ITB Official" 
+                            value={mediaSourceLabel}
+                            onChange={(e) => setMediaSourceLabel(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Tautan Sumber - Opsional</Label>
+                          <Input 
+                            placeholder="https://..." 
+                            value={mediaSourceUrl}
+                            onChange={(e) => setMediaSourceUrl(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <Button type="button" onClick={handleInsertMedia} className="w-full cursor-pointer">
+                        Sisipkan ke Editor
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
             
-            <Textarea
-              ref={textareaRef}
-              id="content"
-              name="content"
-              value={formData.content}
-              onChange={handleInputChange}
-              className="font-mono min-h-[500px] resize-y"
-              placeholder="Tulis konten artikel di sini. Gunakan Markdown..."
-              required
-            />
+            {activeMode === "write" ? (
+              <Textarea
+                ref={textareaRef}
+                id="content"
+                name="content"
+                value={formData.content}
+                onChange={handleInputChange}
+                className="font-mono min-h-[500px] resize-y"
+                placeholder="Tulis konten artikel di sini. Gunakan Markdown..."
+                required
+              />
+            ) : (
+              <div className="border border-border rounded-xl bg-card p-6 md:p-8 space-y-6 shadow-sm min-h-[500px] max-w-none">
+                <div className="space-y-4 pb-6 border-b border-border/60">
+                  {formData.thumbnailUrl && (
+                    <div className="aspect-[16/9] w-full rounded-xl overflow-hidden bg-muted border border-border">
+                      <img
+                        src={formData.thumbnailUrl}
+                        alt={formData.title || "Preview thumbnail"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge className="rounded-md capitalize">
+                        {formData.category.replace("_", " ")}
+                      </Badge>
+                      <span className="text-body-sm text-muted-foreground capitalize">
+                        Status: {formData.status}
+                      </span>
+                    </div>
+                    <h2 className="text-h4 md:text-h3 font-heading font-bold text-foreground">
+                      {formData.title || "Judul Artikel (Akan diekstrak dari baris pertama jika kosong)"}
+                    </h2>
+                    {formData.summary && (
+                      <p className="text-body-base text-muted-foreground italic font-sans border-l-2 border-border/80 pl-4 py-1">
+                        {formData.summary}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="font-sans text-foreground leading-relaxed">
+                  {formData.content ? (
+                    <MarkdownRenderer content={formData.content} />
+                  ) : (
+                    <p className="text-muted-foreground italic text-body-sm">
+                      Konten masih kosong. Tulis sesuatu di tab &quot;Tulis&quot; untuk melihat pratinjaunya di sini.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -337,16 +448,47 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
             </div>
 
             <div className="space-y-2">
-              <Label>URL Thumbnail Utama</Label>
-              <Input
-                name="thumbnailUrl"
-                value={formData.thumbnailUrl}
-                onChange={handleInputChange}
-                placeholder="https://..."
-              />
+              <Label>Thumbnail Utama</Label>
+              <div className="flex gap-2">
+                <Input
+                  name="thumbnailUrl"
+                  value={formData.thumbnailUrl}
+                  onChange={handleInputChange}
+                  placeholder="https://... atau unggah file"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isUploadingThumbnail}
+                  onClick={() => thumbnailFileInputRef.current?.click()}
+                  className="cursor-pointer"
+                >
+                  {isUploadingThumbnail ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ImagePlus className="w-4 h-4 mr-2" />
+                  )}
+                  Unggah
+                </Button>
+                <input
+                  type="file"
+                  ref={thumbnailFileInputRef}
+                  onChange={handleThumbnailUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+              </div>
               {formData.thumbnailUrl && (
-                <div className="mt-3 aspect-video rounded-md border border-border overflow-hidden bg-muted">
+                <div className="mt-3 aspect-video rounded-md border border-border overflow-hidden bg-muted relative group">
                   <img src={formData.thumbnailUrl} alt="Thumbnail preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, thumbnailUrl: "" })}
+                    className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-md p-1.5 transition-colors text-body-xs font-semibold cursor-pointer"
+                  >
+                    Hapus
+                  </button>
                 </div>
               )}
             </div>

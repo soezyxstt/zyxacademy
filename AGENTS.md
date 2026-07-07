@@ -170,7 +170,7 @@ Use the **`photo-*`** classes on `<img>` or `next/image` for consistent crop, ra
 
 1. Before writing code, read `db/schema.ts` and `lib/env.ts` for current schema/env state.
 2. DB changes: edit `db/schema.ts` only, then `bun run db:generate` then `bun run db:migrate`. Never hand-edit `drizzle/`. Production push: `bun run db:push:prod`.
-3. After every meaningful edit batch: `bun run lint` and `bun run build`. Both must pass with zero new errors before next step.
+3. After every meaningful edit batch: `bun run lint`. Do not run `bun run build` unless there are breaking changes or it is explicitly requested by the user. Both must pass with zero new errors before the next step when run.
 4. Every feature ships behind the `FEATURE_*` env flag named in `lib/env.ts`. Flag absent or `"0"` = invisible.
 5. Already built, DO NOT REBUILD: KO extraction, RAG sync, question generation, quiz attempts, SM-2 flashcards, diktat PDFs, website materials, admin AI portal.
 6. AI quota is spent only on tutoring, mistake feedback, and content generation. Streaks, recommendations, study paths, reflections, analytics are deterministic SQL + rules.

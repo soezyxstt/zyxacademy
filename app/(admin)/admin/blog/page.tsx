@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Eye } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
@@ -69,11 +69,17 @@ export default async function AdminBlogDashboard() {
                   <td className="px-6 py-4 text-muted-foreground">
                     {article.author?.name || "Anonim"}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 flex items-center gap-2">
                     <Button variant="ghost" size="sm" asChild>
                       <Link href={`/admin/blog/${article.id}/edit`}>
-                        <Edit className="w-4 h-4 mr-2" />
+                        <Edit className="w-4.5 h-4.5 mr-1" />
                         Sunting
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/blog/${article.slug}`} target="_blank">
+                        <Eye className="w-4.5 h-4.5 mr-1" />
+                        Lihat
                       </Link>
                     </Button>
                   </td>
