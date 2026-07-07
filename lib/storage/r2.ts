@@ -38,16 +38,19 @@ export class R2Provider implements StorageProvider {
     // Generate a unique storage key if not provided to avoid collision
     const key = options?.key || `${randomUUID()}-${filename.replace(/\s+/g, "_")}`;
     
-    let body: Buffer;
+    let body: Uint8Array;
     let size: number;
     
-    if (Buffer.isBuffer(file) || file instanceof Uint8Array) {
-      body = Buffer.from(file);
+    if (file instanceof Uint8Array) {
+      body = file;
+      size = file.byteLength;
+    } else if (typeof Buffer !== "undefined" && Buffer.isBuffer(file)) {
+      body = new Uint8Array(file);
       size = file.byteLength;
     } else {
       const f = file as File;
       const arrayBuffer = await f.arrayBuffer();
-      body = Buffer.from(arrayBuffer);
+      body = new Uint8Array(arrayBuffer);
       size = f.size;
     }
 

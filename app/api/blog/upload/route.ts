@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { storage } from "@/lib/storage";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm"];
 const MAX_SIZE_MB = 20;
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const { user } = await assertTutorOrAdmin();
 
@@ -28,12 +28,8 @@ export async function POST(req: NextRequest) {
     const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
     const key = `blog/${timestamp}-${safeName}`;
 
-    // Convert File to ArrayBuffer, then Buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Upload to R2 via generic storage interface
-    const result = await storage.upload(buffer, key, file.type);
+    // Upload to R2 via generic storage interface (pass standard File directly)
+    const result = await storage.upload(file, key, file.type, { key });
 
     return NextResponse.json({ url: storage.getUrl(result.key) });
   } catch (error: any) {
