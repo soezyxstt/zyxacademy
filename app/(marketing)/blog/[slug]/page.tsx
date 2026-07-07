@@ -7,9 +7,10 @@ import { eq, and, ne, desc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, ChevronLeft, User } from "lucide-react";
+import { Calendar, Clock, ChevronLeft, User, Share2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ShareDialog, ShareBlock } from "@/components/blog/share-widget";
 
 const getArticleBySlug = cache(async (slug: string) => {
   return db.query.blogArticles.findFirst({
@@ -112,6 +113,19 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
                   <Clock className="w-4 h-4 mr-2" />
                   {article.readMinutes} min read
                 </div>
+                <div className="flex items-center border-l border-border pl-5">
+                  <ShareDialog
+                    slug={article.slug}
+                    title={article.title}
+                    description={article.summary || ""}
+                    trigger={
+                      <button className="flex items-center hover:text-foreground transition-colors outline-none cursor-pointer">
+                        <Share2 className="w-4 h-4 mr-2" />
+                        Bagikan
+                      </button>
+                    }
+                  />
+                </div>
               </div>
               
               {article.status !== "published" && (
@@ -135,6 +149,15 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
             {/* Content Body */}
             <div className="prose prose-zinc dark:prose-invert max-w-none prose-headings:font-heading pt-4">
               <MarkdownRenderer content={article.content} />
+            </div>
+
+            <div className="pt-8 border-t border-border mt-12">
+              <ShareBlock 
+                slug={article.slug} 
+                title={article.title} 
+                description={article.summary || ""} 
+                inline 
+              />
             </div>
 
           </div>

@@ -2,9 +2,10 @@ import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, Share2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { ShareDialog } from "@/components/blog/share-widget";
 
 export default async function AdminBlogDashboard() {
   const articles = await db.query.blogArticles.findMany({
@@ -82,6 +83,17 @@ export default async function AdminBlogDashboard() {
                         Lihat
                       </Link>
                     </Button>
+                    <ShareDialog
+                      slug={article.slug}
+                      title={article.title}
+                      description={article.summary || ""}
+                      trigger={
+                        <Button variant="ghost" size="sm">
+                          <Share2 className="w-4.5 h-4.5 mr-1" />
+                          Bagikan
+                        </Button>
+                      }
+                    />
                   </td>
                 </tr>
               ))

@@ -3,7 +3,7 @@
   "version": "1.0.alpha",
   "private": true,
   "scripts": {
-    "dev": "NODE_OPTIONS=\"--max-old-space-size=8192\" next dev --turbo",
+    "dev": "next dev --turbo",
     "cs:dev": "rm -rf .next node_modules && bun install && next dev --turbo",
     "build": "NODE_OPTIONS=\"--max-old-space-size=4096\" next build",
     "start": "next start",
