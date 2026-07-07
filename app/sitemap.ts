@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
 import { db } from "@/db";
-import { courses, aiMaterialInstances, diktats, quizTemplates, exams } from "@/db/schema";
+import { courses, aiMaterialInstances, diktats, quizTemplates, exams, blogArticles } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -102,8 +102,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
+  const allBlogArticles = await db
+    .select({ slug: blogArticles.slug, publishedAt: blogArticles.publishedAt })
+    .from(blogArticles)
+    .where(eq(blogArticles.status, "published"));
+
+  const blogEntries = allBlogArticles.map((b) => ({
+    url: `${baseUrl}/blog/${b.slug}`,
+    lastModified: b.publishedAt ? new Date(b.publishedAt) : new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
+  const blogIndexEntry = {
+    url: `${baseUrl}/blog`,
+    lastModified: new Date(),
+    changeFrequency: "daily" as const,
+    priority: 0.9,
+  };
+
   return [
     ...staticEntries,
+    blogIndexEntry,
+    ...blogEntries,
     ...courseEntries,
     ...materialEntries,
     ...diktatEntries,

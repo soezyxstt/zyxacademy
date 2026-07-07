@@ -12,6 +12,7 @@ import {
   Check 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import { Input } from "@/components/ui/input";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
@@ -1214,6 +1215,79 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
           {renderRichText(block.content)}
         </blockquote>
       );
+
+    case "media": {
+      const src = block.metadata?.src || "";
+      const caption = block.metadata?.caption || "";
+      const sourceLabel = block.metadata?.sourceLabel || "";
+      const sourceUrl = block.metadata?.sourceUrl || "";
+
+      const youtubeEmbedUrl = getYoutubeEmbedUrl(src);
+      const isVideo = src.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i);
+
+      let mediaElement: React.ReactNode;
+      if (!src) {
+        return null;
+      }
+
+      if (youtubeEmbedUrl) {
+        mediaElement = (
+          <div className="relative w-full aspect-video rounded-2xl border border-border overflow-hidden shadow-sm max-w-3xl mx-auto">
+            <iframe
+              src={youtubeEmbedUrl}
+              className="absolute inset-0 w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        );
+      } else if (isVideo) {
+        mediaElement = (
+          <video
+            src={src}
+            controls
+            className="mx-auto rounded-2xl border border-border shadow-sm max-w-full h-auto max-h-[450px]"
+          />
+        );
+      } else {
+        mediaElement = (
+          <img
+            src={src}
+            alt={caption || "Blog media"}
+            className="mx-auto rounded-2xl border border-border shadow-sm max-w-full h-auto max-h-[450px]"
+          />
+        );
+      }
+
+      return (
+        <div className="my-6 text-center space-y-2 select-none">
+          {mediaElement}
+          {(caption || sourceLabel) && (
+            <div className="text-body-sm text-muted-foreground font-sans">
+              {caption && <span className="italic">{caption}</span>}
+              {caption && sourceLabel && <span className="mx-2 text-border">|</span>}
+              {sourceLabel && (
+                <span>
+                  Sumber:{" "}
+                  {sourceUrl ? (
+                    <a
+                      href={sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-primary font-semibold hover:underline decoration-brand-primary/40 underline-offset-4"
+                    >
+                      {sourceLabel}
+                    </a>
+                  ) : (
+                    <span className="font-semibold">{sourceLabel}</span>
+                  )}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
 
     case "table": {
       const alignments = block.alignments || [];

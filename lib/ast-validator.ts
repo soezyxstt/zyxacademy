@@ -372,8 +372,22 @@ export const VisualBlockSchema = z.object({
   }
 });
 
+export const MediaBlockSchema = z.object({
+  id: z.string(),
+  type: z.literal("media"),
+  globalOrderIndex: z.number(),
+  metadata: z.object({
+    src: z.string(),
+    caption: z.string().optional(),
+    sourceLabel: z.string().optional(),
+    sourceUrl: z.string().optional(),
+  }).optional(),
+  content: z.any().optional(),
+});
+
 // Union of all possible block schemas
 export const ASTBlockSchema = z.discriminatedUnion("type", [
+  MediaBlockSchema,
   ParagraphBlockSchema,
   HeadingBlockSchema,
   ListBlockSchema,

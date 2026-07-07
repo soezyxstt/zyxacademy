@@ -2785,3 +2785,43 @@ export const pageAnalytics = sqliteTable("page_analytics", {
   views: integer("views").default(0).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().notNull(),
 });
+
+// ─── Blog ───────────────────────────────────────────────────────────────────
+
+export const blogArticles = sqliteTable(
+  "blog_articles",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    summary: text("summary").notNull(),
+    content: text("content").notNull(), 
+    thumbnailUrl: text("thumbnail_url"), 
+    category: text("category")
+      .$type<"tips_kuliah" | "pojok_kampus" | "fakta_seru" | "kegiatan_zyx">()
+      .notNull(),
+    readMinutes: integer("read_minutes").default(5).notNull(),
+    tags: text("tags", { mode: "json" }).$type<string[]>().$defaultFn(() => []),
+    status: text("status").$type<"draft" | "published" | "scheduled">().default("draft").notNull(),
+    publishedAt: integer("published_at", { mode: "timestamp" }),
+    createdById: text("created_by_id")
+      .references(() => user.id, { onDelete: "set null" }), 
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(), 
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_blog_slug").on(table.slug),
+    index("idx_blog_status").on(table.status),
+    index("idx_blog_category").on(table.category),
+  ]
+);
+
+export const blogArticlesRelations = relations(blogArticles, ({ one }) => ({
+  author: one(user, {
+    fields: [blogArticles.createdById],
+    references: [user.id],
+  }),
+}));

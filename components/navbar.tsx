@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Menu, Search, X, Tag, Info, Star } from "lucide-react";
+import { Menu, Search, X, Tag, Info, Star, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
  Sheet,
@@ -23,6 +23,7 @@ const navLinks = [
  { name: "Paket", href: "/plans", icon: Tag },
  { name: "Tentang kami", href: "/about", icon: Info },
  { name: "Testimoni", href: "/testimonial", icon: Star },
+ { name: "Blog", href: "/blog", icon: BookOpen },
 ];
 
 export function Navbar() {

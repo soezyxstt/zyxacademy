@@ -118,6 +118,21 @@ function parseBlockNode(
   const blockId = id;
 
   switch (type) {
+    case "media": {
+      return {
+        id: blockId,
+        type: "media",
+        globalOrderIndex: 0,
+        metadata: {
+          src: attrs.src || "",
+          caption: attrs.caption || "",
+          sourceLabel: attrs.sourceLabel || "",
+          sourceUrl: attrs.sourceUrl || "",
+        },
+        content: {},
+      };
+    }
+
     case "learning_objective": {
       const objectives: string[] = [];
       lines.forEach(l => {

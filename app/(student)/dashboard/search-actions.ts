@@ -11,6 +11,7 @@ import {
   exams,
   quizTemplates,
   enrollments,
+  blogArticles,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq, and, gt, desc } from "drizzle-orm";
@@ -205,6 +206,31 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
       });
     }
 
+    // Fetch published blog articles
+    const dbArticles = await db
+      .select({
+        id: blogArticles.id,
+        title: blogArticles.title,
+        slug: blogArticles.slug,
+        category: blogArticles.category,
+        summary: blogArticles.summary,
+        tags: blogArticles.tags,
+      })
+      .from(blogArticles)
+      .where(eq(blogArticles.status, "published"));
+
+    dbArticles.forEach((article) => {
+      const tagsStr = Array.isArray(article.tags) ? article.tags.join(" ") : "";
+      docs.push({
+        id: `blog:${article.id}`,
+        title: article.title,
+        subtitle: `Blog · ${article.category.replace("_", " ")}`,
+        href: `/blog/${article.slug}`,
+        group: "Materi",
+        keywords: `blog article artikel ${article.category} ${tagsStr}`,
+        content: `${article.title}. ${article.summary}`,
+      });
+    });
 
     return docs;
   } catch (error) {
