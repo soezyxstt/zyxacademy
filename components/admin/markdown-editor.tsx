@@ -65,9 +65,24 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
         method: "POST",
         body: form,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
-      
+
+      const text = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // Not a JSON response
+      }
+
+      if (!res.ok) {
+        const errorMsg = data?.error || text || `Error ${res.status}: ${res.statusText}`;
+        throw new Error(errorMsg);
+      }
+
+      if (!data || !data.url) {
+        throw new Error("Respon dari server tidak valid (format data tidak sesuai).");
+      }
+
       setFormData((prev) => ({ ...prev, thumbnailUrl: data.url }));
       toast.success("Thumbnail berhasil diunggah");
     } catch (err: any) {
@@ -113,9 +128,24 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
         method: "POST",
         body: form,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
-      
+
+      const text = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // Not a JSON response
+      }
+
+      if (!res.ok) {
+        const errorMsg = data?.error || text || `Error ${res.status}: ${res.statusText}`;
+        throw new Error(errorMsg);
+      }
+
+      if (!data || !data.url) {
+        throw new Error("Respon dari server tidak valid (format data tidak sesuai).");
+      }
+
       setMediaUrl(data.url);
       toast.success("Berkas berhasil diunggah");
     } catch (err: any) {
