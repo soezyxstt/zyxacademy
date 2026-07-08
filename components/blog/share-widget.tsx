@@ -56,7 +56,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
       setShareUrl(window.location.href);
     }
     
-    if (typeof navigator !== "undefined" && navigator.share) {
+    if (typeof navigator !== "undefined" && (navigator as any).share) {
       setCanShare(true);
     }
   }, [slug]);
@@ -74,7 +74,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
   };
 
   const handleNativeShare = async () => {
-    if (!navigator.share) return;
+    if (typeof navigator === "undefined" || !(navigator as any).share) return;
     try {
       await navigator.share({
         title: title,
