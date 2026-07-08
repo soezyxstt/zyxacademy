@@ -75,7 +75,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
   return (
     <article className="min-h-screen bg-background pb-20">
       {/* Outer Wrapper with tight top padding (SiteMain handles header space) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+      <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 py-6 md:py-8">
         
         {/* Back Button */}
         <Button variant="ghost" className="mb-6 -ml-4 text-muted-foreground hover:text-foreground" asChild>
@@ -89,7 +89,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           
           {/* Left Column: Article content (consistent width!) */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-9 space-y-6">
             
             {/* Header info */}
             <div className="space-y-4">
@@ -163,7 +163,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
           </div>
 
           {/* Right Column: Sidebar (Sticky on desktop) */}
-          <aside className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
+          <aside className="lg:col-span-3 lg:sticky lg:top-24 space-y-6">
             <h3 className="text-body-lg font-heading font-bold text-foreground mb-4 border-b border-border pb-2">
               Artikel Lainnya
             </h3>

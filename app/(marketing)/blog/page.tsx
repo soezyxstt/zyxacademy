@@ -190,54 +190,10 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           {latestArticles.length > 0 && (
             <section className="space-y-6">
               <h2 className="text-h3 font-heading font-bold text-foreground">Artikel Terbaru</h2>
-              <div className="flex gap-6 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0">
-                {latestArticles.map((article, idx) => (
-                  <div key={article.id} className="w-[280px] sm:w-[380px] md:w-[460px] shrink-0">
-                    <Link
-                      href={`/blog/${article.slug}`}
-                      className="group flex flex-col h-full bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow relative"
-                    >
-                      {article.status === "draft" && (
-                        <Badge className="absolute top-3 left-3 z-20 bg-status-warning text-status-warning-foreground hover:bg-status-warning/90 rounded-md">
-                          DRAFT
-                        </Badge>
-                      )}
-                      <div className="aspect-[16/10] w-full bg-muted relative overflow-hidden border-b border-border/50">
-                        {article.thumbnailUrl ? (
-                          <img
-                            src={article.thumbnailUrl}
-                            alt={article.title}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-muted/80">
-                            <span className="text-muted-foreground font-heading">Zyx Blog</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-6 flex flex-col flex-1 justify-between">
-                        <div className="space-y-2">
-                          <h3 className="text-h4 font-heading font-semibold text-foreground group-hover:text-brand-primary transition-colors line-clamp-2 leading-snug">
-                            {article.title}
-                          </h3>
-                          <p className="text-body-sm text-muted-foreground line-clamp-3">
-                            {article.summary}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4 text-body-sm text-muted-foreground pt-4 mt-4 border-t border-border/50">
-                          {article.publishedAt && (
-                            <span className="flex items-center">
-                              <Calendar className="w-4 h-4 mr-1.5" />
-                              {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(article.publishedAt))}
-                            </span>
-                          )}
-                          <span className="flex items-center">
-                            <Clock className="w-4 h-4 mr-1.5" />
-                            {article.readMinutes} min read
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
+              <div className="flex gap-6 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-x-visible lg:pb-0 lg:px-0">
+                {latestArticles.map((article) => (
+                  <div key={article.id} className="w-[280px] sm:w-[320px] md:w-[360px] shrink-0 lg:w-full">
+                    <ArticleCard article={article} />
                   </div>
                 ))}
               </div>
@@ -265,7 +221,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                 
                 <div className="flex gap-6 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-x-visible lg:pb-0 lg:px-0">
                   {catArticles.map((article) => (
-                    <div key={article.id} className="w-[280px] sm:w-[320px] md:w-[360px] shrink-0 lg:w-auto lg:shrink-0">
+                    <div key={article.id} className="w-[280px] sm:w-[320px] md:w-[360px] shrink-0 lg:w-full">
                       <ArticleCard article={article} />
                     </div>
                   ))}
