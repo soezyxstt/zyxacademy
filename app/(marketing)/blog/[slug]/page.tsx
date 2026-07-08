@@ -90,76 +90,76 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
           
           {/* Left Column: Article content (consistent width!) */}
           <div className="lg:col-span-9 space-y-6">
-            
-            {/* Header info */}
-            <div className="space-y-4">
-              
-              <h1 className="text-h4 md:text-h3 font-heading font-bold text-foreground leading-tight">
-                {article.title}
-              </h1>
-              
-              <div className="flex flex-wrap items-center gap-5 text-body-sm text-muted-foreground">
-                <div className="flex items-center">
-                  <User className="w-4 h-4 mr-2" />
-                  {article.author?.name || "Zyx Academy"}
-                </div>
-                {article.publishedAt && (
+            <div className="container mx-auto px-4 md:px-8 space-y-6">
+              {/* Header info */}
+              <div className="space-y-4">
+                
+                <h1 className="text-h4 md:text-h3 font-heading font-bold text-foreground leading-tight">
+                  {article.title}
+                </h1>
+                
+                <div className="flex flex-wrap items-center gap-5 text-body-sm text-muted-foreground">
                   <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    {new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(article.publishedAt))}
+                    <User className="w-4 h-4 mr-2" />
+                    {article.author?.name || "Zyx Academy"}
+                  </div>
+                  {article.publishedAt && (
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      {new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(article.publishedAt))}
+                    </div>
+                  )}
+                  <div className="flex items-center">
+                    <Clock className="w-4 h-4 mr-2" />
+                    {article.readMinutes} min read
+                  </div>
+                  <div className="flex items-center border-l border-border pl-5">
+                    <ShareDialog
+                      slug={article.slug}
+                      title={article.title}
+                      description={article.summary || ""}
+                      trigger={
+                        <button className="flex items-center hover:text-foreground transition-colors outline-none cursor-pointer">
+                          <Share2 className="w-4 h-4 mr-2" />
+                          Bagikan
+                        </button>
+                      }
+                    />
+                  </div>
+                </div>
+                
+                {article.status !== "published" && (
+                  <div className="inline-block px-3 py-1 bg-status-warning/20 text-status-warning border border-status-warning/40 rounded-md text-sm font-semibold">
+                    Mode Pratinjau (Status: {article.status})
                   </div>
                 )}
-                <div className="flex items-center">
-                  <Clock className="w-4 h-4 mr-2" />
-                  {article.readMinutes} min read
-                </div>
-                <div className="flex items-center border-l border-border pl-5">
-                  <ShareDialog
-                    slug={article.slug}
-                    title={article.title}
-                    description={article.summary || ""}
-                    trigger={
-                      <button className="flex items-center hover:text-foreground transition-colors outline-none cursor-pointer">
-                        <Share2 className="w-4 h-4 mr-2" />
-                        Bagikan
-                      </button>
-                    }
+              </div>
+
+              {/* Thumbnail Image (fluid width inside left column, matching text width!) */}
+              {article.thumbnailUrl && (
+                <div className="aspect-[16/9] w-full rounded-xl overflow-hidden border border-border shadow-sm">
+                  <img 
+                    src={article.thumbnailUrl} 
+                    alt={article.title} 
+                    className="w-full h-full object-cover"
                   />
                 </div>
-              </div>
-              
-              {article.status !== "published" && (
-                <div className="inline-block px-3 py-1 bg-status-warning/20 text-status-warning border border-status-warning/40 rounded-md text-sm font-semibold">
-                  Mode Pratinjau (Status: {article.status})
-                </div>
               )}
-            </div>
 
-            {/* Thumbnail Image (fluid width inside left column, matching text width!) */}
-            {article.thumbnailUrl && (
-              <div className="aspect-[16/9] w-full rounded-xl overflow-hidden border border-border shadow-sm">
-                <img 
-                  src={article.thumbnailUrl} 
-                  alt={article.title} 
-                  className="w-full h-full object-cover"
+              {/* Content Body */}
+              <div className="prose prose-zinc dark:prose-invert max-w-none prose-headings:font-heading pt-4">
+                <MarkdownRenderer content={article.content} />
+              </div>
+
+              <div className="pt-8 border-t border-border mt-12">
+                <ShareBlock 
+                  slug={article.slug} 
+                  title={article.title} 
+                  description={article.summary || ""} 
+                  inline 
                 />
               </div>
-            )}
-
-            {/* Content Body */}
-            <div className="prose prose-zinc dark:prose-invert max-w-none prose-headings:font-heading pt-4">
-              <MarkdownRenderer content={article.content} />
             </div>
-
-            <div className="pt-8 border-t border-border mt-12">
-              <ShareBlock 
-                slug={article.slug} 
-                title={article.title} 
-                description={article.summary || ""} 
-                inline 
-              />
-            </div>
-
           </div>
 
           {/* Right Column: Sidebar (Sticky on desktop) */}
