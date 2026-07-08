@@ -190,9 +190,9 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           {latestArticles.length > 0 && (
             <section className="space-y-6">
               <h2 className="text-h3 font-heading font-bold text-foreground">Artikel Terbaru</h2>
-              <div className="flex gap-6 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-x-visible lg:pb-0 lg:px-0">
+              <div className="grid grid-flow-col auto-cols-[280px] sm:auto-cols-[320px] md:auto-cols-[360px] gap-6 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid-flow-row lg:grid-cols-3 lg:overflow-x-visible lg:pb-0 lg:px-0">
                 {latestArticles.map((article) => (
-                  <div key={article.id} className="w-[280px] sm:w-[320px] md:w-[360px] shrink-0 lg:w-full">
+                  <div key={article.id} className="w-full">
                     <ArticleCard article={article} />
                   </div>
                 ))}
@@ -219,9 +219,9 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                   </Link>
                 </div>
                 
-                <div className="flex gap-6 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-x-visible lg:pb-0 lg:px-0">
+                <div className="grid grid-flow-col auto-cols-[280px] sm:auto-cols-[320px] md:auto-cols-[360px] gap-6 overflow-x-auto pb-4 custom-scroll -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid-flow-row lg:grid-cols-3 lg:overflow-x-visible lg:pb-0 lg:px-0">
                   {catArticles.map((article) => (
-                    <div key={article.id} className="w-[280px] sm:w-[320px] md:w-[360px] shrink-0 lg:w-full">
+                    <div key={article.id} className="w-full">
                       <ArticleCard article={article} />
                     </div>
                   ))}
@@ -254,10 +254,10 @@ function ArticleCard({ article }: { article: any }) {
           <img
             src={article.thumbnailUrl}
             alt={article.title}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted/80">
+          <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-muted/80">
             <span className="text-muted-foreground font-heading">Zyx Blog</span>
           </div>
         )}
