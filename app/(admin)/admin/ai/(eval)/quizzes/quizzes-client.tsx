@@ -10,15 +10,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 
 type TemplateType = {
- id: string;
- courseId: string;
- title: string;
- category: "daily" | "weekly" | "chapter" | "premium";
- visibility: "free" | "paid";
- timeLimitSeconds: number | null;
- maxAttempts: number | null;
- selectionRules: unknown;
- createdAt: Date;
+  id: string;
+  courseId: string;
+  title: string;
+  category: "daily" | "weekly" | "chapter" | "premium";
+  visibility: "free" | "paid";
+  timeLimitSeconds: number | null;
+  maxAttempts: number | null;
+  openAt?: Date | null;
+  closeAt?: Date | null;
+  selectionRules: unknown;
+  createdAt: Date;
+  updatedAt?: Date;
 };
 
 interface Course {
