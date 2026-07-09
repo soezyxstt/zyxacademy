@@ -894,7 +894,7 @@ function QuestionRow({
 
           {expanded ? (
             <div className="mt-3 border-l-2 border-brand-primary/40 pl-3">
-              <MarkdownRenderer content={question.prompt} className="text-body-sm text-foreground font-medium" />
+              <MarkdownRenderer content={question.prompt} className="text-body-sm text-foreground font-medium space-y-3" />
             </div>
           ) : (
             <p className="text-body-sm text-foreground mt-2 line-clamp-2 font-medium leading-relaxed font-sans">
@@ -946,7 +946,7 @@ function QuestionRow({
                 )}
               >
                 <span className="font-bold font-sans text-muted-foreground/80 shrink-0">{String.fromCharCode(65 + i)}.</span>
-                <MarkdownRenderer content={opt} className="flex-1 text-body-sm leading-relaxed" />
+                <MarkdownRenderer content={opt} className="flex-1 text-body-sm leading-relaxed space-y-3" />
               </div>
             ))}
           </div>
@@ -955,7 +955,7 @@ function QuestionRow({
           {question.explanation && (
             <div className="rounded-xl bg-muted/20 p-4 border border-border/60">
               <p className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Penjelasan Solusi</p>
-              <MarkdownRenderer content={question.explanation} className="text-body-sm text-foreground/80 leading-relaxed font-sans" />
+              <MarkdownRenderer content={question.explanation} className="text-body-sm text-foreground/80 leading-relaxed font-sans space-y-3" />
             </div>
           )}
 

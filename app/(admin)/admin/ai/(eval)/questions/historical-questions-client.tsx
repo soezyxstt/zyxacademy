@@ -157,7 +157,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
                       <td className="text-body-sm text-foreground max-w-md font-medium px-4 py-3 align-middle">
                         {isExpanded ? (
                           <div className="bg-background/40 p-3 rounded border border-border/50">
-                            <MarkdownRenderer content={q.questionMarkdown} />
+                            <MarkdownRenderer content={q.questionMarkdown} className="space-y-3" />
                           </div>
                         ) : (
                           <span className="line-clamp-2">{textExcerpt}</span>
@@ -206,7 +206,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
                               Solusi / Kunci Jawaban
                             </h4>
                             <div className="bg-status-success/5 p-4 rounded-lg border border-status-success/10 text-body-sm text-foreground">
-                              <MarkdownRenderer content={q.answerMarkdown} />
+                              <MarkdownRenderer content={q.answerMarkdown} className="space-y-3" />
                             </div>
                           </div>
                         </td>

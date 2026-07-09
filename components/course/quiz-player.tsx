@@ -260,7 +260,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             </span>
             <div className="space-y-1 flex-1 leading-relaxed text-foreground">
               <div className="font-heading text-body-base font-bold leading-normal md:text-body-lg">
-                <MarkdownRenderer content={q.prompt} />
+                <MarkdownRenderer content={q.prompt} className="space-y-3" />
               </div>
             </div>
           </div>
@@ -283,7 +283,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                       {String.fromCharCode(65 + i)}
                     </span>
                     <div className="text-foreground leading-normal flex-1">
-                      <MarkdownRenderer content={opt} />
+                      <MarkdownRenderer content={opt} className="space-y-3" />
                     </div>
                   </button>
                 </li>

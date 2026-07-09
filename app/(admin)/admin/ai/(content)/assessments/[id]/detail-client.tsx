@@ -391,7 +391,7 @@ export function AssessmentDetailClient({
                   <div>
                     <h4 className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Pertanyaan</h4>
                     <div className="bg-background/40 p-4 rounded-lg border border-border/50">
-                      <MarkdownRenderer content={q.questionMarkdown} />
+                      <MarkdownRenderer content={q.questionMarkdown} className="space-y-3" />
                     </div>
                   </div>
 
@@ -416,7 +416,7 @@ export function AssessmentDetailClient({
                         Solusi / Pembahasan
                       </h4>
                       <div className="bg-status-success/5 p-4 rounded-lg border border-status-success/10 text-body-sm text-foreground">
-                        <MarkdownRenderer content={q.answerMarkdown} />
+                        <MarkdownRenderer content={q.answerMarkdown} className="space-y-3" />
                       </div>
                     </div>
                   )}

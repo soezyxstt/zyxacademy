@@ -356,7 +356,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                               )}
                             </div>
                             <div className="mt-2 text-body-base leading-relaxed text-foreground/90 font-medium">
-                              <MarkdownRenderer content={q.prompt} />
+                              <MarkdownRenderer content={q.prompt} className="space-y-3" />
                             </div>
                           </div>
                         </div>
@@ -395,7 +395,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                                 {String.fromCharCode(65 + i)}
                               </span>
                               <div className="flex-1">
-                                <MarkdownRenderer content={opt} />
+                                <MarkdownRenderer content={opt} className="space-y-3" />
                               </div>
                             </li>
                           );
@@ -407,7 +407,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                         <div className="mt-4 ml-9 border-t border-border/50 pt-3">
                           <span className="block text-body-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Pembahasan & Penjelasan:</span>
                           <div className="text-body-sm text-foreground/80 leading-relaxed bg-muted/40 rounded-lg p-3 border border-border/30">
-                            <MarkdownRenderer content={q.explanation} />
+                            <MarkdownRenderer content={q.explanation} className="space-y-3" />
                           </div>
                         </div>
                       )}

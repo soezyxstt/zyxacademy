@@ -137,7 +137,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                       <div className="flex items-start gap-2.5">
                         <span className={quizOptionLetterClasses(isCorrect ? "correct" : "wrong")}>{idx + 1}</span>
                         <div className="flex-1 text-body-base font-medium text-foreground">
-                          <MarkdownRenderer content={q.prompt} />
+                          <MarkdownRenderer content={q.prompt} className="space-y-3" />
                         </div>
                       </div>
                       <ul className="mt-3 space-y-2 pl-9">
@@ -148,14 +148,14 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                           return (
                             <li key={i} className={quizOptionClasses(state)}>
                               <span className={quizOptionLetterClasses(state)}>{String.fromCharCode(65 + i)}</span>
-                              <MarkdownRenderer content={opt} />
+                              <MarkdownRenderer content={opt} className="space-y-3" />
                             </li>
                           );
                         })}
                       </ul>
                       {q.explanation && (
                         <div className="mt-3 ml-9 rounded-lg border border-border/60 bg-muted/30 p-3 text-body-sm text-foreground/80">
-                          <MarkdownRenderer content={q.explanation} />
+                          <MarkdownRenderer content={q.explanation} className="space-y-3" />
                         </div>
                       )}
                       {!isCorrect && (
