@@ -18,14 +18,12 @@ import {
  bookings,
  userPushTokens,
 } from "@/db/schema";
-import { eq, lte, gte, and, sql, inArray } from "drizzle-orm";
+import { eq, lte, inArray } from "drizzle-orm";
 import {
  sendFlashcardReminder,
  sendTutorReminder,
  sendQuizPublished,
 } from "./send";
-import type { SendResult } from "./types";
-
 // ─── Job result envelope ──────────────────────────────────────────────────────
 
 export interface JobSummary {
@@ -173,10 +171,7 @@ export async function sendUpcomingTutorReminders(): Promise<JobSummary> {
  // Determine tomorrow's day name to find upcoming sessions
  const tomorrow = new Date();
  tomorrow.setDate(tomorrow.getDate() + 1);
- const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
- const tomorrowName = dayNames[tomorrow.getDay()];
-
- // Fetch all bookings for that day
+  // Fetch all bookings for that day
  const upcomingBookings = await db
  .select({ id: bookings.id })
  .from(bookings)

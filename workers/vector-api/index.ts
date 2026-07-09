@@ -65,78 +65,80 @@ function json(body: unknown, status = 200): Response {
  });
 }
 
-export default {
- async fetch(request: Request, env: Env): Promise<Response> {
- // Shared-secret auth
- const auth = request.headers.get('Authorization');
- if (!auth || auth !== `Bearer ${env.SHARED_SECRET}`) {
- return new Response('Unauthorized', { status: 401 });
- }
+const worker = {
+	async fetch(request: Request, env: Env): Promise<Response> {
+	// Shared-secret auth
+	const auth = request.headers.get('Authorization');
+	if (!auth || auth !== `Bearer ${env.SHARED_SECRET}`) {
+		return new Response('Unauthorized', { status: 401 });
+	}
 
- if (request.method !== 'POST') {
- return new Response('Method not allowed', { status: 405 });
- }
+	if (request.method !== 'POST') {
+		return new Response('Method not allowed', { status: 405 });
+	}
 
- const { pathname } = new URL(request.url);
+	const { pathname } = new URL(request.url);
 
- let body: unknown;
- try {
- body = await request.json();
- } catch {
- return new Response('Invalid JSON body', { status: 400 });
- }
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return new Response('Invalid JSON body', { status: 400 });
+	}
 
- try {
- // POST /upsert
- if (pathname === '/upsert') {
- const { vectors } = body as { vectors: VzVector[] };
- if (!Array.isArray(vectors) || vectors.length === 0) {
- return new Response('vectors must be a non-empty array', { status: 400 });
- }
- const result = await env.VECTORIZE.upsert(vectors);
- return json({ ok: true, count: result.count });
- }
+	try {
+		// POST /upsert
+		if (pathname === '/upsert') {
+		const { vectors } = body as { vectors: VzVector[] };
+		if (!Array.isArray(vectors) || vectors.length === 0) {
+			return new Response('vectors must be a non-empty array', { status: 400 });
+		}
+		const result = await env.VECTORIZE.upsert(vectors);
+		return json({ ok: true, count: result.count });
+		}
 
- // POST /query
- if (pathname === '/query') {
- const {
- vector,
- topK = 10,
- namespace,
- filter,
- returnMetadata = 'all',
- } = body as {
- vector: number[];
- topK?: number;
- namespace?: string;
- filter?: Record<string, unknown>;
- returnMetadata?: 'all' | 'none' | 'indexed';
- };
- if (!Array.isArray(vector) || vector.length === 0) {
- return new Response('vector must be a non-empty number[]', { status: 400 });
- }
- const opts: VzQueryOptions = { topK, returnMetadata };
- if (namespace !== undefined) opts.namespace = namespace;
- if (filter !== undefined) opts.filter = filter;
- const result = await env.VECTORIZE.query(vector, opts);
- return json(result);
- }
+		// POST /query
+		if (pathname === '/query') {
+		const {
+			vector,
+			topK = 10,
+			namespace,
+			filter,
+			returnMetadata = 'all',
+		} = body as {
+			vector: number[];
+			topK?: number;
+			namespace?: string;
+			filter?: Record<string, unknown>;
+			returnMetadata?: 'all' | 'none' | 'indexed';
+		};
+		if (!Array.isArray(vector) || vector.length === 0) {
+			return new Response('vector must be a non-empty number[]', { status: 400 });
+		}
+		const opts: VzQueryOptions = { topK, returnMetadata };
+		if (namespace !== undefined) opts.namespace = namespace;
+		if (filter !== undefined) opts.filter = filter;
+		const result = await env.VECTORIZE.query(vector, opts);
+		return json(result);
+		}
 
- // POST /delete
- if (pathname === '/delete') {
- const { ids } = body as { ids: string[] };
- if (!Array.isArray(ids) || ids.length === 0) {
- return new Response('ids must be a non-empty string[]', { status: 400 });
- }
- const result = await env.VECTORIZE.deleteByIds(ids);
- return json({ ok: true, count: result.count });
- }
+		// POST /delete
+		if (pathname === '/delete') {
+		const { ids } = body as { ids: string[] };
+		if (!Array.isArray(ids) || ids.length === 0) {
+			return new Response('ids must be a non-empty string[]', { status: 400 });
+		}
+		const result = await env.VECTORIZE.deleteByIds(ids);
+		return json({ ok: true, count: result.count });
+		}
 
- return new Response('Not found', { status: 404 });
- } catch (err: unknown) {
- const message = err instanceof Error ? err.message : String(err);
- console.error(`[vector-api] ${pathname} error:`, message);
- return new Response(`Internal error: ${message}`, { status: 500 });
- }
- },
+		return new Response('Not found', { status: 404 });
+	} catch (err: unknown) {
+		const message = err instanceof Error ? err.message : String(err);
+		console.error(`[vector-api] ${pathname} error:`, message);
+		return new Response(`Internal error: ${message}`, { status: 500 });
+	}
+	},
 };
+
+export default worker;

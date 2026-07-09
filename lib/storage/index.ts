@@ -1,5 +1,3 @@
-import { env } from "@/lib/env";
-
 export interface StorageProvider {
   upload(
     file: File | Buffer | Uint8Array,

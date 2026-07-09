@@ -39,18 +39,6 @@ import {
 
 // --- Types ---
 
-interface Block {
-  type: "p" | "h" | "code" | "list" | "blockquote" | "alert" | "table" | "hr";
-  level?: number;
-  language?: string;
-  items?: { text: string; ordered: boolean }[];
-  rows?: string[][];
-  headers?: string[];
-  alignments?: ("left" | "center" | "right")[];
-  content?: string;
-  alertType?: "note" | "tip" | "important" | "warning" | "caution";
-}
-
 interface MarkdownRendererProps {
   content: string | ASTBlock[];
   className?: string;
@@ -161,6 +149,7 @@ function parseInline(text: string): ReactNode[] {
       const src = imgMatch[2];
       result.push(
         <span key={`img-${index}`} className="block my-6 text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt}
@@ -254,249 +243,6 @@ export function renderRichText(content: any): React.ReactNode {
     return parseInline(content);
   }
   return content;
-}
-
-// --- Block-Level Parser ---
-
-function parseMarkdown(text: string): Block[] {
-  const lines = text.split("\n");
-  const blocks: Block[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // 1. Code Block
-    if (trimmed.startsWith("```")) {
-      const language = trimmed.slice(3).trim();
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].trim().startsWith("```")) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      i++; // skip closing ```
-      blocks.push({
-        type: "code",
-        language: language || "plaintext",
-        content: codeLines.join("\n"),
-      });
-      continue;
-    }
-
-    // 2. Horizontal Rule
-    if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
-      blocks.push({ type: "hr" });
-      i++;
-      continue;
-    }
-
-    // 3. Headings
-    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
-    if (headingMatch) {
-      blocks.push({
-        type: "h",
-        level: headingMatch[1].length,
-        content: headingMatch[2].trim(),
-      });
-      i++;
-      continue;
-    }
-
-    // 4. Blockquote or Alert
-    if (trimmed.startsWith(">")) {
-      const quoteLines: string[] = [];
-      let isAlert = false;
-      let alertType: "note" | "tip" | "important" | "warning" | "caution" = "note";
-
-      const alertMatch = trimmed.match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i);
-      if (alertMatch) {
-        isAlert = true;
-        alertType = alertMatch[1].toLowerCase() as any;
-        i++;
-      }
-
-      while (i < lines.length && lines[i].trim().startsWith(">")) {
-        let contentLine = lines[i].trim().slice(1);
-        if (contentLine.startsWith(" ")) {
-          contentLine = contentLine.slice(1);
-        }
-        quoteLines.push(contentLine);
-        i++;
-      }
-
-      const quoteContent = quoteLines.join("\n").trim();
-      if (isAlert) {
-        blocks.push({
-          type: "alert",
-          alertType,
-          content: quoteContent,
-        });
-      } else {
-        blocks.push({
-          type: "blockquote",
-          content: quoteContent,
-        });
-      }
-      continue;
-    }
-
-    // 5. Lists
-    const listPattern = /^(\s*)([-*+]|\d+\.)\s+(.*)$/;
-    if (listPattern.test(line)) {
-      const items: { text: string; ordered: boolean }[] = [];
-      let inMath = false;
-      
-      while (i < lines.length) {
-        const currentLine = lines[i];
-        const currentTrimmed = currentLine.trim();
-
-        // Track multiline math block
-        const mathBlocksCount = (currentLine.match(/\$\$/g) || []).length;
-        if (mathBlocksCount % 2 === 1) {
-          inMath = !inMath;
-        }
-
-        // Check if the current line starts a new list item
-        const listMatch = currentLine.match(listPattern);
-        if (listMatch && !inMath) {
-          const marker = listMatch[2];
-          const isOrdered = /^\d/.test(marker);
-          items.push({
-            text: listMatch[3].trim(),
-            ordered: isOrdered,
-          });
-          i++;
-          continue;
-        }
-
-        // Check for list termination
-        if (!inMath) {
-          if (
-            currentTrimmed.startsWith("```") ||
-            currentTrimmed === "---" || currentTrimmed === "***" || currentTrimmed === "___" ||
-            /^(#{1,6})\s+/.test(currentLine) ||
-            currentTrimmed.startsWith(">") ||
-            (currentTrimmed.startsWith("|") && currentTrimmed.endsWith("|") && currentTrimmed.length > 2)
-          ) {
-            break;
-          }
-        }
-
-        // Empty line handling
-        if (currentTrimmed === "" && !inMath) {
-          let nextIdx = i + 1;
-          while (nextIdx < lines.length && lines[nextIdx].trim() === "") {
-            nextIdx++;
-          }
-          if (nextIdx >= lines.length) {
-            i = nextIdx; // consume trailing empty lines
-            break;
-          }
-          const nextLine = lines[nextIdx];
-          const nextIsListItem = listPattern.test(nextLine);
-          const nextHasIndent = nextLine.startsWith(" ") || nextLine.startsWith("\t");
-          
-          if (!nextIsListItem && !nextHasIndent) {
-            // It's a paragraph outside the list, stop parsing list
-            break;
-          }
-        }
-
-        // Append line to current list item
-        if (items.length > 0) {
-          items[items.length - 1].text += "\n" + currentLine;
-        }
-        i++;
-      }
-
-      blocks.push({
-        type: "list",
-        items,
-      });
-      continue;
-    }
-
-    // 6. Tables
-    if (trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.length > 2) {
-const headers = trimmed
-          .replace(/\\mid/g, ':')
-          .replace(/\\\|/g, ':')
-          .split("|")
-          .map((s) => s.trim())
-          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
-      i++;
-
-      let alignments: ("left" | "center" | "right")[] = [];
-      if (i < lines.length) {
-        const sepLine = lines[i].trim();
-        if (sepLine.startsWith("|") && sepLine.endsWith("|")) {
-          const parts = sepLine
-            .split("|")
-            .map((s) => s.trim())
-            .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
-          const isSep = parts.every((p) => /^[:-]+$/.test(p));
-          if (isSep) {
-            alignments = parts.map((p) => {
-              const startColon = p.startsWith(":");
-              const endColon = p.endsWith(":");
-              if (startColon && endColon) return "center";
-              if (endColon) return "right";
-              return "left";
-            });
-            i++;
-          }
-        }
-      }
-
-      const rows: string[][] = [];
-      while (i < lines.length && lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) {
-        const rowParts = lines[i]
-          .replace(/\\mid/g, ':')
-          .replace(/\\\|/g, ':')
-          .split("|")
-          .map((s) => s.trim())
-          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
-        rows.push(rowParts);
-        i++;
-      }
-
-      blocks.push({
-        type: "table",
-        headers,
-        alignments: alignments.length > 0 ? alignments : headers.map(() => "left"),
-        rows,
-      });
-      continue;
-    }
-
-    // 7. Paragraph
-    if (trimmed === "") {
-      i++;
-      continue;
-    }
-
-    const pLines: string[] = [];
-    while (
-      i < lines.length &&
-      lines[i].trim() !== "" &&
-      !lines[i].trim().startsWith("```") &&
-      !lines[i].trim().startsWith("#") &&
-      !lines[i].trim().startsWith(">") &&
-      !listPattern.test(lines[i]) &&
-      !(lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|"))
-    ) {
-      pLines.push(lines[i].trim());
-      i++;
-    }
-    blocks.push({
-      type: "p",
-      content: pLines.join(" "),
-    });
-  }
-
-  return blocks;
 }
 
 // --- Inner Components ---
@@ -665,6 +411,7 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
       }
     }
     return path;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formula]);
 
   const xTicks = React.useMemo(() => {
@@ -878,7 +625,7 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
           points.push([x, y]);
           yVals.push(y);
         }
-      } catch (err) {
+      } catch {
       }
     }
     return points;
@@ -917,7 +664,7 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
+    const _clientY = e.clientY - rect.top;
 
     const svgX = (clientX / rect.width) * svgW;
     const x = invX(svgX);
@@ -1093,6 +840,7 @@ function FlowchartDiagramRenderer({ data, title, caption }: { data: any; title?:
     };
 
     computeLayout();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   return (
@@ -1135,7 +883,7 @@ function FlowchartDiagramRenderer({ data, title, caption }: { data: any; title?:
 }
 
 export function VisualRenderer({
-  id,
+  id: _id,
   visualType,
   title,
   caption,
@@ -1251,6 +999,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
         );
       } else {
         mediaElement = (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={src}
             alt={caption || "Blog media"}

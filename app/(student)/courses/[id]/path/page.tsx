@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 import { Compass } from "lucide-react";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";

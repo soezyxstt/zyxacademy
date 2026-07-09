@@ -22,7 +22,7 @@ import {
  bookings,
  tutorSlots,
 } from "@/db/schema";
-import { eq, inArray, and } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { adminMessaging } from "@/lib/firebase/admin";
 import { randomUUID } from "crypto";
 import type { NotificationPayload, SendResult } from "./types";

@@ -41,7 +41,7 @@ export function StudyPathTimeline({ courseId }: Props) {
 
   const fetchStudyPath = async (days?: number) => {
     const isPlanRequest = typeof days === "number";
-    isPlanRequest ? setPlanning(true) : setLoading(true);
+    if (isPlanRequest) setPlanning(true); else setLoading(true);
     setError(null);
     try {
       const qs = isPlanRequest ? `&days=${days}` : "";
@@ -56,7 +56,7 @@ export function StudyPathTimeline({ courseId }: Props) {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan koneksi");
     } finally {
-      isPlanRequest ? setPlanning(false) : setLoading(false);
+      if (isPlanRequest) setPlanning(false); else setLoading(false);
     }
   };
 

@@ -6,7 +6,7 @@ import { blogArticles } from "@/db/schema";
 import { eq, and, ne, desc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
 import { Calendar, Clock, ChevronLeft, User, Share2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -137,11 +137,12 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
 
               {/* Thumbnail Image (fluid width inside left column, matching text width!) */}
               {article.thumbnailUrl && (
-                <div className="aspect-[16/9] w-full rounded-xl overflow-hidden border border-border shadow-sm">
-                  <img 
+                <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden border border-border shadow-sm">
+                  <Image 
                     src={article.thumbnailUrl} 
                     alt={article.title} 
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                 </div>
               )}
@@ -193,11 +194,12 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
                       </div>
                     </div>
                     {other.thumbnailUrl && (
-                      <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-border bg-muted">
-                        <img 
+                      <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-border bg-muted">
+                        <Image 
                           src={other.thumbnailUrl} 
                           alt={other.title} 
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                       </div>
                     )}

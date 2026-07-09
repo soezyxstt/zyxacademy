@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ImagePlus, Link as LinkIcon, Loader2, Eye, Code } from "lucide-react";
+import Image from "next/image";
+import { ImagePlus, Loader2, Eye, Code } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -396,11 +397,12 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
               <div className="border border-border rounded-xl bg-card p-6 md:p-8 space-y-6 shadow-sm min-h-[500px] max-w-none">
                 <div className="space-y-4 pb-6 border-b border-border/60">
                   {formData.thumbnailUrl && (
-                    <div className="aspect-[16/9] w-full rounded-xl overflow-hidden bg-muted border border-border">
-                      <img
+                    <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden bg-muted border border-border">
+                      <Image
                         src={formData.thumbnailUrl}
                         alt={formData.title || "Preview thumbnail"}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     </div>
                   )}
@@ -511,7 +513,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
               </div>
               {formData.thumbnailUrl && (
                 <div className="mt-3 aspect-video rounded-md border border-border overflow-hidden bg-muted relative group">
-                  <img src={formData.thumbnailUrl} alt="Thumbnail preview" className="w-full h-full object-cover" />
+                  <Image src={formData.thumbnailUrl} alt="Thumbnail preview" fill className="object-cover" />
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, thumbnailUrl: "" })}

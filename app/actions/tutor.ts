@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
 import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions } from "@/db/schema";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag } from "@/lib/tutor-rag";

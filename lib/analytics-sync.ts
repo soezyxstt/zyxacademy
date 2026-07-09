@@ -1,7 +1,6 @@
 import { BetaAnalyticsDataClient } from "@google-analytics/data";
 import { db } from "@/db";
 import { pageAnalytics } from "@/db/schema";
-import { env } from "@/lib/env";
 
 export async function syncPopularPages(limit: number = 10) {
   // We use the env variables (if they exist).

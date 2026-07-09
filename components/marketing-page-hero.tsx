@@ -14,7 +14,6 @@ type MarketingPageHeroProps = {
 
 export function MarketingPageHero({
   sectionId,
-  eyebrow = "Zyx Academy",
   title,
   description,
   className,

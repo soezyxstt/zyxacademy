@@ -33,7 +33,7 @@ export class MasteryAttributionSource implements AttributionSource {
   label = "Concept Mastery";
 
   async getAttributions(params: AttributionParams): Promise<Attribution[]> {
-    const { studentId, courseId, conceptName } = params;
+    const { conceptName } = params;
     if (!conceptName) return [];
 
     return [
@@ -51,7 +51,7 @@ export class QuizPerformanceAttributionSource implements AttributionSource {
   type = "quiz_performance" as const;
   label = "Quiz Performance";
 
-  async getAttributions(params: AttributionParams): Promise<Attribution[]> {
+  async getAttributions(_params: AttributionParams): Promise<Attribution[]> {
     return [];
   }
 }
@@ -60,7 +60,7 @@ export class FlashcardFailureAttributionSource implements AttributionSource {
   type = "flashcard_failure" as const;
   label = "Flashcard Failures";
 
-  async getAttributions(params: AttributionParams): Promise<Attribution[]> {
+  async getAttributions(_params: AttributionParams): Promise<Attribution[]> {
     return [];
   }
 }

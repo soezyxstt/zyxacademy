@@ -8,7 +8,6 @@ import {
   aiMaterialInstanceSections,
   aiMaterialInstanceChunks,
   masterTeachingDocuments,
-  chapters,
   knowledgeObjects,
   websiteMaterials,
   concepts,

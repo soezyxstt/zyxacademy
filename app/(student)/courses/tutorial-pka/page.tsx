@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { asc, desc, gt } from "drizzle-orm";
+import { asc, desc, eq, gt } from "drizzle-orm";
 import {
   ArrowRight,
   BarChart3,
@@ -57,6 +57,7 @@ export default async function PkaCourseHomePage() {
     db
       .select()
       .from(pkaAnnouncements)
+      .where(eq(pkaAnnouncements.isArchived, false))
       .orderBy(desc(pkaAnnouncements.createdAt))
       .limit(1),
   ]);

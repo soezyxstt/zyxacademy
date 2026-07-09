@@ -43,7 +43,7 @@ export default async function AssessmentDetailPage({
     .from(courses)
     .where(eq(courses.id, source.courseId));
 
-  const [questions, conceptMappings, resolvedChapters, courseChapters] = await Promise.all([
+  const [questions, conceptMappings, resolvedChapters] = await Promise.all([
     db
       .select({
         id: assessmentObjects.id,
@@ -83,12 +83,6 @@ export default async function AssessmentDetailPage({
       .from(assessmentSourceChapters)
       .innerJoin(chapters, eq(assessmentSourceChapters.chapterId, chapters.id))
       .where(eq(assessmentSourceChapters.assessmentSourceId, id)),
-
-    db
-      .select({ id: chapters.id, title: chapters.title })
-      .from(chapters)
-      .where(eq(chapters.courseId, source.courseId))
-      .orderBy(asc(chapters.orderIndex)),
   ]);
 
   return (
@@ -99,7 +93,6 @@ export default async function AssessmentDetailPage({
         questions={questions}
         conceptMappings={conceptMappings}
         resolvedChapters={resolvedChapters}
-        courseChapters={courseChapters}
       />
     </Reveal>
   );

@@ -113,7 +113,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  },
  ...prev,
  ]);
- } catch (err: any) {
+  } catch {
  toast.error("Terjadi kesalahan jaringan.");
  } finally {
  setSubmitting(false);

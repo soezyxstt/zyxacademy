@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Upload, X, Check, File, FileImage, FileText, AlertCircle } from "lucide-react";
+import { Upload, X, Check, File, FileImage, FileText } from "lucide-react";
 import { FormFieldWrapper } from "@/components/ui/form-field-wrapper";
 import { cn } from "@/lib/utils";
 
@@ -152,7 +152,6 @@ function FileUploadField({
   };
 
   const simulateUpload = (fileId: string) => {
-    let progress = 0;
     const intervalTime = 150 + Math.random() * 200; // random speed
 
     const timer = setInterval(() => {

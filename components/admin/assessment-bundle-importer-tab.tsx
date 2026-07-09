@@ -21,7 +21,6 @@ import {
 import {
   Upload,
   Play,
-  CheckCircle2,
   AlertCircle,
   Loader2,
   Terminal as TerminalIcon,

@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
 import Link from "next/link";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
@@ -251,10 +252,11 @@ function ArticleCard({ article }: { article: any }) {
       )}
       <div className="aspect-[4/3] w-full bg-muted relative overflow-hidden border-b border-border/50">
         {article.thumbnailUrl ? (
-          <img
+          <Image
             src={article.thumbnailUrl}
             alt={article.title}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-muted/80">

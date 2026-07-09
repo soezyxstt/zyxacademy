@@ -3,9 +3,9 @@
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
-import { enrollments, enrollmentTokens, progress, courses, submissions, groups, groupMembers, enrollmentTokenCourses, websiteMaterials } from "@/db/schema";
+import { enrollments, enrollmentTokens, progress, courses, submissions, groupMembers, websiteMaterials } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, gt, lt } from "drizzle-orm";
+import { eq, and, gt } from "drizzle-orm";
 import { recordLearningEvent } from "@/lib/learning-events";
 import { inngest } from "@/lib/inngest";
 import { getSemesterEndDate } from "@/lib/utils";

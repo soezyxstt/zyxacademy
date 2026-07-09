@@ -241,7 +241,7 @@ export async function executeDiktatPDFGeneration(
       } else {
         pdfBuffer = Buffer.from(await res.arrayBuffer());
       }
-    } catch (err) {
+    } catch {
       pdfBuffer = Buffer.from(await res.arrayBuffer());
     }
   } else {
@@ -295,8 +295,8 @@ export async function executeDiktatPDFGeneration(
       .where(eq(diktats.id, diktatId));
 
     return { success: true, fileUrl };
-  } catch (err: any) {
-    return { success: false, errors: [`Storage pipeline failure: ${err.message}`] };
+  } catch {
+    return { success: false, errors: [`Storage pipeline failure`] };
   }
 }
 

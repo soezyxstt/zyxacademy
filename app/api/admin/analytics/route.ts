@@ -7,14 +7,14 @@
  * - Attempt stats (total, avg score, completion rate)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { aiQuestionBank, aiGenerationJobs, studentQuizAttempts } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

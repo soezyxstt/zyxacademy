@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock, Award, ShieldAlert, BookOpen, Loader2, Calendar, ChevronDown, ListPlus, Sliders, FileJson, Eye, Check } from "lucide-react";
+import { Plus, Trash2, Clock, Award, ShieldAlert, BookOpen, Loader2, Calendar, FileJson, Eye, Check } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -147,9 +147,9 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  } else {
  toast.error("Gagal menghapus template kuis.");
  }
- } catch (e) {
- toast.error("Terjadi kesalahan.");
- }
+  } catch {
+  toast.error("Terjadi kesalahan.");
+  }
  };
 
  const handleCreateSubmit = async (e: React.FormEvent) => {

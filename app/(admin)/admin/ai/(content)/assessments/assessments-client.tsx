@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -25,15 +24,12 @@ import {
 import { toast } from "@/components/ui/toast";
 import {
   Plus,
-  BookOpen,
   FileText,
   Loader2,
   Trash2,
-  AlertCircle,
   Clock,
   CheckCircle2,
   XCircle,
-  HelpCircle,
   ExternalLink,
 } from "lucide-react";
 
@@ -56,20 +52,13 @@ interface Course {
   title: string;
 }
 
-interface Chapter {
-  id: string;
-  courseId: string;
-  title: string;
-}
-
 interface Props {
   sources: Source[];
   courses: Course[];
-  chapters: Chapter[];
   courseMap: Record<string, string>;
 }
 
-export function AssessmentsClient({ sources, courses, chapters, courseMap }: Props) {
+export function AssessmentsClient({ sources, courses, courseMap }: Props) {
   const router = useRouter();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);

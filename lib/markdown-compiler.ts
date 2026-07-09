@@ -1479,7 +1479,7 @@ export function compileMarkdown(
   };
 }
 
-export function migrateAst(ast: WebsiteMaterialAST, fromVersion: string, toVersion: string): WebsiteMaterialAST {
+export function migrateAst(ast: WebsiteMaterialAST, _fromVersion: string, _toVersion: string): WebsiteMaterialAST {
   // Version migration stub
   return ast;
 }

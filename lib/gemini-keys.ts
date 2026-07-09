@@ -209,7 +209,7 @@ export class GeminiKeyPool {
 
     const states = Array.from(this.schedulerStates.entries())
       .filter(([mapKey]) => mapKey.startsWith(`${keyId}:`))
-      .map(([_, s]) => s);
+      .map(([, s]) => s);
 
     if (states.length === 0) return;
 
@@ -420,7 +420,7 @@ export class GeminiKeyPool {
     return this.keys.filter(k => {
       const states = Array.from(this.schedulerStates.entries())
         .filter(([mapKey]) => mapKey.startsWith(`${k.id}:`))
-        .map(([_, s]) => s);
+        .map(([, s]) => s);
 
       for (const state of states) {
         if (state.circuitState === 'OPEN' && now >= state.cooldownUntil) {
@@ -450,7 +450,7 @@ export class GeminiKeyPool {
     return this.keys.map(k => {
       const states = Array.from(this.schedulerStates.entries())
         .filter(([mapKey]) => mapKey.startsWith(`${k.id}:`))
-        .map(([_, s]) => s);
+        .map(([, s]) => s);
 
       const anyOpen = states.some(s => s.circuitState === 'OPEN');
       const maxErrors = states.reduce((max, s) => Math.max(max, s.consecutiveFailures), 0);

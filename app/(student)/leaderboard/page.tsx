@@ -17,19 +17,12 @@ import { pageTitle } from "@/lib/site";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
 import { studentCardClass } from "@/components/course/course-surfaces";
-import { cn } from "@/lib/utils";
+
 
 export const metadata: Metadata = {
   title: pageTitle("Papan Peringkat"),
   description: "Peringkat kuis per kursus.",
 };
-
-function rankClass(rank: number) {
-  if (rank === 1) return "bg-primary/[0.06] ring-1 ring-primary/15";
-  if (rank === 2) return "bg-muted/30";
-  if (rank === 3) return "bg-muted/20";
-  return "";
-}
 
 export default async function LeaderboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });

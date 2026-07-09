@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -13,7 +14,6 @@ import {
   ListChecks,
   ClipboardList,
   GraduationCap,
-  LogOut,
   Bell,
   Activity,
   BarChart3,
@@ -69,9 +69,11 @@ function AdminSidebarInner() {
           )}
         >
           {session.user.image ? (
-            <img
+            <Image
               src={session.user.image}
-              alt={session.user.name}
+              alt={session.user.name || ""}
+              width={28}
+              height={28}
               className="size-7 shrink-0 rounded-full object-cover ring-2 ring-brand-primary/20"
             />
           ) : (

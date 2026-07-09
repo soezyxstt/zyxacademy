@@ -91,8 +91,8 @@ export function calculateNextReview(
   currentEF: number,
   currentIntervalDays: number,
   lastReviewedAt: Date | null,
-  safetyFloorActive: boolean = false,
-  recallDifficulty?: number
+  _safetyFloorActive: boolean = false,
+  _recallDifficulty?: number
 ): SM2Result {
   const output = calculateSM2(
     {

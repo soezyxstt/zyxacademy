@@ -15,25 +15,22 @@ import {
  Sparkles, 
  BookOpen, 
  Layers, 
- ClipboardList, 
- HelpCircle,
- Compass,
+  ClipboardList, 
+  Compass,
  AlertTriangle,
  Loader2,
  Check,
  X,
  ArrowRight,
  RefreshCw,
- FileQuestion,
- Lightbulb
+  FileQuestion,
 } from "lucide-react";
 import {
  explainConceptAction,
  analyzeMistakeAction,
- buildStudyPlanAction,
- generatePracticeQuizAction,
- startFlashcardReviewAction,
- openMaterialAction,
+  buildStudyPlanAction,
+  generatePracticeQuizAction,
+  openMaterialAction,
  askTutorRagAction,
  saveTutorMessagesAction,
  loadTutorHistoryAction,
@@ -349,7 +346,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }).catch(() => {});
  }
  }
- }, [data, activeMode, pathname]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, activeMode, pathname]);
 
  // Flashcards launcher inside drawer
  const handleLaunchFlashcards = async (targetKoId: string) => {
@@ -365,7 +363,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  } else {
  toast.info("Tidak ada kartu hafalan terpasang untuk konsep ini.");
  }
- } catch (e) {
+ } catch {
  toast.error("Gagal memuat kartu hafalan.");
  } finally {
  setLoading(false);
@@ -376,7 +374,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const handleLaunchPracticeQuiz = async (targetKoId: string) => {
  setLoading(true);
  try {
- const res = await generatePracticeQuizAction(targetKoId, "medium");
+  void generatePracticeQuizAction(targetKoId, "medium");
  const { getQuestionsForKOAction } = await import("@/app/actions/tutor-extra");
  const questions = await getQuestionsForKOAction(targetKoId);
  if (questions.length > 0) {
@@ -389,7 +387,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  } else {
  toast.info("Gagal menemukan latihan kuis. Silakan coba beberapa saat lagi.");
  }
- } catch (e) {
+ } catch {
  toast.error("Gagal membuat sesi latihan kuis.");
  } finally {
  setLoading(false);
@@ -397,16 +395,16 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  };
 
  // Syllabus Materials redirect Action
- const handleOpenMaterial = async (chapterId: string, sectionId: string) => {
- try {
- const res = await openMaterialAction(chapterId, sectionId);
- if (res?.redirectUrl) {
- window.location.href = res.redirectUrl;
- }
- } catch (e) {
- toast.error("Gagal membuka halaman buku teks.");
- }
- };
+  const _handleOpenMaterial = async (chapterId: string, sectionId: string) => {
+  try {
+  const res = await openMaterialAction(chapterId, sectionId);
+  if (res?.redirectUrl) {
+  window.location.href = res.redirectUrl;
+  }
+  } catch {
+  toast.error("Gagal membuka halaman buku teks.");
+  }
+  };
 
  // Handle sending arbitrary chat messages (Conversational Socratic AI Chat)
  const handleSend = async () => {

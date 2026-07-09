@@ -9,7 +9,6 @@ import {
   tutorCourses,
 } from "./schema";
 import { eq } from "drizzle-orm";
-import { randomUUID } from "crypto";
 
 async function main() {
   console.log("=== Seeding Database for Local Development ===");

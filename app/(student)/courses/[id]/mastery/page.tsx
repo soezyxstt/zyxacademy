@@ -10,7 +10,7 @@ import { db } from "@/db";
 import { chapters, knowledgeObjects, knowledgeRelationships, studentConceptMastery, courses, concepts as conceptsTable } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { and, eq, gt, asc, inArray } from "drizzle-orm";
+import { and, eq, asc, inArray } from "drizzle-orm";
 import { ConceptMap } from "@/components/course/concept-map";
 import { ConceptGraphView } from "@/components/course/concept-graph-view";
 import { env } from "@/lib/env";

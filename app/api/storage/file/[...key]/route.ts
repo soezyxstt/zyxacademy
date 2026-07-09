@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 
 const bucket = process.env.R2_BUCKET || "zyx";

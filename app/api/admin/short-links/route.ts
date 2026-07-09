@@ -5,7 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 // import { auth } from "@/lib/auth"; // Need to make sure how auth is handled for admin
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // Optionally: check auth for admin
     

@@ -172,7 +172,7 @@ async function runTests() {
 
     // 4. Mock the vectorStore query to simulate successful vector lookup
     const originalQuery = vectorStore.query;
-    vectorStore.query = async (courseNs, queryText, options) => {
+    vectorStore.query = async (courseNs) => {
       if (courseNs === `${testCourseId}_practice`) {
         return [{ id: testQuestionId, score: 0.9, metadata: { chapterId: testChapterId } }];
       }
@@ -276,7 +276,7 @@ D. 0
 
     // Mock vectorStore lookup for past exams
     const originalQuery = vectorStore.query;
-    vectorStore.query = async (courseNs, queryText, options) => {
+    vectorStore.query = async (courseNs) => {
       if (courseNs === `${testExamCourseId}_past_exams` && objs[0]) {
         return [{ id: objs[0].id, score: 0.95, metadata: { chapterId: testExamChapterId } }];
       }
@@ -413,7 +413,7 @@ D. 0
 
     // 3. Build Concept Graph Edges
     console.log("  Building concept graph edges...");
-    const edgesCount = await buildConceptGraph(testOfflineCourseId);
+    await buildConceptGraph(testOfflineCourseId);
     const edges = await db.select().from(conceptGraphEdges).where(eq(conceptGraphEdges.courseId, testOfflineCourseId));
     assert(edges.length >= 0, "Concept Graph rollup computed synchronously without crashing");
 

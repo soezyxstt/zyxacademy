@@ -2,7 +2,7 @@ import "dotenv/config";
 import { extractKnowledgeObjectsForChapter } from "../lib/ko-extractor";
 import { db } from "../db";
 import { user, courses, chapters, masterTeachingDocuments, knowledgeObjects, concepts, conceptLocalizations } from "../db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 async function main() {

@@ -141,7 +141,7 @@ export class AnalyticsService {
     const now = new Date().getTime();
     const result: Record<string, MasteryMetrics> = {};
 
-    for (const [_, group] of Object.entries(muGroups)) {
+    for (const [, group] of Object.entries(muGroups)) {
       // Find all supporting KOs for this MU
       const koIds = group.koIds;
 

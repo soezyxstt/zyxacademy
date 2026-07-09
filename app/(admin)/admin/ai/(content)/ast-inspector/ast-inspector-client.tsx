@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  Sparkles, 
   Terminal, 
   FileCode, 
   CheckCircle, 
@@ -10,7 +9,6 @@ import {
   AlertCircle, 
   RefreshCw, 
   Layers, 
-  Database, 
   Play, 
   Upload, 
   Download, 

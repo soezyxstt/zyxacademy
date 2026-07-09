@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { user, blogArticles } from "../db/schema";
+import { blogArticles } from "../db/schema";
 import { nanoid } from "nanoid";
 
 async function main() {

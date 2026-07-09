@@ -11,14 +11,10 @@ import {
   ArrowLeft,
   BookOpen,
   Layers,
-  CheckCircle2,
   AlertTriangle,
   Loader2,
   Sparkles,
   Edit2,
-  RefreshCw,
-  Eye,
-  Sliders,
   Info,
   X,
   ChevronUp,
@@ -339,7 +335,7 @@ export function MaterialDetailClient({
   const [kos, setKOs] = useState<KnowledgeObject[]>(initialKOs);
   const [webMats, setWebMats] = useState<WebsiteMaterial[]>(initialWebMaterials);
 
-  const [activeChapterId, setActiveChapterId] = useState<string | null>(
+  const [activeChapterId] = useState<string | null>(
     initialChapters.length > 0 ? initialChapters[0].id : null
   );
   const [activeTab, setActiveTab] = useState<"mastery" | "formulas" | "glossary" | "graph" | "all-kos" | "website-material">("mastery");
@@ -446,9 +442,11 @@ export function MaterialDetailClient({
       }
     });
 
+    const current = intervalsRef.current;
     return () => {
-      Object.values(intervalsRef.current).forEach(clearInterval);
+      Object.values(current).forEach(clearInterval);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -496,7 +494,7 @@ export function MaterialDetailClient({
       } else {
         toast.error(`Gagal memulai pembuatan aset: ${res.error}`);
       }
-    } catch (e) {
+    } catch {
       toast.error("Kesalahan jaringan.");
     } finally {
       setLoadingChapterId(null);
@@ -516,7 +514,7 @@ export function MaterialDetailClient({
       } else {
         toast.error(`Gagal memperbarui status publikasi: ${res.error}`);
       }
-    } catch (e) {
+    } catch {
       toast.error("Kesalahan jaringan.");
     } finally {
       setLoadingChapterId(null);
@@ -534,14 +532,14 @@ export function MaterialDetailClient({
       } else {
         toast.error(`Gagal mensinkronkan materi: ${res.error}`);
       }
-    } catch (e) {
+    } catch {
       toast.error("Kesalahan jaringan.");
     } finally {
       setLoadingChapterId(null);
     }
   };
 
-  const handleOpenKODrawer = (chapter: Chapter) => {
+  const _handleOpenKODrawer = (chapter: Chapter) => {
     setSelectedChapter(chapter);
     setIsKODrawerOpen(true);
   };
@@ -577,7 +575,7 @@ export function MaterialDetailClient({
       } else {
         toast.error(`Gagal menyimpan Objek Pengetahuan: ${res.error}`);
       }
-    } catch (e) {
+    } catch {
       toast.error("Kesalahan jaringan.");
     } finally {
       setSavingKOId(null);
@@ -665,13 +663,13 @@ export function MaterialDetailClient({
         try {
           const parsed = parseCanonicalMarkdown(markdownToSave);
           setBlocks(parsed);
-        } catch (e) {}
+        } catch {}
         
         router.refresh();
       } else {
         toast.error(`Gagal menyimpan materi: ${res.error || "Kesalahan kompilasi"}`);
       }
-    } catch (e) {
+    } catch {
       toast.error("Kesalahan jaringan.");
     } finally {
       setSavingWebMat(false);
@@ -929,7 +927,7 @@ export function MaterialDetailClient({
     const chapterKOs = getKOsForChapter(chapterId);
     const webMat = getWebMatForChapter(chapterId);
     const isStale = webMat?.isStale ?? false;
-    const status = webMat?.status ?? "draft";
+    const _status = webMat?.status ?? "draft";
 
     // Group KOs into Mastery Units based on conceptName
     const concepts = chapterKOs.filter(ko => ko.type === "concept_overview" || ko.type === "definition");
@@ -974,9 +972,9 @@ export function MaterialDetailClient({
         allGlossaryTerms.push(koTerm);
       }
     });
-    const misconceptions = chapterKOs.filter(ko => ko.type === "misconception");
-    const examples = chapterKOs.filter(ko => ko.type === "example");
-    const exercises = chapterKOs.filter(ko => ko.type === "exercise");
+    const _misconceptions = chapterKOs.filter(ko => ko.type === "misconception");
+    const _examples = chapterKOs.filter(ko => ko.type === "example");
+    const _exercises = chapterKOs.filter(ko => ko.type === "exercise");
     
     const masteryUnits = concepts.map((concept, index) => {
       const supporting = chapterKOs.filter(ko => 
@@ -1025,8 +1023,8 @@ export function MaterialDetailClient({
       });
     }
 
-    const estimatedFlashcards = masteryUnits.length * 3;
-    const estimatedQuestions = formulas.length * 2 || 6;
+    const _estimatedFlashcards = masteryUnits.length * 3;
+    const _estimatedQuestions = formulas.length * 2 || 6;
 
     return (
       <div className="space-y-6 text-left">

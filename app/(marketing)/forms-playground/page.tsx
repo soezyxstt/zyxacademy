@@ -11,7 +11,7 @@ import { FileUploadField } from "@/components/ui/file-upload-field";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { RefreshCw, Play, AlertTriangle } from "lucide-react";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 
 export default function FormsPlaygroundPage() {
   // Form states

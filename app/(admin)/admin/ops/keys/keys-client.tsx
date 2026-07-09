@@ -103,7 +103,7 @@ export function KeysClient() {
   if (!data) return null;
 
   const keys = [...new Set(data.geminiKeys.map((d) => d.keyId))].sort();
-  const models = [...new Set(data.geminiKeys.map((d) => d.modelId))].sort();
+  void [...new Set(data.geminiKeys.map((d) => d.modelId))].sort();
 
   const keyHealth = keys.map((keyId) => {
     const entries = data.geminiKeys.filter((d) => d.keyId === keyId);

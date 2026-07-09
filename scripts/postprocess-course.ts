@@ -8,9 +8,7 @@ import {
   conceptGraphEdges, 
   knowledgeObjects,
   vectorSyncQueue,
-  aiQuestionBank,
-  assessmentObjects,
-  assessmentSourceChapters
+  aiQuestionBank
 } from "../db/schema";
 import { eq, and, or, lt, inArray } from "drizzle-orm";
 import { compileMarkdown } from "../lib/markdown-compiler";
@@ -48,7 +46,6 @@ async function main() {
     process.exit(1);
   }
 
-  let processedCount = 0;
   let failuresCount = 0;
   let warningsCount = 0;
 
@@ -114,7 +111,6 @@ async function main() {
       } else {
         console.log(`  [DRY-RUN] Material compiled and audited successfully.`);
       }
-      processedCount++;
     } catch (err: any) {
       console.error(`  [FAIL] Error compiling material:`, err?.message || err);
       failuresCount++;

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Tabs,
   TabsContent,
@@ -99,7 +98,6 @@ interface Props {
   questions: Question[];
   conceptMappings: ConceptMapping[];
   resolvedChapters: ResolvedChapter[];
-  courseChapters: { id: string; title: string }[];
 }
 
 export function AssessmentDetailClient({
@@ -108,7 +106,6 @@ export function AssessmentDetailClient({
   questions,
   conceptMappings,
   resolvedChapters,
-  courseChapters,
 }: Props) {
   const router = useRouter();
   const [reingesting, setReingesting] = useState(false);

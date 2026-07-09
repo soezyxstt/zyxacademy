@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { saveCourse, deleteCourse, getCourseChapters, saveChapter, deleteChapter } from "@/app/(admin)/admin/(academic)/courses/actions";
-import { Edit, Trash2, Check, X, Layers, Plus, Loader2, ListOrdered } from "lucide-react";
+import { Edit, Trash2, Check, X, Layers, Plus, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -95,7 +95,7 @@ type Props = {
 
 export function CoursesDashboard({ initialCourses }: Props) {
   const router = useRouter();
-  const [courses, setCourses] = useState<Course[]>(initialCourses);
+  const [courses, _setCourses] = useState<Course[]>(initialCourses);
   const [newCourse, setNewCourse] = useState<Partial<Course>>({});
   const [editId, setEditId] = useState<string | null>(null);
   const [editVals, setEditVals] = useState<Partial<Course>>({});

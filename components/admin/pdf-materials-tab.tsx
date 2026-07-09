@@ -47,7 +47,7 @@ type Props = {
 
 export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) {
   const router = useRouter();
-  const [materials, setMaterials] = useState<UploadedMaterial[]>(initialMaterials);
+  const [materials, _setMaterials] = useState<UploadedMaterial[]>(initialMaterials);
   const [loading, setLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
 

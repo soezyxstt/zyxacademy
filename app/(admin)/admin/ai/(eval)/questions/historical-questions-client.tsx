@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { Search, FileText, HelpCircle, Eye, EyeOff } from "lucide-react";
+import { Search, Eye, EyeOff } from "lucide-react";
 
 interface HistoricalQuestion {
   id: string;

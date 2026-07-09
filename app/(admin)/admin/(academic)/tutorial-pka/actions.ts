@@ -134,6 +134,7 @@ export interface PkaAnnouncementRow {
   body: string;
   sentAt: Date | null;
   recipientCount: number | null;
+  isArchived: boolean;
   createdAt: Date;
 }
 
@@ -147,10 +148,33 @@ export async function getPkaAnnouncementsAction(): Promise<PkaAnnouncementRow[]>
       body: pkaAnnouncements.body,
       sentAt: pkaAnnouncements.sentAt,
       recipientCount: pkaAnnouncements.recipientCount,
+      isArchived: pkaAnnouncements.isArchived,
       createdAt: pkaAnnouncements.createdAt,
     })
     .from(pkaAnnouncements)
     .orderBy(desc(pkaAnnouncements.createdAt));
+}
+
+export async function archivePkaAnnouncementAction(
+  announcementId: string,
+  archive: boolean,
+): Promise<PkaActionState> {
+  try {
+    await requireAdmin();
+
+    const featureError = requirePkaFeature();
+    if (featureError) return { error: featureError };
+
+    await db
+      .update(pkaAnnouncements)
+      .set({ isArchived: archive })
+      .where(eq(pkaAnnouncements.id, announcementId));
+
+    return { success: true };
+  } catch (err) {
+    console.error("[archivePkaAnnouncementAction]", err);
+    return { error: err instanceof Error ? err.message : "Terjadi kesalahan." };
+  }
 }
 
 // ─── SCHEDULES ──────────────────────────────────────────────────────────────

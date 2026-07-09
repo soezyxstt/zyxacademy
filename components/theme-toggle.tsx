@@ -21,7 +21,7 @@ export function ThemeToggle({ mode = "navbar" }: { mode?: ThemeMode }) {
 
   useEffect(() => setMounted(true), []);
 
-  const current = themes.find((t) => t.value === theme) ?? themes[2];
+  const _current = themes.find((t) => t.value === theme) ?? themes[2];
   const isDark = resolvedTheme === "dark";
 
   if (!mounted) {

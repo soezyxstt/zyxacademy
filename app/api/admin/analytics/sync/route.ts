@@ -3,7 +3,7 @@ import { syncPopularPages } from "@/lib/analytics-sync";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const h = await headers();
     const session = await auth.api.getSession({ headers: h });

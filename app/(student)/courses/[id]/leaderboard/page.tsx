@@ -4,14 +4,13 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { pageTitle } from "@/lib/site";
 import { cn } from "@/lib/utils";
-import { LEADERBOARD_SCORE_HINT } from "@/lib/student-course-fixtures";
 import { getCourse } from "@/lib/course-utils";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
-import { studentQuizAttempts, quizTemplates, enrollments, user } from "@/db/schema";
-import { and, eq, avg, sql } from "drizzle-orm";
+import { studentQuizAttempts, quizTemplates, user } from "@/db/schema";
+import { and, eq, sql } from "drizzle-orm";
 
 type Props = { params: Promise<{ id: string }> };
 

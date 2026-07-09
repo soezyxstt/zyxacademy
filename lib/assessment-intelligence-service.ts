@@ -33,7 +33,7 @@ export function isMetaExamQuery(query: string): Promise<boolean> | boolean {
  * Compiles a factual markdown summary of historical exam statistics for a course.
  * This summary is fed directly to the Socratic LLM tutor to answer meta queries.
  */
-export async function executeMetaQuery(courseId: string, query: string): Promise<string> {
+export async function executeMetaQuery(courseId: string, _query: string): Promise<string> {
   // 1. Fetch course assessment profile
   const [profile] = await db
     .select()

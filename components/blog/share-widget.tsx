@@ -68,7 +68,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
       setCopied(true);
       toast.success("Tautan berhasil disalin.");
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       toast.error("Gagal menyalin tautan.");
     }
   };

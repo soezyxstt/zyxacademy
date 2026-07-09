@@ -12,8 +12,6 @@ import {
   Minimize2, 
   ChevronLeft, 
   ChevronRight, 
-  Monitor, 
-  Settings, 
   BookOpen, 
   Layers, 
   Search, 
@@ -24,8 +22,6 @@ import {
   CheckCircle2, 
   PanelLeftClose, 
   PanelLeft, 
-  Palette, 
-  Plus, 
   Trash2, 
   X,
   Check,
@@ -612,6 +608,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
     if (sectionFromUrl !== activeSectionIdx) {
       setActiveSectionIdx(sectionFromUrl);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, material.id]);
 
   // Sync State -> URL
@@ -757,7 +754,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
         });
         setSelectedText(text);
         popoverActiveRef.current = true;
-      } catch (e) {
+      } catch {
         // Safe fallback
       }
     };
@@ -947,6 +944,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
         }
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visitedPages]);
 
   async function markDone() {
@@ -1039,7 +1037,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
     localStorage.setItem(`zyx-reader-sidebar`, String(nextState));
   };
 
-  const handleThemeChange = (newTheme: ThemeMode) => {
+  const _handleThemeChange = (newTheme: ThemeMode) => {
     setTheme(newTheme);
     localStorage.setItem(`zyx-reader-theme`, newTheme);
   };

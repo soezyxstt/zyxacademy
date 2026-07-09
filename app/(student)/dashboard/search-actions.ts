@@ -14,7 +14,7 @@ import {
   blogArticles,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, gt, desc } from "drizzle-orm";
+import { eq, and, gt } from "drizzle-orm";
 import { getSiteSearchDocuments } from "@/lib/site-search-index";
 import type { SiteSearchDocument } from "@/lib/site-search-index";
 

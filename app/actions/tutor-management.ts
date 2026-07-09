@@ -11,7 +11,6 @@ import {
   questions,
   submissions,
   tutorCourses,
-  user,
 } from "@/db/schema";
 import { eq, and, inArray, asc, or, sql, notInArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";

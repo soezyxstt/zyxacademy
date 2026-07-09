@@ -11,10 +11,6 @@ import {
   RefreshCw, 
   Loader2, 
   Layers, 
-  FileText, 
-  AlertTriangle,
-  CheckCircle2,
-  Settings,
   ShieldAlert,
   Sliders,
   Calendar,
@@ -184,7 +180,7 @@ export function DiktatCompilerClient({
       } else {
         toast.error(`Kompilasi Gagal: ${res.error}`);
       }
-    } catch (e) {
+    } catch {
       toast.error("Terjadi kesalahan jaringan.");
     } finally {
       setIsCompiling(false);
@@ -204,7 +200,7 @@ export function DiktatCompilerClient({
         toast.error(`Gagal kompilasi ulang: ${res.error}`);
         setDiktatsList(prev => prev.map(d => d.id === diktatId ? { ...d, status: "failed", updatedAt: new Date().toISOString() } : d));
       }
-    } catch (e) {
+    } catch {
       toast.error("Terjadi kesalahan jaringan.");
     } finally {
       setLoadingDiktatId(null);
@@ -229,7 +225,7 @@ export function DiktatCompilerClient({
       } else {
         toast.error(`Gagal menghapus diktat: ${res.error}`);
       }
-    } catch (e) {
+    } catch {
       toast.error("Terjadi kesalahan jaringan.");
     } finally {
       setLoadingDiktatId(null);

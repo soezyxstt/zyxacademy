@@ -4,23 +4,18 @@ import { chatSessions, tutorChatMessages } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import {
   getConversationMemory,
-  type ConversationMemoryInput,
 } from "./conversation-memory";
 import {
   getCourseMemory,
-  type CourseMemoryInput,
 } from "./course-memory";
 import {
   getLearningMemory,
-  type LearningMemoryInput,
 } from "./learning-memory";
 import {
   getMasteryMemory,
-  type MasteryMemoryInput,
 } from "./mastery-memory";
 import {
   getRetrievalMemory,
-  type RetrievalMemoryInput,
 } from "./retrieval-memory";
 import type {
   ZyraContext,

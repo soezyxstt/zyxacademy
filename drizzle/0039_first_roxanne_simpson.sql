@@ -1,0 +1,1 @@
+ALTER TABLE `pka_announcements` ADD `is_archived` integer DEFAULT false NOT NULL;

@@ -1,4 +1,4 @@
-import { DiktatStructure, FormulaHandbookEntry, FormulaParameter } from "./diktat-generator";
+import { DiktatStructure, FormulaHandbookEntry } from "./diktat-generator";
 import type { ConceptImportanceScore, ExamPattern, QuickMethod, ExamTrap, ReviewChecklist } from "./diktat-exam-intelligence";
 import katex from "katex";
 
@@ -135,11 +135,10 @@ function renderImportanceStars(score: ConceptImportanceScore | undefined): strin
 }
 
 export function renderDiktatToHTML(
- diktat: DiktatStructure,
- tutorOverrides?: any
+  diktat: DiktatStructure,
+  _tutorOverrides?: any
 ): string {
- const overrides = tutorOverrides || {};
- const ei = diktat.examIntelligence;
+  const ei = diktat.examIntelligence;
 
  // Build exam intelligence lookup maps
  const importanceMap = new Map<string, ConceptImportanceScore>(

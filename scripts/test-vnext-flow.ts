@@ -5,7 +5,7 @@ import { validateCanonicalMarkdown } from "../lib/canonical-validator";
 import { parseAssessmentMarkdownIntoBlocks, extractAssessmentObjectsForSource } from "../lib/assessment-extractor";
 import { validateQuestionAgainstPolicy } from "../lib/pedagogical-validator";
 import { db } from "../db";
-import { courses, masterTeachingDocuments, assessmentSources, assessmentObjects, assessmentProfiles, coursePolicies, vectorSyncQueue, user } from "../db/schema";
+import { courses, masterTeachingDocuments, assessmentSources, assessmentObjects, assessmentProfiles, coursePolicies, user } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 

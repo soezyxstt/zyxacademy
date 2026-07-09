@@ -7,7 +7,6 @@ import 'dotenv/config';
 import { db } from '../lib/db/index';
 import { driveItem, diktats } from '../db/schema';
 import { eq, isNotNull } from 'drizzle-orm';
-import { storage } from '../lib/storage/index';
 
 function extractFileKeyFromUrl(url: string): string | null {
   if (!url) return null;

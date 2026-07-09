@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { learningEvents, studentMaterialProgress, flashcardReviews, studentQuizAttempts, websiteMaterials, flashcards, quizTemplates } from "@/db/schema";
-import { and, eq, gte, sql, count, desc } from "drizzle-orm";
+import { and, eq, gte, count, desc } from "drizzle-orm";
 import type { LearningMemory } from "./memory-layers";
 
 const ACTIVITY_WINDOW_DAYS = 30;

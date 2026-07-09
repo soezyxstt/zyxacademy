@@ -54,7 +54,7 @@ export async function ensurePkaEnrollment(userId: string, notify = true): Promis
     .from(pkaSchedules)
     .where(gt(pkaSchedules.sessionAt, now));
 
-  // Only announcements that were actually broadcast (sentAt set) in the last 7 days.
+  // Only announcements that were actually broadcast (sentAt set) in the last 7 days and not archived.
   const recentAnnouncements = await db
     .select()
     .from(pkaAnnouncements)
@@ -62,6 +62,7 @@ export async function ensurePkaEnrollment(userId: string, notify = true): Promis
       and(
         gt(pkaAnnouncements.createdAt, new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)),
         isNotNull(pkaAnnouncements.sentAt),
+        eq(pkaAnnouncements.isArchived, false),
       ),
     );
 

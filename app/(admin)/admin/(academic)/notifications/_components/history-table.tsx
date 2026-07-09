@@ -6,15 +6,7 @@
  * Displays the paginated notification history for the admin.
  */
 
-import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Circle } from "lucide-react";
-
-type NotificationType =
-  | "quiz_published"
-  | "flashcard_reminder"
-  | "tutor_reminder"
-  | "payment_success"
-  | "admin_broadcast";
 
 interface HistoryRow {
   id: string;

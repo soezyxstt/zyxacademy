@@ -8,7 +8,7 @@ export class UploadThingProvider implements StorageProvider {
     file: File | Buffer | Uint8Array,
     filename: string,
     mimeType: string,
-    options?: any
+    _options?: any
   ): Promise<{ url: string; key: string; size: number }> {
     let uploadFile: File;
     
@@ -78,7 +78,7 @@ export class UploadThingProvider implements StorageProvider {
     key: string,
     operation: "get" | "put",
     mimeType?: string,
-    expiresIn = 3600
+    _expiresIn = 3600
   ): Promise<string> {
     // UploadThing doesn't natively support S3-like presigning via UTAPI directly here,
     // so we return the standard public URL or throw for PUT since it's client-direct.

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -38,9 +39,11 @@ export function TutorSidebar() {
             )}
           >
             {session.user.image ? (
-              <img
+              <Image
                 src={session.user.image}
                 alt={session.user.name}
+                width={28}
+                height={28}
                 className="size-7 shrink-0 rounded-full object-cover ring-2 ring-brand-primary/20"
               />
             ) : (

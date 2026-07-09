@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
  );
  }
 
- const { target, targetId, title, body: msgBody, link = "/dashboard", metadata } = parsed.data;
+  const { target, targetId, title, body: msgBody, link = "/dashboard" } = parsed.data;
 
  // 3. Resolve target user IDs
  let resolvedTarget: "all" | string[];

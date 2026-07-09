@@ -1,5 +1,4 @@
 import { KnowledgeService } from "./knowledge-service";
-import { AnalyticsService } from "./analytics-service";
 import { db } from "@/db";
 import { aiQuestionBank } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -79,7 +78,7 @@ export class ContextAssembly {
   static async analyzeMistake(
     questionId: string,
     selectedIndex: number,
-    studentId: string
+    _studentId: string
   ): Promise<MistakeContextVars> {
     // 1. Fetch question details from bank
     const [question] = await db

@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Eye, Share2 } from "lucide-react";
+import { Plus, Edit, Eye, Share2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ShareDialog } from "@/components/blog/share-widget";

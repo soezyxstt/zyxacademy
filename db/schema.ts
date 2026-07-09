@@ -2683,6 +2683,7 @@ export const pkaAnnouncements = sqliteTable("pka_announcements", {
     .references(() => user.id),
   sentAt: integer("sent_at", { mode: "timestamp" }),
   recipientCount: integer("recipient_count"),
+  isArchived: integer("is_archived", { mode: "boolean" }).default(false).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
 });
 

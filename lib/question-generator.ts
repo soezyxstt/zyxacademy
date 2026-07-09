@@ -22,19 +22,7 @@ import { validateQuestionAgainstPolicy, type CoursePolicyRow } from "@/lib/pedag
 import { getPatternProfile } from "./assessment-pattern-engine";
 
 // Zod validation helper for Gemini response parsing
-import { z } from "zod";
 import { repairJsonString } from "./ko-utils";
-
-const GeminiQuestionResponseSchema = z.object({
-  prompt: z.string(),
-  options: z.array(z.string()),
-  correctIndices: z.array(z.number()),
-  explanation: z.string(),
-  bloomLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]).optional(),
-  pattern: z.string().optional(),
-  reasoningType: z.string().optional(),
-  estimatedSteps: z.number().int().optional(),
-});
 
 /**
  * Builds the dynamic prompt mapping blueprint requirements and distractor strategies to Gemini context.

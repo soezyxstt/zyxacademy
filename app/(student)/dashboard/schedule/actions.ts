@@ -7,7 +7,6 @@ import {
   user,
   courses,
   enrollments,
-  groups,
   groupMembers,
   tutorCourses,
   tutorSlots,
@@ -15,7 +14,6 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq, and, inArray, sql } from "drizzle-orm";
-import { getSemesterEndDate } from "@/lib/utils";
 
 // Helper to authenticate user
 async function requireUser() {

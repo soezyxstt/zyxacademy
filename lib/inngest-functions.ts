@@ -10,7 +10,7 @@ import { embedTexts } from "@/lib/gemini";
 import { shouldMirrorToVectorize, serializeVzMetadata, vectorizeUpsert } from "@/lib/vectorize-client";
 import { eq, and, or, lt, gt, sql, inArray } from "drizzle-orm";
 import { generateFlashcardsForChapter } from "@/lib/flashcard-generator";
-import { generateQuestionsForKO, generateQuestionsForKOBatch } from "@/lib/question-generator";
+import { generateQuestionsForKOBatch } from "@/lib/question-generator";
 import { executeGenerationJob } from "@/lib/generation-pipeline";
 import { generateMarkdownForChapter } from "@/lib/material-generator";
 import { saveWebsiteMaterial } from "@/lib/material-storage";

@@ -538,7 +538,7 @@ export function validateAST(ast: WebsiteMaterialAST): { success: boolean; errors
   const visualBlockIds = new Set<string>();
 
   // Gather glossary terms, formula IDs, and visual block IDs
-  ast.blocks.forEach((block, index) => {
+  ast.blocks.forEach((block, _index) => {
     if (block.type === "glossary_term") {
       glossaryTerms.add(block.content.term.toLowerCase().trim());
     }

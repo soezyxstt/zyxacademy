@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { courses, chapters, courseMaterials } from "@/db/schema";
 import { assertAdmin } from "@/lib/uploadthing-admin";
-import { eq, asc, desc, and } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Lock, CheckCircle2, Play, AlertCircle } from "lucide-react";
+import { ChevronRight, Lock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { quizTemplates, studentQuizAttempts } from "@/db/schema";
@@ -82,11 +82,6 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
           const templateAttempts = attempts.filter((a) => a.templateId === template.id);
           const completedAttempts = templateAttempts.filter((a) => a.status === "completed");
           const activeAttempt = templateAttempts.find((a) => a.status === "in_progress");
-
-          // Calculate attempts left
-          const attemptsLeft = template.maxAttempts 
-            ? Math.max(0, template.maxAttempts - completedAttempts.length)
-            : null;
 
           // Find highest score
           const highestScore = completedAttempts.length > 0

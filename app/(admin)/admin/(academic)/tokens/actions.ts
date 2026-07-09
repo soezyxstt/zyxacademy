@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
-import { enrollmentTokens, courses, user, groups, enrollmentTokenCourses } from "@/db/schema";
+import { enrollmentTokens, courses, groups, enrollmentTokenCourses } from "@/db/schema";
 import { assertAdmin } from "@/lib/uploadthing-admin";
 import { eq, desc, inArray } from "drizzle-orm";
 import { getSemesterEndDate } from "@/lib/utils";

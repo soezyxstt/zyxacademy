@@ -7,9 +7,8 @@ import {
   websiteMaterials,
   flashcards,
   quizTemplates,
-  studentFlashcardProgress,
 } from "@/db/schema";
-import { and, eq, gte, lt, sql, count, desc, sum } from "drizzle-orm";
+import { and, eq, gte, lt, sql, count, desc } from "drizzle-orm";
 
 export interface LearningMemorySummary {
   completedMaterials: number;

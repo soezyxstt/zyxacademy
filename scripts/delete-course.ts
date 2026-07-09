@@ -11,7 +11,7 @@ async function main() {
   console.log(`Memulai proses penghapusan kursus ID: ${courseId}...`);
 
   try {
-    const result = await db.delete(courses).where(eq(courses.id, courseId));
+    await db.delete(courses).where(eq(courses.id, courseId));
     console.log("SUCCESS: Kursus dan seluruh data terkait (chapters, KOs, website materials, flashcards, dll.) berhasil dihapus!");
     process.exit(0);
   } catch (error) {

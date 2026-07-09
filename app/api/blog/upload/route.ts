@@ -7,7 +7,7 @@ const MAX_SIZE_MB = 20;
 
 export async function POST(req: Request) {
   try {
-    const { user } = await assertTutorOrAdmin();
+    await assertTutorOrAdmin();
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

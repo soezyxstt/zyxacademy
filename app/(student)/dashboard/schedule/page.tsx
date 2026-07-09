@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { toast } from "@/components/ui/toast";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
@@ -74,7 +74,7 @@ const getCourseStyles = (courseId: string) => {
 const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 
 export default function SchedulePage() {
-  const router = useRouter();
+  void useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);

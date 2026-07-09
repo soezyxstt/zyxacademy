@@ -3,7 +3,6 @@ import {
   courses,
   chapters,
   knowledgeObjects,
-  masterTeachingDocuments,
   knowledgeRelationships,
 } from "@/db/schema";
 import { eq, and, inArray, asc } from "drizzle-orm";

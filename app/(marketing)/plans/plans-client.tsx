@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Plus, Minus, Users, BookOpen } from "lucide-react";
+import { Check, Plus, Minus, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -21,7 +21,7 @@ import {
   calculatePlanPrice,
   getWhatsAppPlanUrl,
 } from "@/lib/pricing-constants";
-import { planTiers, type PlanKey } from "@/lib/plan-tiers";
+import { planTiers } from "@/lib/plan-tiers";
 
 export default function PlansClient() {
   const [persons, setPersons] = useState<number>(DEFAULT_PERSONS);

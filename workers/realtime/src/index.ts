@@ -19,7 +19,7 @@ function cors(origin: string) {
   };
 }
 
-export default {
+const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") ?? "";
@@ -40,3 +40,5 @@ export default {
     return room.fetch(request);
   },
 };
+
+export default worker;

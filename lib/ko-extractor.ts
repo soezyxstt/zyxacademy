@@ -4,7 +4,7 @@ import { generateContentWithFallback, embedText, withGeminiRetry } from "@/lib/g
 import { USE_CASES } from "@/lib/ai-router";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { preprocessMarkdown, safeParseJson, slugify } from "./ko-utils";
 
 // ─── UTILITIES FOR CONCEPT RESOLUTION & MATCHING ──────────────────────────────

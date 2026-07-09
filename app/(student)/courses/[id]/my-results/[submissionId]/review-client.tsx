@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Check, HelpCircle, X, Lock, Sparkles, Video, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -144,11 +145,12 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
 
                   {/* Image/Diagram explanation */}
                   {item.explanationImage && (
-                    <div className="relative mx-auto max-w-md border border-border rounded-2xl overflow-hidden mt-3 shadow-xs">
-                      <img
+                    <div className="relative mx-auto max-w-md aspect-video border border-border rounded-2xl overflow-hidden mt-3 shadow-xs">
+                      <Image
                         src={item.explanationImage}
                         alt={`Diagram Pembahasan Soal ${idx + 1}`}
-                        className="object-cover w-full h-auto aspect-video"
+                        fill
+                        className="object-cover"
                       />
                       <div className="bg-muted/70 px-3 py-1.5 text-[10px] text-center text-muted-foreground border-t border-border font-medium">
                         Gambar: Ilustrasi Grafik Penyelesaian Matematika

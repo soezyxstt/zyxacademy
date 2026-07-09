@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { aiUsageEvents, flashcards, knowledgeObjects, aiQuestionBank, enrollments, chapters, studentChapterProgress } from "@/db/schema";
+import { flashcards, aiQuestionBank, enrollments, chapters, studentChapterProgress } from "@/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 import { KnowledgeService } from "./knowledge-service";
 import { AnalyticsService } from "./analytics-service";
@@ -42,7 +42,7 @@ export class TutorActionService {
    * Retrieves active cards linked to the target KO.
    * Outcome: Launches the flashcard deck focusing on Box 1 cards.
    */
-  static async startFlashcardReview(koId: string, studentId: string): Promise<{ deckId: string; cardsCount: number }> {
+  static async startFlashcardReview(koId: string, _studentId: string): Promise<{ deckId: string; cardsCount: number }> {
     const cardsList = await db
       .select()
       .from(flashcards)
@@ -58,7 +58,7 @@ export class TutorActionService {
    * Queries existing questions matching the KO. If count is low, triggers the Prompt Executor.
    * Outcome: Launches a 3-question practice quiz modal.
    */
-  static async generatePracticeQuiz(koId: string, difficulty: string): Promise<{ quizId: string }> {
+  static async generatePracticeQuiz(koId: string, _difficulty: string): Promise<{ quizId: string }> {
     const existing = await db
       .select()
       .from(aiQuestionBank)
@@ -86,7 +86,7 @@ export class TutorActionService {
    * Queries weak concepts mapped to student ID.
    * Outcome: Redirects the student to their profile dashboard.
    */
-  static async reviewWeakConcepts(studentId: string): Promise<{ sectionId: string }> {
+  static async reviewWeakConcepts(_studentId: string): Promise<{ sectionId: string }> {
     return {
       sectionId: "dashboard-weak-concepts-panel",
     };

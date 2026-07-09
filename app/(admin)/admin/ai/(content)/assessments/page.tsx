@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { assessmentSources, assessmentObjects, assessmentSourceChapters, courses, chapters } from "@/db/schema";
-import { desc, eq, asc, sql, isNull } from "drizzle-orm";
+import { assessmentSources, assessmentObjects, assessmentSourceChapters, courses } from "@/db/schema";
+import { desc, sql, isNull } from "drizzle-orm";
 import { assertAdmin } from "@/lib/uploadthing-admin";
 import { AssessmentsClient } from "./assessments-client";
 
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default async function AssessmentsPage() {
   await assertAdmin();
 
-  const [sources, allCourses, allChapters] = await Promise.all([
+  const [sources, allCourses] = await Promise.all([
     db
       .select({
         id: assessmentSources.id,
@@ -32,11 +32,6 @@ export default async function AssessmentsPage() {
       .where(isNull(assessmentSources.deletedAt))
       .orderBy(desc(assessmentSources.createdAt)),
     db.select({ id: courses.id, title: courses.title }).from(courses),
-    db.select({
-      id: chapters.id,
-      courseId: chapters.courseId,
-      title: chapters.title,
-    }).from(chapters).orderBy(asc(chapters.orderIndex)),
   ]);
 
   const formattedSources = sources.map(s => ({
@@ -57,7 +52,6 @@ export default async function AssessmentsPage() {
       <AssessmentsClient
         sources={formattedSources}
         courses={allCourses}
-        chapters={allChapters}
         courseMap={courseMap}
       />
     </div>

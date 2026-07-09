@@ -9,7 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { createAndSendPkaAnnouncementAction, type PkaAnnouncementRow } from "../actions";
+import { cn } from "@/lib/utils";
+import {
+  createAndSendPkaAnnouncementAction,
+  archivePkaAnnouncementAction,
+  type PkaAnnouncementRow,
+} from "../actions";
 
 const TITLE_MAX = 100;
 const BODY_MAX = 4000;
@@ -30,6 +35,18 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const router = useRouter();
+
+  const handleToggleArchive = (id: string, archive: boolean) => {
+    startTransition(async () => {
+      const res = await archivePkaAnnouncementAction(id, archive);
+      if (res.error) {
+        toast.error(archive ? "Gagal mengarsipkan pengumuman" : "Gagal membatalkan arsip", { description: res.error });
+      } else {
+        toast.success(archive ? "Pengumuman diarsipkan." : "Arsip pengumuman dibatalkan.");
+        router.refresh();
+      }
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -153,20 +170,31 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-            <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border bg-muted/30 px-5 py-3">
+            <div className="hidden md:grid grid-cols-[1fr_120px_100px_120px_100px] gap-4 border-b border-border bg-muted/30 px-5 py-3">
               <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Pengumuman</span>
               <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
               <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Penerima</span>
               <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Waktu</span>
+              <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">Aksi</span>
             </div>
             <ul className="divide-y divide-border/60">
               {history.map((row) => (
                 <li
                   key={row.id}
-                  className="grid grid-cols-1 gap-2 px-5 py-3.5 transition-colors hover:bg-muted/20 md:grid-cols-[1fr_auto_auto_auto] md:items-center md:gap-4"
+                  className={cn(
+                    "grid grid-cols-1 gap-2 px-5 py-3.5 transition-colors hover:bg-muted/20 md:grid-cols-[1fr_120px_100px_120px_100px] md:items-center md:gap-4",
+                    row.isArchived && "opacity-60 bg-muted/5"
+                  )}
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-body-sm font-medium text-foreground">{row.title}</p>
+                    <p className="truncate text-body-sm font-medium text-foreground">
+                      {row.title}
+                      {row.isArchived && (
+                        <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
+                          Arsip
+                        </span>
+                      )}
+                    </p>
                     <p className="mt-0.5 truncate text-body-xs text-muted-foreground">{row.body}</p>
                   </div>
                   <div className="flex items-center">
@@ -193,6 +221,17 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                     >
                       {formatRelative(row.createdAt)}
                     </span>
+                  </div>
+                  <div className="flex items-center justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-body-xs font-semibold rounded-md"
+                      disabled={isPending}
+                      onClick={() => handleToggleArchive(row.id, !row.isArchived)}
+                    >
+                      {row.isArchived ? "Batal Arsip" : "Arsipkan"}
+                    </Button>
                   </div>
                 </li>
               ))}

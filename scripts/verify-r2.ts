@@ -8,7 +8,6 @@ import 'dotenv/config';
 import { db } from '../lib/db/index';
 import { driveItem, diktats } from '../db/schema';
 import { eq, isNotNull } from 'drizzle-orm';
-import { storage } from '../lib/storage/index';
 import { S3Client, HeadObjectCommand } from '@aws-sdk/client-s3';
 
 const bucket = process.env.R2_BUCKET || 'zyx';

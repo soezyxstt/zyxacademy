@@ -509,12 +509,12 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
             .filter(Boolean)
         : [];
 
-      let addedCount = 0;
+      let _addedCount = 0;
       glossaryWarnings.forEach(warn => {
         const term = warn.target!;
         if (!existing.map((e) => e.toLowerCase()).includes(term.toLowerCase())) {
           existing.push(term);
-          addedCount++;
+          _addedCount++;
         }
       });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Brain, HelpCircle, Check, X, RotateCw, AlertTriangle, ArrowRight, BookOpen } from "lucide-react";
+import { Brain, Check, X, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
 import { submitReviewAction } from "./actions";

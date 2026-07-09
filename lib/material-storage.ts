@@ -6,7 +6,6 @@ import {
   knowledgeObjects,
   masterTeachingDocuments,
   vectorSyncQueue,
-  user,
 } from "@/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { compileMarkdownToAST, compileMarkdown } from "./markdown-compiler";
@@ -396,7 +395,7 @@ export async function archiveChapterMaterial(chapterId: string): Promise<void> {
  */
 export async function approveAndPublish(
   chapterId: string,
-  adminUserId: string
+  _adminUserId: string
 ): Promise<void> {
   const [material] = await db
     .select()

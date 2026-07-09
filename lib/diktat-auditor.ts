@@ -57,8 +57,6 @@ type KO = {
 };
 
 function detectFractionInversion(compiledLatex: string, sourceLatex: string): boolean {
-  const fractionRegex = /\\frac\{([^}]+)\}\{([^}]+)\}/g;
-
   const extract = (latex: string): [string, string][] => {
     const pairs: [string, string][] = [];
     let m: RegExpExecArray | null;
@@ -79,7 +77,6 @@ function detectFractionInversion(compiledLatex: string, sourceLatex: string): bo
   }
 
   // Delta notation: Δy/Δx vs Δx/Δy (outside \frac)
-  const deltaRe = /Delta\s*([a-zA-Z]+)\s*\/\s*Delta\s*([a-zA-Z]+)/g;
   const extractDeltas = (latex: string): [string, string][] => {
     const pairs: [string, string][] = [];
     let m: RegExpExecArray | null;

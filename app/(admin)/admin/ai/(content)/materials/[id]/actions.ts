@@ -12,7 +12,7 @@ import {
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { generateFlashcardsForChapter } from "@/lib/flashcard-generator";
-import { generateQuestionsForKO, generateQuestionsForKOBatch } from "@/lib/question-generator";
+import { generateQuestionsForKOBatch } from "@/lib/question-generator";
 import { inngest } from "@/lib/inngest";
 
 export async function generateFlashcardsAction(chapterId: string) {

@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getCourse } from "@/lib/course-utils";
-import { PKA_COURSE_ID } from "@/lib/pka-config";
 
 type Props = {
   children: ReactNode;

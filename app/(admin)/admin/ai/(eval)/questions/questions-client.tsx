@@ -269,7 +269,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
       } else {
         toast.error(data.error || "Gagal mengimpor soal.");
       }
-    } catch (err: any) {
+    } catch {
       toast.error("Terjadi kesalahan koneksi.");
     } finally {
       setBulkSubmitting(false);
@@ -356,7 +356,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
       } else {
         toast.error("Gagal menghapus soal.");
       }
-    } catch (e) {
+    } catch {
       toast.error("Terjadi kesalahan.");
     }
   };

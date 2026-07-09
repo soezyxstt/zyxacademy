@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Layers, ListChecks, BookOpen, ArrowRight, Flame } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import type { CourseDailyPlan } from "@/types/course-learning";
 
