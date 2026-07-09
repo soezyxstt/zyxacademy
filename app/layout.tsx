@@ -16,6 +16,7 @@ import { ThemeProvider } from "next-themes";
 import { TutorProvider } from "@/components/course/tutor-drawer";
 import { CommandMenuProvider } from "@/components/command-menu";
 import Script from "next/script";
+import NextTopLoader from "nextjs-toploader";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.zyxacademy.com"),
@@ -55,6 +56,7 @@ export default function RootLayout({
  <body className="font-sans min-h-screen flex flex-col overflow-x-clip">
   <QueryProvider>
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+  <NextTopLoader color="var(--primary)" showSpinner={false} shadow="0 0 10px var(--primary), 0 0 5px var(--primary)" />
   <NextSSRPlugin routerConfig={extractRouterConfig(uploadRouter)} />
   <DesmosCalculatorScript />
   <Script

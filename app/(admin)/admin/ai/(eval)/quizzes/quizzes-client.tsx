@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Clock, Award, ShieldAlert, BookOpen, Loader2, Calendar, ChevronDown, ListPlus, Sliders, FileJson } from "lucide-react";
 import { toast } from "@/components/ui/toast";
@@ -68,6 +68,33 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  const [hard, setHard] = useState("2");
  
  const [submitting, setSubmitting] = useState(false);
+ const [courseQuestions, setCourseQuestions] = useState<any[]>([]);
+ const [loadingQuestions, setLoadingQuestions] = useState(false);
+ const [selectedQIds, setSelectedQIds] = useState<string[]>([]);
+
+ useEffect(() => {
+    if (!createOpen || !courseId) return;
+    
+    let active = true;
+    async function loadQuestions() {
+      setLoadingQuestions(true);
+      try {
+        const res = await fetch(`/api/admin/questions?courseId=${courseId}&reviewStatus=published&limit=200`);
+        if (res.ok && active) {
+          const data = await res.json();
+          setCourseQuestions(data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load questions for course:", err);
+      } finally {
+        if (active) setLoadingQuestions(false);
+      }
+    }
+    loadQuestions();
+    return () => {
+      active = false;
+    };
+  }, [courseId, createOpen]);
 
  const qCount = Number(count) || 10;
  const easyCount = Number(easy) || 0;
@@ -99,20 +126,22 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  };
 
  const handleCreateSubmit = async (e: React.FormEvent) => {
- e.preventDefault();
- if (!title.trim()) return toast.error("Judul kuis wajib diisi.");
- 
- if (isNaN(qCount) || qCount < 1) {
- return toast.error("Jumlah soal harus minimal 1.");
- }
+    e.preventDefault();
+    if (!title.trim()) return toast.error("Judul kuis wajib diisi.");
+    
+    if (selectedQIds.length === 0) {
+      if (isNaN(qCount) || qCount < 1) {
+        return toast.error("Jumlah soal harus minimal 1.");
+      }
 
- if (easyCount + mediumCount + hardCount !== qCount) {
- return toast.error(
- `Proporsi kesulitan (${easyCount} Easy + ${mediumCount} Medium + ${hardCount} Hard = ${easyCount + mediumCount + hardCount}) harus sama dengan total jumlah soal (${qCount}).`
- );
- }
+      if (easyCount + mediumCount + hardCount !== qCount) {
+        return toast.error(
+          `Proporsi kesulitan (${easyCount} Easy + ${mediumCount} Medium + ${hardCount} Hard = ${easyCount + mediumCount + hardCount}) harus sama dengan total jumlah soal (${qCount}).`
+        );
+      }
+    }
 
- try {
+    try {
  setSubmitting(true);
  const tags = tagsStr.split(",").map((t) => t.trim()).filter(Boolean);
  
@@ -125,16 +154,17 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  maxAttempts: maxAttempts ? Number(maxAttempts) : undefined,
  openAt: openAt ? new Date(openAt).toISOString() : null,
  closeAt: closeAt ? new Date(closeAt).toISOString() : null,
- selectionRules: {
- tags,
- count: qCount,
- difficulty_proportions: {
- easy: easyCount,
- medium: mediumCount,
- hard: hardCount,
- },
- },
- };
+      selectionRules: {
+        tags: selectedQIds.length > 0 ? [] : tags,
+        count: selectedQIds.length > 0 ? selectedQIds.length : qCount,
+        fixedQuestionIds: selectedQIds.length > 0 ? selectedQIds : undefined,
+        difficulty_proportions: selectedQIds.length > 0 ? undefined : {
+          easy: easyCount,
+          medium: mediumCount,
+          hard: hardCount,
+        },
+      },
+    };
 
  const res = await fetch("/api/quiz/templates", {
  method: "POST",
@@ -176,11 +206,12 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  setMaxAttempts("");
  setOpenAt("");
  setCloseAt("");
- setCount("10");
- setTagsStr("");
- setEasy("3");
- setMedium("5");
- setHard("2");
+  setCount("10");
+  setTagsStr("");
+  setSelectedQIds([]);
+  setEasy("3");
+  setMedium("5");
+  setHard("2");
  } catch (err: any) {
  toast.error(err.message || "Gagal membuat kuis");
  } finally {
@@ -252,10 +283,25 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  <div className="mt-4 space-y-2.5 border-t border-border/40 pt-3.5 text-body-sm text-muted-foreground">
  <div className="flex items-center gap-2.5">
  <BookOpen className="size-4 text-brand-primary/85 shrink-0" />
- <span>
- <strong>{qCount} Soal</strong> <span className="text-muted-foreground/80">({props.easy} Easy · {props.medium} Medium · {props.hard} Hard)</span>
- </span>
- </div>
+  <span>
+    <strong>{qCount} Soal</strong> {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 ? "(Soal Spesifik)" : <span className="text-muted-foreground/80">({props.easy} Easy · {props.medium} Medium · {props.hard} Hard)</span>}
+  </span>
+  </div>
+
+  {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && (
+    <div className="mt-2.5 text-left border-t border-border/40 pt-2.5">
+      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+        Daftar Soal Terpilih (ID):
+      </span>
+      <ol className="list-decimal pl-4 space-y-1 text-body-xs text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
+        {rules.fixedQuestionIds.map((qId: string) => (
+          <li key={qId} className="truncate font-mono text-[10px]" title={qId}>
+            {qId}
+          </li>
+        ))}
+      </ol>
+    </div>
+  )}
 
  <div className="flex items-center gap-2.5">
  <Clock className="size-4 text-emerald-500/85 shrink-0" />
@@ -435,177 +481,248 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  </div>
  </div>
 
- {/* Selection Rules Section */}
- <div className="rounded-xl border border-border bg-muted/5 p-5 space-y-4">
- <h3 className="font-heading text-body-sm font-bold text-foreground border-b border-border/50 pb-2 flex items-center gap-2">
- <BookOpen className="size-4.5 text-brand-primary" />
- Aturan Seleksi &amp; Proporsi Kesulitan
- </h3>
+  {/* Selection Rules Section */}
+  <div className="rounded-xl border border-border bg-muted/5 p-5 space-y-4">
+    <h3 className="font-heading text-body-sm font-bold text-foreground border-b border-border/50 pb-2 flex items-center gap-2">
+      <BookOpen className="size-4.5 text-brand-primary" />
+      Aturan Seleksi &amp; Proporsi Kesulitan
+    </h3>
 
- <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
- <div className="space-y-1.5">
- <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Jumlah Total Soal</label>
- <Input
- type="number"
- value={count}
- onChange={(e) => {
- const val = Number(e.target.value) || 10;
- setCount(e.target.value);
- // Auto balance difficulty proportions
- setEasy(String(Math.round(val * 0.3)));
- setMedium(String(Math.round(val * 0.5)));
- setHard(String(val - Math.round(val * 0.3) - Math.round(val * 0.5)));
- }}
- className="h-10 border-border/80 bg-background text-body-sm font-medium"
- />
- </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="space-y-1.5">
+        <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Jumlah Total Soal</label>
+        <Input
+          type="number"
+          disabled={selectedQIds.length > 0}
+          value={selectedQIds.length > 0 ? selectedQIds.length.toString() : count}
+          onChange={(e) => {
+            const val = Number(e.target.value) || 10;
+            setCount(e.target.value);
+            // Auto balance difficulty proportions
+            setEasy(String(Math.round(val * 0.3)));
+            setMedium(String(Math.round(val * 0.5)));
+            setHard(String(val - Math.round(val * 0.3) - Math.round(val * 0.5)));
+          }}
+          className="h-10 border-border/80 bg-background text-body-sm font-medium"
+        />
+      </div>
 
- <div className="space-y-1.5">
- <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Filter Topik/Tags (Pisahkan Koma)</label>
- <Input
- type="text"
- value={tagsStr}
- onChange={(e) => setTagsStr(e.target.value)}
- placeholder="turunan, limit (opsional)"
- className="h-10 border-border/80 bg-background text-body-sm font-medium"
- />
- </div>
- </div>
+      <div className="space-y-1.5">
+        <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Filter Topik/Tags (Pisahkan Koma)</label>
+        <Input
+          type="text"
+          disabled={selectedQIds.length > 0}
+          value={selectedQIds.length > 0 ? "" : tagsStr}
+          onChange={(e) => setTagsStr(e.target.value)}
+          placeholder={selectedQIds.length > 0 ? "Diabaikan karena memilih soal spesifik" : "turunan, limit (opsional)"}
+          className="h-10 border-border/80 bg-background text-body-sm font-medium"
+        />
+      </div>
+    </div>
 
- {/* VISUAL PROPORTION SLIDERS */}
- <div className="space-y-4 pt-2">
- <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-muted-foreground">
- <span>Visualisasi Rasio Pembagian Kesulitan</span>
- <span className={cn(
- totalProportion === qCount ? "text-status-success" : "text-status-error",
- "font-semibold"
- )}>
- {totalProportion} / {qCount} Soal
- </span>
- </div>
+    {selectedQIds.length === 0 && (
+      <>
+        {/* VISUAL PROPORTION SLIDERS */}
+        <div className="space-y-4 pt-2">
+          <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <span>Visualisasi Rasio Pembagian Kesulitan</span>
+            <span className={cn(
+              totalProportion === qCount ? "text-status-success" : "text-status-error",
+              "font-semibold"
+            )}>
+              {totalProportion} / {qCount} Soal
+            </span>
+          </div>
 
- {/* Multi-color Progress bar breakdown */}
- <div className="h-3 w-full bg-muted rounded-md overflow-hidden flex border border-border">
- {qCount > 0 && (
- <>
- <div className="bg-emerald-500 transition-all duration-300" style={{ width: `${(easyCount/qCount)*100}%` }} title={`Easy: ${easyCount}`} />
- <div className="bg-amber-500 transition-all duration-300" style={{ width: `${(mediumCount/qCount)*100}%` }} title={`Medium: ${mediumCount}`} />
- <div className="bg-rose-500 transition-all duration-300" style={{ width: `${(hardCount/qCount)*100}%` }} title={`Hard: ${hardCount}`} />
- </>
- )}
- </div>
+          {/* Multi-color Progress bar breakdown */}
+          <div className="h-3 w-full bg-muted rounded-md overflow-hidden flex border border-border">
+            {qCount > 0 && (
+              <>
+                <div className="bg-emerald-500 transition-all duration-300" style={{ width: `${(easyCount/qCount)*100}%` }} title={`Easy: ${easyCount}`} />
+                <div className="bg-amber-500 transition-all duration-300" style={{ width: `${(mediumCount/qCount)*100}%` }} title={`Medium: ${mediumCount}`} />
+                <div className="bg-rose-500 transition-all duration-300" style={{ width: `${(hardCount/qCount)*100}%` }} title={`Hard: ${hardCount}`} />
+              </>
+            )}
+          </div>
 
- {/* Range Sliders Stack */}
- <div className="space-y-3">
- {/* Easy Slider */}
- <div className="space-y-1 bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10">
- <div className="flex justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
- <span>Easy</span>
- <span>{easyCount} Soal</span>
- </div>
- <input
- type="range"
- min="0"
- max={qCount}
- value={easy}
- onChange={(e) => {
- const val = Number(e.target.value);
- setEasy(String(val));
- const remaining = qCount - val;
- const currentMed = Number(medium) || 0;
- const currentHard = Number(hard) || 0;
- const totalOther = currentMed + currentHard;
- if (totalOther > 0) {
- const newMed = Math.min(remaining, Math.round((currentMed / totalOther) * remaining));
- setMedium(String(newMed));
- setHard(String(remaining - newMed));
- } else {
- const newMed = Math.round(remaining / 2);
- setMedium(String(newMed));
- setHard(String(remaining - newMed));
- }
- }}
- className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-emerald-500"
- />
- </div>
+          {/* Range Sliders Stack */}
+          <div className="space-y-3">
+            {/* Easy Slider */}
+            <div className="space-y-1 bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10">
+              <div className="flex justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <span>Easy</span>
+                <span>{easyCount} Soal</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max={qCount}
+                value={easy}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setEasy(String(val));
+                  const remaining = qCount - val;
+                  const currentMed = Number(medium) || 0;
+                  const currentHard = Number(hard) || 0;
+                  const totalOther = currentMed + currentHard;
+                  if (totalOther > 0) {
+                    const newMed = Math.min(remaining, Math.round((currentMed / totalOther) * remaining));
+                    setMedium(String(newMed));
+                    setHard(String(remaining - newMed));
+                  } else {
+                    const newMed = Math.round(remaining / 2);
+                    setMedium(String(newMed));
+                    setHard(String(remaining - newMed));
+                  }
+                }}
+                className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+            </div>
 
- {/* Medium Slider */}
- <div className="space-y-1 bg-amber-500/5 p-2 rounded-lg border border-amber-500/10">
- <div className="flex justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
- <span>Medium</span>
- <span>{mediumCount} Soal</span>
- </div>
- <input
- type="range"
- min="0"
- max={qCount}
- value={medium}
- onChange={(e) => {
- const val = Number(e.target.value);
- setMedium(String(val));
- const remaining = qCount - val;
- const currentEasy = Number(easy) || 0;
- const currentHard = Number(hard) || 0;
- const totalOther = currentEasy + currentHard;
- if (totalOther > 0) {
- const newEasy = Math.min(remaining, Math.round((currentEasy / totalOther) * remaining));
- setEasy(String(newEasy));
- setHard(String(remaining - newEasy));
- } else {
- const newEasy = Math.round(remaining / 2);
- setEasy(String(newEasy));
- setHard(String(remaining - newEasy));
- }
- }}
- className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-amber-500"
- />
- </div>
+            {/* Medium Slider */}
+            <div className="space-y-1 bg-amber-500/5 p-2 rounded-lg border border-amber-500/10">
+              <div className="flex justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
+                <span>Medium</span>
+                <span>{mediumCount} Soal</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max={qCount}
+                value={medium}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setMedium(String(val));
+                  const remaining = qCount - val;
+                  const currentEasy = Number(easy) || 0;
+                  const currentHard = Number(hard) || 0;
+                  const totalOther = currentEasy + currentHard;
+                  if (totalOther > 0) {
+                    const newEasy = Math.min(remaining, Math.round((currentEasy / totalOther) * remaining));
+                    setEasy(String(newEasy));
+                    setHard(String(remaining - newEasy));
+                  } else {
+                    const newEasy = Math.round(remaining / 2);
+                    setEasy(String(newEasy));
+                    setHard(String(remaining - newEasy));
+                  }
+                }}
+                className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-amber-500"
+              />
+            </div>
 
- {/* Hard Slider */}
- <div className="space-y-1 bg-rose-500/5 p-2 rounded-lg border border-rose-500/10">
- <div className="flex justify-between text-xs font-bold text-rose-600 dark:text-rose-400">
- <span>Hard</span>
- <span>{hardCount} Soal</span>
- </div>
- <input
- type="range"
- min="0"
- max={qCount}
- value={hard}
- onChange={(e) => {
- const val = Number(e.target.value);
- setHard(String(val));
- const remaining = qCount - val;
- const currentEasy = Number(easy) || 0;
- const currentMed = Number(medium) || 0;
- const totalOther = currentEasy + currentMed;
- if (totalOther > 0) {
- const newEasy = Math.min(remaining, Math.round((currentEasy / totalOther) * remaining));
- setEasy(String(newEasy));
- setMedium(String(remaining - newEasy));
- } else {
- const newEasy = Math.round(remaining / 2);
- setEasy(String(newEasy));
- setMedium(String(remaining - newEasy));
- }
- }}
- className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-rose-500"
- />
- </div>
- </div>
+            {/* Hard Slider */}
+            <div className="space-y-1 bg-rose-500/5 p-2 rounded-lg border border-rose-500/10">
+              <div className="flex justify-between text-xs font-bold text-rose-600 dark:text-rose-400">
+                <span>Hard</span>
+                <span>{hardCount} Soal</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max={qCount}
+                value={hard}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setHard(String(val));
+                  const remaining = qCount - val;
+                  const currentEasy = Number(easy) || 0;
+                  const currentMed = Number(medium) || 0;
+                  const totalOther = currentEasy + currentMed;
+                  if (totalOther > 0) {
+                    const newEasy = Math.min(remaining, Math.round((currentEasy / totalOther) * remaining));
+                    setEasy(String(newEasy));
+                    setMedium(String(remaining - newEasy));
+                  } else {
+                    const newEasy = Math.round(remaining / 2);
+                    setEasy(String(newEasy));
+                    setMedium(String(remaining - newEasy));
+                  }
+                }}
+                className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-rose-500"
+              />
+            </div>
+          </div>
 
- <span className="block text-xs text-muted-foreground leading-normal">
- Seret slider di atas untuk menyeimbangkan rasio kesulitan soal. Pembagian harus genap bernilai total {qCount} soal.
- </span>
- </div>
- </div>
- </div>
+          <span className="block text-xs text-muted-foreground leading-normal">
+            Seret slider di atas untuk menyeimbangkan rasio kesulitan soal. Pembagian harus genap bernilai total {qCount} soal.
+          </span>
+        </div>
+      </>
+    )}
+
+    {/* Manual Question Selector for Admin */}
+    <div className="border border-border/80 rounded-xl p-3.5 bg-muted/15 space-y-2 text-left">
+      <div className="flex justify-between items-center">
+        <label className="text-body-xs font-semibold uppercase tracking-wider text-foreground flex items-center gap-1.5 font-bold">
+          <BookOpen className="size-4 text-brand-primary shrink-0" />
+          Pilih Soal Secara Spesifik ({selectedQIds.length} terpilih)
+        </label>
+      </div>
+      <div className="text-[11px] text-muted-foreground mb-2">
+        Opsional. Jika dipilih, kuis ini akan selalu berisi soal-soal ini secara tetap (mengabaikan filter tag & proporsi kesulitan).
+      </div>
+      
+      {loadingQuestions ? (
+        <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
+          <Loader2 className="size-4 animate-spin text-brand-primary" />
+          Memuat bank soal...
+        </div>
+      ) : courseQuestions.length === 0 ? (
+        <div className="text-xs text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg bg-background">
+          Belum ada soal yang dipublikasikan di Bank Soal untuk mata kuliah target.
+        </div>
+      ) : (
+        <div className="max-h-48 overflow-y-auto space-y-2 divide-y divide-border/45 pr-1 border border-border/45 rounded-lg bg-background p-2">
+          {courseQuestions.map((q) => {
+            const isChecked = selectedQIds.includes(q.id);
+            const tags = q.tags ? (typeof q.tags === "string" ? JSON.parse(q.tags) : q.tags) : [];
+            return (
+              <label
+                key={q.id}
+                className="flex items-start gap-2.5 py-2 cursor-pointer hover:bg-muted/30 px-1.5 rounded transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedQIds((prev) => [...prev, q.id]);
+                    } else {
+                      setSelectedQIds((prev) => prev.filter((id) => id !== q.id));
+                    }
+                  }}
+                  className="mt-1 cursor-pointer shrink-0"
+                />
+                <div className="flex-1 text-left min-w-0">
+                  <div className="text-xs font-semibold text-foreground line-clamp-2">
+                    {q.prompt}
+                  </div>
+                  <div className="flex gap-1.5 items-center mt-1.5 text-[10px] text-muted-foreground">
+                    <span className="uppercase font-mono font-bold bg-muted px-1 rounded text-[9px]">
+                      {q.difficulty}
+                    </span>
+                    {tags.length > 0 && (
+                      <span className="truncate">
+                        Tags: {tags.join(", ")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  </div>
+  </div>
 
  <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
  <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCreateOpen(false)}>
  Batal
  </Button>
- <Button type="submit" disabled={submitting || totalProportion !== qCount} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
+ <Button type="submit" disabled={submitting || (selectedQIds.length === 0 && totalProportion !== qCount)} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
  {submitting ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
  Buat Template Kuis
  </Button>

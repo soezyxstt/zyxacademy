@@ -24,6 +24,7 @@ const CreateTemplateSchema = z.object({
   selectionRules: z.object({
     tags: z.array(z.string()).optional(),
     count: z.number().int().min(1),
+    fixedQuestionIds: z.array(z.string()).optional(),
     difficulty_proportions: z
       .object({
         easy: z.number().int().min(0),

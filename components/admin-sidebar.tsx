@@ -102,6 +102,7 @@ function AdminSidebarInner() {
           >
             <Link
               href="/settings"
+              prefetch={true}
               onClick={() => setProfileOpen(false)}
               className="flex w-full items-center rounded-lg px-2.5 py-2 text-body-sm text-foreground hover:bg-muted transition-colors"
             >
@@ -109,6 +110,7 @@ function AdminSidebarInner() {
             </Link>
             <Link
               href="/dashboard"
+              prefetch={true}
               onClick={() => setProfileOpen(false)}
               className="flex w-full items-center rounded-lg px-2.5 py-2 text-body-sm text-foreground hover:bg-muted transition-colors"
             >

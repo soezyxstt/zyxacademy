@@ -45,6 +45,7 @@ export function NavItem({
   className,
   collapsed,
   isChild,
+  prefetch = true,
 }: {
   href?: string;
   icon: React.ElementType;
@@ -54,6 +55,7 @@ export function NavItem({
   className?: string;
   collapsed: boolean;
   isChild?: boolean;
+  prefetch?: boolean;
 }) {
   const baseClass = cn(
     "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors w-full",
@@ -73,7 +75,7 @@ export function NavItem({
   );
 
   const inner = href ? (
-    <Link href={href} onClick={onClick as undefined} className={baseClass}>
+    <Link href={href} prefetch={prefetch} onClick={onClick as undefined} className={baseClass}>
       {content}
     </Link>
   ) : (

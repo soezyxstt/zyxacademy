@@ -55,6 +55,7 @@ export function NavProfileOrSignIn({
  <SheetClose asChild>
  <Link
  href="/dashboard"
+ prefetch={true}
  title={email ?? label}
  aria-label={`Dashboard (${label})`}
  onClick={onNavigate}
@@ -151,7 +152,7 @@ export function NavProfileOrSignIn({
  asChild
  className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
  >
- <Link href="/dashboard" onClick={onNavigate}>
+ <Link href="/dashboard" prefetch={true} onClick={onNavigate}>
  <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
  <span>Dashboard</span>
  </Link>
@@ -160,7 +161,7 @@ export function NavProfileOrSignIn({
  asChild
  className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
  >
- <Link href="/profile" onClick={onNavigate}>
+ <Link href="/profile" prefetch={true} onClick={onNavigate}>
  <User className="size-4 shrink-0 text-muted-foreground" aria-hidden />
  <span>Profile</span>
  </Link>
@@ -170,7 +171,7 @@ export function NavProfileOrSignIn({
  asChild
  className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
  >
- <Link href="/tutor" onClick={onNavigate}>
+ <Link href="/tutor" prefetch={true} onClick={onNavigate}>
  <GraduationCap className="size-4 shrink-0 text-muted-foreground" aria-hidden />
  <span>Teaching</span>
  </Link>
@@ -181,7 +182,7 @@ export function NavProfileOrSignIn({
  asChild
  className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
  >
- <Link href="/admin" onClick={onNavigate}>
+ <Link href="/admin" prefetch={true} onClick={onNavigate}>
  <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden />
  <span>Admin</span>
  </Link>

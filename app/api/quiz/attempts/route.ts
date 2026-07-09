@@ -68,70 +68,91 @@ export async function POST(req: NextRequest) {
  }
  }
 
- const rules = template.selectionRules as Record<string, unknown>;
- const totalCount = Number(rules.count ?? 10);
- const explicitProportions = rules.difficulty_proportions as Record<string, number> | undefined;
- const proportions =
- explicitProportions ??
- (env.FEATURE_ADAPTIVE_QUIZ === '1'
- ? await getAdaptiveDifficultyProportions(studentId, template.courseId, totalCount)
- : {
- easy: Math.round(totalCount * 0.3),
- medium: Math.round(totalCount * 0.5),
- hard: totalCount - Math.round(totalCount * 0.3) - Math.round(totalCount * 0.5),
- });
+  const rules = template.selectionRules as Record<string, any>;
+  const fixedQuestionIds = rules?.fixedQuestionIds as string[] | undefined;
 
- const tags = (rules.tags as string[] | undefined) || [];
- const tagConditions = tags.map(
- (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
- );
- const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
+  let selected: any[] = [];
 
- // Build question set from bank using difficulty proportions
- const questionsByDifficulty = await Promise.all(
- Object.entries(proportions).map(([diff, count]) =>
- db
- .select()
- .from(aiQuestionBank)
- .where(
- and(
- eq(aiQuestionBank.courseId, template.courseId),
- eq(aiQuestionBank.reviewStatus, 'published'),
- eq(aiQuestionBank.difficulty, diff as 'easy' | 'medium' | 'hard'),
- tagCondition,
- ),
- )
- .orderBy(asc(aiQuestionBank.useCount))
- .limit(count),
- ),
- );
+  if (fixedQuestionIds && fixedQuestionIds.length > 0) {
+    selected = await db
+      .select()
+      .from(aiQuestionBank)
+      .where(
+        and(
+          eq(aiQuestionBank.courseId, template.courseId),
+          eq(aiQuestionBank.reviewStatus, 'published'),
+          inArray(aiQuestionBank.id, fixedQuestionIds)
+        )
+      );
+    // Sort selected questions in the order of fixedQuestionIds
+    selected.sort((a, b) => fixedQuestionIds.indexOf(a.id) - fixedQuestionIds.indexOf(b.id));
+  } else {
+    const totalCount = rules.count || 10;
+    const explicitProportions = rules.difficulty_proportions as
+      | { easy: number; medium: number; hard: number }
+      | undefined;
+    const proportions =
+      explicitProportions ??
+      (env.FEATURE_ADAPTIVE_QUIZ === '1'
+        ? await getAdaptiveDifficultyProportions(studentId, template.courseId, totalCount)
+        : {
+            easy: Math.round(totalCount * 0.3),
+            medium: Math.round(totalCount * 0.5),
+            hard: totalCount - Math.round(totalCount * 0.3) - Math.round(totalCount * 0.5),
+          });
 
- let selected = questionsByDifficulty.flat();
+    const tags = (rules.tags as string[] | undefined) || [];
+    const tagConditions = tags.map(
+      (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
+    );
+    const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
 
- // Fallback: If under-fetched due to difficulty proportions count mismatch, fill from remaining questions matching tags
- if (selected.length < totalCount) {
- const selectedIds = selected.map((q) => q.id);
- const extraNeeded = totalCount - selected.length;
+    // Build question set from bank using difficulty proportions
+    const questionsByDifficulty = await Promise.all(
+      Object.entries(proportions).map(([diff, count]) =>
+        db
+          .select()
+          .from(aiQuestionBank)
+          .where(
+            and(
+              eq(aiQuestionBank.courseId, template.courseId),
+              eq(aiQuestionBank.reviewStatus, 'published'),
+              eq(aiQuestionBank.difficulty, diff as 'easy' | 'medium' | 'hard'),
+              tagCondition,
+            ),
+          )
+          .orderBy(asc(aiQuestionBank.useCount))
+          .limit(count),
+      ),
+    );
 
- const extraQuestions = await db
- .select()
- .from(aiQuestionBank)
- .where(
- and(
- eq(aiQuestionBank.courseId, template.courseId),
- eq(aiQuestionBank.reviewStatus, 'published'),
- selectedIds.length > 0 ? notInArray(aiQuestionBank.id, selectedIds) : undefined,
- tagCondition,
- ),
- )
- .orderBy(asc(aiQuestionBank.useCount))
- .limit(extraNeeded);
+    selected = questionsByDifficulty.flat();
 
- selected = [...selected, ...extraQuestions];
- }
+    // Fallback: If under-fetched due to difficulty proportions count mismatch, fill from remaining questions matching tags
+    if (selected.length < totalCount) {
+      const selectedIds = selected.map((q) => q.id);
+      const extraNeeded = totalCount - selected.length;
 
- // Shuffle selected questions
- selected = selected.sort(() => Math.random() - 0.5);
+      const extraQuestions = await db
+        .select()
+        .from(aiQuestionBank)
+        .where(
+          and(
+            eq(aiQuestionBank.courseId, template.courseId),
+            eq(aiQuestionBank.reviewStatus, 'published'),
+            selectedIds.length > 0 ? notInArray(aiQuestionBank.id, selectedIds) : undefined,
+            tagCondition,
+          ),
+        )
+        .orderBy(asc(aiQuestionBank.useCount))
+        .limit(extraNeeded);
+
+      selected = [...selected, ...extraQuestions];
+    }
+
+    // Shuffle selected questions
+    selected = selected.sort(() => Math.random() - 0.5);
+  }
 
  // Bump useCount so the next attempt's "prefer least-used" ordering (above) is meaningful.
  if (selected.length > 0) {

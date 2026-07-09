@@ -64,6 +64,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const [tplCount, setTplCount] = useState("5");
   const [tplTags, setTplTags] = useState("");
   const [deleteTplId, setDeleteTplId] = useState<string | null>(null);
+  const [selectedQIds, setSelectedQIds] = useState<string[]>([]);
 
   // Question Dialog State
   const [isQOpen, setIsQOpen] = useState(false);
@@ -89,6 +90,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     setTplMaxAttempts("3");
     setTplCount("5");
     setTplTags("");
+    setSelectedQIds([]);
     setIsTplOpen(true);
   }
 
@@ -103,6 +105,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
     setTplCount((rules?.count || 5).toString());
     setTplTags((rules?.tags || []).join(", "));
+    setSelectedQIds(rules?.fixedQuestionIds || []);
     setIsTplOpen(true);
   }
 
@@ -112,16 +115,21 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       return;
     }
 
-    const countNum = parseInt(tplCount, 10) || 5;
-    const rules = {
+    const countNum = selectedQIds.length > 0 ? selectedQIds.length : (parseInt(tplCount, 10) || 5);
+    const rules: any = {
       count: countNum,
-      tags: tplTags.split(",").map((t) => t.trim()).filter(Boolean),
-      difficulty_proportions: {
+      tags: selectedQIds.length > 0 ? [] : tplTags.split(",").map((t) => t.trim()).filter(Boolean),
+    };
+
+    if (selectedQIds.length > 0) {
+      rules.fixedQuestionIds = selectedQIds;
+    } else {
+      rules.difficulty_proportions = {
         easy: Math.ceil(countNum * 0.4),
         medium: Math.ceil(countNum * 0.4),
         hard: Math.floor(countNum * 0.2),
-      },
-    };
+      };
+    }
 
     startTransition(async () => {
       try {
@@ -308,15 +316,39 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       <div className="flex flex-wrap gap-1">
                         <span className="text-body-xs font-semibold text-muted-foreground mr-1.5 flex items-center gap-1">
                           <Layers className="size-3" />
-                          {rules?.count || 5} soal
+                          {rules?.count || 5} soal {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && "(Soal Spesifik)"}
                         </span>
-                        {rules?.tags?.map((tag: string) => (
-                          <Badge key={tag} variant="outline" className="text-[10px] text-muted-foreground rounded-md flex items-center gap-1">
-                            <Tag className="size-2.5" />
-                            {tag}
+                        {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 ? (
+                          <Badge variant="outline" className="text-[10px] text-brand-primary border-brand-primary/30 rounded-md">
+                            Tipe: Fixed
                           </Badge>
-                        ))}
+                        ) : (
+                          rules?.tags?.map((tag: string) => (
+                            <Badge key={tag} variant="outline" className="text-[10px] text-muted-foreground rounded-md flex items-center gap-1">
+                              <Tag className="size-2.5" />
+                              {tag}
+                            </Badge>
+                          ))
+                        )}
                       </div>
+
+                      {rules?.fixedQuestionIds && rules.fixedQuestionIds.length > 0 && (
+                        <div className="mt-2.5 text-left border-t border-border/40 pt-2.5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                            Daftar Soal Terpilih:
+                          </span>
+                          <ol className="list-decimal pl-4 space-y-1 text-[11px] text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
+                            {rules.fixedQuestionIds.map((qId: string) => {
+                              const question = initialQuestionBank.find((q) => q.id === qId);
+                              return (
+                                <li key={qId} className="truncate" title={question?.prompt || "Soal tidak ditemukan"}>
+                                  {question?.prompt || <span className="italic text-muted-foreground">Soal telah dihapus dari bank</span>}
+                                </li>
+                              );
+                            })}
+                          </ol>
+                        </div>
+                      )}
                     </CardContent>
                     <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={() => handleOpenEditTpl(t)} className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1">
@@ -515,7 +547,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                 <Input
                   id="tpl-count"
                   type="number"
-                  value={tplCount}
+                  disabled={selectedQIds.length > 0}
+                  value={selectedQIds.length > 0 ? selectedQIds.length.toString() : tplCount}
                   onChange={(e) => setTplCount(e.target.value)}
                   placeholder="5"
                   className="rounded-lg border-input bg-background"
@@ -527,14 +560,70 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               <Label htmlFor="tpl-tags" className="text-body-sm font-semibold">Filter Tag Soal (Pisahkan Koma)</Label>
               <Input
                 id="tpl-tags"
-                value={tplTags}
+                disabled={selectedQIds.length > 0}
+                value={selectedQIds.length > 0 ? "" : tplTags}
                 onChange={(e) => setTplTags(e.target.value)}
-                placeholder="Contoh: limit, turunan, aljabar"
+                placeholder={selectedQIds.length > 0 ? "Diabaikan karena memilih soal spesifik" : "Contoh: limit, turunan, aljabar"}
                 className="rounded-lg border-input bg-background"
               />
               <span className="text-[10px] text-muted-foreground leading-normal">
-                Kosongkan jika ingin menarik soal secara acak tanpa memandang tag.
+                {selectedQIds.length > 0 ? "Filter tag dinonaktifkan karena Anda memilih soal secara spesifik." : "Kosongkan jika ingin menarik soal secara acak tanpa memandang tag."}
               </span>
+            </div>
+
+            <div className="border border-border/85 rounded-xl p-3.5 bg-muted/15 space-y-2 text-left">
+              <Label className="text-body-sm font-semibold flex items-center gap-1.5 text-foreground">
+                <CheckSquare className="size-4 text-brand-primary shrink-0" />
+                Pilih Soal Secara Spesifik ({selectedQIds.length} terpilih)
+              </Label>
+              <div className="text-[11px] text-muted-foreground mb-2">
+                Opsional. Jika dipilih, kuis ini akan selalu berisi soal-soal ini secara tetap (mengabaikan filter tag & proporsi kesulitan).
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-2 divide-y divide-border/45 pr-1 border border-border/45 rounded-lg bg-background p-2">
+                {initialQuestionBank.length === 0 ? (
+                  <div className="text-xs text-muted-foreground py-2 text-center">
+                    Belum ada soal di Bank Soal kelas ini.
+                  </div>
+                ) : (
+                  initialQuestionBank.map((q) => {
+                    const isChecked = selectedQIds.includes(q.id);
+                    return (
+                      <label
+                        key={q.id}
+                        className="flex items-start gap-2.5 py-2 cursor-pointer hover:bg-muted/30 px-1.5 rounded transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedQIds((prev) => [...prev, q.id]);
+                            } else {
+                              setSelectedQIds((prev) => prev.filter((id) => id !== q.id));
+                            }
+                          }}
+                          className="mt-1 cursor-pointer shrink-0"
+                        />
+                        <div className="flex-1 text-left min-w-0">
+                          <div className="text-xs font-semibold text-foreground line-clamp-2">
+                            {q.prompt}
+                          </div>
+                          <div className="flex gap-1.5 items-center mt-1.5 text-[10px] text-muted-foreground">
+                            <span className="uppercase font-mono font-bold bg-muted px-1 rounded">
+                              {q.difficulty}
+                            </span>
+                            {q.tags && q.tags.length > 0 && (
+                              <span className="truncate">
+                                Tags: {q.tags.join(", ")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
 
