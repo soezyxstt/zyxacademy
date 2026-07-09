@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   FolderOpen,
@@ -27,9 +27,10 @@ import { useSession, signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { SidebarShell, NavItem, NavGroup, NavCollapsible } from "@/components/sidebar-shell";
 
-export function AdminSidebar() {
+function AdminSidebarInner() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -169,11 +170,13 @@ export function AdminSidebar() {
           icon={GraduationCap} 
           label="Tutorial PKA" 
           collapsed={c} 
-          active={isPrefix("/admin/tutorial-pka")}
+          active={isPrefix("/admin/tutorial-pka") || (pathname.startsWith("/admin/ai/quizzes") && searchParams?.get("courseId") === "tutorial-pka") || (pathname.startsWith("/admin/ai/materials") && searchParams?.get("courseId") === "tutorial-pka")}
         >
           <NavItem href="/admin/tutorial-pka/registrations" icon={Users} label="Pendaftar" active={isPrefix("/admin/tutorial-pka/registrations")} collapsed={c} isChild />
           <NavItem href="/admin/tutorial-pka/announcements" icon={Megaphone} label="Pengumuman" active={isPrefix("/admin/tutorial-pka/announcements")} collapsed={c} isChild />
           <NavItem href="/admin/tutorial-pka/schedules" icon={Calendar} label="Jadwal Live" active={isPrefix("/admin/tutorial-pka/schedules")} collapsed={c} isChild />
+          <NavItem href="/admin/ai/quizzes?courseId=tutorial-pka" icon={ListChecks} label="Template Kuis" active={pathname === "/admin/ai/quizzes" && searchParams?.get("courseId") === "tutorial-pka"} collapsed={c} isChild />
+          <NavItem href="/admin/ai/materials?courseId=tutorial-pka" icon={BookText} label="Materi & Flashcard" active={pathname === "/admin/ai/materials" && searchParams?.get("courseId") === "tutorial-pka"} collapsed={c} isChild />
         </NavCollapsible>
 
         <NavGroup label="Evaluasi & Kuis" collapsed={c} />
@@ -212,5 +215,13 @@ export function AdminSidebar() {
       topSection={topSection}
       bottomSection={bottomSection}
     />
+  );
+}
+
+export function AdminSidebar() {
+  return (
+    <Suspense fallback={<div className="w-64 bg-card border-r border-border" />}>
+      <AdminSidebarInner />
+    </Suspense>
   );
 }

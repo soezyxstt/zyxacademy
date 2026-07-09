@@ -218,16 +218,22 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
       .limit(1);
 
     if (mat) {
+      const recomputePromise = inngest
+        .send({
+          name: "mastery/recompute.requested",
+          data: { studentId: user.id, courseId: mat.courseId },
+        })
+        .catch((err) => {
+          console.error("Failed to trigger mastery recompute:", err);
+        });
+
       await Promise.all([
         recordLearningEvent({
           studentId: user.id,
           courseId: mat.courseId,
           eventType: "material_completed",
         }),
-        inngest.send({
-          name: "mastery/recompute.requested",
-          data: { studentId: user.id, courseId: mat.courseId },
-        }),
+        recomputePromise,
       ]);
     }
   }

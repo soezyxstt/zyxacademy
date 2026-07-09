@@ -364,7 +364,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               </span>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <input
               type="text"
               disabled={isChecked || loading}
@@ -377,8 +377,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               <Button
                 onClick={handleCheckAnswer}
                 disabled={loading}
-                size="sm"
-                className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/95"
+                size="lg"
+                className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/95 h-9"
               >
                 Periksa
               </Button>
@@ -391,8 +391,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
                   setIsFlipped(false);
                 }}
                 variant="outline"
-                size="sm"
-                className="rounded-md"
+                size="lg"
+                className="rounded-md h-9"
               >
                 Coba Lagi
               </Button>

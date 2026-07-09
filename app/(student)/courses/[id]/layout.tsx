@@ -11,10 +11,7 @@ type Props = {
 export default async function CourseLayout({ children, params }: Props) {
   const { id } = await params;
 
-  // The PKA course has its own static route tree with a reduced tab set;
-  // any generic sub-route (quiz, flashcard, tryout, ...) falls back here and
-  // is sent to the PKA course home instead.
-  if (id === PKA_COURSE_ID) redirect(`/courses/${PKA_COURSE_ID}`);
+
 
   const course = await getCourse(id);
   if (!course) notFound();

@@ -10,8 +10,14 @@ export const metadata: Metadata = {
   title: pageTitle("Materi"),
 };
 
-export default async function AIMaterialsPage() {
+type Props = {
+  searchParams: Promise<{ courseId?: string }>;
+};
+
+export default async function AIMaterialsPage({ searchParams }: Props) {
   await assertAdmin();
+
+  const { courseId } = await searchParams;
 
   const [instances, assessments, webMaterials, allCourses, allChapters] = await Promise.all([
     db
@@ -97,6 +103,7 @@ export default async function AIMaterialsPage() {
         courses={allCourses}
         chapters={allChapters}
         courseMap={courseMap}
+        prefillCourseId={courseId}
       />
     </div>
   );

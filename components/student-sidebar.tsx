@@ -172,6 +172,9 @@ export function StudentSidebar({
                     { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
                     { href: `${base}/jadwal`, icon: CalendarRange, label: "Jadwal" },
                     { href: `${base}/simulasi`, icon: ClipboardList, label: "Simulasi" },
+                    { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
+                    { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
+                    { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
                     { href: `${base}/material`, icon: FileText, label: "Materi" },
                     { href: `${base}/laporan`, icon: BarChart3, label: "Laporan Diagnostik" },
                   ]

@@ -16,6 +16,7 @@ import { markRecommendationDone, buildPlanForConcepts } from '@/lib/recommendati
 import { recordQuestionOptionStats } from '@/lib/option-stats';
 import { buildRemediation } from '@/lib/remediation';
 import { env } from '@/lib/env';
+import { PKA_COURSE_ID } from '@/lib/pka-config';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -222,28 +223,43 @@ export async function POST(req: NextRequest, { params }: Context) {
  };
  });
 
- await Promise.all([
- recordLearningEvents(events),
- inngest.send({ name: 'mastery/recompute.requested', data: { studentId: attempt.studentId, courseId: template.courseId } }),
- ]);
- }
+  const recomputePromise = inngest
+    .send({
+      name: "mastery/recompute.requested",
+      data: { studentId: attempt.studentId, courseId: template.courseId },
+    })
+    .catch((err) => {
+      console.error("Failed to trigger mastery recompute:", err);
+    });
 
- // E1: aggregate distractor analytics (once per attempt, deterministic)
- if (env.FEATURE_MISCONCEPTION === "1") {
- const answered = snapshot.map((q) => ({
- questionId: q.id,
- selectedOptions: answers[q.id] ?? [],
- }));
- await recordQuestionOptionStats(courseId, answered).catch((err) => {
- console.error("recordQuestionOptionStats failed:", err);
- });
- }
+  await Promise.all([
+    recordLearningEvents(events),
+    recomputePromise,
+  ]);
+  }
 
- // Fire mistake feedback generation background event
- await inngest.send({
- name: 'quiz/feedback.requested',
- data: { attemptId: id }
- });
+  // E1: aggregate distractor analytics (once per attempt, deterministic)
+  if (env.FEATURE_MISCONCEPTION === "1") {
+    const answered = snapshot.map((q) => ({
+      questionId: q.id,
+      selectedOptions: answers[q.id] ?? [],
+    }));
+    await recordQuestionOptionStats(courseId, answered).catch((err) => {
+      console.error("recordQuestionOptionStats failed:", err);
+    });
+  }
+
+  // Fire mistake feedback generation background event (skip for PKA course)
+  if (template.courseId !== PKA_COURSE_ID) {
+    await inngest
+      .send({
+        name: "quiz/feedback.requested",
+        data: { attemptId: id },
+      })
+      .catch((err) => {
+        console.error("Failed to trigger mistake feedback:", err);
+      });
+  }
 
  // Auto-complete today's quiz recommendation when student passes
  if (env.FEATURE_TODAY === "1" && score >= 70) {

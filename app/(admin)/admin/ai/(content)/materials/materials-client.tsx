@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -89,6 +89,7 @@ interface Props {
   courses: Course[];
   chapters: Chapter[];
   courseMap: Record<string, string>;
+  prefillCourseId?: string;
 }
 
 interface Warning {
@@ -101,7 +102,7 @@ interface Warning {
 
 type IngestionState = "source" | "analyzing" | "reviewing" | "ready";
 
-export function MaterialInstancesClient({ instances, assessments, webMaterials, courses, chapters, courseMap }: Props) {
+export function MaterialInstancesClient({ instances, assessments, webMaterials, courses, chapters, courseMap, prefillCourseId }: Props) {
   const router = useRouter();
   const [activeDashboardTab, setActiveDashboardTab] = useState<"learning" | "assessment" | "website">("learning");
   const [documentType, setDocumentType] = useState<"learning" | "assessment">("learning");
@@ -122,7 +123,9 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
   const [creatingChapter, setCreatingChapter] = useState(false);
 
   const [form, setForm] = useState({
-    courseId: "",
+    courseId: prefillCourseId && courses.some((c) => c.id === prefillCourseId)
+      ? prefillCourseId
+      : "",
     title: "",
     sourceType: "markdown" as "markdown" | "json" | "pdf_extraction",
     rawText: "",
@@ -151,6 +154,20 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
 
   const [extractedKOs, setExtractedKOs] = useState<ExtractedKO[]>([]);
   const [warnings, setWarnings] = useState<Warning[]>([]);
+  const displayedInstances = useMemo(() => {
+    if (!prefillCourseId) return instances;
+    return instances.filter((i) => i.courseId === prefillCourseId);
+  }, [instances, prefillCourseId]);
+
+  const displayedAssessments = useMemo(() => {
+    if (!prefillCourseId) return assessments;
+    return assessments.filter((a) => a.courseId === prefillCourseId);
+  }, [assessments, prefillCourseId]);
+
+  const displayedWebMaterials = useMemo(() => {
+    if (!prefillCourseId) return webMaterials;
+    return webMaterials.filter((wm) => wm.courseId === prefillCourseId);
+  }, [webMaterials, prefillCourseId]);
 
   const courseChapters = localChapters.filter((c) => c.courseId === form.courseId);
 
@@ -671,7 +688,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                   : "text-muted-foreground hover:bg-muted"
               )}
             >
-              Materi Belajar ({instances.length})
+              Materi Belajar ({displayedInstances.length})
             </button>
             <button
               onClick={() => setActiveDashboardTab("website")}
@@ -682,7 +699,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                   : "text-muted-foreground hover:bg-muted"
               )}
             >
-              Materi Website (Kurikulum) ({webMaterials.length})
+              Materi Website (Kurikulum) ({displayedWebMaterials.length})
             </button>
             <button
               onClick={() => setActiveDashboardTab("assessment")}
@@ -693,7 +710,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                   : "text-muted-foreground hover:bg-muted"
               )}
             >
-              Dokumen Asesmen ({assessments.length})
+              Dokumen Asesmen ({displayedAssessments.length})
             </button>
           </div>
 
@@ -707,6 +724,23 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
             <Plus className="size-4" />
             {activeDashboardTab === "assessment" ? "Tambah Asesmen" : "Tambah Materi"}
           </Button>
+        </div>
+      )}
+
+      {!showForm && prefillCourseId && (
+        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-brand-primary/20 bg-brand-primary/5 px-4 py-3 text-body-sm text-foreground text-left">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-muted-foreground">Filter Kelas:</span>
+            <span className="rounded-md bg-brand-primary/10 px-2.5 py-0.5 text-body-xs font-bold text-brand-primary uppercase tracking-wider border border-brand-primary/20">
+              {courseMap[prefillCourseId] || prefillCourseId}
+            </span>
+          </div>
+          <Link
+            href="/admin/ai/materials"
+            className="text-body-xs font-bold text-brand-primary hover:underline transition-colors"
+          >
+            Tampilkan Semua
+          </Link>
         </div>
       )}
 
@@ -1566,36 +1600,36 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
       {/* Listing Content (Visible only when not in ingestion workspace) */}
       {!showForm &&
         (activeDashboardTab === "learning" ? (
-          instances.length === 0 ? (
+          displayedInstances.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-body-sm bg-card rounded-xl border border-border">
               Belum ada materi belajar. Klik &quot;Tambah Materi&quot; untuk mulai.
             </div>
           ) : (
             <div className="space-y-4">
-              {instances.map((inst) => (
+              {displayedInstances.map((inst) => (
                 <InstanceRow key={inst.id} instance={inst} courseMap={courseMap} />
               ))}
             </div>
           )
         ) : activeDashboardTab === "website" ? (
-          webMaterials.length === 0 ? (
+          displayedWebMaterials.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-body-sm bg-card rounded-xl border border-border">
               Belum ada materi website (kurikulum). Unggah bundle mata kuliah untuk mengisi.
             </div>
           ) : (
             <div className="space-y-4">
-              {webMaterials.map((wm) => (
+              {displayedWebMaterials.map((wm) => (
                 <WebMaterialRow key={wm.id} webMaterial={wm} courseMap={courseMap} chapters={chapters} />
               ))}
             </div>
           )
-        ) : assessments.length === 0 ? (
+        ) : displayedAssessments.length === 0 ? (
           <div className="py-16 text-center text-muted-foreground text-body-sm bg-card rounded-xl border border-border">
             Belum ada dokumen asesmen. Klik &quot;Tambah Asesmen&quot; untuk mulai.
           </div>
         ) : (
           <div className="space-y-4">
-            {assessments.map((ass) => (
+            {displayedAssessments.map((ass) => (
               <AssessmentRow key={ass.id} assessment={ass} courseMap={courseMap} />
             ))}
           </div>
