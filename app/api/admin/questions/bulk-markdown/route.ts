@@ -5,27 +5,143 @@ import { db } from "@/db";
 import { aiQuestionBank } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { generateContentWithFallback } from "@/lib/gemini";
-import { USE_CASES } from "@/lib/ai-router";
-import { repairJsonString } from "@/lib/ko-utils";
 
 const RequestSchema = z.object({
   courseId: z.string().min(1),
   rawMarkdown: z.string().min(1),
 });
 
-const ExtractedQuestionSchema = z.object({
-  prompt: z.string().min(1),
-  difficulty: z.enum(["easy", "medium", "hard"]),
-  tags: z.array(z.string()).default([]),
-  options: z.array(z.string()).min(2),
-  correctIndices: z.array(z.number().int().min(0)),
-  explanation: z.string().default(""),
-});
+interface ExtractedQuestion {
+  prompt: string;
+  difficulty: "easy" | "medium" | "hard";
+  tags: string[];
+  options: string[];
+  correctIndices: number[];
+  explanation: string;
+}
 
-const ExtractedListSchema = z.object({
-  questions: z.array(ExtractedQuestionSchema),
-});
+export function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
+  const normalized = markdown.replace(/\r\n/g, "\n").trim();
+  const lines = normalized.split("\n");
+  
+  const blocks: string[][] = [];
+  let currentBlock: string[] = [];
+
+  for (const line of lines) {
+    if (line.trim().startsWith("## ")) {
+      if (currentBlock.length > 0) {
+        blocks.push(currentBlock);
+      }
+      currentBlock = [line];
+    } else {
+      currentBlock.push(line);
+    }
+  }
+  if (currentBlock.length > 0) {
+    blocks.push(currentBlock);
+  }
+
+  const questions: ExtractedQuestion[] = [];
+
+  for (const blockLines of blocks) {
+    const heading = blockLines[0]?.trim() || "";
+    if (!/^##\s+(soal|question|pertanyaan|\d+)/i.test(heading)) {
+      continue;
+    }
+
+    let promptLines: string[] = [];
+    let options: string[] = [];
+    let correctIndices: number[] = [];
+    let difficulty: "easy" | "medium" | "hard" = "medium";
+    let tags: string[] = [];
+    let explanationLines: string[] = [];
+    let parsingExplanation = false;
+
+    for (let i = 1; i < blockLines.length; i++) {
+      const line = blockLines[i];
+      const trimmed = line.trim();
+
+      // Check for tags
+      if (/^\*\*tags?:\*\*/i.test(trimmed)) {
+        const content = trimmed.replace(/^\*\*tags?:\*\*/i, "").trim();
+        tags = content.split(",").map(t => t.trim()).filter(Boolean);
+        continue;
+      }
+
+      // Check for difficulty (supports Indonesian translations)
+      if (/^\*\*kesulitan:\*\*/i.test(trimmed)) {
+        const content = trimmed.replace(/^\*\*kesulitan:\*\*/i, "").trim().toLowerCase();
+        if (content === "easy" || content === "mudah") {
+          difficulty = "easy";
+        } else if (content === "medium" || content === "sedang" || content === "normal") {
+          difficulty = "medium";
+        } else if (content === "hard" || content === "sulit" || content === "susah") {
+          difficulty = "hard";
+        }
+        continue;
+      }
+
+      // Check for correct answer (letters A-E, single or multiple comma-separated)
+      if (/^\*\*(jawaban|kunci|kunci jawaban):\*\*/i.test(trimmed)) {
+        const content = trimmed.replace(/^\*\*(jawaban|kunci|kunci jawaban):\*\*/i, "").trim().toUpperCase();
+        const letters = content.match(/[A-E]/g) || [];
+        correctIndices = letters.map(letter => letter.charCodeAt(0) - 65);
+        continue;
+      }
+
+      // Check for explanation start
+      if (/^\*\*(pembahasan|solusi):\*\*/i.test(trimmed)) {
+        parsingExplanation = true;
+        const firstLine = trimmed.replace(/^\*\*(pembahasan|solusi):\*\*/i, "").trim();
+        if (firstLine) {
+          explanationLines.push(firstLine);
+        }
+        continue;
+      }
+
+      // Check for options (e.g. A. or B. or A) or B))
+      const optionMatch = trimmed.match(/^([A-E])[\.\)]\s+(.*)/i);
+      if (optionMatch) {
+        if (!parsingExplanation) {
+          const letter = optionMatch[1].toUpperCase();
+          const optionText = optionMatch[2].trim();
+          const idx = letter.charCodeAt(0) - 65;
+          options[idx] = optionText;
+          continue;
+        }
+      }
+
+      // Collect prompt or explanation lines
+      if (parsingExplanation) {
+        explanationLines.push(line);
+      } else {
+        promptLines.push(line);
+      }
+    }
+
+    // Filter out undefined and trim options
+    const cleanedOptions: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      if (options[i] !== undefined && options[i].trim() !== "") {
+        cleanedOptions.push(options[i]);
+      }
+    }
+
+    const prompt = promptLines.join("\n").trim();
+    const explanation = explanationLines.join("\n").trim();
+
+    questions.push({
+      prompt,
+      difficulty,
+      tags,
+      options: cleanedOptions,
+      correctIndices,
+      explanation,
+    });
+  }
+
+  return questions;
+}
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -41,86 +157,52 @@ export async function POST(req: NextRequest) {
 
   const { courseId, rawMarkdown } = parsed.data;
 
-  let extractedQuestions: z.infer<typeof ExtractedListSchema>["questions"] = [];
+  const parsedQuestions = parseQuestionsMarkdown(rawMarkdown);
 
-  const isMock = process.env.MOCK_GEMINI === "true";
-  if (isMock) {
-    // Generate dummy questions for mock mode
-    extractedQuestions = [
-      {
-        prompt: "Diberikan matriks $A = \\begin{pmatrix} 1 & 2 \\\\ 3 & 4 \\end{pmatrix}$. Tentukan determinan dari matriks $A$.",
-        difficulty: "easy",
-        tags: ["matriks", "determinan"],
-        options: ["-2", "2", "-10", "10", "0"],
-        correctIndices: [0],
-        explanation: "Determinan dari matriks $A$ adalah $(1)(4) - (2)(3) = 4 - 6 = -2$.",
-      },
-      {
-        prompt: "Sebuah partikel bergerak dengan persamaan posisi $s(t) = 2t^3 - 5t^2 + 3t$. Tentukan kecepatan partikel pada saat $t = 2$ sekon.",
-        difficulty: "medium",
-        tags: ["turunan", "kecepatan"],
-        options: ["7 m/s", "11 m/s", "15 m/s", "19 m/s", "23 m/s"],
-        correctIndices: [1],
-        explanation: "Kecepatan adalah turunan pertama posisi terhadap waktu: $v(t) = s'(t) = 6t^2 - 10t + 3$. Pada $t = 2$, $v(2) = 6(2)^2 - 10(2) + 3 = 24 - 20 + 3 = 7$ m/s. Pilihan A benar.",
-      },
-    ];
-  } else {
-    const prompt = `Analyze the following markdown text containing multiple test questions. Extract all questions and return a JSON object with a single "questions" key containing a list of parsed questions matching the schema.
+  if (parsedQuestions.length === 0) {
+    return NextResponse.json(
+      { error: "Tidak ada soal yang berhasil diurai. Pastikan format penulisan benar dengan pemisah '## Soal [Nomor]'." },
+      { status: 400 }
+    );
+  }
 
-MARKDOWN CONTENT:
-"""
-${rawMarkdown}
-"""
-
-You must return a single JSON object matching this schema:
-{
-  "questions": [
-    {
-      "prompt": "Pertanyaan lengkap soal (mendukung markdown dan LaTeX seperti $x^2$ atau $\\frac{a}{b}$)",
-      "difficulty": "easy | medium | hard",
-      "tags": ["nama_tag1", "nama_tag2"],
-      "options": ["Opsi A", "Opsi B", "Opsi C", "Opsi D", "Opsi E"],
-      "correctIndices": [indeks 0-based opsi yang benar, misal [2] jika opsi C benar],
-      "explanation": "Penjelasan solusi pengerjaan soal dalam format markdown"
-    }
-  ]
-}
-
-Ensure all questions from the text are parsed. For options, make sure to extract all options present in the markdown. For correctIndices, extract the correct option index (e.g. A=0, B=1, C=2, D=3, E=4).
-Return only valid JSON. Do not wrap in markdown code blocks.`;
-
-    try {
-      const { response } = await generateContentWithFallback({
-        useCase: USE_CASES.KO_EXTRACTION,
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
-      });
-
-      const rawText = response.text || "{}";
-      const cleanJson = repairJsonString(rawText);
-      const parsedData = JSON.parse(cleanJson);
-      const validated = ExtractedListSchema.parse(parsedData);
-      extractedQuestions = validated.questions;
-    } catch (err: any) {
-      console.error("[Bulk Ingest] Failed to parse questions using LLM:", err);
+  // Syntax and content validation
+  for (let i = 0; i < parsedQuestions.length; i++) {
+    const q = parsedQuestions[i];
+    const questionIndex = i + 1;
+    if (!q.prompt.trim()) {
       return NextResponse.json(
-        { error: "Gagal mengekstrak soal dari Markdown. Pastikan format penulisan benar." },
-        { status: 500 }
+        { error: `Soal nomor ${questionIndex} tidak memiliki teks pertanyaan (prompt) yang valid.` },
+        { status: 400 }
       );
     }
+    if (q.options.length < 2) {
+      return NextResponse.json(
+        { error: `Soal nomor ${questionIndex} minimal harus memiliki 2 pilihan jawaban (A. ..., B. ...).` },
+        { status: 400 }
+      );
+    }
+    if (q.correctIndices.length === 0) {
+      return NextResponse.json(
+        { error: `Soal nomor ${questionIndex} tidak memiliki kunci jawaban yang valid. Gunakan format '**Jawaban:** A' atau '**Jawaban:** B'.` },
+        { status: 400 }
+      );
+    }
+    for (const idx of q.correctIndices) {
+      if (idx < 0 || idx >= q.options.length) {
+        return NextResponse.json(
+          { error: `Soal nomor ${questionIndex} memiliki kunci jawaban yang di luar rentang pilihan yang disediakan.` },
+          { status: 400 }
+        );
+      }
+    }
   }
 
-  if (extractedQuestions.length === 0) {
-    return NextResponse.json({ error: "Tidak ada soal yang terdeteksi di dalam file." }, { status: 400 });
-  }
-
-  // Insert parsed questions into the database
+  // Database transaction insertion
   const createdIds: string[] = [];
   try {
     await db.transaction(async (tx) => {
-      for (const q of extractedQuestions) {
+      for (const q of parsedQuestions) {
         const id = `q-bulk-${randomUUID()}`;
         await tx.insert(aiQuestionBank).values({
           id,
@@ -139,13 +221,13 @@ Return only valid JSON. Do not wrap in markdown code blocks.`;
       }
     });
   } catch (err: any) {
-    console.error("[Bulk Ingest] Database transaction failed:", err);
+    console.error("[Deterministic Bulk Ingest] Database transaction failed:", err);
     return NextResponse.json({ error: "Gagal menyimpan soal ke database." }, { status: 500 });
   }
 
   return NextResponse.json({
     success: true,
     count: createdIds.length,
-    message: `${createdIds.length} soal berhasil diimpor ke bank soal.`,
+    message: `${createdIds.length} soal berhasil diimpor ke bank soal secara utuh.`,
   });
 }
