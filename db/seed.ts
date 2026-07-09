@@ -388,6 +388,7 @@ async function main() {
       await db.insert(quizTemplates).values({
         ...t,
         selectionRules: t.selectionRules,
+        status: "published",
       });
       console.log(`Quiz template "${t.title}" seeded.`);
     } else {

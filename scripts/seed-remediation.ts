@@ -96,7 +96,7 @@ async function main() {
   }
 
   // Attempt with masteryBefore (higher than after to produce a negative delta).
-  await db.insert(quizTemplates).values({ id: TEMPLATE_ID, courseId: COURSE_ID, title: "Remed quiz", category: "daily", visibility: "free", selectionRules: {} }).onConflictDoNothing();
+  await db.insert(quizTemplates).values({ id: TEMPLATE_ID, courseId: COURSE_ID, title: "Remed quiz", category: "daily", visibility: "free", selectionRules: {}, status: "published" }).onConflictDoNothing();
   await db.insert(studentQuizAttempts).values({
     id: ATTEMPT_ID, studentId: STUDENT_ID, templateId: TEMPLATE_ID, status: "completed", score: 40,
     questionsSnapshot: [], answersSnapshot: {},

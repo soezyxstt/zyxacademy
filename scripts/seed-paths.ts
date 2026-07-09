@@ -246,6 +246,7 @@ async function main() {
         tags: ["Limit"],
         difficulty_proportions: { easy: 3, medium: 2, hard: 0 },
       },
+      status: "published",
     });
   }
 

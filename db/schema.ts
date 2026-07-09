@@ -656,6 +656,7 @@ export const quizTemplates = sqliteTable(
     title: text("title").notNull(),
     category: text("category").$type<"daily" | "weekly" | "chapter" | "premium">().notNull(),
     visibility: text("visibility").$type<"free" | "paid">().default("free").notNull(),
+    status: text("status").$type<"draft" | "published">().default("draft").notNull(),
     timeLimitSeconds: integer("time_limit_seconds"),
     maxAttempts: integer("max_attempts"),
     selectionRules: text("selection_rules", { mode: "json" }).notNull(),

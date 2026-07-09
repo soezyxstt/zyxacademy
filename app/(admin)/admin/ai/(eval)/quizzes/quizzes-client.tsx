@@ -2,12 +2,13 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock, Award, ShieldAlert, BookOpen, Loader2, Calendar, ChevronDown, ListPlus, Sliders, FileJson } from "lucide-react";
+import { Plus, Trash2, Clock, Award, ShieldAlert, BookOpen, Loader2, Calendar, ChevronDown, ListPlus, Sliders, FileJson, Eye, Check } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { getQuizTemplatePreviewAction } from "@/app/actions/tutor-management";
 
 type TemplateType = {
   id: string;
@@ -15,6 +16,7 @@ type TemplateType = {
   title: string;
   category: "daily" | "weekly" | "chapter" | "premium";
   visibility: "free" | "paid";
+  status: "draft" | "published";
   timeLimitSeconds: number | null;
   maxAttempts: number | null;
   openAt?: Date | null;
@@ -45,6 +47,31 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
 
  // Snapshot Auditor State
  const [auditingTemplate, setAuditingTemplate] = useState<TemplateType | null>(null);
+
+ // Preview Dialog State
+ const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+ const [previewTpl, setPreviewTpl] = useState<TemplateType | null>(null);
+ const [previewQuestions, setPreviewQuestions] = useState<any[]>([]);
+ const [loadingPreview, setLoadingPreview] = useState(false);
+
+ async function handleOpenPreviewTpl(t: TemplateType) {
+   setPreviewTpl(t);
+   setIsPreviewOpen(true);
+   setLoadingPreview(true);
+   setPreviewQuestions([]);
+   try {
+     const res = await getQuizTemplatePreviewAction(t.courseId, t.id);
+     if (res.success) {
+       setPreviewQuestions(res.questions);
+     } else {
+       toast.error("Gagal memuat pratinjau kuis.");
+     }
+   } catch (err: any) {
+     toast.error(err.message || "Gagal memuat pratinjau kuis.");
+   } finally {
+     setLoadingPreview(false);
+   }
+ }
 
  // Creation Form State ; pre-populated from remediation action if params provided
  const [courseId, setCourseId] = useState(
@@ -267,14 +294,24 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-brand-primary/60 to-brand-primary/0 rounded-t-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
  
  <div>
- <div className="flex items-center justify-between gap-2 flex-wrap">
- <span className="text-xs font-bold text-brand-primary uppercase tracking-wider bg-brand-primary/8 px-2 py-0.5 rounded-md border border-brand-primary/10">
- {courseMap[template.courseId] ?? template.courseId}
- </span>
- <span className="inline-flex rounded-md bg-muted/80 border border-border/40 px-2 py-0.5 text-body-xs font-semibold text-muted-foreground capitalize">
- {template.category === "weekly" ? "Mingguan" : template.category === "chapter" ? "Evaluasi Bab" : template.category === "premium" ? "Premium" : "Harian"} · {template.visibility === "free" ? "Gratis" : "Premium"}
- </span>
- </div>
+  <div className="flex items-center justify-between gap-2 flex-wrap">
+  <span className="text-xs font-bold text-brand-primary uppercase tracking-wider bg-brand-primary/8 px-2 py-0.5 rounded-md border border-brand-primary/10">
+  {courseMap[template.courseId] ?? template.courseId}
+  </span>
+  <div className="flex gap-1.5 flex-wrap items-center">
+    <span className="inline-flex rounded-md bg-muted/80 border border-border/40 px-2 py-0.5 text-body-xs font-semibold text-muted-foreground capitalize">
+    {template.category === "weekly" ? "Mingguan" : template.category === "chapter" ? "Evaluasi Bab" : template.category === "premium" ? "Premium" : "Harian"} · {template.visibility === "free" ? "Gratis" : "Premium"}
+    </span>
+    <span className={cn(
+      "inline-flex rounded-md border px-2 py-0.5 text-body-xs font-semibold capitalize",
+      template.status === "published"
+        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+        : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+    )}>
+      {template.status === "published" ? "Published" : "Draft"}
+    </span>
+  </div>
+  </div>
 
  <h3 className="mt-4 font-heading text-body-md font-bold text-foreground leading-snug group-hover:text-brand-primary transition-colors">
  {template.title}
@@ -336,12 +373,21 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  </span>
 
  <div className="flex gap-2">
- <Button
- variant="outline"
- size="sm"
- className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1.5 font-semibold text-xs h-8 px-2.5"
- onClick={() => setAuditingTemplate(template)}
- >
+  <Button
+  variant="outline"
+  size="sm"
+  className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1.5 font-semibold text-xs h-8 px-2.5 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary border-border/80"
+  onClick={() => handleOpenPreviewTpl(template)}
+  >
+  <Eye className="size-3.5" />
+  Preview
+  </Button>
+  <Button
+  variant="outline"
+  size="sm"
+  className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1.5 font-semibold text-xs h-8 px-2.5"
+  onClick={() => setAuditingTemplate(template)}
+  >
  <FileJson className="size-3.5" />
  Audit
  </Button>
@@ -822,8 +868,106 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  Ya, Hapus Permanen
  </Button>
  </DialogFooter>
- </DialogContent>
- </Dialog>
- </div>
+  </DialogContent>
+  </Dialog>
+
+      {/* PREVIEW QUIZ DIALOG */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
+          <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
+            <DialogTitle className="font-heading text-h6 font-bold text-foreground">
+              Pratinjau Kuis: {previewTpl?.title}
+            </DialogTitle>
+            <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">Kategori: {previewTpl?.category}</span>
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">Batas Waktu: {previewTpl?.timeLimitSeconds ? `${previewTpl.timeLimitSeconds / 60} menit` : "Bebas"}</span>
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">Percobaan: {previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : "Bebas"}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
+            {loadingPreview ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="size-8 animate-spin text-brand-primary" />
+                <p className="text-body-sm text-muted-foreground">Memilih dan meresolusi soal dari bank...</p>
+              </div>
+            ) : previewQuestions.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground text-body-sm">
+                Tidak ada soal yang tersedia untuk aturan seleksi kuis ini.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {previewQuestions.map((q, idx) => (
+                  <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
+                    <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                      <span className="text-body-sm font-bold text-foreground">Soal {idx + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                          {q.difficulty}
+                        </span>
+                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                          {q.questionType === "multiple_choice" ? "Single Choice" : "Multi Choice"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed">
+                      {q.prompt}
+                    </p>
+
+                    <div className="grid gap-2">
+                      {q.options.map((opt: string, optIdx: number) => {
+                        const isCorrect = q.correctIndices.includes(optIdx);
+                        return (
+                          <div
+                            key={optIdx}
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-lg border text-body-sm transition-colors",
+                              isCorrect
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
+                                : "bg-background/50 border-border text-foreground/80"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "flex size-6 items-center justify-center rounded border text-body-xs font-bold shrink-0",
+                                isCorrect
+                                  ? "bg-emerald-500 border-emerald-600 text-white shadow-xs"
+                                  : "bg-muted border-border text-muted-foreground"
+                              )}
+                            >
+                              {String.fromCharCode(65 + optIdx)}
+                            </span>
+                            <span className="leading-normal">{opt}</span>
+                            {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {q.explanation && (
+                      <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-lg p-3.5 space-y-1.5 text-body-sm">
+                        <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
+                          Pembahasan Jawaban:
+                        </span>
+                        <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                          {q.explanation}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="p-4 border-t border-border bg-muted/10 shrink-0">
+            <Button onClick={() => setIsPreviewOpen(false)} className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90">
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+  </div>
  );
 }

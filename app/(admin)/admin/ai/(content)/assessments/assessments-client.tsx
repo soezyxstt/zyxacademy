@@ -74,6 +74,34 @@ export function AssessmentsClient({ sources, courses, chapters, courseMap }: Pro
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Deletion states
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/assessments/${deletingId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Dokumen asesmen berhasil dihapus.");
+        setIsDeleteDialogOpen(false);
+        setDeletingId(null);
+        router.refresh();
+      } else {
+        const err = await res.json();
+        toast.error("Gagal menghapus: " + (err.error ?? "Unknown error"));
+      }
+    } catch {
+      toast.error("Terjadi kesalahan jaringan.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Filter states
   const [filterCourse, setFilterCourse] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -324,9 +352,22 @@ export function AssessmentsClient({ sources, courses, chapters, courseMap }: Pro
                     })}
                   </td>
                   <td className="px-4 py-3 align-middle text-right">
-                    <Link href={`/admin/ai/assessments/${source.id}`} className="text-muted-foreground hover:text-foreground inline-block">
-                      <ExternalLink size={16} />
-                    </Link>
+                    <div className="flex items-center justify-end gap-2">
+                      <Link href={`/admin/ai/assessments/${source.id}`} className="text-muted-foreground hover:text-foreground inline-block">
+                        <ExternalLink size={16} />
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-status-error hover:bg-status-error/10 cursor-pointer"
+                        onClick={() => {
+                          setDeletingId(source.id);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -425,6 +466,40 @@ export function AssessmentsClient({ sources, courses, chapters, courseMap }: Pro
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+      {/* Confirmation Deletion Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="rounded-xl border border-border">
+          <DialogHeader>
+            <DialogTitle>Hapus Dokumen Asesmen?</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus dokumen asesmen/bank soal ini?
+              Tindakan ini akan menghapus dokumen secara permanen dan menyinkronkan profil asesmen
+              kursus terkait.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              className="rounded-lg"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setDeletingId(null);
+              }}
+              disabled={isDeleting}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-lg"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Menghapus..." : "Hapus Permanen"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

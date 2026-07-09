@@ -71,6 +71,7 @@ async function main() {
           timeLimitSeconds: 900,
           maxAttempts: null,
           selectionRules: { count: 6, tags: [`pka-${subject}-stage${stage}`] },
+          status: "published",
         })
         .onConflictDoNothing();
 

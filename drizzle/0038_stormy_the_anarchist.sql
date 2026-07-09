@@ -1,0 +1,1 @@
+ALTER TABLE `quiz_templates` ADD `status` text DEFAULT 'draft' NOT NULL;

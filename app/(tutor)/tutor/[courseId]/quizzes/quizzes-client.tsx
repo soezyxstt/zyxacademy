@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,6 +19,7 @@ import {
   deleteQuizTemplateAction,
   saveQuestionBankAction,
   deleteQuestionBankAction,
+  getQuizTemplatePreviewAction,
 } from "@/app/actions/tutor-management";
 
 interface QuizTemplate {
@@ -26,6 +28,7 @@ interface QuizTemplate {
   title: string;
   category: "daily" | "weekly" | "chapter" | "premium";
   visibility: "free" | "paid";
+  status: "draft" | "published";
   timeLimitSeconds: number | null;
   maxAttempts: number | null;
   selectionRules: any; // { count: number, tags: string[], difficulty_proportions: { easy: number, medium: number, hard: number } }
@@ -65,6 +68,31 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const [tplTags, setTplTags] = useState("");
   const [deleteTplId, setDeleteTplId] = useState<string | null>(null);
   const [selectedQIds, setSelectedQIds] = useState<string[]>([]);
+
+  // Preview Dialog State
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewTpl, setPreviewTpl] = useState<QuizTemplate | null>(null);
+  const [previewQuestions, setPreviewQuestions] = useState<any[]>([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  async function handleOpenPreviewTpl(t: QuizTemplate) {
+    setPreviewTpl(t);
+    setIsPreviewOpen(true);
+    setLoadingPreview(true);
+    setPreviewQuestions([]);
+    try {
+      const res = await getQuizTemplatePreviewAction(courseId, t.id);
+      if (res.success) {
+        setPreviewQuestions(res.questions);
+      } else {
+        toast.error("Gagal memuat pratinjau kuis.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Gagal memuat pratinjau kuis.");
+    } finally {
+      setLoadingPreview(false);
+    }
+  }
 
   // Question Dialog State
   const [isQOpen, setIsQOpen] = useState(false);
@@ -304,9 +332,22 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     <CardHeader className="p-5 pb-3">
                       <div className="flex justify-between items-start gap-2">
                         <CardTitle className="font-heading text-body-base font-bold text-foreground line-clamp-1">{t.title}</CardTitle>
-                        <Badge variant="secondary" className="capitalize text-[10px] rounded-md px-2 py-0.5">
-                          {t.category}
-                        </Badge>
+                        <div className="flex gap-1.5 flex-wrap items-center">
+                          <Badge variant="secondary" className="capitalize text-[10px] rounded-md px-2 py-0.5">
+                            {t.category}
+                          </Badge>
+                          <Badge
+                            variant={t.status === "published" ? "default" : "outline"}
+                            className={cn(
+                              "capitalize text-[10px] rounded-md px-2 py-0.5 font-semibold",
+                              t.status === "published"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/10"
+                                : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/10"
+                            )}
+                          >
+                            {t.status === "published" ? "Published" : "Draft"}
+                          </Badge>
+                        </div>
                       </div>
                       <p className="text-body-xs text-muted-foreground mt-0.5">
                         Batas percobaan: {t.maxAttempts ? `${t.maxAttempts}x` : "Tak terbatas"} · Durasi: {t.timeLimitSeconds ? `${t.timeLimitSeconds / 60} menit` : "Bebas"}
@@ -351,6 +392,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       )}
                     </CardContent>
                     <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex justify-end gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1">
+                        <Eye className="size-3.5" />
+                        Preview
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => handleOpenEditTpl(t)} className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1">
                         <Edit2 className="size-3.5" />
                         Edit
@@ -806,6 +851,104 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             <Button onClick={handleDeleteQ} disabled={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
               {isPending && <Loader2 className="size-4 animate-spin" />}
               Hapus Soal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* PREVIEW QUIZ DIALOG */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
+          <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
+            <DialogTitle className="font-heading text-h6 font-bold text-foreground">
+              Pratinjau Kuis: {previewTpl?.title}
+            </DialogTitle>
+            <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">Kategori: {previewTpl?.category}</span>
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">Batas Waktu: {previewTpl?.timeLimitSeconds ? `${previewTpl.timeLimitSeconds / 60} menit` : "Bebas"}</span>
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">Percobaan: {previewTpl?.maxAttempts ? `${previewTpl.maxAttempts}x` : "Bebas"}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
+            {loadingPreview ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="size-8 animate-spin text-brand-primary" />
+                <p className="text-body-sm text-muted-foreground">Memilih dan meresolusi soal dari bank...</p>
+              </div>
+            ) : previewQuestions.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground text-body-sm">
+                Tidak ada soal yang tersedia untuk aturan seleksi kuis ini.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {previewQuestions.map((q, idx) => (
+                  <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
+                    <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                      <span className="text-body-sm font-bold text-foreground">Soal {idx + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                          {q.difficulty}
+                        </span>
+                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                          {q.questionType === "multiple_choice" ? "Single Choice" : "Multi Choice"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed">
+                      {q.prompt}
+                    </p>
+
+                    <div className="grid gap-2">
+                      {q.options.map((opt: string, optIdx: number) => {
+                        const isCorrect = q.correctIndices.includes(optIdx);
+                        return (
+                          <div
+                            key={optIdx}
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-lg border text-body-sm transition-colors",
+                              isCorrect
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
+                                : "bg-background/50 border-border text-foreground/80"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "flex size-6 items-center justify-center rounded border text-body-xs font-bold shrink-0",
+                                isCorrect
+                                  ? "bg-emerald-500 border-emerald-600 text-white shadow-xs"
+                                  : "bg-muted border-border text-muted-foreground"
+                              )}
+                            >
+                              {String.fromCharCode(65 + optIdx)}
+                            </span>
+                            <span className="leading-normal">{opt}</span>
+                            {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {q.explanation && (
+                      <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-lg p-3.5 space-y-1.5 text-body-sm">
+                        <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
+                          Pembahasan Jawaban:
+                        </span>
+                        <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                          {q.explanation}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="p-4 border-t border-border bg-muted/10 shrink-0">
+            <Button onClick={() => setIsPreviewOpen(false)} className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90">
+              Tutup
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -85,6 +85,7 @@ async function main() {
       title: "Seeded Quiz Template",
       category: "weekly",
       selectionRules: [],
+      status: "published",
     });
   }
 

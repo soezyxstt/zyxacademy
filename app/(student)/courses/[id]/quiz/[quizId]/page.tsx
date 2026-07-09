@@ -57,6 +57,10 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const { id, quizId } = await params;
   const { attemptId } = await searchParams;
 
+  const session = await auth.api.getSession({ headers: await headers() });
+  const studentId = session?.user?.id;
+  if (!studentId) return redirect("/sign-in");
+
   const [course] = await db
     .select()
     .from(courses)
@@ -70,6 +74,12 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     .limit(1);
 
   if (!course || !template) notFound();
+
+  const role = (session.user as { role?: string | null }).role;
+  const isStaff = role === "admin" || role === "teacher";
+  if (template.status === "draft" && !isStaff) {
+    notFound();
+  }
 
   const isEnrolled = await checkEnrollment(id);
   const isFree = template.visibility === "free";
@@ -184,10 +194,6 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       );
     }
   }
-
-  const session = await auth.api.getSession({ headers: await headers() });
-  const studentId = session?.user?.id;
-  if (!studentId) return redirect("/sign-in");
 
   // Fetch previous attempts for list
   const previousAttempts = await db

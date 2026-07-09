@@ -13,7 +13,7 @@ import {
   tutorCourses,
   user,
 } from "@/db/schema";
-import { eq, and, inArray, asc } from "drizzle-orm";
+import { eq, and, inArray, asc, or, sql, notInArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { randomUUID } from "crypto";
@@ -190,6 +190,7 @@ export async function saveQuizTemplateAction(
         timeLimitSeconds: data.timeLimitSeconds,
         maxAttempts: data.maxAttempts,
         selectionRules: data.selectionRules,
+        status: "published",
         updatedAt: new Date(),
       })
       .where(eq(quizTemplates.id, templateId));
@@ -203,6 +204,7 @@ export async function saveQuizTemplateAction(
       timeLimitSeconds: data.timeLimitSeconds,
       maxAttempts: data.maxAttempts,
       selectionRules: data.selectionRules,
+      status: "draft",
     });
   }
 
@@ -217,6 +219,134 @@ export async function deleteQuizTemplateAction(courseId: string, templateId: str
   revalidatePath(`/tutor/${courseId}/quizzes`);
   revalidatePath(`/courses/${courseId}/quiz`);
   return { success: true };
+}
+
+export async function getQuizTemplatePreviewAction(courseId: string, templateId: string) {
+  await verifyTutorAccess(courseId);
+
+  const [template] = await db
+    .select()
+    .from(quizTemplates)
+    .where(eq(quizTemplates.id, templateId))
+    .limit(1);
+
+  if (!template) {
+    throw new Error("Template kuis tidak ditemukan.");
+  }
+
+  const rules = typeof template.selectionRules === "string" 
+    ? JSON.parse(template.selectionRules) 
+    : template.selectionRules as Record<string, any>;
+  const fixedQuestionIds = rules?.fixedQuestionIds as string[] | undefined;
+
+  let selected: any[] = [];
+
+  if (fixedQuestionIds && fixedQuestionIds.length > 0) {
+    selected = await db
+      .select()
+      .from(aiQuestionBank)
+      .where(
+        and(
+          eq(aiQuestionBank.courseId, template.courseId),
+          eq(aiQuestionBank.reviewStatus, 'published'),
+          inArray(aiQuestionBank.id, fixedQuestionIds)
+        )
+      );
+    // Sort selected questions in the order of fixedQuestionIds
+    selected.sort((a, b) => fixedQuestionIds.indexOf(a.id) - fixedQuestionIds.indexOf(b.id));
+  } else {
+    const totalCount = rules?.count || 10;
+    const explicitProportions = rules?.difficulty_proportions as
+      | { easy: number; medium: number; hard: number }
+      | undefined;
+    const proportions =
+      explicitProportions ??
+      {
+        easy: Math.round(totalCount * 0.3),
+        medium: Math.round(totalCount * 0.5),
+        hard: totalCount - Math.round(totalCount * 0.3) - Math.round(totalCount * 0.5),
+      };
+
+    const tags = (rules?.tags as string[] | undefined) || [];
+    const tagConditions = tags.map(
+      (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
+    );
+    const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
+
+    // Build question set from bank using difficulty proportions
+    const questionsByDifficulty = await Promise.all(
+      Object.entries(proportions).map(([diff, count]) =>
+        db
+          .select()
+          .from(aiQuestionBank)
+          .where(
+            and(
+              eq(aiQuestionBank.courseId, template.courseId),
+              eq(aiQuestionBank.reviewStatus, 'published'),
+              eq(aiQuestionBank.difficulty, diff as 'easy' | 'medium' | 'hard'),
+              tagCondition,
+            ),
+          )
+          .orderBy(asc(aiQuestionBank.useCount))
+          .limit(count),
+      ),
+    );
+
+    selected = questionsByDifficulty.flat();
+
+    // Fallback: If under-fetched due to difficulty proportions count mismatch, fill from remaining questions matching tags
+    if (selected.length < totalCount) {
+      const selectedIds = selected.map((q) => q.id);
+      const extraNeeded = totalCount - selected.length;
+
+      const extraQuestions = await db
+        .select()
+        .from(aiQuestionBank)
+        .where(
+          and(
+            eq(aiQuestionBank.courseId, template.courseId),
+            eq(aiQuestionBank.reviewStatus, 'published'),
+            selectedIds.length > 0 ? notInArray(aiQuestionBank.id, selectedIds) : undefined,
+            tagCondition,
+          ),
+        )
+        .orderBy(asc(aiQuestionBank.useCount))
+        .limit(extraNeeded);
+
+      selected = [...selected, ...extraQuestions];
+    }
+  }
+
+  // Parse options and correctIndices properly before returning
+  const mappedQuestions = selected.map((q) => {
+    let opts = q.options;
+    if (typeof opts === "string") {
+      try {
+        opts = JSON.parse(opts);
+      } catch {
+        opts = [];
+      }
+    }
+    let corrects = q.correctIndices;
+    if (typeof corrects === "string") {
+      try {
+        corrects = JSON.parse(corrects);
+      } catch {
+        corrects = [];
+      }
+    }
+    return {
+      id: q.id,
+      prompt: q.prompt,
+      options: Array.isArray(opts) ? opts : [],
+      correctIndices: Array.isArray(corrects) ? corrects : [],
+      difficulty: q.difficulty,
+      questionType: q.questionType,
+      explanation: q.explanation,
+    };
+  });
+
+  return { success: true, questions: mappedQuestions };
 }
 
 export async function saveQuestionBankAction(

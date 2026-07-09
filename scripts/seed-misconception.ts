@@ -177,6 +177,7 @@ async function main() {
     category: "daily",
     visibility: "free",
     selectionRules: {},
+    status: "published",
   }).onConflictDoNothing();
 
   const ATTEMPT_ID = "miscon-attempt-1";

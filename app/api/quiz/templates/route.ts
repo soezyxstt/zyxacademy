@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
     selectionRules: selectionRules as unknown as Record<string, unknown>,
     openAt: openAt ? new Date(openAt) : null,
     closeAt: closeAt ? new Date(closeAt) : null,
+    status: "draft",
   });
 
  return NextResponse.json({ templateId: id }, { status: 201 });

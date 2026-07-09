@@ -267,6 +267,13 @@
       "when": 1783587363572,
       "tag": "0037_futuristic_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1783594053956,
+      "tag": "0038_stormy_the_anarchist",
+      "breakpoints": true
     }
   ]
 }

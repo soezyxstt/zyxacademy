@@ -43,6 +43,12 @@ export async function POST(req: NextRequest) {
  return NextResponse.json({ error: 'Template not found' }, { status: 404 });
  }
 
+ const role = (session.user as { role?: string | null }).role;
+ const isStaff = role === 'admin' || role === 'teacher';
+ if (template.status === 'draft' && !isStaff) {
+   return NextResponse.json({ error: 'Template kuis belum dipublikasi.' }, { status: 403 });
+ }
+
  const now = new Date();
  if (template.openAt && now < new Date(template.openAt)) {
    return NextResponse.json({ error: 'Kuis belum dibuka.' }, { status: 403 });

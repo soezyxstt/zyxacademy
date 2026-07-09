@@ -14,6 +14,14 @@ import {
 } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   RefreshCw,
   Trash2,
@@ -105,6 +113,28 @@ export function AssessmentDetailClient({
   const router = useRouter();
   const [reingesting, setReingesting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/assessments/${source.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Dokumen asesmen berhasil dihapus.");
+        router.push("/admin/ai/assessments");
+      } else {
+        const err = await res.json();
+        toast.error("Gagal menghapus: " + (err.error ?? "Unknown error"));
+      }
+    } catch {
+      toast.error("Terjadi kesalahan jaringan.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Group concepts by question ID
   const questionConcepts = useMemo(() => {
@@ -213,6 +243,17 @@ export function AssessmentDetailClient({
           >
             <Archive size={14} />
             {source.deletedAt ? "Pulihkan Ujian" : "Arsipkan Ujian"}
+          </Button>
+
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            disabled={reingesting || archiving}
+            className="flex items-center gap-1.5"
+          >
+            <Trash2 size={14} />
+            Hapus Permanen
           </Button>
         </div>
       </div>
@@ -511,6 +552,37 @@ export function AssessmentDetailClient({
           </div>
         </TabsContent>
       </Tabs>
+      {/* Confirmation Deletion Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="rounded-xl border border-border">
+          <DialogHeader>
+            <DialogTitle>Hapus Dokumen Asesmen?</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus dokumen asesmen/bank soal &quot;{source.title}&quot;?
+              Tindakan ini akan menghapus dokumen secara permanen dan menyinkronkan profil asesmen
+              kursus terkait.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              className="rounded-lg"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-lg"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Menghapus..." : "Hapus Permanen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
  count: DAILY_QUESTION_COUNT,
  difficulty_proportions: { easy: 2, medium: 2, hard: 1 },
  } as unknown as Record<string, unknown>,
+ status: 'published',
  });
  }
 
