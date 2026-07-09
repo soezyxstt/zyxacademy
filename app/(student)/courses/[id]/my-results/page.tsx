@@ -6,6 +6,7 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { courseListRowClass, studentCardClass } from "@/components/course/course-surfaces";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
+import { FormattedDate } from "@/components/ui/formatted-date";
 import { pageTitle } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { db } from "@/db";
@@ -174,10 +175,13 @@ export default async function CourseMyResultsPage({ params }: Props) {
                   </h2>
                   <p className="mt-1 text-body-sm text-muted-foreground">
                     {submission.examType === "quiz" ? "Kuis" : "Tryout"} ·{" "}
-                    {new Date(submission.submittedAt).toLocaleString("id-ID", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
+                    <FormattedDate
+                      date={submission.submittedAt}
+                      options={{
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }}
+                    />
                   </p>
                   <span
                     className={cn(

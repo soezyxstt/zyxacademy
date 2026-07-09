@@ -27,6 +27,7 @@ import { CoursePageShell } from "@/components/course/course-page-shell";
 import { PkaCountdown } from "@/components/pka/pka-countdown";
 import { Reveal } from "@/components/ui/reveal";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { FormattedDate } from "@/components/ui/formatted-date";
 
 export const metadata: Metadata = {
   title: pageTitle("Tutorial PKA"),
@@ -89,7 +90,7 @@ export default async function PkaCourseHomePage() {
                     {latestAnnouncement.title}
                   </h3>
                   <span className="text-body-xs text-muted-foreground">
-                    {latestAnnouncement.createdAt.toLocaleString("id-ID", { dateStyle: "long", timeStyle: "short" })}
+                    <FormattedDate date={latestAnnouncement.createdAt} options={{ dateStyle: "long", timeStyle: "short" }} />
                   </span>
                 </div>
                 <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -121,7 +122,7 @@ export default async function PkaCourseHomePage() {
                   </span>
                   <span className="mt-0.5 flex items-center gap-1.5 text-body-sm text-muted-foreground">
                     <CalendarDays className="size-3.5" />
-                    {nextSession.sessionAt.toLocaleString("id-ID", { dateStyle: "full", timeStyle: "short" })}
+                    <FormattedDate date={nextSession.sessionAt} options={{ dateStyle: "full", timeStyle: "short" }} />
                   </span>
                 </div>
                 {nextSession.meetLink ? (

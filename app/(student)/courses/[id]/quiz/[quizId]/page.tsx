@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { QuizStartButton } from "./quiz-start-button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { cn } from "@/lib/utils";
+import { FormattedDate } from "@/components/ui/formatted-date";
 
 type Props = {
   params: Promise<{ id: string; quizId: string }>;
@@ -224,10 +225,17 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   <div>
                     <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Dikumpulkan Pada</span>
                     <span className="font-heading text-body-sm font-semibold text-foreground">
-                      {attempt.submittedAt?.toLocaleString("id-ID", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }) || "-"}
+                      {attempt.submittedAt ? (
+                        <FormattedDate
+                          date={attempt.submittedAt}
+                          options={{
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          }}
+                        />
+                      ) : (
+                        "-"
+                      )}
                     </span>
                   </div>
                 </div>

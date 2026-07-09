@@ -8,6 +8,7 @@ import { PKA_TOTAL_SESSIONS } from "@/lib/pka-config";
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { Reveal } from "@/components/ui/reveal";
+import { FormattedDate } from "@/components/ui/formatted-date";
 
 export const metadata: Metadata = {
   title: pageTitle("Tutorial PKA - Jadwal"),
@@ -52,7 +53,7 @@ export default async function PkaJadwalPage() {
                         <span className="block truncate text-body-base font-semibold text-foreground">{a.title}</span>
                         <span className="mt-0.5 flex items-center gap-1.5 text-body-sm text-muted-foreground">
                           <CalendarDays className="size-3.5" />
-                          {a.sessionAt.toLocaleString("id-ID", { dateStyle: "full", timeStyle: "short" })}
+                          <FormattedDate date={a.sessionAt} options={{ dateStyle: "full", timeStyle: "short" }} />
                         </span>
                       </div>
                     </div>
