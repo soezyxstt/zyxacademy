@@ -5,15 +5,27 @@ import Link from "next/link";
 import { Calendar, ChevronRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ExamFixture } from "@/lib/student-course-fixtures";
+interface TryoutItem {
+  id: string;
+  courseId: string;
+  title: string;
+  type: "quiz" | "tryout";
+  status: "draft" | "published" | "ended";
+  settings: any;
+  questions: any[];
+  isFree?: boolean;
+  isPreview?: boolean;
+  openAt?: Date | string | null;
+  closeAt?: Date | string | null;
+}
 
 type TryoutListClientProps = {
   courseId: string;
   isEnrolled: boolean;
-  tryouts: ExamFixture[];
+  tryouts: TryoutItem[];
 };
 
-function readAttempts(tryouts: ExamFixture[]) {
+function readAttempts(tryouts: TryoutItem[]) {
   const counts: Record<string, number> = {};
 
   if (typeof window === "undefined") {
@@ -48,7 +60,79 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
           const isBlocked = attemptCount >= maxAttempts;
           const isFree = tryout.isFree || tryout.isPreview;
           const accessible = isEnrolled || isFree;
-          const canStart = accessible && !isBlocked;
+
+          const now = new Date();
+          const openDate = tryout.openAt ? new Date(tryout.openAt) : null;
+          const closeDate = tryout.closeAt ? new Date(tryout.closeAt) : null;
+          const isOpen = !openDate || now >= openDate;
+          const isClosed = closeDate && now > closeDate;
+
+          const canStart = accessible && !isBlocked && isOpen && !isClosed;
+
+          const buttonContent = (() => {
+            if (!accessible) {
+              return (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="interactive rounded-md md:justify-self-end border-dashed"
+                >
+                  <Link href={`/courses/${courseId}/tryout/${tryout.id}`}>
+                    Buka <Lock className="ml-1 size-3.5" />
+                  </Link>
+                </Button>
+              );
+            }
+            if (isBlocked) {
+              return (
+                <Button
+                  disabled
+                  variant="outline"
+                  size="sm"
+                  className="rounded-md md:justify-self-end border-dashed"
+                >
+                  Batas habis
+                </Button>
+              );
+            }
+            if (!isOpen) {
+              return (
+                <Button
+                  disabled
+                  variant="outline"
+                  size="sm"
+                  className="rounded-md md:justify-self-end border-dashed"
+                >
+                  Belum Buka
+                </Button>
+              );
+            }
+            if (isClosed) {
+              return (
+                <Button
+                  disabled
+                  variant="outline"
+                  size="sm"
+                  className="rounded-md md:justify-self-end border-dashed"
+                >
+                  Ditutup
+                </Button>
+              );
+            }
+            return (
+              <Button
+                asChild
+                variant="default"
+                size="sm"
+                className="interactive rounded-md md:justify-self-end bg-brand-primary text-white hover:bg-brand-primary/95"
+              >
+                <Link href={`/courses/${courseId}/tryout/${tryout.id}`}>
+                  Mulai <ChevronRight className="ml-1 size-4" />
+                </Link>
+              </Button>
+            );
+          })();
 
           return (
             <li key={tryout.id} className="border-b border-border/60 last:border-0">
@@ -74,6 +158,16 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                         Batas habis
                       </span>
                     ) : null}
+                    {!isOpen && openDate ? (
+                      <span className="rounded-md bg-status-warning/12 px-2 py-0.5 text-xs font-semibold text-status-warning ring-1 ring-status-warning/20">
+                        Akan dibuka: {openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                      </span>
+                    ) : null}
+                    {isClosed && closeDate ? (
+                      <span className="rounded-md bg-status-error/12 px-2 py-0.5 text-xs font-semibold text-status-error ring-1 ring-status-error/20">
+                        Telah ditutup: {closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-1 text-body-sm text-muted-foreground">
                     {tryout.questions.length} soal · {tryout.settings?.timeLimitMinutes ?? 90} menit
@@ -96,25 +190,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                   </div>
                 </div>
 
-                <Button
-                  asChild={canStart || !accessible}
-                  disabled={isBlocked && accessible}
-                  variant={canStart ? "default" : "outline"}
-                  size="sm"
-                  className={cn(
-                    "interactive rounded-md md:justify-self-end",
-                    canStart ? "bg-brand-primary text-white hover:bg-brand-primary/95" : "border-dashed",
-                  )}
-                >
-                  {canStart || !accessible ? (
-                    <Link href={`/courses/${courseId}/tryout/${tryout.id}`}>
-                      {canStart ? "Mulai" : "Buka"}
-                      {canStart ? <ChevronRight className="ml-1 size-4" /> : <Lock className="ml-1 size-3.5" />}
-                    </Link>
-                  ) : (
-                    "Batas habis"
-                  )}
-                </Button>
+                {buttonContent}
               </div>
             </li>
           );

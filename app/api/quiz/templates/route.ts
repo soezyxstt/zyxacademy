@@ -13,23 +13,25 @@ import { headers } from 'next/headers';
 import { and, eq, desc } from 'drizzle-orm';
 
 const CreateTemplateSchema = z.object({
- courseId: z.string().min(1),
- title: z.string().min(1).max(255),
- category: z.enum(['daily', 'weekly', 'chapter', 'premium']),
- visibility: z.enum(['free', 'paid']).default('free'),
- timeLimitSeconds: z.number().int().min(60).optional(),
- maxAttempts: z.number().int().min(1).optional(),
- selectionRules: z.object({
- tags: z.array(z.string()).optional(),
- count: z.number().int().min(1),
- difficulty_proportions: z
- .object({
- easy: z.number().int().min(0),
- medium: z.number().int().min(0),
- hard: z.number().int().min(0),
- })
- .optional(),
- }),
+  courseId: z.string().min(1),
+  title: z.string().min(1).max(255),
+  category: z.enum(['daily', 'weekly', 'chapter', 'premium']),
+  visibility: z.enum(['free', 'paid']).default('free'),
+  timeLimitSeconds: z.number().int().min(60).optional(),
+  maxAttempts: z.number().int().min(1).optional(),
+  openAt: z.string().optional().nullable(),
+  closeAt: z.string().optional().nullable(),
+  selectionRules: z.object({
+    tags: z.array(z.string()).optional(),
+    count: z.number().int().min(1),
+    difficulty_proportions: z
+      .object({
+        easy: z.number().int().min(0),
+        medium: z.number().int().min(0),
+        hard: z.number().int().min(0),
+      })
+      .optional(),
+  }),
 });
 
 export async function POST(req: NextRequest) {
@@ -45,42 +47,53 @@ export async function POST(req: NextRequest) {
  }
 
  const id = randomUUID();
- const { courseId, title, category, visibility, timeLimitSeconds, maxAttempts, selectionRules } =
- parsed.data;
+  const {
+    courseId,
+    title,
+    category,
+    visibility,
+    timeLimitSeconds,
+    maxAttempts,
+    selectionRules,
+    openAt,
+    closeAt,
+  } = parsed.data;
 
- // Uniqueness check for tags per course
- const tags = (selectionRules.tags as string[] | undefined) || [];
- if (tags.length > 0) {
- const existingTemplates = await db
- .select()
- .from(quizTemplates)
- .where(eq(quizTemplates.courseId, courseId));
+  // Uniqueness check for tags per course
+  const tags = (selectionRules.tags as string[] | undefined) || [];
+  if (tags.length > 0) {
+    const existingTemplates = await db
+      .select()
+      .from(quizTemplates)
+      .where(eq(quizTemplates.courseId, courseId));
 
- const hasDuplicateTags = existingTemplates.some((t) => {
- const tRules = t.selectionRules as Record<string, any>;
- const tTags = tRules?.tags as string[] | undefined;
- if (!tTags) return false;
- return tags.some((tag) => tTags.includes(tag));
- });
+    const hasDuplicateTags = existingTemplates.some((t) => {
+      const tRules = t.selectionRules as Record<string, any>;
+      const tTags = tRules?.tags as string[] | undefined;
+      if (!tTags) return false;
+      return tags.some((tag) => tTags.includes(tag));
+    });
 
- if (hasDuplicateTags) {
- return NextResponse.json(
- { error: 'Template kuis dengan tag bab ini sudah ada di kelas ini.' },
- { status: 409 },
- );
- }
- }
+    if (hasDuplicateTags) {
+      return NextResponse.json(
+        { error: 'Template kuis dengan tag bab ini sudah ada di kelas ini.' },
+        { status: 409 },
+      );
+    }
+  }
 
- await db.insert(quizTemplates).values({
- id,
- courseId,
- title,
- category,
- visibility,
- timeLimitSeconds: timeLimitSeconds ?? null,
- maxAttempts: maxAttempts ?? null,
- selectionRules: selectionRules as unknown as Record<string, unknown>,
- });
+  await db.insert(quizTemplates).values({
+    id,
+    courseId,
+    title,
+    category,
+    visibility,
+    timeLimitSeconds: timeLimitSeconds ?? null,
+    maxAttempts: maxAttempts ?? null,
+    selectionRules: selectionRules as unknown as Record<string, unknown>,
+    openAt: openAt ? new Date(openAt) : null,
+    closeAt: closeAt ? new Date(closeAt) : null,
+  });
 
  return NextResponse.json({ templateId: id }, { status: 201 });
 }

@@ -26,6 +26,8 @@ interface TryoutExam {
   type: "quiz" | "tryout";
   status: "draft" | "published" | "ended";
   settings: any; // { timeLimitMinutes?: number, maxAttempts?: number }
+  openAt?: Date | string | null;
+  closeAt?: Date | string | null;
 }
 
 interface TryoutQuestion {
@@ -53,6 +55,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
   const [tStatus, setTStatus] = useState<"draft" | "published" | "ended">("draft");
   const [tTimeLimit, setTTimeLimit] = useState("90");
   const [tMaxAttempts, setTMaxAttempts] = useState("2");
+  const [tOpenAt, setTOpenAt] = useState("");
+  const [tCloseAt, setTCloseAt] = useState("");
   const [deleteTId, setDeleteTId] = useState<string | null>(null);
 
   // Active View (list or questions)
@@ -75,6 +79,20 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
     ? initialQuestions.filter((q) => q.examId === activeExam.id).sort((a, b) => a.order - b.order)
     : [];
 
+  // Helper to format Date to datetime-local input string (YYYY-MM-DDTHH:mm)
+  function formatDatetimeLocal(d: Date | string | null | undefined): string {
+    if (!d) return "";
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return "";
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const mm = pad(date.getMonth() + 1);
+    const dd = pad(date.getDate());
+    const hh = pad(date.getHours());
+    const min = pad(date.getMinutes());
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
   // TRYOUT EXAM HANDLERS
   // ───────────────────────────────────────────────────────────────────────────
@@ -84,6 +102,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
     setTStatus("draft");
     setTTimeLimit("90");
     setTMaxAttempts("2");
+    setTOpenAt("");
+    setTCloseAt("");
     setIsTOpen(true);
   }
 
@@ -94,6 +114,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
     const settings = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
     setTTimeLimit((settings?.timeLimitMinutes || 90).toString());
     setTMaxAttempts((settings?.maxAttempts || 2).toString());
+    setTOpenAt(formatDatetimeLocal(t.openAt));
+    setTCloseAt(formatDatetimeLocal(t.closeAt));
     setIsTOpen(true);
   }
 
@@ -110,6 +132,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
           status: tStatus,
           timeLimitMinutes: parseInt(tTimeLimit, 10) || 90,
           maxAttempts: parseInt(tMaxAttempts, 10) || 2,
+          openAt: tOpenAt ? new Date(tOpenAt).toISOString() : null,
+          closeAt: tCloseAt ? new Date(tCloseAt).toISOString() : null,
         });
         if (res.success) {
           toast.success(editingT ? "Tryout diperbarui!" : "Tryout baru dibuat!");
@@ -628,6 +652,30 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
                   <SelectItem value="ended">Ended (Ditutup)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="t-open" className="text-body-sm font-semibold">Waktu Buka (Optional)</Label>
+                <Input
+                  id="t-open"
+                  type="datetime-local"
+                  value={tOpenAt}
+                  onChange={(e) => setTOpenAt(e.target.value)}
+                  className="rounded-lg border-input bg-background"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="t-close" className="text-body-sm font-semibold">Waktu Tutup (Optional)</Label>
+                <Input
+                  id="t-close"
+                  type="datetime-local"
+                  value={tCloseAt}
+                  onChange={(e) => setTCloseAt(e.target.value)}
+                  className="rounded-lg border-input bg-background"
+                />
+              </div>
             </div>
           </div>
 

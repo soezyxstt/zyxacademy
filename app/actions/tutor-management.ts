@@ -288,6 +288,8 @@ export async function saveTryoutAction(
     status: "draft" | "published" | "ended";
     timeLimitMinutes: number;
     maxAttempts: number;
+    openAt?: string | null;
+    closeAt?: string | null;
   }
 ) {
   await verifyTutorAccess(courseId);
@@ -298,23 +300,25 @@ export async function saveTryoutAction(
     maxAttempts: data.maxAttempts,
   };
 
+  const dbData = {
+    title: data.title,
+    status: data.status,
+    settings: settings,
+    openAt: data.openAt ? new Date(data.openAt) : null,
+    closeAt: data.closeAt ? new Date(data.closeAt) : null,
+  };
+
   if (examId) {
     await db
       .update(exams)
-      .set({
-        title: data.title,
-        status: data.status,
-        settings: settings,
-      })
+      .set(dbData)
       .where(eq(exams.id, examId));
   } else {
     await db.insert(exams).values({
       id: targetId,
       courseId,
-      title: data.title,
       type: "tryout",
-      status: data.status,
-      settings: settings,
+      ...dbData,
     });
   }
 

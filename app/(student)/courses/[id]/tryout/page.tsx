@@ -48,6 +48,8 @@ export default async function CourseTryoutListPage({ params }: Props) {
       status: t.status,
       settings: settings || { timeLimitMinutes: 90, maxAttempts: 2 },
       questions: [],
+      openAt: t.openAt,
+      closeAt: t.closeAt,
     };
   });
 

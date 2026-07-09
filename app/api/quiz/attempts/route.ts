@@ -43,6 +43,14 @@ export async function POST(req: NextRequest) {
  return NextResponse.json({ error: 'Template not found' }, { status: 404 });
  }
 
+ const now = new Date();
+ if (template.openAt && now < new Date(template.openAt)) {
+   return NextResponse.json({ error: 'Kuis belum dibuka.' }, { status: 403 });
+ }
+ if (template.closeAt && now > new Date(template.closeAt)) {
+   return NextResponse.json({ error: 'Kuis telah ditutup.' }, { status: 403 });
+ }
+
  // Enforce max attempts
  if (template.maxAttempts !== null) {
  const [{ total }] = await db

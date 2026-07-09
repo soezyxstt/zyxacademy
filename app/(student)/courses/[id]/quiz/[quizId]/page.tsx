@@ -124,6 +124,67 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     );
   }
 
+  // Check if they are reviewing a completed attempt
+  let isReview = false;
+  if (attemptId) {
+    const [att] = await db
+      .select({ status: studentQuizAttempts.status })
+      .from(studentQuizAttempts)
+      .where(eq(studentQuizAttempts.id, attemptId))
+      .limit(1);
+    if (att?.status === "completed") {
+      isReview = true;
+    }
+  }
+
+  if (!isReview) {
+    const now = new Date();
+    const openDate = template.openAt ? new Date(template.openAt) : null;
+    const closeDate = template.closeAt ? new Date(template.closeAt) : null;
+
+    if (openDate && now < openDate) {
+      return (
+        <CoursePageShell title="Kuis Belum Dibuka" description={template.title} hideHeader>
+          <Reveal>
+            <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+              <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Belum Dibuka</h3>
+              <p className="mt-2 text-body-sm text-muted-foreground">
+                Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
+                <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+              </p>
+              <div className="mt-5">
+                <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
+                  <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
+                </Button>
+              </div>
+            </div>
+          </Reveal>
+        </CoursePageShell>
+      );
+    }
+
+    if (closeDate && now > closeDate) {
+      return (
+        <CoursePageShell title="Kuis Sudah Ditutup" description={template.title} hideHeader>
+          <Reveal>
+            <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+              <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Sudah Ditutup</h3>
+              <p className="mt-2 text-body-sm text-muted-foreground">
+                Akses kuis ini telah berakhir sejak tanggal{" "}
+                <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+              </p>
+              <div className="mt-5">
+                <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
+                  <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
+                </Button>
+              </div>
+            </div>
+          </Reveal>
+        </CoursePageShell>
+      );
+    }
+  }
+
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
   if (!studentId) return redirect("/sign-in");

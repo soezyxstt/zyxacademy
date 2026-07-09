@@ -12,6 +12,8 @@ import { getCourse } from "@/lib/course-utils";
 import { db } from "@/db";
 import { exams, questions } from "@/db/schema";
 import { and, eq, asc } from "drizzle-orm";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 type Props = { params: Promise<{ id: string; tryoutId: string }> };
 
@@ -78,6 +80,53 @@ export default async function CourseTryoutTakePage({ params }: Props) {
   }
 
   if (!exam || exam.type !== "tryout") notFound();
+
+  // Enforce openAt and closeAt check
+  const now = new Date();
+  const openDate = dbExam.openAt ? new Date(dbExam.openAt) : null;
+  const closeDate = dbExam.closeAt ? new Date(dbExam.closeAt) : null;
+
+  if (openDate && now < openDate) {
+    return (
+      <CoursePageShell title="Tryout Belum Dibuka" description={exam.title} hideHeader>
+        <Reveal>
+          <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+            <h3 className="font-heading text-body-lg font-bold text-foreground">Tryout Belum Dibuka</h3>
+            <p className="mt-2 text-body-sm text-muted-foreground">
+              Tryout ini dijadwalkan untuk dibuka pada tanggal{" "}
+              <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+            </p>
+            <div className="mt-5">
+              <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
+                <Link href={`/courses/${id}/tryout`}>Kembali ke Daftar Tryout</Link>
+              </Button>
+            </div>
+          </div>
+        </Reveal>
+      </CoursePageShell>
+    );
+  }
+
+  if (closeDate && now > closeDate) {
+    return (
+      <CoursePageShell title="Tryout Sudah Ditutup" description={exam.title} hideHeader>
+        <Reveal>
+          <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+            <h3 className="font-heading text-body-lg font-bold text-foreground">Tryout Sudah Ditutup</h3>
+            <p className="mt-2 text-body-sm text-muted-foreground">
+              Akses tryout ini telah berakhir sejak tanggal{" "}
+              <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+            </p>
+            <div className="mt-5">
+              <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
+                <Link href={`/courses/${id}/tryout`}>Kembali ke Daftar Tryout</Link>
+              </Button>
+            </div>
+          </div>
+        </Reveal>
+      </CoursePageShell>
+    );
+  }
 
   const isEnrolled = await checkEnrollment(id);
 

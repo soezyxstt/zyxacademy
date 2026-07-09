@@ -234,13 +234,15 @@ export const progress = sqliteTable("progress", {
 
 // Exams (Quizzes and Tryouts) Table
 export const exams = sqliteTable("exams", {
- id: text("id").primaryKey(),
- courseId: text("course_id").references(() => courses.id).notNull(),
- title: text("title").notNull(),
- type: text("type").$type<"quiz" | "tryout">().notNull(), // Specifies if it is a quiz or tryout
- status: text("status").$type<"draft" | "published" | "ended">().default("draft").notNull(), // Can be draft, published, or ended
- settings: text("settings", { mode: "json" }), // Stores specific limits like "only three submissions" or "one time only"
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow(),
+  id: text("id").primaryKey(),
+  courseId: text("course_id").references(() => courses.id).notNull(),
+  title: text("title").notNull(),
+  type: text("type").$type<"quiz" | "tryout">().notNull(), // Specifies if it is a quiz or tryout
+  status: text("status").$type<"draft" | "published" | "ended">().default("draft").notNull(), // Can be draft, published, or ended
+  settings: text("settings", { mode: "json" }), // Stores specific limits like "only three submissions" or "one time only"
+  openAt: integer("open_at", { mode: "timestamp" }),
+  closeAt: integer("close_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow(),
 });
 
 // Questions Table
@@ -645,24 +647,26 @@ export const questionOptionStats = sqliteTable(
 
 // F. quiz_templates ; publishable quiz configurations with selection rules
 export const quizTemplates = sqliteTable(
- "quiz_templates",
- {
- id: text("id").primaryKey(),
- courseId: text("course_id")
- .notNull()
- .references(() => courses.id, { onDelete: "cascade" }),
- title: text("title").notNull(),
- category: text("category").$type<"daily" | "weekly" | "chapter" | "premium">().notNull(),
- visibility: text("visibility").$type<"free" | "paid">().default("free").notNull(),
- timeLimitSeconds: integer("time_limit_seconds"),
- maxAttempts: integer("max_attempts"),
- selectionRules: text("selection_rules", { mode: "json" }).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
- .defaultNow()
- .$onUpdate(() => new Date())
- .notNull(),
- },
+  "quiz_templates",
+  {
+    id: text("id").primaryKey(),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    category: text("category").$type<"daily" | "weekly" | "chapter" | "premium">().notNull(),
+    visibility: text("visibility").$type<"free" | "paid">().default("free").notNull(),
+    timeLimitSeconds: integer("time_limit_seconds"),
+    maxAttempts: integer("max_attempts"),
+    selectionRules: text("selection_rules", { mode: "json" }).notNull(),
+    openAt: integer("open_at", { mode: "timestamp" }),
+    closeAt: integer("close_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
  (table) => [
  index("idx_templates_search").on(table.courseId, table.category, table.visibility),
  ]

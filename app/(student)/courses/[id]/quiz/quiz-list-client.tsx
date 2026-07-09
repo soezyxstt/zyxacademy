@@ -93,12 +93,73 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
             ? Math.max(...completedAttempts.map((a) => a.score ?? 0))
             : null;
 
+          // Time restricted logic
+          const now = new Date();
+          const openDate = template.openAt ? new Date(template.openAt) : null;
+          const closeDate = template.closeAt ? new Date(template.closeAt) : null;
+          const isOpen = !openDate || now >= openDate;
+          const isClosed = closeDate && now > closeDate;
+
+          const buttonContent = (() => {
+            if (!accessible) {
+              return (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="interactive rounded-md md:justify-self-end border-dashed"
+                >
+                  <Link href={`/courses/${courseId}/quiz/${template.id}`}>
+                    Buka <ChevronRight className="ml-1 size-4" />
+                  </Link>
+                </Button>
+              );
+            }
+            if (!isOpen) {
+              return (
+                <Button
+                  disabled
+                  variant="outline"
+                  size="sm"
+                  className="rounded-md md:justify-self-end border-dashed"
+                >
+                  Belum Buka
+                </Button>
+              );
+            }
+            if (isClosed) {
+              return (
+                <Button
+                  disabled
+                  variant="outline"
+                  size="sm"
+                  className="rounded-md md:justify-self-end border-dashed"
+                >
+                  Ditutup
+                </Button>
+              );
+            }
+            return (
+              <Button
+                asChild
+                variant="default"
+                size="sm"
+                className="interactive rounded-md md:justify-self-end bg-brand-primary text-white hover:bg-brand-primary/95"
+              >
+                <Link href={`/courses/${courseId}/quiz/${template.id}`}>
+                  {activeAttempt ? "Lanjutkan" : "Mulai"}
+                  <ChevronRight className="ml-1 size-4" />
+                </Link>
+              </Button>
+            );
+          })();
+
           return (
             <li key={template.id} className="border-b border-border/60 last:border-0">
               <div
                 className={cn(
                   "grid gap-3 px-4 py-3.5 transition-colors md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-center",
-                  accessible ? "hover:bg-muted/30" : "bg-card/45 text-muted-foreground",
+                  accessible && isOpen && !isClosed ? "hover:bg-muted/30" : "bg-card/45 text-muted-foreground",
                 )}
               >
                 <div className="min-w-0">
@@ -126,21 +187,36 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                   {/* Status indicators */}
                   {accessible && (
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                      {activeAttempt ? (
+                      {activeAttempt && !isClosed && (
                         <span className="inline-flex items-center gap-1 text-amber-500 font-medium">
                           <AlertCircle className="size-3.5" />
                           Sedang dikerjakan
                         </span>
-                      ) : highestScore !== null ? (
+                      )}
+                      {highestScore !== null && (
                         <span className="inline-flex items-center gap-1 text-emerald-500 font-medium">
                           <CheckCircle2 className="size-3.5" />
                           Terjawab (Nilai Terbaik: {highestScore}%)
                         </span>
-                      ) : null}
+                      )}
 
                       {template.maxAttempts && completedAttempts.length > 0 && (
                         <span className="text-muted-foreground">
                           ({completedAttempts.length}/{template.maxAttempts} percobaan selesai)
+                        </span>
+                      )}
+
+                      {!isOpen && openDate && (
+                        <span className="inline-flex items-center gap-1 text-status-warning font-medium">
+                          <AlertCircle className="size-3.5" />
+                          Akan dibuka: {openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                        </span>
+                      )}
+
+                      {isClosed && closeDate && (
+                        <span className="inline-flex items-center gap-1 text-status-error font-medium">
+                          <AlertCircle className="size-3.5" />
+                          Telah ditutup: {closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
                         </span>
                       )}
                     </div>
@@ -159,20 +235,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                   {isFree ? "Gratis" : "Premium"}
                 </span>
 
-                <Button
-                  asChild
-                  variant={accessible ? "default" : "outline"}
-                  size="sm"
-                  className={cn(
-                    "interactive rounded-md md:justify-self-end",
-                    accessible ? "bg-brand-primary text-white hover:bg-brand-primary/95" : "border-dashed",
-                  )}
-                >
-                  <Link href={`/courses/${courseId}/quiz/${template.id}`}>
-                    {accessible ? (activeAttempt ? "Lanjutkan" : "Buka") : "Buka"}
-                    <ChevronRight className="ml-1 size-4" />
-                  </Link>
-                </Button>
+                {buttonContent}
               </div>
             </li>
           );

@@ -54,6 +54,8 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  const [visibility, setVisibility] = useState<TemplateType["visibility"]>("free");
  const [timeLimitMinutes, setTimeLimitMinutes] = useState("");
  const [maxAttempts, setMaxAttempts] = useState("");
+ const [openAt, setOpenAt] = useState("");
+ const [closeAt, setCloseAt] = useState("");
 
  // Selection Rules State
  const [count, setCount] = useState("10");
@@ -118,6 +120,8 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  visibility,
  timeLimitSeconds: timeLimitMinutes ? Number(timeLimitMinutes) * 60 : undefined,
  maxAttempts: maxAttempts ? Number(maxAttempts) : undefined,
+ openAt: openAt ? new Date(openAt).toISOString() : null,
+ closeAt: closeAt ? new Date(closeAt).toISOString() : null,
  selectionRules: {
  tags,
  count: qCount,
@@ -151,8 +155,11 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  visibility,
  timeLimitSeconds: timeLimitMinutes ? Number(timeLimitMinutes) * 60 : null,
  maxAttempts: maxAttempts ? Number(maxAttempts) : null,
+ openAt: openAt ? new Date(openAt) : null,
+ closeAt: closeAt ? new Date(closeAt) : null,
  selectionRules: payload.selectionRules,
  createdAt: new Date(),
+ updatedAt: new Date(),
  };
 
  setTemplates((prev) => [newTemplate, ...prev]);
@@ -164,6 +171,8 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  setVisibility("free");
  setTimeLimitMinutes("");
  setMaxAttempts("");
+ setOpenAt("");
+ setCloseAt("");
  setCount("10");
  setTagsStr("");
  setEasy("3");
@@ -398,6 +407,29 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  <SelectItem value="paid">Premium (Hanya untuk kelas teraktivasi)</SelectItem>
  </SelectContent>
  </Select>
+ </div>
+
+ {/* Row 5: Open & Close Time Windows */}
+ <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+ <div className="space-y-1.5">
+ <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Waktu Buka Akses (Optional)</label>
+ <Input
+ type="datetime-local"
+ value={openAt}
+ onChange={(e) => setOpenAt(e.target.value)}
+ className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"
+ />
+ </div>
+
+ <div className="space-y-1.5">
+ <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Waktu Tutup Akses (Optional)</label>
+ <Input
+ type="datetime-local"
+ value={closeAt}
+ onChange={(e) => setCloseAt(e.target.value)}
+ className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"
+ />
+ </div>
  </div>
 
  {/* Selection Rules Section */}
