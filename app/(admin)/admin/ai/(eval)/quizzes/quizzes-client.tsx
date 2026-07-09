@@ -213,6 +213,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  title,
  category,
  visibility,
+ status: "draft",
  timeLimitSeconds: timeLimitMinutes ? Number(timeLimitMinutes) * 60 : null,
  maxAttempts: maxAttempts ? Number(maxAttempts) : null,
  openAt: openAt ? new Date(openAt) : null,
