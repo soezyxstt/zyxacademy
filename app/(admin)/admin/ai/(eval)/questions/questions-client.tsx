@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Square, ChevronDown, ChevronUp, Filter, Plus, Edit2, Trash2, Loader2, AlertTriangle, Lock, Cpu } from "lucide-react";
+import { CheckSquare, Square, ChevronDown, ChevronUp, Filter, Plus, Edit2, Trash2, Loader2, AlertTriangle, Lock, Cpu, Upload } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,14 @@ const difficultyColors: Record<Difficulty, string> = {
 };
 
 export function QuestionBankClient({ questions, courses, courseMap }: Props) {
+  const router = useRouter();
+
+  // Bulk Upload State
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkCourseId, setBulkCourseId] = useState(courses[0]?.id || "");
+  const [bulkMarkdown, setBulkMarkdown] = useState("");
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
   const [filterStatus, setFilterStatus] = useState<ReviewStatus | "all">("all");
   const [filterCourse, setFilterCourse] = useState("all");
   const [filterKOId, setFilterKOId] = useState("");
@@ -232,6 +241,54 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
     }
   };
 
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkCourseId) return toast.error("Silakan pilih mata kuliah.");
+    if (!bulkMarkdown.trim()) return toast.error("Konten markdown tidak boleh kosong.");
+
+    try {
+      setBulkSubmitting(true);
+      const res = await fetch("/api/admin/questions/bulk-markdown", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          courseId: bulkCourseId,
+          rawMarkdown: bulkMarkdown,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || "Berhasil mengimpor soal.");
+        setBulkOpen(false);
+        setBulkMarkdown("");
+        // Reload page data to get the new questions in list
+        router.refresh();
+      } else {
+        toast.error(data.error || "Gagal mengimpor soal.");
+      }
+    } catch (err: any) {
+      toast.error("Terjadi kesalahan koneksi.");
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setBulkMarkdown(event.target.result as string);
+        toast.success("File Markdown berhasil dibaca.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingQuestion) return;
@@ -384,12 +441,21 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
             Menampilkan {filtered.length} Soal
           </span>
 
-          <Button
-            onClick={() => setCreateOpen(true)}
-            className="rounded-lg bg-brand-primary !text-white hover:bg-brand-primary/95 flex items-center gap-1.5 cursor-pointer text-body-sm font-bold shadow-sm px-4 py-2 interactive transition-all"
-          >
-            <Plus className="size-4" /> Tambah Soal Manual
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setBulkOpen(true)}
+              variant="outline"
+              className="rounded-lg flex items-center gap-1.5 cursor-pointer text-body-sm font-bold shadow-sm px-4 py-2 border-border/80 hover:bg-muted transition-all"
+            >
+              <Upload className="size-4" /> Impor via Markdown
+            </Button>
+            <Button
+              onClick={() => setCreateOpen(true)}
+              className="rounded-lg bg-brand-primary !text-white hover:bg-brand-primary/95 flex items-center gap-1.5 cursor-pointer text-body-sm font-bold shadow-sm px-4 py-2 interactive transition-all"
+            >
+              <Plus className="size-4" /> Tambah Soal Manual
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -679,6 +745,68 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
             <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setDeleteOpen(false)}>Batal</Button>
             <Button variant="destructive" className="rounded-lg cursor-pointer font-bold px-6 shadow-sm" onClick={handleDeleteConfirm}>Ya, Hapus</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* BULK UPLOAD DIALOG */}
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
+          <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
+            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Impor Soal via Markdown</DialogTitle>
+            <DialogDescription>Impor banyak soal pilihan ganda sekaligus menggunakan file Markdown (.md).</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleBulkSubmit} className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
+                <Select value={bulkCourseId} onValueChange={setBulkCourseId}>
+                  <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                    <SelectValue placeholder="Pilih Mata Kuliah" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courses.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pilih File Markdown (.md) (Opsional)</label>
+                <Input
+                  type="file"
+                  accept=".md"
+                  onChange={handleFileChange}
+                  className="file:bg-muted file:text-foreground file:border-0 file:rounded-md file:px-2 file:py-1 cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                  <span>Konten Markdown *</span>
+                  <span className="text-[10px] text-muted-foreground lowercase normal-case">Pisahkan soal dengan ## Soal 1, ## Soal 2, dst.</span>
+                </label>
+                <textarea
+                  required
+                  value={bulkMarkdown}
+                  onChange={(e) => setBulkMarkdown(e.target.value)}
+                  placeholder="## Soal 1&#10;Tentukan hasil dari $2 + 2$.&#10;&#10;A. 3&#10;B. 4&#10;C. 5&#10;D. 6&#10;&#10;**Jawaban:** B&#10;**Pembahasan:** $2+2=4$."
+                  rows={12}
+                  className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-mono text-xs leading-relaxed"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
+              <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkOpen(false)}>Batal</Button>
+              <Button type="submit" disabled={bulkSubmitting} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
+                {bulkSubmitting ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+                Impor Sekarang
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
