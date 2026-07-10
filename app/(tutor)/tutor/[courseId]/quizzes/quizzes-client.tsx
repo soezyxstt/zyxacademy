@@ -218,6 +218,26 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     });
   }
 
+  async function handleTogglePublishStatus(templateId: string, currentStatus: "draft" | "published") {
+    const newStatus = currentStatus === "published" ? "draft" : "published";
+    try {
+      const res = await fetch(`/api/quiz/templates/${templateId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Gagal mengubah status publish.");
+      }
+
+      toast.success(`Kuis diubah menjadi ${newStatus === "published" ? "Published" : "Draft"}`);
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengubah status kuis.");
+    }
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
   // QUESTION BANK HANDLERS
   // ───────────────────────────────────────────────────────────────────────────
@@ -358,17 +378,17 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           <Badge variant="secondary" className="capitalize text-[10px] rounded-md px-2 py-0.5">
                             {t.category}
                           </Badge>
-                          <Badge
-                            variant={t.status === "published" ? "default" : "outline"}
+                          <button
+                            onClick={() => handleTogglePublishStatus(t.id, t.status)}
                             className={cn(
-                              "capitalize text-[10px] rounded-md px-2 py-0.5 font-semibold",
+                              "capitalize text-[10px] rounded-md px-2 py-0.5 font-semibold border cursor-pointer transition-colors",
                               t.status === "published"
-                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/10"
-                                : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/10"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
                             )}
                           >
                             {t.status === "published" ? "Published" : "Draft"}
-                          </Badge>
+                          </button>
                         </div>
                       </div>
                       <p className="text-body-xs text-muted-foreground mt-0.5">
