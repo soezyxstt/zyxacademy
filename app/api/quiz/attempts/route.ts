@@ -50,11 +50,16 @@ export async function POST(req: NextRequest) {
  }
 
  const now = new Date();
- if (template.openAt && now < new Date(template.openAt)) {
-   return NextResponse.json({ error: 'Kuis belum dibuka.' }, { status: 403 });
+ if (template.manualStatus === 'closed') {
+   return NextResponse.json({ error: 'Kuis telah ditutup secara manual oleh admin.' }, { status: 403 });
  }
- if (template.closeAt && now > new Date(template.closeAt)) {
-   return NextResponse.json({ error: 'Kuis telah ditutup.' }, { status: 403 });
+ if (template.manualStatus === 'scheduled') {
+   if (template.openAt && now < new Date(template.openAt)) {
+     return NextResponse.json({ error: 'Kuis belum dibuka.' }, { status: 403 });
+   }
+   if (template.closeAt && now > new Date(template.closeAt)) {
+     return NextResponse.json({ error: 'Kuis telah ditutup.' }, { status: 403 });
+   }
  }
 
  // Enforce max attempts

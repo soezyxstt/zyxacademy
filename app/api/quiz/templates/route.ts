@@ -21,6 +21,7 @@ const CreateTemplateSchema = z.object({
   maxAttempts: z.number().int().min(1).optional(),
   openAt: z.string().optional().nullable(),
   closeAt: z.string().optional().nullable(),
+  manualStatus: z.enum(['open', 'closed', 'scheduled']).default('scheduled'),
   selectionRules: z.object({
     tags: z.array(z.string()).optional(),
     count: z.number().int().min(1),
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
     selectionRules,
     openAt,
     closeAt,
+    manualStatus,
   } = parsed.data;
 
   // Uniqueness check for tags per course
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
     selectionRules: selectionRules as unknown as Record<string, unknown>,
     openAt: openAt ? new Date(openAt) : null,
     closeAt: closeAt ? new Date(closeAt) : null,
+    manualStatus,
     status: "draft",
   });
 

@@ -6,17 +6,15 @@ import { Trophy, ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import {
-  studentQuizAttempts,
-  quizTemplates,
   enrollments,
   courses,
-  user,
 } from "@/db/schema";
-import { and, eq, sql, gt, inArray } from "drizzle-orm";
+import { and, eq, gt, inArray } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
 import { studentCardClass } from "@/components/course/course-surfaces";
+import { getCourseLeaderboard } from "@/lib/course-utils";
 
 
 export const metadata: Metadata = {
@@ -60,30 +58,12 @@ export default async function LeaderboardPage() {
   > = {};
 
   for (const course of allCourses) {
-    const rows = await db
-      .select({
-        studentName: user.name,
-        avgScore: sql<number>`round(avg(${studentQuizAttempts.score}), 1)`,
-        attempts: sql<number>`count(*)`,
-      })
-      .from(studentQuizAttempts)
-      .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
-      .innerJoin(user, eq(studentQuizAttempts.studentId, user.id))
-      .where(
-        and(
-          eq(quizTemplates.courseId, course.id),
-          eq(studentQuizAttempts.status, "completed"),
-        ),
-      )
-      .groupBy(user.name)
-      .orderBy(sql`avg(${studentQuizAttempts.score}) DESC`)
-      .limit(10);
-
-    leaderboardByCourse[course.id] = rows.map((r, i) => ({
-      rank: i + 1,
+    const ranked = await getCourseLeaderboard(course.id);
+    leaderboardByCourse[course.id] = ranked.slice(0, 10).map((r) => ({
+      rank: r.rank,
       name: r.studentName,
-      avgScore: Number(r.avgScore),
-      attempts: r.attempts,
+      avgScore: r.avgScore,
+      attempts: r.attemptCount,
     }));
   }
 

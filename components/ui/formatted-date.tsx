@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { normalizeDate } from "@/lib/utils";
 
 interface FormattedDateProps {
   date: Date | string | number;
@@ -19,8 +20,9 @@ export function FormattedDate({
     setMounted(true);
   }, []);
 
-  const dateObj = new Date(date);
+  const dateObj = normalizeDate(date);
   if (isNaN(dateObj.getTime())) {
+
     return null;
   }
 

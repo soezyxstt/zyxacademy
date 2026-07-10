@@ -92,8 +92,21 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
           const now = new Date();
           const openDate = template.openAt ? new Date(template.openAt) : null;
           const closeDate = template.closeAt ? new Date(template.closeAt) : null;
-          const isOpen = !openDate || now >= openDate;
-          const isClosed = closeDate && now > closeDate;
+
+          let isOpen = true;
+          let isClosed = false;
+
+          if (template.manualStatus === "closed") {
+            isOpen = false;
+            isClosed = true;
+          } else if (template.manualStatus === "open") {
+            isOpen = true;
+            isClosed = false;
+          } else {
+            // "scheduled" or default
+            isOpen = !openDate || now >= openDate;
+            isClosed = !!closeDate && now > closeDate;
+          }
 
           const buttonContent = (() => {
             if (!accessible) {

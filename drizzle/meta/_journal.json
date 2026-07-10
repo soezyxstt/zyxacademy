@@ -281,6 +281,13 @@
       "when": 1783604189320,
       "tag": "0039_first_roxanne_simpson",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1783713466062,
+      "tag": "0040_lowly_puff_adder",
+      "breakpoints": true
     }
   ]
 }

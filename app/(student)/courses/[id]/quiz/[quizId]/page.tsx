@@ -152,15 +152,17 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     const openDate = template.openAt ? new Date(template.openAt) : null;
     const closeDate = template.closeAt ? new Date(template.closeAt) : null;
 
-    if (openDate && now < openDate) {
+    const isClosedManually = template.manualStatus === "closed";
+    const isOpenManually = template.manualStatus === "open";
+
+    if (isClosedManually) {
       return (
-        <CoursePageShell title="Kuis Belum Dibuka" description={template.title} hideHeader>
+        <CoursePageShell title="Kuis Sudah Ditutup" description={template.title} hideHeader>
           <Reveal>
             <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-              <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Belum Dibuka</h3>
+              <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Ditutup</h3>
               <p className="mt-2 text-body-sm text-muted-foreground">
-                Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
-                <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+                Kuis ini telah ditutup secara manual oleh admin/tutor.
               </p>
               <div className="mt-5">
                 <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
@@ -173,25 +175,48 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       );
     }
 
-    if (closeDate && now > closeDate) {
-      return (
-        <CoursePageShell title="Kuis Sudah Ditutup" description={template.title} hideHeader>
-          <Reveal>
-            <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-              <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Sudah Ditutup</h3>
-              <p className="mt-2 text-body-sm text-muted-foreground">
-                Akses kuis ini telah berakhir sejak tanggal{" "}
-                <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
-              </p>
-              <div className="mt-5">
-                <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
-                  <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
-                </Button>
+    if (!isOpenManually) {
+      if (openDate && now < openDate) {
+        return (
+          <CoursePageShell title="Kuis Belum Dibuka" description={template.title} hideHeader>
+            <Reveal>
+              <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+                <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Belum Dibuka</h3>
+                <p className="mt-2 text-body-sm text-muted-foreground">
+                  Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
+                  <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+                </p>
+                <div className="mt-5">
+                  <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
+                    <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
+                  </Button>
+                </div>
               </div>
-            </div>
-          </Reveal>
-        </CoursePageShell>
-      );
+            </Reveal>
+          </CoursePageShell>
+        );
+      }
+
+      if (closeDate && now > closeDate) {
+        return (
+          <CoursePageShell title="Kuis Sudah Ditutup" description={template.title} hideHeader>
+            <Reveal>
+              <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
+                <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Sudah Ditutup</h3>
+                <p className="mt-2 text-body-sm text-muted-foreground">
+                  Akses kuis ini telah berakhir sejak tanggal{" "}
+                  <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
+                </p>
+                <div className="mt-5">
+                  <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
+                    <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
+                  </Button>
+                </div>
+              </div>
+            </Reveal>
+          </CoursePageShell>
+        );
+      }
     }
   }
 

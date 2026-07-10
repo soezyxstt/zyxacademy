@@ -118,6 +118,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     setTplMaxAttempts("3");
     setTplCount("5");
     setTplTags("");
+    setTplOpenAt("");
+    setTplCloseAt("");
+    setTplManualStatus("scheduled");
     setSelectedQIds([]);
     setIsTplOpen(true);
   }
@@ -129,6 +132,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     setTplVisibility(t.visibility);
     setTplTimeLimit(t.timeLimitSeconds ? (t.timeLimitSeconds / 60).toString() : "");
     setTplMaxAttempts(t.maxAttempts ? t.maxAttempts.toString() : "");
+    setTplOpenAt(t.openAt ? formatDatetimeLocal(t.openAt) : "");
+    setTplCloseAt(t.closeAt ? formatDatetimeLocal(t.closeAt) : "");
+    setTplManualStatus(t.manualStatus || "scheduled");
     
     const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
     setTplCount((rules?.count || 5).toString());
@@ -168,6 +174,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           timeLimitSeconds: tplTimeLimit ? parseInt(tplTimeLimit, 10) * 60 : null,
           maxAttempts: tplMaxAttempts ? parseInt(tplMaxAttempts, 10) : null,
           selectionRules: rules,
+          openAt: tplOpenAt ? new Date(tplOpenAt).toISOString() : null,
+          closeAt: tplCloseAt ? new Date(tplCloseAt).toISOString() : null,
+          manualStatus: tplManualStatus,
         });
         if (res.success) {
           toast.success(editingTpl ? "Template kuis diperbarui!" : "Template kuis ditambahkan!");
@@ -370,6 +379,43 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                               {tag}
                             </Badge>
                           ))
+                        )}
+                      </div>
+
+                      {/* Schedule & Manual Status Section */}
+                      <div className="mt-3 pt-3 border-t border-border/40 space-y-1.5 text-body-xs text-muted-foreground">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-muted-foreground flex items-center gap-1">
+                            <Clock className="size-3" />
+                            Akses Kuis:
+                          </span>
+                          <span className={cn(
+                            "inline-flex rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                            t.manualStatus === "open"
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                              : t.manualStatus === "closed"
+                              ? "bg-destructive/10 text-destructive border-destructive/20"
+                              : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20"
+                          )}>
+                            {t.manualStatus === "open" ? "Buka Manual" : t.manualStatus === "closed" ? "Tutup Manual" : "Ikuti Jadwal"}
+                          </span>
+                        </div>
+
+                        {t.manualStatus === "scheduled" && (t.openAt || t.closeAt) && (
+                          <div className="text-[10px] bg-muted/40 p-2 rounded-md border border-border/40 space-y-1 mt-1 text-foreground/80">
+                            {t.openAt && (
+                              <div className="flex justify-between">
+                                <span>Buka:</span>
+                                <span className="font-semibold">{new Date(t.openAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>
+                              </div>
+                            )}
+                            {t.closeAt && (
+                              <div className="flex justify-between">
+                                <span>Tutup:</span>
+                                <span className="font-semibold">{new Date(t.closeAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
 
@@ -599,6 +645,45 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                   className="rounded-lg border-input bg-background"
                 />
               </div>
+            </div>
+
+            {/* Scheduling & Manual Status Control */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="tpl-open-at" className="text-body-sm font-semibold">Waktu Buka Akses (Opsional)</Label>
+                <Input
+                  id="tpl-open-at"
+                  type="datetime-local"
+                  value={tplOpenAt}
+                  onChange={(e) => setTplOpenAt(e.target.value)}
+                  className="rounded-lg border-input bg-background"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="tpl-close-at" className="text-body-sm font-semibold">Waktu Tutup Akses (Opsional)</Label>
+                <Input
+                  id="tpl-close-at"
+                  type="datetime-local"
+                  value={tplCloseAt}
+                  onChange={(e) => setTplCloseAt(e.target.value)}
+                  className="rounded-lg border-input bg-background"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="tpl-manual-status" className="text-body-sm font-semibold">Kontrol Akses Kuis</Label>
+              <Select value={tplManualStatus} onValueChange={(val: any) => setTplManualStatus(val)}>
+                <SelectTrigger className="rounded-lg border-input bg-background">
+                  <SelectValue placeholder="Pilih kontrol akses" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="scheduled">Ikuti Jadwal Waktu (Default)</SelectItem>
+                  <SelectItem value="open">Buka Secara Manual (Bypass Jadwal)</SelectItem>
+                  <SelectItem value="closed">Tutup Secara Manual (Blokir Akses)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-2">

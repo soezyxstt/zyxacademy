@@ -173,11 +173,18 @@ export async function saveQuizTemplateAction(
     timeLimitSeconds: number | null;
     maxAttempts: number | null;
     selectionRules: any;
+    openAt?: string | null;
+    closeAt?: string | null;
+    manualStatus?: "open" | "closed" | "scheduled";
+    status?: "draft" | "published";
   }
 ) {
   await verifyTutorAccess(courseId);
 
   const targetId = templateId || `tpl-tutor-${randomUUID()}`;
+
+  const openDate = data.openAt ? new Date(data.openAt) : null;
+  const closeDate = data.closeAt ? new Date(data.closeAt) : null;
 
   if (templateId) {
     await db
@@ -189,7 +196,10 @@ export async function saveQuizTemplateAction(
         timeLimitSeconds: data.timeLimitSeconds,
         maxAttempts: data.maxAttempts,
         selectionRules: data.selectionRules,
-        status: "published",
+        openAt: openDate,
+        closeAt: closeDate,
+        manualStatus: data.manualStatus ?? "scheduled",
+        status: data.status ?? "published",
         updatedAt: new Date(),
       })
       .where(eq(quizTemplates.id, templateId));
@@ -203,7 +213,10 @@ export async function saveQuizTemplateAction(
       timeLimitSeconds: data.timeLimitSeconds,
       maxAttempts: data.maxAttempts,
       selectionRules: data.selectionRules,
-      status: "draft",
+      openAt: openDate,
+      closeAt: closeDate,
+      manualStatus: data.manualStatus ?? "scheduled",
+      status: data.status ?? "draft",
     });
   }
 

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getQuizTemplatePreviewAction } from "@/app/actions/tutor-management";
+import { MathText } from "@/components/course/math-text";
 
 type TemplateType = {
   id: string;
@@ -17,6 +18,7 @@ type TemplateType = {
   category: "daily" | "weekly" | "chapter" | "premium";
   visibility: "free" | "paid";
   status: "draft" | "published";
+  manualStatus: "open" | "closed" | "scheduled";
   timeLimitSeconds: number | null;
   maxAttempts: number | null;
   openAt?: Date | null;
@@ -73,19 +75,116 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
    }
  }
 
- // Creation Form State ; pre-populated from remediation action if params provided
- const [courseId, setCourseId] = useState(
- prefillCourseId && courses.some((c) => c.id === prefillCourseId)
- ? prefillCourseId
- : (courses[0]?.id || "")
- );
- const [title, setTitle] = useState("");
- const [category, setCategory] = useState<TemplateType["category"]>("weekly");
- const [visibility, setVisibility] = useState<TemplateType["visibility"]>("free");
- const [timeLimitMinutes, setTimeLimitMinutes] = useState("");
- const [maxAttempts, setMaxAttempts] = useState("");
- const [openAt, setOpenAt] = useState("");
- const [closeAt, setCloseAt] = useState("");
+  // Creation Form State ; pre-populated from remediation action if params provided
+  const [editingTemplate, setEditingTemplate] = useState<TemplateType | null>(null);
+  const [courseId, setCourseId] = useState(
+  prefillCourseId && courses.some((c) => c.id === prefillCourseId)
+  ? prefillCourseId
+  : (courses[0]?.id || "")
+  );
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState<TemplateType["category"]>("weekly");
+  const [visibility, setVisibility] = useState<TemplateType["visibility"]>("free");
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState("");
+  const [maxAttempts, setMaxAttempts] = useState("");
+  const [openAt, setOpenAt] = useState("");
+  const [closeAt, setCloseAt] = useState("");
+  const [manualStatus, setManualStatus] = useState<TemplateType["manualStatus"]>("scheduled");
+
+  const formatDatetimeLocal = (date?: Date | string | null) => {
+    if (!date) return "";
+    const d = new Date(date);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const handleOpenCreate = () => {
+    setEditingTemplate(null);
+    setTitle("");
+    setCategory("weekly");
+    setVisibility("free");
+    setTimeLimitMinutes("");
+    setMaxAttempts("");
+    setOpenAt("");
+    setCloseAt("");
+    setManualStatus("scheduled");
+    setCount("10");
+    setTagsStr("");
+    setSelectedQIds([]);
+    setEasy("3");
+    setMedium("5");
+    setHard("2");
+    setCreateOpen(true);
+  };
+
+  const handleOpenEdit = (template: TemplateType) => {
+    setEditingTemplate(template);
+    setCourseId(template.courseId);
+    setTitle(template.title);
+    setCategory(template.category);
+    setVisibility(template.visibility);
+    setTimeLimitMinutes(template.timeLimitSeconds ? String(Math.round(template.timeLimitSeconds / 60)) : "");
+    setMaxAttempts(template.maxAttempts ? String(template.maxAttempts) : "");
+    setOpenAt(formatDatetimeLocal(template.openAt));
+    setCloseAt(formatDatetimeLocal(template.closeAt));
+    setManualStatus(template.manualStatus || "scheduled");
+
+    const rules = template.selectionRules as Record<string, any>;
+    setCount(String(rules?.count ?? 10));
+    setTagsStr((rules?.tags ?? []).join(", "));
+    setSelectedQIds(rules?.fixedQuestionIds ?? []);
+    
+    const diff = rules?.difficulty_proportions ?? { easy: 0, medium: 0, hard: 0 };
+    setEasy(String(diff.easy));
+    setMedium(String(diff.medium));
+    setHard(String(diff.hard));
+
+    setCreateOpen(true);
+  };
+
+  const handleUpdateManualStatus = async (templateId: string, newManualStatus: TemplateType["manualStatus"]) => {
+    try {
+      setTemplates((prev) =>
+        prev.map((t) => (t.id === templateId ? { ...t, manualStatus: newManualStatus } : t))
+      );
+
+      const res = await fetch(`/api/quiz/templates/${templateId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manualStatus: newManualStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update status");
+      }
+
+      toast.success(`Status berhasil diubah menjadi ${newManualStatus === 'open' ? 'Buka Manual' : newManualStatus === 'closed' ? 'Tutup Manual' : 'Ikuti Jadwal'}`);
+    } catch {
+      toast.error("Gagal memperbarui status manual kuis.");
+    }
+  };
+
+  const handleUpdateStatus = async (templateId: string, newStatus: TemplateType["status"]) => {
+    try {
+      setTemplates((prev) =>
+        prev.map((t) => (t.id === templateId ? { ...t, status: newStatus } : t))
+      );
+
+      const res = await fetch(`/api/quiz/templates/${templateId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update publish status");
+      }
+
+      toast.success(newStatus === 'published' ? 'Kuis berhasil dipublikasikan!' : 'Kuis disimpan sebagai draf.');
+    } catch {
+      toast.error("Gagal mengubah status publikasi kuis.");
+    }
+  };
 
  // Selection Rules State
  const [count, setCount] = useState("10");
@@ -152,100 +251,138 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
   }
  };
 
- const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return toast.error("Judul kuis wajib diisi.");
-    
-    if (selectedQIds.length === 0) {
-      if (isNaN(qCount) || qCount < 1) {
-        return toast.error("Jumlah soal harus minimal 1.");
-      }
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+     e.preventDefault();
+     if (!title.trim()) return toast.error("Judul kuis wajib diisi.");
+     
+     if (selectedQIds.length === 0) {
+       if (isNaN(qCount) || qCount < 1) {
+         return toast.error("Jumlah soal harus minimal 1.");
+       }
 
-      if (easyCount + mediumCount + hardCount !== qCount) {
-        return toast.error(
-          `Proporsi kesulitan (${easyCount} Easy + ${mediumCount} Medium + ${hardCount} Hard = ${easyCount + mediumCount + hardCount}) harus sama dengan total jumlah soal (${qCount}).`
-        );
-      }
-    }
+       if (easyCount + mediumCount + hardCount !== qCount) {
+         return toast.error(
+           `Proporsi kesulitan (${easyCount} Easy + ${mediumCount} Medium + ${hardCount} Hard = ${easyCount + mediumCount + hardCount}) harus sama dengan total jumlah soal (${qCount}).`
+         );
+       }
+     }
 
-    try {
- setSubmitting(true);
- const tags = tagsStr.split(",").map((t) => t.trim()).filter(Boolean);
- 
- const payload = {
- courseId,
- title,
- category,
- visibility,
- timeLimitSeconds: timeLimitMinutes ? Number(timeLimitMinutes) * 60 : undefined,
- maxAttempts: maxAttempts ? Number(maxAttempts) : undefined,
- openAt: openAt ? new Date(openAt).toISOString() : null,
- closeAt: closeAt ? new Date(closeAt).toISOString() : null,
-      selectionRules: {
-        tags: selectedQIds.length > 0 ? [] : tags,
-        count: selectedQIds.length > 0 ? selectedQIds.length : qCount,
-        fixedQuestionIds: selectedQIds.length > 0 ? selectedQIds : undefined,
-        difficulty_proportions: selectedQIds.length > 0 ? undefined : {
-          easy: easyCount,
-          medium: mediumCount,
-          hard: hardCount,
-        },
-      },
-    };
+     try {
+       setSubmitting(true);
+       const tags = tagsStr.split(",").map((t) => t.trim()).filter(Boolean);
+       
+       const payload = {
+         courseId,
+         title,
+         category,
+         visibility,
+         timeLimitSeconds: timeLimitMinutes ? Number(timeLimitMinutes) * 60 : null,
+         maxAttempts: maxAttempts ? Number(maxAttempts) : null,
+         openAt: openAt ? new Date(openAt).toISOString() : null,
+         closeAt: closeAt ? new Date(closeAt).toISOString() : null,
+         manualStatus,
+         selectionRules: {
+           tags: selectedQIds.length > 0 ? [] : tags,
+           count: selectedQIds.length > 0 ? selectedQIds.length : qCount,
+           fixedQuestionIds: selectedQIds.length > 0 ? selectedQIds : undefined,
+           difficulty_proportions: selectedQIds.length > 0 ? undefined : {
+             easy: easyCount,
+             medium: mediumCount,
+             hard: hardCount,
+           },
+         },
+       };
 
- const res = await fetch("/api/quiz/templates", {
- method: "POST",
- headers: { "Content-Type": "application/json" },
- body: JSON.stringify(payload),
- });
+       if (editingTemplate) {
+         const res = await fetch(`/api/quiz/templates/${editingTemplate.id}`, {
+           method: "PATCH",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify(payload),
+         });
 
- if (!res.ok) {
- const errData = await res.json();
- throw new Error(errData.error || "Gagal membuat kuis template");
- }
+         if (!res.ok) {
+           const errData = await res.json();
+           throw new Error(errData.error || "Gagal memperbarui kuis template");
+         }
 
- const data = await res.json();
- toast.success("Template kuis berhasil dibuat!");
+         toast.success("Template kuis berhasil diperbarui!");
+         setTemplates((prev) =>
+           prev.map((t) =>
+             t.id === editingTemplate.id
+               ? {
+                   ...t,
+                   courseId,
+                   title,
+                   category,
+                   visibility,
+                   timeLimitSeconds: payload.timeLimitSeconds,
+                   maxAttempts: payload.maxAttempts,
+                   openAt: openAt ? new Date(openAt) : null,
+                   closeAt: closeAt ? new Date(closeAt) : null,
+                   manualStatus,
+                   selectionRules: payload.selectionRules,
+                   updatedAt: new Date(),
+                 }
+               : t
+           )
+         );
+       } else {
+         const res = await fetch("/api/quiz/templates", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify(payload),
+         });
 
- const newTemplate: TemplateType = {
- id: data.templateId,
- courseId,
- title,
- category,
- visibility,
- status: "draft",
- timeLimitSeconds: timeLimitMinutes ? Number(timeLimitMinutes) * 60 : null,
- maxAttempts: maxAttempts ? Number(maxAttempts) : null,
- openAt: openAt ? new Date(openAt) : null,
- closeAt: closeAt ? new Date(closeAt) : null,
- selectionRules: payload.selectionRules,
- createdAt: new Date(),
- updatedAt: new Date(),
- };
+         if (!res.ok) {
+           const errData = await res.json();
+           throw new Error(errData.error || "Gagal membuat kuis template");
+         }
 
- setTemplates((prev) => [newTemplate, ...prev]);
- setCreateOpen(false);
+         const data = await res.json();
+         toast.success("Template kuis berhasil dibuat!");
 
- // Reset Form
- setTitle("");
- setCategory("weekly");
- setVisibility("free");
- setTimeLimitMinutes("");
- setMaxAttempts("");
- setOpenAt("");
- setCloseAt("");
-  setCount("10");
-  setTagsStr("");
-  setSelectedQIds([]);
-  setEasy("3");
-  setMedium("5");
-  setHard("2");
- } catch (err: any) {
- toast.error(err.message || "Gagal membuat kuis");
- } finally {
- setSubmitting(false);
- }
- };
+         const newTemplate: TemplateType = {
+           id: data.templateId,
+           courseId,
+           title,
+           category,
+           visibility,
+           status: "draft",
+           manualStatus,
+           timeLimitSeconds: payload.timeLimitSeconds,
+           maxAttempts: payload.maxAttempts,
+           openAt: openAt ? new Date(openAt) : null,
+           closeAt: closeAt ? new Date(closeAt) : null,
+           selectionRules: payload.selectionRules,
+           createdAt: new Date(),
+           updatedAt: new Date(),
+         };
+
+         setTemplates((prev) => [newTemplate, ...prev]);
+       }
+
+       setCreateOpen(false);
+       // Reset Form
+       setTitle("");
+       setCategory("weekly");
+       setVisibility("free");
+       setTimeLimitMinutes("");
+       setMaxAttempts("");
+       setOpenAt("");
+       setCloseAt("");
+       setManualStatus("scheduled");
+       setCount("10");
+       setTagsStr("");
+       setSelectedQIds([]);
+       setEasy("3");
+       setMedium("5");
+       setHard("2");
+     } catch (err: any) {
+       toast.error(err.message || "Gagal menyimpan kuis");
+     } finally {
+       setSubmitting(false);
+     }
+  };
 
  return (
  <div className="space-y-6 font-sans">
@@ -254,7 +391,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  {templates.length > 0 && (
  <div className="flex justify-end border-b border-border/40 pb-4 text-left">
  <Button
- onClick={() => setCreateOpen(true)}
+ onClick={handleOpenCreate}
  className="rounded-lg bg-brand-primary !text-white hover:bg-brand-primary/95 flex items-center gap-2 cursor-pointer text-body-sm font-bold shadow-sm px-4 py-2 transition-all"
  >
  <Plus className="size-4" /> Buat Template Kuis
@@ -273,7 +410,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  Mulai susun kuis otomatis dengan membuat konfigurasi kuis baru untuk kelas Anda.
  </p>
  <Button
- onClick={() => setCreateOpen(true)}
+ onClick={handleOpenCreate}
  className="mt-6 rounded-lg bg-brand-primary !text-white hover:bg-brand-primary/95 flex items-center gap-2 cursor-pointer text-body-sm font-bold shadow-md px-5 py-2.5 transition-all"
  >
  <Plus className="size-4" /> Buat Template Kuis
@@ -303,14 +440,18 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
     <span className="inline-flex rounded-md bg-muted/80 border border-border/40 px-2 py-0.5 text-body-xs font-semibold text-muted-foreground capitalize">
     {template.category === "weekly" ? "Mingguan" : template.category === "chapter" ? "Evaluasi Bab" : template.category === "premium" ? "Premium" : "Harian"} · {template.visibility === "free" ? "Gratis" : "Premium"}
     </span>
-    <span className={cn(
-      "inline-flex rounded-md border px-2 py-0.5 text-body-xs font-semibold capitalize",
-      template.status === "published"
-        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-        : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
-    )}>
+    <button
+      onClick={() => handleUpdateStatus(template.id, template.status === "published" ? "draft" : "published")}
+      className={cn(
+        "inline-flex rounded-md border px-2 py-0.5 text-body-xs font-semibold capitalize cursor-pointer transition-colors hover:bg-muted/80",
+        template.status === "published"
+          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+          : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+      )}
+      title="Klik untuk mengubah status draf/publikasi"
+    >
       {template.status === "published" ? "Published" : "Draft"}
-    </span>
+    </button>
   </div>
   </div>
 
@@ -365,45 +506,123 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  ))}
  </div>
  )}
- </div>
 
- <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4">
- <span className="text-body-xs text-muted-foreground/80 flex items-center gap-1.5 font-medium">
- <Calendar className="size-3.5" />
- Dibuat {new Date(template.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" })}
- </span>
+ {/* Schedule & Manual Status Section */}
+ <div className="mt-4 pt-4 border-t border-border/40 space-y-2 text-body-sm">
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Akses Kuis:</span>
+      <span className={cn(
+        "inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+        template.manualStatus === "open"
+          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+          : template.manualStatus === "closed"
+          ? "bg-destructive/10 text-destructive border-destructive/20"
+          : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20"
+      )}>
+        {template.manualStatus === "open" ? "Buka Manual" : template.manualStatus === "closed" ? "Tutup Manual" : "Ikuti Jadwal"}
+      </span>
+    </div>
 
- <div className="flex gap-2">
-  <Button
-  variant="outline"
-  size="sm"
-  className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1.5 font-semibold text-xs h-8 px-2.5 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary border-border/80"
-  onClick={() => handleOpenPreviewTpl(template)}
-  >
-  <Eye className="size-3.5" />
-  Preview
+    {template.manualStatus === "scheduled" && (template.openAt || template.closeAt) && (
+      <div className="text-[11px] text-muted-foreground bg-muted/30 p-2 rounded-md border border-border/40 space-y-1">
+        {template.openAt && (
+          <div className="flex justify-between">
+            <span>Buka:</span>
+            <span className="font-semibold text-foreground">{new Date(template.openAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>
+          </div>
+        )}
+        {template.closeAt && (
+          <div className="flex justify-between">
+            <span>Tutup:</span>
+            <span className="font-semibold text-foreground">{new Date(template.closeAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>
+          </div>
+        )}
+      </div>
+    )}
+
+    <div className="grid grid-cols-3 gap-1">
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn(
+          "text-[10px] h-7 px-1 rounded-md cursor-pointer",
+          template.manualStatus === "open" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold border-emerald-500/30" : "text-muted-foreground hover:bg-muted"
+        )}
+        onClick={() => handleUpdateManualStatus(template.id, "open")}
+      >
+        Buka
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn(
+          "text-[10px] h-7 px-1 rounded-md cursor-pointer",
+          template.manualStatus === "closed" ? "bg-destructive/15 text-destructive font-bold border-destructive/30" : "text-muted-foreground hover:bg-muted"
+        )}
+        onClick={() => handleUpdateManualStatus(template.id, "closed")}
+      >
+        Tutup
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className={cn(
+          "text-[10px] h-7 px-1 rounded-md cursor-pointer",
+          template.manualStatus === "scheduled" ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 font-bold border-blue-500/30" : "text-muted-foreground hover:bg-muted"
+        )}
+        onClick={() => handleUpdateManualStatus(template.id, "scheduled")}
+      >
+        Jadwal
+      </Button>
+    </div>
+  </div>
+  </div>
+
+  <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4">
+  <span className="text-body-xs text-muted-foreground/80 flex items-center gap-1.5 font-medium">
+  <Calendar className="size-3.5" />
+  Dibuat {new Date(template.createdAt).toLocaleDateString("id-ID", { dateStyle: "medium" })}
+  </span>
+
+  <div className="flex gap-2">
+   <Button
+   variant="outline"
+   size="sm"
+   className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1.5 font-semibold text-xs h-8 px-2.5 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary border-border/80"
+   onClick={() => handleOpenPreviewTpl(template)}
+   >
+   <Eye className="size-3.5" />
+   Preview
+   </Button>
+   <Button
+     variant="outline"
+     size="sm"
+     className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1.5 font-semibold text-xs h-8 px-2.5 border-border/80 text-foreground hover:bg-muted"
+     onClick={() => handleOpenEdit(template)}
+   >
+     Edit
+   </Button>
+   <Button
+     variant="outline"
+     size="sm"
+     className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1.5 font-semibold text-xs h-8 px-2.5 border-border/80 text-foreground hover:bg-muted"
+     onClick={() => setAuditingTemplate(template)}
+   >
+  <FileJson className="size-3.5" />
+  Audit
   </Button>
   <Button
-  variant="outline"
-  size="sm"
-  className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1.5 font-semibold text-xs h-8 px-2.5"
-  onClick={() => setAuditingTemplate(template)}
+  variant="destructive"
+  size="icon-sm"
+  className="rounded-lg shrink-0 cursor-pointer shadow-xs transition-colors h-8 w-8 p-0"
+  onClick={() => handleDeleteStart(template)}
+  title="Hapus Template Kuis"
   >
- <FileJson className="size-3.5" />
- Audit
- </Button>
- <Button
- variant="destructive"
- size="icon-sm"
- className="rounded-lg shrink-0 cursor-pointer shadow-xs transition-colors h-8 w-8 p-0"
- onClick={() => handleDeleteStart(template)}
- title="Hapus Template Kuis"
- >
- <Trash2 className="size-3.5" />
- </Button>
- </div>
- </div>
- </div>
+  <Trash2 className="size-3.5" />
+  </Button>
+  </div>
+  </div>
+  </div>
  );
  })}
  </div>
@@ -413,9 +632,11 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  <Dialog open={createOpen} onOpenChange={setCreateOpen}>
  <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
  <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
- <DialogTitle className="font-heading text-h6 font-bold text-foreground">Buat Template Kuis Baru</DialogTitle>
+ <DialogTitle className="font-heading text-h6 font-bold text-foreground">
+    {editingTemplate ? "Edit Template Kuis" : "Buat Template Kuis Baru"}
+ </DialogTitle>
  <DialogDescription className="text-left">
- Buat konfigurasi kuis secara manual dengan filter topik dan proporsi kesulitan soal menggunakan slider.
+    {editingTemplate ? "Perbarui parameter konfigurasi kuis Anda." : "Buat konfigurasi kuis secara manual dengan filter topik dan proporsi kesulitan soal menggunakan slider."}
  </DialogDescription>
  </DialogHeader>
  <form onSubmit={handleCreateSubmit} className="flex-1 flex flex-col min-h-0 text-left">
@@ -491,18 +712,34 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  </div>
  </div>
 
- {/* Row 4: Visibility */}
- <div className="space-y-1.5">
- <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Visibilitas Kuis</label>
- <Select value={visibility} onValueChange={(val) => setVisibility(val as any)}>
- <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
- <SelectValue placeholder="Pilih Visibilitas" />
- </SelectTrigger>
- <SelectContent>
- <SelectItem value="free">Gratis (Bisa diakses tanpa token)</SelectItem>
- <SelectItem value="paid">Premium (Hanya untuk kelas teraktivasi)</SelectItem>
- </SelectContent>
- </Select>
+ {/* Row 4: Visibility & Manual Status Control */}
+ <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="space-y-1.5">
+      <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Visibilitas Kuis</label>
+      <Select value={visibility} onValueChange={(val) => setVisibility(val as any)}>
+        <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+          <SelectValue placeholder="Pilih Visibilitas" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="free">Gratis (Bisa diakses tanpa token)</SelectItem>
+          <SelectItem value="paid">Premium (Hanya untuk kelas teraktivasi)</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+
+    <div className="space-y-1.5">
+      <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Status Kontrol Manual</label>
+      <Select value={manualStatus} onValueChange={(val) => setManualStatus(val as any)}>
+        <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+          <SelectValue placeholder="Pilih Kontrol Akses" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="scheduled">Ikuti Jadwal Waktu (Default)</SelectItem>
+          <SelectItem value="open">Buka Manual (Bypass Jadwal)</SelectItem>
+          <SelectItem value="closed">Tutup Manual (Blokir Akses)</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
  </div>
 
  {/* Row 5: Open & Close Time Windows */}
@@ -742,9 +979,9 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                   className="mt-1 cursor-pointer shrink-0"
                 />
                 <div className="flex-1 text-left min-w-0">
-                  <div className="text-xs font-semibold text-foreground line-clamp-2">
+                  <MathText className="text-xs font-semibold text-foreground line-clamp-2" as="div">
                     {q.prompt}
-                  </div>
+                  </MathText>
                   <div className="flex gap-1.5 items-center mt-1.5 text-[10px] text-muted-foreground">
                     <span className="uppercase font-mono font-bold bg-muted px-1 rounded text-[9px]">
                       {q.difficulty}
@@ -771,7 +1008,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  </Button>
  <Button type="submit" disabled={submitting || (selectedQIds.length === 0 && totalProportion !== qCount)} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
  {submitting ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
- Buat Template Kuis
+ {editingTemplate ? "Simpan Perubahan" : "Buat Template Kuis"}
  </Button>
  </DialogFooter>
  </form>
@@ -903,7 +1140,14 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                     <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
                       <span className="text-body-sm font-bold text-foreground">Soal {idx + 1}</span>
                       <div className="flex items-center gap-2">
-                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                        <span className={cn(
+                          "capitalize text-[10px] px-2 py-0.5 rounded border font-medium",
+                          q.difficulty === "easy"
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                            : q.difficulty === "medium"
+                              ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
+                              : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
+                        )}>
                           {q.difficulty}
                         </span>
                         <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
@@ -912,9 +1156,9 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                       </div>
                     </div>
 
-                    <p className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed">
+                    <MathText className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed" as="p">
                       {q.prompt}
-                    </p>
+                    </MathText>
 
                     <div className="grid gap-2">
                       {q.options.map((opt: string, optIdx: number) => {
@@ -939,7 +1183,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                             >
                               {String.fromCharCode(65 + optIdx)}
                             </span>
-                            <span className="leading-normal">{opt}</span>
+                            <MathText className="leading-normal" as="span">{opt}</MathText>
                             {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
                           </div>
                         );
@@ -951,9 +1195,9 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                         <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
                           Pembahasan Jawaban:
                         </span>
-                        <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        <MathText className="text-muted-foreground leading-relaxed whitespace-pre-wrap" as="p">
                           {q.explanation}
-                        </p>
+                        </MathText>
                       </div>
                     )}
                   </div>

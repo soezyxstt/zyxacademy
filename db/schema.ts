@@ -662,6 +662,7 @@ export const quizTemplates = sqliteTable(
     selectionRules: text("selection_rules", { mode: "json" }).notNull(),
     openAt: integer("open_at", { mode: "timestamp" }),
     closeAt: integer("close_at", { mode: "timestamp" }),
+    manualStatus: text("manual_status").$type<"open" | "closed" | "scheduled">().default("scheduled").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
       .defaultNow()

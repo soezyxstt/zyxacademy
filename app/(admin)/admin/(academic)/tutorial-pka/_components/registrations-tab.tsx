@@ -23,17 +23,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { normalizeDate } from "@/lib/utils";
 import type { PkaRegistrationRow } from "../actions";
 
-/**
- * Defensive date parse. The schema's `defaultNow()` stored milliseconds while
- * the column mode reads seconds, so legacy rows arrive ~1000x in the future.
- * Rows written with an explicit Date are already correct; only rescale outliers.
- */
-function normalizeDate(value: Date): Date {
-  const d = new Date(value);
-  return d.getFullYear() > 3000 ? new Date(d.getTime() / 1000) : d;
-}
 
 function formatDate(value: Date): string {
   return normalizeDate(value).toLocaleDateString("id-ID", {

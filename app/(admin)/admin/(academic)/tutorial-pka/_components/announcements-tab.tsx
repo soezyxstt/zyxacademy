@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { cn } from "@/lib/utils";
+import { cn, normalizeDate } from "@/lib/utils";
 import {
   createAndSendPkaAnnouncementAction,
   archivePkaAnnouncementAction,
@@ -20,7 +20,8 @@ const TITLE_MAX = 100;
 const BODY_MAX = 4000;
 
 function formatRelative(date: Date): string {
-  const diff = Date.now() - new Date(date).getTime();
+  const normalized = normalizeDate(date);
+  const diff = Date.now() - normalized.getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "Baru saja";
   if (mins < 60) return `${mins}m lalu`;
@@ -29,6 +30,7 @@ function formatRelative(date: Date): string {
   const days = Math.floor(hours / 24);
   return `${days}h lalu`;
 }
+
 
 export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] }) {
   const [isPending, startTransition] = useTransition();
@@ -217,7 +219,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                   <div className="flex items-center">
                     <span
                       className="text-body-xs text-muted-foreground"
-                      title={new Date(row.createdAt).toLocaleString("id-ID")}
+                      title={normalizeDate(row.createdAt).toLocaleString("id-ID")}
                     >
                       {formatRelative(row.createdAt)}
                     </span>

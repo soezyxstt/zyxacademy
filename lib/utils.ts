@@ -53,3 +53,10 @@ export function cleanSummary(text: string | null | undefined): string {
   return cleaned;
 }
 
+export function normalizeDate(value: Date | string | number): Date {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return d;
+  return d.getFullYear() > 3000 ? new Date(d.getTime() / 1000) : d;
+}
+
+

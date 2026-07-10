@@ -14,7 +14,7 @@ import {
   chapters as chaptersTable,
   studentMaterialProgress,
 } from "@/db/schema";
-import { eq, and, desc, sql, notLike, inArray } from "drizzle-orm";
+import { eq, and, desc, notLike, inArray } from "drizzle-orm";
 // Fixture imports removed
 import { storage } from "@/lib/storage";
 
@@ -330,13 +330,15 @@ export async function getCourseSubmissions(courseId: string, studentId?: string)
 }
 
 export async function getCourseLeaderboard(courseId: string) {
-  // Direct query on completed attempts
-  const aiRows = await db
+  // Fetch all completed attempts for the course
+  const attempts = await db
     .select({
       studentId: studentQuizAttempts.studentId,
       studentName: user.name,
-      attemptCount: sql<number>`count(*)`,
-      avgScore: sql<number>`round(avg(${studentQuizAttempts.score}), 1)`,
+      score: studentQuizAttempts.score,
+      durationSeconds: studentQuizAttempts.durationSeconds,
+      questionsSnapshot: studentQuizAttempts.questionsSnapshot,
+      answersSnapshot: studentQuizAttempts.answersSnapshot,
     })
     .from(studentQuizAttempts)
     .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
@@ -346,18 +348,114 @@ export async function getCourseLeaderboard(courseId: string) {
         eq(quizTemplates.courseId, courseId),
         eq(studentQuizAttempts.status, "completed"),
       ),
-    )
-    .groupBy(studentQuizAttempts.studentId, user.name)
-    .orderBy(sql`avg(${studentQuizAttempts.score}) DESC`);
+    );
 
-  const mappedLeaderboard = aiRows.map((r, i) => ({
+  const studentData: Record<string, {
+    studentId: string;
+    studentName: string;
+    attemptsCount: number;
+    totalScore: number;
+    totalDuration: number;
+    correctHardCount: number;
+    attemptedMediumCount: number;
+  }> = {};
+
+  for (const attempt of attempts) {
+    const studentId = attempt.studentId;
+    if (!studentData[studentId]) {
+      studentData[studentId] = {
+        studentId,
+        studentName: attempt.studentName || "Siswa",
+        attemptsCount: 0,
+        totalScore: 0,
+        totalDuration: 0,
+        correctHardCount: 0,
+        attemptedMediumCount: 0,
+      };
+    }
+
+    const data = studentData[studentId];
+    data.attemptsCount++;
+    data.totalScore += attempt.score ?? 0;
+    data.totalDuration += attempt.durationSeconds ?? 0;
+
+    let questions: any[] = [];
+    try {
+      questions = typeof attempt.questionsSnapshot === "string"
+        ? JSON.parse(attempt.questionsSnapshot)
+        : (attempt.questionsSnapshot as any) || [];
+      if (!Array.isArray(questions)) questions = [];
+    } catch {
+      questions = [];
+    }
+
+    let answers: Record<string, any> = {};
+    try {
+      answers = typeof attempt.answersSnapshot === "string"
+        ? JSON.parse(attempt.answersSnapshot)
+        : (attempt.answersSnapshot as any) || {};
+      if (typeof answers !== "object") answers = {};
+    } catch {
+      answers = {};
+    }
+
+    for (const q of questions) {
+      const difficulty = q.difficulty || "medium";
+      if (difficulty === "hard") {
+        const correctIndices = q.correct_indices || q.correctIndices || [];
+        const submitted = answers[q.id] ?? [];
+        const isCorrect =
+          Array.isArray(submitted) &&
+          Array.isArray(correctIndices) &&
+          submitted.length === correctIndices.length &&
+          submitted.every((i) => correctIndices.includes(i));
+        if (isCorrect) {
+          data.correctHardCount++;
+        }
+      } else if (difficulty === "medium") {
+        data.attemptedMediumCount++;
+      }
+    }
+  }
+
+  const leaderboardList = Object.values(studentData).map((data) => {
+    const avgScore = Number((data.totalScore / data.attemptsCount).toFixed(1));
+    const avgDuration = Number((data.totalDuration / data.attemptsCount).toFixed(1));
+    return {
+      studentId: data.studentId,
+      userId: data.studentId, // legacy/compatibility
+      displayName: data.studentName, // legacy/compatibility
+      studentName: data.studentName,
+      attemptCount: data.attemptsCount,
+      attempts: data.attemptsCount, // legacy/compatibility
+      avgScore,
+      score: avgScore, // legacy/compatibility
+      avgDuration,
+      correctHardCount: data.correctHardCount,
+      attemptedMediumCount: data.attemptedMediumCount,
+    };
+  });
+
+  // Sort based on:
+  // 1. avgScore (descending)
+  // 2. avgDuration (ascending)
+  // 3. correctHardCount (descending)
+  // 4. attemptedMediumCount (descending)
+  leaderboardList.sort((a, b) => {
+    if (b.avgScore !== a.avgScore) {
+      return b.avgScore - a.avgScore;
+    }
+    if (a.avgDuration !== b.avgDuration) {
+      return a.avgDuration - b.avgDuration;
+    }
+    if (b.correctHardCount !== a.correctHardCount) {
+      return b.correctHardCount - a.correctHardCount;
+    }
+    return b.attemptedMediumCount - a.attemptedMediumCount;
+  });
+
+  return leaderboardList.map((item, i) => ({
+    ...item,
     rank: i + 1,
-    userId: r.studentId,
-    displayName: r.studentName || "Siswa",
-    score: r.avgScore,
-    quizAvgPercent: r.avgScore,
-    tryoutAvgPercent: 0,
   }));
-
-  return mappedLeaderboard;
 }
