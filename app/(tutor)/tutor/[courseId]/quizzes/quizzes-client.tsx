@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye } from "lucide-react";
+import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,6 +32,9 @@ interface QuizTemplate {
   timeLimitSeconds: number | null;
   maxAttempts: number | null;
   selectionRules: any; // { count: number, tags: string[], difficulty_proportions: { easy: number, medium: number, hard: number } }
+  openAt?: Date | string | null;
+  closeAt?: Date | string | null;
+  manualStatus?: "open" | "closed" | "scheduled";
 }
 
 interface QuestionBankItem {
@@ -66,7 +69,17 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const [tplMaxAttempts, setTplMaxAttempts] = useState("3");
   const [tplCount, setTplCount] = useState("5");
   const [tplTags, setTplTags] = useState("");
+  const [tplOpenAt, setTplOpenAt] = useState("");
+  const [tplCloseAt, setTplCloseAt] = useState("");
+  const [tplManualStatus, setTplManualStatus] = useState<"open" | "closed" | "scheduled">("scheduled");
   const [deleteTplId, setDeleteTplId] = useState<string | null>(null);
+
+  const formatDatetimeLocal = (date?: Date | string | null) => {
+    if (!date) return "";
+    const d = new Date(date);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
   const [selectedQIds, setSelectedQIds] = useState<string[]>([]);
 
   // Preview Dialog State
