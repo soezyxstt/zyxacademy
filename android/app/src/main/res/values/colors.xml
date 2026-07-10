@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Converted from app/globals.css oklch tokens -->
+    <color name="zyx_primary">#2A3C6A</color>            <!-- primary light -->
+    <color name="zyx_on_primary">#FFFFFF</color>
+    <color name="zyx_brand_secondary">#CC542B</color>    <!-- color-brand-secondary -->
+    <color name="zyx_background">#FFFFFF</color>         <!-- background light -->
+    <color name="zyx_surface">#FFFFFF</color>            <!-- card light -->
+    <color name="zyx_on_background">#1D1D1D</color>
+    <color name="zyx_on_surface_muted">#6B7280</color>
+    <color name="zyx_outline">#E5E7EB</color>
+    <color name="zyx_error">#B3261E</color>
+
+    <!-- Logo colors; white in dark mode like the web (dark:fill-white) -->
+    <color name="zyx_logo_z">#2A3C6A</color>
+    <color name="zyx_logo_x">#CC542B</color>
+    <!-- Launcher icon background; never theme-flips -->
+    <color name="zyx_icon_bg">#2A3C6A</color>
+</resources>

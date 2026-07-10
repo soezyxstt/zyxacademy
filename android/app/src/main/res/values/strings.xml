@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Zyx Academy</string>
+
+    <!-- Auth; copy mirrors components/auth/google-sign-in-button.tsx -->
+    <string name="sign_in_title">Masuk ke Zyx Academy</string>
+    <string name="sign_in_google">Lanjutkan dengan Google</string>
+    <string name="sign_in_connecting">Menghubungkan…</string>
+    <string name="sign_in_error_network">Gagal jaringan. Periksa koneksi Anda lalu coba lagi.</string>
+    <string name="sign_in_error_generic">Terjadi kesalahan saat masuk dengan Google. Coba lagi sebentar lagi.</string>
+
+    <!-- Offline / errors -->
+    <string name="offline_title">Tidak ada koneksi</string>
+    <string name="offline_body">Periksa koneksi internet Anda lalu coba lagi.</string>
+    <string name="offline_retry">Coba lagi</string>
+</resources>
