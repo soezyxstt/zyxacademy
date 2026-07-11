@@ -28,6 +28,12 @@ export const auth = betterAuth({
  clientSecret: requiredEnv("GOOGLE_CLIENT_SECRET"),
  },
  },
+ // Dev-only: password sign-in so local testing works without the Google
+ // OAuth secret (see db/seed.ts and /api/dev-login). Never active in
+ // production; Google stays the only production sign-in method.
+ emailAndPassword: {
+ enabled: process.env.NODE_ENV !== "production",
+ },
  // We map the database user fields to better-auth
  user: {
  additionalFields: {

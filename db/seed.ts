@@ -1,6 +1,10 @@
+import { loadEnvConfig } from "@next/env";
+loadEnvConfig(process.cwd());
+
 import { db } from "./index";
 import {
   user,
+  account,
   courses,
   enrollments,
   aiQuestionBank,
@@ -10,6 +14,7 @@ import {
 } from "./schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { hashPassword } from "better-auth/crypto";
 
 async function main() {
   console.log("=== Seeding Database for Local Development ===");
@@ -61,6 +66,29 @@ async function main() {
       console.log(`User ${u.name} (${u.role}) seeded.`);
     } else {
       console.log(`User ${u.name} already exists.`);
+    }
+  }
+
+  // Dev credential accounts; password sign-in is enabled outside production
+  // (lib/auth.ts), so these users can log in locally without Google OAuth.
+  // Shared dev password: zyxdev123 (or use /api/dev-login for one-tap login).
+  console.log("Seeding dev credential accounts (password: zyxdev123)...");
+  const devPasswordHash = await hashPassword("zyxdev123");
+  for (const u of devUsers) {
+    const existingAccount = await db.query.account.findFirst({
+      where: eq(account.userId, u.id),
+    });
+    if (!existingAccount) {
+      await db.insert(account).values({
+        id: randomUUID(),
+        accountId: u.id,
+        providerId: "credential",
+        userId: u.id,
+        password: devPasswordHash,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      console.log(`Credential account for ${u.email} seeded.`);
     }
   }
 
