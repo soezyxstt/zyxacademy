@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Logo size on the loading and sign-in screens. Mirrors the web route
+         loader (app/template.tsx): 180px container x 70% = 126 CSS px wide on
+         phones; CSS px in a WebView equals dp, so the native and web logos
+         render identically and the handoff does not visibly resize. Height is
+         width / (2182/1275) rounded. -->
+    <dimen name="loading_logo_width">126dp</dimen>
+    <dimen name="loading_logo_height">74dp</dimen>
+</resources>

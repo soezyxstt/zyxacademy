@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- At >=768dp available width the web loader uses md:w-55 (220px x 70%
+         = 154 CSS px); keep the native logo in lockstep. -->
+    <dimen name="loading_logo_width">154dp</dimen>
+    <dimen name="loading_logo_height">90dp</dimen>
+</resources>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dedicated loading screen: centered logo draw animation, sized to render
+     pixel-for-pixel like the web route loader (see @dimen/loading_logo_width)
+     so nothing resizes when the WebView takes over. Reusable via <include>. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <ImageView
+        android:id="@+id/loadingLogo"
+        android:layout_width="@dimen/loading_logo_width"
+        android:layout_height="@dimen/loading_logo_height"
+        android:layout_gravity="center"
+        android:contentDescription="@string/app_name"
+        android:src="@drawable/avd_logo_draw_full" />
+</FrameLayout>

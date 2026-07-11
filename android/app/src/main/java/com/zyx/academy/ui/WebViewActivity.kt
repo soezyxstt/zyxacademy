@@ -102,7 +102,7 @@ class WebViewActivity : AppCompatActivity() {
     private fun loadRoute(path: String) {
         mainFrameFailed = false
         binding.offlineView.visibility = View.GONE
-        binding.loadingView.visibility = View.VISIBLE
+        binding.loadingView.root.visibility = View.VISIBLE
         binding.webView.visibility = View.INVISIBLE
         startLogoAnimation()
         binding.webView.loadUrl(BuildConfig.BASE_URL + path)
@@ -117,12 +117,12 @@ class WebViewActivity : AppCompatActivity() {
 
     /** Plays the website's logo draw animation, looping while the overlay is visible */
     private fun startLogoAnimation() {
-        val avd = binding.loadingLogo.drawable as? android.graphics.drawable.AnimatedVectorDrawable
-            ?: return
+        val avd = binding.loadingView.loadingLogo.drawable
+            as? android.graphics.drawable.AnimatedVectorDrawable ?: return
         avd.registerAnimationCallback(object :
             android.graphics.drawable.Animatable2.AnimationCallback() {
             override fun onAnimationEnd(drawable: android.graphics.drawable.Drawable) {
-                if (binding.loadingView.visibility == View.VISIBLE) avd.start()
+                if (binding.loadingView.root.visibility == View.VISIBLE) avd.start()
                 else avd.unregisterAnimationCallback(this)
             }
         })
@@ -194,7 +194,7 @@ class WebViewActivity : AppCompatActivity() {
                 binding.pageProgress.visibility = View.GONE
                 if (!mainFrameFailed) {
                     binding.offlineView.visibility = View.GONE
-                    binding.loadingView.visibility = View.GONE
+                    binding.loadingView.root.visibility = View.GONE
                     binding.webView.visibility = View.VISIBLE
                 }
             }
@@ -209,7 +209,7 @@ class WebViewActivity : AppCompatActivity() {
                 if (request.isForMainFrame) {
                     mainFrameFailed = true
                     binding.webView.visibility = View.INVISIBLE
-                    binding.loadingView.visibility = View.GONE
+                    binding.loadingView.root.visibility = View.GONE
                     binding.offlineView.visibility = View.VISIBLE
                     binding.pageProgress.visibility = View.GONE
                 }

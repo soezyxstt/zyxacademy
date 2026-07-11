@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo draw animation on the full-bleed vector; used by the dedicated
+     in-app loading screen (view_loading.xml). Timing shared with the splash
+     via res/animator/. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_logo_zyx_anim_full">
+    <target android:name="pathZ" android:animation="@animator/logo_z_draw" />
+    <target android:name="pathX" android:animation="@animator/logo_x_draw" />
+</animated-vector>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Z path draw timing from the website route loader (app/template.tsx):
+     stroke draws 0.8s, then fill fades in (0.4s) while stroke fades out (0.3s).
+     Shared by the splash AVD and the in-app loading screen AVD. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+    <objectAnimator
+        android:propertyName="trimPathEnd"
+        android:valueFrom="0" android:valueTo="1"
+        android:duration="800"
+        android:interpolator="@android:interpolator/fast_out_slow_in" />
+    <objectAnimator
+        android:propertyName="fillAlpha"
+        android:valueFrom="0" android:valueTo="1"
+        android:startOffset="800" android:duration="400"
+        android:interpolator="@android:interpolator/fast_out_slow_in" />
+    <objectAnimator
+        android:propertyName="strokeAlpha"
+        android:valueFrom="1" android:valueTo="0"
+        android:startOffset="800" android:duration="300"
+        android:interpolator="@android:interpolator/fast_out_slow_in" />
+</set>

@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Real Zyx logo (Z + X paths from components/logo.tsx), scaled into a 108
      viewport so it fits the splash-screen circular mask. Initial state is
-     "undrawn" (trimPathEnd 0, fill hidden); only meaningful via avd_logo_draw. -->
+     "undrawn" (trimPathEnd 0, fill hidden); only meaningful via avd_logo_draw.
+     Scale is chosen so the drawn logo is ~126dp wide when the system renders
+     the no-background splash icon at 288dp (108 x 126/288 = 47.25 viewport
+     units), matching the in-app loading screen and the web route loader, so
+     the logo does not jump in size across splash -> loading -> web. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -9,10 +13,10 @@
     android:viewportHeight="108">
     <group
         android:name="logo"
-        android:translateX="26"
-        android:translateY="37.64"
-        android:scaleX="0.02566"
-        android:scaleY="0.02566">
+        android:translateX="30.375"
+        android:translateY="40.196"
+        android:scaleX="0.0216545"
+        android:scaleY="0.0216545">
         <path
             android:name="pathZ"
             android:pathData="M820.486,0L1043.32,311.527L561.052,985.764H785.07C1218.92,985.764 1414.6,741.149 1490.45,548.958C1530.06,448.611 1614.41,218.403 1779.69,153.473C1726.56,188.889 1645.61,253.821 1596.7,619.792C1511.51,1257.29 1018.23,1275 675.869,1275H0L705.095,289.236H0V0H820.486Z"
