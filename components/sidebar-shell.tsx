@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, Search, PanelLeftOpen, PanelLeftClose } from "lucide-react";
@@ -59,7 +65,7 @@ export function NavItem({
       ? "bg-brand-primary/10 text-brand-primary font-semibold"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
     collapsed && "justify-center px-0 size-10 mx-auto",
-    className
+    className,
   );
 
   const content = (
@@ -74,7 +80,11 @@ export function NavItem({
       {content}
     </Link>
   ) : (
-    <button type="button" onClick={onClick} className={cn(baseClass, "cursor-pointer")}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(baseClass, "cursor-pointer")}
+    >
       {content}
     </button>
   );
@@ -141,7 +151,10 @@ export function SidebarShell({
   useEffect(() => {
     if (!mobileOpen) return;
     const handleOutsideClick = (e: MouseEvent) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+      if (
+        sidebarRef.current &&
+        !sidebarRef.current.contains(e.target as Node)
+      ) {
         setMobileOpen(false);
       }
     };
@@ -152,8 +165,54 @@ export function SidebarShell({
   useEffect(() => {
     if (!mounted) return;
     document.body.style.overflow = mobileOpen ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [mobileOpen, mounted]);
+
+  // Touch gestures (mobile only): swipe right from the left edge to open,
+  // swipe left while open to close.
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const EDGE_ZONE = 24; // px from the left edge where an opening swipe may start
+    const THRESHOLD = 60; // px of horizontal travel needed to trigger
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      // Only bother tracking if this gesture could act: near the left edge
+      // (to open) or the panel is already open (to close).
+      tracking = mobileOpen || startX <= EDGE_ZONE;
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      // Ignore mostly-vertical swipes so page scrolling is unaffected.
+      if (Math.abs(dx) < THRESHOLD || Math.abs(dx) < Math.abs(dy)) return;
+
+      if (dx > 0 && !mobileOpen && startX <= EDGE_ZONE) {
+        setMobileOpen(true);
+      } else if (dx < 0 && mobileOpen) {
+        setMobileOpen(false);
+      }
+    };
+
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [isMobile, mobileOpen]);
 
   const isCollapsed = isMobile ? false : collapsed;
 
@@ -206,25 +265,36 @@ export function SidebarShell({
           "transition-transform duration-300 ease-in-out",
           "fixed inset-y-0 left-0 z-50 shadow-xl w-[clamp(248px,80vw,300px)] -translate-x-full",
           "md:sticky md:top-0 md:translate-x-0 md:z-30 md:shadow-none",
-          isCollapsed ? "md:w-[64px]" : "md:w-[248px]"
+          isCollapsed ? "md:w-[64px]" : "md:w-[248px]",
         )}
       >
         <div className="flex h-14 shrink-0 items-center border-b border-border px-3 gap-2">
           {!isCollapsed && (
-            <Link href={logoHref} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center">
+            <Link
+              href={logoHref}
+              aria-label={logoLabel}
+              className="flex flex-1 min-w-0 items-center"
+            >
               <Logo className="[--logo-height:1.75rem]" />
             </Link>
           )}
           {isCollapsed && <div className="flex-1" />}
 
-          <SidebarTooltip label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"} collapsed={isCollapsed}>
+          <SidebarTooltip
+            label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            collapsed={isCollapsed}
+          >
             <button
               type="button"
               onClick={isMobile ? () => setMobileOpen(false) : toggleCollapsed}
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground transition-colors"
             >
-              {isCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+              {isCollapsed ? (
+                <PanelLeftOpen className="size-4" />
+              ) : (
+                <PanelLeftClose className="size-4" />
+              )}
             </button>
           </SidebarTooltip>
 
@@ -234,13 +304,16 @@ export function SidebarShell({
         {topSection?.(isCollapsed)}
 
         <div className="px-3 pt-3 shrink-0">
-          <SidebarTooltip label={`Search ${modKeyHint}`} collapsed={isCollapsed}>
+          <SidebarTooltip
+            label={`Search ${modKeyHint}`}
+            collapsed={isCollapsed}
+          >
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
               className={cn(
                 "flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-muted-foreground transition-all hover:bg-muted/70 hover:text-foreground cursor-pointer",
-                isCollapsed ? "size-10 mx-auto px-0" : "w-full"
+                isCollapsed ? "size-10 mx-auto px-0" : "w-full",
               )}
             >
               <Search className="size-4 shrink-0" />
@@ -269,7 +342,7 @@ export function SidebarShell({
             onClick={handleLogout}
             className={cn(
               "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer shrink-0 mx-3 mb-3",
-              isCollapsed && "justify-center size-10 mx-auto px-0"
+              isCollapsed && "justify-center size-10 mx-auto px-0",
             )}
           >
             <LogOut className="size-5 shrink-0" />
