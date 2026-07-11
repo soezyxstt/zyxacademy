@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Zyx" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/zyx_primary</item>
+        <item name="colorOnPrimary">@color/zyx_on_primary</item>
+        <item name="colorSecondary">@color/zyx_brand_secondary</item>
+        <item name="colorOnSecondary">@color/zyx_on_primary</item>
+        <item name="android:colorBackground">@color/zyx_background</item>
+        <item name="colorSurface">@color/zyx_surface</item>
+        <item name="colorOnSurface">@color/zyx_on_background</item>
+        <item name="colorOnSurfaceVariant">@color/zyx_on_surface_muted</item>
+        <item name="colorOutline">@color/zyx_outline</item>
+        <item name="colorError">@color/zyx_error</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- No dynamic color; Zyx palette is fixed -->
+    </style>
+
+    <!-- Splash: animated icon on brand background; exits into MainActivity -->
+    <style name="Theme.Zyx.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/zyx_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/avd_logo_draw</item>
+        <item name="windowSplashScreenAnimationDuration">1350</item>
+        <item name="postSplashScreenTheme">@style/Theme.Zyx</item>
+    </style>
+
+    <!-- Buttons: rounded-lg, never stadium/pill -->
+    <style name="Widget.Zyx.Button" parent="Widget.Material3.Button">
+        <item name="cornerRadius">12dp</item>
+        <item name="backgroundTint">@color/zyx_primary</item>
+    </style>
+
+    <style name="Widget.Zyx.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">12dp</item>
+        <item name="strokeColor">@color/zyx_outline</item>
+        <item name="android:textColor">@color/zyx_on_background</item>
+    </style>
+</resources>
