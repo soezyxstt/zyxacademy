@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export interface SwipeOptions {
   onSwipeLeft?: (startX: number) => void;
@@ -12,28 +12,38 @@ export function useSwipe({
   onSwipeRight,
   swipeThreshold = 50,
 }: SwipeOptions) {
-  useEffect(() => {
-    let touchStartX = 0;
-    let touchStartY = 0;
+  const onSwipeLeftRef = useRef(onSwipeLeft);
+  const onSwipeRightRef = useRef(onSwipeRight);
+  const touchStartRef = useRef({ x: 0, y: 0 });
 
+  useEffect(() => {
+    onSwipeLeftRef.current = onSwipeLeft;
+    onSwipeRightRef.current = onSwipeRight;
+  }, [onSwipeLeft, onSwipeRight]);
+
+  useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
-      touchStartX = e.changedTouches[0].screenX;
-      touchStartY = e.changedTouches[0].screenY;
+      touchStartRef.current = {
+        x: e.changedTouches[0].clientX,
+        y: e.changedTouches[0].clientY,
+      };
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      const touchEndX = e.changedTouches[0].screenX;
-      const touchEndY = e.changedTouches[0].screenY;
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const startX = touchStartRef.current.x;
+      const startY = touchStartRef.current.y;
       
-      const dx = touchEndX - touchStartX;
-      const dy = touchEndY - touchStartY;
+      const dx = touchEndX - startX;
+      const dy = touchEndY - startY;
       
       // Ensure it's mostly a horizontal swipe, not vertical scrolling
       if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > swipeThreshold) {
-        if (dx > 0 && onSwipeRight) {
-          onSwipeRight(touchStartX);
-        } else if (dx < 0 && onSwipeLeft) {
-          onSwipeLeft(touchStartX);
+        if (dx > 0 && onSwipeRightRef.current) {
+          onSwipeRightRef.current(startX);
+        } else if (dx < 0 && onSwipeLeftRef.current) {
+          onSwipeLeftRef.current(startX);
         }
       }
     };
@@ -45,5 +55,5 @@ export function useSwipe({
       document.removeEventListener("touchstart", handleTouchStart);
       document.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [onSwipeLeft, onSwipeRight, swipeThreshold]);
+  }, [swipeThreshold]);
 }

@@ -47,7 +47,8 @@ export function Navbar() {
 
  useSwipe({
     onSwipeLeft: (startX) => {
-      if (!mobileOpen && startX >= window.innerWidth - 50) {
+      const edge = window.innerWidth - Math.max(60, window.innerWidth * 0.15);
+      if (!mobileOpen && startX >= edge) {
         setMobileOpen(true);
       }
     },

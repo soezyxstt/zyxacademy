@@ -9,6 +9,7 @@
     "start": "next start",
     "preview": "NODE_OPTIONS=\"--max-old-space-size=4096\" next build --turbo && next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bunx tsx db/migrate.ts",
     "db:seed": "bunx tsx db/seed.ts",

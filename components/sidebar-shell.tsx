@@ -194,7 +194,8 @@ export function SidebarShell({
 
   useSwipe({
     onSwipeRight: (startX) => {
-      if (isMobile && !mobileOpen && startX <= 50) setMobileOpen(true);
+      const edge = Math.max(60, window.innerWidth * 0.15);
+      if (isMobile && !mobileOpen && startX <= edge) setMobileOpen(true);
     },
     onSwipeLeft: () => {
       if (isMobile && mobileOpen) setMobileOpen(false);

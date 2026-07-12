@@ -43,7 +43,7 @@ interface Props {
 
 export function QuizzesCurationClient({ initialTemplates, courses, courseMap, prefillCourseId, prefillTags }: Props) {
  const [templates, setTemplates] = useState<TemplateType[]>(initialTemplates);
- const [createOpen, setCreateOpen] = useState(() => !!prefillCourseId || !!prefillTags);
+ const [createOpen, setCreateOpen] = useState(false);
  const [deleteOpen, setDeleteOpen] = useState(false);
  const [deletingTemplate, setDeletingTemplate] = useState<TemplateType | null>(null);
 
