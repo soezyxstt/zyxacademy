@@ -9,6 +9,7 @@ import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut } from "@/lib/auth-client";
+import { useSwipe } from "@/hooks/use-swipe";
 import {
   Tooltip,
   TooltipProvider,
@@ -190,6 +191,15 @@ export function SidebarShell({
   const [modKeyHint, setModKeyHint] = useState("Ctrl + K");
 
   const sidebarRef = useRef<HTMLElement>(null);
+
+  useSwipe({
+    onSwipeRight: (startX) => {
+      if (isMobile && !mobileOpen && startX <= 50) setMobileOpen(true);
+    },
+    onSwipeLeft: () => {
+      if (isMobile && mobileOpen) setMobileOpen(false);
+    }
+  });
 
   useEffect(() => {
     setMounted(true);

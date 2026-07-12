@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Send, History, Megaphone, CheckCircle2, XCircle, Users } from "lucide-react";
+import { Send, History, Megaphone, CheckCircle2, XCircle, Users, Pin, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,8 @@ import { cn, normalizeDate } from "@/lib/utils";
 import {
   createAndSendPkaAnnouncementAction,
   archivePkaAnnouncementAction,
+  togglePinPkaAnnouncementAction,
+  editPkaAnnouncementAction,
   type PkaAnnouncementRow,
 } from "../actions";
 
@@ -34,6 +36,7 @@ function formatRelative(date: Date): string {
 
 export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] }) {
   const [isPending, startTransition] = useTransition();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const router = useRouter();
@@ -50,6 +53,31 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
     });
   };
 
+  const handleTogglePin = (id: string, pin: boolean) => {
+    startTransition(async () => {
+      const res = await togglePinPkaAnnouncementAction(id, pin);
+      if (res.error) {
+        toast.error(pin ? "Gagal melakukan pin pengumuman" : "Gagal melepas pin", { description: res.error });
+      } else {
+        toast.success(pin ? "Pengumuman di-pin." : "Pin pengumuman dilepas.");
+        router.refresh();
+      }
+    });
+  };
+
+  const handleEditClick = (row: PkaAnnouncementRow) => {
+    setEditingId(row.id);
+    setTitle(row.title);
+    setBody(row.body);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setTitle("");
+    setBody("");
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title.trim() || !body.trim()) {
@@ -57,21 +85,34 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
       return;
     }
 
-    const formData = new FormData();
-    formData.set("title", title);
-    formData.set("body", body);
-
     startTransition(async () => {
-      const res = await createAndSendPkaAnnouncementAction({}, formData);
-      if (res.error) {
-        toast.error("Gagal mengirim pengumuman", { description: res.error });
+      if (editingId) {
+        const res = await editPkaAnnouncementAction(editingId, title, body);
+        if (res.error) {
+          toast.error("Gagal mengupdate pengumuman", { description: res.error });
+        } else {
+          toast.success("Pengumuman berhasil diupdate.");
+          setEditingId(null);
+          setTitle("");
+          setBody("");
+          router.refresh();
+        }
       } else {
-        toast.success(`Pengumuman terkirim ke ${res.result?.recipientCount ?? 0} siswa.`, {
-          description: `${res.result?.notificationsSucceeded ?? 0} push notification, ${res.result?.emailsSucceeded ?? 0} email berhasil.`,
-        });
-        setTitle("");
-        setBody("");
-        router.refresh();
+        const formData = new FormData();
+        formData.set("title", title);
+        formData.set("body", body);
+
+        const res = await createAndSendPkaAnnouncementAction({}, formData);
+        if (res.error) {
+          toast.error("Gagal mengirim pengumuman", { description: res.error });
+        } else {
+          toast.success(`Pengumuman terkirim ke ${res.result?.recipientCount ?? 0} siswa.`, {
+            description: `${res.result?.notificationsSucceeded ?? 0} push notification, ${res.result?.emailsSucceeded ?? 0} email berhasil.`,
+          });
+          setTitle("");
+          setBody("");
+          router.refresh();
+        }
       }
     });
   };
@@ -81,9 +122,18 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
       <div className="grid items-start gap-6 lg:grid-cols-2">
         {/* Compose */}
         <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-5 py-3">
-            <Megaphone className="size-4 text-brand-primary" aria-hidden />
-            <h3 className="font-heading text-body-sm font-semibold text-foreground">Buat Pengumuman</h3>
+          <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-3">
+            <div className="flex items-center gap-2">
+              {editingId ? <Edit2 className="size-4 text-brand-primary" aria-hidden /> : <Megaphone className="size-4 text-brand-primary" aria-hidden />}
+              <h3 className="font-heading text-body-sm font-semibold text-foreground">
+                {editingId ? "Edit Pengumuman" : "Buat Pengumuman"}
+              </h3>
+            </div>
+            {editingId && (
+              <Button type="button" variant="ghost" size="sm" onClick={handleCancelEdit} className="h-7 text-body-xs">
+                Batal Edit
+              </Button>
+            )}
           </div>
           <form onSubmit={handleSubmit} className="space-y-5 p-5">
             <div className="space-y-1.5">
@@ -120,14 +170,16 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
               />
             </div>
 
-            <Button type="submit" disabled={isPending || !title.trim() || !body.trim()} className="w-full gap-2 rounded-lg">
-              {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-              {isPending ? "Mengirim..." : "Kirim & Broadcast"}
+            <Button type="submit" disabled={!title.trim() || !body.trim()} isLoading={isPending} className="w-full gap-2 rounded-lg">
+              <Send className="size-4" />
+              {editingId ? "Simpan Perubahan" : "Kirim & Broadcast"}
             </Button>
-            <p className="text-body-xs text-muted-foreground">
-              Pengumuman langsung dikirim sebagai push notification dan email ke semua siswa yang terdaftar di
-              Tutorial PKA.
-            </p>
+            {!editingId && (
+              <p className="text-body-xs text-muted-foreground">
+                Pengumuman langsung dikirim sebagai push notification dan email ke semua siswa yang terdaftar di
+                Tutorial PKA.
+              </p>
+            )}
           </form>
         </div>
 
@@ -191,6 +243,11 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                   <div className="min-w-0">
                     <p className="truncate text-body-sm font-medium text-foreground">
                       {row.title}
+                      {row.isPinned && (
+                        <span className="ml-2 rounded-md bg-brand-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-primary uppercase">
+                          Pinned
+                        </span>
+                      )}
                       {row.isArchived && (
                         <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground uppercase">
                           Arsip
@@ -224,7 +281,27 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                       {formatRelative(row.createdAt)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-end">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-md"
+                      disabled={isPending}
+                      onClick={() => handleTogglePin(row.id, !row.isPinned)}
+                      title={row.isPinned ? "Lepas Pin" : "Pin Pengumuman"}
+                    >
+                      <Pin className={cn("size-3.5", row.isPinned && "fill-current text-brand-primary")} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-md"
+                      disabled={isPending}
+                      onClick={() => handleEditClick(row)}
+                      title="Edit Pengumuman"
+                    >
+                      <Edit2 className="size-3.5" />
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

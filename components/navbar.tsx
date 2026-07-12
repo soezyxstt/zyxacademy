@@ -18,6 +18,7 @@ import { NavProfileOrSignIn } from "@/components/nav-profile-or-sign-in";
 import { useCommandMenu } from "@/components/command-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
+import { useSwipe } from "@/hooks/use-swipe";
 
 const navLinks = [
  { name: "Paket", href: "/plans", icon: Tag },
@@ -43,6 +44,19 @@ export function Navbar() {
  window.addEventListener("scroll", onScroll, { passive: true });
  return () => window.removeEventListener("scroll", onScroll);
  }, []);
+
+ useSwipe({
+    onSwipeLeft: (startX) => {
+      if (!mobileOpen && startX >= window.innerWidth - 50) {
+        setMobileOpen(true);
+      }
+    },
+    onSwipeRight: () => {
+      if (mobileOpen) {
+        setMobileOpen(false);
+      }
+    }
+  });
 
  return (
  <header className="fixed top-0 left-0 right-0 z-50">

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { DistributionBar } from "@/components/tutor/distribution-bar";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import type { WeakConcept, ConceptTrend, MostMissedQuestion } from "@/lib/cohort-analytics";
+import { useSwipe } from "@/hooks/use-swipe";
 
 interface Props {
   open: boolean;
@@ -22,6 +23,12 @@ interface Props {
 }
 
 export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, courseId }: Props) {
+  useSwipe({
+    onSwipeRight: () => {
+      if (open) onClose();
+    }
+  });
+
   if (!concept) return null;
 
   const remediationHref = `/admin/ai/quizzes?courseId=${encodeURIComponent(courseId)}&tags=${encodeURIComponent(concept.conceptName)}`;

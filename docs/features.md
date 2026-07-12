@@ -31,6 +31,11 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Runs AI extraction pipeline to decompose documents into Knowledge Objects
 - Curates global question bank (5-state moderation grid)
 - Monitors background sync queues and usage budgets
+- Imports learning/assessment bundles (split JSON pipeline)
+- Manages PKA tutorial campaign (stages, schedules, announcements)
+- Manages career path templates
+- Monitors content quality flags (auto-detected issues)
+- Views coaching analytics dashboards
 
 ## Core Pipelines
 
@@ -68,6 +73,33 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - System fetches KOs, formats into JSON config
 - HTML rendered with KaTeX math
 - Puppeteer compiles to A4 PDF, uploaded to R2
+
+### Bundle Import Pipeline
+- Split JSON format: Learning Bundle (chapters, KOs, flashcards) + Assessment Bundle (exams)
+- Learning Bundle imported first to create course/chapter shell
+- Assessment Bundle references chapters by title (not $id)
+- Incremental re-import with upsert/append/create modes
+- Post-processing: concept mapping, vector sync, assessment profile recompute
+
+### PKA Tutorial Campaign
+- Free multi-stage simulation for incoming freshmen
+- Stages: Matematika, Fisika, Kimia with quiz mappings
+- Gated enrollment intake with student registration
+- Google Meet review session scheduling
+- Admin broadcast announcements
+
+### Learning Outcomes & Career Paths
+- CPL/CPMK/Sub-CPMK hierarchy mapped to concepts
+- Career path templates with concept prerequisites
+- All deterministic SQL, no AI calls
+
+### Content Quality Monitoring
+- Auto-detected quality flags: too_easy, too_hard, dead_distractor
+- Pedagogical validation against course policies
+
+### Blog & Short Links
+- Multi-category blog (tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx)
+- URL shortener (zyxacademy.com/s/[slug])
 
 ## Money & Quota Rules
 

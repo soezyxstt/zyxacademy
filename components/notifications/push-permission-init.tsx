@@ -3,10 +3,10 @@
 /**
  * components/notifications/push-permission-init.tsx
  *
- * Silent client component that initialises FCM push notification permission
+ * Client component that initialises FCM push notification permission
  * and token registration on the user's first authenticated page load.
  *
- * Renders no UI ; it is purely a side-effect component.
+ * Renders a custom Dialog to ask for consent before triggering the native prompt.
  *
  * Consent persistence strategy:
  * - "fcm_consent" in localStorage stores "granted" | "denied".
@@ -18,62 +18,129 @@
  * The component checks for a session before doing anything.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { BellIcon } from "lucide-react";
 
 const CONSENT_KEY = "fcm_consent";
 
 export function PushPermissionInit() {
- useEffect(() => {
- // Only run in a real browser with service worker support
- if (
- typeof window === "undefined" ||
- !("Notification" in window) ||
- !("serviceWorker" in navigator)
- ) {
- return;
- }
+  const [showPrompt, setShowPrompt] = useState(false);
 
- // If we already have a stored consent decision, respect it
- const storedConsent = localStorage.getItem(CONSENT_KEY);
- if (storedConsent === "denied") return;
+  useEffect(() => {
+    // Only run in a real browser with service worker support
+    if (
+      typeof window === "undefined" ||
+      !("Notification" in window) ||
+      !("serviceWorker" in navigator)
+    ) {
+      return;
+    }
 
- // If permission is already granted (e.g. returning user, no localStorage yet),
- // skip the prompt and just ensure the token is registered.
- const currentPermission = Notification.permission;
+    // If we already have a stored consent decision, respect it
+    const storedConsent = localStorage.getItem(CONSENT_KEY);
+    if (storedConsent === "denied") return;
 
- if (currentPermission === "denied") {
- localStorage.setItem(CONSENT_KEY, "denied");
- return;
- }
+    // If permission is already granted (e.g. returning user, no localStorage yet),
+    // skip the prompt and just ensure the token is registered.
+    const currentPermission = Notification.permission;
 
- // If granted or default ; proceed (will prompt only if "default")
- const initFCM = async () => {
- try {
- // Lazy-import the client FCM helpers to avoid bundling them in the
- // server-side render path. These modules use browser APIs.
- const { requestNotificationPermission, getFCMToken, registerTokenToServer } =
- await import("@/lib/firebase/messaging");
+    if (currentPermission === "denied") {
+      localStorage.setItem(CONSENT_KEY, "denied");
+      return;
+    }
 
- const permission = await requestNotificationPermission();
- localStorage.setItem(CONSENT_KEY, permission);
+    if (currentPermission === "granted") {
+      initFCM(false);
+      return;
+    }
 
- if (permission !== "granted") return;
+    // If granted or default ; proceed (will prompt only if "default")
+    // Delay slightly to avoid competing with the critical render path
+    const timer = setTimeout(() => {
+      setShowPrompt(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []); // Run once on mount
 
- const token = await getFCMToken();
- if (!token) return;
+  const initFCM = async (requestPermission: boolean) => {
+    try {
+      // Lazy-import the client FCM helpers to avoid bundling them in the
+      // server-side render path. These modules use browser APIs.
+      const { requestNotificationPermission, getFCMToken, registerTokenToServer } =
+        await import("@/lib/firebase/messaging");
 
- await registerTokenToServer(token);
- } catch (err) {
- // Non-fatal ; push notifications are enhancement, not core functionality
- console.warn("[FCM] Init error:", err);
- }
- };
+      let permission = Notification.permission;
+      if (requestPermission) {
+        permission = await requestNotificationPermission();
+        localStorage.setItem(CONSENT_KEY, permission);
+      }
 
- // Delay slightly to avoid competing with the critical render path
- const timer = setTimeout(initFCM, 2000);
- return () => clearTimeout(timer);
- }, []); // Run once on mount
+      if (permission !== "granted") return;
 
- // Renders nothing
- return null;
+      const token = await getFCMToken();
+      if (!token) return;
+
+      await registerTokenToServer(token);
+    } catch (err) {
+      // Non-fatal ; push notifications are enhancement, not core functionality
+      console.warn("[FCM] Init error:", err);
+    }
+  };
+
+  const handleAccept = async () => {
+    setShowPrompt(false);
+    await initFCM(true);
+  };
+
+  const handleDecline = () => {
+    setShowPrompt(false);
+    localStorage.setItem(CONSENT_KEY, "denied");
+  };
+
+  if (!showPrompt) return null;
+
+  return (
+    <Dialog
+      open={showPrompt}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleDecline();
+        }
+      }}
+    >
+      <DialogContent showCloseButton={false} className="sm:max-w-md">
+        <DialogHeader className="gap-3 sm:pr-0">
+          <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
+            <BellIcon className="size-6 text-primary" />
+          </div>
+          <DialogTitle>Enable Notifications</DialogTitle>
+          <DialogDescription className="space-y-2 text-body-base">
+            <p>Stay on top of your learning by enabling push notifications. We will notify you about:</p>
+            <ul className="list-disc pl-5 space-y-1 text-body-sm text-foreground">
+              <li>New announcements and course updates</li>
+              <li>Upcoming quizzes and assignments</li>
+              <li>Reminders to keep your learning streak alive</li>
+            </ul>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-4 sm:justify-end">
+          <Button variant="ghost" onClick={handleDecline}>
+            Not Now
+          </Button>
+          <Button onClick={handleAccept}>
+            Allow Notifications
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }

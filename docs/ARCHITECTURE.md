@@ -176,6 +176,49 @@ Assessment-specific (for type="assessment" MTDs):
 | `interventions` | Active intervention flags per student×concept |
 | `weekly_reflections` | Weekly learning reflection payloads |
 
+#### Concept Graph (Assessment EIF E5)
+| Table | Purpose |
+|---|---|
+| `concept_graph_edges` | Concept-level prerequisite/related graph edges |
+
+#### Mastery Recompute
+| Table | Purpose |
+|---|---|
+| `mastery_recompute_queue` | Async mastery recomputation queue |
+
+#### Learning Outcomes (Accreditation)
+| Table | Purpose |
+|---|---|
+| `learning_outcomes` | CPL/CPMK/Sub-CPMK hierarchy |
+| `learning_outcome_concepts` | Outcome to concept mapping |
+
+#### Career Paths
+| Table | Purpose |
+|---|---|
+| `career_path_templates` | Career-oriented learning path templates |
+| `career_path_concepts` | Career path to concept mapping |
+
+#### PKA Campaign
+| Table | Purpose |
+|---|---|
+| `pka_simulation_stages` | Subject/stage to quiz mapping (matematika, fisika, kimia) |
+| `pka_stage_progress` | Per-student PKA stage gating state |
+| `pka_announcements` | Admin broadcast announcements |
+| `pka_schedules` | Google Meet review session schedules |
+| `pka_registrations` | Gated enrollment intake form |
+
+#### Content Quality
+| Table | Purpose |
+|---|---|
+| `content_quality_flags` | Auto-detected quality flags: too_easy, too_hard, dead_distractor |
+
+#### Blog & Short Links
+| Table | Purpose |
+|---|---|
+| `blog_articles` | Blog system (tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx) |
+| `short_link` | URL shortener (zyxacademy.com/s/[slug]) |
+| `page_analytics` | GA4 popular pages cache |
+
 #### Admin Drive
 | Table | Purpose |
 |---|---|
@@ -517,7 +560,8 @@ Gradual rollout via env vars ; all default to off unless set to `"1"`:
 FEATURE_MASTERY, FEATURE_TODAY, FEATURE_EMBED, FEATURE_MISCONCEPTION,
 FEATURE_REMEDIATION, FEATURE_MATERIAL_LIVE, FEATURE_FC_DIFFICULTY,
 FEATURE_GRAPH, FEATURE_TUTOR_RAG, FEATURE_FEEDBACK, FEATURE_STUDY_PATH,
-FEATURE_TUTOR_ANALYTICS, FEATURE_LIVE, FEATURE_REFLECTION, FEATURE_DIKTAT_AI
+FEATURE_TUTOR_ANALYTICS, FEATURE_LIVE, FEATURE_REFLECTION,
+FEATURE_REFLECTION_EMAIL, FEATURE_ADAPTIVE_QUIZ, FEATURE_PKA
 ```
 
 ---

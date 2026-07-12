@@ -175,6 +175,17 @@ Use the **`photo-*`** classes on `<img>` or `next/image` for consistent crop, ra
 5. Already built, DO NOT REBUILD: KO extraction, RAG sync, question generation, quiz attempts, SM-2 flashcards, diktat PDFs, website materials, admin AI portal.
 6. AI quota is spent only on tutoring, mistake feedback, and content generation. Streaks, recommendations, study paths, reflections, analytics are deterministic SQL + rules.
 7. UI copy: short labels, sentence case, numbers over sentences. No exclamation marks, no filler, no em/en dashes.
+8. **Auto-update docs**: Every time you add a new feature, table, env flag, or change core architecture, you MUST update the relevant docs in `docs/`:
+   - `docs/features.md` for user-facing features and workflows
+   - `docs/ARCHITECTURE.md` for architecture, tables, data flow, and diagrams
+   - `docs/DB_SCHEMA.md` for new/removed tables and changed columns
+   - `docs/DEVELOPMENT.md` for new env vars, feature flags, or dev commands
+   - `docs/DEPLOYMENT.md` for deployment changes or new services
+   - `docs/bundle/*` for bundle spec changes
+   - `lib/env.ts` for new FEATURE_* flags
+   - `docs/operations/production-readiness-checklist.md` for new validation steps
+   - `AGENTS.md` Current State section for completed/verified/blocker items
+   Scan `docs/` for any file whose content is made incomplete or inaccurate by the change and update it.
 
 ---
 

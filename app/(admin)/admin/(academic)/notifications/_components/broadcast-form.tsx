@@ -20,7 +20,7 @@ import {
  SelectTrigger,
  SelectValue,
 } from "@/components/ui/select";
-import { Bell, Send, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Bell, Send, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 
 interface Course {
@@ -207,16 +207,13 @@ export function NotificationBroadcastForm({ courses }: Props) {
 
  <Button
  type="submit"
- disabled={isPending || !title || !body}
+ disabled={!title || !body}
+ isLoading={isPending}
  className="w-full gap-2 rounded-lg"
  id="send-notification-btn"
  >
- {isPending ? (
- <Loader2 className="size-4 animate-spin" />
- ) : (
  <Send className="size-4" />
- )}
- {isPending ? "Mengirim..." : "Kirim Notifikasi"}
+ Kirim Notifikasi
  </Button>
  </form>
  </div>

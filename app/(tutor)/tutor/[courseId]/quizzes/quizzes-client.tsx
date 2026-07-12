@@ -794,8 +794,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             <Button variant="outline" onClick={() => setIsTplOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               Batal
             </Button>
-            <Button onClick={handleSaveTpl} disabled={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button onClick={handleSaveTpl} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
               Simpan Template
             </Button>
           </DialogFooter>
@@ -925,8 +924,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             <Button variant="outline" onClick={() => setIsQOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               Batal
             </Button>
-            <Button onClick={handleSaveQ} disabled={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button onClick={handleSaveQ} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
               Simpan Soal
             </Button>
           </DialogFooter>
@@ -946,8 +944,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             <Button variant="outline" onClick={() => setDeleteTplId(null)} disabled={isPending} className="rounded-md border-border/80">
               Batal
             </Button>
-            <Button onClick={handleDeleteTpl} disabled={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button onClick={handleDeleteTpl} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
               Hapus Kuis
             </Button>
           </DialogFooter>
@@ -966,8 +963,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             <Button variant="outline" onClick={() => setDeleteQId(null)} disabled={isPending} className="rounded-md border-border/80">
               Batal
             </Button>
-            <Button onClick={handleDeleteQ} disabled={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button onClick={handleDeleteQ} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
               Hapus Soal
             </Button>
           </DialogFooter>

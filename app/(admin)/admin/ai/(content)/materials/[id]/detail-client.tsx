@@ -12,7 +12,6 @@ import {
   BookOpen,
   Layers,
   AlertTriangle,
-  Loader2,
   Sparkles,
   Edit2,
   Info,
@@ -809,12 +808,9 @@ export function MaterialDetailClient({
               variant={status === "published" ? "outline" : "default"}
               size="xs"
               className="rounded-md text-[10px] font-bold h-7 cursor-pointer shrink-0"
-              disabled={loadingChapterId === chapter.id + "-publish"}
+              isLoading={loadingChapterId === chapter.id + "-publish"}
               onClick={() => handleTogglePublish(chapter.id, status)}
             >
-              {loadingChapterId === chapter.id + "-publish" && (
-                <Loader2 className="size-3 mr-1 animate-spin" />
-              )}
               {status === "published" ? "Arsipkan" : "Publikasikan"}
             </Button>
           </div>
@@ -901,19 +897,13 @@ export function MaterialDetailClient({
               "w-full rounded-lg gap-1.5 font-bold text-[11px] h-8.5 cursor-pointer",
               currentProgress.status === "completed" ? "" : "text-white"
             )}
-            disabled={currentProgress.status === "generating"}
+            isLoading={currentProgress.status === "generating"}
             onClick={() => handleTriggerBulkGeneration(chapter.id)}
           >
-            {currentProgress.status === "generating" ? (
-              <Loader2 className="size-3 animate-spin" />
-            ) : (
-              <Sparkles className="size-3" />
-            )}
+            <Sparkles className="size-3" />
             {currentProgress.status === "completed"
               ? "Generate Ulang Aset"
-              : currentProgress.status === "generating"
-                ? "Memproses..."
-                : "Generate All Recommended Assets"}
+              : "Generate All Recommended Assets"}
           </Button>
         </div>
       </div>
@@ -1424,14 +1414,10 @@ export function MaterialDetailClient({
                   <Button
                     variant="default"
                     className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 h-9"
-                    disabled={savingWebMat}
+                    isLoading={savingWebMat}
                     onClick={() => handleSaveWebMat(chapter.id)}
                   >
-                    {savingWebMat ? (
-                      <Loader2 className="size-4 animate-spin mr-1" />
-                    ) : (
-                      <Check className="size-4 mr-1" />
-                    )}
+                    <Check className="size-4 mr-1" />
                     Simpan Materi Website
                   </Button>
                 </div>
@@ -1611,14 +1597,10 @@ export function MaterialDetailClient({
                     <Button
                       variant="default"
                       className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 h-10"
-                      disabled={savingWebMat}
+                      isLoading={savingWebMat}
                       onClick={() => handleSaveWebMat(chapter.id)}
                     >
-                      {savingWebMat ? (
-                        <Loader2 className="size-4 animate-spin mr-1" />
-                      ) : (
-                        <Check className="size-4 mr-1" />
-                      )}
+                      <Check className="size-4 mr-1" />
                       Simpan Seluruh Perubahan Materi
                     </Button>
                   </div>
@@ -1770,17 +1752,10 @@ export function MaterialDetailClient({
                 </Button>
                 <Button
                   className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                  disabled={loadingChapterId === chapter.id + "-sync"}
+                  isLoading={loadingChapterId === chapter.id + "-sync"}
                   onClick={() => handleSyncMaterial(chapter.id)}
                 >
-                  {loadingChapterId === chapter.id + "-sync" ? (
-                    <>
-                      <Loader2 className="size-4 mr-1.5 animate-spin" />
-                      Mensinkronkan...
-                    </>
-                  ) : (
-                    "Sinkronkan Aset Sekarang"
-                  )}
+                  Sinkronkan Aset Sekarang
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1955,17 +1930,10 @@ export function MaterialDetailClient({
 
                       <Button
                         className="w-full rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
-                        disabled={savingKOId === editingKO.id}
+                        isLoading={savingKOId === editingKO.id}
                         onClick={handleSaveKO}
                       >
-                        {savingKOId === editingKO.id ? (
-                          <>
-                            <Loader2 className="size-4 mr-1.5 animate-spin" />
-                            Menyimpan...
-                          </>
-                        ) : (
-                          "Simpan Perubahan KO"
-                        )}
+                        Simpan Perubahan KO
                       </Button>
                     </div>
                   </div>

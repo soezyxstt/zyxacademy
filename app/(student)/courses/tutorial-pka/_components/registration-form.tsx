@@ -4,7 +4,6 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
-  Loader2,
   AtSign,
   UploadCloud,
   ImageIcon,
@@ -266,9 +265,9 @@ export function PkaRegistrationForm({
       </div>
 
       <div className="flex items-center justify-end gap-3">
-        <Button type="submit" disabled={isPending} className="gap-2 rounded-lg">
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
-          {isPending ? "Mendaftarkan..." : "Gabung sekarang"}
+        <Button type="submit" isLoading={isPending} className="gap-2 rounded-lg">
+          <ArrowRight className="size-4" />
+          Gabung sekarang
         </Button>
       </div>
     </form>

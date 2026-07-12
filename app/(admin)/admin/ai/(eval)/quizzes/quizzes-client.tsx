@@ -994,8 +994,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCreateOpen(false)}>
  Batal
  </Button>
- <Button type="submit" disabled={submitting || (selectedQIds.length === 0 && totalProportion !== qCount)} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
- {submitting ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+ <Button type="submit" disabled={selectedQIds.length === 0 && totalProportion !== qCount} isLoading={submitting} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
  {editingTemplate ? "Simpan Perubahan" : "Buat Template Kuis"}
  </Button>
  </DialogFooter>

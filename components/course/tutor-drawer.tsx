@@ -40,6 +40,7 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
+import { useSwipe } from "@/hooks/use-swipe";
 
 // Fetch extra actions from custom action file
 import { getFlashcardsForKOAction } from "@/app/actions/tutor-extra";
@@ -142,6 +143,12 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const scrollToBottom = () => {
  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
  };
+
+ useSwipe({
+    onSwipeRight: () => {
+      if (isOpen) close();
+    }
+  });
 
  React.useEffect(() => {
  scrollToBottom();

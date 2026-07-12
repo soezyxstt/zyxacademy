@@ -135,6 +135,7 @@ export interface PkaAnnouncementRow {
   sentAt: Date | null;
   recipientCount: number | null;
   isArchived: boolean;
+  isPinned: boolean;
   createdAt: Date;
 }
 
@@ -149,6 +150,7 @@ export async function getPkaAnnouncementsAction(): Promise<PkaAnnouncementRow[]>
       sentAt: pkaAnnouncements.sentAt,
       recipientCount: pkaAnnouncements.recipientCount,
       isArchived: pkaAnnouncements.isArchived,
+      isPinned: pkaAnnouncements.isPinned,
       createdAt: pkaAnnouncements.createdAt,
     })
     .from(pkaAnnouncements)
@@ -173,6 +175,51 @@ export async function archivePkaAnnouncementAction(
     return { success: true };
   } catch (err) {
     console.error("[archivePkaAnnouncementAction]", err);
+    return { error: err instanceof Error ? err.message : "Terjadi kesalahan." };
+  }
+}
+
+export async function togglePinPkaAnnouncementAction(
+  announcementId: string,
+  pin: boolean,
+): Promise<PkaActionState> {
+  try {
+    await requireAdmin();
+
+    const featureError = requirePkaFeature();
+    if (featureError) return { error: featureError };
+
+    await db
+      .update(pkaAnnouncements)
+      .set({ isPinned: pin })
+      .where(eq(pkaAnnouncements.id, announcementId));
+
+    return { success: true };
+  } catch (err) {
+    console.error("[togglePinPkaAnnouncementAction]", err);
+    return { error: err instanceof Error ? err.message : "Terjadi kesalahan." };
+  }
+}
+
+export async function editPkaAnnouncementAction(
+  announcementId: string,
+  title: string,
+  body: string,
+): Promise<PkaActionState> {
+  try {
+    await requireAdmin();
+
+    const featureError = requirePkaFeature();
+    if (featureError) return { error: featureError };
+
+    await db
+      .update(pkaAnnouncements)
+      .set({ title, body })
+      .where(eq(pkaAnnouncements.id, announcementId));
+
+    return { success: true };
+  } catch (err) {
+    console.error("[editPkaAnnouncementAction]", err);
     return { error: err instanceof Error ? err.message : "Terjadi kesalahan." };
   }
 }

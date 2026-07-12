@@ -878,13 +878,10 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                         size="sm"
                         variant="outline"
                         onClick={handleCreateChapter}
-                        disabled={creatingChapter || !newChapterTitle.trim()}
+                        disabled={!newChapterTitle.trim()}
+                        isLoading={creatingChapter}
                       >
-                        {creatingChapter ? (
-                          <Loader2 className="size-3.5 animate-spin" />
-                        ) : (
-                          <Plus className="size-3.5" />
-                        )}
+                        <Plus className="size-3.5" />
                         Tambah
                       </Button>
                     </div>
@@ -1141,22 +1138,13 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     !form.courseId ||
                     !form.title ||
                     !form.rawText ||
-                    (documentType === "learning" && selectedChapters.size === 0) ||
-                    submitting
+                    (documentType === "learning" && selectedChapters.size === 0)
                   }
+                  isLoading={submitting}
                   onClick={handleStartAnalysis}
                 >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Memproses...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="size-4" />
-                      {documentType === "learning" ? "Analisis Dokumen" : "Proses Asesmen"}
-                    </>
-                  )}
+                  <Play className="size-4" />
+                  {documentType === "learning" ? "Analisis Dokumen" : "Proses Asesmen"}
                 </Button>
                 <Button
                   type="button"
@@ -1566,20 +1554,12 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                   <Button
                     type="button"
                     className="rounded-lg font-semibold gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
-                    disabled={submitting || warnings.length > 0}
+                    disabled={warnings.length > 0}
+                    isLoading={submitting}
                     onClick={handlePublish}
                   >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        Memproses...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="size-4" />
-                        Publikasikan Materi
-                      </>
-                    )}
+                    <CheckCircle2 className="size-4" />
+                    Publikasikan Materi
                   </Button>
                   <Button
                     type="button"

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { asc, desc, eq, gt } from "drizzle-orm";
+import { asc, desc, eq, gt, and, or, isNull } from "drizzle-orm";
 import {
   ArrowRight,
   BarChart3,
@@ -11,7 +11,7 @@ import {
   BellRing,
 } from "lucide-react";
 import { db } from "@/db";
-import { pkaAnnouncements, pkaSchedules } from "@/db/schema";
+import { pkaAnnouncements, pkaAnnouncementReads, pkaSchedules } from "@/db/schema";
 import { pageTitle } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import {
@@ -26,8 +26,8 @@ import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { PkaCountdown } from "@/components/pka/pka-countdown";
 import { Reveal } from "@/components/ui/reveal";
-import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { FormattedDate } from "@/components/ui/formatted-date";
+import { AnnouncementCard } from "./_components/announcement-card";
 
 export const metadata: Metadata = {
   title: pageTitle("Tutorial PKA"),
@@ -55,15 +55,34 @@ export default async function PkaCourseHomePage() {
       .orderBy(asc(pkaSchedules.sessionAt))
       .limit(1),
     db
-      .select()
+      .select({
+        id: pkaAnnouncements.id,
+        title: pkaAnnouncements.title,
+        body: pkaAnnouncements.body,
+        createdAt: pkaAnnouncements.createdAt,
+        isPinned: pkaAnnouncements.isPinned,
+      })
       .from(pkaAnnouncements)
-      .where(eq(pkaAnnouncements.isArchived, false))
-      .orderBy(desc(pkaAnnouncements.createdAt))
-      .limit(1),
+      .leftJoin(
+        pkaAnnouncementReads,
+        and(
+          eq(pkaAnnouncements.id, pkaAnnouncementReads.announcementId),
+          eq(pkaAnnouncementReads.userId, userId)
+        )
+      )
+      .where(
+        and(
+          eq(pkaAnnouncements.isArchived, false),
+          or(
+            eq(pkaAnnouncements.isPinned, true),
+            isNull(pkaAnnouncementReads.userId)
+          )
+        )
+      )
+      .orderBy(desc(pkaAnnouncements.isPinned), desc(pkaAnnouncements.createdAt)),
   ]);
 
   const nextSession = upcoming[0] ?? null;
-  const latestAnnouncement = announcements[0] ?? null;
   const anyAttempted = diagnostics.some((d) => d.attempted);
 
   return (
@@ -77,26 +96,18 @@ export default async function PkaCourseHomePage() {
           <PkaCountdown targetDate={PKA_ASSUMED_TEST_DATE.toISOString()} />
         </Reveal>
 
-        {/* Latest Announcement */}
-        {latestAnnouncement && (
+        {/* Announcements */}
+        {announcements.length > 0 && (
           <Reveal>
             <section className="space-y-3">
               <div className="flex items-center gap-2 border-b border-border pb-2">
                 <BellRing className="size-5 text-brand-primary" />
                 <h2 className="font-heading text-h6 font-bold text-foreground">Pengumuman Terbaru</h2>
               </div>
-              <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="font-heading text-h6 font-bold text-foreground">
-                    {latestAnnouncement.title}
-                  </h3>
-                  <span className="text-body-xs text-muted-foreground">
-                    <FormattedDate date={latestAnnouncement.createdAt} options={{ dateStyle: "long", timeStyle: "short" }} />
-                  </span>
-                </div>
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <MarkdownRenderer content={latestAnnouncement.body} />
-                </div>
+              <div className="flex flex-col gap-4">
+                {announcements.map((announcement) => (
+                  <AnnouncementCard key={announcement.id} {...announcement} />
+                ))}
               </div>
             </section>
           </Reveal>

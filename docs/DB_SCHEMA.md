@@ -1,6 +1,6 @@
 # Zyx Database Schema Reference
 
-This document provides a detailed reference of the SQLite/Turso database schema defined in [db/schema.ts](file:///workspaces/zyx-edu/db/schema.ts). 
+This document provides a detailed reference of the SQLite/Turso database schema defined in [db/schema.ts](../db/schema.ts). 
 
 ---
 
@@ -516,9 +516,179 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `payload`: Aggregated learning accomplishments and self-progress reports.
 * `createdAt`
 
+### studentChapterProgress
+* `id`
+* `studentId`
+* `courseId`
+* `chapterId`
+* `unlocked`: Boolean indicating if the chapter is accessible.
+* `completed`: Boolean indicating if the chapter has been finished.
+* `completedAt`
+* `createdAt`
+* `updatedAt`
+
+### masteryRecomputeQueue
+* `id`
+* `studentId`
+* `courseId`
+* `eventType`: Trigger event that requested recompute.
+* `status`: Queue state ('pending', 'processing', 'completed', 'failed').
+* `error`: Error details if processing failed.
+* `retries`: Retry attempt counter.
+* `createdAt`
+* `updatedAt`
+
+### conceptGraphEdges
+* `id`
+* `courseId`
+* `sourceConcept`: Starting concept slug.
+* `targetConcept`: Destination concept slug.
+* `type`: Dependency relation ('prerequisite', 'related').
+
 ---
 
-## 10. AI Generation System
+## 10. Learning Outcomes (Accreditation)
+
+### learningOutcomes
+* `id`
+* `courseId`
+* `code`: Outcome code (e.g. CPL-01, CPMK-01.1).
+* `name`: Outcome description text.
+* `parentId`: Reference to parent outcome for hierarchy (CPL → CPMK → Sub-CPMK).
+* `level`: Hierarchy level indicator.
+* `createdAt`
+* `updatedAt`
+
+### learningOutcomeConcepts
+* `id`
+* `outcomeId`
+* `conceptId`
+
+---
+
+## 11. Career Paths
+
+### careerPathTemplates
+* `id`
+* `title`
+* `description`
+* `icon`: Icon identifier for display.
+* `pathJson`: Ordered list of concept milestones stored as JSON.
+* `createdAt`
+* `updatedAt`
+
+### careerPathConcepts
+* `id`
+* `careerPathId`
+* `conceptId`
+* `order`: Sequence position in the career path.
+
+---
+
+## 12. PKA Campaign
+
+### pkaSimulationStages
+* `id`
+* `subject`: Subject name (matematika, fisika, kimia).
+* `name`: Stage display name.
+* `quizTemplateId`: Reference to quiz template for this stage.
+* `passingScore`: Minimum score to unlock next stage.
+* `order`: Stage sequence index.
+* `isActive`: Boolean toggle for stage visibility.
+* `createdAt`
+* `updatedAt`
+
+### pkaStageProgress
+* `id`
+* `studentId`
+* `stageId`
+* `status`: Stage completion state ('locked', 'available', 'passed', 'failed').
+* `quizAttemptId`: Reference to the student's quiz attempt.
+* `createdAt`
+* `updatedAt`
+
+### pkaAnnouncements
+* `id`
+* `title`
+* `body`
+* `pinned`: Boolean indicating if announcement should be highlighted.
+* `publishedAt`
+* `createdAt`
+* `updatedAt`
+
+### pkaSchedules
+* `id`
+* `title`
+* `description`
+* `googleMeetLink`: URL for the video conference.
+* `scheduledAt`: Date and time of the review session.
+* `durationMinutes`: Session length in minutes.
+* `createdAt`
+* `updatedAt`
+
+### pkaRegistrations
+* `id`
+* `userId`
+* `fullName`
+* `phone`
+* `origin`: School or university of origin.
+* `status`: Registration state ('pending', 'approved', 'rejected').
+* `createdAt`
+* `updatedAt`
+
+---
+
+## 13. Content Quality
+
+### contentQualityFlags
+* `id`
+* `courseId`
+* `targetType`: Flagged entity type ('question', 'flashcard', 'ko').
+* `targetId`: Reference to the flagged entity.
+* `flagType`: Quality issue category ('too_easy', 'too_hard', 'dead_distractor', 'ambiguous').
+* `severity`: Impact level ('low', 'medium', 'high').
+* `details`: Explanatory text stored as JSON.
+* `resolved`: Boolean indicating if the flag has been addressed.
+* `createdAt`
+* `updatedAt`
+
+---
+
+## 14. Blog & Short Links
+
+### blogArticles
+* `id`
+* `slug`: URL-friendly unique identifier.
+* `title`
+* `excerpt`: Short preview text.
+* `content`: Full article markdown content.
+* `category`: Article classification ('tips_kuliah', 'pojok_kampus', 'fakta_seru', 'kegiatan_zyx').
+* `coverImage`: Featured image URL.
+* `authorId`: Reference to the author user.
+* `published`: Boolean indicating if the article is publicly visible.
+* `publishedAt`
+* `createdAt`
+* `updatedAt`
+
+### shortLink
+* `id`
+* `slug`: Short URL path component.
+* `url`: Target destination URL.
+* `clicks`: Visit counter.
+* `createdAt`
+
+### pageAnalytics
+* `id`
+* `path`: Page route path.
+* `title`: Page display title.
+* `views`: View count.
+* `uniqueVisitors`: Distinct visitor count.
+* `snapshotDate`: Date of the analytics snapshot (yyyy-mm-dd).
+* `createdAt`
+
+---
+
+## 15. AI Generation System
 
 ### aiGenerationJobs
 * `id`
@@ -582,7 +752,7 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 
 ---
 
-## 11. Transactional Queue & System Operations
+## 16. Transactional Queue & System Operations
 
 ### vectorSyncQueue
 * `id`
@@ -617,7 +787,7 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 
 ---
 
-## 12. Deprecated Legacy Tables (Pre-v4)
+## 17. Deprecated Legacy Tables (Pre-v4)
 
 ### progress
 * `id`

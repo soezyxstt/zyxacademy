@@ -22,7 +22,7 @@ Before importing a course bundle JSON file, verify its integrity.
 
 ## 2. Import Validation
 
-Run the importer script ([import-bundle.ts](file:///workspaces/zyx-edu/scripts/import-bundle.ts)) and check the console output and logs.
+Run the importer script ([import-bundle.ts](../../scripts/import-bundle.ts)) and check the console output and logs.
 
 * [ ] **Import Success**: The script exits with status `0` and prints `Import process completed successfully!`.
 * [ ] **Transaction Success**: Ensure the transaction commits successfully and does not roll back due to unique constraints or constraint violations.
@@ -103,7 +103,7 @@ Verify the conceptual dependency structure.
 
 ## 9. Vectorization Validation
 
-Run the vector sync runner ([sync-vectors.ts](file:///workspaces/zyx-edu/scripts/sync-vectors.ts)) to sync the course KOs with the vector database.
+Run the vector sync runner ([sync-vectors.ts](../../scripts/sync-vectors.ts)) to sync the course KOs with the vector database.
 
 * [ ] **Vector Queue Populated**: Verify that 20 KOs (or the course total) were enqueued with status `"pending"`.
 * [ ] **Vector Queue Completed**: Verify that the sync runner processed the queue and transitioned all entries to `"completed"`.
@@ -114,7 +114,7 @@ Run the vector sync runner ([sync-vectors.ts](file:///workspaces/zyx-edu/scripts
 
 ## 10. Zyra RAG Validation
 
-Run the retrieval validation script ([validate-retrieval.ts](file:///workspaces/zyx-edu/scripts/validate-retrieval.ts)) with `MOCK_GEMINI` disabled to test the actual RAG pipeline.
+Run the retrieval validation script ([validate-retrieval.ts](../../scripts/validate-retrieval.ts)) with `MOCK_GEMINI` disabled to test the actual RAG pipeline.
 
 * [ ] **Definition Query**: Query a core term (e.g. "Apa definisi percepatan?"). Verify `sources.length > 0`.
 * [ ] **Formula Query**: Query an equation (e.g. "Bagaimana rumus perpindahan?"). Verify `sources.length > 0`.

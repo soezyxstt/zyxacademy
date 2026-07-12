@@ -288,6 +288,13 @@
       "when": 1783713466062,
       "tag": "0040_lowly_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1783873419143,
+      "tag": "0041_tricky_wallflower",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Loader2, Check } from "lucide-react";
+import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -379,8 +379,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
               <Button variant="outline" onClick={() => setDeleteQId(null)} disabled={isPending} className="rounded-md border-border/80">
                 Batal
               </Button>
-              <Button onClick={handleDeleteQ} disabled={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-                {isPending && <Loader2 className="size-4 animate-spin" />}
+              <Button onClick={handleDeleteQ} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
                 Hapus Soal
               </Button>
             </DialogFooter>
@@ -511,8 +510,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
               <Button variant="outline" onClick={() => setIsQOpen(false)} disabled={isPending} className="rounded-md border-border/80">
                 Batal
               </Button>
-              <Button onClick={handleSaveQ} disabled={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-                {isPending && <Loader2 className="size-4 animate-spin" />}
+              <Button onClick={handleSaveQ} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
                 Simpan Soal
               </Button>
             </DialogFooter>
@@ -683,8 +681,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
             <Button variant="outline" onClick={() => setIsTOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               Batal
             </Button>
-            <Button onClick={handleSaveT} disabled={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button onClick={handleSaveT} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
               Simpan Tryout
             </Button>
           </DialogFooter>
@@ -704,8 +701,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
             <Button variant="outline" onClick={() => setDeleteTId(null)} disabled={isPending} className="rounded-md border-border/80">
               Batal
             </Button>
-            <Button onClick={handleDeleteT} disabled={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button onClick={handleDeleteT} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
               Hapus Permanen
             </Button>
           </DialogFooter>

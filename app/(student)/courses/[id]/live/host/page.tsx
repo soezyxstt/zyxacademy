@@ -169,10 +169,10 @@ export default function LiveHostPage() {
 
             <Button
               onClick={createSession}
-              disabled={!selectedTemplateId || creating}
+              disabled={!selectedTemplateId}
+              isLoading={creating}
               className="rounded-lg"
             >
-              {creating ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
               Mulai sesi
             </Button>
           </div>
@@ -289,30 +289,26 @@ export default function LiveHostPage() {
       {sessionState !== "ended" && (
         <div className="flex gap-2 pt-4">
           {sessionState === "lobby" && (
-            <Button disabled={controlling} onClick={() => control("start")} className="rounded-lg">
-              {controlling ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+            <Button isLoading={controlling} onClick={() => control("start")} className="rounded-lg">
               Mulai
             </Button>
           )}
           {sessionState === "reveal" && (
-            <Button variant="outline" disabled={controlling} onClick={() => control("next")} className="rounded-lg">
-              {controlling ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+            <Button variant="outline" isLoading={controlling} onClick={() => control("next")} className="rounded-lg">
               Berikutnya
             </Button>
           )}
           {sessionState === "question" && (
-            <Button variant="outline" disabled={controlling} onClick={() => control("reveal")} className="rounded-lg">
-              {controlling ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+            <Button variant="outline" isLoading={controlling} onClick={() => control("reveal")} className="rounded-lg">
               Tampilkan
             </Button>
           )}
           <Button
             variant="destructive"
-            disabled={controlling}
+            isLoading={controlling}
             onClick={() => control("end")}
             className="rounded-lg"
           >
-            {controlling ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
             Akhiri
           </Button>
         </div>

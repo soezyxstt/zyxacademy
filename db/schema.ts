@@ -7,6 +7,7 @@ import {
  index,
  unique,
  uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/sqlite-core";
 
 // Enums
@@ -2685,8 +2686,25 @@ export const pkaAnnouncements = sqliteTable("pka_announcements", {
   sentAt: integer("sent_at", { mode: "timestamp" }),
   recipientCount: integer("recipient_count"),
   isArchived: integer("is_archived", { mode: "boolean" }).default(false).notNull(),
+  isPinned: integer("is_pinned", { mode: "boolean" }).default(false).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
 });
+
+export const pkaAnnouncementReads = sqliteTable(
+  "pka_announcement_reads",
+  {
+    announcementId: text("announcement_id")
+      .notNull()
+      .references(() => pkaAnnouncements.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    readAt: integer("read_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.announcementId, table.userId] }),
+  ]
+);
 
 export const pkaSchedules = sqliteTable("pka_schedules", {
   id: text("id").primaryKey(),
@@ -2743,9 +2761,21 @@ export const pkaStageProgressRelations = relations(pkaStageProgress, ({ one }) =
   }),
 }));
 
-export const pkaAnnouncementsRelations = relations(pkaAnnouncements, ({ one }) => ({
+export const pkaAnnouncementsRelations = relations(pkaAnnouncements, ({ one, many }) => ({
   createdByUser: one(user, {
     fields: [pkaAnnouncements.createdBy],
+    references: [user.id],
+  }),
+  reads: many(pkaAnnouncementReads),
+}));
+
+export const pkaAnnouncementReadsRelations = relations(pkaAnnouncementReads, ({ one }) => ({
+  announcement: one(pkaAnnouncements, {
+    fields: [pkaAnnouncementReads.announcementId],
+    references: [pkaAnnouncements.id],
+  }),
+  user: one(user, {
+    fields: [pkaAnnouncementReads.userId],
     references: [user.id],
   }),
 }));

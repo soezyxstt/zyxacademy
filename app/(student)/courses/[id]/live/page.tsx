@@ -95,10 +95,10 @@ export default function LiveStudentPage() {
           />
           <Button
             onClick={handleJoin}
-            disabled={joining || code.trim().length === 0}
+            disabled={code.trim().length === 0}
+            isLoading={joining}
             className="w-full rounded-lg"
           >
-            {joining ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
             Gabung
           </Button>
         </div>

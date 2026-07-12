@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Loader2,
   Plus,
   CalendarDays,
   Video,
@@ -302,9 +301,8 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
               <Button type="button" variant="outline" onClick={resetForm} disabled={isPending}>
                 Batal
               </Button>
-              <Button type="submit" disabled={isPending} className="gap-2">
-                {isPending && <Loader2 className="size-4 animate-spin" />}
-                {isPending ? "Menyimpan..." : "Simpan"}
+              <Button type="submit" isLoading={isPending} className="gap-2">
+                Simpan
               </Button>
             </DialogFooter>
           </form>
@@ -325,8 +323,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
             <Button type="button" variant="outline" onClick={() => setDeleteItem(null)} disabled={isPending}>
               Batal
             </Button>
-            <Button type="button" variant="destructive" onClick={handleDelete} disabled={isPending} className="gap-2">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
+            <Button type="button" variant="destructive" onClick={handleDelete} isLoading={isPending} className="gap-2">
               Hapus
             </Button>
           </DialogFooter>

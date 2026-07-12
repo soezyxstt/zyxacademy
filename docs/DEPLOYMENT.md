@@ -105,6 +105,28 @@ wrangler deploy
 | Sentry | Error tracking | 5k events/mo |
 | UploadThing | Dev file upload fallback | 2 GB |
 
+### Data Seeding
+
+Production seed data (courses, chapters, bundles) is imported via:
+```bash
+# Import a learning bundle
+bunx tsx scripts/import-bundle.ts --bundle <learning-bundle.json> --mode create --post-process
+
+# Import an assessment bundle
+bunx tsx scripts/import-bundle.ts --assessment-bundle <assessment-bundle.json> --mode create --post-process
+
+# Production migration (safe: backup + verify)
+bun run db:push:prod
+```
+
+## PKA Campaign
+
+The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
+1. Enable `FEATURE_PKA` in Vercel env
+2. Configure PKA stages via admin panel
+3. Seed quiz templates for each stage
+4. Enable registration window via admin announcements
+
 ## Feature Flags
 
 All `FEATURE_*` env vars default to off. Enable gradually per environment. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the full list.

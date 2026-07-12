@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Square, ChevronDown, ChevronUp, Filter, Plus, Edit2, Trash2, Loader2, AlertTriangle, Lock, Cpu, Upload } from "lucide-react";
+import { CheckSquare, Square, ChevronDown, ChevronUp, Filter, Plus, Edit2, Trash2, AlertTriangle, Lock, Cpu, Upload } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -621,8 +621,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
             <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
               <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCreateOpen(false)}>Batal</Button>
-              <Button type="submit" disabled={submittingCreate} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
-                {submittingCreate ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+              <Button type="submit" isLoading={submittingCreate} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
                 Simpan Soal
               </Button>
             </DialogFooter>
@@ -719,8 +718,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
               <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
                 <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setEditOpen(false)}>Batal</Button>
-                <Button type="submit" disabled={submittingEdit} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
-                  {submittingEdit ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+                <Button type="submit" isLoading={submittingEdit} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
                   Simpan Perubahan &amp; Kunci
                 </Button>
               </DialogFooter>
@@ -801,8 +799,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
             <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
               <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkOpen(false)}>Batal</Button>
-              <Button type="submit" disabled={bulkSubmitting} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
-                {bulkSubmitting ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+              <Button type="submit" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
                 Impor Sekarang
               </Button>
             </DialogFooter>

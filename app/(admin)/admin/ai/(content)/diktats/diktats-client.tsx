@@ -9,7 +9,6 @@ import {
   Trash2, 
   Download, 
   RefreshCw, 
-  Loader2, 
   Layers, 
   ShieldAlert,
   Sliders,
@@ -352,21 +351,13 @@ export function DiktatCompilerClient({
         {/* Trigger compile button */}
         <Button
           type="button"
-          disabled={isCompiling || selectedChapters.size === 0}
+          disabled={selectedChapters.size === 0}
+          isLoading={isCompiling}
           className="w-full rounded-lg font-bold bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2 mt-2 cursor-pointer shadow-sm"
           onClick={handleStartCompilation}
         >
-          {isCompiling ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              Mengompilasi PDF...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="size-4" />
-              Kompilasi Diktat Sekarang
-            </>
-          )}
+          <RefreshCw className="size-4" />
+          Kompilasi Diktat Sekarang
         </Button>
       </div>
 
@@ -449,10 +440,9 @@ export function DiktatCompilerClient({
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled
+                          isLoading={true}
                           className="rounded-lg text-xs font-semibold gap-1.5 h-9"
                         >
-                          <Loader2 className="size-3.5 animate-spin" />
                           Proses Compiler
                         </Button>
                       )}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
-import { Play, Loader2 } from "lucide-react";
+import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type QuizStartButtonProps = {
@@ -56,20 +56,11 @@ export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", cl
   return (
     <Button
       onClick={handleStart}
-      disabled={loading}
+      isLoading={loading}
       className={cn("bg-brand-primary text-white hover:bg-brand-primary/95 font-bold rounded-md interactive shadow-sm px-6 py-2 flex items-center gap-2 cursor-pointer", className)}
     >
-      {loading ? (
-        <>
-          <Loader2 className="size-4 animate-spin" />
-          Memuat...
-        </>
-      ) : (
-        <>
-          <Play className="size-4 fill-white" />
-          {label}
-        </>
-      )}
+      <Play className="size-4 fill-white" />
+      {label}
     </Button>
   );
 }

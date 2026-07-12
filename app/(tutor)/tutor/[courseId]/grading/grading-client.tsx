@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, AlertCircle, FileText, Download, Award, Calendar, User, Loader2, CheckSquare } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertCircle, FileText, Download, Award, Calendar, User, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -247,8 +247,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
               </div>
 
               <div className="mt-6 space-y-2">
-                <Button onClick={handleSaveGrade} disabled={isPending} className="w-full bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5 shadow-sm">
-                  {isPending && <Loader2 className="size-4 animate-spin" />}
+                <Button onClick={handleSaveGrade} isLoading={isPending} className="w-full bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5 shadow-sm">
                   Simpan & Publikasikan
                 </Button>
                 <Button variant="outline" onClick={() => setActiveSub(null)} disabled={isPending} className="w-full rounded-md border-border/80">

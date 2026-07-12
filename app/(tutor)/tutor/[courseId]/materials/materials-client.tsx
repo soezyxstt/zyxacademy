@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit2, Trash2, BookOpen, FileText, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, BookOpen, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -228,9 +228,8 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
             <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isPending} className="rounded-md border-border/80">
               Batal
             </Button>
-            <Button onClick={handleSave} disabled={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
-              Simpan Materi
+            <Button onClick={handleSave} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
+              Simpan Bab
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -249,9 +248,8 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
             <Button variant="outline" onClick={() => setDeleteId(null)} disabled={isPending} className="rounded-md border-border/80">
               Batal
             </Button>
-            <Button onClick={handleDelete} disabled={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
-              {isPending && <Loader2 className="size-4 animate-spin" />}
-              Hapus Permanen
+            <Button onClick={handleDelete} isLoading={isPending} className="bg-status-error hover:bg-status-error/90 text-white rounded-md font-semibold gap-1.5">
+              Hapus
             </Button>
           </DialogFooter>
         </DialogContent>

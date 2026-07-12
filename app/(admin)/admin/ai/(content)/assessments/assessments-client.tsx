@@ -443,15 +443,8 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
               <Button type="button" variant="outline" onClick={() => setShowUploadModal(false)}>
                 Batal
               </Button>
-              <Button type="submit" disabled={submitting || pdfUploadState === "uploading"}>
-                {submitting ? (
-                  <>
-                    <Loader2 size={16} className="mr-2 animate-spin" />
-                    Memproses...
-                  </>
-                ) : (
-                  "Proses Ingest"
-                )}
+              <Button type="submit" isLoading={submitting} disabled={pdfUploadState === "uploading"}>
+                Proses Ingest
               </Button>
             </DialogFooter>
           </form>
@@ -484,9 +477,9 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
               variant="destructive"
               className="rounded-lg"
               onClick={handleDelete}
-              disabled={isDeleting}
+              isLoading={isDeleting}
             >
-              {isDeleting ? "Menghapus..." : "Hapus Permanen"}
+              Hapus Permanen
             </Button>
           </DialogFooter>
         </DialogContent>
