@@ -23,7 +23,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { url, slug: customSlug } = body;
+    const { url, slug: customSlug, title } = body;
 
     if (!url) {
       return new NextResponse("URL is required", { status: 400 });
@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       id,
       slug,
       url,
+      title,
       // userId: user.id // if we have auth
     });
 

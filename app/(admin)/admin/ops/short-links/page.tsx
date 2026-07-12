@@ -14,6 +14,7 @@ type ShortLink = {
   id: string;
   slug: string;
   url: string;
+  title: string | null;
   clicks: number;
   createdAt: string;
 };
@@ -23,6 +24,7 @@ export default function ShortLinksPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
 
   const fetchLinks = async () => {
@@ -50,13 +52,14 @@ export default function ShortLinksPage() {
       const res = await fetch("/api/admin/short-links", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, slug }),
+        body: JSON.stringify({ url, slug, title: title.trim() || null }),
       });
       
       if (res.ok) {
         const newLink = await res.json();
         setLinks([newLink, ...links]);
         setUrl("");
+        setTitle("");
         setSlug("");
       } else {
         const err = await res.text();
@@ -112,6 +115,16 @@ export default function ShortLinksPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="title">Title (Optional)</Label>
+                  <Input
+                    id="title"
+                    type="text"
+                    placeholder="e.g. Spring Sale Campaign"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="slug">Custom Slug (Optional)</Label>
                   <Input
                     id="slug"
@@ -145,7 +158,8 @@ export default function ShortLinksPage() {
                     <div className="space-y-1 overflow-hidden">
                       <div className="flex items-center gap-2">
                         <LinkIcon className="size-4 text-primary" />
-                        <span className="font-medium">/s/{link.slug}</span>
+                        <span className="font-medium">{link.title || `/s/${link.slug}`}</span>
+                        {link.title && <span className="text-body-sm text-muted-foreground">(/s/{link.slug})</span>}
                       </div>
                       <p className="text-body-sm text-muted-foreground truncate max-w-[300px]" title={link.url}>
                         {link.url}

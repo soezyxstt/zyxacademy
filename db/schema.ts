@@ -2801,6 +2801,7 @@ export const shortLink = sqliteTable("short_link", {
   id: text("id").primaryKey(),
   slug: text("slug").notNull().unique(),
   url: text("url").notNull(),
+  title: text("title"),
   userId: text("user_id").references(() => user.id, { onDelete: "set null" }), // Creator
   clicks: integer("clicks").default(0).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),

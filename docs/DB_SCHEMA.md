@@ -674,6 +674,7 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `id`
 * `slug`: Short URL path component.
 * `url`: Target destination URL.
+* `title`: Display title of the short link.
 * `clicks`: Visit counter.
 * `createdAt`
 
