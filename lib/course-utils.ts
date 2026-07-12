@@ -330,6 +330,18 @@ export async function getCourseSubmissions(courseId: string, studentId?: string)
 }
 
 export async function getCourseLeaderboard(courseId: string) {
+  // Fetch total published quizzes for the course to calculate proper averages
+  const courseQuizzes = await db
+    .select({ id: quizTemplates.id })
+    .from(quizTemplates)
+    .where(
+      and(
+        eq(quizTemplates.courseId, courseId),
+        eq(quizTemplates.status, "published")
+      )
+    );
+  const totalQuizzes = Math.max(1, courseQuizzes.length);
+
   // Fetch all completed attempts for the course
   const attempts = await db
     .select({
@@ -419,7 +431,7 @@ export async function getCourseLeaderboard(courseId: string) {
   }
 
   const leaderboardList = Object.values(studentData).map((data) => {
-    const avgScore = Number((data.totalScore / data.attemptsCount).toFixed(1));
+    const avgScore = Number((data.totalScore / totalQuizzes).toFixed(1));
     const avgDuration = Number((data.totalDuration / data.attemptsCount).toFixed(1));
     return {
       studentId: data.studentId,
