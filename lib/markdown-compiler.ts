@@ -539,6 +539,11 @@ function parseBlockNode(
 
     case "graph": {
       const parsed = parseYamlLike(lines);
+      const unparsedLines = lines.filter(l => {
+        const trimmed = l.trim();
+        return trimmed && trimmed.indexOf(":") === -1 && !trimmed.startsWith("-");
+      });
+      
       let domain = { min: -10, max: 10 };
       if (parsed.domain && typeof parsed.domain === "object") {
         domain = {
@@ -551,6 +556,12 @@ function parseBlockNode(
           max: typeof parsed.domain[1] === "number" ? parsed.domain[1] : 10,
         };
       }
+      
+      let functions = parsed.functions || (parsed.equation ? [parsed.equation] : []);
+      if ((!functions || functions.length === 0) && unparsedLines.length > 0) {
+        functions = unparsedLines.map(l => l.trim());
+      }
+
       return {
         id: blockId,
         type: "visual",
@@ -561,7 +572,7 @@ function parseBlockNode(
         title: attrs.title || parsed.title || undefined,
         caption: attrs.caption || parsed.caption || undefined,
         data: {
-          functions: parsed.functions || (parsed.equation ? [parsed.equation] : []),
+          functions,
           domain,
           samples: typeof parsed.samples === "number" ? parsed.samples : 200,
         },
