@@ -105,7 +105,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  // Resizable drawer state
  const MIN_WIDTH = 320;
  const MAX_WIDTH = 860;
- const DEFAULT_WIDTH = 448;
+ const DEFAULT_WIDTH = 560;
  const [drawerWidth, setDrawerWidth] = React.useState(DEFAULT_WIDTH);
  const isResizing = React.useRef(false);
 

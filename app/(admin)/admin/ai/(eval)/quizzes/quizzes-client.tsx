@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock, Award, ShieldAlert, BookOpen, Loader2, Calendar, FileJson, Eye, Check } from "lucide-react";
+import { Plus, Trash2, Clock, Award, ShieldAlert, BookOpen, Loader2, Calendar, Eye, Check } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -46,9 +46,6 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  const [createOpen, setCreateOpen] = useState(() => !!prefillCourseId || !!prefillTags);
  const [deleteOpen, setDeleteOpen] = useState(false);
  const [deletingTemplate, setDeletingTemplate] = useState<TemplateType | null>(null);
-
- // Snapshot Auditor State
- const [auditingTemplate, setAuditingTemplate] = useState<TemplateType | null>(null);
 
  // Preview Dialog State
  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -602,15 +599,6 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
    >
      Edit
    </Button>
-   <Button
-     variant="outline"
-     size="sm"
-     className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1.5 font-semibold text-xs h-8 px-2.5 border-border/80 text-foreground hover:bg-muted"
-     onClick={() => setAuditingTemplate(template)}
-   >
-  <FileJson className="size-3.5" />
-  Audit
-  </Button>
   <Button
   variant="destructive"
   size="icon-sm"
@@ -1012,77 +1000,6 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  </Button>
  </DialogFooter>
  </form>
- </DialogContent>
- </Dialog>
-
- {/* SNAPSHOT AUDITOR DIALOG */}
- <Dialog open={!!auditingTemplate} onOpenChange={() => setAuditingTemplate(null)}>
- <DialogContent className="max-w-3xl rounded-xl border border-border p-6 shadow-lg text-left">
- <DialogHeader className="border-b border-border pb-3 mb-4">
- <DialogTitle className="flex items-center gap-2 font-heading text-h6 font-bold text-foreground">
- <FileJson className="size-5 text-primary shrink-0" />
- Auditor Struktur Snapshot Attempt Kuis
- </DialogTitle>
- <DialogDescription>
- Struktur JSON snapshot permanen yang dikunci saat siswa mulai mengerjakan kuis dari template ini.
- </DialogDescription>
- </DialogHeader>
- 
- <div className="space-y-4">
- <p className="text-body-sm text-muted-foreground leading-relaxed">
- Untuk melindungi rekam nilai siswa dari perubahan/penghapusan soal di bank soal di masa depan, sistem database Zyx Academy mengambil <strong>deep snapshot</strong> seluruh konten soal saat sesi pengerjaan diaktifkan.
- </p>
-
- <div className="rounded-lg border border-border overflow-hidden bg-muted/20 p-4 font-mono text-xs max-h-[350px] overflow-y-auto leading-relaxed text-foreground/90">
- <pre>{JSON.stringify({
- attemptId: "att_9a8f27b1-872f-402a-bf3d-2490acbd0829",
- templateId: auditingTemplate?.id || "tmpl_example",
- title: auditingTemplate?.title || "Kuis Turunan",
- startedAt: new Date().toISOString(),
- settings: {
- timeLimitSeconds: auditingTemplate?.timeLimitSeconds,
- maxAttempts: auditingTemplate?.maxAttempts
- },
- questionsSnapshot: [
- {
- id: "qbank_98c19920-f11a-4d7a",
- knowledgeObjectId: "ko-calc-1-2",
- difficulty: auditingTemplate?.selectionRules ? (auditingTemplate.selectionRules as any).difficulty_proportions?.easy > 0 ? "easy" : "medium" : "medium",
- prompt: "Jika $f(x) = x^2 - 3x$, tentukan nilai dari $f'(2)$ menggunakan limit fungsi turunan.",
- options: [
- "$1$ (Benar secara aljabar)",
- "$-1$ (Hasil kalkulasi salah tanda)",
- "$0$",
- "$2$"
- ],
- correctIndices: [0],
- explanation: "Menggunakan definisi turunan $f'(x) = 2x - 3$. Dengan mensubstitusi $x = 2$, diperoleh $f'(2) = 2(2) - 3 = 1$."
- }
- ],
- studentAnswers: {
- "qbank_98c19920-f11a-4d7a": [0]
- },
- grades: {
- "qbank_98c19920-f11a-4d7a": {
- isCorrect: true,
- score: 1.0,
- gradedAt: new Date().toISOString()
- }
- }
- }, null, 2)}</pre>
- </div>
-
- <div className="flex gap-2 p-3 bg-primary/5 rounded-lg border border-primary/10 text-body-xs text-muted-foreground leading-relaxed">
- <BookOpen className="size-4 shrink-0 text-primary mt-0.5" />
- <span>Snapshot di atas disimpan pada kolom <code>student_quiz_attempts.questions_snapshot</code> menggunakan struktur JSONB relasional PostgreSQL, menjamin audit mutu ujian tetap konsisten selamanya.</span>
- </div>
- </div>
-
- <DialogFooter className="mt-5 flex items-center justify-end">
- <Button className="rounded-lg font-bold" onClick={() => setAuditingTemplate(null)}>
- Tutup Auditor
- </Button>
- </DialogFooter>
  </DialogContent>
  </Dialog>
 

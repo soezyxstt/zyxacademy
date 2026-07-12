@@ -694,7 +694,8 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
     } else if (type === "code") {
       const langMatch = contentLines[0].match(/^```(\w*)/);
       const language = langMatch ? langMatch[1] : undefined;
-      const codeLines = contentLines.slice(1, -1);
+      const hasClosing = contentLines.length > 1 && contentLines[contentLines.length - 1].trim().startsWith("```");
+      const codeLines = hasClosing ? contentLines.slice(1, -1) : contentLines.slice(1);
       block = {
         id,
         type: "code",
@@ -1000,6 +1001,20 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
   // Flush any remaining presenter blocks
   if (presenterType && presenterLines.length > 0) {
     flushPresenterBlock(presenterType, presenterLines);
+  }
+
+  // Flush any unclosed canonical blocks (e.g. during streaming)
+  if (currentBlockType !== null) {
+    const block = parseBlockNode(
+      currentBlockType,
+      currentBlockAttrStr,
+      currentBlockLines,
+      currentBlockId || `block-final-${currentBlockType}`
+    );
+    if (block) {
+      block.globalOrderIndex = globalIndex++;
+      blocks.push(block);
+    }
   }
 
   return blocks;

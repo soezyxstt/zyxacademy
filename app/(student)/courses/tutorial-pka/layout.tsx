@@ -4,6 +4,8 @@ import { env } from "@/lib/env";
 import { getCourse } from "@/lib/course-utils";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Static segment for the Tutorial PKA course. Wins over /courses/[id] per
  * Next.js static-over-dynamic precedence, so this course gets its own tab set

@@ -34,7 +34,9 @@ import {
   Tooltip,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  AreaChart,
+  Area
 } from "recharts";
 
 // --- Types ---
@@ -79,10 +81,16 @@ function parseInline(text: string): ReactNode[] {
     const remaining = text.slice(index);
 
     // 1. Math Block (e.g. $$...$$ or \[...\])
-    const mathBlockMatch = remaining.match(/^\$\$([\s\S]+?)\$\$/) || remaining.match(/^\\\[([\s\S]+?)\\\]/);
+    let mathBlockMatch = remaining.match(/^\$\$([\s\S]+?)\$\$/) || remaining.match(/^\\\[([\s\S]+?)\\\]/);
+    if (!mathBlockMatch) {
+      const unclosedBlock = remaining.match(/^\$\$([\s\S]*)$/) || remaining.match(/^\\\[([\s\S]*)$/);
+      if (unclosedBlock) {
+        mathBlockMatch = unclosedBlock;
+      }
+    }
     if (mathBlockMatch) {
       flushText();
-      const content = mathBlockMatch[1] || mathBlockMatch[2];
+      const content = mathBlockMatch[1] || mathBlockMatch[2] || "";
       result.push(
         <span
           key={`mathblk-${index}`}
@@ -95,10 +103,20 @@ function parseInline(text: string): ReactNode[] {
     }
 
     // 2. Math Inline (e.g. $...$ or \(...\))
-    const mathInlineMatch = remaining.match(/^\$([^\$\n]+?)\$/) || remaining.match(/^\\\(([\s\S]+?)\\\)/);
+    let mathInlineMatch = remaining.match(/^\$([^\$\n]+?)\$/) || remaining.match(/^\\\(([\s\S]+?)\\\)/);
+    if (!mathInlineMatch) {
+      const unclosedInline = remaining.match(/^\$([^\$\n]+)$/) || remaining.match(/^\\\(([\s\S]+)$/);
+      if (unclosedInline) {
+        const content = unclosedInline[1] || unclosedInline[2] || "";
+        const looksLikeMath = /[\+\-\*\/=\\_\^<>]/g.test(content) || content.includes(" ") || content.length > 5;
+        if (looksLikeMath) {
+          mathInlineMatch = unclosedInline;
+        }
+      }
+    }
     if (mathInlineMatch) {
       flushText();
-      const content = mathInlineMatch[1] || mathInlineMatch[2];
+      const content = mathInlineMatch[1] || mathInlineMatch[2] || "";
       result.push(
         <span
           key={`mathinline-${index}`}
@@ -184,10 +202,13 @@ function parseInline(text: string): ReactNode[] {
     }
 
     // 5. Bold (e.g. **text** or __text__)
-    const boldMatch = remaining.match(/^\*\*([\s\S]+?)\*\*/) || remaining.match(/^__([\s\S]+?)__/);
+    let boldMatch = remaining.match(/^\*\*([\s\S]+?)\*\*/) || remaining.match(/^__([\s\S]+?)__/);
+    if (!boldMatch) {
+      boldMatch = remaining.match(/^\*\*([\s\S]+)$/) || remaining.match(/^__([\s\S]+)$/);
+    }
     if (boldMatch) {
       flushText();
-      const content = boldMatch[1];
+      const content = boldMatch[1] || boldMatch[2] || "";
       result.push(
         <strong key={`bold-${index}`} className="font-bold">
           {parseInline(content)}
@@ -198,10 +219,13 @@ function parseInline(text: string): ReactNode[] {
     }
 
     // 6. Italic (e.g. *text* or _text_)
-    const italicMatch = remaining.match(/^\*([^\*]+?)\*/) || remaining.match(/^_(.+?)_/);
+    let italicMatch = remaining.match(/^\*([^\*]+?)\*/) || remaining.match(/^_(.+?)_/);
+    if (!italicMatch) {
+      italicMatch = remaining.match(/^\*([^\*]+)$/) || remaining.match(/^_(.+)$/);
+    }
     if (italicMatch) {
       flushText();
-      const content = italicMatch[1];
+      const content = italicMatch[1] || italicMatch[2] || "";
       result.push(
         <em key={`italic-${index}`} className="italic">
           {parseInline(content)}
@@ -212,10 +236,13 @@ function parseInline(text: string): ReactNode[] {
     }
 
     // 7. Inline Code (e.g. `code`)
-    const codeMatch = remaining.match(/^`([^`]+?)`/);
+    let codeMatch = remaining.match(/^`([^`]+?)`/);
+    if (!codeMatch) {
+      codeMatch = remaining.match(/^`([^`]+)$/);
+    }
     if (codeMatch) {
       flushText();
-      const content = codeMatch[1];
+      const content = codeMatch[1] || "";
       result.push(
         <code
           key={`code-${index}`}
@@ -514,15 +541,172 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
 }
 
 
+function BoxPlotChart({ data, xLabel, yLabel }: { data: any[]; xLabel?: string; yLabel?: string }) {
+  const padding = { top: 20, right: 30, bottom: 50, left: 55 };
+  const width = 500;
+  const height = 300;
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+
+  const allValues = data.flatMap(d => [d.min, d.q1, d.median, d.q3, d.max].filter(v => typeof v === "number"));
+  if (allValues.length === 0) {
+    return <div className="text-body-sm text-muted-foreground py-10">Tidak ada data untuk Box Plot</div>;
+  }
+  const minVal = Math.min(...allValues);
+  const maxVal = Math.max(...allValues);
+  const valRange = maxVal - minVal || 1;
+  const yMin = minVal - valRange * 0.15;
+  const yMax = maxVal + valRange * 0.15;
+
+  const mapY = (val: number) => {
+    return padding.top + plotHeight - ((val - yMin) / (yMax - yMin)) * plotHeight;
+  };
+
+  const mapX = (index: number) => {
+    return padding.left + (index + 0.5) * (plotWidth / data.length);
+  };
+
+  const ticksCount = 5;
+  const ticks = Array.from({ length: ticksCount }).map((_, idx) => {
+    return yMin + (idx * (yMax - yMin)) / (ticksCount - 1);
+  });
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-w-[500px] mx-auto select-none">
+        {ticks.map((tick, idx) => (
+          <g key={idx}>
+            <line
+              x1={padding.left}
+              y1={mapY(tick)}
+              x2={width - padding.right}
+              y2={mapY(tick)}
+              className="stroke-border/45"
+              strokeWidth={0.65}
+            />
+            <text
+              x={padding.left - 10}
+              y={mapY(tick)}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="fill-muted-foreground text-[10px] font-sans"
+            >
+              {tick.toFixed(1)}
+            </text>
+          </g>
+        ))}
+
+        {yLabel && (
+          <text
+            transform={`rotate(-90 15 ${height / 2})`}
+            x={15}
+            y={height / 2}
+            textAnchor="middle"
+            className="fill-foreground text-[11px] font-heading font-bold"
+          >
+            {yLabel}
+          </text>
+        )}
+
+        {data.map((d, idx) => {
+          const cx = mapX(idx);
+          const yMinPos = mapY(d.min ?? 0);
+          const yQ1Pos = mapY(d.q1 ?? 0);
+          const yMedPos = mapY(d.median ?? 0);
+          const yQ3Pos = mapY(d.q3 ?? 0);
+          const yMaxPos = mapY(d.max ?? 0);
+          
+          const boxWidth = Math.min(50, (plotWidth / data.length) * 0.5);
+          const halfWidth = boxWidth / 2;
+
+          return (
+            <g key={idx}>
+              <line x1={cx} y1={yMinPos} x2={cx} y2={yQ1Pos} className="stroke-brand-primary" strokeWidth={1.5} />
+              <line x1={cx} y1={yQ3Pos} x2={cx} y2={yMaxPos} className="stroke-brand-primary" strokeWidth={1.5} />
+              
+              <line x1={cx - 6} y1={yMinPos} x2={cx + 6} y2={yMinPos} className="stroke-brand-primary" strokeWidth={1.5} />
+              <line x1={cx - 6} y1={yMaxPos} x2={cx + 6} y2={yMaxPos} className="stroke-brand-primary" strokeWidth={1.5} />
+
+              <rect
+                x={cx - halfWidth}
+                y={yQ3Pos}
+                width={boxWidth}
+                height={Math.max(2, yQ1Pos - yQ3Pos)}
+                fill="var(--color-brand-primary)"
+                fillOpacity={0.15}
+                className="stroke-brand-primary hover:fill-opacity-25 transition-all"
+                strokeWidth={1.5}
+                rx={4}
+              />
+
+              <line
+                x1={cx - halfWidth}
+                y1={yMedPos}
+                x2={cx + halfWidth}
+                y2={yMedPos}
+                className="stroke-brand-secondary"
+                strokeWidth={2}
+              />
+
+              <text
+                x={cx}
+                y={height - padding.bottom + 20}
+                textAnchor="middle"
+                className="fill-muted-foreground text-[10px] font-sans"
+              >
+                {d.x}
+              </text>
+            </g>
+          );
+        })}
+
+        {xLabel && (
+          <text
+            x={padding.left + plotWidth / 2}
+            y={height - 10}
+            textAnchor="middle"
+            className="fill-foreground text-[11px] font-heading font-bold"
+          >
+            {xLabel}
+          </text>
+        )}
+      </svg>
+    </div>
+  );
+}
+
 function ChartRenderer({ data, title, caption }: { data: any; title?: string; caption?: string }) {
   const chartType = data.chartType;
   const xLabel = data.xLabel;
   const yLabel = data.yLabel;
   
-  const formattedData = (data.data || []).map((point: any) => ({
-    x: point[0],
-    y: point[1],
-  }));
+  const formattedData = (data.data || []).map((point: any) => {
+    if (chartType === "box") {
+      if (point.length >= 6) {
+        return {
+          x: point[0],
+          min: Number(point[1]),
+          q1: Number(point[2]),
+          median: Number(point[3]),
+          q3: Number(point[4]),
+          max: Number(point[5]),
+        };
+      }
+      const val = Number(point[1]) || 0;
+      return {
+        x: point[0],
+        min: val * 0.8,
+        q1: val * 0.9,
+        median: val,
+        q3: val * 1.1,
+        max: val * 1.2,
+      };
+    }
+    return {
+      x: point[0],
+      y: Number(point[1]) || 0,
+    };
+  });
 
   const renderChart = () => {
     switch (chartType) {
@@ -558,6 +742,22 @@ function ChartRenderer({ data, title, caption }: { data: any; title?: string; ca
             <Tooltip contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", borderRadius: "12px" }} />
           </PieChart>
         );
+      case "area":
+        return (
+          <AreaChart data={formattedData}>
+            <defs>
+              <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--color-brand-primary)" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="var(--color-brand-primary)" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
+            <XAxis dataKey="x" label={xLabel ? { value: xLabel, position: "insideBottom", offset: -5 } : undefined} />
+            <YAxis label={yLabel ? { value: yLabel, angle: -90, position: "insideLeft" } : undefined} />
+            <Tooltip contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", borderRadius: "12px" }} />
+            <Area type="monotone" dataKey="y" stroke="var(--color-brand-primary)" fillOpacity={1} fill="url(#colorArea)" strokeWidth={2} />
+          </AreaChart>
+        );
       case "line":
       default:
         return (
@@ -571,6 +771,16 @@ function ChartRenderer({ data, title, caption }: { data: any; title?: string; ca
         );
     }
   };
+
+  if (chartType === "box") {
+    return (
+      <div className="my-6 p-5 border border-border bg-card shadow-xs rounded-xl text-center">
+        {title && <h4 className="font-heading text-body-base font-bold text-foreground mb-4">{renderRichText(title)}</h4>}
+        <BoxPlotChart data={formattedData} xLabel={xLabel} yLabel={yLabel} />
+        {caption && <p className="mt-3 text-body-sm text-muted-foreground italic">{renderRichText(caption)}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="my-6 p-5 border border-border bg-card shadow-xs rounded-xl text-center">
@@ -818,7 +1028,8 @@ function FlowchartDiagramRenderer({ data, title, caption }: { data: any; title?:
           style: { stroke: "var(--color-border)" },
         }));
 
-        const layoutResult = await getLayoutedGraph(reactFlowNodes, reactFlowEdges);
+        const dir = (data.direction === "DOWN" || data.diagramType === "TD" || data.diagramType === "TB" || data.diagramType === "vertical") ? "DOWN" : "RIGHT";
+        const layoutResult = await getLayoutedGraph(reactFlowNodes, reactFlowEdges, dir);
 
         console.log("ReactFlow Pipeline:", {
           nodes: reactFlowNodes,
@@ -906,6 +1117,87 @@ export function VisualRenderer({
     default:
       return null;
   }
+}
+
+function parseMermaidToDiagramData(content: string) {
+  const lines = content.split("\n");
+  const edges: any[] = [];
+  const nodeMap = new Map<string, { id: string; label: string; stepNumber?: number }>();
+  let direction = "RIGHT";
+
+  const registerNode = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+
+    const nodeMatch = trimmed.match(/^([a-zA-Z0-9_-]+)(?:\["([\s\S]*?)"\]|\[([\s\S]*?)\]|\("([\s\S]*?)"\)|\(([\s\S]*?)\)|\{"([\s\S]*?)"\}|\{([\s\S]*?)\})?/);
+    if (nodeMatch) {
+      const id = nodeMatch[1];
+      const label = nodeMatch[2] || nodeMatch[3] || nodeMatch[4] || nodeMatch[5] || nodeMatch[6] || nodeMatch[7] || id;
+
+      const cleanId = id.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+
+      const stepMatch = label.match(/^(?:Langkah|Step|Phase|Stage)\s*(\d+)\s*[:.-]\s*(.+)$/i);
+      const stepNumber = stepMatch ? parseInt(stepMatch[1], 10) : undefined;
+      const cleanLabelText = stepMatch ? stepMatch[2].trim() : label.trim();
+
+      if (!nodeMap.has(cleanId)) {
+        nodeMap.set(cleanId, { id: cleanId, label: cleanLabelText, stepNumber });
+      }
+      return cleanId;
+    }
+
+    const cleanId = trimmed.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+    if (!nodeMap.has(cleanId)) {
+      nodeMap.set(cleanId, { id: cleanId, label: trimmed });
+    }
+    return cleanId;
+  };
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("%%")) return;
+
+    if (trimmed.startsWith("graph") || trimmed.startsWith("flowchart")) {
+      const dirMatch = trimmed.match(/\b(TD|TB|LR|BT|RL)\b/i);
+      if (dirMatch) {
+        const d = dirMatch[1].toUpperCase();
+        if (d === "TD" || d === "TB") {
+          direction = "DOWN";
+        } else {
+          direction = "RIGHT";
+        }
+      }
+      return;
+    }
+
+    const edgeRegex = /^([\s\S]+?)\s*(?:-->|--\s*([\s\S]*?)\s*-->|-->\s*\|([\s\S]*?)\|)\s*([\s\S]+)$/;
+    const match = trimmed.match(edgeRegex);
+    if (match) {
+      const rawSource = match[1].trim();
+      const edgeLabel = (match[2] || match[3] || "").trim();
+      const rawTarget = match[4].trim();
+
+      const sourceId = registerNode(rawSource);
+      const targetId = registerNode(rawTarget);
+
+      if (sourceId && targetId) {
+        edges.push({
+          source: sourceId,
+          target: targetId,
+          label: edgeLabel || undefined,
+        });
+      }
+    } else {
+      registerNode(trimmed);
+    }
+  });
+
+  return {
+    nodes: Array.from(nodeMap.values()),
+    edges,
+    direction,
+    diagramType: direction === "DOWN" ? "TD" : "LR"
+  };
 }
 
 function ASTBlockRenderer({ block }: { block: ASTBlock }) {
@@ -1096,6 +1388,18 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
         return (
           <InteractiveGraphWidget
             initialFormula={block.content}
+          />
+        );
+      }
+      if (block.language === "mermaid") {
+        const parsedData = parseMermaidToDiagramData(block.content);
+        return (
+          <VisualRenderer
+            id={block.id}
+            visualType="diagram"
+            title={undefined}
+            caption={undefined}
+            data={parsedData}
           />
         );
       }
