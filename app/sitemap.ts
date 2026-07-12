@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { courses, aiMaterialInstances, diktats, quizTemplates, exams, blogArticles } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||

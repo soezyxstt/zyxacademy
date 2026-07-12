@@ -266,7 +266,7 @@ export const VISUAL_TYPES = {
 } as const;
 
 export const ChartVisualDataSchema = z.object({
-  chartType: z.enum(["line", "bar", "scatter", "histogram", "pie"]),
+  chartType: z.enum(["line", "bar", "scatter", "histogram", "pie", "area", "box"]),
   xLabel: z.string().optional(),
   yLabel: z.string().optional(),
   data: z.array(z.array(z.union([z.number(), z.string()]))),
