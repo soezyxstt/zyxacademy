@@ -131,14 +131,17 @@ export function AiAnalyticsClient() {
 
   if (!stats || stats.totalRequests === 0) {
     return (
-      <div className="rounded-xl border border-border bg-muted/40 p-10 text-center">
-        <p className="text-h6 font-heading font-semibold text-foreground">
-          No model requests recorded yet
-        </p>
-        <p className="mt-2 text-body-sm text-muted-foreground">
-          Stats accumulate while the server process is running. Trigger an inference
-          operation (quiz generation, KO extraction, etc.) to see data here.
-        </p>
+      <div className="space-y-8">
+        <div className="rounded-xl border border-border bg-muted/40 p-10 text-center">
+          <p className="text-h6 font-heading font-semibold text-foreground">
+            No model requests recorded yet
+          </p>
+          <p className="mt-2 text-body-sm text-muted-foreground">
+            Stats accumulate while the server process is running. Trigger an inference
+            operation (quiz generation, KO extraction, etc.) to see data here.
+          </p>
+        </div>
+        <ZyraUsageCharts />
       </div>
     );
   }

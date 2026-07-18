@@ -821,7 +821,21 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
   const curves = functions.map((fnStr: string) => {
     let code: any = null;
     try {
-      const cleanFn = fnStr.replace(/^\s*y\s*=\s*/, "").trim();
+      let cleanFn = fnStr.trim();
+      // Remove LaTeX delimiters if present
+      cleanFn = cleanFn.replace(/^\$+/, "").replace(/\$+$/, "").trim();
+      // Remove 'y =' prefix
+      cleanFn = cleanFn.replace(/^\s*y\s*=\s*/, "").trim();
+      
+      // Basic LaTeX to MathJS sanitization
+      cleanFn = cleanFn.replace(/\\frac\s*\{([^}]+)\}\s*\{([^}]+)\}/g, "($1/$2)");
+      cleanFn = cleanFn.replace(/\\cdot/g, "*");
+      cleanFn = cleanFn.replace(/\\times/g, "*");
+      cleanFn = cleanFn.replace(/\\left\(/g, "(");
+      cleanFn = cleanFn.replace(/\\right\)/g, ")");
+      cleanFn = cleanFn.replace(/\\/g, "");
+      cleanFn = cleanFn.replace(/[{}]/g, "");
+
       code = math.compile(cleanFn);
     } catch (err) {
       console.error("MathJS compilation failed for:", fnStr, err);
