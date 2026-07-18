@@ -166,6 +166,48 @@ Use the **`photo-*`** classes on `<img>` or `next/image` for consistent crop, ra
 
 ---
 
+## Date & Time Handling
+
+All date/time utilities live in **`lib/date-utils.ts`**. The library is `date-fns` (v4). Never hand-roll date formatting or arithmetic.
+
+### SQLite / Turso date storage
+
+SQLite stores dates as **integer epoch seconds**. Drizzle ORM's `{ mode: "timestamp" }` converts automatically, but raw `sql` queries can leak raw integers. The `normalizeDate()` adapter handles the seconds-vs-milliseconds ambiguity (detects year > 3000 and divides by 1000). Always pass raw SQLite integer timestamps through `normalizeDate()` before using them as Date objects.
+
+### DB text columns for date-only values
+
+Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendations, analytics snapshots). Use `todayUtc()` or `formatIsoDate(date)` to produce these strings. Never use `toISOString().slice(0, 10)` or `toISOString().split("T")[0]` inline.
+
+### Mandatory imports (never duplicate these)
+
+| Need | Import from `@/lib/date-utils` | Notes |
+|------|--------------------------------|-------|
+| SQLite integer → Date | `normalizeDate(value)` | Safe for Date, string, or number input |
+| Today as `yyyy-MM-dd` UTC | `todayUtc()` | For DB text columns, KV keys, rate-limit windows |
+| Yesterday as `yyyy-MM-dd` UTC | `yesterdayUtc()` | For streak comparisons |
+| Format Date → `yyyy-MM-dd` (local) | `formatIsoDate(date)` | Display labels, date-only DB columns |
+| Format Date → `yyyy-MM-dd` (UTC) | `formatIsoDateUtc(date)` | When UTC components are needed explicitly |
+| Format → `yyyy-MM-dd'T'HH:mm` | `formatDatetimeLocal(d)` | `<input type="datetime-local">` values |
+| Numeric DB timestamp → ISO string | `toIsoTimestamp(val)` | Returns null for falsy/zero |
+| Start of day (local) | `startOfDay(date?)` | For query boundaries in local time |
+| Start of day (UTC) | `startOfDayUtc(date?)` | For query boundaries in UTC |
+| N days ago | `daysAgo(n, from?)` | Date arithmetic without `setDate()` |
+| N weeks ago | `weeksAgo(n, from?)` | Date arithmetic without manual offsets |
+| Previous Mon–Sun range | `previousWeekRange(now?)` | Returns `{ monday, sunday }` with correct boundaries |
+
+### Rules
+
+1. **Never hand-roll `yyyy-MM-dd` formatting.** Use `formatIsoDate()` or `todayUtc()`.
+2. **Never hand-roll `datetime-local` strings.** Use `formatDatetimeLocal()`.
+3. **Never do `new Date().toISOString().slice(0, 10)`.** Use `todayUtc()`.
+4. **Never use `setDate(getDate() - N)` or `setUTCDate(getUTCDate() - N)`.** Use `daysAgo(N)`.
+5. **Never use `new Date(y, m, d, 0, 0, 0, 0)` for start-of-day.** Use `startOfDay()` or `startOfDayUtc()`.
+6. **SQLite `strftime` in raw SQL** is acceptable for server-side queries (e.g. `strftime('%Y-%m-%d', datetime(col, 'unixepoch'))`), but prefer Drizzle's typed query builder when possible.
+7. **UTC vs local**: Use UTC functions (`todayUtc`, `startOfDayUtc`, `formatIsoDateUtc`) for DB text columns and server-side logic. Use local functions (`formatIsoDate`, `formatDatetimeLocal`, `startOfDay`) for UI display and form inputs.
+8. **Hydration safety**: Client components rendering dates must use the `FormattedDate` component (`components/ui/formatted-date.tsx`) or implement the same UTC-on-server / local-on-client pattern to avoid hydration mismatches.
+
+---
+
 ## Execution Rules
 
 1. Before writing code, read `db/schema.ts` and `lib/env.ts` for current schema/env state.

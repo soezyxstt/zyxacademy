@@ -18,6 +18,7 @@ import {
   saveTryoutQuestionAction,
   deleteTryoutQuestionAction,
 } from "@/app/actions/tutor-management";
+import { formatDatetimeLocal } from "@/lib/date-utils";
 
 interface TryoutExam {
   id: string;
@@ -78,20 +79,6 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
   const activeQuestions = activeExam
     ? initialQuestions.filter((q) => q.examId === activeExam.id).sort((a, b) => a.order - b.order)
     : [];
-
-  // Helper to format Date to datetime-local input string (YYYY-MM-DDTHH:mm)
-  function formatDatetimeLocal(d: Date | string | null | undefined): string {
-    if (!d) return "";
-    const date = new Date(d);
-    if (isNaN(date.getTime())) return "";
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    const yyyy = date.getFullYear();
-    const mm = pad(date.getMonth() + 1);
-    const dd = pad(date.getDate());
-    const hh = pad(date.getHours());
-    const min = pad(date.getMinutes());
-    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
-  }
 
   // ───────────────────────────────────────────────────────────────────────────
   // TRYOUT EXAM HANDLERS

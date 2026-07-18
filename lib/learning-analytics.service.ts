@@ -16,6 +16,7 @@ import { eq, and, gte, sql, inArray } from "drizzle-orm";
 import { StudentAnalytics, CourseAnalytics, ConsistencyMetrics, RetentionMetrics } from "@/types/learning-analytics";
 import { calculateConsistencyScore } from "./consistency-score";
 import { calculateRetentionScore } from "./retention-metrics";
+import { startOfDayUtc, daysAgo } from "@/lib/date-utils";
 
 /**
  * Service to aggregate, query, and compute learning analytics metrics.
@@ -27,19 +28,11 @@ export class LearningAnalyticsService {
    */
   private static getTimelineRanges() {
     const now = new Date();
-    
-    const startOfToday = new Date(now);
-    startOfToday.setUTCHours(0, 0, 0, 0);
-
-    const startOfWeek = new Date(now);
-    startOfWeek.setUTCDate(now.getUTCDate() - 7);
-    startOfWeek.setUTCHours(0, 0, 0, 0);
-
-    const startOfMonth = new Date(now);
-    startOfMonth.setUTCDate(now.getUTCDate() - 30);
-    startOfMonth.setUTCHours(0, 0, 0, 0);
-
-    return { startOfToday, startOfWeek, startOfMonth };
+    return {
+      startOfToday: startOfDayUtc(now),
+      startOfWeek: startOfDayUtc(daysAgo(7, now)),
+      startOfMonth: startOfDayUtc(daysAgo(30, now)),
+    };
   }
 
   /**
@@ -157,7 +150,10 @@ export class LearningAnalyticsService {
       );
     const events = await eventQuery;
     const uniqueDays = new Set(
-      events.map((e) => new Date(e.createdAt).toISOString().slice(0, 10))
+      events.map((e) => {
+        const d = new Date(e.createdAt);
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+      })
     );
     const activeDaysLast30 = uniqueDays.size;
 
@@ -374,13 +370,14 @@ export class LearningAnalyticsService {
 
     const dailyMap: Record<string, number> = {};
     for (let i = 0; i < 30; i++) {
-      const d = new Date();
-      d.setUTCDate(d.getUTCDate() - i);
-      dailyMap[d.toISOString().slice(0, 10)] = 0;
+      const d = daysAgo(i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      dailyMap[key] = 0;
     }
 
     events.forEach((e) => {
-      const dateStr = new Date(e.createdAt).toISOString().slice(0, 10);
+      const d = new Date(e.createdAt);
+      const dateStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
       if (dateStr in dailyMap) {
         let estimatedSeconds = 120;
         if (e.eventType === "material_completed") estimatedSeconds = 600;

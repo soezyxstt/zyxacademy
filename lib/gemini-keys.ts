@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { env } from '@/lib/env';
 import { getRpdLimit } from '@/lib/ai-router';
+import { todayUtc } from '@/lib/date-utils';
 
 export interface GeminiKey {
   id: string;
@@ -139,7 +140,7 @@ export class GeminiKeyPool {
   }
 
   private getTodayStr(): string {
-    return new Date().toISOString().slice(0, 10);
+    return todayUtc();
   }
 
   private cleanAndGetRpd(state: KeyModelSchedulerState): number {

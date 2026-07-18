@@ -10,28 +10,14 @@ import {
 } from "@/db/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { formatIsoDate, previousWeekRange } from "@/lib/date-utils";
 
 export function getPreviousWeekRange(now: Date) {
-  const day = now.getDay();
-  // If today is Sunday (0), we go back 6 days to Monday of current week, but we want previous week Monday so subtract 13 days
-  const diffToLastMonday = day === 0 ? 6 : day - 1;
-  
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - diffToLastMonday - 7);
-  monday.setHours(0, 0, 0, 0);
-  
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  
-  return { monday, sunday };
+  return previousWeekRange(now);
 }
 
 export function formatDateStr(date: Date): string {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  return formatIsoDate(date);
 }
 
 export async function computeWeeklyReflection(studentId: string, now: Date) {

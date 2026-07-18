@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { normalizeDate } from "@/lib/utils";
+import { normalizeDate } from "@/lib/date-utils";
 
 interface FormattedDateProps {
   date: Date | string | number;

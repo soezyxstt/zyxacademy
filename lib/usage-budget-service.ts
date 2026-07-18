@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { aiUsageEvents } from "@/db/schema";
 import { and, eq, gte, lt, ne, sql } from "drizzle-orm";
 import * as crypto from "crypto";
+import { todayUtc } from "@/lib/date-utils";
 
 /** Single source of truth for per-feature AI budgets (used by ops page + enforcement). */
 export const BUDGETS = {
@@ -15,8 +16,8 @@ export class UsageBudgetService {
    * Aggregates the number of usage events for a user on the current calendar date.
    */
   static async getDailyUsageCount(userId: string): Promise<number> {
-    const todayUtc = new Date().toISOString().slice(0, 10);
-    const startOfDay = new Date(`${todayUtc}T00:00:00.000Z`);
+    const today = todayUtc();
+    const startOfDay = new Date(`${today}T00:00:00.000Z`);
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(aiUsageEvents)

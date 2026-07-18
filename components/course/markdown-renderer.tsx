@@ -81,16 +81,17 @@ function parseInline(text: string): ReactNode[] {
     const remaining = text.slice(index);
 
     // 1. Math Block (e.g. $$...$$ or \[...\])
-    let mathBlockMatch = remaining.match(/^\$\$([\s\S]+?)\$\$/) || remaining.match(/^\\\[([\s\S]+?)\\\]/);
+    let mathBlockMatch = remaining.match(/^`?\$\$([\s\S]+?)\$\$`?/) || remaining.match(/^`?\\\[([\s\S]+?)\\\]`?/);
     if (!mathBlockMatch) {
-      const unclosedBlock = remaining.match(/^\$\$([\s\S]*)$/) || remaining.match(/^\\\[([\s\S]*)$/);
+      const unclosedBlock = remaining.match(/^`?\$\$([\s\S]*)$/) || remaining.match(/^`?\\\[([\s\S]*)$/);
       if (unclosedBlock) {
         mathBlockMatch = unclosedBlock;
       }
     }
     if (mathBlockMatch) {
       flushText();
-      const content = mathBlockMatch[1] || mathBlockMatch[2] || "";
+      let content = mathBlockMatch[1] || mathBlockMatch[2] || "";
+      if (content.endsWith("`")) content = content.substring(0, content.length - 1);
       result.push(
         <span
           key={`mathblk-${index}`}
@@ -103,11 +104,12 @@ function parseInline(text: string): ReactNode[] {
     }
 
     // 2. Math Inline (e.g. $...$ or \(...\))
-    let mathInlineMatch = remaining.match(/^\$([^\$\n]+?)\$/) || remaining.match(/^\\\(([\s\S]+?)\\\)/);
+    let mathInlineMatch = remaining.match(/^`?\$([^$]+?)\$`?/) || remaining.match(/^`?\\\(([\s\S]+?)\\\)`?/);
     if (!mathInlineMatch) {
-      const unclosedInline = remaining.match(/^\$([^\$\n]+)$/) || remaining.match(/^\\\(([\s\S]+)$/);
+      const unclosedInline = remaining.match(/^`?\$([^$]+)$/) || remaining.match(/^`?\\\(([\s\S]+)$/);
       if (unclosedInline) {
-        const content = unclosedInline[1] || unclosedInline[2] || "";
+        let content = unclosedInline[1] || unclosedInline[2] || "";
+        if (content.endsWith("`")) content = content.substring(0, content.length - 1);
         const looksLikeMath = /[\+\-\*\/=\\_\^<>]/g.test(content) || content.includes(" ") || content.length > 5;
         if (looksLikeMath) {
           mathInlineMatch = unclosedInline;
@@ -116,7 +118,8 @@ function parseInline(text: string): ReactNode[] {
     }
     if (mathInlineMatch) {
       flushText();
-      const content = mathInlineMatch[1] || mathInlineMatch[2] || "";
+      let content = mathInlineMatch[1] || mathInlineMatch[2] || "";
+      if (content.endsWith("`")) content = content.substring(0, content.length - 1);
       result.push(
         <span
           key={`mathinline-${index}`}

@@ -30,9 +30,7 @@ interface Payload {
   items: PlanItem[];
 }
 
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+import { todayUtc } from "@/lib/date-utils";
 
 async function buildPlan(
   studentId: string,

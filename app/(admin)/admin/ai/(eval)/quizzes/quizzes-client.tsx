@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { getQuizTemplatePreviewAction } from "@/app/actions/tutor-management";
 import { MathText } from "@/components/course/math-text";
+import { formatDatetimeLocal } from "@/lib/date-utils";
 
 type TemplateType = {
   id: string;
@@ -87,13 +88,6 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
   const [openAt, setOpenAt] = useState("");
   const [closeAt, setCloseAt] = useState("");
   const [manualStatus, setManualStatus] = useState<TemplateType["manualStatus"]>("scheduled");
-
-  const formatDatetimeLocal = (date?: Date | string | null) => {
-    if (!date) return "";
-    const d = new Date(date);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
 
   const handleOpenCreate = () => {
     setEditingTemplate(null);

@@ -9,6 +9,7 @@
  */
 
 import { env } from '@/lib/env';
+import { todayUtc } from '@/lib/date-utils';
 
 const TIMEOUT_MS = 1500;
 const WRITE_DAILY_LIMIT = 900;
@@ -48,7 +49,7 @@ export async function kvGet<T = unknown>(key: string): Promise<T | null> {
 }
 
 function todayKey(): string {
-  return `meta:writes:${new Date().toISOString().slice(0, 10)}`;
+  return `meta:writes:${todayUtc()}`;
 }
 
 /**

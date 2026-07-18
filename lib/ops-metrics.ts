@@ -10,6 +10,7 @@ import {
 import { sql, eq, gte, and, ne } from "drizzle-orm";
 import { kvGet } from "@/lib/kv-cache";
 import { BUDGETS } from "@/lib/usage-budget-service";
+import { toIsoTimestamp, startOfDay, todayUtc } from "@/lib/date-utils";
 
 export { BUDGETS };
 
@@ -43,18 +44,11 @@ export interface OpsMetrics {
   checkedAt: string;
 }
 
-function toIso(val: unknown): string | null {
-  const n = Number(val);
-  if (!val || isNaN(n) || n === 0) return null;
-  return new Date(n).toISOString();
-}
-
 export async function getOpsMetrics(): Promise<OpsMetrics> {
   const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
+  const dayStart = startOfDay(now);
   const h24Ago = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const todayKey = `meta:writes:${now.toISOString().slice(0, 10)}`;
+  const todayKey = `meta:writes:${todayUtc()}`;
 
   const [usageRows, syncDepthRows, failureRows, latestRecRows, latestSnapshotRows, latestPathRows, kvWriteRaw] =
     await Promise.all([
@@ -66,7 +60,7 @@ export async function getOpsMetrics(): Promise<OpsMetrics> {
           tokens: sql<number>`coalesce(sum(${aiUsageEvents.tokens}), 0)`,
         })
         .from(aiUsageEvents)
-        .where(gte(aiUsageEvents.createdAt, startOfDay))
+        .where(gte(aiUsageEvents.createdAt, dayStart))
         .groupBy(aiUsageEvents.feature, aiUsageEvents.requestType),
 
       db
@@ -139,9 +133,9 @@ export async function getOpsMetrics(): Promise<OpsMetrics> {
     jobFailures24h: Number(failureRows[0]?.count ?? 0),
     syncQueueDepth: Number(syncDepthRows[0]?.count ?? 0),
     jobHealth: {
-      recommendationsLastAt: toIso(latestRecRows[0]?.at),
-      snapshotsLastAt: toIso(latestSnapshotRows[0]?.at),
-      pathsLastAt: toIso(latestPathRows[0]?.at),
+      recommendationsLastAt: toIsoTimestamp(latestRecRows[0]?.at),
+      snapshotsLastAt: toIsoTimestamp(latestSnapshotRows[0]?.at),
+      pathsLastAt: toIsoTimestamp(latestPathRows[0]?.at),
     },
     budgets: BUDGETS,
     checkedAt: now.toISOString(),

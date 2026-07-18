@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { cn, normalizeDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { normalizeDate } from "@/lib/date-utils";
 import {
   createAndSendPkaAnnouncementAction,
   archivePkaAnnouncementAction,

@@ -1,16 +1,7 @@
 import { db } from "@/db";
 import { studentStreaks, learningEvents } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-
-function todayUtc(): string {
- return new Date().toISOString().slice(0, 10);
-}
-
-function yesterdayUtc(): string {
- const d = new Date();
- d.setUTCDate(d.getUTCDate() - 1);
- return d.toISOString().slice(0, 10);
-}
+import { todayUtc, yesterdayUtc, formatIsoDateUtc } from "@/lib/date-utils";
 
 async function hasActivityOn(studentId: string, dateStr: string): Promise<boolean> {
  const [row] = await db
@@ -92,10 +83,7 @@ export async function getWeeklyActivity(studentId: string): Promise<boolean[]> {
  for (let i = 0; i < 7; i++) {
  const d = new Date(monday);
  d.setUTCDate(monday.getUTCDate() + i);
- const yyyy = d.getUTCFullYear();
- const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
- const dd = String(d.getUTCDate()).padStart(2, "0");
- dates.push(`${yyyy}-${mm}-${dd}`);
+ dates.push(formatIsoDateUtc(d));
  }
 
  const results = await Promise.all(

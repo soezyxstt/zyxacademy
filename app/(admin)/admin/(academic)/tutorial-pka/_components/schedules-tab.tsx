@@ -30,13 +30,7 @@ import {
   deletePkaScheduleAction,
   type PkaScheduleRow,
 } from "../actions";
-
-/** Format a Date as a `datetime-local` value in the browser's timezone. */
-function toDatetimeLocal(date: Date): string {
-  const d = new Date(date);
-  const tzOffset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
-}
+import { formatDatetimeLocal } from "@/lib/date-utils";
 
 export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
   const [isPending, startTransition] = useTransition();
@@ -69,7 +63,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
 
   const handleOpenEdit = (item: PkaScheduleRow) => {
     setTitle(item.title);
-    setSessionAt(toDatetimeLocal(item.sessionAt));
+    setSessionAt(formatDatetimeLocal(item.sessionAt));
     setMeetLink(item.meetLink || "");
     setEditItem(item);
     setIsFormOpen(true);

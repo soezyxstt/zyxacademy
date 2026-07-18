@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { normalizeDate } from "@/lib/utils";
+import { normalizeDate } from "@/lib/date-utils";
 import type { PkaRegistrationRow } from "../actions";
 
 
