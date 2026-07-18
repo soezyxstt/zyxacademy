@@ -161,6 +161,28 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
     }
   };
 
+  const handleUpdateShowDiscussion = async (templateId: string, showDiscussion: boolean) => {
+    try {
+      setTemplates((prev) =>
+        prev.map((t) => (t.id === templateId ? { ...t, showDiscussion } : t))
+      );
+
+      const res = await fetch(`/api/quiz/templates/${templateId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ showDiscussion }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update discussion status");
+      }
+
+      toast.success(showDiscussion ? 'Pembahasan dibuka.' : 'Pembahasan ditutup.');
+    } catch {
+      toast.error("Gagal memperbarui status pembahasan.");
+    }
+  };
+
   const handleUpdateStatus = async (templateId: string, newStatus: TemplateType["status"]) => {
     try {
       setTemplates((prev) =>
@@ -571,6 +593,34 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
       >
         Jadwal
       </Button>
+    </div>
+    
+    <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t border-border/40">
+      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Pembahasan:</span>
+      <div className="flex gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            "text-[10px] h-7 px-3 rounded-md cursor-pointer",
+            (template as any).showDiscussion ? "bg-brand-primary/15 text-brand-primary font-bold border-brand-primary/30" : "text-muted-foreground hover:bg-muted border-dashed"
+          )}
+          onClick={() => handleUpdateShowDiscussion(template.id, true)}
+        >
+          Tampil
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            "text-[10px] h-7 px-3 rounded-md cursor-pointer",
+            !(template as any).showDiscussion ? "bg-muted text-muted-foreground font-bold border-border" : "text-muted-foreground hover:bg-muted border-dashed"
+          )}
+          onClick={() => handleUpdateShowDiscussion(template.id, false)}
+        >
+          Sembunyi
+        </Button>
+      </div>
     </div>
   </div>
   </div>

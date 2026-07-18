@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle, Sparkles } from "lucide-react";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pkaSimulationStages, quizTemplates, studentQuizAttempts } from "@/db/schema";
@@ -154,8 +154,14 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                         })}
                       </ul>
                       {q.explanation && (
-                        <div className="mt-3 ml-9 rounded-lg border border-border/60 bg-muted/30 p-3 text-body-sm text-foreground/80">
-                          <MarkdownRenderer content={q.explanation} className="space-y-3" />
+                        <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
+                          <div className="flex items-center gap-2 text-brand-primary">
+                            <Sparkles className="size-4 animate-pulse" />
+                            <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
+                          </div>
+                          <div className="text-body-sm text-muted-foreground leading-relaxed">
+                            <MarkdownRenderer content={q.explanation} className="space-y-3" />
+                          </div>
                         </div>
                       )}
                       {!isCorrect && (

@@ -135,7 +135,7 @@ interface GenerateContentParams {
 
 export async function generateContentWithFallback(
   params: GenerateContentParams,
-): Promise<{ response: any; modelUsed: string; viaGateway: boolean }> {
+): Promise<{ response: any; modelUsed: string; viaGateway: boolean; promptTokenCount?: number; candidatesTokenCount?: number; }> {
   // Mock mode ; unchanged from original implementation (kept for testing)
   if (process.env.MOCK_GEMINI === 'true') {
   const contentsStr = typeof params.contents === 'string' ? params.contents : JSON.stringify(params.contents);
@@ -173,6 +173,8 @@ export async function generateContentWithFallback(
  config: params.config,
  })
  );
+ const promptTokenCount = response.usageMetadata?.promptTokenCount ?? 0;
+ const candidatesTokenCount = response.usageMetadata?.candidatesTokenCount ?? 0;
  logAiRequest({
  operation: 'generateContent',
  model,
@@ -181,7 +183,7 @@ export async function generateContentWithFallback(
  success: true,
  });
  geminiKeyPool.markSuccess(key.id, model);
- return { response, modelUsed: model, viaGateway };
+ return { response, modelUsed: model, viaGateway, promptTokenCount, candidatesTokenCount };
  } catch (err: any) {
  lastError = err;
  geminiKeyPool.markFailure(key.id, model, err);

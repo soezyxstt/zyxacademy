@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { 
  Sparkles, 
  BookOpen, 
@@ -528,12 +529,15 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  <Sparkles className="size-5 animate-pulse" />
  </div>
  <div className="space-y-0.5 text-left flex-1 min-w-0">
- <SheetTitle className="font-heading text-body-base font-bold text-foreground">
- {activeMode === "explain" && "Penjelasan Konsep"}
- {activeMode === "mistake" && "Analisis Kesalahan Kuis"}
- {activeMode === "study-plan" && "Rencana Studi Mandiri"}
- {activeMode === "chat" && "Tanya Zyra"}
- </SheetTitle>
+  <SheetTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+  <span>
+  {activeMode === "explain" && "Penjelasan Konsep"}
+  {activeMode === "mistake" && "Analisis Kesalahan Kuis"}
+  {activeMode === "study-plan" && "Rencana Studi Mandiri"}
+  {activeMode === "chat" && "Tanya Zyra"}
+  </span>
+  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-sans font-medium">Beta</Badge>
+  </SheetTitle>
  <SheetDescription className="text-body-xs text-muted-foreground">
  Zyra · Asisten Belajar Zyx
  </SheetDescription>

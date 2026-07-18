@@ -46,6 +46,8 @@ export class PromptExecutor {
 
     let modelUsedName = "mock-model";
     let rawText = "";
+    let inputTokens = 0;
+    let outputTokens = 0;
 
     try {
       // 2. Invoke AI Router via fallback wrapper with use case routing
@@ -57,6 +59,8 @@ export class PromptExecutor {
 
       modelUsedName = result.modelUsed;
       rawText = result.response.text || "";
+      inputTokens = result.promptTokenCount ?? 0;
+      outputTokens = result.candidatesTokenCount ?? 0;
     } catch (err: any) {
       return {
         success: false,
@@ -87,7 +91,9 @@ export class PromptExecutor {
         userId: params.userId,
         feature,
         model: modelUsedName,
-        tokens: 0,
+        tokens: inputTokens + outputTokens,
+        inputTokens,
+        outputTokens,
         requestType: params.prompt.version,
       });
 
@@ -137,6 +143,8 @@ Please output a corrected, fully compliant JSON object matching the requested sc
 
     let modelUsedName = originalModel;
     let rawText = "";
+    let inputTokens = 0;
+    let outputTokens = 0;
 
     try {
       const result = await generateContentWithFallback({
@@ -147,6 +155,8 @@ Please output a corrected, fully compliant JSON object matching the requested sc
 
       modelUsedName = result.modelUsed;
       rawText = result.response.text || "";
+      inputTokens = result.promptTokenCount ?? 0;
+      outputTokens = result.candidatesTokenCount ?? 0;
     } catch (err: any) {
       return {
         success: false,
@@ -164,7 +174,9 @@ Please output a corrected, fully compliant JSON object matching the requested sc
         userId: params.userId,
         feature,
         model: modelUsedName,
-        tokens: 0,
+        tokens: inputTokens + outputTokens,
+        inputTokens,
+        outputTokens,
         requestType: `${params.prompt.version}:repaired`,
       });
 

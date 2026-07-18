@@ -96,18 +96,6 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                 </Button>
               );
             }
-            if (!isOpen) {
-              return (
-                <Button
-                  disabled
-                  variant="outline"
-                  size="sm"
-                  className="rounded-md md:justify-self-end border-dashed"
-                >
-                  Belum Buka
-                </Button>
-              );
-            }
             if (isClosed) {
               return (
                 <Button
@@ -117,6 +105,18 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                   className="rounded-md md:justify-self-end border-dashed"
                 >
                   Ditutup
+                </Button>
+              );
+            }
+            if (!isOpen) {
+              return (
+                <Button
+                  disabled
+                  variant="outline"
+                  size="sm"
+                  className="rounded-md md:justify-self-end border-dashed"
+                >
+                  Belum Buka
                 </Button>
               );
             }
@@ -138,7 +138,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
             <li key={tryout.id} className="border-b border-border/60 last:border-0">
               <div
                 className={cn(
-                  "grid gap-3 px-4 py-3 transition-colors md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-center",
+                  "grid gap-3 px-4 py-3 transition-colors md:grid-cols-[minmax(0,1fr)_160px_180px] md:items-center",
                   canStart ? "hover:bg-muted/30" : "bg-card/45 text-muted-foreground",
                 )}
               >

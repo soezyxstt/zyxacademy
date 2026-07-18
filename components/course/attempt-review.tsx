@@ -12,10 +12,12 @@ import {
  Layers,
  ListChecks,
  BookOpen,
+ Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
+import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 
 interface QuestionSnapshot {
  id: string;
@@ -337,26 +339,27 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
 
  {/* Mistake feedback */}
  {!isCorrect && (
- <div className="mt-4">
+ <div className="mt-5 border-t border-border/80 pt-5">
  {hasFb ? (
- <div>
+ <div className="space-y-4">
  <Button
  variant="ghost"
  size="sm"
  onClick={() => toggleFeedback(idx)}
- className="text-body-sm font-medium flex items-center gap-1 text-muted-foreground hover:text-foreground p-0 h-auto"
+ className="text-body-sm font-medium flex items-center gap-2 text-brand-primary hover:bg-transparent hover:text-brand-primary/80 p-0 h-auto"
  >
+ <Sparkles className="size-4 animate-pulse" />
+ <span className="font-heading font-bold uppercase tracking-wider text-body-xs">Analisis Kesalahan oleh Zyra</span>
  <ChevronDown
  className={cn(
- "size-4 transition-transform duration-200",
+ "size-4 transition-transform duration-200 text-muted-foreground",
  openFeedback[idx] && "rotate-180"
  )}
  />
- <span>Mengapa jawaban saya salah?</span>
  </Button>
 
  {openFeedback[idx] && (
- <div className="animate-in fade-in duration-200 mt-3 pl-4 border-l-2 border-status-error/40 space-y-3">
+ <div className="animate-in fade-in duration-200 pl-4 border-l-2 border-brand-primary/30 space-y-3">
  {fbItem.payload.misconceptionName && (
  <h6 className="text-body-sm font-semibold text-foreground">
  Miskonsep: {fbItem.payload.misconceptionName}
@@ -375,19 +378,26 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  </ol>
  </div>
  )}
+ <div className="flex flex-wrap items-center gap-3 pt-2">
+ <MistakeFeedbackButton
+ questionId={q.id}
+ selectedAnswer={submittedLabel || "(tidak menjawab)"}
+ />
  <Link
  href={fbItem.payload.reviewHref}
- className="inline-flex items-center text-primary text-body-sm hover:underline mt-1"
+ className="inline-flex items-center text-primary text-body-sm hover:underline"
  >
  Tinjau Konsep Ini
  </Link>
  </div>
+ </div>
  )}
  </div>
  ) : isFeedbackPending ? (
- <div className="flex items-center gap-2 text-body-sm text-muted-foreground mt-2">
- <Loader2 className="animate-spin size-3.5 text-primary" />
- <span>Menganalisis kesalahan...</span>
+ <div className="flex items-center gap-2 text-body-sm text-brand-primary mt-2 font-medium">
+ <Loader2 className="animate-spin size-3.5" />
+ <Sparkles className="size-3.5 animate-pulse" />
+ <span>Zyra sedang menganalisis kesalahan...</span>
  </div>
  ) : isFeedbackTimeout ? (
  <div className="flex items-center gap-2 py-2 text-status-error text-body-sm">

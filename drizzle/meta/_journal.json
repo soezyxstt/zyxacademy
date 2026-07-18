@@ -302,6 +302,20 @@
       "when": 1783881215046,
       "tag": "0042_parallel_thundra",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1784341429160,
+      "tag": "0043_freezing_scarlet_spider",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1784344435267,
+      "tag": "0044_wide_loa",
+      "breakpoints": true
     }
   ]
 }

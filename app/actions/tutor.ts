@@ -78,10 +78,15 @@ export async function analyzeMistakeAction(
   const user = questionCourseId
     ? await requireCourseAccess(questionCourseId)
     : await requireUser();
-  let selectedIndex = 0;
+  let selectedIndex = -1;
 
   if (typeof userAnswerOrIndex === "number") {
     selectedIndex = userAnswerOrIndex;
+  } else if (
+    userAnswerOrIndex === "(diskusi umum)" ||
+    userAnswerOrIndex === "(tidak menjawab)"
+  ) {
+    selectedIndex = -1;
   } else {
     // Look up options in aiQuestionBank first
     try {

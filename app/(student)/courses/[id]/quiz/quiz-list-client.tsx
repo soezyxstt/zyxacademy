@@ -123,6 +123,32 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                 </Button>
               );
             }
+            if (isClosed) {
+              if (accessible && (template as any).showDiscussion) {
+                return (
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="interactive rounded-md md:justify-self-end border-brand-primary text-brand-primary hover:bg-brand-primary/10"
+                  >
+                    <Link href={`/courses/${courseId}/quiz/${template.id}?viewDiscussion=true`}>
+                      Lihat Pembahasan
+                    </Link>
+                  </Button>
+                );
+              }
+              return (
+                <Button
+                  disabled
+                  variant="outline"
+                  size="sm"
+                  className="rounded-md md:justify-self-end border-dashed"
+                >
+                  Ditutup
+                </Button>
+              );
+            }
             if (!isOpen) {
               return (
                 <Button
@@ -132,18 +158,6 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                   className="rounded-md md:justify-self-end border-dashed"
                 >
                   Belum Buka
-                </Button>
-              );
-            }
-            if (isClosed) {
-              return (
-                <Button
-                  disabled
-                  variant="outline"
-                  size="sm"
-                  className="rounded-md md:justify-self-end border-dashed"
-                >
-                  Ditutup
                 </Button>
               );
             }
@@ -166,7 +180,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
             <li key={template.id} className="border-b border-border/60 last:border-0">
               <div
                 className={cn(
-                  "grid gap-3 px-4 py-3.5 transition-colors md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-center",
+                  "grid gap-3 px-4 py-3.5 transition-colors md:grid-cols-[minmax(0,1fr)_100px_180px] md:items-center",
                   accessible && isOpen && !isClosed ? "hover:bg-muted/30" : "bg-card/45 text-muted-foreground",
                 )}
               >

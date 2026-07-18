@@ -91,7 +91,7 @@ export class ContextAssembly {
     const options = (question.options as string[]) || [];
     const correctIndices = (question.correctIndices as number[]) || [];
     const correctOptionText = correctIndices.map(idx => options[idx]).join(", ");
-    const studentAnswerText = options[selectedIndex] || "No Answer Selected";
+    const studentAnswerText = selectedIndex === -1 ? "(Tidak menjawab / diskusi umum)" : (options[selectedIndex] || "No Answer Selected");
 
     // 2. Fetch associated KO details
     let conceptTitle = "Unknown Concept";

@@ -35,6 +35,7 @@ interface QuizTemplate {
   openAt?: Date | string | null;
   closeAt?: Date | string | null;
   manualStatus?: "open" | "closed" | "scheduled";
+  showDiscussion?: boolean;
 }
 
 interface QuestionBankItem {
@@ -72,6 +73,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const [tplOpenAt, setTplOpenAt] = useState("");
   const [tplCloseAt, setTplCloseAt] = useState("");
   const [tplManualStatus, setTplManualStatus] = useState<"open" | "closed" | "scheduled">("scheduled");
+  const [tplShowDiscussion, setTplShowDiscussion] = useState(false);
   const [deleteTplId, setDeleteTplId] = useState<string | null>(null);
 
   const formatDatetimeLocal = (date?: Date | string | null) => {
@@ -134,6 +136,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     setTplOpenAt("");
     setTplCloseAt("");
     setTplManualStatus("scheduled");
+    setTplShowDiscussion(false);
     setSelectedQIds([]);
     setIsTplOpen(true);
   }
@@ -148,6 +151,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     setTplOpenAt(t.openAt ? formatDatetimeLocal(t.openAt) : "");
     setTplCloseAt(t.closeAt ? formatDatetimeLocal(t.closeAt) : "");
     setTplManualStatus(t.manualStatus || "scheduled");
+    setTplShowDiscussion(t.showDiscussion || false);
     
     const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
     setTplCount((rules?.count || 5).toString());
@@ -190,6 +194,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           openAt: tplOpenAt ? new Date(tplOpenAt).toISOString() : null,
           closeAt: tplCloseAt ? new Date(tplCloseAt).toISOString() : null,
           manualStatus: tplManualStatus,
+          showDiscussion: tplShowDiscussion,
         });
         if (res.success) {
           toast.success(editingTpl ? "Template kuis diperbarui!" : "Template kuis ditambahkan!");
@@ -719,7 +724,20 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               </Select>
             </div>
 
-            <div className="grid gap-2">
+            <label className="flex items-center gap-3 cursor-pointer mt-1">
+              <input
+                type="checkbox"
+                checked={tplShowDiscussion}
+                onChange={(e) => setTplShowDiscussion(e.target.checked)}
+                className="size-4 shrink-0 rounded border-border"
+              />
+              <div className="space-y-0.5">
+                <span className="text-body-sm font-semibold block text-foreground">Buka Pembahasan</span>
+                <span className="text-[11px] text-muted-foreground block">Siswa dapat melihat soal dan pembahasan setelah kuis ditutup.</span>
+              </div>
+            </label>
+
+            <div className="grid gap-2 mt-2">
               <Label htmlFor="tpl-tags" className="text-body-sm font-semibold">Filter Tag Soal (Pisahkan Koma)</Label>
               <Input
                 id="tpl-tags"

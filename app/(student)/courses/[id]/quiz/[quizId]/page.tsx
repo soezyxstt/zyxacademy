@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle, Sparkles } from "lucide-react";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
@@ -11,17 +11,18 @@ import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { courses, quizTemplates, studentQuizAttempts, aiQuestionBank } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { and, or, eq, desc, sql } from "drizzle-orm";
+import { and, or, eq, desc, sql, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { Button } from "@/components/ui/button";
 import { QuizStartButton } from "./quiz-start-button";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { cn } from "@/lib/utils";
 import { FormattedDate } from "@/components/ui/formatted-date";
+import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 
 type Props = {
   params: Promise<{ id: string; quizId: string }>;
-  searchParams: Promise<{ attemptId?: string }>;
+  searchParams: Promise<{ attemptId?: string; viewDiscussion?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -55,7 +56,7 @@ function formatDuration(seconds: number | null) {
 
 export default async function CourseQuizTakePage({ params, searchParams }: Props) {
   const { id, quizId } = await params;
-  const { attemptId } = await searchParams;
+  const { attemptId, viewDiscussion } = await searchParams;
 
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
@@ -147,14 +148,17 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     }
   }
 
-  if (!isReview) {
-    const now = new Date();
-    const openDate = template.openAt ? new Date(template.openAt) : null;
-    const closeDate = template.closeAt ? new Date(template.closeAt) : null;
+  const now = new Date();
+  const openDate = template.openAt ? new Date(template.openAt) : null;
+  const closeDate = template.closeAt ? new Date(template.closeAt) : null;
 
-    const isClosedManually = template.manualStatus === "closed";
-    const isOpenManually = template.manualStatus === "open";
+  const isClosedManually = template.manualStatus === "closed";
+  const isOpenManually = template.manualStatus === "open";
+  const isQuizClosed = isClosedManually || (!isOpenManually && closeDate && now > closeDate);
 
+  const isViewDiscussion = viewDiscussion === "true" && isQuizClosed && (template as any).showDiscussion;
+
+  if (!isReview && !isViewDiscussion) {
     if (isClosedManually) {
       return (
         <CoursePageShell title="Kuis Sudah Ditutup" description={template.title} hideHeader>
@@ -164,10 +168,15 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
               <p className="mt-2 text-body-sm text-muted-foreground">
                 Kuis ini telah ditutup secara manual oleh admin/tutor.
               </p>
-              <div className="mt-5">
+              <div className="mt-5 flex items-center justify-center gap-3">
                 <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
                   <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
                 </Button>
+                {(template as any).showDiscussion && (
+                  <Button asChild size="sm" className="rounded-md bg-brand-primary text-white">
+                    <Link href={`?viewDiscussion=true`}>Lihat Pembahasan</Link>
+                  </Button>
+                )}
               </div>
             </div>
           </Reveal>
@@ -186,7 +195,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
                   <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
                 </p>
-                <div className="mt-5">
+                <div className="mt-5 flex items-center justify-center gap-3">
                   <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
                     <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
                   </Button>
@@ -207,10 +216,15 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   Akses kuis ini telah berakhir sejak tanggal{" "}
                   <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
                 </p>
-                <div className="mt-5">
+                <div className="mt-5 flex items-center justify-center gap-3">
                   <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
                     <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
                   </Button>
+                  {(template as any).showDiscussion && (
+                    <Button asChild size="sm" className="rounded-md bg-brand-primary text-white">
+                      <Link href={`?viewDiscussion=true`}>Lihat Pembahasan</Link>
+                    </Button>
+                  )}
                 </div>
               </div>
             </Reveal>
@@ -236,59 +250,163 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const inProgressAttempt = previousAttempts.find((a) => a.status === "in_progress");
 
   // ───────────────────────────────────────────────────────────────────────────
-  // STATE A & B: Specific attempt specified in URL
+  // STATE A, B, C: Unified Discussion & Review
   // ───────────────────────────────────────────────────────────────────────────
+  const completedAttempts = previousAttempts.filter((a) => a.status === "completed");
+  
+  let targetAttempt = null;
   if (attemptId) {
-    const [attempt] = await db
-      .select()
-      .from(studentQuizAttempts)
-      .where(
-        and(
-          eq(studentQuizAttempts.id, attemptId),
-          eq(studentQuizAttempts.studentId, studentId)
-        )
-      )
-      .limit(1);
+    targetAttempt = previousAttempts.find((a) => a.id === attemptId);
+    if (!targetAttempt) notFound();
+  } else if (isViewDiscussion) {
+    targetAttempt = completedAttempts[0] || null;
+  }
 
-    if (!attempt) notFound();
+  const isDiscussionOpen = isQuizClosed && (template as any).showDiscussion;
+  const shouldShowUnifiedView = (targetAttempt?.status === "completed") || isViewDiscussion;
 
-    // STATE A: Completed Attempt Review
-    if (attempt.status === "completed") {
-      const snapshot = attempt.questionsSnapshot as Array<{
+  // STATE B: Active player taking quiz
+  if (targetAttempt?.status === "in_progress") {
+    const formattedExam = {
+      id: template.id,
+      courseId: template.courseId,
+      title: template.title,
+      type: "quiz" as const,
+      status: "published" as const,
+      settings: {
+        timeLimitMinutes: template.timeLimitSeconds ? Math.round(template.timeLimitSeconds / 60) : 15,
+        maxAttempts: template.maxAttempts ?? undefined,
+      },
+      questions: (targetAttempt.questionsSnapshot as unknown as Array<{
         id: string;
         prompt: string;
         options: string[];
         correct_indices: number[];
-        explanation: string;
-        difficulty: string;
-      }>;
-      const answers = (attempt.answersSnapshot as Record<string, number[]>) ?? {};
+      }>).map((q, idx) => ({
+        id: q.id,
+        order: idx + 1,
+        type: "multiple_choice" as const,
+        prompt: q.prompt,
+        options: q.options,
+        correctIndex: q.correct_indices?.[0] ?? 0,
+      })),
+    };
 
-      return (
-        <CoursePageShell
-          eyebrow={
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground uppercase tracking-widest">
-              <Link href={`/courses/${id}/quiz`} className="hover:text-primary transition-colors">Kuis</Link>
-              <ChevronRight className="size-3" />
-              <span className="truncate max-w-[200px]">{template.title}</span>
+    return (
+      <CoursePageShell title={template.title} description="Jawab kuis berikut dengan teliti." hideHeader>
+        <Reveal>
+          <QuizPlayer
+            courseId={id}
+            exam={formattedExam}
+            attemptId={targetAttempt.id}
+          />
+        </Reveal>
+      </CoursePageShell>
+    );
+  }
+
+  // Unified State
+  if (shouldShowUnifiedView) {
+    const snapshot = (targetAttempt?.questionsSnapshot as Array<{
+      id: string;
+      prompt: string;
+      options: string[];
+      correct_indices: number[];
+      explanation: string;
+      difficulty: string;
+    }>) ?? [];
+    const answers = (targetAttempt?.answersSnapshot as Record<string, number[]>) ?? {};
+    
+    let unseenSnapshot: Array<{
+      id: string;
+      prompt: string;
+      options: string[];
+      correct_indices: number[];
+      explanation: string;
+      difficulty: string;
+    }> = [];
+
+    if (isDiscussionOpen) {
+      const rules = typeof template.selectionRules === "string" 
+        ? JSON.parse(template.selectionRules) 
+        : template.selectionRules as Record<string, any>;
+        
+      let selected: any[] = [];
+      const fixedQuestionIds = rules?.fixedQuestionIds as string[] | undefined;
+      
+      if (fixedQuestionIds && fixedQuestionIds.length > 0) {
+        selected = await db.select().from(aiQuestionBank).where(
+          and(
+            eq(aiQuestionBank.courseId, template.courseId),
+            eq(aiQuestionBank.reviewStatus, 'published'),
+            inArray(aiQuestionBank.id, fixedQuestionIds)
+          )
+        );
+        selected.sort((a, b) => fixedQuestionIds.indexOf(a.id) - fixedQuestionIds.indexOf(b.id));
+      } else {
+        const tags = (rules?.tags as string[] | undefined) || [];
+        const tagConditions = tags.map(
+          (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
+        );
+        const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
+        
+        selected = await db.select().from(aiQuestionBank).where(
+          and(
+            eq(aiQuestionBank.courseId, template.courseId),
+            eq(aiQuestionBank.reviewStatus, 'published'),
+            tagCondition
+          )
+        ).orderBy(desc(aiQuestionBank.createdAt));
+      }
+
+      const answeredIds = new Set(snapshot.map(q => q.id));
+      const filteredSelected = selected.filter(q => !answeredIds.has(q.id));
+
+      unseenSnapshot = filteredSelected.map((q) => {
+        let opts = q.options;
+        if (typeof opts === "string") {
+          try { opts = JSON.parse(opts); } catch { opts = []; }
+        }
+        let corrects = q.correctIndices;
+        if (typeof corrects === "string") {
+          try { corrects = JSON.parse(corrects); } catch { corrects = []; }
+        }
+        return {
+          id: q.id,
+          prompt: q.prompt,
+          options: Array.isArray(opts) ? opts : [],
+          correct_indices: Array.isArray(corrects) ? corrects : [],
+          difficulty: q.difficulty,
+          explanation: q.explanation || "",
+        };
+      });
+    }
+
+    return (
+      <CoursePageShell
+        eyebrow={
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground uppercase tracking-widest">
+            <Link href={`/courses/${id}/quiz`} className="hover:text-primary transition-colors">Kuis</Link>
+            <ChevronRight className="size-3" />
+            <span className="truncate max-w-[200px]">{template.title}</span>
+          </div>
+        }
+        title={targetAttempt ? "Analisis Jawaban & Pembahasan" : "Pembahasan Kuis"}
+        description={template.title}
+        hideHeader
+      >
+        <Reveal>
+          <div className="space-y-6 font-sans">
+            <div className="flex items-center gap-3">
+              <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground">
+                <Link href={`/courses/${id}/quiz/${quizId}`}>
+                  <ArrowLeft className="mr-1.5 size-4" />
+                  Kembali Ke Kuis
+                </Link>
+              </Button>
             </div>
-          }
-          title="Pembahasan Kuis"
-          description={template.title}
-          hideHeader
-        >
-          <Reveal>
-            <div className="space-y-6 font-sans">
-              <div className="flex items-center gap-3">
-                <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground">
-                  <Link href={`/courses/${id}/quiz/${quizId}`}>
-                    <ArrowLeft className="mr-1.5 size-4" />
-                    Kembali Ke Kuis
-                  </Link>
-                </Button>
-              </div>
 
-              {/* Stats Summary Panel */}
+            {targetAttempt && (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl border border-border/60 bg-card/40 p-5 backdrop-blur-md">
                 <div className="flex items-center gap-3">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
@@ -296,20 +414,18 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   </div>
                   <div>
                     <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Skor Akhir</span>
-                    <span className="font-heading text-h5 font-bold text-foreground">{attempt.score}%</span>
+                    <span className="font-heading text-h5 font-bold text-foreground">{targetAttempt.score}%</span>
                   </div>
                 </div>
-
                 <div className="flex items-center gap-3">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-tertiary-1/10 text-tertiary-1">
                     <Clock className="size-5" />
                   </div>
                   <div>
                     <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Waktu Pengerjaan</span>
-                    <span className="font-heading text-h6 font-bold text-foreground">{formatDuration(attempt.durationSeconds)}</span>
+                    <span className="font-heading text-h6 font-bold text-foreground">{formatDuration(targetAttempt.durationSeconds)}</span>
                   </div>
                 </div>
-
                 <div className="flex items-center gap-3">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-secondary/10 text-brand-secondary">
                     <Calendar className="size-5" />
@@ -317,9 +433,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   <div>
                     <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Dikumpulkan Pada</span>
                     <span className="font-heading text-body-sm font-semibold text-foreground">
-                      {attempt.submittedAt ? (
+                      {targetAttempt.submittedAt ? (
                         <FormattedDate
-                          date={attempt.submittedAt}
+                          date={targetAttempt.submittedAt}
                           options={{
                             dateStyle: "medium",
                             timeStyle: "short",
@@ -332,10 +448,23 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   </div>
                 </div>
               </div>
+            )}
 
-              {/* Question list */}
+            {!targetAttempt && (
+              <div className="rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-5 backdrop-blur-md text-center">
+                <h3 className="font-heading text-body-lg font-bold text-brand-primary">Pembahasan Keseluruhan</h3>
+                <p className="mt-1 text-body-sm text-brand-primary/80">
+                  Anda tidak mengerjakan kuis ini. Berikut adalah seluruh kumpulan soal yang mungkin muncul pada kuis ini beserta penjelasannya.
+                </p>
+              </div>
+            )}
+
+            {/* Answered Questions */}
+            {snapshot.length > 0 && (
               <div className="space-y-6">
-                <h2 className="font-heading text-h4 font-bold text-foreground border-b border-border/60 pb-2">Analisis Jawaban</h2>
+                <h2 className="font-heading text-h4 font-bold text-foreground border-b border-border/60 pb-2">
+                  Soal yang Anda Kerjakan
+                </h2>
                 {snapshot.map((q, idx) => {
                   const studentSelected = answers[q.id] ?? [];
                   const correctIndices = q.correct_indices ?? [];
@@ -435,9 +564,116 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
                       {/* Explanation box */}
                       {q.explanation && (
-                        <div className="mt-4 ml-9 border-t border-border/50 pt-3">
-                          <span className="block text-body-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Pembahasan & Penjelasan:</span>
-                          <div className="text-body-sm text-foreground/80 leading-relaxed bg-muted/40 rounded-lg p-3 border border-border/30">
+                        <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
+                          <div className="flex items-center gap-2 text-brand-primary">
+                            <Sparkles className="size-4 animate-pulse" />
+                            <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
+                          </div>
+                          <div className="text-body-sm text-muted-foreground leading-relaxed">
+                            <MarkdownRenderer content={q.explanation} className="space-y-3" />
+                          </div>
+                        </div>
+                      )}
+                      {!isCorrect && (
+                        <div className="mt-3 ml-9">
+                          <MistakeFeedbackButton
+                            questionId={q.id}
+                            selectedAnswer={studentSelected.map((i) => q.options[i]).filter(Boolean).join("; ") || "(tidak menjawab)"}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Unseen Questions */}
+            {unseenSnapshot.length > 0 && (
+              <div className="space-y-6 mt-10">
+                <h2 className="font-heading text-h4 font-bold text-foreground border-b border-border/60 pb-2">
+                  Soal Lainnya dalam Bank Soal <span className="text-body-sm font-medium text-muted-foreground ml-2">(Tidak Didapatkan)</span>
+                </h2>
+                {unseenSnapshot.map((q, idx) => {
+                  const correctIndices = q.correct_indices ?? [];
+
+                  return (
+                    <div
+                      key={q.id}
+                      className="rounded-xl border border-border/80 bg-card p-5 shadow-2xs relative overflow-hidden"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-2.5">
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg text-body-sm font-bold text-foreground bg-muted border border-border/50">
+                            {snapshot.length + idx + 1}
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "text-[11px] font-semibold uppercase tracking-wider",
+                                q.difficulty === "easy" && "text-status-success",
+                                q.difficulty === "medium" && "text-status-warning",
+                                q.difficulty === "hard" && "text-status-error"
+                              )}>
+                                {q.difficulty}
+                              </span>
+                            </div>
+                            <div className="mt-2 text-body-base leading-relaxed text-foreground/90 font-medium">
+                              <MarkdownRenderer content={q.prompt} className="space-y-3" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <ul className="mt-4 pl-9 space-y-2">
+                        {q.options.map((opt, i) => {
+                          const isCorrectChoice = correctIndices.includes(i);
+                          return (
+                            <li
+                              key={i}
+                              className={cn(
+                                "flex items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors",
+                                isCorrectChoice
+                                  ? "border-status-success/30 bg-status-success/10"
+                                  : "border-border/40 bg-muted/20"
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                                  isCorrectChoice
+                                    ? "bg-status-success text-white"
+                                    : "bg-muted text-muted-foreground border border-border/60"
+                                )}
+                              >
+                                {String.fromCharCode(65 + i)}
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-body-sm font-medium",
+                                  isCorrectChoice ? "text-foreground" : "text-muted-foreground"
+                                )}
+                              >
+                                <MarkdownRenderer content={opt} className="inline-block" />
+                              </span>
+                              {isCorrectChoice && (
+                                <div className="ml-auto flex items-center text-status-success text-xs font-bold gap-1 uppercase tracking-wider">
+                                  <CheckCircle2 className="size-4" />
+                                  Kunci
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+
+                      {q.explanation && (
+                        <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
+                          <div className="flex items-center gap-2 text-brand-primary">
+                            <Sparkles className="size-4 animate-pulse" />
+                            <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
+                          </div>
+                          <div className="text-body-sm text-muted-foreground leading-relaxed">
                             <MarkdownRenderer content={q.explanation} className="space-y-3" />
                           </div>
                         </div>
@@ -446,57 +682,16 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   );
                 })}
               </div>
-            </div>
-          </Reveal>
-        </CoursePageShell>
-      );
-    }
-
-    // STATE B: Active player taking quiz
-    if (attempt.status === "in_progress") {
-      const formattedExam = {
-        id: template.id,
-        courseId: template.courseId,
-        title: template.title,
-        type: "quiz" as const,
-        status: "published" as const,
-        settings: {
-          timeLimitMinutes: template.timeLimitSeconds ? Math.round(template.timeLimitSeconds / 60) : 15,
-          maxAttempts: template.maxAttempts ?? undefined,
-        },
-        questions: (attempt.questionsSnapshot as unknown as Array<{
-          id: string;
-          prompt: string;
-          options: string[];
-          correct_indices: number[];
-        }>).map((q, idx) => ({
-          id: q.id,
-          order: idx + 1,
-          type: "multiple_choice" as const,
-          prompt: q.prompt,
-          options: q.options,
-          correctIndex: q.correct_indices?.[0] ?? 0,
-        })),
-      };
-
-      return (
-        <CoursePageShell title={template.title} description="Jawab kuis berikut dengan teliti." hideHeader>
-          <Reveal>
-            <QuizPlayer
-              courseId={id}
-              exam={formattedExam}
-              attemptId={attempt.id}
-            />
-          </Reveal>
-        </CoursePageShell>
-      );
-    }
+            )}
+          </div>
+        </Reveal>
+      </CoursePageShell>
+    );
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // STATE C: Gateway Confirmation page (Default if no attemptId)
+  // STATE D: Gateway Confirmation page (Default if no attemptId)
   // ───────────────────────────────────────────────────────────────────────────
-  const completedAttempts = previousAttempts.filter((a) => a.status === "completed");
   const attemptsLeft = template.maxAttempts 
     ? Math.max(0, template.maxAttempts - completedAttempts.length)
     : null;

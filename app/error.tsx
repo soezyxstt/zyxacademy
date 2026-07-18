@@ -27,7 +27,7 @@ export default function ErrorPage({
 
         <div className="relative z-10 max-w-md mx-auto flex flex-col items-center gap-6">
           {/* The giant error text */}
-          <h1 className="font-heading text-[120px] sm:text-[150px] md:text-[180px] font-black leading-none tracking-tighter bg-gradient-to-r from-status-error to-brand-secondary bg-clip-text text-transparent select-none transition-transform duration-300 hover:scale-105">
+          <h1 className="font-heading text-[120px] sm:text-[150px] md:text-[180px] font-black leading-none tracking-tighter bg-gradient-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent select-none transition-transform duration-300 hover:scale-105">
             500
           </h1>
 

@@ -59,6 +59,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
         })
         .optional(),
     }).optional(),
+    showDiscussion: z.boolean().optional(),
   });
 
   const parsed = UpdateSchema.safeParse(body);
@@ -82,6 +83,9 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   if (parsed.data.maxAttempts !== undefined) updateData.maxAttempts = parsed.data.maxAttempts;
   if (parsed.data.selectionRules !== undefined) {
     updateData.selectionRules = parsed.data.selectionRules;
+  }
+  if (parsed.data.showDiscussion !== undefined) {
+    updateData.showDiscussion = parsed.data.showDiscussion;
   }
   updateData.updatedAt = new Date();
 

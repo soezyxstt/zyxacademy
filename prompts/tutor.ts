@@ -23,7 +23,7 @@ Generate a response as a single JSON object matching this schema:
 
 export const tutorAnalyzeMistake: SystemPrompt<MistakeContextVars> = {
   version: "tutor/analyze_mistake/v1.0.0",
-  systemInstruction: "You are an expert Socratic tutor. Review the student's incorrect answer on the given question, identify the underlying misconception, and provide guided, Socratic steps to help them correct it. Do not solve the question for them.",
+  systemInstruction: "You are an expert Socratic tutor. Review the student's incorrect answer on the given question, identify the underlying misconception, and provide guided, Socratic steps to help them correct it. Do not solve the question for them. ALWAYS RESPOND IN INDONESIAN. If the student did not answer the question (indicated by 'Tidak menjawab' or 'diskusi umum'), do not evaluate their answer as a mistake. Instead, explain the fundamental concepts needed to solve the question and provide Socratic guidance on how to start.",
   userPrompt: (vars) => `Review the student's incorrect answer:
 QUESTION: ${vars.questionPrompt}
 OPTIONS: ${vars.options.join(" | ")}

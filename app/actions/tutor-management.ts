@@ -177,6 +177,7 @@ export async function saveQuizTemplateAction(
     closeAt?: string | null;
     manualStatus?: "open" | "closed" | "scheduled";
     status?: "draft" | "published";
+    showDiscussion?: boolean;
   }
 ) {
   await verifyTutorAccess(courseId);
@@ -200,6 +201,7 @@ export async function saveQuizTemplateAction(
         closeAt: closeDate,
         manualStatus: data.manualStatus ?? "scheduled",
         status: data.status ?? "published",
+        showDiscussion: data.showDiscussion ?? false,
         updatedAt: new Date(),
       })
       .where(eq(quizTemplates.id, templateId));
@@ -217,6 +219,7 @@ export async function saveQuizTemplateAction(
       closeAt: closeDate,
       manualStatus: data.manualStatus ?? "scheduled",
       status: data.status ?? "draft",
+      showDiscussion: data.showDiscussion ?? false,
     });
   }
 

@@ -47,6 +47,8 @@ export class UsageBudgetService {
     feature: string;
     model: string;
     tokens: number;
+    inputTokens?: number;
+    outputTokens?: number;
     requestType: string;
   }): Promise<void> {
     const id = crypto.randomUUID();
@@ -56,6 +58,8 @@ export class UsageBudgetService {
       feature: params.feature,
       model: params.model,
       tokens: params.tokens,
+      inputTokens: params.inputTokens ?? 0,
+      outputTokens: params.outputTokens ?? 0,
       requestType: params.requestType,
     });
   }

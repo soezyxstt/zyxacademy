@@ -664,6 +664,7 @@ export const quizTemplates = sqliteTable(
     openAt: integer("open_at", { mode: "timestamp" }),
     closeAt: integer("close_at", { mode: "timestamp" }),
     manualStatus: text("manual_status").$type<"open" | "closed" | "scheduled">().default("scheduled").notNull(),
+    showDiscussion: integer("show_discussion", { mode: "boolean" }).default(false).notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
       .defaultNow()
@@ -1716,6 +1717,8 @@ export const aiUsageEvents = sqliteTable(
  feature: text("feature").notNull(), // 'tutor' | 'flashcards' | 'quiz' | 'diktat'
  model: text("model").notNull(), // e.g. 'gemini-3.1-flash-lite' | 'gemma-4-26b'
  tokens: integer("tokens").default(0).notNull(),
+ inputTokens: integer("input_tokens").default(0).notNull(),
+ outputTokens: integer("output_tokens").default(0).notNull(),
  requestType: text("request_type").notNull(), // 'explain_concept' | 'analyze_mistake'
  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  },

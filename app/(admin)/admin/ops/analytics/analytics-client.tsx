@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import type { AiStats, AiRequestLog } from "@/lib/ai/analytics";
+import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types
@@ -317,6 +318,9 @@ export function AiAnalyticsClient() {
           </table>
         </div>
       </div>
+      
+      {/* Zyra Usage per User Charts ────────────────────────────────────────── */}
+      <ZyraUsageCharts />
     </div>
   );
 }
