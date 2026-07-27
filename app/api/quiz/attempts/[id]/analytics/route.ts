@@ -166,10 +166,35 @@ export async function POST(_req: NextRequest, { params }: Context) {
 
   const courseId = template?.courseId || "calc-1";
 
+  // Mark or insert record in DB as processing immediately
+  const [existing] = await db
+    .select({ id: studentQuizAnalytics.id })
+    .from(studentQuizAnalytics)
+    .where(eq(studentQuizAnalytics.attemptId, attemptId))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(studentQuizAnalytics)
+      .set({ status: "processing", updatedAt: new Date() })
+      .where(eq(studentQuizAnalytics.id, existing.id));
+  } else {
+    await db.insert(studentQuizAnalytics).values({
+      id: `sqa_${attemptId}`,
+      attemptId,
+      studentId: attempt.studentId,
+      templateId: attempt.templateId,
+      courseId,
+      status: "processing",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).onConflictDoNothing();
+  }
+
   await inngest.send({
     name: "quiz/analytics.requested",
     data: { attemptId, studentId: attempt.studentId, courseId },
   });
 
-  return NextResponse.json({ message: "Analytics generation re-queued", attemptId });
+  return NextResponse.json({ message: "Analytics generation re-queued", attemptId, status: "processing" });
 }

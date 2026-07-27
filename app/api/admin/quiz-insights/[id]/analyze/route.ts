@@ -15,12 +15,13 @@ function safeParseJson<T>(rawText: string): T {
 
   try {
     return JSON.parse(cleaned) as T;
-  } catch (firstErr) {
+  } catch (_firstErr) {
     try {
       // Escape unescaped backslashes (e.g. \alpha, \frac, \theta, \pm) that are not valid JSON escape sequences
       const sanitized = cleaned.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, "\\\\");
       return JSON.parse(sanitized) as T;
-    } catch (secondErr) {
+    } catch (_secondErr) {
+
       const aggressiveSanitize = cleaned
         .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
         .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, "\\\\");

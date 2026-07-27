@@ -62,7 +62,8 @@ export async function computeQuizAnalyticsFacts(
           koId: aiQuestionBank.knowledgeObjectId,
           conceptName: knowledgeObjects.conceptName,
           tags: aiQuestionBank.tags,
-          bloomLevel: aiQuestionBank.bloomLevel,
+          bloomLevel: knowledgeObjects.bloomLevel,
+
           difficulty: aiQuestionBank.difficulty,
           explanation: aiQuestionBank.explanation,
         })
