@@ -11,6 +11,7 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Views personalized dashboard with progress, weak concepts, daily recommendations
 - Reads interactive course materials (markdown, PDFs, images, embedded video)
 - Takes daily/weekly quizzes and timed tryouts
+- Views dedicated AI-powered Quiz Learning Analytics & Diagnosis page (`/summary`) upon quiz completion (3-layer executive summary, deterministic concept mastery, AI error pattern detection, cognitive skill breakdown, time/speed insights, and personalized 3-step action plan)
 - Reviews flashcards with SM-2 spaced repetition
 - Chats with AI tutor for concept help
 - Books real tutor sessions

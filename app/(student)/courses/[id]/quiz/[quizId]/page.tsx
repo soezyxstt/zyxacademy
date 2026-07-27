@@ -412,13 +412,22 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       >
         <Reveal>
           <div className="space-y-6 font-sans">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground">
                 <Link href={`/courses/${id}/quiz/${quizId}`}>
                   <ArrowLeft className="mr-1.5 size-4" />
                   Kembali Ke Kuis
                 </Link>
               </Button>
+
+              {targetAttempt && (
+                <Button asChild size="sm" className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold shadow-xs">
+                  <Link href={`/courses/${id}/quiz/${quizId}/summary/${targetAttempt.id}`}>
+                    <Sparkles className="mr-1.5 size-4" />
+                    Lihat Diagnosis & Rencana Belajar
+                  </Link>
+                </Button>
+              )}
             </div>
 
             {targetAttempt && (

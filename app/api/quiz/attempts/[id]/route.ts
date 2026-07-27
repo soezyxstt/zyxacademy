@@ -267,10 +267,24 @@ export async function POST(req: NextRequest, { params }: Context) {
       });
   }
 
- // Auto-complete today's quiz recommendation when student passes
- if (env.FEATURE_TODAY === "1" && score >= 70) {
- markRecommendationDone(attempt.templateId, attempt.studentId).catch(() => {});
- }
+  // Fire student quiz analytics & learning diagnosis background worker (all courses, including PKA)
+  await inngest
+    .send({
+      name: "quiz/analytics.requested",
+      data: {
+        attemptId: id,
+        studentId: attempt.studentId,
+        courseId,
+      },
+    })
+    .catch((err) => {
+      console.error("Failed to trigger student quiz analytics:", err);
+    });
+
+  // Auto-complete today's quiz recommendation when student passes
+  if (env.FEATURE_TODAY === "1" && score >= 70) {
+    markRecommendationDone(attempt.templateId, attempt.studentId).catch(() => {});
+  }
 
  return NextResponse.json({ score, correct, total: snapshot.length });
 }

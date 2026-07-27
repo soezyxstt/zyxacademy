@@ -757,6 +757,41 @@ export const quizAiInsights = sqliteTable(
   ]
 );
 
+// H. student_quiz_analytics ; per-attempt detailed deterministic facts and AI pedagogical diagnosis
+export const studentQuizAnalytics = sqliteTable(
+  "student_quiz_analytics",
+  {
+    id: text("id").primaryKey(),
+    attemptId: text("attempt_id")
+      .notNull()
+      .unique()
+      .references(() => studentQuizAttempts.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    templateId: text("template_id")
+      .notNull()
+      .references(() => quizTemplates.id, { onDelete: "cascade" }),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    status: text("status").$type<"processing" | "completed" | "failed">().default("processing").notNull(),
+    computedMetrics: text("computed_metrics", { mode: "json" }),
+    aiDiagnosis: text("ai_diagnosis", { mode: "json" }),
+    errorMessage: text("error_message"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_sqa_attempt").on(table.attemptId),
+    index("idx_sqa_student").on(table.studentId),
+    index("idx_sqa_template").on(table.templateId),
+  ]
+);
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NEW DOMAINS (Revision v4 - Frozen)
@@ -1559,14 +1594,37 @@ export const quizTemplatesRelations = relations(quizTemplates, ({ one, many }) =
 }));
 
 export const studentQuizAttemptsRelations = relations(studentQuizAttempts, ({ one }) => ({
- student: one(user, {
- fields: [studentQuizAttempts.studentId],
- references: [user.id],
- }),
- template: one(quizTemplates, {
- fields: [studentQuizAttempts.templateId],
- references: [quizTemplates.id],
- }),
+  student: one(user, {
+    fields: [studentQuizAttempts.studentId],
+    references: [user.id],
+  }),
+  template: one(quizTemplates, {
+    fields: [studentQuizAttempts.templateId],
+    references: [quizTemplates.id],
+  }),
+  analytics: one(studentQuizAnalytics, {
+    fields: [studentQuizAttempts.id],
+    references: [studentQuizAnalytics.attemptId],
+  }),
+}));
+
+export const studentQuizAnalyticsRelations = relations(studentQuizAnalytics, ({ one }) => ({
+  attempt: one(studentQuizAttempts, {
+    fields: [studentQuizAnalytics.attemptId],
+    references: [studentQuizAttempts.id],
+  }),
+  student: one(user, {
+    fields: [studentQuizAnalytics.studentId],
+    references: [user.id],
+  }),
+  template: one(quizTemplates, {
+    fields: [studentQuizAnalytics.templateId],
+    references: [quizTemplates.id],
+  }),
+  course: one(courses, {
+    fields: [studentQuizAnalytics.courseId],
+    references: [courses.id],
+  }),
 }));
 
 // New domain relations

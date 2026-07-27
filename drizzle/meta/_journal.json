@@ -323,6 +323,13 @@
       "when": 1785167452621,
       "tag": "0045_even_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1785168758361,
+      "tag": "0046_quiet_vindicator",
+      "breakpoints": true
     }
   ]
 }

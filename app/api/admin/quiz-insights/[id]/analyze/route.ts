@@ -9,6 +9,26 @@ import { generateContentWithFallback } from "@/lib/gemini";
 
 type Context = { params: Promise<{ id: string }> };
 
+function safeParseJson<T>(rawText: string): T {
+  let cleaned = rawText.trim();
+  cleaned = cleaned.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (firstErr) {
+    try {
+      // Escape unescaped backslashes (e.g. \alpha, \frac, \theta, \pm) that are not valid JSON escape sequences
+      const sanitized = cleaned.replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, "\\\\");
+      return JSON.parse(sanitized) as T;
+    } catch (secondErr) {
+      const aggressiveSanitize = cleaned
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+        .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, "\\\\");
+      return JSON.parse(aggressiveSanitize) as T;
+    }
+  }
+}
+
 export async function POST(req: NextRequest, { params }: Context) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || (session.user as any).role !== "admin") {
@@ -26,7 +46,6 @@ export async function POST(req: NextRequest, { params }: Context) {
       courseId: quizTemplates.courseId,
       courseName: courses.title,
     })
-
     .from(quizTemplates)
     .leftJoin(courses, eq(quizTemplates.courseId, courses.id))
     .where(eq(quizTemplates.id, templateId))
@@ -140,7 +159,8 @@ RINGKASAN DATA BUTIR SOAL & PILIHAN JAWABAN SISWA:
 ${questionSummaries.join("\n\n")}
 
 PETUNJUK OUTPUT:
-Berikan analisis mendalam dalam format JSON yang VALID dan terstruktur rapi dengan kunci-kunci berikut (seluruh teks menggunakan Bahasa Indonesia formal dan profesional):
+1. Berikan analisis mendalam dalam format JSON yang VALID dan terstruktur rapi dengan kunci-kunci berikut (seluruh teks menggunakan Bahasa Indonesia formal dan profesional).
+2. PENTING: Gunakan JSON yang murni tanpa adanya unescaped control characters atau unescaped backslashes.
 
 \`\`\`json
 {
@@ -149,7 +169,7 @@ Berikan analisis mendalam dalam format JSON yang VALID dan terstruktur rapi deng
     {
       "concept": "Nama Konsep / Miskonsepsi",
       "description": "Penjelasan detail mengapa siswa bingung dan kesalahan logika apa yang terjadi.",
-      "frequency": "high", // "high" | "medium" | "low"
+      "frequency": "high",
       "targetedQuestions": ["ID_SOAL_1"]
     }
   ],
@@ -185,23 +205,20 @@ Berikan analisis mendalam dalam format JSON yang VALID dan terstruktur rapi deng
 }
 \`\`\`
 
-Pastikan balasan Anda HANYA berupa objek JSON yang valid tanpa teks pembuka/penutup lainnya.`;
+Pastikan balasan Anda HANYA berupa objek JSON yang valid.`;
 
   try {
     const { response } = await generateContentWithFallback({
       contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.2,
+      },
       useCase: "tutoring",
     });
 
     const rawText = response.text || "";
-    let cleanedText = rawText.trim();
-    if (cleanedText.startsWith("```json")) {
-      cleanedText = cleanedText.replace(/^```json\s*/, "").replace(/\s*```$/, "");
-    } else if (cleanedText.startsWith("```")) {
-      cleanedText = cleanedText.replace(/^```\s*/, "").replace(/\s*```$/, "");
-    }
-
-    const parsedInsights: QuizAiInsightData = JSON.parse(cleanedText);
+    const parsedInsights: QuizAiInsightData = safeParseJson<QuizAiInsightData>(rawText);
 
     // Save/Upsert into DB
     const insightId = `qai_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -236,3 +253,4 @@ Pastikan balasan Anda HANYA berupa objek JSON yang valid tanpa teks pembuka/penu
     );
   }
 }
+
