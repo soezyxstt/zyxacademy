@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Lock, Trophy } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
@@ -9,8 +10,13 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
+import { PKA_COURSE_ID } from "@/lib/pka-config";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ type?: string }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -31,8 +37,11 @@ function formatDuration(seconds: number) {
   return `${secs}s`;
 }
 
-export default async function CourseLeaderboardPage({ params }: Props) {
+export default async function CourseLeaderboardPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { type } = await searchParams;
+  const activeType = type === "simulation" ? "simulation" : "quiz";
+
   const course = await getCourse(id);
   if (!course) return null;
 
@@ -71,7 +80,7 @@ export default async function CourseLeaderboardPage({ params }: Props) {
   const session = await auth.api.getSession({ headers: await headers() });
   const userId = session?.user?.id;
 
-  const rankedRows = await getCourseLeaderboard(id);
+  const rankedRows = await getCourseLeaderboard(id, activeType);
   const totalStudents = rankedRows.length;
   const myEntry = rankedRows.find((r) => r.studentId === userId);
 
@@ -80,6 +89,8 @@ export default async function CourseLeaderboardPage({ params }: Props) {
   const p2 = top3.find((r) => r.rank === 2);
   const p3 = top3.find((r) => r.rank === 3);
 
+  const simTabLabel = id === PKA_COURSE_ID ? "Leaderboard Simulasi" : "Leaderboard Try Out";
+
   return (
     <CoursePageShell
       title={`Peringkat Kelas: ${course.title}`}
@@ -87,6 +98,32 @@ export default async function CourseLeaderboardPage({ params }: Props) {
       icon={Trophy}
     >
       <Reveal>
+        {/* Navigation Tabs for Leaderboards */}
+        <div className="mb-6 flex items-center gap-2 border-b border-border pb-3">
+          <Link
+            href={`/courses/${id}/leaderboard?type=quiz`}
+            className={cn(
+              "rounded-md px-4 py-2 text-body-sm font-semibold transition-colors",
+              activeType === "quiz"
+                ? "bg-brand-primary text-white shadow-xs"
+                : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground"
+            )}
+          >
+            Leaderboard Kuis
+          </Link>
+          <Link
+            href={`/courses/${id}/leaderboard?type=simulation`}
+            className={cn(
+              "rounded-md px-4 py-2 text-body-sm font-semibold transition-colors",
+              activeType === "simulation"
+                ? "bg-brand-primary text-white shadow-xs"
+                : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground"
+            )}
+          >
+            {simTabLabel}
+          </Link>
+        </div>
+
         {/* User's own ranking status card */}
         <div className="mb-8 p-6 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>

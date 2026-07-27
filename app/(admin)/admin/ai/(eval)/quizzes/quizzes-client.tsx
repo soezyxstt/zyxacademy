@@ -16,7 +16,7 @@ type TemplateType = {
   id: string;
   courseId: string;
   title: string;
-  category: "daily" | "weekly" | "chapter" | "premium";
+  category: "daily" | "weekly" | "chapter" | "premium" | "simulation";
   visibility: "free" | "paid";
   status: "draft" | "published";
   manualStatus: "open" | "closed" | "scheduled";
@@ -451,7 +451,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
   </span>
   <div className="flex gap-1.5 flex-wrap items-center">
     <span className="inline-flex rounded-md bg-muted/80 border border-border/40 px-2 py-0.5 text-body-xs font-semibold text-muted-foreground capitalize">
-    {template.category === "weekly" ? "Mingguan" : template.category === "chapter" ? "Evaluasi Bab" : template.category === "premium" ? "Premium" : "Harian"} · {template.visibility === "free" ? "Gratis" : "Premium"}
+    {template.category === "weekly" ? "Mingguan" : template.category === "chapter" ? "Evaluasi Bab" : template.category === "premium" ? "Premium" : template.category === "simulation" ? "Simulasi" : "Harian"} · {template.visibility === "free" ? "Gratis" : "Premium"}
     </span>
     <button
       onClick={() => handleUpdateStatus(template.id, template.status === "published" ? "draft" : "published")}
@@ -700,6 +700,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  <SelectContent>
  <SelectItem value="weekly">Kuis Mingguan</SelectItem>
  <SelectItem value="chapter">Evaluasi Bab</SelectItem>
+ <SelectItem value="simulation">Simulasi (Try Out)</SelectItem>
  <SelectItem value="premium">Premium Latihan</SelectItem>
  <SelectItem value="daily">Latihan Harian</SelectItem>
  </SelectContent>

@@ -371,7 +371,7 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `description`
 * `timeLimit`: Countdown duration allowed for the quiz in seconds.
 * `selectionRules`: Selection parameter guidelines for picking questions stored as JSON.
-* `category`: Quiz type classification ('daily', 'weekly', 'chapter', 'premium').
+* `category`: Quiz type classification ('daily', 'weekly', 'chapter', 'premium', 'simulation').
 * `createdAt`
 * `updatedAt`
 

@@ -11,17 +11,14 @@ import {
   BellRing,
 } from "lucide-react";
 import { db } from "@/db";
-import { pkaAnnouncements, pkaAnnouncementReads, pkaSchedules } from "@/db/schema";
+import { pkaAnnouncements, pkaAnnouncementReads, pkaSchedules, quizTemplates, studentQuizAttempts } from "@/db/schema";
 import { pageTitle } from "@/lib/site";
-import { cn } from "@/lib/utils";
 import {
   PKA_ASSUMED_TEST_DATE,
   PKA_DISCLAIMER,
-  PKA_SUBJECTS,
-  PKA_SUBJECT_LABELS,
+  PKA_COURSE_ID,
   PKA_TOTAL_SESSIONS,
 } from "@/lib/pka-config";
-import { getDiagnosticSummary, type PkaSubjectDiagnosticStatus } from "@/lib/pka-simulation";
 import { requirePkaSession } from "@/lib/pka-enrollment";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { PkaCountdown } from "@/components/pka/pka-countdown";
@@ -32,22 +29,38 @@ import { AnnouncementCard } from "./_components/announcement-card";
 export const metadata: Metadata = {
   title: pageTitle("Tutorial PKA"),
   description:
-    "Persiapan Pemetaan Kesiapan Akademik (PKA) ITB: jadwal sesi live, simulasi kuis bertingkat, dan materi Matematika, Fisika, Kimia.",
-};
-
-const STATUS_CHIP: Record<PkaSubjectDiagnosticStatus, { label: string; className: string }> = {
-  not_attempted: { label: "Belum dicoba", className: "bg-muted text-muted-foreground" },
-  at_risk: { label: "Perlu perhatian", className: "bg-status-error/10 text-status-error" },
-  borderline: { label: "Perkuat dasar", className: "bg-status-warning/10 text-status-warning" },
-  solid: { label: "Solid", className: "bg-status-success/10 text-status-success" },
+    "Persiapan Pemetaan Kesiapan Akademik (PKA) ITB: jadwal sesi live, simulasi kuis, dan materi Matematika, Fisika, Kimia.",
 };
 
 export default async function PkaCourseHomePage() {
   const userId = await requirePkaSession("/courses/tutorial-pka");
 
   const now = new Date();
-  const [diagnostics, upcoming, announcements] = await Promise.all([
-    getDiagnosticSummary(userId, PKA_SUBJECTS),
+  const [simTemplates, studentAttempts, upcoming, announcements] = await Promise.all([
+    db
+      .select()
+      .from(quizTemplates)
+      .where(
+        and(
+          eq(quizTemplates.courseId, PKA_COURSE_ID),
+          eq(quizTemplates.status, "published"),
+          eq(quizTemplates.category, "simulation")
+        )
+      ),
+    db
+      .select({
+        score: studentQuizAttempts.score,
+        status: studentQuizAttempts.status,
+      })
+      .from(studentQuizAttempts)
+      .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
+      .where(
+        and(
+          eq(studentQuizAttempts.studentId, userId),
+          eq(quizTemplates.courseId, PKA_COURSE_ID),
+          eq(quizTemplates.category, "simulation")
+        )
+      ),
     db
       .select()
       .from(pkaSchedules)
@@ -83,7 +96,11 @@ export default async function PkaCourseHomePage() {
   ]);
 
   const nextSession = upcoming[0] ?? null;
-  const anyAttempted = diagnostics.some((d) => d.attempted);
+  const completedAttempts = studentAttempts.filter((a) => a.status === "completed");
+  const completedCount = completedAttempts.length;
+  const bestScore = completedAttempts.length > 0
+    ? Math.max(...completedAttempts.map((a) => a.score ?? 0))
+    : 0;
 
   return (
     <CoursePageShell
@@ -166,47 +183,34 @@ export default async function PkaCourseHomePage() {
         <Reveal>
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
-              <h2 className="font-heading text-h6 font-bold text-foreground">Progres simulasi</h2>
-              {anyAttempted && (
-                <Link
-                  href="/courses/tutorial-pka/laporan"
-                  className="flex items-center gap-1 text-body-sm font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
-                >
-                  <BarChart3 className="size-3.5" />
-                  Laporan diagnostik
-                </Link>
-              )}
+              <h2 className="font-heading text-h6 font-bold text-foreground">Simulasi Ujian</h2>
+              <Link
+                href="/courses/tutorial-pka/leaderboard?type=simulation"
+                className="flex items-center gap-1 text-body-sm font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
+              >
+                <BarChart3 className="size-3.5" />
+                Leaderboard Simulasi
+              </Link>
             </div>
-            <ul className="divide-y divide-border">
-              {diagnostics.map((d) => {
-                const chip = STATUS_CHIP[d.status];
-                return (
-                  <li key={d.subject} className="flex items-center justify-between gap-4 py-3">
-                    <div className="min-w-0">
-                      <span className="block text-body-base font-semibold text-foreground">
-                        {PKA_SUBJECT_LABELS[d.subject]}
-                      </span>
-                      <span className="block text-body-sm text-muted-foreground">{d.message}</span>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      {d.bestScore != null && (
-                        <span className="text-body-sm font-semibold text-foreground">{d.bestScore}%</span>
-                      )}
-                      <span className={cn("rounded-md px-2 py-0.5 text-body-sm font-semibold", chip.className)}>
-                        {chip.label}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <Link
-              href="/courses/tutorial-pka/simulasi"
-              className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-body-sm font-bold text-white shadow-sm transition-colors duration-150 hover:bg-brand-primary/90"
-            >
-              {anyAttempted ? "Lanjutkan simulasi" : "Mulai simulasi"}
-              <ArrowRight className="size-4" />
-            </Link>
+            <div className="rounded-xl border border-border bg-card p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="block text-body-base font-semibold text-foreground">
+                  {simTemplates.length} Simulasi Tersedia
+                </span>
+                <span className="block text-body-sm text-muted-foreground">
+                  {completedCount > 0
+                    ? `Kamu telah menyelesaikan ${completedCount} simulasi. Skor tertinggi: ${bestScore}%`
+                    : "Uji kesiapan akademis kamu dengan mengerjakan simulasi."}
+                </span>
+              </div>
+              <Link
+                href="/courses/tutorial-pka/simulasi"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md bg-brand-primary px-4 py-2 text-body-sm font-bold text-white shadow-xs transition-colors duration-150 hover:bg-brand-primary/90"
+              >
+                {completedCount > 0 ? "Lanjutkan simulasi" : "Buka simulasi"}
+                <ArrowRight className="size-4" />
+              </Link>
+            </div>
           </section>
         </Reveal>
 
@@ -220,3 +224,4 @@ export default async function PkaCourseHomePage() {
     </CoursePageShell>
   );
 }
+

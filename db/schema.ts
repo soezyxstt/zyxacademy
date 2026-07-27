@@ -655,7 +655,7 @@ export const quizTemplates = sqliteTable(
       .notNull()
       .references(() => courses.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
-    category: text("category").$type<"daily" | "weekly" | "chapter" | "premium">().notNull(),
+    category: text("category").$type<"daily" | "weekly" | "chapter" | "premium" | "simulation">().notNull(),
     visibility: text("visibility").$type<"free" | "paid">().default("free").notNull(),
     status: text("status").$type<"draft" | "published">().default("draft").notNull(),
     timeLimitSeconds: integer("time_limit_seconds"),

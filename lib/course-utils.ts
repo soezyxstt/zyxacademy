@@ -14,7 +14,7 @@ import {
   chapters as chaptersTable,
   studentMaterialProgress,
 } from "@/db/schema";
-import { eq, and, desc, notLike, inArray } from "drizzle-orm";
+import { eq, and, desc, notLike, inArray, ne } from "drizzle-orm";
 // Fixture imports removed
 import { storage } from "@/lib/storage";
 
@@ -329,7 +329,17 @@ export async function getCourseSubmissions(courseId: string, studentId?: string)
   return mappedSubmissions;
 }
 
-export async function getCourseLeaderboard(courseId: string) {
+export async function getCourseLeaderboard(
+  courseId: string,
+  filterType: "quiz" | "simulation" | "all" = "quiz"
+) {
+  const categoryCondition =
+    filterType === "simulation"
+      ? eq(quizTemplates.category, "simulation")
+      : filterType === "quiz"
+      ? ne(quizTemplates.category, "simulation")
+      : undefined;
+
   // Fetch total published quizzes for the course to calculate proper averages
   const courseQuizzes = await db
     .select({ id: quizTemplates.id })
@@ -337,7 +347,8 @@ export async function getCourseLeaderboard(courseId: string) {
     .where(
       and(
         eq(quizTemplates.courseId, courseId),
-        eq(quizTemplates.status, "published")
+        eq(quizTemplates.status, "published"),
+        categoryCondition
       )
     );
   const totalQuizzes = Math.max(1, courseQuizzes.length);
@@ -359,6 +370,7 @@ export async function getCourseLeaderboard(courseId: string) {
       and(
         eq(quizTemplates.courseId, courseId),
         eq(studentQuizAttempts.status, "completed"),
+        categoryCondition
       ),
     );
 

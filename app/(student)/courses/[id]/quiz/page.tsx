@@ -9,7 +9,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { courses, quizTemplates, studentQuizAttempts } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, ne } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getWeakestConcepts } from "@/lib/learning-analytics";
@@ -53,7 +53,8 @@ export default async function CourseQuizListPage({ params }: Props) {
     .where(
       and(
         eq(quizTemplates.courseId, id),
-        eq(quizTemplates.status, 'published')
+        eq(quizTemplates.status, 'published'),
+        ne(quizTemplates.category, 'simulation')
       )
     )
     .orderBy(desc(quizTemplates.createdAt));

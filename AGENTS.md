@@ -239,6 +239,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **AI Gateway routing completed**: Gemini client configured to route all traffic through Cloudflare AI Gateway.
 - **Storage abstraction completed**: Reusable storage client (`lib/storage/index.ts`) abstracting R2 and UploadThing providers.
 - **vNext Content Architecture migration completed**: Canonical Markdown-First Knowledge System implemented, schemas updated, local SQLite and production Turso databases fully migrated, MTD backfill completed, validation, extraction, assessment indexing, and policy layers fully operational.
+- **Template-Based Simulation & Dual Leaderboard System completed**: Tutorial PKA simulation refactored to template-based quizzes under `simulation` category. Course leaderboards split into Kuis and Simulasi/Tryout.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.

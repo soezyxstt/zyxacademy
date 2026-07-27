@@ -27,7 +27,7 @@ interface QuizTemplate {
   id: string;
   courseId: string;
   title: string;
-  category: "daily" | "weekly" | "chapter" | "premium";
+  category: "daily" | "weekly" | "chapter" | "premium" | "simulation";
   visibility: "free" | "paid";
   status: "draft" | "published";
   timeLimitSeconds: number | null;
@@ -65,7 +65,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const [isTplOpen, setIsTplOpen] = useState(false);
   const [editingTpl, setEditingTpl] = useState<QuizTemplate | null>(null);
   const [tplTitle, setTplTitle] = useState("");
-  const [tplCategory, setTplCategory] = useState<"daily" | "weekly" | "chapter" | "premium">("weekly");
+  const [tplCategory, setTplCategory] = useState<"daily" | "weekly" | "chapter" | "premium" | "simulation">("weekly");
   const [tplVisibility, setTplVisibility] = useState<"free" | "paid">("free");
   const [tplTimeLimit, setTplTimeLimit] = useState("20"); // in minutes
   const [tplMaxAttempts, setTplMaxAttempts] = useState("3");
@@ -622,6 +622,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     <SelectItem value="daily">Daily Quiz</SelectItem>
                     <SelectItem value="weekly">Weekly Quiz</SelectItem>
                     <SelectItem value="chapter">Chapter Evaluation</SelectItem>
+                    <SelectItem value="simulation">Simulasi (Try Out)</SelectItem>
                     <SelectItem value="premium">Premium Test</SelectItem>
                   </SelectContent>
                 </Select>

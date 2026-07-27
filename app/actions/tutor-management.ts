@@ -168,7 +168,7 @@ export async function saveQuizTemplateAction(
   templateId: string | null,
   data: {
     title: string;
-    category: "daily" | "weekly" | "chapter" | "premium";
+    category: "daily" | "weekly" | "chapter" | "premium" | "simulation";
     visibility: "free" | "paid";
     timeLimitSeconds: number | null;
     maxAttempts: number | null;

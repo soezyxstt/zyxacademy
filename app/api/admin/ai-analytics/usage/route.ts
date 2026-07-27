@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { db } from "@/db";
 import { aiUsageEvents, user } from "@/db/schema";
-import { and, eq, gte, lte, sql, desc } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 
 export async function GET(req: Request) {
   try {
@@ -28,10 +28,18 @@ export async function GET(req: Request) {
     // Ensure end date includes the full day
     endDate.setHours(23, 59, 59, 999);
 
-    const conditions = and(
-      gte(aiUsageEvents.createdAt, startDate),
-      lte(aiUsageEvents.createdAt, endDate)
-    );
+    const startMs = startDate.getTime();
+    const startSec = Math.floor(startMs / 1000);
+    const endMs = endDate.getTime();
+    const endSec = Math.floor(endMs / 1000);
+
+    const conditions = sql`
+      (
+        (${aiUsageEvents.createdAt} > 9999999999 AND ${aiUsageEvents.createdAt} >= ${startMs} AND ${aiUsageEvents.createdAt} <= ${endMs})
+        OR
+        (${aiUsageEvents.createdAt} <= 9999999999 AND ${aiUsageEvents.createdAt} >= ${startSec} AND ${aiUsageEvents.createdAt} <= ${endSec})
+      )
+    `;
 
     // 1. Group by user
     const usersUsage = await db
@@ -51,19 +59,20 @@ export async function GET(req: Request) {
       .orderBy(desc(sql`count(${aiUsageEvents.id})`));
 
     // 2. Group by day for the chart
-    // SQLite doesn't have a simple date formatting function out of the box that plays nicely across all drivers without strftime
-    // We can use strftime('%Y-%m-%d', datetime(created_at / 1000, 'unixepoch')) for libSQL/SQLite
+    // We dynamically divide by 1000 if it's in milliseconds (value > 9999999999) to support both seconds and ms transparently
+    const dateExpr = sql<string>`strftime('%Y-%m-%d', datetime(CASE WHEN ${aiUsageEvents.createdAt} > 9999999999 THEN ${aiUsageEvents.createdAt} / 1000 ELSE ${aiUsageEvents.createdAt} END, 'unixepoch'))`;
+
     const dailyUsage = await db
       .select({
-        date: sql<string>`strftime('%Y-%m-%d', datetime(${aiUsageEvents.createdAt} / 1000, 'unixepoch'))`,
+        date: dateExpr,
         requests: sql<number>`count(${aiUsageEvents.id})`,
         inputTokens: sql<number>`sum(${aiUsageEvents.inputTokens})`,
         outputTokens: sql<number>`sum(${aiUsageEvents.outputTokens})`,
       })
       .from(aiUsageEvents)
       .where(conditions)
-      .groupBy(sql`strftime('%Y-%m-%d', datetime(${aiUsageEvents.createdAt} / 1000, 'unixepoch'))`)
-      .orderBy(sql`strftime('%Y-%m-%d', datetime(${aiUsageEvents.createdAt} / 1000, 'unixepoch'))`);
+      .groupBy(dateExpr)
+      .orderBy(dateExpr);
 
     return NextResponse.json({
       success: true,
