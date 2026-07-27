@@ -706,6 +706,58 @@ export const studentQuizAttempts = sqliteTable(
  ]
 );
 
+export interface QuizAiInsightData {
+  summaryOverview: string;
+  misconceptions: Array<{
+    concept: string;
+    description: string;
+    frequency: "high" | "medium" | "low";
+    targetedQuestions?: string[];
+  }>;
+  teachingRecommendations: Array<{
+    topic: string;
+    actionItem: string;
+    rationale: string;
+  }>;
+  hardestQuestionsAnalysis: Array<{
+    questionId: string;
+    promptSnippet: string;
+    accuracyRate: number;
+    diagnosis: string;
+    distractorTrap: string;
+  }>;
+  easiestQuestionsAnalysis: Array<{
+    questionId: string;
+    promptSnippet: string;
+    accuracyRate: number;
+    reason: string;
+  }>;
+  actionableNextSteps: string[];
+}
+
+export const quizAiInsights = sqliteTable(
+  "quiz_ai_insights",
+  {
+    id: text("id").primaryKey(),
+    templateId: text("template_id").references(() => quizTemplates.id, { onDelete: "cascade" }),
+    examId: text("exam_id").references(() => exams.id, { onDelete: "cascade" }),
+    sampleSize: integer("sample_size").default(0).notNull(),
+    insights: text("insights", { mode: "json" }).$type<QuizAiInsightData>().notNull(),
+    summary: text("summary"),
+    generatedById: text("generated_by_id").references(() => user.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_qai_template").on(table.templateId),
+    index("idx_qai_exam").on(table.examId),
+  ]
+);
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // NEW DOMAINS (Revision v4 - Frozen)
 // ─────────────────────────────────────────────────────────────────────────────

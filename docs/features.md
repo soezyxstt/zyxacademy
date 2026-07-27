@@ -36,6 +36,7 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Manages career path templates
 - Monitors content quality flags (auto-detected issues)
 - Views coaching analytics dashboards
+- Accesses dedicated Quiz & Exam Analytics & Insight portal (`/admin/ai/quiz-insights`) for real-time item/distractor analysis and on-demand Gemini AI deep pedagogical insights
 
 ## Core Pipelines
 

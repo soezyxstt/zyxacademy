@@ -186,8 +186,10 @@ function AdminSidebarInner() {
         <NavGroup label="Evaluasi & Kuis" collapsed={c} />
         <NavItem href="/admin/ai/questions" icon={ClipboardList} label="Bank Soal" active={isPrefix("/admin/ai/questions")} collapsed={c} />
         <NavItem href="/admin/ai/quizzes" icon={ListChecks} label="Template Kuis" active={isPrefix("/admin/ai/quizzes")} collapsed={c} />
+        <NavItem href="/admin/ai/quiz-insights" icon={BarChart3} label="Analisis & Insight Kuis" active={isPrefix("/admin/ai/quiz-insights")} collapsed={c} />
         <NavItem href="/admin/ai/jobs" icon={Zap} label="Generasi Soal" active={isPrefix("/admin/ai/jobs")} collapsed={c} />
         <NavItem href="/admin/ai/distractors" icon={BarChart3} label="Analitik Distraktor" active={isPrefix("/admin/ai/distractors")} collapsed={c} />
+
 
         <NavGroup label="AI & Konten" collapsed={c} />
         <NavItem href="/admin/ai/materials" icon={BookText} label="Materi AI" active={isPrefix("/admin/ai/materials")} collapsed={c} />

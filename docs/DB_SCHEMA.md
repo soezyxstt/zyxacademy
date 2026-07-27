@@ -247,6 +247,17 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `assessmentSourceId`
 * `chapterId`
 
+### quiz_ai_insights
+* `id`: Primary key (`qai_...`).
+* `templateId`: FK to `quizTemplates.id` (nullable).
+* `examId`: FK to `exams.id` (nullable).
+* `sampleSize`: Number of completed student attempts analyzed.
+* `insights`: JSON object containing executive summary, misconceptions, teaching recommendations, hardest questions diagnosis, easiest questions, and actionable next steps.
+* `summary`: Text overview summary.
+* `generatedById`: FK to `user.id` (admin/tutor who ran AI analysis).
+* `createdAt`
+* `updatedAt`
+
 ### assessmentObjects
 * `id`
 * `sourceId`
