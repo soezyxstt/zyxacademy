@@ -31,9 +31,13 @@ type QuizPlayerProps = {
   getRedirectPath?: (attemptId: string) => string;
   /** Serializable variant of getRedirectPath for server-component callers; `?attemptId=` is appended. */
   redirectBasePath?: string;
+  /** Pre-populated answers snapshot from DB if resuming an attempt */
+  initialAnswers?: Record<string, number>;
+  /** Start time timestamp in ms to calculate exact remaining time relative to real time */
+  startedAtMs?: number;
 };
 
-export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath }: QuizPlayerProps) {
+export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs }: QuizPlayerProps) {
   const router = useRouter();
   const durationSeconds = (exam.settings?.timeLimitMinutes ?? 15) * 60;
   const timerStorageKey = useMemo(() => `zyx-quiz-timer-deadline-${attemptId}`, [attemptId]);
@@ -50,7 +54,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         }
       }
     }
-    return {};
+    return initialAnswers ?? {};
   });
   
   // Flag state for "Ragu-ragu"
@@ -133,18 +137,22 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     const rawDeadline = window.localStorage.getItem(timerStorageKey);
     const storedDeadline = rawDeadline ? Number(rawDeadline) : NaN;
     const now = Date.now();
-    let nextTimeLeft = durationSeconds;
+    let deadline: number;
 
     if (Number.isFinite(storedDeadline)) {
-      nextTimeLeft = Math.max(0, Math.ceil((storedDeadline - now) / 1000));
+      deadline = storedDeadline;
+    } else if (startedAtMs) {
+      deadline = startedAtMs + durationSeconds * 1000;
+      window.localStorage.setItem(timerStorageKey, String(deadline));
     } else {
-      const deadline = now + durationSeconds * 1000;
+      deadline = now + durationSeconds * 1000;
       window.localStorage.setItem(timerStorageKey, String(deadline));
     }
 
+    const nextTimeLeft = Math.max(0, Math.ceil((deadline - now) / 1000));
     const syncTimer = window.setTimeout(() => setTimeLeft(nextTimeLeft), 0);
     return () => window.clearTimeout(syncTimer);
-  }, [durationSeconds, timerStorageKey]);
+  }, [durationSeconds, timerStorageKey, startedAtMs]);
 
   useEffect(() => {
     if (isSubmitted || submitting) return;

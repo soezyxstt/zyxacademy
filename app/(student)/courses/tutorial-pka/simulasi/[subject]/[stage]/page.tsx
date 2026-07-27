@@ -18,6 +18,8 @@ import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { Reveal } from "@/components/ui/reveal";
 
+import { normalizeDate } from "@/lib/date-utils";
+
 type Props = {
   params: Promise<{ subject: string; stage: string }>;
   searchParams: Promise<{ attemptId?: string }>;
@@ -183,6 +185,16 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
     }
 
     if (attempt.status === "in_progress") {
+      const initialAnswers: Record<string, number> = {};
+      if (attempt.answersSnapshot && typeof attempt.answersSnapshot === "object") {
+        for (const [qId, sel] of Object.entries(attempt.answersSnapshot as Record<string, number[]>)) {
+          if (Array.isArray(sel) && sel.length > 0 && typeof sel[0] === "number") {
+            initialAnswers[qId] = sel[0];
+          }
+        }
+      }
+      const startedAtMs = attempt.startedAt ? normalizeDate(attempt.startedAt).getTime() : undefined;
+
       const formattedExam = {
         id: template.id,
         courseId: template.courseId,
@@ -210,6 +222,8 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                 exam={formattedExam}
                 attemptId={attempt.id}
                 redirectBasePath={stagePath(subject, stage)}
+                initialAnswers={initialAnswers}
+                startedAtMs={startedAtMs}
               />
             </Reveal>
           </div>

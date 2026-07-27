@@ -19,6 +19,7 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { cn } from "@/lib/utils";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
+import { normalizeDate } from "@/lib/date-utils";
 
 type Props = {
   params: Promise<{ id: string; quizId: string }>;
@@ -292,6 +293,16 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       })),
     };
 
+    const initialAnswers: Record<string, number> = {};
+    if (targetAttempt.answersSnapshot && typeof targetAttempt.answersSnapshot === "object") {
+      for (const [qId, sel] of Object.entries(targetAttempt.answersSnapshot as Record<string, number[]>)) {
+        if (Array.isArray(sel) && sel.length > 0 && typeof sel[0] === "number") {
+          initialAnswers[qId] = sel[0];
+        }
+      }
+    }
+    const startedAtMs = targetAttempt.startedAt ? normalizeDate(targetAttempt.startedAt).getTime() : undefined;
+
     return (
       <CoursePageShell title={template.title} description="Jawab kuis berikut dengan teliti." hideHeader>
         <Reveal>
@@ -299,6 +310,8 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             courseId={id}
             exam={formattedExam}
             attemptId={targetAttempt.id}
+            initialAnswers={initialAnswers}
+            startedAtMs={startedAtMs}
           />
         </Reveal>
       </CoursePageShell>
