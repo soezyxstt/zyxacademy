@@ -17,6 +17,7 @@ import { recordQuestionOptionStats } from '@/lib/option-stats';
 import { buildRemediation } from '@/lib/remediation';
 import { env } from '@/lib/env';
 import { PKA_COURSE_ID } from '@/lib/pka-config';
+import { normalizeDate } from '@/lib/date-utils';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -192,19 +193,24 @@ export async function POST(req: NextRequest, { params }: Context) {
  ? await buildPlanForConcepts(attempt.studentId, courseId, weakAreas)
  : [];
 
- await db
- .update(studentQuizAttempts)
- .set({
- status: 'completed',
- score,
- durationSeconds: durationSeconds ?? null,
- answersSnapshot: answers as unknown as Record<string, unknown>,
- submittedAt: new Date(),
- strongAreas,
- weakAreas,
- recommendedNextSteps: nextSteps,
- })
- .where(eq(studentQuizAttempts.id, id));
+  const now = new Date();
+  const startedMs = normalizeDate(attempt.startedAt).getTime();
+  const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - startedMs) / 1000));
+  const finalDurationSeconds = durationSeconds !== undefined ? Math.min(durationSeconds, elapsedSeconds) : elapsedSeconds;
+
+  await db
+    .update(studentQuizAttempts)
+    .set({
+      status: 'completed',
+      score,
+      durationSeconds: finalDurationSeconds,
+      answersSnapshot: answers as unknown as Record<string, unknown>,
+      submittedAt: now,
+      strongAreas,
+      weakAreas,
+      recommendedNextSteps: nextSteps,
+    })
+    .where(eq(studentQuizAttempts.id, id));
 
  if (template) {
  const events = snapshot.map((q) => {
