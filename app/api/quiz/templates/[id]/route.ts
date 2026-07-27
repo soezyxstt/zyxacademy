@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     openAt: z.string().nullable().optional(),
     closeAt: z.string().nullable().optional(),
     title: z.string().min(1).max(255).optional(),
-    category: z.enum(['daily', 'weekly', 'chapter', 'premium']).optional(),
+    category: z.enum(['daily', 'weekly', 'chapter', 'premium', 'simulation']).optional(),
     visibility: z.enum(['free', 'paid']).optional(),
     timeLimitSeconds: z.number().int().nullable().optional(),
     maxAttempts: z.number().int().nullable().optional(),
@@ -64,7 +64,8 @@ export async function PATCH(req: NextRequest, { params }: Context) {
 
   const parsed = UpdateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const errorMsg = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+    return NextResponse.json({ error: errorMsg }, { status: 400 });
   }
 
   const updateData: any = {};

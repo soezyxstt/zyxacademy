@@ -15,7 +15,7 @@ import { and, eq, desc } from 'drizzle-orm';
 const CreateTemplateSchema = z.object({
   courseId: z.string().min(1),
   title: z.string().min(1).max(255),
-  category: z.enum(['daily', 'weekly', 'chapter', 'premium']),
+  category: z.enum(['daily', 'weekly', 'chapter', 'premium', 'simulation']),
   visibility: z.enum(['free', 'paid']).default('free'),
   timeLimitSeconds: z.number().int().min(60).optional(),
   maxAttempts: z.number().int().min(1).optional(),
@@ -44,9 +44,10 @@ export async function POST(req: NextRequest) {
 
  const body = await req.json();
  const parsed = CreateTemplateSchema.safeParse(body);
- if (!parsed.success) {
- return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
- }
+  if (!parsed.success) {
+    const errorMsg = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+    return NextResponse.json({ error: errorMsg }, { status: 400 });
+  }
 
  const id = randomUUID();
   const {
@@ -115,10 +116,10 @@ export async function GET(req: NextRequest) {
 
  const conditions = [];
  if (courseId) conditions.push(eq(quizTemplates.courseId, courseId));
- if (category)
- conditions.push(
- eq(quizTemplates.category, category as 'daily' | 'weekly' | 'chapter' | 'premium'),
- );
+  if (category)
+    conditions.push(
+      eq(quizTemplates.category, category as 'daily' | 'weekly' | 'chapter' | 'premium' | 'simulation'),
+    );
 
  // Students see only free templates; tutors/admins see all
  const isStudent = session.user.role === 'student';

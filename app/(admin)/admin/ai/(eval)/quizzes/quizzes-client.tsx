@@ -313,10 +313,11 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
            body: JSON.stringify(payload),
          });
 
-         if (!res.ok) {
-           const errData = await res.json();
-           throw new Error(errData.error || "Gagal memperbarui kuis template");
-         }
+          if (!res.ok) {
+            const errData = await res.json();
+            const msg = typeof errData.error === "string" ? errData.error : JSON.stringify(errData.error);
+            throw new Error(msg || "Gagal memperbarui kuis template");
+          }
 
          toast.success("Template kuis berhasil diperbarui!");
          setTemplates((prev) =>
@@ -346,10 +347,11 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
            body: JSON.stringify(payload),
          });
 
-         if (!res.ok) {
-           const errData = await res.json();
-           throw new Error(errData.error || "Gagal membuat kuis template");
-         }
+          if (!res.ok) {
+            const errData = await res.json();
+            const msg = typeof errData.error === "string" ? errData.error : JSON.stringify(errData.error);
+            throw new Error(msg || "Gagal membuat kuis template");
+          }
 
          const data = await res.json();
          toast.success("Template kuis berhasil dibuat!");
