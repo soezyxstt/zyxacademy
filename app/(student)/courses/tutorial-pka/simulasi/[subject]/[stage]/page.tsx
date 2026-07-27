@@ -194,6 +194,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
         }
       }
       const startedAtMs = attempt.startedAt ? normalizeDate(attempt.startedAt).getTime() : undefined;
+      const closeAtMs = template.closeAt ? normalizeDate(template.closeAt).getTime() : undefined;
 
       const formattedExam = {
         id: template.id,
@@ -224,6 +225,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                 redirectBasePath={stagePath(subject, stage)}
                 initialAnswers={initialAnswers}
                 startedAtMs={startedAtMs}
+                closeAtMs={closeAtMs}
               />
             </Reveal>
           </div>

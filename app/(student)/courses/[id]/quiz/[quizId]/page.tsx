@@ -302,6 +302,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       }
     }
     const startedAtMs = targetAttempt.startedAt ? normalizeDate(targetAttempt.startedAt).getTime() : undefined;
+    const closeAtMs = template.closeAt ? normalizeDate(template.closeAt).getTime() : undefined;
 
     return (
       <CoursePageShell title={template.title} description="Jawab kuis berikut dengan teliti." hideHeader>
@@ -312,6 +313,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             attemptId={targetAttempt.id}
             initialAnswers={initialAnswers}
             startedAtMs={startedAtMs}
+            closeAtMs={closeAtMs}
           />
         </Reveal>
       </CoursePageShell>

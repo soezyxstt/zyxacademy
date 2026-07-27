@@ -35,9 +35,11 @@ type QuizPlayerProps = {
   initialAnswers?: Record<string, number>;
   /** Start time timestamp in ms to calculate exact remaining time relative to real time */
   startedAtMs?: number;
+  /** Absolute closing timestamp in ms (e.g. quiz window closes at 20:00). Timer will not exceed this. */
+  closeAtMs?: number;
 };
 
-export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs }: QuizPlayerProps) {
+export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs, closeAtMs }: QuizPlayerProps) {
   const router = useRouter();
   const durationSeconds = (exam.settings?.timeLimitMinutes ?? 15) * 60;
   const timerStorageKey = useMemo(() => `zyx-quiz-timer-deadline-${attemptId}`, [attemptId]);
@@ -143,16 +145,21 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       deadline = storedDeadline;
     } else if (startedAtMs) {
       deadline = startedAtMs + durationSeconds * 1000;
-      window.localStorage.setItem(timerStorageKey, String(deadline));
     } else {
       deadline = now + durationSeconds * 1000;
-      window.localStorage.setItem(timerStorageKey, String(deadline));
     }
+
+    // Cap the deadline if an absolute closing time (closeAtMs) is specified
+    if (closeAtMs && Number.isFinite(closeAtMs)) {
+      deadline = Math.min(deadline, closeAtMs);
+    }
+
+    window.localStorage.setItem(timerStorageKey, String(deadline));
 
     const nextTimeLeft = Math.max(0, Math.ceil((deadline - now) / 1000));
     const syncTimer = window.setTimeout(() => setTimeLeft(nextTimeLeft), 0);
     return () => window.clearTimeout(syncTimer);
-  }, [durationSeconds, timerStorageKey, startedAtMs]);
+  }, [durationSeconds, timerStorageKey, startedAtMs, closeAtMs]);
 
   useEffect(() => {
     if (isSubmitted || submitting) return;
