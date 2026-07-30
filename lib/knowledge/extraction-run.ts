@@ -14,7 +14,6 @@ import {
 import {
   reconcileCrossChunkCandidates,
   type ReconciledCandidateKo,
-  type ReconciledLearningObjective,
   type ReconciliationReport,
 } from './candidate-reconciler';
 import {
@@ -27,7 +26,6 @@ import {
   type ExistingKoRecord,
   type KoReconciliationResult,
   generateStableKoKey,
-  computeSemanticKoHash,
 } from './identity';
 import { type ExtractionRunState, type CandidateKo, type KoSourceSpan } from './contracts';
 
@@ -81,7 +79,7 @@ export function validateExtractionRun(
   normalizedSource: NormalizedSource,
   chunks: DocumentChunk[],
   candidates: ReconciledCandidateKo[],
-  canonicalization: CanonicalizationResult
+  _canonicalization: CanonicalizationResult
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 

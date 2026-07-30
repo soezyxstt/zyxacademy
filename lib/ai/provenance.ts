@@ -61,8 +61,8 @@ export async function recordGenerationTrace(data: GenerationTraceData): Promise<
   const traceId = `trc_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
 
   try {
-    if (process.env.MOCK_GEMINI === 'true' && !process.env.DATABASE_URL) {
-      // Return synthetic traceId when running in offline contract unit tests without DB
+    if (process.env.MOCK_GEMINI === 'true') {
+      // Return synthetic traceId when running in offline contract unit tests
       return traceId;
     }
 

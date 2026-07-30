@@ -218,12 +218,23 @@ export async function askTutorRagAction(
   const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, question.slice(0, 100));
   const startTime = Date.now();
 
+  const activeAttempt = await db
+    .select({ id: quizAttempts.id })
+    .from(quizAttempts)
+    .innerJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
+    .where(and(eq(quizAttempts.userId, user.id), eq(quizzes.courseId, courseId), eq(quizAttempts.isCompleted, false)))
+    .limit(1);
+
+  const hasActiveAttempt = activeAttempt.length > 0;
+
   const result = await askTutorRag({
     studentId: user.id,
     courseId,
     chapterId,
     question,
     sessionId: sid,
+    attemptState: hasActiveAttempt ? "active" : "none",
+    activityKind: hasActiveAttempt ? "quiz" : "study",
   });
 
   return {

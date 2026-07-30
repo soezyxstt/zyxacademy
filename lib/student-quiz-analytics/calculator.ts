@@ -84,6 +84,8 @@ export async function computeQuizAnalyticsFacts(
   const difficultyStatsMap = new Map<string, { total: number; correct: number }>();
 
   let totalDuration = attempt.durationSeconds ?? 0;
+  const hasPerQuestionTiming = questionsSnapshot.every((q) => typeof q.time_spent_seconds === "number");
+  const useAnalyticsV2 = process.env.FEATURE_ANALYTICS_DIAGNOSIS_V2 === "1";
   const avgTimePerQuestion = questionsSnapshot.length > 0 ? Math.round(totalDuration / questionsSnapshot.length) : 0;
   let fastAnswerCount = 0;
   let fastIncorrectCount = 0;
@@ -106,8 +108,12 @@ export async function computeQuizAnalyticsFacts(
       incorrectCount++;
     }
 
-    // Time analysis
-    const spentSec = q.time_spent_seconds ?? avgTimePerQuestion;
+    // Time analysis: Do NOT substitute attempt average if V2 flag is enabled and per-question timing is absent
+    const spentSec = typeof q.time_spent_seconds === "number"
+      ? q.time_spent_seconds
+      : useAnalyticsV2
+      ? null
+      : avgTimePerQuestion;
     if (spentSec > 0 && spentSec < 15) {
       fastAnswerCount++;
       if (!isCorrect) fastIncorrectCount++;

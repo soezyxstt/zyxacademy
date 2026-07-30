@@ -64,7 +64,7 @@ export function validateVisualSpec(
   }
 
   // 2. Validate numeric values are finite
-  for (const [key, val] of Object.entries(spec.values)) {
+  for (const [_key, val] of Object.entries(spec.values)) {
     if (typeof val === "number" && (!Number.isFinite(val) || Number.isNaN(val))) {
       reasonCodes.push("NON_FINITE_NUMERIC_VALUE");
     }

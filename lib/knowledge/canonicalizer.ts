@@ -1,4 +1,4 @@
-import { normalizeConceptName, cosineSimilarity } from '../ko-extractor';
+import { normalizeConceptName } from '../ko-extractor';
 import { type ReconciledCandidateKo } from './candidate-reconciler';
 import { type ExistingKoRecord } from './identity';
 
@@ -44,7 +44,7 @@ export interface CanonicalizationResult {
 export function resolveCanonicalConcepts(
   candidates: ReconciledCandidateKo[],
   registeredConcepts: RegisteredConceptInfo[],
-  existingKoRecords: ExistingKoRecord[] = []
+  _existingKoRecords: ExistingKoRecord[] = []
 ): CanonicalizationResult {
   const resolutions: CandidateResolution[] = [];
   let hasAmbiguousCandidates = false;

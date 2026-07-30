@@ -12,7 +12,7 @@
  * set only, and anything outside that set is dropped.
  */
 
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { db } from "@/db";
 import {
  aiUsageEvents,
@@ -53,24 +53,24 @@ import {
   assertNoStudentTextInSharedCache,
   SHARED_TUTOR_TTL_SECONDS,
 } from "@/lib/tutor/cache-contract";
-import { classifyQueryAction, type QueryActionClassification } from "@/lib/tutor/query-action";
+import { classifyQueryAction, type QueryActionClassification as _QueryActionClassification } from "@/lib/tutor/query-action";
 import {
   SourceEnvelope,
-  SourceTrustLabel,
+  SourceTrustLabel as _SourceTrustLabel,
   buildSanitizedContextBlock,
   sanitizePromptInput,
   computeSourceHash,
 } from "@/lib/tutor/prompt-sanitizer";
 import {
   EvidenceCoverageState,
-  EvidenceClassification,
+  EvidenceClassification as _EvidenceClassification,
   classifyEvidence,
-  buildAnswerPlan,
+  buildAnswerPlan as _buildAnswerPlan,
 } from "@/lib/tutor/evidence-coverage";
 import { verifyCitations } from "@/lib/tutor/citation-verifier";
 
 const SIMILARITY_FLOOR = 0.5;
-const CACHE_CONFIDENCE_FLOOR = 0.6;
+const _CACHE_CONFIDENCE_FLOOR = 0.6;
 const SUMMARY_TTL_SECONDS = 30 * 24 * 3600;
 const TOP_K = 6;
 
@@ -580,7 +580,22 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   let budgetExhausted = false;
 
   let retrieved: RetrievedSource[] = [];
-  if (await isMetaExamQuery(searchQuestion)) {
+  if (classification.action === "reuse_previous_evidence") {
+    // Reuse sources attached to recent conversation history instead of issuing new vector search
+    const historySources: RetrievedSource[] = [];
+    for (const msg of history.recentMessages) {
+      if (Array.isArray(msg.sources)) {
+        for (const s of msg.sources) {
+          if (s && typeof s === "object" && typeof s.id === "string") {
+            historySources.push(s as RetrievedSource);
+          }
+        }
+      }
+    }
+    retrieved = historySources;
+  } else if (classification.action === "answer_from_conversation") {
+    retrieved = [];
+  } else if (await isMetaExamQuery(searchQuestion)) {
     const statsSummary = await executeMetaQuery(courseId, searchQuestion);
     retrieved = [
       {

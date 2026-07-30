@@ -79,11 +79,13 @@ Jika tidak ada masalah, berikan status PASS dengan array kosong.`;
     const { response } = await generateContentWithFallback({ useCase: USE_CASES.DIKTAT_PDF_AUDIT, contents: prompt });
     const text: string = typeof response.text === "function" ? response.text() : response.text;
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { status: "PASS", warnings: [] };
+    if (!jsonMatch) {
+      return { status: "unavailable", warnings: ["Model returned non-JSON output"], errorMessage: "Malformed output" };
+    }
 
     const parsed = JSON.parse(jsonMatch[0]);
     const status: PDFAuditResult["status"] =
-      parsed.status === "WARN" ? "WARN" : "PASS";
+      parsed.status === "WARN" ? "WARN" : parsed.status === "FAIL" ? "FAIL" : "PASS";
     const parsedWarnings: string[] = Array.isArray(parsed.warnings)
       ? parsed.warnings.filter((w: any): w is string => typeof w === "string")
       : [];
@@ -92,6 +94,6 @@ Jika tidak ada masalah, berikan status PASS dengan array kosong.`;
     return { status, warnings };
   } catch (err) {
     console.warn("[diktat-pdf-auditor] AI audit call failed:", err);
-    return { status: "PASS", warnings: [] };
+    return { status: "unavailable", warnings: ["Audit worker unavailable"], errorMessage: String(err) };
   }
 }

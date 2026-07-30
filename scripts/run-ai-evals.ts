@@ -1,9 +1,12 @@
 import { GoldenCase } from "../lib/ai/evals/contracts";
 import { scoreGoldenCase, summarizeEvaluations } from "../lib/ai/evals/scorers";
+import { serializeStudentQuizAttempt } from "../lib/assessment-serialization";
+import { verifyCitations } from "../lib/tutor/citation-verifier";
+import { canPublishDiktat } from "../lib/diktat/audit-contracts";
 
 /**
- * Plan 015: Offline Golden AI Evaluation Suite
- * Executed via `bun run eval:ai`. Spends 0 LLM quota, validates zero-tolerance invariants.
+ * Plan 015: Real-Pipeline Golden AI Evaluation Suite
+ * Executed via `bun run eval:ai`. Invokes actual domain functions to test zero-tolerance release invariants.
  */
 
 const GOLDEN_CASES: GoldenCase[] = [
@@ -13,7 +16,7 @@ const GOLDEN_CASES: GoldenCase[] = [
     category: "tutor",
     input: { attemptActive: true },
     expectedOutcome: "redacted",
-    prohibitedOutputs: ["correctOptionIndex", "keyAnswer"],
+    prohibitedOutputs: ["correct_indices", "explanation"],
     zeroToleranceInvariant: "active_attempt_redaction",
   },
   {
@@ -38,24 +41,57 @@ const GOLDEN_CASES: GoldenCase[] = [
 
 export async function runAiEvaluations() {
   console.log("==========================================");
-  console.log("  ZYX AI RELIABILITY GOLDEN EVALUATION    ");
+  console.log("  ZYX AI RELIABILITY REAL-PIPELINE EVAL   ");
   console.log("==========================================");
-  console.log(`Running ${GOLDEN_CASES.length} offline golden evaluation cases...\n`);
+  console.log(`Running ${GOLDEN_CASES.length} real-pipeline golden evaluation cases...\n`);
 
   const results: Array<{ passed: boolean; violation: boolean }> = [];
 
   for (const c of GOLDEN_CASES) {
-    let mockOutput: { status?: string; text?: string; redacted?: boolean; citationsValid?: boolean } = {};
+    let pipelineOutput: { status?: string; text?: string; redacted?: boolean; citationsValid?: boolean } = {};
 
     if (c.zeroToleranceInvariant === "active_attempt_redaction") {
-      mockOutput = { redacted: true, text: "Here is a hint without secret data" };
+      // Execute actual assessment redaction pipeline
+      const serialized = serializeStudentQuizAttempt({
+        id: "att-1",
+        quizId: "q-1",
+        userId: "usr-1",
+        isCompleted: false,
+        questionsSnapshot: [
+          {
+            id: "item-1",
+            promptStem: "What is torque?",
+            options: ["r x F", "F / r"],
+            correct_indices: [0],
+            explanation: "Torque is r cross F",
+          },
+        ],
+        answersSnapshot: {},
+        score: null,
+      });
+
+      const q = (serialized.questionsSnapshot as any[])[0];
+      const hasRedactedKeys = !("correct_indices" in q) && !("explanation" in q);
+      pipelineOutput = { redacted: hasRedactedKeys, text: JSON.stringify(serialized) };
     } else if (c.zeroToleranceInvariant === "unknown_citation_rejection") {
-      mockOutput = { citationsValid: true, text: "Grounded answer" };
+      // Execute actual citation verification pipeline
+      const verification = verifyCitations({
+        citedIds: ["chk-999"],
+        allowedSourceIds: ["chk-100", "chk-101"],
+        coverageState: "full",
+      });
+      const unknownCitationDropped = verification.droppedSourceIds.includes("chk-999");
+      pipelineOutput = { citationsValid: unknownCitationDropped, text: "Grounded answer" };
     } else if (c.zeroToleranceInvariant === "provider_failure_fail_closed") {
-      mockOutput = { status: "unavailable", text: "Fail closed" };
+      // Execute actual diktat publication check pipeline
+      const canPublish = canPublishDiktat({
+        status: "unavailable",
+        findings: [{ id: "f1", code: "ERR", severity: "critical", message: "PDF audit unreadable", sourceSpanIds: [] }],
+      });
+      pipelineOutput = { status: canPublish ? "pass" : "unavailable", text: "Fail closed" };
     }
 
-    const score = scoreGoldenCase(c, mockOutput);
+    const score = scoreGoldenCase(c, pipelineOutput);
     results.push({ passed: score.passed, violation: score.violation });
 
     const statusSymbol = score.passed ? "[PASS]" : "[FAIL]";
@@ -76,7 +112,7 @@ export async function runAiEvaluations() {
     process.exit(1);
   }
 
-  console.log("SUCCESS: All golden AI evaluation invariants passed 100%!");
+  console.log("SUCCESS: All real-pipeline golden AI evaluation invariants passed 100%!");
 }
 
 if (import.meta.main) {

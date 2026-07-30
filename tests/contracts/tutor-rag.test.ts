@@ -1,4 +1,4 @@
-import { describe, expect, it, test } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { normalizeQuestion } from "@/lib/tutor-rag";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache, buildTutorCacheKey, computeEvidenceVersion } from "@/lib/tutor/cache-contract";
@@ -6,7 +6,7 @@ import { classifyQueryAction, extractStyleModifiers } from "@/lib/tutor/query-ac
 import { evaluateAssessmentAssistancePolicy } from "@/lib/assessment-assistance-policy";
 import { env } from "@/lib/env";
 import { verifyCitations } from "@/lib/tutor/citation-verifier";
-import { classifyEvidence, extractClaimUnits } from "@/lib/tutor/evidence-coverage";
+import { classifyEvidence } from "@/lib/tutor/evidence-coverage";
 import { sanitizePromptInput, formatSourceEnvelope, SourceEnvelope } from "@/lib/tutor/prompt-sanitizer";
 
 describe("Tutor RAG Contract Tests", () => {

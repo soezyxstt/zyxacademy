@@ -1,11 +1,11 @@
-import { describe, expect, it, test } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { generateStableKoKey, computeSemanticKoHash, reconcileKoExtractionRun } from "@/lib/knowledge/identity";
-import { normalizeCanonicalSource, chunkCanonicalSource, parseSemanticBlocks } from "@/lib/knowledge/chunker";
+import { normalizeCanonicalSource, chunkCanonicalSource } from "@/lib/knowledge/chunker";
 import { validateChunkCandidates, validateChunkLearningObjectives } from "@/lib/knowledge/candidate-extractor";
 import { reconcileCrossChunkCandidates } from "@/lib/knowledge/candidate-reconciler";
 import { resolveCanonicalConcepts } from "@/lib/knowledge/canonicalizer";
-import { executeStagedKoExtractionRun, validateExtractionRun } from "@/lib/knowledge/extraction-run";
+import { executeStagedKoExtractionRun } from "@/lib/knowledge/extraction-run";
 import { env } from "@/lib/env";
 
 describe("KO Pipeline Contract Tests", () => {
@@ -165,7 +165,7 @@ Penjelasan tambahan mengenai vektor kecepatan dan arah gerak.`;
       chapterId: "ch_long",
       rawContent: longMarkdown,
       chunkingOptions: { maxChunkSize: 4000 },
-      chunkExtractorFn: async (chunk, source) => {
+      chunkExtractorFn: async (chunk, _source) => {
         if (chunk.content.includes("Mekanika Kuantum Lanjutan")) {
           return {
             candidates: [

@@ -52,6 +52,9 @@ export class UsageBudgetService {
     outputTokens?: number;
     requestType: string;
   }): Promise<void> {
+    if (process.env.MOCK_GEMINI === "true") {
+      return;
+    }
     const id = crypto.randomUUID();
     try {
       await db.insert(aiUsageEvents).values({

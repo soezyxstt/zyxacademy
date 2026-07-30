@@ -75,7 +75,7 @@ export function buildQuestionPromptBatch(
   chapterTitle: string,
   items: { ko: any; slot: any; patternProfile?: any; examQuestions?: any[] }[],
   policy?: CoursePolicyRow | null,
-  historicalQuestions?: string[]
+  _historicalQuestions?: string[]
 ): string {
   const koBlocks = items.map((item, idx) => {
     return `---
@@ -303,7 +303,7 @@ export async function generateQuestionsForKOBatch(
         estimatedSteps: 2,
       };
     } else {
-      const policy = policiesMap.get(ko.courseId);
+      const _policy = policiesMap.get(ko.courseId);
       const promptText = buildQuestionPrompt(course.title, chapter.title, ko, slot);
 
       try {

@@ -10,6 +10,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { env } from "@/lib/env";
+import { canPublishDiktat } from "@/lib/diktat/audit-contracts";
 
 /**
  * Extracts the unique file key from an UploadThing CDN URL.
@@ -251,15 +252,30 @@ export async function executeDiktatPDFGeneration(
     );
   }
 
-  // 7. PDF Audit (non-blocking, AI only)
-  if (process.env.FEATURE_DIKTAT_AI === "1") {
-    auditRenderedPDF(pdfBuffer, enrichedStructure).then(pdfAudit => {
-      if (pdfAudit.warnings.length > 0) {
-        console.warn("[diktat-pdf-audit]", pdfAudit.warnings);
+  // 7. PDF Audit (fail-closed when FEATURE_DIKTAT_QA_V2="1")
+  if (env.FEATURE_DIKTAT_QA_V2 === "1" || process.env.FEATURE_DIKTAT_AI === "1") {
+    try {
+      const pdfAudit = await auditRenderedPDF(pdfBuffer, enrichedStructure);
+      const isPublishable = canPublishDiktat({
+        status: pdfAudit.status as any,
+        findings: (pdfAudit.warnings || []).map((w, idx) => ({
+          id: `w-${idx}`,
+          code: "AUDIT_WARN",
+          severity: pdfAudit.status === "FAIL" ? "critical" : "warning",
+          message: w,
+          sourceSpanIds: [],
+        })),
+      });
+
+      if (!isPublishable) {
+        throw new Error(`Diktat PDF audit failed with status "${pdfAudit.status}": ${(pdfAudit.warnings || []).join("; ")}`);
       }
-    }).catch(err => {
-      console.warn("[diktat-pdf-audit] failed:", err);
-    });
+    } catch (auditErr: any) {
+      if (env.FEATURE_DIKTAT_QA_V2 === "1") {
+        throw auditErr;
+      }
+      console.warn("[diktat-pdf-audit] Audit warning:", auditErr?.message || auditErr);
+    }
   }
 
   // 8. Long-Term PDF Storage Strategy: Upload new and clean up old CDN files

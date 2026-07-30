@@ -411,10 +411,19 @@ export class PromptExecutor {
     t0: number;
     evidenceContext?: Record<string, any>;
   }): Promise<PromptExecutionResult<TOutput>> {
-    console.warn(`[PromptExecutor] Starting bounded repair for stage "${params.contract.stageId}". Errors: ${params.initialErrors.join("; ")}`);
-
     const repairableFields = params.contract.repairableFields;
-    const allowedFieldsStr = repairableFields && repairableFields.length > 0 ? repairableFields.join(", ") : "All fields";
+    if (repairableFields !== undefined && repairableFields.length === 0) {
+      console.warn(`[PromptExecutor] Repair rejected for stage "${params.contract.stageId}": empty repairableFields allowlist`);
+      return {
+        success: false,
+        outcome: "rejected",
+        errors: [...params.initialErrors, "Unbounded repair disallowed when repairableFields is empty"],
+        violationCodes: [...new Set([...params.initialViolationCodes, "UNBOUNDED_REPAIR_DISALLOWED"])],
+        retryCount: 0,
+      };
+    }
+
+    const allowedFieldsStr = repairableFields && repairableFields.length > 0 ? repairableFields.join(", ") : "All invalid fields";
 
     const repairPrompt = `[BOUNDED REPAIR REQUEST]
 The previous output produced validation errors. Correct ONLY the invalid fields specified below.
