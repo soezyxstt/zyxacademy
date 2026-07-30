@@ -36,23 +36,23 @@ Finding coverage: [AUDIT-TRACEABILITY.md](./AUDIT-TRACEABILITY.md)
 
 ## Execution order
 
-| Order | Plan | Priority | Depends on | Outcome |
-|---|---|---|---|---|
-| 001 | [Automated AI contract test foundation](./001-ai-contract-test-foundation.md) | P0 | None | Deterministic tests and fixtures exist before behavior changes. |
-| 002 | [Assessment answer protection and help policy](./002-assessment-integrity-and-help-policy.md) | P0 | 001 | Active attempts cannot expose answers; one deterministic help policy exists. |
-| 003 | [Prompt contracts, policy composition, and provenance](./003-prompt-contracts-and-provenance.md) | P0 | 001 | Shared prompt stages have typed identities, validators, repair codes, and trace metadata. |
-| 004 | [Tutor cache isolation and query action routing](./004-tutor-cache-and-query-routing.md) | P0 | 002, 003 | Student history cannot poison shared cache; style follow-ups do not force retrieval. |
-| 005 | [Tutor evidence, citation, conflict, and abstention pipeline](./005-tutor-evidence-and-citation-pipeline.md) | P0 | 002, 003, 004 | Coverage is multi-state, citations are verified, sources are untrusted data, and unsupported claims abstain. |
-| 006 | [Tutor pedagogy, diagnosis, and semantic visuals](./006-tutor-pedagogy-and-visuals.md) | P1 | 003, 005 | Explanations adapt to evidence; diagnoses are hypotheses; visuals are typed and deterministic. |
-| 007 | [Knowledge object provenance and stable identity](./007-ko-provenance-and-stable-identity.md) | P0 | 001, 003 | KOs carry source spans and stable IDs; type and teaching role are distinct. |
-| 008 | [Staged KO extraction and canonicalization](./008-staged-ko-extraction-and-canonicalization.md) | P1 | 007 | Long sources are chunked, candidates are reconciled, ambiguous merges require review. |
-| 009 | [Semantic material compiler](./009-semantic-material-compiler.md) | P1 | 007, 008 | The model plans semantic blocks; application code serializes validated Markdown. |
-| 010 | [Question blueprint, option shuffle, and distractor provenance](./010-question-blueprint-and-distractors.md) | P1 | 002, 003, 007 | Question coverage is multidimensional and persisted provenance is machine-readable. |
-| 011 | [Independent question verification and surgical repair](./011-question-verification-and-repair.md) | P1 | 010 | A solver and critic verify questions; repair touches only invalid fields. |
-| 012 | [Evidence-calibrated learner and admin analytics](./012-learning-analytics-calibration.md) | P1 | 002, 010, 011 | Observations, interpretations, and recommendations are distinct and sample-aware. |
-| 013 | [Atomic active-recall flashcards](./013-flashcard-active-recall-contract.md) | P2 | 003, 007 | Each card tests one recall target and difficulty is evidence-based. |
-| 014 | [Diktat audit, formula registry, and PDF QA](./014-diktat-audit-and-pdf-qa.md) | P1 | 003, 007, 009 | Author and reviewer are separated; formula and rendered-page QA fail closed. |
-| 015 | [Golden evaluations, shadow rollout, and documentation closure](./015-golden-evals-and-rollout.md) | P0 gate | 002 through 014 | All pipelines have behavioral thresholds, rollout telemetry, rollback steps, and accurate docs. |
+| Order | Plan | Priority | Depends on | Status | Outcome |
+|---|---|---|---|---|---|
+| 001 | [Automated AI contract test foundation](./001-ai-contract-test-foundation.md) | P0 | None | **DONE** | Deterministic tests and fixtures exist before behavior changes. |
+| 002 | [Assessment answer protection and help policy](./002-assessment-integrity-and-help-policy.md) | P0 | 001 | **DONE** | Active attempts cannot expose answers; one deterministic help policy exists. |
+| 003 | [Prompt contracts, policy composition, and provenance](./003-prompt-contracts-and-provenance.md) | P0 | 001 | **DONE** | Shared prompt stages have typed identities, validators, repair codes, and trace metadata. |
+| 004 | [Tutor cache isolation and query action routing](./004-tutor-cache-and-query-routing.md) | P0 | 002, 003 | **DONE** | Student history cannot poison shared cache; style follow-ups do not force retrieval. |
+| 005 | [Tutor evidence, citation, conflict, and abstention pipeline](./005-tutor-evidence-and-citation-pipeline.md) | P0 | 002, 003, 004 | **DONE** | Coverage is multi-state, citations are verified, sources are untrusted data, and unsupported claims abstain. |
+| 006 | [Tutor pedagogy, diagnosis, and semantic visuals](./006-tutor-pedagogy-and-visuals.md) | P1 | 003, 005 | **DONE** | Explanations adapt to evidence; diagnoses are hypotheses; visuals are typed and deterministic. |
+| 007 | [Knowledge object provenance and stable identity](./007-ko-provenance-and-stable-identity.md) | P0 | 001, 003 | **DONE** | KOs carry source spans and stable IDs; type and teaching role are distinct. |
+| 008 | [Staged KO extraction and canonicalization](./008-staged-ko-extraction-and-canonicalization.md) | P1 | 007 | **DONE** | Long sources are chunked, candidates are reconciled, ambiguous merges require review. |
+| 009 | [Semantic material compiler](./009-semantic-material-compiler.md) | P1 | 007, 008 | **DONE** | The model plans semantic blocks; application code serializes validated Markdown. |
+| 010 | [Question blueprint, option shuffle, and distractor provenance](./010-question-blueprint-and-distractors.md) | P1 | 002, 003, 007 | **DONE** | Question coverage is multidimensional and persisted provenance is machine-readable. |
+| 011 | [Independent question verification and surgical repair](./011-question-verification-and-repair.md) | P1 | 010 | **DONE** | A solver and critic verify questions; repair touches only invalid fields. |
+| 012 | [Evidence-calibrated learner and admin analytics](./012-learning-analytics-calibration.md) | P1 | 002, 010, 011 | **DONE** | Observations, interpretations, and recommendations are distinct and sample-aware. |
+| 013 | [Atomic active-recall flashcards](./013-flashcard-active-recall-contract.md) | P2 | 003, 007 | **DONE** | Each card tests one recall target and difficulty is evidence-based. |
+| 014 | [Diktat audit, formula registry, and PDF QA](./014-diktat-audit-and-pdf-qa.md) | P1 | 003, 007, 009 | **DONE** | Author and reviewer are separated; formula and rendered-page QA fail closed. |
+| 015 | [Golden evaluations, shadow rollout, and documentation closure](./015-golden-evals-and-rollout.md) | P0 gate | 002 through 014 | **DONE** | All pipelines have behavioral thresholds, rollout telemetry, rollback steps, and accurate docs. |
 
 ## Cross-plan quality gates
 
