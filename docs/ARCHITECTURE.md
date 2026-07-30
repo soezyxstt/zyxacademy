@@ -373,8 +373,12 @@ Student redeems enrollment token
      ├── Tryout ; timed exam mode
      ├── Flashcards ; SM-2 spaced repetition (student_flashcard_progress)
      ├── Live quiz ; join via code, real-time leaderboard (WebSocket/SSE via zyxrealtime Worker)
-     ├── AI Tutor ; Gemini chat with RAG (Pinecone vector search) & Assessment Assistance Policy (`lib/assessment-assistance-policy.ts`)
-     │    └── Gated by activityKind, attemptState, answerReleaseState, matchState ; forbids direct answer reveals during active attempts
+     ├── AI Tutor ; Gemini chat with RAG (Pinecone vector search), Query Action Router (`lib/tutor/query-action.ts`), and Tier 1 Cache Isolation (`lib/tutor/cache-contract.ts`)
+     │    ├── Typed Query Actions: `retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, `clarify`
+     │    ├── Style modifier extraction (`simpler`, `analogy`, `worked_example`, `graph`, `flowchart`, etc.) applied post-retrieval
+     │    ├── Student-free Tier 1 shared KV payload: zero student ID, session ID, or history in cached data (`assertNoStudentTextInSharedCache`)
+     │    ├── Deterministic cache keys: incorporates academic content query hash, prompt version, policy version, schema version, and `evidenceVersion` digest
+     │    └── Governed by Assessment Assistance Policy (`lib/assessment-assistance-policy.ts`) ; forbids direct answer reveals during active attempts
      ├── Tutor Booking ; book slots from tutor_slots
      ├── Leaderboard ; per-course ranking
      └── My Results ; attempt history + mastery graph
@@ -464,8 +468,10 @@ lib/
 │   ├── markdown-compiler.ts     ; Custom markdown → AST parser
 │   ├── ast-validator.ts         ; Zod AST validation
 │   ├── term-index.ts            ; Build interactive term index
-│   ├── term-match.ts            ; Term matching for popover
-│   └── graph-trace.ts           ; Concept graph construction
+│   ├── graph-trace.ts           ; Concept graph construction
+│   └── tutor/                   ; V2 Tutor Pipeline
+│       ├── cache-contract.ts    ; Student-free Tier 1 shared KV cache key & assertion contract
+│       └── query-action.ts      ; Deterministic & AI follow-up Query Action Router
 
 ├── (Vector & Search)
 │   ├── vector-store.ts          ; Store abstraction (Pinecone / Vectorize / dual)

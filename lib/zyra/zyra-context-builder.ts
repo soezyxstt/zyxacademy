@@ -1,3 +1,14 @@
+/**
+ * Zyra Multi-Layer Context Builder
+ *
+ * PRODUCTION ARCHITECTURE NOTE:
+ * `askTutorRag` in `lib/tutor-rag.ts` is the primary production owner for Tier 1 grounded RAG,
+ * student-free KV caching, and AI query action classification.
+ * `buildZyraContext` serves as the multi-layer context aggregator (conversation, course, learning,
+ * mastery, and retrieval memories) for extended Zyra chat interface sessions while enforcing
+ * strict token budgets per layer.
+ */
+
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
 import { chatSessions, tutorChatMessages } from "@/db/schema";

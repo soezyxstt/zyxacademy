@@ -61,6 +61,9 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 
 ### AI Tutor (RAG)
 - Three-tier grounded pipeline: KV cache → vector search → Gemini
+- Query Action Router (`retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, `clarify`) with response style modifier extraction (`simpler`, `analogy`, `worked_example`, `graph`, etc.)
+- Tier 1 Shared KV Cache isolation ensuring zero student identity, user ID, or conversation history is stored in shared cache payloads
+- Versioned prompt contracts, policy contracts, and evidence version digests in cache keys
 - Weak-concept addendum when student struggles
 - Capped at 30 AI requests per day per student
 

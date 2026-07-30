@@ -1,3 +1,7 @@
+/**
+ * Zyra Token Budget Allocator
+ * Defines layer-based token allocation and priority rules for multi-layer Zyra context building.
+ */
 export const DEFAULT_MAX_TOKENS = 12000;
 
 export const LAYER_PRIORITY: Array<{

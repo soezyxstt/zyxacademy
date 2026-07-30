@@ -47,10 +47,16 @@ import {
   type AnswerReleaseState,
   type MatchState,
 } from "@/lib/assessment-assistance-policy";
+import {
+  buildTutorCacheKey,
+  computeEvidenceVersion,
+  assertNoStudentTextInSharedCache,
+  SHARED_TUTOR_TTL_SECONDS,
+} from "@/lib/tutor/cache-contract";
+import { classifyQueryAction, type QueryActionClassification } from "@/lib/tutor/query-action";
 
 const SIMILARITY_FLOOR = 0.5;
 const CACHE_CONFIDENCE_FLOOR = 0.6;
-const TUTOR_TTL_SECONDS = 7 * 24 * 3600;
 const SUMMARY_TTL_SECONDS = 30 * 24 * 3600;
 const TOP_K = 6;
 
@@ -134,11 +140,6 @@ export function normalizeQuestion(question: string): string {
  .trim();
 }
 
-function tutorCacheKey(courseId: string, chapterId: string | null, question: string): string {
- const hash = createHash("sha256").update(normalizeQuestion(question)).digest("hex");
- return `tutor:${courseId}:${chapterId ?? "all"}:${hash}`;
-}
-
 async function logCacheHit(userId: string, feature: string): Promise<void> {
  try {
  await db.insert(aiUsageEvents).values({
@@ -153,26 +154,6 @@ async function logCacheHit(userId: string, feature: string): Promise<void> {
  // observability only, never block the answer
  }
 }
-
-interface QueryRewriteVars {
-  question: string;
-  historyText: string;
-}
-
-const queryRewritePrompt: SystemPrompt<QueryRewriteVars> = {
-  version: "tutor_rag/query_rewrite/v1.0.0",
-  systemInstruction:
-    "You are an AI assistant that rewrites conversational questions into standalone search queries for a vector database of university course materials. Analyze the conversation history and the new question. If the new question is a follow-up or contains pronouns/context referring to previous messages (e.g. 'explain it', 'what is the formula for that', 'give an analogy', 'sederhanakan'), rewrite it to be a standalone search query in Indonesian containing all necessary terms from the history. If the new question is already a standalone topic, return it unchanged. Output ONLY a JSON object containing the field 'rewrittenQuery'.",
-  userPrompt: (vars) => `CONVERSATION HISTORY:
-${vars.historyText}
-
-NEW QUESTION: ${vars.question}
-
-Generate a single JSON object:
-{
-  "rewrittenQuery": "[The standalone search query or the original question if no rewrite is needed]"
-}`,
-};
 
 interface GroundedVars {
  question: string;
@@ -529,163 +510,208 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     ? await getConversationMemory({ studentId, courseId, sessionId, limit: 6 })
     : { recentMessages: [] };
 
-  let searchQuestion = question;
-  let historyText = "";
+  // Classify query action deterministically or via AI action classifier
+  const classification = await classifyQueryAction(
+    { question, historyMessages: history.recentMessages },
+    { userId: studentId }
+  );
 
-  if (history.recentMessages.length > 0) {
-    historyText = history.recentMessages
-      .map((m) => `${m.role === "student" ? "STUDENT" : "ZYRA"}: ${m.content}`)
-      .join("\n\n");
-
-    // Rewrite query using history to preserve search context
-    try {
-      const rewriteResult = await PromptExecutor.run({
-        userId: studentId,
-        prompt: queryRewritePrompt,
-        variables: { question, historyText },
-        schema: z.object({ rewrittenQuery: z.string() }),
-        useCase: USE_CASES.GROUNDED_RAG,
-      });
-      if (rewriteResult.success && rewriteResult.data?.rewrittenQuery) {
-        searchQuestion = rewriteResult.data.rewrittenQuery.trim();
-        console.log(`[Query Rewrite] Original: "${question}" -> Rewritten: "${searchQuestion}"`);
-      }
-    } catch (e) {
-      console.error("Failed to rewrite query:", e);
-    }
+  // 1. Action: Clarify
+  if (classification.action === "clarify") {
+    return {
+      answer: "Mohon berikan pertanyaan yang lebih spesifik atau jelas mengenai materi kuliah agar aku bisa membantu.",
+      sources: [],
+      matchedConcepts: [],
+      confidence: 1.0,
+      grounded: false,
+      cached: false,
+      addendum: null,
+      personalized: null,
+      budgetExhausted: false,
+    };
   }
 
-  // Tier 1: cache using the contextualized search query
-  const cacheKey = tutorCacheKey(courseId, chapterId, searchQuestion);
-  let base = await kvGet<TutorRagAnswer>(cacheKey);
+  // 2. Action: Conversational greeting / meta remark
+  if (classification.action === "answer_from_conversation") {
+    const historyText = history.recentMessages
+      .map((m) => `${m.role === "student" ? "STUDENT" : "ZYRA"}: ${m.content}`)
+      .join("\n\n");
+    const result = await PromptExecutor.run({
+      userId: studentId,
+      prompt: tutorUngroundedAnswer,
+      variables: { question, conversationHistory: historyText },
+      schema: UngroundedSchema,
+      useCase: USE_CASES.UNGROUNDED_TUTOR,
+    });
+    const ansText = result.success && result.data
+      ? sanitizeAnswer(result.data.answer)
+      : "Halo! Ada yang bisa aku bantu mengenai materi kuliah hari ini?";
+    return {
+      answer: ansText,
+      sources: [],
+      matchedConcepts: result.success && result.data ? result.data.matchedConcepts : [],
+      confidence: 1.0,
+      grounded: false,
+      cached: false,
+      addendum: null,
+      personalized: null,
+      budgetExhausted: false,
+    };
+  }
+
+  // 3. Action: Retrieve or Reuse Previous Evidence
+  const searchQuestion = classification.contentFocus || question;
   let cached = false;
   let budgetExhausted = false;
 
-  if (base && typeof base.answer === "string") {
-   cached = true;
-   base = { ...base, answer: sanitizeAnswer(base.answer) };
-   await logCacheHit(studentId, "tutor_rag");
-  } else {
-   base = null;
-   let retrieved: RetrievedSource[] = [];
-   if (await isMetaExamQuery(searchQuestion)) {
+  let retrieved: RetrievedSource[] = [];
+  if (await isMetaExamQuery(searchQuestion)) {
     const statsSummary = await executeMetaQuery(courseId, searchQuestion);
     retrieved = [
-     {
-      type: "past_exam",
-      id: "system-stats",
-      label: "Exam Statistics Database",
-      href: `/courses/${courseId}/material`,
-      content: `Historical Exam Database Analytics Summary:\n${statsSummary}`,
-     },
+      {
+        type: "past_exam",
+        id: "system-stats",
+        label: "Exam Statistics Database",
+        href: `/courses/${courseId}/material`,
+        content: `Historical Exam Database Analytics Summary:\n${statsSummary}`,
+      },
     ];
-   } else {
+  } else {
     retrieved = await retrieve(courseId, chapterId, searchQuestion);
-   }
+  }
 
-   if (retrieved.length === 0) {
-    const remaining = await UsageBudgetService.getRemainingPremium(studentId);
-    const useCase = remaining > 0 ? USE_CASES.UNGROUNDED_TUTOR : USE_CASES.UNGROUNDED_TUTOR_GEMMA;
-    const result = await PromptExecutor.run({
-    userId: studentId,
-    prompt: tutorUngroundedAnswer,
-    variables: { question, conversationHistory: historyText },
-    schema: UngroundedSchema,
-    useCase,
-    });
-   if (result.success && result.data) {
-   if (useCase === USE_CASES.UNGROUNDED_TUTOR) {
-   await UsageBudgetService.recordPremiumUsage(studentId);
-   }
-   base = {
-   answer: sanitizeAnswer(result.data.answer),
-   sources: [],
-   matchedConcepts: result.data.matchedConcepts,
-   confidence: result.data.confidence,
-   grounded: false,
-   };
-   } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
-   budgetExhausted = true;
-   } else {
-   console.error("tutor ungrounded generation failed:", result.errors[0]);
-   budgetExhausted = true;
-   }
-   } else {
-  // Redact solution text from retrieved context if policy forbids direct answer reveal
-  const contextSources = policy && !policy.allowDirectAnswerReveal
-    ? retrieved.map((s) => {
-        let content = s.content;
-        if (s.type === 'practice_question' || s.type === 'past_exam') {
-          content = content
-            .replace(/Explanation:\s*[\s\S]*/gi, '')
-            .replace(/Solution:\s*[\s\S]*/gi, '')
-            .replace(/Jawaban:\s*[\s\S]*/gi, '');
+  const evidenceVersion = computeEvidenceVersion(retrieved);
+  const cacheKey = buildTutorCacheKey({
+    courseId,
+    chapterId,
+    academicQuery: searchQuestion,
+    evidenceVersion,
+  });
+
+  let base: TutorRagAnswer | null = null;
+
+  // Shared Tier 1 cache lookup: ONLY for direct 'retrieve' actions
+  if (classification.action === "retrieve") {
+    base = await kvGet<TutorRagAnswer>(cacheKey);
+    if (base && typeof base.answer === "string") {
+      cached = true;
+      base = { ...base, answer: sanitizeAnswer(base.answer) };
+      assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
+      await logCacheHit(studentId, "tutor_rag");
+    } else {
+      base = null;
+    }
+  }
+
+  if (!base) {
+    if (retrieved.length === 0) {
+      const remaining = await UsageBudgetService.getRemainingPremium(studentId);
+      const useCase = remaining > 0 ? USE_CASES.UNGROUNDED_TUTOR : USE_CASES.UNGROUNDED_TUTOR_GEMMA;
+      const result = await PromptExecutor.run({
+        userId: studentId,
+        prompt: tutorUngroundedAnswer,
+        variables: { question: searchQuestion, conversationHistory: "" },
+        schema: UngroundedSchema,
+        useCase,
+      });
+      if (result.success && result.data) {
+        if (useCase === USE_CASES.UNGROUNDED_TUTOR) {
+          await UsageBudgetService.recordPremiumUsage(studentId);
         }
-        return { ...s, content };
-      })
-    : retrieved;
+        base = {
+          answer: sanitizeAnswer(result.data.answer),
+          sources: [],
+          matchedConcepts: result.data.matchedConcepts,
+          confidence: result.data.confidence,
+          grounded: false,
+        };
+      } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
+        budgetExhausted = true;
+      } else {
+        console.error("tutor ungrounded generation failed:", result.errors[0]);
+        budgetExhausted = true;
+      }
+    } else {
+      const contextSources = policy && !policy.allowDirectAnswerReveal
+        ? retrieved.map((s) => {
+            let content = s.content;
+            if (s.type === 'practice_question' || s.type === 'past_exam') {
+              content = content
+                .replace(/Explanation:\s*[\s\S]*/gi, '')
+                .replace(/Solution:\s*[\s\S]*/gi, '')
+                .replace(/Jawaban:\s*[\s\S]*/gi, '');
+            }
+            return { ...s, content };
+          })
+        : retrieved;
 
-  const contextBlock = contextSources
-  .map((s, i) => `[${i + 1}] (source id: ${s.id})\n${s.content}`)
-  .join("\n\n");
-  const sourceList = contextSources.map((s) => `${s.id} | ${s.type} | ${s.label}`).join("\n");
+      const contextBlock = contextSources
+        .map((s, i) => `[${i + 1}] (source id: ${s.id})\n${s.content}`)
+        .join("\n\n");
+      const sourceList = contextSources.map((s) => `${s.id} | ${s.type} | ${s.label}`).join("\n");
 
-   const result = await PromptExecutor.run({
-   userId: studentId,
-   prompt: tutorGroundedAnswer,
-   variables: { question, contextBlock, sourceList, conversationHistory: historyText },
-   schema: GroundedSchema,
-   useCase: USE_CASES.GROUNDED_RAG,
-   });
+      // Tier 1 shared generation: ZERO student history in prompt
+      const result = await PromptExecutor.run({
+        userId: studentId,
+        prompt: tutorGroundedAnswer,
+        variables: {
+          question: searchQuestion,
+          contextBlock,
+          sourceList,
+          conversationHistory: "",
+        },
+        schema: GroundedSchema,
+        useCase: USE_CASES.GROUNDED_RAG,
+      });
 
-   if (result.success && result.data) {
-   const d = result.data;
-   if (d.covered) {
-   const byId = new Map(retrieved.map((s) => [s.id, s]));
-   const citedIds = d.sourceIds.filter((id) => byId.has(id));
-   const sourceIds = citedIds.length > 0 ? citedIds : retrieved.slice(0, 3).map((s) => s.id);
-   const sources = [...new Set(sourceIds)].map((id) => {
-   const s = byId.get(id)!;
-   return { type: s.type, id: s.id, label: s.label, href: s.href };
-   });
+      if (result.success && result.data) {
+        const d = result.data;
+        if (d.covered) {
+          const byId = new Map(retrieved.map((s) => [s.id, s]));
+          const citedIds = d.sourceIds.filter((id) => byId.has(id));
+          const sourceIds = citedIds.length > 0 ? citedIds : retrieved.slice(0, 3).map((s) => s.id);
+          const sources = [...new Set(sourceIds)].map((id) => {
+            const s = byId.get(id)!;
+            return { type: s.type, id: s.id, label: s.label, href: s.href };
+          });
 
-   let ansText = sanitizeAnswer(d.answer);
+          let ansText = sanitizeAnswer(d.answer);
 
-   // Post-validate output against assistance policy
-   if (policy) {
-     const validation = validateTutorOutput(ansText, {}, policy.allowedHelpLevel);
-     if (!validation.valid) {
-       ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
-     }
-   }
+          if (policy) {
+            const validation = validateTutorOutput(ansText, {}, policy.allowedHelpLevel);
+            if (!validation.valid) {
+              ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+            }
+          }
 
-   base = {
-   answer: ansText,
-   sources,
-   matchedConcepts: d.matchedConcepts,
-   confidence: d.confidence,
-   grounded: true,
-   };
-   } else {
-   base = {
-   answer: sanitizeAnswer(d.answer),
-   sources: [],
-   matchedConcepts: d.matchedConcepts,
-   confidence: d.confidence,
-   grounded: false,
-   };
-   }
+          base = {
+            answer: ansText,
+            sources,
+            matchedConcepts: d.matchedConcepts,
+            confidence: d.confidence,
+            grounded: true,
+          };
+        } else {
+          base = {
+            answer: sanitizeAnswer(d.answer),
+            sources: [],
+            matchedConcepts: d.matchedConcepts,
+            confidence: d.confidence,
+            grounded: false,
+          };
+        }
 
-   if (base.confidence >= CACHE_CONFIDENCE_FLOOR) {
-   await kvPut(cacheKey, base, TUTOR_TTL_SECONDS);
-   }
-   } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
-   budgetExhausted = true;
-   } else {
-   console.error("tutor grounded generation failed:", result.errors[0]);
-   budgetExhausted = true;
-   }
-   }
+        if (classification.action === "retrieve" && base.confidence >= CACHE_CONFIDENCE_FLOOR) {
+          assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
+          await kvPut(cacheKey, base, SHARED_TUTOR_TTL_SECONDS);
+        }
+      } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
+        budgetExhausted = true;
+      } else {
+        console.error("tutor grounded generation failed:", result.errors[0]);
+        budgetExhausted = true;
+      }
+    }
   }
 
  if (!base) {

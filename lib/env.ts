@@ -87,6 +87,8 @@ export const env = createEnv({
  FEATURE_GRAPH: z.string().optional(),
  /** P3 grounded tutor pipeline (RAG + KV cache + learner memory). "1" enables. */
  FEATURE_TUTOR_RAG: z.string().optional(),
+ /** P0 Tutor Pipeline V2: cache isolation, typed query action routing, student-free Tier 1 payload. "1" enables. */
+ FEATURE_TUTOR_PIPELINE_V2: z.string().optional(),
  FEATURE_FEEDBACK: z.string().optional(),
  FEATURE_STUDY_PATH: z.string().optional(),
  /** P6A tutor analytics MVP. "1" enables /tutor area for teacher role. */
@@ -184,6 +186,7 @@ export const env = createEnv({
  FEATURE_FC_DIFFICULTY: process.env.FEATURE_FC_DIFFICULTY,
  FEATURE_GRAPH: process.env.FEATURE_GRAPH,
  FEATURE_TUTOR_RAG: process.env.FEATURE_TUTOR_RAG,
+ FEATURE_TUTOR_PIPELINE_V2: process.env.FEATURE_TUTOR_PIPELINE_V2,
  FEATURE_FEEDBACK: process.env.FEATURE_FEEDBACK,
  FEATURE_STUDY_PATH: process.env.FEATURE_STUDY_PATH,
  FEATURE_TUTOR_ANALYTICS: process.env.FEATURE_TUTOR_ANALYTICS,

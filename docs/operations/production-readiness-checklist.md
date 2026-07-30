@@ -9,6 +9,7 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [ ] **AI Contract Suite**: `bun run test:ai-contracts` passes deterministically with 0 network calls.
 - [ ] **Assessment Integrity Gate**: `bun test tests/contracts/assessment-redaction.test.ts tests/contracts/tutor-rag.test.ts` passes; GET `/api/quiz/attempts` and `/api/quiz/attempts/[id]` redact `correct_indices` and stored explanations for active attempts.
 - [ ] **Targeted Contract Check**: `bun test tests/contracts/prompt-executor.test.ts` executes and passes.
+- [ ] **Tutor Cache Isolation & Query Action Router Gate**: `bun test tests/contracts/tutor-rag.test.ts` passes; Tier 1 shared KV cache is strictly student-free and follow-up queries are classified into `retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, or `clarify`.
 - [ ] **Prompt Contract Boundary**: All prompt stage executions verify policy composition, semantic validators, bounded repair allowlists, and privacy-safe provenance traces in `ai_generation_traces`.
 
 ## Architectural Guidelines & Boundaries
