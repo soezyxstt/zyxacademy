@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-TUTOR-CIT-001",
+  "fixtures": {
+    "invalid": {
+      "citedIds": ["non-existent-id"],
+      "validSourceIds": ["chk-1", "chk-2"]
+    },
+    "unknown": {
+      "citedIds": ["unknown-source"],
+      "validSourceIds": ["chk-1"]
+    },
+    "unsupported": {
+      "citedIds": ["chk-999"],
+      "validSourceIds": []
+    }
+  }
+}

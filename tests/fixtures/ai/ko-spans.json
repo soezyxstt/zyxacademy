@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-KO-SPAN-001",
+  "fixtures": {
+    "multiChunkSpan": {
+      "koId": "ko-limit-def",
+      "chunks": [
+        { "chunkId": "c1", "start": 0, "end": 150 },
+        { "chunkId": "c2", "start": 151, "end": 300 }
+      ]
+    },
+    "ambiguousCanonicalMatch": {
+      "concept": "Turunan",
+      "candidates": [
+        { "canonicalId": "ko-turunan-1", "title": "Definisi Turunan" },
+        { "canonicalId": "ko-turunan-2", "title": "Aturan Turunan" }
+      ]
+    }
+  }
+}

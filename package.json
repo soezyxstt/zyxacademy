@@ -10,6 +10,8 @@
     "preview": "NODE_OPTIONS=\"--max-old-space-size=4096\" next build --turbo && next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:ai-contracts": "bun test tests/contracts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bunx tsx db/migrate.ts",
     "db:seed": "bunx tsx db/seed.ts",
@@ -74,6 +76,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.1",
+    "@types/bun": "^1.3.14",
     "@types/node": "^20.19.43",
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.20.0",

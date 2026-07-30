@@ -242,6 +242,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Template-Based Simulation & Dual Leaderboard System completed**: Tutorial PKA simulation refactored to template-based quizzes under `simulation` category. Course leaderboards split into Kuis and Simulasi/Tryout.
 - **Dedicated Admin Quiz & Exam Analytics & Insight Page completed**: Added `/admin/ai/quiz-insights` portal with real-time quantitative item/distractor breakdown, concept accuracy tracking, and on-demand Gemini AI deep pedagogical diagnostics stored in `quiz_ai_insights`.
 - **Student Quiz Learning Analytics & Diagnosis System completed**: Inngest background queue (`quiz/analytics.requested`), deterministic facts calculator (`lib/student-quiz-analytics/calculator.ts`), two-tier Gemini AI diagnosis pipeline (`lib/student-quiz-analytics/ai-pipeline.ts`), and 3-Layer Student UI (`QuizAnalyticsView` & `/summary` routes) fully integrated across all course quizzes and PKA simulations.
+- **Automated AI Contract Test Foundation completed**: Deterministic test harness in `tests/contracts/`, fake adapters (`fakeAi`, `fakeCache`), zero-network guards, versioned fixtures in `tests/fixtures/ai/`, and test commands (`test:ai-contracts`) fully operational.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -251,6 +252,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Production database schemas and MTD backfill verified successfully.
 - Admin Quiz Insights database migration (`quiz_ai_insights`) and API endpoints verified.
 - Student Quiz Analytics database migration (`student_quiz_analytics`), Inngest background queue, API endpoints, and 3-layer UI verified (`bun run lint` passing 0 errors).
+- AI Contract Test Suite verified deterministically (29 tests across 7 contract files passing/todo with 0 network calls).
 
 
 ### Current Focus

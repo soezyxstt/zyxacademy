@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-DIKTAT-001",
+  "fixtures": {
+    "malformedPdfAudit": {
+      "status": "error",
+      "reason": "Invalid PDF header structure"
+    },
+    "rendererFailure": {
+      "status": "failed",
+      "statusCode": 500,
+      "error": "Puppeteer timeout during render"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-TUTOR-DLG-001",
+  "fixtures": {
+    "styleOnlyFollowup": {
+      "input": "Jelaskan lebih singkat lagi.",
+      "type": "style_change"
+    },
+    "topicChange": {
+      "input": "Sekarang mari kita bahas fisika kuantum.",
+      "type": "topic_shift"
+    },
+    "ambiguousFollowup": {
+      "input": "Bagaimana kalau sebaliknya?",
+      "type": "ambiguous"
+    },
+    "clarificationRequest": {
+      "input": "Saya belum paham bagian langkah kedua.",
+      "type": "clarification"
+    }
+  }
+}

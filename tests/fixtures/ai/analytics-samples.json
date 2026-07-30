@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-ANALYTICS-001",
+  "fixtures": {
+    "oneItem": {
+      "sampleCount": 1,
+      "items": [
+        { "questionId": "q1", "accuracy": 0.8 }
+      ]
+    },
+    "twoItems": {
+      "sampleCount": 2,
+      "items": [
+        { "questionId": "q1", "accuracy": 0.8 },
+        { "questionId": "q2", "accuracy": 0.4 }
+      ]
+    },
+    "representative": {
+      "sampleCount": 10,
+      "averageAccuracy": 0.65
+    }
+  }
+}

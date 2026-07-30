@@ -17,6 +17,8 @@ bun run dev                  # http://localhost:3000
 | `bun run start` | Start production server |
 | `bun run lint` | Run ESLint |
 | `bun run typecheck` | bunx tsc --noEmit |
+| `bun run test` | Run all Bun test suites |
+| `bun run test:ai-contracts` | Run deterministic AI contract tests (`tests/contracts`) |
 | `bun run db:generate` | Generate Drizzle migration from schema changes |
 | `bun run db:migrate` | Apply migrations to local SQLite |
 | `bun run db:push:prod` | Safe production migration (backup + verify) |
@@ -95,3 +97,24 @@ bun run lint          # ESLint
 bunx tsc --noEmit      # Full type check
 bun run build         # Production build (catches all errors)
 ```
+
+## AI Contract Testing
+
+All AI contract test suites live in `tests/contracts/` and run without network calls.
+
+### Running Tests
+
+- Run full AI contract suite: `bun run test:ai-contracts`
+- Run single test file: `bun test tests/contracts/prompt-executor.test.ts`
+
+### Adding Fixtures
+
+1. Place JSON fixtures inside `tests/fixtures/ai/<family>.json`.
+2. Every fixture file must contain `"schemaVersion": "1.0"` and a valid `"requirementId"` (e.g. `"AI-TUTOR-CIT-001"`).
+3. Load fixtures using `loadAiFixture("<family>.json")` from `@/tests/helpers/ai-fixtures`.
+
+### Contract Tests vs Model Quality Evaluations
+
+- **Contract Tests (`tests/contracts/`)**: Deterministic, zero network calls, unit-isolated, mock/fake adapters (`fakeAi`, `fakeCache`), validating system invariants and schema structures.
+- **Model Quality Evaluations**: Live model benchmarks evaluating accuracy, reasoning quality, or LLM output style requiring active API keys.
+

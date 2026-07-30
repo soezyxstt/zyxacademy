@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-ASSESS-RED-001",
+  "fixtures": {
+    "activeAttempt": {
+      "status": "active",
+      "quizId": "qz-101",
+      "attemptId": "att-001",
+      "shouldRedactAnswers": true
+    },
+    "completedAttempt": {
+      "status": "completed",
+      "quizId": "qz-101",
+      "attemptId": "att-002",
+      "shouldRedactAnswers": false
+    },
+    "ordinaryStudy": {
+      "status": "idle",
+      "quizId": null,
+      "attemptId": null,
+      "shouldRedactAnswers": false
+    }
+  }
+}

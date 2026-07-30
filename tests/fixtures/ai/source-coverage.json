@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-TUTOR-COV-001",
+  "fixtures": {
+    "full": {
+      "query": "Apa definisi limit?",
+      "chunks": [
+        { "id": "chk-1", "text": "Limit fungsi f(x) mendekati c adalah L jika f(x) dapat dibuat sedekat mungkin ke L." }
+      ]
+    },
+    "partial": {
+      "query": "Bagaimana membuktikan limit dan menghitung turunan?",
+      "chunks": [
+        { "id": "chk-1", "text": "Limit fungsi f(x) mendekati c adalah L." }
+      ]
+    },
+    "absent": {
+      "query": "Siapa penemu resep kue bolu?",
+      "chunks": []
+    },
+    "conflicting": {
+      "query": "Berapa nilai turunan sin(x)?",
+      "chunks": [
+        { "id": "chk-1", "text": "Turunan sin(x) adalah cos(x)." },
+        { "id": "chk-2", "text": "Turunan sin(x) adalah -cos(x)." }
+      ]
+    }
+  }
+}
