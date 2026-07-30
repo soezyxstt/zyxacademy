@@ -6,6 +6,8 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { preprocessMarkdown, safeParseJson, slugify } from "./ko-utils";
+import { env } from "@/lib/env";
+import { generateStableKoKey, computeSemanticKoHash, reconcileKoExtractionRun } from "@/lib/knowledge/identity";
 
 // ─── UTILITIES FOR CONCEPT RESOLUTION & MATCHING ──────────────────────────────
 
@@ -1112,17 +1114,82 @@ export async function extractKnowledgeObjectsForChapter(
     const nextVersion = existingMtd ? (derivedHashChanged ? existingMtd.version + 1 : existingMtd.version) : 1;
 
     await db.transaction(async (tx) => {
-      // Delete previous KOs for this chapter to prevent duplicates
-      await tx.delete(knowledgeObjects).where(eq(knowledgeObjects.chapterId, chapterId));
+      const isV2Enabled = env.FEATURE_KO_PIPELINE_V2 === '1';
 
-      // Insert new registry concepts if any
-      if (newConceptsToRegister.length > 0) {
-        await tx.insert(concepts).values(newConceptsToRegister);
-        await tx.insert(conceptLocalizations).values(newLocalizationsToRegister);
+      if (isV2Enabled) {
+        // V2 Non-destructive KO Upsert & Provenance Reconciliation
+        const existingKos = await tx
+          .select({
+            id: knowledgeObjects.id,
+            stableKey: knowledgeObjects.stableKey,
+            semanticHash: knowledgeObjects.semanticHash,
+            version: knowledgeObjects.version,
+            status: knowledgeObjects.status,
+            chapterId: knowledgeObjects.chapterId,
+          })
+          .from(knowledgeObjects)
+          .where(eq(knowledgeObjects.chapterId, chapterId));
+
+        const candidateInputs = extractedKOs.map((ko) => ({
+          title: ko.title,
+          summary: ko.content,
+          knowledgeKind: (ko.type as any) || 'other',
+          instructionalRole: 'core' as const,
+          sourceSpans: [],
+        }));
+
+        const { reconciliations, hasAmbiguousMatch } = reconcileKoExtractionRun(
+          existingKos as any,
+          candidateInputs,
+          mtdId,
+          chapterId
+        );
+
+        if (!hasAmbiguousMatch) {
+          for (const rec of reconciliations) {
+            if (rec.action === 'supersede' && rec.existingId) {
+              await tx
+                .update(knowledgeObjects)
+                .set({ status: 'superseded', updatedAt: new Date() })
+                .where(eq(knowledgeObjects.id, rec.existingId));
+            }
+          }
+        }
+
+        // Insert new concepts if any
+        if (newConceptsToRegister.length > 0) {
+          await tx.insert(concepts).values(newConceptsToRegister);
+          await tx.insert(conceptLocalizations).values(newLocalizationsToRegister);
+        }
+
+        // Insert / Update KOs with stable keys
+        const koValuesWithIdentity = koValues.map((ko) => {
+          const stableKey = generateStableKoKey(mtdId, chapterId, ko.title);
+          const semanticHash = computeSemanticKoHash(ko.title, ko.content, (ko.type as any) || 'other', 'core');
+          return {
+            ...ko,
+            stableKey,
+            semanticHash,
+            knowledgeKind: (ko.type as any) || 'other',
+            instructionalRole: 'core' as const,
+          };
+        });
+
+        // Insert new KOs for v2
+        await tx.insert(knowledgeObjects).values(koValuesWithIdentity);
+      } else {
+        // Legacy: Delete previous KOs for this chapter to prevent duplicates
+        await tx.delete(knowledgeObjects).where(eq(knowledgeObjects.chapterId, chapterId));
+
+        // Insert new registry concepts if any
+        if (newConceptsToRegister.length > 0) {
+          await tx.insert(concepts).values(newConceptsToRegister);
+          await tx.insert(conceptLocalizations).values(newLocalizationsToRegister);
+        }
+
+        // Insert new KOs
+        await tx.insert(knowledgeObjects).values(koValues);
       }
-
-      // Insert new KOs
-      await tx.insert(knowledgeObjects).values(koValues);
 
       // Update MTD record with new version and hashes
       await tx

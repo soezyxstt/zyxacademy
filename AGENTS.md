@@ -246,6 +246,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Versioned Prompt Contracts, Policy Composition & Privacy-Safe Provenance completed**: `PromptExecutor` refactored into a typed boundary (`lib/prompt-executor.ts`), policy fragments (`lib/ai/policies.ts`), semantic validator contracts (`lib/ai/validation.ts`), versioned contracts (`lib/ai/contracts.ts`), bounded field-level repair engine, and privacy-safe generation trace schema (`ai_generation_traces` in `db/schema.ts`).
 - **Assessment Integrity & Help Policy Protection completed**: API endpoints GET `/api/quiz/attempts` & GET `/api/quiz/attempts/[id]` protected via `serializeStudentQuizAttempt` to strip `correct_indices`, stored explanations, and grading feedback during active attempts. Deterministic `AssessmentAssistancePolicy` (`lib/assessment-assistance-policy.ts`) implemented to gate AI tutor and mistake feedback with stable reason codes.
 - **Tutor Cache Isolation & Query Action Routing completed**: Shared Tier 1 KV cache isolated with student-free payloads (`lib/tutor/cache-contract.ts`), prompt version, policy version, and evidence version hashing. Query Action Router (`lib/tutor/query-action.ts`) classifies user follow-ups into `retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, or `clarify` with deterministic style modifier extraction.
+- **Knowledge Object Provenance & Stable Identity completed**: Source-grounded KO schema (`knowledge_object_sources`, `learning_objectives`), stable identity keys (`stableKey`), knowledgeKind and instructionalRole separation, semantic content hashing (`semanticHash`), and upsert/diff reconciliation engine (`lib/knowledge/identity.ts`) implemented behind `FEATURE_KO_PIPELINE_V2`.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -259,6 +260,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Versioned Prompt Contracts & Provenance verified deterministically via `bun test tests/contracts/prompt-executor.test.ts` (12/12 tests passing, bounded repair & privacy-safe hashing verified, `bun run lint` and `bun run typecheck` passing 0 errors).
 - Assessment Integrity & Help Policy verified deterministically via `bun test tests/contracts/assessment-redaction.test.ts tests/contracts/tutor-rag.test.ts` (13/13 tests passing/todo with 0 network calls, answer redaction and policy gating verified).
 - Tutor Cache Isolation & Query Action Routing verified deterministically via `bun test tests/contracts/tutor-rag.test.ts` (13 passing tests across contract suite with 0 network calls, student data protection, style extraction, and action routing verified).
+- Knowledge Object Provenance & Stable Identity verified deterministically via `bun test tests/contracts/ko-pipeline.test.ts` (9/9 tests passing with 0 network calls, stable identity retention, semantic hashing, superseded status tracking, and contract validation verified).
 
 
 ### Current Focus

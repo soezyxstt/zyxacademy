@@ -107,6 +107,8 @@ export const env = createEnv({
  FEATURE_AI_CONTRACT_V2: z.string().optional(),
  /** Assessment assistance policy: deterministic gating for AI tutor and mistake feedback. "1" enables. */
  FEATURE_ASSESSMENT_ASSISTANCE_POLICY: z.string().optional(),
+ /** P0 Knowledge object provenance and stable identity pipeline. "1" enables. */
+ FEATURE_KO_PIPELINE_V2: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Active vector store: 'pinecone' (default) | 'dual' (write both) | 'vectorize' (read from VZ) */
  VECTOR_STORE: z.enum(['pinecone', 'vectorize', 'dual']).optional(),
@@ -198,6 +200,7 @@ export const env = createEnv({
  FEATURE_PKA: process.env.FEATURE_PKA,
  FEATURE_AI_CONTRACT_V2: process.env.FEATURE_AI_CONTRACT_V2,
  FEATURE_ASSESSMENT_ASSISTANCE_POLICY: process.env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY,
+ FEATURE_KO_PIPELINE_V2: process.env.FEATURE_KO_PIPELINE_V2,
   NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTOR_STORE: process.env.VECTOR_STORE,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,

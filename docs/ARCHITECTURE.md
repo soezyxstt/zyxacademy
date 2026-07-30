@@ -249,12 +249,15 @@ Upload PDF via UploadThing or direct R2
   │         ├── Validates KaTeX compilation
   │         └── Fails early if structure is malformed
   │
-  ├── type="learning" → KO Extraction Pipeline (lib/ko-extractor.ts)
+  ├── type="learning" → KO Extraction Pipeline (lib/ko-extractor.ts, V2: FEATURE_KO_PIPELINE_V2)
   │    ├── Gemini extracts KOs from markdown
   │    ├── Computes sourceHash (SHA-256 of raw content) + derivedHash (SHA-256 of KO attributes)
-  │    ├── KOs saved to knowledge_objects table
-  │    ├── Concept resolution (concepts / concept_localizations)
-  │    ├── vector_sync_queue populated (namespace: "learning")
+  │    ├── Stable key generation (`lib/knowledge/identity.ts`) preserves KO identity across extractions
+  │    ├── Non-destructive upsert/diff reconciliation (`reconcileKoExtractionRun`): retains IDs, updates versions, marks missing KOs superseded
+  │    ├── KOs saved to `knowledge_objects` table (`stableKey`, `semanticHash`, `knowledgeKind`, `instructionalRole`)
+  │    ├── Source spans tracked in `knowledge_object_sources` & cognitive objectives in `learning_objectives`
+  │    ├── Concept resolution (`concepts` / `concept_localizations`)
+  │    ├── `vector_sync_queue` populated (namespace: "learning")
   │    └── Inngest background job syncs to Pinecone "learning" index
   │
   └── type="assessment" → Assessment Extraction Pipeline (lib/assessment-extractor.ts)

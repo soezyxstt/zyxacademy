@@ -337,6 +337,13 @@
       "when": 1785409038821,
       "tag": "0047_last_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1785412796356,
+      "tag": "0048_fuzzy_lyja",
+      "breakpoints": true
     }
   ]
 }

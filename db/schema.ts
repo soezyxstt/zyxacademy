@@ -947,7 +947,12 @@ export const knowledgeObjects = sqliteTable(
  importance: text("importance").$type<"high" | "medium" | "low">().default("medium").notNull(),
  metadata: text("metadata", { mode: "json" }).$defaultFn(() => ({})).notNull(),
  pineconeVectorId: text("pinecone_vector_id"), // Nullable until vector sync succeeds
- status: text("status").$type<"active" | "retired">().default("active").notNull(),
+ status: text("status").$type<"active" | "retired" | "superseded" | "needs_review">().default("active").notNull(),
+ stableKey: text("stable_key"),
+ semanticHash: text("semantic_hash"),
+ version: integer("version").default(1).notNull(),
+ knowledgeKind: text("knowledge_kind").$type<"definition" | "principle" | "formula" | "procedure" | "example" | "constraint" | "misconception" | "other">().default("other").notNull(),
+ instructionalRole: text("instructional_role").$type<"core" | "prerequisite" | "enrichment" | "assessment_support" | "reference">().default("core").notNull(),
  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  updatedAt: integer("updated_at", { mode: "timestamp" })
  .defaultNow()
@@ -959,6 +964,84 @@ export const knowledgeObjects = sqliteTable(
  index("idx_ko_chapter").on(table.chapterId),
  index("idx_ko_concept").on(table.conceptId),
  index("idx_ko_status").on(table.status),
+ index("idx_ko_stable_key").on(table.stableKey),
+ ]
+);
+
+// 4b. extraction_runs
+export const extractionRuns = sqliteTable(
+ "extraction_runs",
+ {
+ id: text("id").primaryKey(),
+ mtdId: text("mtd_id")
+ .notNull()
+ .references(() => masterTeachingDocuments.id, { onDelete: "cascade" }),
+ chapterId: text("chapter_id")
+ .notNull()
+ .references(() => chapters.id, { onDelete: "cascade" }),
+ state: text("state").$type<"staged" | "accepted" | "needs_review" | "failed" | "superseded">().default("staged").notNull(),
+ createdBy: text("created_by"),
+ createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ updatedAt: integer("updated_at", { mode: "timestamp" })
+ .defaultNow()
+ .$onUpdate(() => new Date())
+ .notNull(),
+ },
+ (table) => [
+ index("idx_extraction_runs_chapter").on(table.chapterId),
+ index("idx_extraction_runs_state").on(table.state),
+ ]
+);
+
+// 4c. knowledge_object_sources
+export const knowledgeObjectSources = sqliteTable(
+ "knowledge_object_sources",
+ {
+ id: text("id").primaryKey(),
+ koId: text("ko_id")
+ .notNull()
+ .references(() => knowledgeObjects.id, { onDelete: "cascade" }),
+ sourceDocumentId: text("source_document_id").notNull(),
+ sourceVersion: text("source_version").default("1.0").notNull(),
+ chapterId: text("chapter_id").notNull(),
+ startOffset: integer("start_offset").notNull(),
+ endOffset: integer("end_offset").notNull(),
+ sourceHash: text("source_hash").notNull(),
+ excerptHash: text("excerpt_hash").notNull(),
+ extractionRunId: text("extraction_run_id").references(() => extractionRuns.id, { onDelete: "set null" }),
+ supportRole: text("support_role").$type<"core" | "prerequisite" | "enrichment" | "assessment_support" | "reference">().default("core").notNull(),
+ createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+ index("idx_ko_sources_ko").on(table.koId),
+ index("idx_ko_sources_doc_chapter").on(table.sourceDocumentId, table.chapterId),
+ ]
+);
+
+// 4d. learning_objectives
+export const learningObjectives = sqliteTable(
+ "learning_objectives",
+ {
+ id: text("id").primaryKey(),
+ courseId: text("course_id")
+ .notNull()
+ .references(() => courses.id, { onDelete: "cascade" }),
+ chapterId: text("chapter_id")
+ .notNull()
+ .references(() => chapters.id, { onDelete: "cascade" }),
+ objectiveText: text("objective_text").notNull(),
+ bloomLevel: text("bloom_level").$type<"remember" | "understand" | "apply" | "analyze" | "evaluate" | "create">().notNull(),
+ evidenceSourceIds: text("evidence_source_ids", { mode: "json" }).$defaultFn(() => []).notNull(),
+ relatedKoIds: text("related_ko_ids", { mode: "json" }).$defaultFn(() => []).notNull(),
+ status: text("status").$type<"active" | "superseded">().default("active").notNull(),
+ createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ updatedAt: integer("updated_at", { mode: "timestamp" })
+ .defaultNow()
+ .$onUpdate(() => new Date())
+ .notNull(),
+ },
+ (table) => [
+ index("idx_learning_objectives_chapter").on(table.chapterId),
  ]
 );
 

@@ -892,3 +892,44 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `cacheResult`: Cache status ('hit', 'miss', 'none').
 * `createdAt`: Timestamp when the trace was recorded.
 
+
+## 19. Knowledge Object Provenance Domain
+
+### knowledge_objects (V2 Extensions)
+* `stableKey`: Deterministic hash key derived from source document, chapter, and concept identity.
+* `semanticHash`: SHA-256 hash of normalized concept title, summary, knowledgeKind, and instructionalRole.
+* `version`: Integer version counter incremented on semantic changes.
+* `knowledgeKind`: Categorical content kind ('definition', 'principle', 'formula', 'procedure', 'example', 'constraint', 'misconception', 'other').
+* `instructionalRole`: Instructional role ('core', 'prerequisite', 'enrichment', 'assessment_support', 'reference').
+
+### extraction_runs
+* `id`: Primary key (`exr_...`).
+* `mtdId`: FK to `masterTeachingDocuments.id`.
+* `chapterId`: FK to `chapters.id`.
+* `state`: Lifecycle state ('staged', 'accepted', 'needs_review', 'failed', 'superseded').
+* `createdBy`: User or system ID.
+* `createdAt`, `updatedAt`
+
+### knowledge_object_sources
+* `id`: Primary key (`kos_...`).
+* `koId`: FK to `knowledgeObjects.id`.
+* `sourceDocumentId`: Source document identifier.
+* `sourceVersion`: Source document version.
+* `chapterId`: Chapter identifier.
+* `startOffset`, `endOffset`: Character offsets within source text.
+* `sourceHash`: Hash of full source chunk text.
+* `excerptHash`: Hash of exact supporting text span.
+* `extractionRunId`: FK to `extraction_runs.id`.
+* `supportRole`: Role of source span ('core', 'prerequisite', etc.).
+
+### learning_objectives
+* `id`: Primary key (`lob_...`).
+* `courseId`: FK to `courses.id`.
+* `chapterId`: FK to `chapters.id`.
+* `objectiveText`: Text of the learning objective.
+* `bloomLevel`: Bloom cognitive level ('remember', 'understand', 'apply', 'analyze', 'evaluate', 'create').
+* `evidenceSourceIds`: JSON array of source IDs.
+* `relatedKoIds`: JSON array of linked KO IDs.
+* `status`: Objective status ('active', 'superseded').
+
+
