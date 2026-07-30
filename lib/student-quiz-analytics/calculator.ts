@@ -114,7 +114,7 @@ export async function computeQuizAnalyticsFacts(
       : useAnalyticsV2
       ? null
       : avgTimePerQuestion;
-    if (spentSec > 0 && spentSec < 15) {
+    if (spentSec !== null && spentSec > 0 && spentSec < 15) {
       fastAnswerCount++;
       if (!isCorrect) fastIncorrectCount++;
     }
@@ -274,12 +274,13 @@ export async function computeQuizAnalyticsFacts(
     improvedConcepts,
   };
 
-  const timeAnalysis: TimeSpeedFact = {
+  const timeAnalysis: TimeSpeedFact & { perQuestionTimingAvailable?: boolean } = {
     totalDurationSeconds: totalDuration,
     avgTimePerQuestionSeconds: avgTimePerQuestion,
     fastAnswerCount,
     fastIncorrectCount,
     slowAnswerCount: questionsSnapshot.filter((q) => (q.time_spent_seconds ?? 0) > 120).length,
+    perQuestionTimingAvailable: hasPerQuestionTiming,
   };
 
   return {

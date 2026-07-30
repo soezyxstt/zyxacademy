@@ -593,8 +593,6 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       }
     }
     retrieved = historySources;
-  } else if (classification.action === "answer_from_conversation") {
-    retrieved = [];
   } else if (await isMetaExamQuery(searchQuestion)) {
     const statsSummary = await executeMetaQuery(courseId, searchQuestion);
     retrieved = [

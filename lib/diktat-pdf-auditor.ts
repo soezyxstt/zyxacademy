@@ -3,7 +3,7 @@ import { generateContentWithFallback } from "./gemini";
 import { USE_CASES } from "@/lib/ai-router";
 
 export interface PDFAuditResult {
-  status: "PASS" | "WARN";
+  status: "PASS" | "WARN" | "FAIL" | "unavailable";
   warnings: string[];
 }
 

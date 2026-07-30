@@ -65,7 +65,7 @@ Return a single JSON object with this exact schema:
 
   try {
     const { response } = await generateContentWithFallback({
-      useCase: USE_CASES.QUESTION_GENERATION,
+      useCase: USE_CASES.PRACTICE_QUESTION_GEN,
       contents: prompt,
     });
 

@@ -233,7 +233,7 @@ export async function askTutorRagAction(
     chapterId,
     question,
     sessionId: sid,
-    attemptState: hasActiveAttempt ? "active" : "none",
+    attemptState: hasActiveAttempt ? "in_progress" : "none",
     activityKind: hasActiveAttempt ? "quiz" : "study",
   });
 
