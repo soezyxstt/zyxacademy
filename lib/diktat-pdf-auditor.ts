@@ -32,11 +32,11 @@ export async function auditRenderedPDF(
     extractedText = result.text;
   } catch (err) {
     console.warn("[diktat-pdf-auditor] pdf-parse extraction failed:", err);
-    return { status: "WARN", warnings: ["PDF text extraction failed; skipping AI audit."] };
+    return { status: "warn", warnings: ["PDF text extraction failed; skipping AI audit."] };
   }
 
   if (!extractedText.trim()) {
-    return { status: "WARN", warnings: ["PDF appears to have no extractable text."] };
+    return { status: "warn", warnings: ["PDF appears to have no extractable text."] };
   }
 
   // Sample: first 3000 chars + any lines likely containing LaTeX artefacts

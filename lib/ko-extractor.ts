@@ -1184,8 +1184,7 @@ export async function extractKnowledgeObjectsForChapter(
               .set({
                 conceptName: ko.conceptName,
                 title: ko.title,
-                summary: ko.content,
-                formula: ko.formula,
+                content: ko.content,
                 type: ko.type,
                 semanticHash,
                 status: 'active',

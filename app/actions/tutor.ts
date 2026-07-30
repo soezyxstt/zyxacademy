@@ -226,24 +226,27 @@ export async function askTutorRagAction(
     .limit(1);
 
   const hasActiveAttempt = activeAttempt.length > 0;
-  let protectedAnswers: { correctAnswers?: string[]; solutionExplanations?: string[] } | undefined;
+  let protectedAnswers: { correctOptions?: string[]; explanationText?: string } | undefined;
 
   if (hasActiveAttempt && activeAttempt[0].questionsSnapshot && Array.isArray(activeAttempt[0].questionsSnapshot)) {
-    const correctAnswers: string[] = [];
-    const solutionExplanations: string[] = [];
+    const correctOptions: string[] = [];
+    const explanations: string[] = [];
     for (const q of activeAttempt[0].questionsSnapshot as any[]) {
       if (q && Array.isArray(q.options) && Array.isArray(q.correct_indices)) {
         for (const idx of q.correct_indices) {
           if (typeof q.options[idx] === "string") {
-            correctAnswers.push(q.options[idx]);
+            correctOptions.push(q.options[idx]);
           }
         }
       }
       if (q && typeof q.explanation === "string" && q.explanation.trim().length > 0) {
-        solutionExplanations.push(q.explanation);
+        explanations.push(q.explanation);
       }
     }
-    protectedAnswers = { correctAnswers, solutionExplanations };
+    protectedAnswers = {
+      correctOptions,
+      explanationText: explanations.join(" "),
+    };
   }
 
   const result = await askTutorRag({

@@ -20,6 +20,7 @@ import { randomUUID } from "crypto";
 import { validateQuestionAgainstPolicy, type CoursePolicyRow } from "@/lib/pedagogical-validator";
 import { repairJsonString } from "./ko-utils";
 
+import { env } from "@/lib/env";
 import { buildAssessmentBlueprint } from "@/lib/questions/blueprint";
 import { shuffleQuestionOptions } from "@/lib/questions/option-shuffle";
 import { buildDistractorProvenances } from "@/lib/questions/distractor-provenance";
@@ -430,26 +431,24 @@ export async function generateQuestionsForKOBatch(
       continue;
     }
 
-    if (env.FEATURE_QUESTION_VERIFICATION_V2 === "1") {
+    if (env.FEATURE_QUESTION_GENERATOR_V2 === "1") {
       const solveResult = await solveQuestionIndependently({
         promptStem: shuffled.prompt,
         options: shuffled.options,
       });
       const criticEval = evaluateQuestionWithCritic({
-        draft: {
-          prompt: shuffled.prompt,
-          options: shuffled.options,
-          correctIndex: shuffled.correctIndices[0] ?? 0,
-          explanation: shuffled.explanation,
-        },
-        solveResult,
+        promptStem: shuffled.prompt,
+        options: shuffled.options,
+        candidateCorrectIndices: shuffled.correctIndices,
+        explanation: shuffled.explanation,
+        solverResult: solveResult,
       });
-      if (criticEval.status === "REJECTED") {
+      if (criticEval.status === "rejected") {
         resultsMap.set(ko.id, {
           koId: ko.id,
           success: false,
           insertedCount: 0,
-          errors: [`Question verification rejected by critic: ${criticEval.critiqueSummary}`],
+          errors: [`Question verification rejected by critic: ${criticEval.reasoning}`],
         });
         continue;
       }

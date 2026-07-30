@@ -46,6 +46,7 @@ import {
   type AttemptState,
   type AnswerReleaseState,
   type MatchState,
+  type ProtectedItemPayload,
 } from "@/lib/assessment-assistance-policy";
 import {
   buildTutorCacheKey,
@@ -497,7 +498,7 @@ export interface AskTutorParams {
   attemptState?: AttemptState;
   answerReleaseState?: AnswerReleaseState;
   matchState?: MatchState;
-  protectedAnswers?: { correctAnswers?: string[]; solutionExplanations?: string[] };
+  protectedAnswers?: ProtectedItemPayload;
 }
 
 export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResult> {
