@@ -12,7 +12,7 @@ export async function auditRenderedPDF(
   pdfBuffer: Buffer,
   structure: DiktatStructure
 ): Promise<PDFAuditResult> {
-  if (process.env.FEATURE_DIKTAT_AI !== "1") {
+  if (process.env.FEATURE_DIKTAT_AI !== "1" && process.env.FEATURE_DIKTAT_QA_V2 !== "1") {
     return { status: "pass", warnings: [] };
   }
 
@@ -85,9 +85,9 @@ Jika tidak ada masalah, berikan status PASS dengan array kosong.`;
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
-    const rawStatus = typeof parsed.status === "string" ? parsed.status.toLowerCase() : "pass";
+    const rawStatus = typeof parsed.status === "string" ? parsed.status.toLowerCase() : "";
     const status: PDFAuditResult["status"] =
-      rawStatus === "warn" ? "warn" : rawStatus === "fail" ? "fail" : "pass";
+      rawStatus === "pass" ? "pass" : rawStatus === "warn" ? "warn" : rawStatus === "fail" ? "fail" : "unavailable";
     const parsedWarnings: string[] = Array.isArray(parsed.warnings)
       ? parsed.warnings.filter((w: any): w is string => typeof w === "string")
       : [];

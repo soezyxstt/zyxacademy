@@ -26,7 +26,7 @@ import { shuffleQuestionOptions } from "@/lib/questions/option-shuffle";
 import { buildDistractorProvenances } from "@/lib/questions/distractor-provenance";
 import { UnshuffledQuestionDraft } from "@/lib/questions/contracts";
 import { solveQuestionIndependently } from "@/lib/questions/independent-solver";
-import { evaluateQuestionWithCritic } from "@/lib/questions/pedagogical-critic";
+import { evaluateQuestionWithCritic, type CriticEvaluation } from "@/lib/questions/pedagogical-critic";
 
 export function buildQuestionPrompt(
   courseTitle: string,
@@ -431,12 +431,13 @@ export async function generateQuestionsForKOBatch(
       continue;
     }
 
+    let criticEval: CriticEvaluation | null = null;
     if (env.FEATURE_QUESTION_GENERATOR_V2 === "1") {
       const solveResult = await solveQuestionIndependently({
         promptStem: shuffled.prompt,
         options: shuffled.options,
       });
-      const criticEval = evaluateQuestionWithCritic({
+      criticEval = evaluateQuestionWithCritic({
         promptStem: shuffled.prompt,
         options: shuffled.options,
         candidateCorrectIndices: shuffled.correctIndices,
@@ -487,8 +488,8 @@ export async function generateQuestionsForKOBatch(
           correctIndices: shuffled.correctIndices,
           distractorMap,
           explanation: shuffled.explanation,
-          reviewStatus: "generated",
-          qualityScore: null, // Unverified until Plan 011 produces an acceptance result
+          reviewStatus: criticEval?.status === "needs_review" ? "needs_review" : "generated",
+          qualityScore: criticEval ? criticEval.qualityScore : null,
           pattern: shuffled.pattern,
           reasoningType: slot.reasoningPattern,
           applicationLevel:

@@ -33,10 +33,14 @@ export interface CriticInput {
 export function evaluateQuestionWithCritic(input: CriticInput): CriticEvaluation {
   const violationCodes: string[] = [];
 
-  // 1. Solver agreement check
+  // 1. Solver agreement & confidence check
   const solverMatchesCandidate = input.candidateCorrectIndices.includes(input.solverResult.solvedOptionIndex);
   if (!solverMatchesCandidate) {
     violationCodes.push("SOLVER_CANDIDATE_DISAGREEMENT");
+  }
+
+  if (input.solverResult.solverConfidence < 0.5) {
+    violationCodes.push("LOW_SOLVER_CONFIDENCE");
   }
 
   // 2. Ambiguity check: prompt stem too short
@@ -59,12 +63,15 @@ export function evaluateQuestionWithCritic(input: CriticInput): CriticEvaluation
     };
   }
 
-  const isCritical = violationCodes.includes("SOLVER_CANDIDATE_DISAGREEMENT") || violationCodes.includes("INSUFFICIENT_OPTIONS");
+  const isReject =
+    violationCodes.includes("SOLVER_CANDIDATE_DISAGREEMENT") ||
+    violationCodes.includes("LOW_SOLVER_CONFIDENCE") ||
+    violationCodes.includes("INSUFFICIENT_OPTIONS");
 
   return {
-    status: isCritical ? "needs_review" : "rejected",
+    status: isReject ? "rejected" : "needs_review",
     violationCodes,
-    qualityScore: isCritical ? 0.6 : 0.2,
+    qualityScore: isReject ? 0.0 : 0.6,
     reasoning: `Critic flagged violations: ${violationCodes.join(", ")}`,
   };
 }

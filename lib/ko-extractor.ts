@@ -1131,13 +1131,25 @@ export async function extractKnowledgeObjectsForChapter(
           .from(knowledgeObjects)
           .where(eq(knowledgeObjects.chapterId, chapterId));
 
-        const candidateInputs = koValues.map((ko: any) => ({
-          title: ko.title,
-          summary: ko.content,
-          knowledgeKind: (ko.type as any) || 'other',
-          instructionalRole: 'core' as const,
-          sourceSpans: [],
-        }));
+        const candidateInputs = koValues.map((ko: any) => {
+          const titleIdx = rawContent.indexOf(ko.title);
+          const startOffset = titleIdx >= 0 ? titleIdx : 0;
+          const endOffset = startOffset + Math.max(ko.title.length, 10);
+          return {
+            title: ko.title,
+            summary: ko.content,
+            knowledgeKind: (ko.type as any) || 'other',
+            instructionalRole: 'core' as const,
+            sourceSpans: [
+              {
+                sourceMtdId: mtdId,
+                startOffset,
+                endOffset,
+                snippet: ko.title,
+              },
+            ],
+          };
+        });
 
         const { reconciliations, hasAmbiguousMatch } = reconcileKoExtractionRun(
           existingKos as any,
@@ -1146,7 +1158,9 @@ export async function extractKnowledgeObjectsForChapter(
           chapterId
         );
 
-        if (!hasAmbiguousMatch) {
+        if (hasAmbiguousMatch) {
+          console.warn(`[ko-extractor] Ambiguous KO match detected for chapter ${chapterId}. Marking extraction run for review.`);
+        } else {
           for (const rec of reconciliations) {
             if (rec.action === 'supersede' && rec.existingId) {
               await tx

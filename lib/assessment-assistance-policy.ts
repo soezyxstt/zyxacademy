@@ -173,9 +173,22 @@ export function validateTutorOutput(
     if (protectedData.correctOptions && protectedData.correctOptions.length > 0) {
       for (const opt of protectedData.correctOptions) {
         const trimmed = opt.trim();
+        if (!trimmed) continue;
+
         if (trimmed.length >= 3 && text.toLowerCase().includes(trimmed.toLowerCase())) {
           violations.push('EXACT_OPTION_TEXT_LEAK');
           break;
+        }
+
+        // Numerical / short formula leak check
+        const numMatch = trimmed.match(/^[\d\.\/\+\-\*\=a-zA-Z\s]{1,10}$/);
+        if (numMatch) {
+          const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`(?:^|\\s|:|=)${escaped}(?:$|\\s|\\.|,|;|!)`, 'i');
+          if (regex.test(text)) {
+            violations.push('NUMERICAL_KEY_ANSWER_LEAK');
+            break;
+          }
         }
       }
     }

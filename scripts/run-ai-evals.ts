@@ -3,6 +3,10 @@ import { scoreGoldenCase, summarizeEvaluations } from "../lib/ai/evals/scorers";
 import { serializeStudentQuizAttempt } from "../lib/assessment-serialization";
 import { verifyCitations } from "../lib/tutor/citation-verifier";
 import { canPublishDiktat } from "../lib/diktat/audit-contracts";
+import { evaluateQuestionWithCritic } from "../lib/questions/pedagogical-critic";
+import { validateFlashcardAtomicity } from "../lib/flashcards/validator";
+import { computeSemanticKoHash } from "../lib/knowledge/identity";
+import { validatePreflightKos } from "../lib/materials/compiler";
 
 /**
  * Plan 015: Real-Pipeline Golden AI Evaluation Suite
@@ -37,6 +41,42 @@ const GOLDEN_CASES: GoldenCase[] = [
     prohibitedOutputs: [],
     zeroToleranceInvariant: "provider_failure_fail_closed",
   },
+  {
+    id: "case-qst-01",
+    requirementId: "AI-QUEST-VER-001",
+    category: "question",
+    input: { solverDisagreement: true },
+    expectedOutcome: "rejected",
+    prohibitedOutputs: ["accepted"],
+    zeroToleranceInvariant: "question_verification_rejection",
+  },
+  {
+    id: "case-fc-01",
+    requirementId: "AI-FC-ATOM-001",
+    category: "flashcard",
+    input: { multiTargetFront: true },
+    expectedOutcome: "rejected",
+    prohibitedOutputs: ["approved"],
+    zeroToleranceInvariant: "flashcard_atomicity_validation",
+  },
+  {
+    id: "case-ko-01",
+    requirementId: "AI-KO-HASH-002",
+    category: "knowledge",
+    input: { title: "Fisika Dasar", content: "Hukum Newton" },
+    expectedOutcome: "accepted",
+    prohibitedOutputs: [],
+    zeroToleranceInvariant: "ko_identity_determinism",
+  },
+  {
+    id: "case-mat-01",
+    requirementId: "AI-MAT-COMP-001",
+    category: "material",
+    input: { inactiveKo: true },
+    expectedOutcome: "rejected",
+    prohibitedOutputs: ["approved"],
+    zeroToleranceInvariant: "material_preflight_validation",
+  },
 ];
 
 export async function runAiEvaluations() {
@@ -51,7 +91,6 @@ export async function runAiEvaluations() {
     let pipelineOutput: { status?: string; text?: string; redacted?: boolean; citationsValid?: boolean } = {};
 
     if (c.zeroToleranceInvariant === "active_attempt_redaction") {
-      // Execute actual assessment redaction pipeline
       const serialized = serializeStudentQuizAttempt({
         id: "att-1",
         quizId: "q-1",
@@ -74,7 +113,6 @@ export async function runAiEvaluations() {
       const hasRedactedKeys = !("correct_indices" in q) && !("explanation" in q);
       pipelineOutput = { redacted: hasRedactedKeys, text: JSON.stringify(serialized) };
     } else if (c.zeroToleranceInvariant === "unknown_citation_rejection") {
-      // Execute actual citation verification pipeline
       const verification = verifyCitations({
         citedIds: ["chk-999"],
         allowedSourceIds: ["chk-100", "chk-101"],
@@ -83,12 +121,40 @@ export async function runAiEvaluations() {
       const unknownCitationDropped = verification.droppedSourceIds.includes("chk-999");
       pipelineOutput = { citationsValid: unknownCitationDropped, text: "Grounded answer" };
     } else if (c.zeroToleranceInvariant === "provider_failure_fail_closed") {
-      // Execute actual diktat publication check pipeline
       const canPublish = canPublishDiktat({
         status: "unavailable",
         findings: [{ id: "f1", code: "ERR", severity: "critical", message: "PDF audit unreadable", sourceSpanIds: [] }],
       });
       pipelineOutput = { status: canPublish ? "pass" : "unavailable", text: "Fail closed" };
+    } else if (c.zeroToleranceInvariant === "question_verification_rejection") {
+      const evalRes = evaluateQuestionWithCritic({
+        promptStem: "What is velocity?",
+        options: ["Distance over time", "Mass times acceleration"],
+        candidateCorrectIndices: [0],
+        explanation: "v = d / t",
+        solverResult: { solvedOptionIndex: 1, solverConfidence: 0.9, stepByStepDerivation: ["Calculated"] },
+      });
+      pipelineOutput = { status: evalRes.status, text: evalRes.reasoning };
+    } else if (c.zeroToleranceInvariant === "flashcard_atomicity_validation") {
+      const valRes = validateFlashcardAtomicity({
+        id: "fc-1",
+        sourceKoIds: ["ko-1"],
+        front: "Apakah definisi kecepatan sekaligus sebutkan komponen percepatan?",
+        back: "Kecepatan v dan percepatan a",
+        atomicTarget: "kecepatan",
+        sourceSpans: [{ sourceMtdId: "mtd-1", startOffset: 0, endOffset: 10, snippet: "kecepatan" }],
+        complexityLevel: 0.5,
+      });
+      pipelineOutput = { status: valRes.isValid ? "accepted" : "rejected", text: valRes.errors.join(", ") };
+    } else if (c.zeroToleranceInvariant === "ko_identity_determinism") {
+      const hash1 = computeSemanticKoHash("Hukum Newton", "F=ma", "definition", "core");
+      const hash2 = computeSemanticKoHash("Hukum Newton", "F=ma", "definition", "core");
+      pipelineOutput = { status: hash1 === hash2 ? "accepted" : "rejected", text: hash1 };
+    } else if (c.zeroToleranceInvariant === "material_preflight_validation") {
+      const preflight = validatePreflightKos([
+        { id: "ko-1", title: "KO 1", status: "needs_review", conceptId: "c1", learningOrder: 1 },
+      ]);
+      pipelineOutput = { status: preflight.valid ? "accepted" : "rejected", text: preflight.errors.join(", ") };
     }
 
     const score = scoreGoldenCase(c, pipelineOutput);

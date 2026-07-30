@@ -81,13 +81,7 @@ export async function GET(_req: NextRequest, { params }: Context) {
       updatedAt: new Date(),
     }).onConflictDoNothing();
 
-    // Trigger background job for AI diagnosis
-    await inngest.send({
-      name: "quiz/analytics.requested",
-      data: { attemptId, studentId: attempt.studentId, courseId },
-    }).catch((err) => console.error("Inngest send error:", err));
-
-    // Synchronously generate AI diagnosis as fallback so response is immediately ready if possible
+    // Synchronously generate AI diagnosis first to avoid duplicate background invocations
     const aiDiagnosis = await generateStudentQuizDiagnosis(attemptId, facts).catch(() => null);
 
     if (aiDiagnosis) {
@@ -111,6 +105,12 @@ export async function GET(_req: NextRequest, { params }: Context) {
         aiDiagnosis,
       });
     }
+
+    // Trigger background job ONLY if synchronous generation is deferred or failed
+    await inngest.send({
+      name: "quiz/analytics.requested",
+      data: { attemptId, studentId: attempt.studentId, courseId },
+    }).catch((err) => console.error("Inngest send error:", err));
 
     return NextResponse.json({
       id: recordId,

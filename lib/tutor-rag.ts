@@ -561,9 +561,17 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       schema: UngroundedSchema,
       useCase: USE_CASES.UNGROUNDED_TUTOR,
     });
-    const ansText = result.success && result.data
+    let ansText = result.success && result.data
       ? sanitizeAnswer(result.data.answer)
       : "Halo! Ada yang bisa aku bantu mengenai materi kuliah hari ini?";
+
+    if (policy) {
+      const val = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
+      if (!val.valid) {
+        ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba jelaskan pemahamanmu mengenai topik ini.";
+      }
+    }
+
     return {
       answer: ansText,
       sources: [],
@@ -627,7 +635,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     if (base && typeof base.answer === "string") {
       cached = true;
       let ansText = sanitizeAnswer(base.answer);
-      
+
       if (policy) {
         const val = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
         if (!val.valid) {
@@ -864,8 +872,15 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   if (useCase === USE_CASES.WEAK_CONCEPT_GUIDANCE) {
   await UsageBudgetService.recordPremiumUsage(studentId);
   }
-  personalized = sanitizeAnswer(result.data.guidance);
-  }
+          let guidanceText = sanitizeAnswer(result.data.guidance);
+          if (policy) {
+            const val = validateTutorOutput(guidanceText, protectedPayload, policy.allowedHelpLevel);
+            if (!val.valid) {
+              guidanceText = "Tips: Tinjau kembali definisi dasarnya sebelum mencoba soal serupa.";
+            }
+          }
+          personalized = guidanceText;
+        }
  // quota exceeded or failure: serve Tier 1+2 silently
  }
 

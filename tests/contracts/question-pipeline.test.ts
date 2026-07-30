@@ -249,7 +249,7 @@ describe("Question Pipeline Contract Tests (Plan 010)", () => {
       };
 
       const evalResult = evaluateQuestionWithCritic(candidate);
-      expect(evalResult.status).toBe("needs_review");
+      expect(evalResult.status).toBe("rejected");
       expect(evalResult.violationCodes).toContain("SOLVER_CANDIDATE_DISAGREEMENT");
     });
 
