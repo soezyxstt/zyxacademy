@@ -488,7 +488,7 @@ export async function generateQuestionsForKOBatch(
           correctIndices: shuffled.correctIndices,
           distractorMap,
           explanation: shuffled.explanation,
-          reviewStatus: criticEval?.status === "needs_review" ? "needs_review" : "generated",
+          reviewStatus: criticEval?.status === "needs_review" ? "flagged" : "generated",
           qualityScore: criticEval ? criticEval.qualityScore : null,
           pattern: shuffled.pattern,
           reasoningType: slot.reasoningPattern,

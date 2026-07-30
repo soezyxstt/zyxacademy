@@ -44,16 +44,16 @@ const GOLDEN_CASES: GoldenCase[] = [
   {
     id: "case-qst-01",
     requirementId: "AI-QUEST-VER-001",
-    category: "question",
+    category: "questions",
     input: { solverDisagreement: true },
     expectedOutcome: "rejected",
     prohibitedOutputs: ["accepted"],
-    zeroToleranceInvariant: "question_verification_rejection",
+    zeroToleranceInvariant: "unverified_question_rejection",
   },
   {
     id: "case-fc-01",
     requirementId: "AI-FC-ATOM-001",
-    category: "flashcard",
+    category: "flashcards",
     input: { multiTargetFront: true },
     expectedOutcome: "rejected",
     prohibitedOutputs: ["approved"],
@@ -126,13 +126,13 @@ export async function runAiEvaluations() {
         findings: [{ id: "f1", code: "ERR", severity: "critical", message: "PDF audit unreadable", sourceSpanIds: [] }],
       });
       pipelineOutput = { status: canPublish ? "pass" : "unavailable", text: "Fail closed" };
-    } else if (c.zeroToleranceInvariant === "question_verification_rejection") {
+    } else if (c.zeroToleranceInvariant === "unverified_question_rejection") {
       const evalRes = evaluateQuestionWithCritic({
         promptStem: "What is velocity?",
         options: ["Distance over time", "Mass times acceleration"],
         candidateCorrectIndices: [0],
         explanation: "v = d / t",
-        solverResult: { solvedOptionIndex: 1, solverConfidence: 0.9, stepByStepDerivation: ["Calculated"] },
+        solverResult: { solvedOptionIndex: 1, solverConfidence: 0.9, reasoningSummary: "Calculated" },
       });
       pipelineOutput = { status: evalRes.status, text: evalRes.reasoning };
     } else if (c.zeroToleranceInvariant === "flashcard_atomicity_validation") {
@@ -152,7 +152,7 @@ export async function runAiEvaluations() {
       pipelineOutput = { status: hash1 === hash2 ? "accepted" : "rejected", text: hash1 };
     } else if (c.zeroToleranceInvariant === "material_preflight_validation") {
       const preflight = validatePreflightKos([
-        { id: "ko-1", title: "KO 1", status: "needs_review", conceptId: "c1", learningOrder: 1 },
+        { id: "ko-1", title: "KO 1", status: "needs_review", conceptName: "c1", learningOrder: 1 },
       ]);
       pipelineOutput = { status: preflight.valid ? "accepted" : "rejected", text: preflight.errors.join(", ") };
     }

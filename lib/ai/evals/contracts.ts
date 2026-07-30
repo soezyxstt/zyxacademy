@@ -30,6 +30,9 @@ export const GoldenCaseSchema = z.object({
     "provider_failure_fail_closed",
     "unverified_question_rejection",
     "diktat_qa_fail_closed",
+    "flashcard_atomicity_validation",
+    "ko_identity_determinism",
+    "material_preflight_validation",
   ]).optional(),
 });
 export type GoldenCase = z.infer<typeof GoldenCaseSchema>;

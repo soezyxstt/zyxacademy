@@ -1132,20 +1132,25 @@ export async function extractKnowledgeObjectsForChapter(
           .where(eq(knowledgeObjects.chapterId, chapterId));
 
         const candidateInputs = koValues.map((ko: any) => {
-          const titleIdx = rawContent.indexOf(ko.title);
+          const titleIdx = chapterMarkdown.indexOf(ko.title);
           const startOffset = titleIdx >= 0 ? titleIdx : 0;
           const endOffset = startOffset + Math.max(ko.title.length, 10);
+          const semanticHash = computeSemanticKoHash(ko.title, ko.content, (ko.type as any) || 'definition', 'core');
           return {
             title: ko.title,
             summary: ko.content,
-            knowledgeKind: (ko.type as any) || 'other',
+            knowledgeKind: (ko.type as any) || 'definition',
             instructionalRole: 'core' as const,
             sourceSpans: [
               {
-                sourceMtdId: mtdId,
+                sourceDocumentId: mtdId,
+                sourceVersion: `${nextVersion}.0`,
+                chapterId,
                 startOffset,
                 endOffset,
-                snippet: ko.title,
+                sourceHash,
+                excerptHash: semanticHash,
+                supportRole: 'core' as const,
               },
             ],
           };
