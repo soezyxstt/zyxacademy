@@ -249,6 +249,9 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Knowledge Object Provenance & Stable Identity completed**: Source-grounded KO schema (`knowledge_object_sources`, `learning_objectives`), stable identity keys (`stableKey`), knowledgeKind and instructionalRole separation, semantic content hashing (`semanticHash`), and upsert/diff reconciliation engine (`lib/knowledge/identity.ts`) implemented behind `FEATURE_KO_PIPELINE_V2`.
 - **Staged KO Extraction & Canonical Review completed**: Multi-stage source-complete pipeline implemented (`lib/knowledge/chunker.ts`, `candidate-extractor.ts`, `candidate-reconciler.ts`, `canonicalizer.ts`, `extraction-run.ts`), removing silent 30k char truncation, preserving exact source offsets and math/tables, retaining all supporting spans across chunk merges, and routing high embedding similarity without exact title match to `needs_review`.
 - **Question Blueprint, Option Shuffle, and Distractor Provenance completed**: Deterministic multidimensional blueprint engine (`lib/questions/blueprint.ts`), application option shuffle with stable IDs (`lib/questions/option-shuffle.ts`), machine-readable distractor provenance engine (`lib/questions/distractor-provenance.ts`), typed assessment extractor adapter (`lib/assessment-extractor.ts`), database tables `question_generation_runs` and `distractor_provenance`, and flag `FEATURE_QUESTION_GENERATOR_V2` fully implemented.
+- **Tutor Pedagogy, Diagnosis & Visual Contracts completed**: Pedagogy contracts (`lib/tutor/pedagogy-contracts.ts`), visual spec contracts (`lib/tutor/visual-contracts.ts`), deterministic visual serializer (`lib/tutor/visual-serializer.ts`), and feature flag `FEATURE_TUTOR_PEDAGOGY_V2` fully implemented.
+- **Semantic Material Compiler completed**: Preflight KO validator, outline planner with typed KO exclusions (`lib/materials/compiler.ts`), non-destructive interactive layer (`lib/materials/interactive-layer.ts`), revision diff engine (`lib/materials/revision-diff.ts`), and feature flag `FEATURE_MATERIAL_COMPILER_V2` fully implemented.
+- **Independent Question Verification & Critic Loop completed**: Independent solver boundary (`lib/questions/independent-solver.ts`) and pedagogical critic verification engine (`lib/questions/pedagogical-critic.ts`) fully implemented.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -258,17 +261,17 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Production database schemas and MTD backfill verified successfully.
 - Admin Quiz Insights database migration (`quiz_ai_insights`) and API endpoints verified.
 - Student Quiz Analytics database migration (`student_quiz_analytics`), Inngest background queue, API endpoints, and 3-layer UI verified (`bun run lint` passing 0 errors).
-- AI Contract Test Suite verified deterministically (29 tests across 7 contract files passing/todo with 0 network calls).
+- AI Contract Test Suite verified deterministically (71 tests across 8 contract files passing/todo with 0 network calls).
 - Versioned Prompt Contracts & Provenance verified deterministically via `bun test tests/contracts/prompt-executor.test.ts` (12/12 tests passing, bounded repair & privacy-safe hashing verified, `bun run lint` and `bun run typecheck` passing 0 errors).
 - Assessment Integrity & Help Policy verified deterministically via `bun test tests/contracts/assessment-redaction.test.ts tests/contracts/tutor-rag.test.ts` (13/13 tests passing/todo with 0 network calls, answer redaction and policy gating verified).
 - Tutor Cache Isolation & Query Action Routing verified deterministically via `bun test tests/contracts/tutor-rag.test.ts` (13 passing tests across contract suite with 0 network calls, student data protection, style extraction, and action routing verified).
 - Knowledge Object Provenance & Stable Identity verified deterministically via `bun test tests/contracts/ko-pipeline.test.ts` (9/9 tests passing with 0 network calls, stable identity retention, semantic hashing, superseded status tracking, and contract validation verified).
 - Staged KO Extraction & Canonical Review verified deterministically via `bun test tests/contracts/ko-pipeline.test.ts` (11 passing tests across KO pipeline suite with 0 network calls, deterministic chunking > 30k chars, span preservation, and review gating verified).
 - Question Blueprint, Option Shuffle, and Distractor Provenance verified deterministically via `bun test tests/contracts/question-pipeline.test.ts` (11 passing tests across question pipeline suite with 0 network calls, slot KO requirement, seeded shuffle, distractor provenances, position leakage prevention, and typed extraction adapter verified; `bun run lint` and `bun run typecheck` passing 0 errors).
-
+- Wave 4 (Plans 006, 009, 011) verified deterministically via `bun test tests/contracts/tutor-rag.test.ts tests/contracts/material-pipeline.test.ts tests/contracts/question-pipeline.test.ts` (67 passing contract tests, 0 errors across lint & typecheck).
 
 ### Current Focus
-Deploying and monitoring the Canonical Markdown-First Knowledge System in production environment, ensuring robust integration of assessments and learning components.
+Executing Wave 5 (Plans 013: Flashcards, 014: Diktat QA, 012: Analytics) of the Zyx AI Reliability Remediation Roadmap.
 
 ### Blockers
 None

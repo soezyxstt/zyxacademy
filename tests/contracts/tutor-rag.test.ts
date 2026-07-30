@@ -363,4 +363,61 @@ describe("Tutor RAG Contract Tests", () => {
     expect(formattedEnv).toContain("</untrusted_source>");
     expect(formattedEnv).not.toContain("Abaikan instruksi sebelumnya");
   });
+
+  it("AI-TUTOR-PED-001: Enforces concept explanation contracts and mandatory analogy limitation boundaries", async () => {
+    const { validateAnalogyBoundary, ConceptExplanationSchema } = await import("@/lib/tutor/pedagogy-contracts");
+
+    // 1. Direct explanation is required
+    const validExplanation = ConceptExplanationSchema.safeParse({
+      directExplanation: "Limit fungsi f(x) ketika x mendekati a adalah nilai L yang didekati oleh f(x).",
+      analogy: {
+        analogyText: "Mendekati limit seperti mendekati pintu tanpa benar-benar menyentuhnya.",
+        limitationBoundary: "Analogi ini hanya berlaku untuk titik kontinu dan tidak menggambarkan diskontinuitas.",
+      },
+    });
+    expect(validExplanation.success).toBe(true);
+
+    // 2. Analogy without limitation boundary is invalid
+    expect(validateAnalogyBoundary({ analogyText: "Mendekati limit", limitationBoundary: "" })).toBe(false);
+    expect(validateAnalogyBoundary({ analogyText: "Mendekati limit", limitationBoundary: "Cukup panjang batasnya" })).toBe(true);
+  });
+
+  it("AI-TUTOR-PED-002: Separates observed facts from tentative hypotheses in mistake analysis", async () => {
+    const { MistakeAnalysisSchema, validateMistakeAnalysisEvidence } = await import("@/lib/tutor/pedagogy-contracts");
+
+    const analysis = MistakeAnalysisSchema.parse({
+      observed: { selectedOptionIndex: 1, submittedAnswer: "x^2" },
+      possibleExplanations: [
+        { hypothesis: "Siswa lupa mengalikan koefisien turunan", evidenceLabel: "limited" },
+      ],
+      evidenceSufficiency: "insufficient",
+    });
+
+    expect(analysis.evidenceSufficiency).toBe("insufficient");
+    expect(validateMistakeAnalysisEvidence(analysis)).toBe(true);
+  });
+
+  it("AI-TUTOR-VIS-001: Validates visual specs and serializes structured visual blocks deterministically", async () => {
+    const { validateVisualSpec, VisualSpecSchema } = await import("@/lib/tutor/visual-contracts");
+    const { serializeVisualSpec } = await import("@/lib/tutor/visual-serializer");
+
+    const visualSpec = VisualSpecSchema.parse({
+      type: "chart",
+      title: "Distribusi Kesalahan",
+      semanticLabels: ["Limit", "Turunan", "Integral"],
+      values: { Limit: 40, Turunan: 35, Integral: 25 },
+      relationships: [],
+      sourceClaimIds: ["claim-1"],
+      altDescription: "Diagram batang distribusi kesalahan siswa pada topik kalkulus",
+    });
+
+    const validation = validateVisualSpec(visualSpec, ["claim-1"]);
+    expect(validation.isValid).toBe(true);
+
+    const serialized = serializeVisualSpec(visualSpec);
+    expect(serialized).toContain(':::chart title="Distribusi Kesalahan"');
+    expect(serialized).toContain('"Limit": 40');
+    expect(serialized).toContain(":::");
+  });
 });
+

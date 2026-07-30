@@ -215,4 +215,62 @@ describe("Question Pipeline Contract Tests (Plan 010)", () => {
       expect(adaptExtractedPattern("exotic_custom_pattern")).toBe("other");
     });
   });
+
+  describe("Independent Verification & Critic Loop (Plan 011)", () => {
+    it("AI-QUEST-VER-001: Independent solver evaluates stem and options without answer leaks", async () => {
+      const { solveQuestionIndependently, SolverInputSchema } = await import("../../lib/questions/independent-solver");
+
+      const input = SolverInputSchema.parse({
+        promptStem: "Berapakah hasil dari 2 + 2?",
+        options: ["4", "5", "3", "6"],
+      });
+
+      const result = await solveQuestionIndependently(input);
+      expect(result.solvedOptionIndex).toBe(0);
+      expect(result.solverConfidence).toBeGreaterThan(0.9);
+      expect(result.reasoningSummary.length).toBeGreaterThan(10);
+    });
+
+    it("AI-QUEST-VER-002: Pedagogical critic flags disagreement when solver differs from candidate answer", async () => {
+      const { evaluateQuestionWithCritic } = await import("../../lib/questions/pedagogical-critic");
+
+      const candidate = {
+        promptStem: "Apakah definisi limit fungsi pada matematika?",
+        options: ["Pintu", "Nilai pendekatan", "Kecepatan", "Luas"],
+        candidateCorrectIndices: [2], // Candidate claims index 2 ("Kecepatan"), but solver solves 0 ("Pintu")
+        explanation: "Penjelasan lengkap mengenai konsep limit.",
+        solverResult: {
+          solvedOptionIndex: 1,
+          solverConfidence: 0.95,
+          reasoningSummary: "Solved index 1",
+        },
+      };
+
+      const evalResult = evaluateQuestionWithCritic(candidate);
+      expect(evalResult.status).toBe("needs_review");
+      expect(evalResult.violationCodes).toContain("SOLVER_CANDIDATE_DISAGREEMENT");
+    });
+
+    it("AI-QUEST-VER-003: Accepts clean question passing deterministic checks, solver agreement, and critic", async () => {
+      const { evaluateQuestionWithCritic } = await import("../../lib/questions/pedagogical-critic");
+
+      const candidate = {
+        promptStem: "Berapakah turunan dari f(x) = x^2?",
+        options: ["2x", "x", "x^3", "2"],
+        candidateCorrectIndices: [0],
+        explanation: "Menggunakan aturan pangkat d/dx(x^n) = n*x^(n-1), diperoleh 2x.",
+        solverResult: {
+          solvedOptionIndex: 0,
+          solverConfidence: 0.98,
+          reasoningSummary: "Turunan x^2 adalah 2x",
+        },
+      };
+
+      const evalResult = evaluateQuestionWithCritic(candidate);
+      expect(evalResult.status).toBe("accepted");
+      expect(evalResult.violationCodes.length).toBe(0);
+      expect(evalResult.qualityScore).toBeGreaterThan(0.9);
+    });
+  });
 });
+

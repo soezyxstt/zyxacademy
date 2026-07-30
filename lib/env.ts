@@ -113,6 +113,10 @@ export const env = createEnv({
  FEATURE_KO_PIPELINE_V2: z.string().optional(),
  /** P1 Question generator V2: blueprint, option shuffle, and distractor provenance. "1" enables. */
  FEATURE_QUESTION_GENERATOR_V2: z.string().optional(),
+ /** P1 Tutor Pedagogy V2: pedagogical strategy and context fabric. "1" enables. */
+ FEATURE_TUTOR_PEDAGOGY_V2: z.string().optional(),
+ /** P1 Material Compiler V2: semantic material compiler. "1" enables. */
+ FEATURE_MATERIAL_COMPILER_V2: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Active vector store: 'pinecone' (default) | 'dual' (write both) | 'vectorize' (read from VZ) */
  VECTOR_STORE: z.enum(['pinecone', 'vectorize', 'dual']).optional(),
@@ -207,10 +211,12 @@ export const env = createEnv({
  FEATURE_ASSESSMENT_ASSISTANCE_POLICY: process.env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY,
  FEATURE_KO_PIPELINE_V2: process.env.FEATURE_KO_PIPELINE_V2,
  FEATURE_QUESTION_GENERATOR_V2: process.env.FEATURE_QUESTION_GENERATOR_V2,
-  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
+ FEATURE_TUTOR_PEDAGOGY_V2: process.env.FEATURE_TUTOR_PEDAGOGY_V2,
+ FEATURE_MATERIAL_COMPILER_V2: process.env.FEATURE_MATERIAL_COMPILER_V2,
+ NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTOR_STORE: process.env.VECTOR_STORE,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
-  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,
+ VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,
   // Diktat PDF Renderer
   DIKTAT_RENDERER_URL: process.env.DIKTAT_RENDERER_URL,
   DIKTAT_RENDERER_SECRET: process.env.DIKTAT_RENDERER_SECRET,
