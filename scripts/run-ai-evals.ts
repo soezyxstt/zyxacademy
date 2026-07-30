@@ -22,6 +22,7 @@ const GOLDEN_CASES: GoldenCase[] = [
     category: "tutor",
     input: { invalidCitationId: "chk-999" },
     expectedOutcome: "rejected",
+    prohibitedOutputs: [],
     zeroToleranceInvariant: "unknown_citation_rejection",
   },
   {
@@ -30,6 +31,7 @@ const GOLDEN_CASES: GoldenCase[] = [
     category: "diktat",
     input: { malformedPdf: true },
     expectedOutcome: "unavailable",
+    prohibitedOutputs: [],
     zeroToleranceInvariant: "provider_failure_fail_closed",
   },
 ];
