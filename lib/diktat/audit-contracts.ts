@@ -20,7 +20,7 @@ export const DiktatAuditFindingSchema = z.object({
   severity: z.enum(["info", "warning", "error", "critical"]),
   message: z.string(),
   location: z.string().optional(),
-  sourceSpanIds: z.array(z.string()).default([]),
+  sourceSpanIds: z.array(z.string()).optional().default([]),
 });
 export type DiktatAuditFinding = z.infer<typeof DiktatAuditFindingSchema>;
 

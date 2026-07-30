@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:ai-contracts": "bun test tests/contracts",
+    "eval:ai": "bun scripts/run-ai-evals.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bunx tsx db/migrate.ts",
     "db:seed": "bunx tsx db/seed.ts",
