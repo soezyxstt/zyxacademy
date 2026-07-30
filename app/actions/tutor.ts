@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
-import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions } from "@/db/schema";
+import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates } from "@/db/schema";
 import { eq, and, asc, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
@@ -219,10 +219,10 @@ export async function askTutorRagAction(
   const startTime = Date.now();
 
   const activeAttempt = await db
-    .select({ id: quizAttempts.id })
-    .from(quizAttempts)
-    .innerJoin(quizzes, eq(quizAttempts.quizId, quizzes.id))
-    .where(and(eq(quizAttempts.userId, user.id), eq(quizzes.courseId, courseId), eq(quizAttempts.isCompleted, false)))
+    .select({ id: studentQuizAttempts.id })
+    .from(studentQuizAttempts)
+    .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
+    .where(and(eq(studentQuizAttempts.studentId, user.id), eq(quizTemplates.courseId, courseId), eq(studentQuizAttempts.status, "in_progress")))
     .limit(1);
 
   const hasActiveAttempt = activeAttempt.length > 0;
