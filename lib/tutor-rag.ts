@@ -38,6 +38,15 @@ import {
 import { recordLearningEvent } from "@/lib/learning-events";
 import { USE_CASES } from "@/lib/ai-router";
 import { UsageBudgetService } from "@/lib/usage-budget-service";
+import { env } from "@/lib/env";
+import {
+  evaluateAssessmentAssistancePolicy,
+  validateTutorOutput,
+  type ActivityKind,
+  type AttemptState,
+  type AnswerReleaseState,
+  type MatchState,
+} from "@/lib/assessment-assistance-policy";
 
 const SIMILARITY_FLOOR = 0.5;
 const CACHE_CONFIDENCE_FLOOR = 0.6;
@@ -483,157 +492,201 @@ async function buildAddendum(
 // ─── Main pipeline ────────────────────────────────────────────────────────────
 
 export interface AskTutorParams {
- studentId: string;
- courseId: string;
- chapterId?: string | null;
- question: string;
- sessionId?: string | null;
+  studentId: string;
+  courseId: string;
+  chapterId?: string | null;
+  question: string;
+  sessionId?: string | null;
+  activityKind?: ActivityKind;
+  attemptState?: AttemptState;
+  answerReleaseState?: AnswerReleaseState;
+  matchState?: MatchState;
 }
 
 export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResult> {
- const { studentId, courseId, question, sessionId } = params;
- const chapterId = params.chapterId ?? null;
+  const { studentId, courseId, question, sessionId } = params;
+  const chapterId = params.chapterId ?? null;
 
- const profile = await buildLearnerProfile(studentId, courseId);
+  const usePolicy = env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY === "1";
+  const activityKind = params.activityKind ?? (params.attemptState && params.attemptState !== "none" ? "quiz" : "study");
+  const attemptState = params.attemptState ?? "none";
+  const answerReleaseState = params.answerReleaseState ?? (attemptState === "completed" ? "released" : "hidden");
+  const matchState = params.matchState ?? "none";
 
- // Load conversation history context
- const history = sessionId
-   ? await getConversationMemory({ studentId, courseId, sessionId, limit: 6 })
-   : { recentMessages: [] };
+  const policy = usePolicy
+    ? evaluateAssessmentAssistancePolicy({
+        activityKind,
+        attemptState,
+        answerReleaseState,
+        matchState,
+      })
+    : null;
 
- let searchQuestion = question;
- let historyText = "";
+  const profile = await buildLearnerProfile(studentId, courseId);
 
- if (history.recentMessages.length > 0) {
-   historyText = history.recentMessages
-     .map((m) => `${m.role === "student" ? "STUDENT" : "ZYRA"}: ${m.content}`)
-     .join("\n\n");
+  // Load conversation history context
+  const history = sessionId
+    ? await getConversationMemory({ studentId, courseId, sessionId, limit: 6 })
+    : { recentMessages: [] };
 
-   // Rewrite query using history to preserve search context
-   try {
-     const rewriteResult = await PromptExecutor.run({
-       userId: studentId,
-       prompt: queryRewritePrompt,
-       variables: { question, historyText },
-       schema: z.object({ rewrittenQuery: z.string() }),
-       useCase: USE_CASES.GROUNDED_RAG,
-     });
-     if (rewriteResult.success && rewriteResult.data?.rewrittenQuery) {
-       searchQuestion = rewriteResult.data.rewrittenQuery.trim();
-       console.log(`[Query Rewrite] Original: "${question}" -> Rewritten: "${searchQuestion}"`);
-     }
-   } catch (e) {
-     console.error("Failed to rewrite query:", e);
-   }
- }
+  let searchQuestion = question;
+  let historyText = "";
 
- // Tier 1: cache using the contextualized search query
- const cacheKey = tutorCacheKey(courseId, chapterId, searchQuestion);
- let base = await kvGet<TutorRagAnswer>(cacheKey);
- let cached = false;
- let budgetExhausted = false;
+  if (history.recentMessages.length > 0) {
+    historyText = history.recentMessages
+      .map((m) => `${m.role === "student" ? "STUDENT" : "ZYRA"}: ${m.content}`)
+      .join("\n\n");
 
- if (base && typeof base.answer === "string") {
-  cached = true;
-  base = { ...base, answer: sanitizeAnswer(base.answer) };
-  await logCacheHit(studentId, "tutor_rag");
- } else {
-  base = null;
-  let retrieved: RetrievedSource[] = [];
-  if (await isMetaExamQuery(searchQuestion)) {
-   const statsSummary = await executeMetaQuery(courseId, searchQuestion);
-   retrieved = [
-    {
-     type: "past_exam",
-     id: "system-stats",
-     label: "Exam Statistics Database",
-     href: `/courses/${courseId}/material`,
-     content: `Historical Exam Database Analytics Summary:\n${statsSummary}`,
-    },
-   ];
-  } else {
-   retrieved = await retrieve(courseId, chapterId, searchQuestion);
+    // Rewrite query using history to preserve search context
+    try {
+      const rewriteResult = await PromptExecutor.run({
+        userId: studentId,
+        prompt: queryRewritePrompt,
+        variables: { question, historyText },
+        schema: z.object({ rewrittenQuery: z.string() }),
+        useCase: USE_CASES.GROUNDED_RAG,
+      });
+      if (rewriteResult.success && rewriteResult.data?.rewrittenQuery) {
+        searchQuestion = rewriteResult.data.rewrittenQuery.trim();
+        console.log(`[Query Rewrite] Original: "${question}" -> Rewritten: "${searchQuestion}"`);
+      }
+    } catch (e) {
+      console.error("Failed to rewrite query:", e);
+    }
   }
 
-  if (retrieved.length === 0) {
-   const remaining = await UsageBudgetService.getRemainingPremium(studentId);
-   const useCase = remaining > 0 ? USE_CASES.UNGROUNDED_TUTOR : USE_CASES.UNGROUNDED_TUTOR_GEMMA;
+  // Tier 1: cache using the contextualized search query
+  const cacheKey = tutorCacheKey(courseId, chapterId, searchQuestion);
+  let base = await kvGet<TutorRagAnswer>(cacheKey);
+  let cached = false;
+  let budgetExhausted = false;
+
+  if (base && typeof base.answer === "string") {
+   cached = true;
+   base = { ...base, answer: sanitizeAnswer(base.answer) };
+   await logCacheHit(studentId, "tutor_rag");
+  } else {
+   base = null;
+   let retrieved: RetrievedSource[] = [];
+   if (await isMetaExamQuery(searchQuestion)) {
+    const statsSummary = await executeMetaQuery(courseId, searchQuestion);
+    retrieved = [
+     {
+      type: "past_exam",
+      id: "system-stats",
+      label: "Exam Statistics Database",
+      href: `/courses/${courseId}/material`,
+      content: `Historical Exam Database Analytics Summary:\n${statsSummary}`,
+     },
+    ];
+   } else {
+    retrieved = await retrieve(courseId, chapterId, searchQuestion);
+   }
+
+   if (retrieved.length === 0) {
+    const remaining = await UsageBudgetService.getRemainingPremium(studentId);
+    const useCase = remaining > 0 ? USE_CASES.UNGROUNDED_TUTOR : USE_CASES.UNGROUNDED_TUTOR_GEMMA;
+    const result = await PromptExecutor.run({
+    userId: studentId,
+    prompt: tutorUngroundedAnswer,
+    variables: { question, conversationHistory: historyText },
+    schema: UngroundedSchema,
+    useCase,
+    });
+   if (result.success && result.data) {
+   if (useCase === USE_CASES.UNGROUNDED_TUTOR) {
+   await UsageBudgetService.recordPremiumUsage(studentId);
+   }
+   base = {
+   answer: sanitizeAnswer(result.data.answer),
+   sources: [],
+   matchedConcepts: result.data.matchedConcepts,
+   confidence: result.data.confidence,
+   grounded: false,
+   };
+   } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
+   budgetExhausted = true;
+   } else {
+   console.error("tutor ungrounded generation failed:", result.errors[0]);
+   budgetExhausted = true;
+   }
+   } else {
+  // Redact solution text from retrieved context if policy forbids direct answer reveal
+  const contextSources = policy && !policy.allowDirectAnswerReveal
+    ? retrieved.map((s) => {
+        let content = s.content;
+        if (s.type === 'practice_question' || s.type === 'past_exam') {
+          content = content
+            .replace(/Explanation:\s*[\s\S]*/gi, '')
+            .replace(/Solution:\s*[\s\S]*/gi, '')
+            .replace(/Jawaban:\s*[\s\S]*/gi, '');
+        }
+        return { ...s, content };
+      })
+    : retrieved;
+
+  const contextBlock = contextSources
+  .map((s, i) => `[${i + 1}] (source id: ${s.id})\n${s.content}`)
+  .join("\n\n");
+  const sourceList = contextSources.map((s) => `${s.id} | ${s.type} | ${s.label}`).join("\n");
+
    const result = await PromptExecutor.run({
    userId: studentId,
-   prompt: tutorUngroundedAnswer,
-   variables: { question, conversationHistory: historyText },
-   schema: UngroundedSchema,
-   useCase,
+   prompt: tutorGroundedAnswer,
+   variables: { question, contextBlock, sourceList, conversationHistory: historyText },
+   schema: GroundedSchema,
+   useCase: USE_CASES.GROUNDED_RAG,
    });
-  if (result.success && result.data) {
-  if (useCase === USE_CASES.UNGROUNDED_TUTOR) {
-  await UsageBudgetService.recordPremiumUsage(studentId);
-  }
-  base = {
-  answer: sanitizeAnswer(result.data.answer),
-  sources: [],
-  matchedConcepts: result.data.matchedConcepts,
-  confidence: result.data.confidence,
-  grounded: false,
-  };
-  } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
-  budgetExhausted = true;
-  } else {
-  console.error("tutor ungrounded generation failed:", result.errors[0]);
-  budgetExhausted = true;
-  }
-  } else {
- const contextBlock = retrieved
- .map((s, i) => `[${i + 1}] (source id: ${s.id})\n${s.content}`)
- .join("\n\n");
- const sourceList = retrieved.map((s) => `${s.id} | ${s.type} | ${s.label}`).join("\n");
 
-  const result = await PromptExecutor.run({
-  userId: studentId,
-  prompt: tutorGroundedAnswer,
-  variables: { question, contextBlock, sourceList, conversationHistory: historyText },
-  schema: GroundedSchema,
-  useCase: USE_CASES.GROUNDED_RAG,
-  });
+   if (result.success && result.data) {
+   const d = result.data;
+   if (d.covered) {
+   const byId = new Map(retrieved.map((s) => [s.id, s]));
+   const citedIds = d.sourceIds.filter((id) => byId.has(id));
+   const sourceIds = citedIds.length > 0 ? citedIds : retrieved.slice(0, 3).map((s) => s.id);
+   const sources = [...new Set(sourceIds)].map((id) => {
+   const s = byId.get(id)!;
+   return { type: s.type, id: s.id, label: s.label, href: s.href };
+   });
 
-  if (result.success && result.data) {
-  const d = result.data;
-  if (d.covered) {
-  const byId = new Map(retrieved.map((s) => [s.id, s]));
-  const citedIds = d.sourceIds.filter((id) => byId.has(id));
-  const sourceIds = citedIds.length > 0 ? citedIds : retrieved.slice(0, 3).map((s) => s.id);
-  const sources = [...new Set(sourceIds)].map((id) => {
-  const s = byId.get(id)!;
-  return { type: s.type, id: s.id, label: s.label, href: s.href };
-  });
-  base = {
-  answer: sanitizeAnswer(d.answer),
-  sources,
-  matchedConcepts: d.matchedConcepts,
-  confidence: d.confidence,
-  grounded: true,
-  };
-  } else {
-  base = {
-  answer: sanitizeAnswer(d.answer),
-  sources: [],
-  matchedConcepts: d.matchedConcepts,
-  confidence: d.confidence,
-  grounded: false,
-  };
-  }
+   let ansText = sanitizeAnswer(d.answer);
 
-  if (base.confidence >= CACHE_CONFIDENCE_FLOOR) {
-  await kvPut(cacheKey, base, TUTOR_TTL_SECONDS);
+   // Post-validate output against assistance policy
+   if (policy) {
+     const validation = validateTutorOutput(ansText, {}, policy.allowedHelpLevel);
+     if (!validation.valid) {
+       ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+     }
+   }
+
+   base = {
+   answer: ansText,
+   sources,
+   matchedConcepts: d.matchedConcepts,
+   confidence: d.confidence,
+   grounded: true,
+   };
+   } else {
+   base = {
+   answer: sanitizeAnswer(d.answer),
+   sources: [],
+   matchedConcepts: d.matchedConcepts,
+   confidence: d.confidence,
+   grounded: false,
+   };
+   }
+
+   if (base.confidence >= CACHE_CONFIDENCE_FLOOR) {
+   await kvPut(cacheKey, base, TUTOR_TTL_SECONDS);
+   }
+   } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
+   budgetExhausted = true;
+   } else {
+   console.error("tutor grounded generation failed:", result.errors[0]);
+   budgetExhausted = true;
+   }
+   }
   }
-  } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
-  budgetExhausted = true;
-  } else {
-  console.error("tutor grounded generation failed:", result.errors[0]);
-  budgetExhausted = true;
-  }
-  }
- }
 
  if (!base) {
  return {

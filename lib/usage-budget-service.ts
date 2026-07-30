@@ -53,16 +53,20 @@ export class UsageBudgetService {
     requestType: string;
   }): Promise<void> {
     const id = crypto.randomUUID();
-    await db.insert(aiUsageEvents).values({
-      id,
-      userId: params.userId,
-      feature: params.feature,
-      model: params.model,
-      tokens: params.tokens,
-      inputTokens: params.inputTokens ?? 0,
-      outputTokens: params.outputTokens ?? 0,
-      requestType: params.requestType,
-    });
+    try {
+      await db.insert(aiUsageEvents).values({
+        id,
+        userId: params.userId,
+        feature: params.feature,
+        model: params.model,
+        tokens: params.tokens,
+        inputTokens: params.inputTokens ?? 0,
+        outputTokens: params.outputTokens ?? 0,
+        requestType: params.requestType,
+      });
+    } catch (err: any) {
+      console.warn(`[UsageBudget] Failed to record usage event: ${err?.message || err}`);
+    }
   }
 
   /**

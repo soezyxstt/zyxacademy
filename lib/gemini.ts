@@ -127,8 +127,23 @@ export async function withGeminiRetry<T>(fn: () => Promise<T>, maxRetries = 3): 
 // Content generation ; scheduler‑based selection across all keys and model priority list
 // ---------------------------------------------------------------------------
 
-interface GenerateContentParams {
-  contents: string | any[];
+export type GeminiContentRole = 'user' | 'model' | 'system';
+
+export interface GeminiContentPart {
+  text?: string;
+  inlineData?: {
+    mimeType: string;
+    data: string;
+  };
+}
+
+export interface GeminiContentBlock {
+  role?: GeminiContentRole;
+  parts: GeminiContentPart[];
+}
+
+export interface GenerateContentParams {
+  contents: string | GeminiContentBlock[] | GeminiContentPart[];
   config?: any;
   useCase?: string;
 }

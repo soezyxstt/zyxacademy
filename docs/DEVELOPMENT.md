@@ -79,6 +79,7 @@ All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
 | `FEATURE_REFLECTION_EMAIL` | Reflection email delivery |
 | `FEATURE_ADAPTIVE_QUIZ` | Adaptive quiz difficulty |
 | `FEATURE_PKA` | Tutorial PKA campaign |
+| `FEATURE_AI_CONTRACT_V2` | Versioned prompt contracts, policy composition, bounded repair, and provenance |
 | `FEATURE_ASSESSMENT_ASSISTANCE_POLICY` | Deterministic assessment assistance policy for AI tutor and mistake feedback |
 | `FEATURE_ANALYTICS` | Coaching analytics |
 | `FEATURE_LEADERBOARD` | Leaderboard |

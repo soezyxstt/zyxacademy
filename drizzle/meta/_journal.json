@@ -330,6 +330,13 @@
       "when": 1785168758361,
       "tag": "0046_quiet_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1785409038821,
+      "tag": "0047_last_beast",
+      "breakpoints": true
     }
   ]
 }

@@ -145,6 +145,7 @@ Assessment-specific (for type="assessment" MTDs):
 | `ai_question_bank` | Permanent question repository: linked to KO/MTD with generationHash, distractorMap, bloomLevel, pattern, estimatedSteps, isStale |
 | `question_option_stats` | Per-option selection counters for distractor analytics |
 | `ai_usage_events` | Token usage per user per feature per model |
+| `ai_generation_traces` | Privacy-safe AI execution provenance traces (hashes, versions, tokens, violations, latency, terminal outcome) |
 
 #### Quiz System
 | Table | Purpose |

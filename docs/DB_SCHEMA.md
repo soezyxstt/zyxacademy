@@ -864,3 +864,31 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `order`
 * `createdAt`
 * `updatedAt`
+
+---
+
+## 18. AI Prompt Contracts & Provenance Domain
+
+### ai_generation_traces
+* `id`: Text primary key (`trc_...`).
+* `userId`: Reference to `user.id` (nullable).
+* `useCase`: Model routing identity or use case identifier.
+* `stageId`: Pipeline stage identifier (e.g. 'tutor-explanation', 'ko-extraction').
+* `promptVersion`: Version string of the stage prompt.
+* `policyVersion`: Combined version string of applied policy fragments.
+* `inputSchemaVersion`: Version of input variable schema.
+* `outputSchemaVersion`: Version of output JSON schema.
+* `validatorVersion`: Combined version string of semantic validators.
+* `sanitizedInputHash`: Privacy-safe SHA-256 hash of input variables (never raw text/student copy).
+* `evidenceHash`: Optional SHA-256 hash of context evidence data.
+* `model`: LLM model name used for generation.
+* `route`: Routing chain or failover provider mode.
+* `inputTokens`: Cumulative input token count across attempts.
+* `outputTokens`: Cumulative output token count across attempts.
+* `retryCount`: Number of repair attempts executed (0 or 1).
+* `terminalOutcome`: Terminal state ('success', 'rejected', 'quota_exceeded', 'provider_failure', 'invalid_contract').
+* `violationCodes`: Serialized JSON array of validation error codes.
+* `latencyMs`: Total generation and validation latency in milliseconds.
+* `cacheResult`: Cache status ('hit', 'miss', 'none').
+* `createdAt`: Timestamp when the trace was recorded.
+

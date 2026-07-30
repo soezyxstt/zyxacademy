@@ -1837,6 +1837,37 @@ export const aiUsageEvents = sqliteTable(
  ]
 );
 
+export const aiGenerationTraces = sqliteTable(
+  "ai_generation_traces",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    useCase: text("use_case"),
+    stageId: text("stage_id").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    policyVersion: text("policy_version").notNull(),
+    inputSchemaVersion: text("input_schema_version").notNull(),
+    outputSchemaVersion: text("output_schema_version").notNull(),
+    validatorVersion: text("validator_version").notNull(),
+    sanitizedInputHash: text("sanitized_input_hash").notNull(),
+    evidenceHash: text("evidence_hash"),
+    model: text("model").notNull(),
+    route: text("route"),
+    inputTokens: integer("input_tokens").default(0).notNull(),
+    outputTokens: integer("output_tokens").default(0).notNull(),
+    retryCount: integer("retry_count").default(0).notNull(),
+    terminalOutcome: text("terminal_outcome").notNull(),
+    violationCodes: text("violation_codes"),
+    latencyMs: integer("latency_ms").default(0).notNull(),
+    cacheResult: text("cache_result").default("none").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_traces_user_created").on(table.userId, table.createdAt),
+    index("idx_traces_stage_prompt").on(table.stageId, table.promptVersion),
+  ]
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PUSH NOTIFICATIONS DOMAIN
 // ─────────────────────────────────────────────────────────────────────────────

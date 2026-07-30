@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-KO-EXTRACT-001",
+  "fixtures": {
+    "singleConcept": {
+      "extractedCount": 1,
+      "kos": [
+        { "id": "ko-1", "conceptName": "Limit", "type": "definition" }
+      ]
+    },
+    "multiConcept": {
+      "extractedCount": 3,
+      "kos": [
+        { "id": "ko-1", "conceptName": "Limit", "type": "definition" },
+        { "id": "ko-2", "conceptName": "Turunan", "type": "concept" },
+        { "id": "ko-3", "conceptName": "Integral", "type": "application" }
+      ]
+    }
+  }
+}

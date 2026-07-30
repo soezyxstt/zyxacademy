@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-QUEST-GEN-001",
+  "fixtures": {
+    "multipleChoiceLimit": {
+      "draftId": "qd-101",
+      "prompt": "Berapakah limit dari f(x) saat x mendekati 2?",
+      "options": ["A. 1", "B. 2", "C. 3", "D. 4"],
+      "correctIndices": [1],
+      "difficulty": "easy"
+    },
+    "conceptualDerivative": {
+      "draftId": "qd-102",
+      "prompt": "Apakah arti dari turunan pertama?",
+      "options": ["A. Laju perubahan", "B. Luas area", "C. Nilai fungsi", "D. Vektor normal"],
+      "correctIndices": [0],
+      "difficulty": "medium"
+    }
+  }
+}

@@ -71,6 +71,11 @@ export async function generateMistakeFeedback(attemptId: string): Promise<void> 
  throw new Error(`Attempt ${attemptId} not found`);
  }
 
+ if (attempt.status === "in_progress") {
+   // In-progress attempts must not generate or expose answer feedback
+   return;
+ }
+
  const snapshot = attempt.questionsSnapshot as Array<{ id: string; correct_indices: number[] }>;
  const answers = (attempt.answersSnapshot as Record<string, number[]>) ?? {};
 
