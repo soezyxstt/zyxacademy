@@ -252,6 +252,9 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Tutor Pedagogy, Diagnosis & Visual Contracts completed**: Pedagogy contracts (`lib/tutor/pedagogy-contracts.ts`), visual spec contracts (`lib/tutor/visual-contracts.ts`), deterministic visual serializer (`lib/tutor/visual-serializer.ts`), and feature flag `FEATURE_TUTOR_PEDAGOGY_V2` fully implemented.
 - **Semantic Material Compiler completed**: Preflight KO validator, outline planner with typed KO exclusions (`lib/materials/compiler.ts`), non-destructive interactive layer (`lib/materials/interactive-layer.ts`), revision diff engine (`lib/materials/revision-diff.ts`), and feature flag `FEATURE_MATERIAL_COMPILER_V2` fully implemented.
 - **Independent Question Verification & Critic Loop completed**: Independent solver boundary (`lib/questions/independent-solver.ts`) and pedagogical critic verification engine (`lib/questions/pedagogical-critic.ts`) fully implemented.
+- **Atomic Active-Recall Flashcard Contract completed**: Flashcard V2 schema (`lib/flashcards/contracts.ts`), atomicity validator (`lib/flashcards/validator.ts`), and feature flag `FEATURE_FLASHCARD_GENERATOR_V2` fully implemented.
+- **Diktat Audit, Formula Registry & PDF QA completed**: Structured audit contracts (`lib/diktat/audit-contracts.ts`), formula registry (`lib/diktat/formula-registry.ts`), fail-closed publication gating, and feature flag `FEATURE_DIKTAT_QA_V2` fully implemented.
+- **Evidence-Calibrated Learner & Admin Analytics completed**: Multi-layer analytics contracts (`lib/student-quiz-analytics/contracts.ts`), deterministic evidence sufficiency calculator (`evaluateEvidenceSufficiency`), and feature flag `FEATURE_ANALYTICS_DIAGNOSIS_V2` fully implemented.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -261,17 +264,18 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Production database schemas and MTD backfill verified successfully.
 - Admin Quiz Insights database migration (`quiz_ai_insights`) and API endpoints verified.
 - Student Quiz Analytics database migration (`student_quiz_analytics`), Inngest background queue, API endpoints, and 3-layer UI verified (`bun run lint` passing 0 errors).
-- AI Contract Test Suite verified deterministically (71 tests across 8 contract files passing/todo with 0 network calls).
+- AI Contract Test Suite verified deterministically (75 tests across 9 contract files passing with 0 network calls).
 - Versioned Prompt Contracts & Provenance verified deterministically via `bun test tests/contracts/prompt-executor.test.ts` (12/12 tests passing, bounded repair & privacy-safe hashing verified, `bun run lint` and `bun run typecheck` passing 0 errors).
-- Assessment Integrity & Help Policy verified deterministically via `bun test tests/contracts/assessment-redaction.test.ts tests/contracts/tutor-rag.test.ts` (13/13 tests passing/todo with 0 network calls, answer redaction and policy gating verified).
+- Assessment Integrity & Help Policy verified deterministically via `bun test tests/contracts/assessment-redaction.test.ts tests/contracts/tutor-rag.test.ts` (13/13 tests passing with 0 network calls, answer redaction and policy gating verified).
 - Tutor Cache Isolation & Query Action Routing verified deterministically via `bun test tests/contracts/tutor-rag.test.ts` (13 passing tests across contract suite with 0 network calls, student data protection, style extraction, and action routing verified).
 - Knowledge Object Provenance & Stable Identity verified deterministically via `bun test tests/contracts/ko-pipeline.test.ts` (9/9 tests passing with 0 network calls, stable identity retention, semantic hashing, superseded status tracking, and contract validation verified).
 - Staged KO Extraction & Canonical Review verified deterministically via `bun test tests/contracts/ko-pipeline.test.ts` (11 passing tests across KO pipeline suite with 0 network calls, deterministic chunking > 30k chars, span preservation, and review gating verified).
-- Question Blueprint, Option Shuffle, and Distractor Provenance verified deterministically via `bun test tests/contracts/question-pipeline.test.ts` (11 passing tests across question pipeline suite with 0 network calls, slot KO requirement, seeded shuffle, distractor provenances, position leakage prevention, and typed extraction adapter verified; `bun run lint` and `bun run typecheck` passing 0 errors).
+- Question Blueprint, Option Shuffle, and Distractor Provenance verified deterministically via `bun test tests/contracts/question-pipeline.test.ts` (14 passing tests across question pipeline suite with 0 network calls, slot KO requirement, seeded shuffle, distractor provenances, position leakage prevention, independent solver, and critic loop verified).
 - Wave 4 (Plans 006, 009, 011) verified deterministically via `bun test tests/contracts/tutor-rag.test.ts tests/contracts/material-pipeline.test.ts tests/contracts/question-pipeline.test.ts` (67 passing contract tests, 0 errors across lint & typecheck).
+- Wave 5 (Plans 013, 014, 012) verified deterministically via `bun test tests/contracts/flashcard-generator.test.ts tests/contracts/diktat.test.ts tests/contracts/analytics.test.ts` (75 passing contract tests across 9 files, 0 errors across lint & typecheck).
 
 ### Current Focus
-Executing Wave 5 (Plans 013: Flashcards, 014: Diktat QA, 012: Analytics) of the Zyx AI Reliability Remediation Roadmap.
+Executing Wave 6 (Plan 015: Overall Evaluation & Rollout Closure) of the Zyx AI Reliability Remediation Roadmap.
 
 ### Blockers
 None

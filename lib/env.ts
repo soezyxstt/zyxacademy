@@ -117,6 +117,12 @@ export const env = createEnv({
  FEATURE_TUTOR_PEDAGOGY_V2: z.string().optional(),
  /** P1 Material Compiler V2: semantic material compiler. "1" enables. */
  FEATURE_MATERIAL_COMPILER_V2: z.string().optional(),
+ /** P2 Flashcard Generator V2: atomic active recall cards. "1" enables. */
+ FEATURE_FLASHCARD_GENERATOR_V2: z.string().optional(),
+ /** P1 Diktat QA V2: fail-closed diktat audit & PDF QA. "1" enables. */
+ FEATURE_DIKTAT_QA_V2: z.string().optional(),
+ /** P1 Analytics Diagnosis V2: evidence-calibrated analytics. "1" enables. */
+ FEATURE_ANALYTICS_DIAGNOSIS_V2: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Active vector store: 'pinecone' (default) | 'dual' (write both) | 'vectorize' (read from VZ) */
  VECTOR_STORE: z.enum(['pinecone', 'vectorize', 'dual']).optional(),
@@ -213,6 +219,9 @@ export const env = createEnv({
  FEATURE_QUESTION_GENERATOR_V2: process.env.FEATURE_QUESTION_GENERATOR_V2,
  FEATURE_TUTOR_PEDAGOGY_V2: process.env.FEATURE_TUTOR_PEDAGOGY_V2,
  FEATURE_MATERIAL_COMPILER_V2: process.env.FEATURE_MATERIAL_COMPILER_V2,
+ FEATURE_FLASHCARD_GENERATOR_V2: process.env.FEATURE_FLASHCARD_GENERATOR_V2,
+ FEATURE_DIKTAT_QA_V2: process.env.FEATURE_DIKTAT_QA_V2,
+ FEATURE_ANALYTICS_DIAGNOSIS_V2: process.env.FEATURE_ANALYTICS_DIAGNOSIS_V2,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTOR_STORE: process.env.VECTOR_STORE,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
