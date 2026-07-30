@@ -23,18 +23,18 @@ import { z } from "zod";
 import { repairJsonString, slugify } from "./ko-utils";
 import { normalizeConceptName, cosineSimilarity } from "./ko-extractor";
 import { generateCanonicalHash } from "./assessment-utils";
+import { ExtractionResult, ExtractedAssessmentObject } from "./questions/contracts";
 
-// Zod schema matching the required response from Gemini
 const AssessmentObjectExtractionSchema = z.object({
   questionType: z.string().min(1),
-  difficulty: z.number().int().min(1).max(3),
+  difficulty: z.union([z.number(), z.string()]),
   applicationLevel: z.number().int().min(0).max(5),
-  concepts: z.array(z.string()).min(1),
-  pattern: z.enum(["direct_computation", "graph_interpretation", "proof", "parameter_analysis", "modeling"]),
-  reasoningType: z.enum(["procedural", "conceptual", "analytical"]),
-  estimatedSteps: z.number().int().min(1).max(10),
-  answerMarkdown: z.string().optional(),
-  options: z.array(z.string()).optional(),
+  concepts: z.array(z.string()),
+  pattern: z.string().optional(),
+  reasoningType: z.string().optional(),
+  estimatedSteps: z.number().int().min(1).max(10).optional(),
+  answerMarkdown: z.string().optional().nullable(),
+  options: z.array(z.string()).optional().nullable(),
 });
 
 interface Frontmatter {
@@ -42,6 +42,35 @@ interface Frontmatter {
   year?: number;
   semester?: number;
   chapters?: string[];
+}
+
+/**
+ * Adapter to align extracted difficulty to the blueprint scale while preserving raw label.
+ */
+export function adaptExtractedDifficulty(raw: unknown): {
+  normalized: "easy" | "medium" | "hard";
+  numeric: number;
+  raw: string;
+} {
+  const str = String(raw ?? "").toLowerCase().trim();
+  if (str === "1" || str === "easy" || str === "mudah") {
+    return { normalized: "easy", numeric: 1, raw: str };
+  }
+  if (str === "3" || str === "hard" || str === "sulit" || str === "tinggi" || str === "advanced") {
+    return { normalized: "hard", numeric: 3, raw: str };
+  }
+  return { normalized: "medium", numeric: 2, raw: str || "medium" };
+}
+
+/**
+ * Adapter for pattern extraction, mapping unknown patterns to "other".
+ */
+export function adaptExtractedPattern(raw: unknown): "direct_computation" | "graph_interpretation" | "proof" | "parameter_analysis" | "modeling" | "other" {
+  const str = String(raw ?? "").toLowerCase().trim();
+  if (["direct_computation", "graph_interpretation", "proof", "parameter_analysis", "modeling"].includes(str)) {
+    return str as any;
+  }
+  return "other";
 }
 
 /**
@@ -112,7 +141,6 @@ export function parseFrontmatter(markdown: string): { frontmatter: Frontmatter; 
 
 /**
  * Deterministically parses assessment markdown into discrete question blocks.
- * Splits on H2 headings like "## Question 1", "## Soal 2", "## 1." etc.
  */
 export function parseAssessmentMarkdownIntoBlocks(markdown: string): string[] {
   const normalized = markdown.replace(/\r\n/g, "\n").trim();
@@ -144,7 +172,6 @@ export function parseAssessmentMarkdownIntoBlocks(markdown: string): string[] {
     }
   }
 
-  // Fallback to double-newlines if no H2 question headings were found
   if (blocks.length === 0 && normalized.length > 0) {
     return normalized.split(/\n\n+/).filter((block) => block.trim().length > 0);
   }
@@ -152,15 +179,9 @@ export function parseAssessmentMarkdownIntoBlocks(markdown: string): string[] {
   return blocks;
 }
 
-/**
- * Resolves a free-form concept name against the global Concept Registry.
- * Uses exact matching, alias matching, cosine similarity vector search, and fallbacks.
- * Auto-creates the Concept and Localization if no matching concept exists.
- */
 async function resolveConceptId(conceptName: string): Promise<string> {
   const normName = normalizeConceptName(conceptName);
 
-  // 1. Fetch registered localizations from the registry
   const registeredLocalizations = await db
     .select({
       conceptId: conceptLocalizations.conceptId,
@@ -170,7 +191,6 @@ async function resolveConceptId(conceptName: string): Promise<string> {
     })
     .from(conceptLocalizations);
 
-  // Step A: Deterministic Exact Match (and Aliases)
   const matchedLoc = registeredLocalizations.find((loc) => {
     if (normalizeConceptName(loc.displayName) === normName) return true;
     const aliases = Array.isArray(loc.aliases) ? loc.aliases : [];
@@ -181,7 +201,6 @@ async function resolveConceptId(conceptName: string): Promise<string> {
     return matchedLoc.conceptId;
   }
 
-  // Step B: Cosine Similarity Matching
   let embedding: number[] | null = null;
   if (process.env.MOCK_GEMINI !== "true") {
     try {
@@ -210,7 +229,6 @@ async function resolveConceptId(conceptName: string): Promise<string> {
     }
   }
 
-  // Step C: If not matched, create new concept and localizations (deterministic fallback)
   const newConceptId = randomUUID();
   const slug = slugify(conceptName);
 
@@ -242,14 +260,10 @@ async function resolveConceptId(conceptName: string): Promise<string> {
   return newConceptId;
 }
 
-/**
- * Resolves a chapter name against the existing Chapters table or Aliases registry.
- */
 async function resolveChapterId(courseId: string, chapterName: string): Promise<string | null> {
   const cleanName = chapterName.trim();
   if (!cleanName) return null;
 
-  // 1. Check exact match in chapters table
   const [exactChapter] = await db
     .select()
     .from(chapters)
@@ -259,7 +273,6 @@ async function resolveChapterId(courseId: string, chapterName: string): Promise<
     return exactChapter.id;
   }
 
-  // 2. Check in chapter_aliases table
   const [aliasMatch] = await db
     .select({ chapterId: chapterAliases.chapterId })
     .from(chapterAliases)
@@ -275,26 +288,29 @@ async function resolveChapterId(courseId: string, chapterName: string): Promise<
 
 /**
  * Extracts Assessment Objects from an Assessment Source document.
+ * Returns a typed ExtractionResult.
  */
 export async function extractAssessmentObjectsForSource(
   sourceId: string,
   isMockOverride?: boolean
-): Promise<void> {
+): Promise<ExtractionResult> {
   const isMock = isMockOverride ?? (process.env.MOCK_GEMINI === "true");
 
-  // Fetch assessment source
   const [source] = await db
     .select()
     .from(assessmentSources)
     .where(eq(assessmentSources.id, sourceId));
 
   if (!source) {
-    throw new Error(`Assessment source with ID "${sourceId}" not found.`);
+    return {
+      status: "failed",
+      objects: [],
+      errors: [`Assessment source with ID "${sourceId}" not found.`],
+    };
   }
 
   console.log(`[Assessment Ingest] Starting ingestion for source: ${source.title}`);
 
-  // Mark status as processing
   await db
     .update(assessmentSources)
     .set({
@@ -304,13 +320,15 @@ export async function extractAssessmentObjectsForSource(
     })
     .where(eq(assessmentSources.id, sourceId));
 
+  const extractedObjects: ExtractedAssessmentObject[] = [];
+  const extractionErrors: string[] = [];
+  const diagnostics: string[] = [];
+
   try {
     const { frontmatter, content } = parseFrontmatter(source.sourceMarkdown);
     const blocks = parseAssessmentMarkdownIntoBlocks(content);
     console.log(`[Assessment Ingest] Split assessment into ${blocks.length} blocks.`);
 
-    // 1. Process Chapter Mapping
-    // Clear old chapters mapping
     await db.delete(assessmentSourceChapters).where(eq(assessmentSourceChapters.assessmentSourceId, sourceId));
 
     const chapterList = frontmatter.chapters || [];
@@ -323,11 +341,10 @@ export async function extractAssessmentObjectsForSource(
           chapterId: resolvedId,
         });
       } else {
-        console.warn(`[Assessment Ingest] Chapter not found in registry: "${chapName}". Warning diagnostic created.`);
+        diagnostics.push(`Chapter not found in registry: "${chapName}"`);
       }
     }
 
-    // Update metadata fields if extracted from frontmatter
     await db
       .update(assessmentSources)
       .set({
@@ -337,7 +354,6 @@ export async function extractAssessmentObjectsForSource(
       })
       .where(eq(assessmentSources.id, sourceId));
 
-    // Clear old objects
     const oldObjects = await db
       .select({ id: assessmentObjects.id })
       .from(assessmentObjects)
@@ -346,7 +362,6 @@ export async function extractAssessmentObjectsForSource(
     const oldObjectIds = oldObjects.map((o) => o.id);
 
     if (oldObjectIds.length > 0) {
-      // Clear concept links
       for (const oId of oldObjectIds) {
         await db.delete(assessmentObjectConcepts).where(eq(assessmentObjectConcepts.assessmentObjectId, oId));
         await db.delete(assessmentObjectKos).where(eq(assessmentObjectKos.assessmentObjectId, oId));
@@ -354,17 +369,16 @@ export async function extractAssessmentObjectsForSource(
       await db.delete(assessmentObjects).where(eq(assessmentObjects.sourceId, sourceId));
     }
 
-    // 2. Extract Questions
     let order = 1;
     for (const block of blocks) {
-      let extracted: z.infer<typeof AssessmentObjectExtractionSchema>;
-
-      // Deduce sourceQuestionNumber (e.g., extract label like "## Soal 2" or "## 1a")
       const headingMatch = block.match(/^##\s+([a-zA-Z\d\s.-]+)/i);
       const sourceQuestionNumber = headingMatch ? headingMatch[1].trim() : String(order);
 
+      let rawExtracted: any = null;
+      let parseFailed = false;
+
       if (isMock) {
-        extracted = {
+        rawExtracted = {
           questionType: "multiple_choice",
           difficulty: block.includes("difficult") || block.includes("hard") ? 3 : 2,
           applicationLevel: block.includes("advanced") ? 2 : 1,
@@ -386,14 +400,14 @@ ${block}
 You must return a single JSON object matching this schema:
 {
   "questionType": "multiple_choice | essay | multiple_choices | boolean",
-  "difficulty": [Integer: 1 (easy), 2 (medium), or 3 (hard)],
+  "difficulty": [Integer: 1 (easy), 2 (medium), or 3 (hard) or string label],
   "applicationLevel": [Integer from 0 to 5 representing Bloom/Application level],
   "concepts": ["concept name 1", "concept name 2"],
   "pattern": "direct_computation | graph_interpretation | proof | parameter_analysis | modeling",
   "reasoningType": "procedural | conceptual | analytical",
-  "estimatedSteps": [Integer representing estimated number of calculation steps, e.g. 1, 2, 3, 4],
-  "answerMarkdown": "[Optional: Detailed markdown answer/solution explanation if available in the text block, else null]",
-  "options": [Optional: Array of options (strings) if questionType is multiple_choice or multiple_choices, else null]
+  "estimatedSteps": [Integer representing estimated number of calculation steps],
+  "answerMarkdown": "[Optional: Detailed markdown answer/solution explanation]",
+  "options": [Optional: Array of options (strings)]
 }
 
 Ensure all fields are fully populated and valid JSON is returned. Do not wrap in markdown code blocks.`;
@@ -410,22 +424,43 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
           const rawText = response.text || "";
           const cleanJson = repairJsonString(rawText);
           const parsed = JSON.parse(cleanJson);
-          extracted = AssessmentObjectExtractionSchema.parse(parsed);
+          rawExtracted = AssessmentObjectExtractionSchema.parse(parsed);
         } catch (err: any) {
-          console.error(`[Assessment Ingest] Failed to extract from block: ${block.slice(0, 100)}... Error:`, err);
-          extracted = {
-            questionType: "multiple_choice",
-            difficulty: 2,
-            applicationLevel: 1,
-            concepts: ["general"],
-            pattern: "direct_computation",
-            reasoningType: "procedural",
-            estimatedSteps: 2,
-            answerMarkdown: undefined,
-            options: undefined,
-          };
+          parseFailed = true;
+          extractionErrors.push(`Failed to parse extraction output for block "${sourceQuestionNumber}": ${err.message}`);
         }
       }
+
+      // Explicit parse/provider failure gate: Do NOT insert a generic valid-looking object silently!
+      if (parseFailed || !rawExtracted) {
+        diagnostics.push(`Block "${sourceQuestionNumber}" extraction failed to parse.`);
+        continue;
+      }
+
+      // Explicit difficulty adapter
+      const diffAdapter = adaptExtractedDifficulty(rawExtracted.difficulty);
+      const patternAdapter = adaptExtractedPattern(rawExtracted.pattern);
+
+      // Check evidence for concepts
+      const conceptList = Array.isArray(rawExtracted.concepts) ? rawExtracted.concepts.filter(Boolean) : [];
+      if (conceptList.length === 0) {
+        diagnostics.push(`Block "${sourceQuestionNumber}" had no concept evidence extracted.`);
+      }
+
+      const extractedItem: ExtractedAssessmentObject = {
+        sourceQuestionNumber,
+        questionType: rawExtracted.questionType || "multiple_choice",
+        difficulty: diffAdapter.normalized,
+        rawDifficulty: rawExtracted.difficulty,
+        applicationLevel: rawExtracted.applicationLevel ?? 1,
+        concepts: conceptList,
+        pattern: patternAdapter,
+        reasoningType: (rawExtracted.reasoningType as any) || "procedural",
+        estimatedSteps: rawExtracted.estimatedSteps || 2,
+        questionMarkdown: block,
+        answerMarkdown: rawExtracted.answerMarkdown || null,
+        options: rawExtracted.options || null,
+      };
 
       const assessmentObjectId = `ao-${randomUUID()}`;
       const canonicalHash = generateCanonicalHash(block);
@@ -435,21 +470,23 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
         sourceId: sourceId,
         questionOrder: order++,
         sourceQuestionNumber,
-        questionType: extracted.questionType,
-        difficulty: extracted.difficulty,
-        applicationLevel: extracted.applicationLevel,
-        pattern: extracted.pattern,
-        reasoningType: extracted.reasoningType,
-        estimatedSteps: extracted.estimatedSteps,
+        questionType: extractedItem.questionType,
+        difficulty: diffAdapter.numeric,
+        applicationLevel: extractedItem.applicationLevel,
+        pattern: extractedItem.pattern,
+        reasoningType: extractedItem.reasoningType,
+        estimatedSteps: extractedItem.estimatedSteps,
         questionMarkdown: block,
-        answerMarkdown: extracted.answerMarkdown || null,
-        options: extracted.options || null,
+        answerMarkdown: extractedItem.answerMarkdown,
+        options: extractedItem.options,
         canonicalQuestionHash: canonicalHash,
       });
 
-      // Concept-First Normalization and Mapping
+      extractedItem.id = assessmentObjectId;
+      extractedObjects.push(extractedItem);
+
       let resolvedChapterId: string | null = null;
-      for (const conceptName of extracted.concepts) {
+      for (const conceptName of conceptList) {
         try {
           const conceptId = await resolveConceptId(conceptName);
 
@@ -459,7 +496,6 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
             conceptId,
           });
 
-          // Link to ALL active KOs sharing this Concept ID
           const activeKOs = await db
             .select({ id: knowledgeObjects.id, chapterId: knowledgeObjects.chapterId })
             .from(knowledgeObjects)
@@ -481,11 +517,10 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
             }
           }
         } catch (err) {
-          console.error(`[Assessment Ingest] Failed to resolve concept "${conceptName}" or map KOs:`, err);
+          console.error(`[Assessment Ingest] Failed to resolve concept "${conceptName}":`, err);
         }
       }
 
-      // Fallback: If no KO was matched, check the assessmentSourceChapters for the parent source
       if (!resolvedChapterId) {
         const sourceChaps = await db
           .select({ chapterId: assessmentSourceChapters.chapterId })
@@ -497,7 +532,6 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
         }
       }
 
-      // Queue for vector sync under the 'past_exams' namespace
       await db.insert(vectorSyncQueue).values({
         id: `sync-${randomUUID()}`,
         courseId: source.courseId,
@@ -506,13 +540,13 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
         namespace: VECTOR_NAMESPACES.past_exams,
         payload: {
           id: assessmentObjectId,
-          text: `Question: ${block}\nSolution: ${extracted.answerMarkdown || ""}`,
+          text: `Question: ${block}\nSolution: ${extractedItem.answerMarkdown || ""}`,
           metadata: {
             chapterId: resolvedChapterId || "",
             type: "past_exam",
-            bloomLevel: extracted.applicationLevel === 1 ? "remember" : extracted.applicationLevel === 2 ? "understand" : "apply",
-            difficulty: extracted.difficulty === 1 ? "easy" : extracted.difficulty === 3 ? "hard" : "medium",
-            tags: extracted.concepts,
+            bloomLevel: extractedItem.applicationLevel === 1 ? "remember" : extractedItem.applicationLevel === 2 ? "understand" : "apply",
+            difficulty: extractedItem.difficulty,
+            tags: conceptList,
           }
         },
         status: "pending",
@@ -520,19 +554,30 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
       });
     }
 
-    // Mark as completed
+    const finalStatus =
+      extractionErrors.length > 0 && extractedObjects.length === 0
+        ? "failed"
+        : extractionErrors.length > 0 || diagnostics.length > 0
+        ? "needs_review"
+        : "accepted";
+
     await db
       .update(assessmentSources)
       .set({
-        ingestionStatus: "completed",
+        ingestionStatus: finalStatus === "failed" ? "failed" : "completed",
         ingestionCompletedAt: new Date(),
+        ingestionError: extractionErrors.length > 0 ? extractionErrors.join("; ") : null,
       })
       .where(eq(assessmentSources.id, sourceId));
 
-    console.log(`[Assessment Ingest] Ingestion completed for source: ${source.title}`);
-
-    // Update dynamic course assessment profile
     await updateAssessmentProfile(source.courseId);
+
+    return {
+      status: finalStatus,
+      objects: extractedObjects,
+      errors: extractionErrors,
+      diagnostics,
+    };
   } catch (error: any) {
     console.error(`[Assessment Ingest] Critical failure during ingestion of source ${sourceId}:`, error);
     await db
@@ -543,13 +588,15 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
         ingestionCompletedAt: new Date(),
       })
       .where(eq(assessmentSources.id, sourceId));
-    throw error;
+
+    return {
+      status: "failed",
+      objects: [],
+      errors: [error.message || String(error)],
+    };
   }
 }
 
-/**
- * Dynamically aggregates all Assessment Objects of a course to update/insert the Assessment Profile.
- */
 export async function updateAssessmentProfile(courseId: string): Promise<void> {
   console.log(`[Assessment Profile] Recalculating profile for course ${courseId}...`);
 
@@ -566,15 +613,12 @@ export async function updateAssessmentProfile(courseId: string): Promise<void> {
     .where(and(eq(assessmentSources.courseId, courseId), eq(assessmentSources.ingestionStatus, "completed")));
 
   if (objects.length === 0) {
-    console.log(`[Assessment Profile] No assessment objects found for course ${courseId}. Skipping profile update.`);
     return;
   }
 
-  // 1. Calculate average applicationLevel
   const totalLevel = objects.reduce((sum, obj) => sum + obj.applicationLevel, 0);
   const avgApplicationLevel = Math.round(totalLevel / objects.length);
 
-  // 2. Calculate difficultyDistribution
   let easyCount = 0;
   let mediumCount = 0;
   let hardCount = 0;
@@ -590,14 +634,12 @@ export async function updateAssessmentProfile(courseId: string): Promise<void> {
     hard: Math.round((hardCount / totalCount) * 100),
   };
 
-  // 3. Find commonPatterns
   const patternCounts: Record<string, number> = {};
   for (const obj of objects) {
     patternCounts[obj.pattern] = (patternCounts[obj.pattern] || 0) + 1;
   }
   const commonPatterns = Object.keys(patternCounts).sort((a, b) => patternCounts[b] - patternCounts[a]);
 
-  // 4. Calculate topContexts (concept frequencies)
   const conceptRows = await db
     .select({
       displayName: conceptLocalizations.displayName,
@@ -622,7 +664,6 @@ export async function updateAssessmentProfile(courseId: string): Promise<void> {
     }))
     .sort((a, b) => b.percentage - a.percentage);
 
-  // 5. Update or insert into assessmentProfiles
   const [existingProfile] = await db
     .select()
     .from(assessmentProfiles)
@@ -650,14 +691,12 @@ export async function updateAssessmentProfile(courseId: string): Promise<void> {
     });
   }
 
-  // Dynamic initialization of Course Policy if it doesn't exist yet (defensive programming)
   const [existingPolicy] = await db
     .select()
     .from(coursePolicies)
     .where(eq(coursePolicies.courseId, courseId));
 
   if (!existingPolicy) {
-    console.log(`[Course Policy] Initializing default policy for course ${courseId}.`);
     await db.insert(coursePolicies).values({
       id: `cp-${randomUUID()}`,
       courseId,
@@ -669,6 +708,4 @@ export async function updateAssessmentProfile(courseId: string): Promise<void> {
       allowedPatterns: ["direct_computation", "graph_interpretation", "parameter_analysis"],
     });
   }
-
-  console.log(`[Assessment Profile] Recalculated profile successfully for course ${courseId}.`);
 }

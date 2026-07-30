@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-KO-STAGED-002",
+  "fixtures": {
+    "crossChunkConcept": {
+      "conceptTitle": "Hukum Kedua Newton",
+      "chunks": [
+        {
+          "chunkIndex": 0,
+          "excerpt": "Hukum Kedua Newton menyatakan bahwa percepatan benda berbanding lurus dengan gaya total.",
+          "startOffset": 150,
+          "endOffset": 238
+        },
+        {
+          "chunkIndex": 1,
+          "excerpt": "Persamaan Hukum Kedua Newton dirumuskan sebagai F = m * a.",
+          "startOffset": 1200,
+          "endOffset": 1258
+        }
+      ],
+      "expectedSpanCount": 2
+    }
+  }
+}

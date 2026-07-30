@@ -89,6 +89,8 @@ export const env = createEnv({
  FEATURE_TUTOR_RAG: z.string().optional(),
  /** P0 Tutor Pipeline V2: cache isolation, typed query action routing, student-free Tier 1 payload. "1" enables. */
  FEATURE_TUTOR_PIPELINE_V2: z.string().optional(),
+ /** P0 Tutor Evidence, Citation, Conflict, and Abstention Pipeline V2. "1" enables. */
+ FEATURE_TUTOR_EVIDENCE_V2: z.string().optional(),
  FEATURE_FEEDBACK: z.string().optional(),
  FEATURE_STUDY_PATH: z.string().optional(),
  /** P6A tutor analytics MVP. "1" enables /tutor area for teacher role. */
@@ -109,6 +111,8 @@ export const env = createEnv({
  FEATURE_ASSESSMENT_ASSISTANCE_POLICY: z.string().optional(),
  /** P0 Knowledge object provenance and stable identity pipeline. "1" enables. */
  FEATURE_KO_PIPELINE_V2: z.string().optional(),
+ /** P1 Question generator V2: blueprint, option shuffle, and distractor provenance. "1" enables. */
+ FEATURE_QUESTION_GENERATOR_V2: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Active vector store: 'pinecone' (default) | 'dual' (write both) | 'vectorize' (read from VZ) */
  VECTOR_STORE: z.enum(['pinecone', 'vectorize', 'dual']).optional(),
@@ -189,6 +193,7 @@ export const env = createEnv({
  FEATURE_GRAPH: process.env.FEATURE_GRAPH,
  FEATURE_TUTOR_RAG: process.env.FEATURE_TUTOR_RAG,
  FEATURE_TUTOR_PIPELINE_V2: process.env.FEATURE_TUTOR_PIPELINE_V2,
+ FEATURE_TUTOR_EVIDENCE_V2: process.env.FEATURE_TUTOR_EVIDENCE_V2,
  FEATURE_FEEDBACK: process.env.FEATURE_FEEDBACK,
  FEATURE_STUDY_PATH: process.env.FEATURE_STUDY_PATH,
  FEATURE_TUTOR_ANALYTICS: process.env.FEATURE_TUTOR_ANALYTICS,
@@ -201,6 +206,7 @@ export const env = createEnv({
  FEATURE_AI_CONTRACT_V2: process.env.FEATURE_AI_CONTRACT_V2,
  FEATURE_ASSESSMENT_ASSISTANCE_POLICY: process.env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY,
  FEATURE_KO_PIPELINE_V2: process.env.FEATURE_KO_PIPELINE_V2,
+ FEATURE_QUESTION_GENERATOR_V2: process.env.FEATURE_QUESTION_GENERATOR_V2,
   NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTOR_STORE: process.env.VECTOR_STORE,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,

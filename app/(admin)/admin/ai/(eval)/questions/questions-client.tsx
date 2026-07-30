@@ -976,7 +976,7 @@ function QuestionRow({
               </div>
               <div>
                 <span className="font-sans font-semibold text-foreground block">Kualitas Penilaian</span>
-                <span>{question.qualityScore.toFixed(2)} / 1.00</span>
+                <span>{question.qualityScore != null ? `${question.qualityScore.toFixed(2)} / 1.00` : "Belum diverifikasi"}</span>
               </div>
             </div>
           </div>

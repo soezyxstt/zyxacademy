@@ -249,12 +249,14 @@ Upload PDF via UploadThing or direct R2
   │         ├── Validates KaTeX compilation
   │         └── Fails early if structure is malformed
   │
-  ├── type="learning" → KO Extraction Pipeline (lib/ko-extractor.ts, V2: FEATURE_KO_PIPELINE_V2)
-  │    ├── Gemini extracts KOs from markdown
-  │    ├── Computes sourceHash (SHA-256 of raw content) + derivedHash (SHA-256 of KO attributes)
-  │    ├── Stable key generation (`lib/knowledge/identity.ts`) preserves KO identity across extractions
-  │    ├── Non-destructive upsert/diff reconciliation (`reconcileKoExtractionRun`): retains IDs, updates versions, marks missing KOs superseded
-  │    ├── KOs saved to `knowledge_objects` table (`stableKey`, `semanticHash`, `knowledgeKind`, `instructionalRole`)
+  ├── type="learning" → KO Extraction Pipeline (lib/ko-extractor.ts, V2: FEATURE_KO_PIPELINE_V2, lib/knowledge/*)
+  │    ├── Stage 1: Source normalization & hashing (`lib/knowledge/chunker.ts`)
+  │    ├── Stage 2: Deterministic semantic chunking preserving math, code, tables & headings without 30k char truncation
+  │    ├── Stage 3: Per-chunk candidate KO & Learning Objective extraction (`lib/knowledge/candidate-extractor.ts`)
+  │    ├── Stage 4: Cross-chunk deduplication preserving all source spans (`lib/knowledge/candidate-reconciler.ts`)
+  │    ├── Stage 5: Canonical resolution checking exact names, aliases & flagging high embedding similarity as ambiguous (`lib/knowledge/canonicalizer.ts`)
+  │    ├── Stage 6: Deterministic validation & run state assignment (`staged`, `accepted`, `needs_review`, `failed`) (`lib/knowledge/extraction-run.ts`)
+  │    ├── Stage 7: Atomic accepted-run persistence using stable identity keys (`lib/knowledge/identity.ts`)
   │    ├── Source spans tracked in `knowledge_object_sources` & cognitive objectives in `learning_objectives`
   │    ├── Concept resolution (`concepts` / `concept_localizations`)
   │    ├── `vector_sync_queue` populated (namespace: "learning")

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "2.0",
+  "requirementId": "AI-QUEST-GEN-002",
+  "blueprintId": "bp-fixture-001",
+  "courseId": "c-phys-101",
+  "slots": [
+    {
+      "slotId": "slot-1",
+      "learningObjectiveId": "lo-ko-101",
+      "knowledgeObjectId": "ko-101",
+      "cognitiveProcess": "apply",
+      "difficultyTarget": "medium",
+      "difficultyBasis": "Formula KO requirement",
+      "reasoningPattern": "direct_computation",
+      "itemFormat": "multiple_choice",
+      "answerCardinality": "single",
+      "targetedMisconceptions": [
+        { "optionId": "opt_1", "family": "calc_error", "description": "Algebraic inverted fraction" },
+        { "optionId": "opt_2", "family": "unit_error", "description": "Unit scaling mismatch" },
+        { "optionId": "opt_3", "family": "vocab_swap", "description": "Term swap" }
+      ],
+      "sourceRequirements": { "sourceMtdId": "mtd-101", "sourceMtdVersion": 1 },
+      "assessmentContext": "quiz",
+      "releasePolicy": "immediate"
+    }
+  ]
+}

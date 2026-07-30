@@ -566,62 +566,121 @@ export const aiGenerationJobs = sqliteTable(
  ]
 );
 
+// E0. question_generation_runs ; audit trail of batch question generation runs
+export const questionGenerationRuns = sqliteTable(
+  "question_generation_runs",
+  {
+    id: text("id").primaryKey(),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    blueprintVersion: text("blueprint_version").default("2.0").notNull(),
+    promptVersion: text("prompt_version").default("2.0").notNull(),
+    sourceVersion: text("source_version"),
+    shuffleSeed: integer("shuffle_seed"),
+    validatorVersion: text("validator_version").default("2.0").notNull(),
+    slotCount: integer("slot_count").default(0).notNull(),
+    acceptedCount: integer("accepted_count").default(0).notNull(),
+    status: text("status").$type<"completed" | "failed" | "partial" | "processing">().default("completed").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_qgen_runs_course").on(table.courseId),
+  ]
+);
+
 // E. ai_question_bank ; permanent, reusable question repository (modified for KO references)
 export const aiQuestionBank = sqliteTable(
- "ai_question_bank",
- {
- id: text("id").primaryKey(),
- courseId: text("course_id")
- .notNull()
- .references(() => courses.id, { onDelete: "cascade" }),
- sourceSectionId: text("source_section_id")
- .references(() => aiMaterialInstanceSections.id, { onDelete: "set null" }),
- 
- // Final v4 adjustments
- knowledgeObjectId: text("knowledge_object_id")
- .references(() => knowledgeObjects.id, { onDelete: "set null" }),
- sourceMtdId: text("source_mtd_id")
- .references(() => masterTeachingDocuments.id, { onDelete: "set null" }),
- sourceMtdVersion: integer("source_mtd_version"),
- generationHash: text("generation_hash"),
- status: text("status").default("active").notNull(),
- isStale: integer("is_stale", { mode: "boolean" }).default(false).notNull(),
- 
- difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().default("medium").notNull(),
- questionType: text("question_type").$type<"multiple_choice" | "multiple_choices">().default("multiple_choice").notNull(),
- tags: text("tags", { mode: "json" }).$defaultFn(() => []).notNull(),
- prompt: text("prompt").notNull(),
- options: text("options", { mode: "json" }).notNull(),
- correctIndices: text("correct_indices", { mode: "json" }).notNull(),
- /**
- * EIF E1: per non-correct option, the misconception it represents.
- * One entry per wrong option. Empty/null = not tagged (legacy rows).
- */
- distractorMap: text("distractor_map", { mode: "json" })
- .$type<Array<{
- optionIndex: number;
- kind: "misconception" | "calc_error" | "unit_error" | "vocab_swap" | "none";
- misconceptionKoId: string | null;
- label: string;
- }>>()
- .$defaultFn(() => []),
- explanation: text("explanation").notNull(),
- reviewStatus: text("review_status").$type<"generated" | "reviewed" | "published" | "flagged" | "retired">().default("generated").notNull(),
- qualityScore: real("quality_score").default(1.0).notNull(),
- useCount: integer("use_count").default(0).notNull(),
- styledAfterAssessmentObjectId: text("styled_after_assessment_object_id")
- .references(() => assessmentObjects.id, { onDelete: "set null" }),
- pattern: text("pattern"),
- reasoningType: text("reasoning_type"),
- applicationLevel: integer("application_level"),
- estimatedSteps: integer("estimated_steps"),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- },
- (table) => [
- index("idx_qbank_selection").on(table.courseId, table.reviewStatus, table.difficulty, table.useCount),
- index("idx_qbank_tags").on(table.tags),
- index("idx_qbank_ko").on(table.knowledgeObjectId),
- ]
+  "ai_question_bank",
+  {
+    id: text("id").primaryKey(),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    sourceSectionId: text("source_section_id")
+      .references(() => aiMaterialInstanceSections.id, { onDelete: "set null" }),
+    
+    // Final v4 adjustments
+    knowledgeObjectId: text("knowledge_object_id")
+      .references(() => knowledgeObjects.id, { onDelete: "set null" }),
+    sourceMtdId: text("source_mtd_id")
+      .references(() => masterTeachingDocuments.id, { onDelete: "set null" }),
+    sourceMtdVersion: integer("source_mtd_version"),
+    generationHash: text("generation_hash"),
+    generationRunId: text("generation_run_id")
+      .references(() => questionGenerationRuns.id, { onDelete: "set null" }),
+    status: text("status").default("active").notNull(),
+    isStale: integer("is_stale", { mode: "boolean" }).default(false).notNull(),
+    
+    difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().default("medium").notNull(),
+    questionType: text("question_type").$type<"multiple_choice" | "multiple_choices">().default("multiple_choice").notNull(),
+    tags: text("tags", { mode: "json" }).$defaultFn(() => []).notNull(),
+    prompt: text("prompt").notNull(),
+    options: text("options", { mode: "json" }).notNull(),
+    correctIndices: text("correct_indices", { mode: "json" }).notNull(),
+    /**
+     * EIF E1: per non-correct option, the misconception it represents.
+     * One entry per wrong option. Empty/null = not tagged (legacy rows).
+     */
+    distractorMap: text("distractor_map", { mode: "json" })
+      .$type<Array<{
+        optionIndex: number;
+        kind: "misconception" | "calc_error" | "unit_error" | "vocab_swap" | "none";
+        misconceptionKoId: string | null;
+        label: string;
+      }>>()
+      .$defaultFn(() => []),
+    explanation: text("explanation").notNull(),
+    reviewStatus: text("review_status").$type<"generated" | "reviewed" | "published" | "flagged" | "retired">().default("generated").notNull(),
+    qualityScore: real("quality_score"),
+    useCount: integer("use_count").default(0).notNull(),
+    styledAfterAssessmentObjectId: text("styled_after_assessment_object_id")
+      .references(() => assessmentObjects.id, { onDelete: "set null" }),
+    pattern: text("pattern"),
+    reasoningType: text("reasoning_type"),
+    applicationLevel: integer("application_level"),
+    estimatedSteps: integer("estimated_steps"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_qbank_selection").on(table.courseId, table.reviewStatus, table.difficulty, table.useCount),
+    index("idx_qbank_tags").on(table.tags),
+    index("idx_qbank_ko").on(table.knowledgeObjectId),
+    index("idx_qbank_gen_run").on(table.generationRunId),
+  ]
+);
+
+// E0.1. distractor_provenance ; machine-readable distractor provenance and misconception mapping
+export const distractorProvenance = sqliteTable(
+  "distractor_provenance",
+  {
+    id: text("id").primaryKey(),
+    questionId: text("question_id")
+      .notNull()
+      .references(() => aiQuestionBank.id, { onDelete: "cascade" }),
+    optionIndex: integer("option_index").notNull(),
+    stableOptionId: text("stable_option_id").notNull(),
+    targetedMisconception: text("targeted_misconception").notNull(),
+    misconceptionKoId: text("misconception_ko_id")
+      .references(() => knowledgeObjects.id, { onDelete: "set null" }),
+    supportingSourceIds: text("supporting_source_ids", { mode: "json" }).$defaultFn(() => []).notNull(),
+    mappingMethod: text("mapping_method")
+      .$type<"exact_ko" | "heuristic_pattern" | "lexical_overlap" | "embedding_similarity" | "manual_override" | "unknown">()
+      .default("unknown")
+      .notNull(),
+    score: real("score").default(0).notNull(),
+    methodVersion: text("method_version").default("2.0").notNull(),
+    uncertaintyState: text("uncertainty_state")
+      .$type<"confident" | "ambiguous" | "unknown">()
+      .default("unknown")
+      .notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("uq_distractor_prov_option").on(table.questionId, table.optionIndex),
+    index("idx_distractor_prov_q").on(table.questionId),
+    index("idx_distractor_prov_ko").on(table.misconceptionKoId),
+  ]
 );
 
 // E1. question_option_stats ; aggregate per-option selection counters (distractor analytics)

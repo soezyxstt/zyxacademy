@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-KO-STAGED-001",
+  "fixtures": {
+    "longChapterSource": {
+      "sourceDocumentId": "doc_long_physics_001",
+      "chapterId": "ch_advanced_quantum",
+      "sourceVersion": "1.0",
+      "expectedMinLength": 32000,
+      "tailConcept": "Mekanika Kuantum Lanjutan",
+      "tailOffsetMin": 30500
+    }
+  }
+}

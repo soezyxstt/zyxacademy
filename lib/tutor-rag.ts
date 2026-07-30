@@ -54,6 +54,20 @@ import {
   SHARED_TUTOR_TTL_SECONDS,
 } from "@/lib/tutor/cache-contract";
 import { classifyQueryAction, type QueryActionClassification } from "@/lib/tutor/query-action";
+import {
+  SourceEnvelope,
+  SourceTrustLabel,
+  buildSanitizedContextBlock,
+  sanitizePromptInput,
+  computeSourceHash,
+} from "@/lib/tutor/prompt-sanitizer";
+import {
+  EvidenceCoverageState,
+  EvidenceClassification,
+  classifyEvidence,
+  buildAnswerPlan,
+} from "@/lib/tutor/evidence-coverage";
+import { verifyCitations } from "@/lib/tutor/citation-verifier";
 
 const SIMILARITY_FLOOR = 0.5;
 const CACHE_CONFIDENCE_FLOOR = 0.6;
@@ -79,6 +93,7 @@ export interface TutorRagAnswer {
  matchedConcepts: string[];
  confidence: number;
  grounded: boolean;
+ coverageState?: EvidenceCoverageState;
 }
 
 export interface TutorAddendum {
@@ -645,71 +660,132 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
           })
         : retrieved;
 
-      const contextBlock = contextSources
-        .map((s, i) => `[${i + 1}] (source id: ${s.id})\n${s.content}`)
-        .join("\n\n");
-      const sourceList = contextSources.map((s) => `${s.id} | ${s.type} | ${s.label}`).join("\n");
+      const sourceEnvelopes: SourceEnvelope[] = contextSources.map((s) => ({
+        id: s.id,
+        kind: s.type,
+        versionHash: computeSourceHash(s.content),
+        title: s.label,
+        content: s.content,
+        trustLabel: s.type === "ko" ? "trusted_ko" : "untrusted_retrieved",
+      }));
 
-      // Tier 1 shared generation: ZERO student history in prompt
-      const result = await PromptExecutor.run({
-        userId: studentId,
-        prompt: tutorGroundedAnswer,
-        variables: {
-          question: searchQuestion,
-          contextBlock,
-          sourceList,
-          conversationHistory: "",
-        },
-        schema: GroundedSchema,
-        useCase: USE_CASES.GROUNDED_RAG,
+      const evidenceEval = classifyEvidence({
+        query: searchQuestion,
+        sources: sourceEnvelopes,
       });
 
-      if (result.success && result.data) {
-        const d = result.data;
-        if (d.covered) {
-          const byId = new Map(retrieved.map((s) => [s.id, s]));
-          const citedIds = d.sourceIds.filter((id) => byId.has(id));
-          const sourceIds = citedIds.length > 0 ? citedIds : retrieved.slice(0, 3).map((s) => s.id);
-          const sources = [...new Set(sourceIds)].map((id) => {
-            const s = byId.get(id)!;
-            return { type: s.type, id: s.id, label: s.label, href: s.href };
+      if (evidenceEval.state === "conflict") {
+        base = {
+          answer: evidenceEval.conflictSummary ?? "Terdapat perbedaan informasi pada sumber materi. Silakan tinjau kembali sumber yang dirujuk.",
+          sources: contextSources.map((s) => ({ type: s.type, id: s.id, label: s.label, href: s.href })),
+          matchedConcepts: [],
+          confidence: 0,
+          grounded: false,
+          coverageState: "conflict",
+        };
+      } else if (evidenceEval.state === "none") {
+        base = {
+          answer: "Maaf, bahan ajar yang tersedia belum memuat informasi yang cukup untuk menjawab pertanyaan ini secara pasti.",
+          sources: [],
+          matchedConcepts: [],
+          confidence: 0,
+          grounded: false,
+          coverageState: "none",
+        };
+      } else {
+        const useEvidenceV2 = env.FEATURE_TUTOR_EVIDENCE_V2 === "1" || env.FEATURE_TUTOR_PIPELINE_V2 === "1";
+
+        const contextBlock = useEvidenceV2
+          ? buildSanitizedContextBlock(sourceEnvelopes)
+          : contextSources
+              .map((s, i) => `[${i + 1}] (source id: ${s.id})\n${s.content}`)
+              .join("\n\n");
+
+        const sourceList = contextSources.map((s) => `${s.id} | ${s.type} | ${s.label}`).join("\n");
+        const sanitizedQuestion = sanitizePromptInput(searchQuestion);
+
+        // Tier 1 shared generation: ZERO student history in prompt
+        const result = await PromptExecutor.run({
+          userId: studentId,
+          prompt: tutorGroundedAnswer,
+          variables: {
+            question: sanitizedQuestion,
+            contextBlock,
+            sourceList,
+            conversationHistory: "",
+          },
+          schema: GroundedSchema,
+          useCase: USE_CASES.GROUNDED_RAG,
+        });
+
+        if (result.success && result.data) {
+          const d = result.data;
+          const allowedSourceIds = retrieved.map((s) => s.id);
+          const verifyRes = verifyCitations({
+            citedIds: d.sourceIds,
+            allowedSourceIds,
+            coverageState: evidenceEval.state,
           });
 
-          let ansText = sanitizeAnswer(d.answer);
+          const finalCoverageState = verifyRes.downgradedCoverageState ?? (d.covered ? evidenceEval.state : "none");
+          const finalGrounded = verifyRes.isGrounded && d.covered;
 
-          if (policy) {
-            const validation = validateTutorOutput(ansText, {}, policy.allowedHelpLevel);
-            if (!validation.valid) {
-              ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+          if (finalGrounded && verifyRes.validSourceIds.length > 0) {
+            const byId = new Map(retrieved.map((s) => [s.id, s]));
+            const sources = verifyRes.validSourceIds.map((id) => {
+              const s = byId.get(id)!;
+              return { type: s.type, id: s.id, label: s.label, href: s.href };
+            });
+
+            let ansText = sanitizeAnswer(d.answer);
+
+            if (policy) {
+              const validation = validateTutorOutput(ansText, {}, policy.allowedHelpLevel);
+              if (!validation.valid) {
+                ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+              }
             }
+
+            base = {
+              answer: ansText,
+              sources,
+              matchedConcepts: d.matchedConcepts,
+              confidence: d.confidence,
+              grounded: true,
+              coverageState: finalCoverageState,
+            };
+          } else {
+            let ansText = sanitizeAnswer(d.answer);
+            if (!d.covered || finalCoverageState === "none") {
+              ansText = "Bahan ajar belum memiliki informasi yang cukup untuk mendukung pertanyaan ini secara tepat.";
+            }
+
+            base = {
+              answer: ansText,
+              sources: [],
+              matchedConcepts: d.matchedConcepts,
+              confidence: d.confidence,
+              grounded: false,
+              coverageState: finalCoverageState === "full" ? "none" : finalCoverageState,
+            };
           }
 
-          base = {
-            answer: ansText,
-            sources,
-            matchedConcepts: d.matchedConcepts,
-            confidence: d.confidence,
-            grounded: true,
-          };
-        } else {
-          base = {
-            answer: sanitizeAnswer(d.answer),
-            sources: [],
-            matchedConcepts: d.matchedConcepts,
-            confidence: d.confidence,
-            grounded: false,
-          };
-        }
+          const isEligibleToCache =
+            classification.action === "retrieve" &&
+            base.grounded &&
+            (base.coverageState === "full" || base.coverageState === "partial") &&
+            base.sources.length > 0;
 
-        if (classification.action === "retrieve" && base.confidence >= CACHE_CONFIDENCE_FLOOR) {
-          assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
-          await kvPut(cacheKey, base, SHARED_TUTOR_TTL_SECONDS);
+          if (isEligibleToCache) {
+            assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
+            await kvPut(cacheKey, base, SHARED_TUTOR_TTL_SECONDS);
+          }
+        } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
+          budgetExhausted = true;
+        } else {
+          console.error("tutor grounded generation failed:", result.errors[0]);
+          budgetExhausted = true;
         }
-      } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
-        budgetExhausted = true;
-      } else {
-        console.error("tutor grounded generation failed:", result.errors[0]);
-        budgetExhausted = true;
       }
     }
   }

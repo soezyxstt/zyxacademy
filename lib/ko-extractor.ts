@@ -744,8 +744,9 @@ export async function extractKnowledgeObjectsForChapter(
 
  const existingConcepts = Array.from(new Set(registeredLocalizations.map(l => l.displayName.trim()))).filter(Boolean);
 
- // 2. Preprocess PDF-derived markdown; cap at ~30K chars to stay within Gemini's safe input range
- const preprocessedMarkdown = preprocessMarkdown(chapterMarkdown).slice(0, 30_000);
+ // 2. Preprocess PDF-derived markdown
+ const cleanedMarkdown = preprocessMarkdown(chapterMarkdown);
+ const preprocessedMarkdown = env.FEATURE_KO_PIPELINE_V2 === "1" ? cleanedMarkdown : cleanedMarkdown.slice(0, 30_000);
 
  // Cap existing concepts list sent to model ; too many concepts bloat the prompt
  const existingConceptsCapped = existingConcepts.slice(0, 300);
@@ -1130,7 +1131,7 @@ export async function extractKnowledgeObjectsForChapter(
           .from(knowledgeObjects)
           .where(eq(knowledgeObjects.chapterId, chapterId));
 
-        const candidateInputs = extractedKOs.map((ko) => ({
+        const candidateInputs = koValues.map((ko: any) => ({
           title: ko.title,
           summary: ko.content,
           knowledgeKind: (ko.type as any) || 'other',

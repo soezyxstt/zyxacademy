@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "2.0",
+  "requirementId": "AI-QUEST-EXTRACT-001",
+  "fixtures": {
+    "unknownPattern": {
+      "questionType": "multiple_choice",
+      "difficulty": "mudah",
+      "applicationLevel": 2,
+      "concepts": ["Kinematics"],
+      "pattern": "exotic_unknown_pattern",
+      "reasoningType": "procedural",
+      "estimatedSteps": 2,
+      "questionMarkdown": "## Soal 1\nSebuah benda bergerak dengan kecepatan $v = 10\\text{ m/s}$. Berapakah jaraknya?",
+      "options": ["10 m", "20 m", "30 m", "40 m"]
+    },
+    "scaleMismatch": {
+      "questionType": "multiple_choice",
+      "difficulty": 999,
+      "applicationLevel": 10,
+      "concepts": ["Dynamics"],
+      "pattern": "direct_computation",
+      "reasoningType": "analytical",
+      "estimatedSteps": 15,
+      "questionMarkdown": "## Soal 2\nHitung gaya $F = m \\cdot a$.",
+      "options": ["10 N", "20 N", "30 N", "40 N"]
+    }
+  }
+}

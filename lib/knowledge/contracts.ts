@@ -92,6 +92,6 @@ export const candidateKoSchema = z.object({
   instructionalRole: instructionalRoleEnum.default('core'),
   sourceSpans: z.array(koSourceSpanSchema).default([]),
   learningObjective: learningObjectiveSchema.optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type CandidateKo = z.infer<typeof candidateKoSchema>;

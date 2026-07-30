@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "requirementId": "AI-KO-STAGED-003",
+  "fixtures": {
+    "embeddingMatchWithoutExactName": {
+      "candidateTitle": "Laju Perubahan Kecepatan",
+      "closestRegisteredConcept": "Percepatan",
+      "embeddingSimilarity": 0.89,
+      "expectedStatus": "ambiguous",
+      "requiresReview": true
+    },
+    "homonymCollision": {
+      "candidateTitle": "Usaha",
+      "definitions": [
+        { "kind": "formula", "summary": "Usaha mekanik W = F * s" },
+        { "kind": "principle", "summary": "Usaha termodinamika W = P * delta V" }
+      ],
+      "expectedStatus": "ambiguous",
+      "requiresReview": true
+    }
+  }
+}

@@ -43,9 +43,12 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 
 ### MTD → Knowledge Objects (KO)
 1. Admin uploads a markdown master document
-2. Gemini extracts atomic KOs ; each a definition, formula, misconception, example, or exercise
-3. Each KO tagged with Bloom's level, difficulty, type, LaTeX math
-4. KOs synced to vector database for RAG search (`course_{courseId}_learning` namespace)
+2. Preprocessed and normalized with deterministic semantic chunking preserving headings, formulas, and tables without 30k char truncation
+3. Gemini extracts candidates per chunk with source spans, exact excerpt hashes, and learning objectives (with Bloom Taxonomy)
+4. Cross-chunk reconciliation deduplicates concepts while preserving all supporting source spans
+5. Canonical concept resolution checks exact names, aliases, and flags high embedding similarity without exact match as `ambiguous`
+6. Run validated and assigned state (`staged`, `accepted`, `needs_review`, `failed`)
+7. Accepted runs persisted atomically using stable identity keys (`stableKey`) without destructive deletion
 
 ### Website Material Generation
 1. All KOs for a chapter are collected in order

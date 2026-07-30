@@ -3,13 +3,10 @@ import { knowledgeObjects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import katex from "katex";
 import { z } from "zod";
-
-// E1: distractor map validation lives in distractor-mapper; re-exported here so
-// callers validate questions and their distractor maps from one module.
 import { validateDistractorMap } from "@/lib/distractor-mapper";
+
 export { validateDistractorMap };
 
-// Zod schema matching the required question insertion properties
 export const QuizQuestionInputSchema = z.object({
   knowledgeObjectId: z.string().min(1),
   prompt: z.string().min(1, "Question prompt cannot be empty"),
@@ -70,8 +67,7 @@ export function validateKaTeXInString(text: string): string[] {
 }
 
 /**
- * Validates a generated question against structural, relational, and LaTeX quality gates.
- * Categorizes findings into strict errors (blocking) and warnings (non-blocking).
+ * Validates a generated question against structural, relational, KaTeX, position leakage, and blueprint gates.
  */
 export async function validateQuestion(
   question: any,
@@ -91,7 +87,7 @@ export async function validateQuestion(
 
   const q = structValidation.data;
 
-  // 2. Strict bounds check
+  // 2. Strict bounds & cardinality check
   if (q.options.length !== 4) {
     errors.push(`Options list must contain exactly 4 choices (received ${q.options.length}).`);
   }
@@ -106,13 +102,26 @@ export async function validateQuestion(
     }
   }
 
-  // 3. Strict duplicate options check
+  // Single choice format cardinality enforcement
+  if (question.itemFormat === "multiple_choice" && q.correctIndices.length > 1) {
+    errors.push("Single-choice format requires exactly 1 correct index.");
+  }
+
+  // 3. Strict duplicate options check (normalized lowercase & trimmed)
   const uniqueOptions = new Set(q.options.map(opt => opt.trim().toLowerCase()));
   if (uniqueOptions.size !== q.options.length) {
     errors.push("Options list contains duplicate choices.");
   }
 
-  // 3b. E1: optional distractor map validation when present
+  // 3b. Position leakage check (e.g. "All of the above", "Option A", "Semua jawaban benar")
+  const leakageRegex = /(all|none) of the above|semua (jawaban|pilihan) benar|tidak ada (jawaban|pilihan) yang benar|pilihan [A-D]|option [A-D]/i;
+  q.options.forEach((opt, idx) => {
+    if (leakageRegex.test(opt)) {
+      errors.push(`Option ${idx} contains position-dependent phrase ("${opt.slice(0, 50)}") which breaks after shuffle.`);
+    }
+  });
+
+  // 3c. Distractor map validation when present
   if (question.distractorMap !== undefined) {
     const dmErrors = validateDistractorMap(question.distractorMap, q.options.length, q.correctIndices);
     errors.push(...dmErrors.map((e) => `[distractorMap]: ${e}`));
@@ -150,13 +159,11 @@ export async function validateQuestion(
   }
 
   // 6. Warning checks
-  // 6.1 Explanation length
   const wordCount = q.explanation.split(/\s+/).filter(Boolean).length;
   if (wordCount < 25) {
     warnings.push("Explanation details are short (under 25 words). Consider adding more conceptual details.");
   }
 
-  // 6.2 Unit checking warning for formula KOs
   if (parentKO && parentKO.type === "formula") {
     const isPurelyNumeric = q.options.every(opt => /^\d+(\.\d+)?$/.test(opt.trim()));
     if (isPurelyNumeric) {
