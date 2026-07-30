@@ -7,6 +7,7 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [ ] **Linting**: `bun run lint` passes with 0 errors and 0 new warnings.
 - [ ] **Type Checking**: `bun run typecheck` (`tsc --noEmit`) passes with 0 errors.
 - [ ] **AI Contract Suite**: `bun run test:ai-contracts` passes deterministically with 0 network calls.
+- [ ] **Assessment Integrity Gate**: `bun test tests/contracts/assessment-redaction.test.ts tests/contracts/tutor-rag.test.ts` passes; GET `/api/quiz/attempts` and `/api/quiz/attempts/[id]` redact `correct_indices` and stored explanations for active attempts.
 - [ ] **Targeted Contract Check**: `bun test tests/contracts/prompt-executor.test.ts` executes and passes.
 
 ## Architectural Guidelines & Boundaries

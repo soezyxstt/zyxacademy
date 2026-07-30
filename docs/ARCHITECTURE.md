@@ -365,13 +365,15 @@ Student redeems enrollment token
      │    └── Interactive popover on terms (termIndex → concept lookup)
      ├── Quiz player ; selects questions from ai_question_bank via quiz_templates.selectionRules
      │    ├── Creates student_quiz_attempts with question snapshot + masteryBefore
+     │    ├── API answer redaction: GET /api/quiz/attempts & GET /api/quiz/attempts/[id] redact correct_indices & stored explanations during in_progress attempts
      │    ├── Auto-grades MC, flags essays as pending_review
      │    ├── Records learning_events for mastery update
      │    └── Shows results with mistake feedback (attempt_feedback)
      ├── Tryout ; timed exam mode
      ├── Flashcards ; SM-2 spaced repetition (student_flashcard_progress)
      ├── Live quiz ; join via code, real-time leaderboard (WebSocket/SSE via zyxrealtime Worker)
-     ├── AI Tutor ; Gemini chat with RAG (Pinecone vector search, namespace: "learning")
+     ├── AI Tutor ; Gemini chat with RAG (Pinecone vector search) & Assessment Assistance Policy (`lib/assessment-assistance-policy.ts`)
+     │    └── Gated by activityKind, attemptState, answerReleaseState, matchState ; forbids direct answer reveals during active attempts
      ├── Tutor Booking ; book slots from tutor_slots
      ├── Leaderboard ; per-course ranking
      └── My Results ; attempt history + mastery graph

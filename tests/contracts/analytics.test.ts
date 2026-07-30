@@ -18,6 +18,6 @@ describe("Analytics Contract Tests", () => {
     expect(representative.averageAccuracy).toBe(0.65);
   });
 
-  test.todo("AI-ANALYTICS-001: Compute item accuracy breakdowns without invoking LLM calls");
-  test.todo("AI-ANALYTICS-002: Generate pedagogical insights based on quantitative distractor patterns");
+  test.todo("AI-ANALYTICS-001: Compute item accuracy breakdowns without invoking LLM calls", () => {});
+  test.todo("AI-ANALYTICS-002: Generate pedagogical insights based on quantitative distractor patterns", () => {});
 });

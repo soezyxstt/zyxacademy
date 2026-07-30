@@ -13,6 +13,7 @@ import { headers } from 'next/headers';
 import { and, or, eq, asc, inArray, sql, desc, notInArray } from 'drizzle-orm';
 import { env } from '@/lib/env';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
+import { serializeStudentQuizAttemptList } from '@/lib/assessment-serialization';
 
 const StartSchema = z.object({
  templateId: z.string().min(1),
@@ -270,5 +271,5 @@ export async function GET(req: NextRequest) {
  .orderBy(desc(studentQuizAttempts.startedAt))
  .limit(50);
 
- return NextResponse.json(attempts);
+ return NextResponse.json(serializeStudentQuizAttemptList(attempts));
 }

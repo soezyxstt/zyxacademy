@@ -18,6 +18,6 @@ describe("Diktat Contract Tests", () => {
     expect(rendererFailure.statusCode).toBe(500);
   });
 
-  test.todo("AI-DIKTAT-001: Handle malformed PDF structure errors gracefully during audit");
-  test.todo("AI-DIKTAT-002: Fallback to structured error response on diktat renderer timeout");
+  test.todo("AI-DIKTAT-001: Handle malformed PDF structure errors gracefully during audit", () => {});
+  test.todo("AI-DIKTAT-002: Fallback to structured error response on diktat renderer timeout", () => {});
 });

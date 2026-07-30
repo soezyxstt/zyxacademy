@@ -103,6 +103,11 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Multi-category blog (tips_kuliah, pojok_kampus, fakta_seru, kegiatan_zyx)
 - URL shortener (zyxacademy.com/s/[slug])
 
+### Assessment Integrity & Assistance Policy
+- Active attempt answer protection: GET `/api/quiz/attempts` and `/api/quiz/attempts/[id]` strip `correct_indices`, stored explanations, and grading feedback during in-progress attempts.
+- Deterministic assistance policy engine (`lib/assessment-assistance-policy.ts`): gates AI tutor and mistake feedback based on activity kind (study, practice, quiz, simulation, exam), attempt state, answer release state, and match state.
+- Answer release state matrix: active attempts enforce `socratic_only` or `refuse_answer_reveal`; completed attempts follow release settings (`hidden`, `rationale_only`, `released`).
+
 ## Money & Quota Rules
 
 - AI quota spent only on: tutoring, mistake feedback, content generation

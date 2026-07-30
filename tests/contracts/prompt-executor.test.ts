@@ -15,7 +15,7 @@ describe("PromptExecutor Contract Tests", () => {
     expect(fixture.requirementId).toBe("AI-TUTOR-COV-001");
   });
 
-  test.todo("AI-PROMPT-001: Execute prompt with variable substitution and validated output schema");
-  test.todo("AI-PROMPT-002: Perform single automatic repair attempt on JSON parse failure");
-  test.todo("AI-PROMPT-003: Stop execution when daily quota is exceeded");
+  test.todo("AI-PROMPT-001: Execute prompt with variable substitution and validated output schema", () => {});
+  test.todo("AI-PROMPT-002: Perform single automatic repair attempt on JSON parse failure", () => {});
+  test.todo("AI-PROMPT-003: Stop execution when daily quota is exceeded", () => {});
 });

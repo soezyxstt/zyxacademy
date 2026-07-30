@@ -2,24 +2,23 @@ import { describe, expect, it, test } from "bun:test";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 
 describe("Question Pipeline Contract Tests", () => {
-  it("characterization: loads question-generation fixture and validates schema version", () => {
+  it("characterization: loads generated question draft fixture and validates schema version", () => {
     const fixture = loadAiFixture<{
-      questionType: string;
+      draftId: string;
+      prompt: string;
       options: string[];
-      correctOption?: string;
-      correctOptions?: string[];
-      isMalformed?: boolean;
-    }>("question-generation.json");
+      correctIndices: number[];
+      difficulty: string;
+    }>("question-draft.json");
 
     expect(fixture.schemaVersion).toBe("1.0");
-    expect(fixture.requirementId).toBe("AI-QGEN-001");
+    expect(fixture.requirementId).toBe("AI-QUEST-GEN-001");
 
-    const { singleAnswer, multipleAnswer, duplicateOptions } = fixture.fixtures;
-    expect(singleAnswer.options.length).toBe(4);
-    expect(multipleAnswer.correctOptions).toEqual(["A", "C"]);
-    expect(duplicateOptions.isMalformed).toBe(true);
+    const { multipleChoiceLimit, conceptualDerivative } = fixture.fixtures;
+    expect(multipleChoiceLimit.options).toHaveLength(4);
+    expect(conceptualDerivative.difficulty).toBe("medium");
   });
 
-  test.todo("AI-QGEN-001: Generate single-choice questions with distinct distractor options");
-  test.todo("AI-QGEN-002: Reject question structures containing duplicate option texts");
+  test.todo("AI-QUEST-GEN-001: Enforce distractor mapping to misconception KOs during generation", () => {});
+  test.todo("AI-QUEST-VAL-002: Reject draft questions violating course difficulty caps", () => {});
 });

@@ -2,6 +2,7 @@ import { describe, expect, it, test } from "bun:test";
 import { normalizeQuestion } from "@/lib/tutor-rag";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache } from "../helpers/fake-cache";
+import { evaluateAssessmentAssistancePolicy } from "@/lib/assessment-assistance-policy";
 
 describe("Tutor RAG Contract Tests", () => {
   it("characterization: normalizeQuestion lowercases, strips punctuation, and trims questions deterministically", () => {
@@ -39,8 +40,21 @@ describe("Tutor RAG Contract Tests", () => {
     ).toThrow();
   });
 
-  test.todo("AI-TUTOR-CIT-001: Reject citation IDs that do not exist in retrieved source set");
-  test.todo("AI-TUTOR-COV-001: Return ungrounded status when retrieved chunks lack sufficient context");
-  test.todo("AI-TUTOR-DLG-001: Classify follow-up user inputs into style changes vs topic shifts");
-  test.todo("AI-SEC-INJ-001: Neutralize system prompt injection embedded in retrieved materials");
+  it("AI-ASSESS-POL-002: Enforces Socratic-only policy when active exam or attempt is in progress", () => {
+    const res = evaluateAssessmentAssistancePolicy({
+      activityKind: "exam",
+      attemptState: "in_progress",
+      answerReleaseState: "hidden",
+      matchState: "strong",
+    });
+
+    expect(res.allowedHelpLevel).toBe("socratic_only");
+    expect(res.allowDirectAnswerReveal).toBe(false);
+    expect(res.allowStoredExplanationReveal).toBe(false);
+  });
+
+  test.todo("AI-TUTOR-CIT-001: Reject citation IDs that do not exist in retrieved source set", () => {});
+  test.todo("AI-TUTOR-COV-001: Return ungrounded status when retrieved chunks lack sufficient context", () => {});
+  test.todo("AI-TUTOR-DLG-001: Classify follow-up user inputs into style changes vs topic shifts", () => {});
+  test.todo("AI-SEC-INJ-001: Neutralize system prompt injection embedded in retrieved materials", () => {});
 });

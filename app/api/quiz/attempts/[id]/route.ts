@@ -18,61 +18,64 @@ import { buildRemediation } from '@/lib/remediation';
 import { env } from '@/lib/env';
 import { PKA_COURSE_ID } from '@/lib/pka-config';
 import { normalizeDate } from '@/lib/date-utils';
+import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Context) {
- const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
- const { id } = await params;
- const [attempt] = await db
- .select()
- .from(studentQuizAttempts)
- .where(
- and(
- eq(studentQuizAttempts.id, id),
- eq(studentQuizAttempts.studentId, session.user.id),
- ),
- )
- .limit(1);
+  const { id } = await params;
+  const [attempt] = await db
+  .select()
+  .from(studentQuizAttempts)
+  .where(
+  and(
+  eq(studentQuizAttempts.id, id),
+  eq(studentQuizAttempts.studentId, session.user.id),
+  ),
+  )
+  .limit(1);
 
- if (!attempt) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!attempt) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
- const feedbackRows = await db
- .select()
- .from(attemptFeedback)
- .where(eq(attemptFeedback.attemptId, id));
+  const feedbackRows = await db
+  .select()
+  .from(attemptFeedback)
+  .where(eq(attemptFeedback.attemptId, id));
 
- // E2: deterministic remediation (mastery delta + root cause + misconceptions)
- let remediation = null;
- if (env.FEATURE_REMEDIATION === "1" && attempt.status === "completed") {
- const [tpl] = await db
- .select({ courseId: quizTemplates.courseId })
- .from(quizTemplates)
- .where(eq(quizTemplates.id, attempt.templateId))
- .limit(1);
- if (tpl?.courseId) {
- remediation = await buildRemediation(
- {
- id: attempt.id,
- studentId: attempt.studentId,
- masteryBefore: attempt.masteryBefore as Record<string, number> | null,
- weakAreas: attempt.weakAreas as string[] | null,
- },
- tpl.courseId,
- ).catch((err) => {
- console.error("buildRemediation failed:", err);
- return null;
- });
- }
- }
+  // E2: deterministic remediation (mastery delta + root cause + misconceptions)
+  let remediation = null;
+  if (env.FEATURE_REMEDIATION === "1" && attempt.status === "completed") {
+  const [tpl] = await db
+  .select({ courseId: quizTemplates.courseId })
+  .from(quizTemplates)
+  .where(eq(quizTemplates.id, attempt.templateId))
+  .limit(1);
+  if (tpl?.courseId) {
+  remediation = await buildRemediation(
+  {
+  id: attempt.id,
+  studentId: attempt.studentId,
+  masteryBefore: attempt.masteryBefore as Record<string, number> | null,
+  weakAreas: attempt.weakAreas as string[] | null,
+  },
+  tpl.courseId,
+  ).catch((err) => {
+  console.error("buildRemediation failed:", err);
+  return null;
+  });
+  }
+  }
 
- return NextResponse.json({
- ...attempt,
- feedback: feedbackRows,
- remediation,
- });
+  const rawPayload = {
+    ...attempt,
+    feedback: feedbackRows,
+    remediation,
+  };
+
+  return NextResponse.json(serializeStudentQuizAttempt(rawPayload));
 }
 
 const SubmitSchema = z.object({
