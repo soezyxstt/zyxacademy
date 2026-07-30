@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+
+process.env.MOCK_GEMINI = "true";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { canPublishDiktat, DiktatAuditResult } from "@/lib/diktat/audit-contracts";
 import { FormulaRegistry, RegisteredFormula } from "@/lib/diktat/formula-registry";

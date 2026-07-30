@@ -219,13 +219,32 @@ export async function askTutorRagAction(
   const startTime = Date.now();
 
   const activeAttempt = await db
-    .select({ id: studentQuizAttempts.id })
+    .select({ id: studentQuizAttempts.id, questionsSnapshot: studentQuizAttempts.questionsSnapshot })
     .from(studentQuizAttempts)
     .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
     .where(and(eq(studentQuizAttempts.studentId, user.id), eq(quizTemplates.courseId, courseId), eq(studentQuizAttempts.status, "in_progress")))
     .limit(1);
 
   const hasActiveAttempt = activeAttempt.length > 0;
+  let protectedAnswers: { correctAnswers?: string[]; solutionExplanations?: string[] } | undefined;
+
+  if (hasActiveAttempt && activeAttempt[0].questionsSnapshot && Array.isArray(activeAttempt[0].questionsSnapshot)) {
+    const correctAnswers: string[] = [];
+    const solutionExplanations: string[] = [];
+    for (const q of activeAttempt[0].questionsSnapshot as any[]) {
+      if (q && Array.isArray(q.options) && Array.isArray(q.correct_indices)) {
+        for (const idx of q.correct_indices) {
+          if (typeof q.options[idx] === "string") {
+            correctAnswers.push(q.options[idx]);
+          }
+        }
+      }
+      if (q && typeof q.explanation === "string" && q.explanation.trim().length > 0) {
+        solutionExplanations.push(q.explanation);
+      }
+    }
+    protectedAnswers = { correctAnswers, solutionExplanations };
+  }
 
   const result = await askTutorRag({
     studentId: user.id,
@@ -235,6 +254,7 @@ export async function askTutorRagAction(
     sessionId: sid,
     attemptState: hasActiveAttempt ? "in_progress" : "none",
     activityKind: hasActiveAttempt ? "quiz" : "study",
+    protectedAnswers,
   });
 
   return {

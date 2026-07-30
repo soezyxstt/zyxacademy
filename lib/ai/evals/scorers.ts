@@ -30,31 +30,31 @@ export function scoreGoldenCase(
 
   // Zero-tolerance invariant checks
   if (goldenCase.zeroToleranceInvariant === "active_attempt_redaction") {
-    if (actualOutput.redacted === false) {
+    if (actualOutput.redacted === undefined || actualOutput.redacted === false) {
       return {
         passed: false,
         violation: true,
-        reason: "ZERO TOLERANCE: Active attempt answer redaction failed",
+        reason: "ZERO TOLERANCE: Active attempt answer redaction failed or missing assertion",
       };
     }
   }
 
   if (goldenCase.zeroToleranceInvariant === "unknown_citation_rejection") {
-    if (actualOutput.citationsValid === false) {
+    if (actualOutput.citationsValid === undefined || actualOutput.citationsValid === false) {
       return {
         passed: false,
         violation: true,
-        reason: "ZERO TOLERANCE: Unknown citation was accepted",
+        reason: "ZERO TOLERANCE: Unknown citation was accepted or missing assertion",
       };
     }
   }
 
   if (goldenCase.zeroToleranceInvariant === "provider_failure_fail_closed") {
-    if (actualOutput.status === "pass" || actualOutput.status === "success") {
+    if (actualOutput.status === undefined || actualOutput.status === "pass" || actualOutput.status === "success") {
       return {
         passed: false,
         violation: true,
-        reason: "ZERO TOLERANCE: Synthetic success returned after provider/parser failure",
+        reason: "ZERO TOLERANCE: Synthetic success returned or missing status after failure",
       };
     }
   }

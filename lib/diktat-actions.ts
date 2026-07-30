@@ -261,7 +261,7 @@ export async function executeDiktatPDFGeneration(
         findings: (pdfAudit.warnings || []).map((w, idx) => ({
           id: `w-${idx}`,
           code: "AUDIT_WARN",
-          severity: pdfAudit.status === "FAIL" ? "critical" : "warning",
+          severity: pdfAudit.status === "fail" ? "critical" : "warning",
           message: w,
           sourceSpanIds: [],
         })),

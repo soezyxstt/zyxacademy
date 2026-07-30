@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+
+process.env.MOCK_GEMINI = "true";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { generateStableKoKey, computeSemanticKoHash, reconcileKoExtractionRun } from "@/lib/knowledge/identity";
 import { normalizeCanonicalSource, chunkCanonicalSource } from "@/lib/knowledge/chunker";

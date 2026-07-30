@@ -1163,21 +1163,51 @@ export async function extractKnowledgeObjectsForChapter(
           await tx.insert(conceptLocalizations).values(newLocalizationsToRegister);
         }
 
-        // Insert / Update KOs with stable keys
-        const koValuesWithIdentity = koValues.map((ko) => {
+        // Execute reconciliations cleanly
+        for (let i = 0; i < koValues.length; i++) {
+          const ko = koValues[i];
+          const rec = reconciliations[i];
           const stableKey = generateStableKoKey(mtdId, chapterId, ko.title);
           const semanticHash = computeSemanticKoHash(ko.title, ko.content, (ko.type as any) || 'other', 'core');
-          return {
-            ...ko,
-            stableKey,
-            semanticHash,
-            knowledgeKind: (ko.type as any) || 'other',
-            instructionalRole: 'core' as const,
-          };
-        });
 
-        // Insert new KOs for v2
-        await tx.insert(knowledgeObjects).values(koValuesWithIdentity);
+          if (!rec || rec.action === 'insert') {
+            await tx.insert(knowledgeObjects).values({
+              ...ko,
+              stableKey,
+              semanticHash,
+              knowledgeKind: (ko.type as any) || 'other',
+              instructionalRole: 'core',
+            });
+          } else if (rec.action === 'update' && rec.existingId) {
+            await tx
+              .update(knowledgeObjects)
+              .set({
+                conceptName: ko.conceptName,
+                title: ko.title,
+                summary: ko.content,
+                formula: ko.formula,
+                type: ko.type,
+                semanticHash,
+                status: 'active',
+                updatedAt: new Date(),
+              })
+              .where(eq(knowledgeObjects.id, rec.existingId));
+          } else if (rec.action === 'supersede' && rec.existingId) {
+            await tx
+              .update(knowledgeObjects)
+              .set({ status: 'superseded', updatedAt: new Date() })
+              .where(eq(knowledgeObjects.id, rec.existingId));
+
+            await tx.insert(knowledgeObjects).values({
+              ...ko,
+              stableKey,
+              semanticHash,
+              knowledgeKind: (ko.type as any) || 'other',
+              instructionalRole: 'core',
+            });
+          }
+          // retain action: skip DB mutation to avoid unnecessary churn
+        }
       } else {
         // Legacy: Delete previous KOs for this chapter to prevent duplicates
         await tx.delete(knowledgeObjects).where(eq(knowledgeObjects.chapterId, chapterId));

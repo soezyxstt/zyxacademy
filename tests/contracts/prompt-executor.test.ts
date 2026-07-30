@@ -1,4 +1,6 @@
 import { describe, expect, it, spyOn, beforeEach, afterEach } from "bun:test";
+
+process.env.MOCK_GEMINI = "true";
 import { repairJsonString } from "@/lib/ko-utils";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { PromptExecutor } from "@/lib/prompt-executor";

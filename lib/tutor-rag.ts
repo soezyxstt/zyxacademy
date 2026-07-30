@@ -497,10 +497,11 @@ export interface AskTutorParams {
   attemptState?: AttemptState;
   answerReleaseState?: AnswerReleaseState;
   matchState?: MatchState;
+  protectedAnswers?: { correctAnswers?: string[]; solutionExplanations?: string[] };
 }
 
 export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResult> {
-  const { studentId, courseId, question, sessionId } = params;
+  const { studentId, courseId, question, sessionId, protectedAnswers } = params;
   const chapterId = params.chapterId ?? null;
 
   const usePolicy = env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY === "1";
@@ -518,6 +519,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       })
     : null;
 
+  const protectedPayload = protectedAnswers || {};
   const profile = await buildLearnerProfile(studentId, courseId);
 
   // Load conversation history context
@@ -623,7 +625,16 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     base = await kvGet<TutorRagAnswer>(cacheKey);
     if (base && typeof base.answer === "string") {
       cached = true;
-      base = { ...base, answer: sanitizeAnswer(base.answer) };
+      let ansText = sanitizeAnswer(base.answer);
+      
+      if (policy) {
+        const val = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
+        if (!val.valid) {
+          ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+        }
+      }
+
+      base = { ...base, answer: ansText };
       assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
       await logCacheHit(studentId, "tutor_rag");
     } else {
@@ -646,8 +657,17 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         if (useCase === USE_CASES.UNGROUNDED_TUTOR) {
           await UsageBudgetService.recordPremiumUsage(studentId);
         }
+        
+        let ansText = sanitizeAnswer(result.data.answer);
+        if (policy) {
+          const val = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
+          if (!val.valid) {
+            ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+          }
+        }
+
         base = {
-          answer: sanitizeAnswer(result.data.answer),
+          answer: ansText,
           sources: [],
           matchedConcepts: result.data.matchedConcepts,
           confidence: result.data.confidence,
@@ -753,7 +773,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             let ansText = sanitizeAnswer(d.answer);
 
             if (policy) {
-              const validation = validateTutorOutput(ansText, {}, policy.allowedHelpLevel);
+              const validation = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
               if (!validation.valid) {
                 ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
               }

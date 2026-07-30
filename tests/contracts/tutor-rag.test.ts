@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+
+process.env.MOCK_GEMINI = "true";
 import { normalizeQuestion } from "@/lib/tutor-rag";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache, buildTutorCacheKey, computeEvidenceVersion } from "@/lib/tutor/cache-contract";

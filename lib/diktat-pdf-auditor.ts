@@ -3,7 +3,7 @@ import { generateContentWithFallback } from "./gemini";
 import { USE_CASES } from "@/lib/ai-router";
 
 export interface PDFAuditResult {
-  status: "PASS" | "WARN" | "FAIL" | "unavailable";
+  status: "pass" | "warn" | "fail" | "unavailable";
   warnings: string[];
   errorMessage?: string;
 }
@@ -13,7 +13,7 @@ export async function auditRenderedPDF(
   structure: DiktatStructure
 ): Promise<PDFAuditResult> {
   if (process.env.FEATURE_DIKTAT_AI !== "1") {
-    return { status: "PASS", warnings: [] };
+    return { status: "pass", warnings: [] };
   }
 
   const warnings: string[] = [];
@@ -85,8 +85,9 @@ Jika tidak ada masalah, berikan status PASS dengan array kosong.`;
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
+    const rawStatus = typeof parsed.status === "string" ? parsed.status.toLowerCase() : "pass";
     const status: PDFAuditResult["status"] =
-      parsed.status === "WARN" ? "WARN" : parsed.status === "FAIL" ? "FAIL" : "PASS";
+      rawStatus === "warn" ? "warn" : rawStatus === "fail" ? "fail" : "pass";
     const parsedWarnings: string[] = Array.isArray(parsed.warnings)
       ? parsed.warnings.filter((w: any): w is string => typeof w === "string")
       : [];

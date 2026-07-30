@@ -29,6 +29,10 @@ export async function generateStudentQuizDiagnosis(
     throw new Error(`Attempt ${attemptId} not found`);
   }
 
+  if (attempt.status !== "completed") {
+    throw new Error(`Cannot generate AI diagnosis for uncompleted attempt ${attemptId}`);
+  }
+
   const snapshot = (attempt.questionsSnapshot || []) as Array<{
     id: string;
     prompt: string;

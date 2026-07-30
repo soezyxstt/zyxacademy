@@ -91,8 +91,8 @@ Return a single JSON object with this exact schema:
     console.warn("[IndependentSolver] Fallback during independent solve:", err?.message || err);
     return {
       solvedOptionIndex: 0,
-      solverConfidence: 0.5,
-      reasoningSummary: `Fallback solver derivation due to error: ${err?.message || "Unknown error"}`,
+      solverConfidence: 0.0,
+      reasoningSummary: `Fallback solver derivation failed: ${err?.message || "Unknown error"}`,
     };
   }
 }

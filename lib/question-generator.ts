@@ -24,6 +24,8 @@ import { buildAssessmentBlueprint } from "@/lib/questions/blueprint";
 import { shuffleQuestionOptions } from "@/lib/questions/option-shuffle";
 import { buildDistractorProvenances } from "@/lib/questions/distractor-provenance";
 import { UnshuffledQuestionDraft } from "@/lib/questions/contracts";
+import { solveQuestionIndependently } from "@/lib/questions/independent-solver";
+import { evaluateQuestionWithCritic } from "@/lib/questions/pedagogical-critic";
 
 export function buildQuestionPrompt(
   courseTitle: string,
@@ -426,6 +428,31 @@ export async function generateQuestionsForKOBatch(
         errors: combinedErrors,
       });
       continue;
+    }
+
+    if (env.FEATURE_QUESTION_VERIFICATION_V2 === "1") {
+      const solveResult = await solveQuestionIndependently({
+        promptStem: shuffled.prompt,
+        options: shuffled.options,
+      });
+      const criticEval = evaluateQuestionWithCritic({
+        draft: {
+          prompt: shuffled.prompt,
+          options: shuffled.options,
+          correctIndex: shuffled.correctIndices[0] ?? 0,
+          explanation: shuffled.explanation,
+        },
+        solveResult,
+      });
+      if (criticEval.status === "REJECTED") {
+        resultsMap.set(ko.id, {
+          koId: ko.id,
+          success: false,
+          insertedCount: 0,
+          errors: [`Question verification rejected by critic: ${criticEval.critiqueSummary}`],
+        });
+        continue;
+      }
     }
 
     // EIF E1 legacy distractor map summary
