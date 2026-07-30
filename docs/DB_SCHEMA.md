@@ -716,25 +716,55 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `createdAt`
 * `updatedAt`
 
+### questionGenerationRuns
+* `id`
+* `courseId`
+* `blueprintVersion`: Version tag of the blueprint engine used (e.g. '2.0').
+* `promptVersion`: Version tag of prompt contract used (e.g. '2.0').
+* `sourceVersion`: Version identifier of the source document/MTD.
+* `shuffleSeed`: Seed integer used for deterministic application option shuffle.
+* `validatorVersion`: Version tag of validator quality gate used (e.g. '2.0').
+* `slotCount`: Total slots requested in the generation batch.
+* `acceptedCount`: Total valid questions accepted and persisted.
+* `status`: Batch execution status ('completed', 'failed', 'partial', 'processing').
+* `createdAt`
+
 ### aiQuestionBank
 * `id`
 * `courseId`
 * `knowledgeObjectId`
 * `sourceMtdId`
 * `sourceSectionId`
+* `generationRunId`: Foreign key reference to `questionGenerationRuns.id`.
 * `styledAfterAssessmentObjectId`: Optional reference link to an original exam question style source.
 * `pattern`: Pedagogical classification pattern.
 * `reasoningType`: Mode of thinking needed.
 * `applicationLevel`: Cognitive level matching pedagogical standards.
 * `estimatedSteps`: Estimate count of reasoning steps.
-* `questionText`: The final question text.
-* `correctAnswer`: Correct solution statement text.
-* `distractorMap`: Distractors list mapping potential student errors.
+* `prompt`: The question prompt statement.
+* `options`: Shuffled array of 4 option text strings.
+* `correctIndices`: Array of 0-based correct option display indices after application shuffle.
+* `distractorMap`: Legacy JSON array mapping non-correct option indices to misconception KOs.
 * `explanation`: Explanatory details supporting the answer.
+* `reviewStatus`: Question lifecycle status ('generated', 'reviewed', 'published', 'flagged', 'retired').
+* `qualityScore`: Real number score (null for unverified new questions until Plan 011 acceptance test).
 * `generationHash`: Validation checksum matching current settings state.
 * `isStale`: Re-evaluation flag matching source document state.
 * `createdAt`
-* `updatedAt`
+
+### distractorProvenance
+* `id`
+* `questionId`: Master question ID referencing `aiQuestionBank.id`.
+* `optionIndex`: Final 0-based option display index after shuffle.
+* `stableOptionId`: Stable option ID (e.g., 'opt_0', 'opt_1') surviving position shuffle.
+* `targetedMisconception`: Targeted misconception or error family ('calc_error', 'unit_error', 'vocab_swap', 'misconception', 'none', 'other').
+* `misconceptionKoId`: Optional reference to a specific misconception Knowledge Object ID.
+* `supportingSourceIds`: JSON array of supporting KO or source document IDs.
+* `mappingMethod`: Method used for distractor mapping ('exact_ko', 'heuristic_pattern', 'lexical_overlap', 'embedding_similarity', 'manual_override', 'unknown').
+* `score`: Numerical similarity or confidence score.
+* `methodVersion`: Version tag of the distractor provenance engine (e.g., '2.0').
+* `uncertaintyState`: Categorical state ('confident', 'ambiguous', 'unknown'). Ambiguous scores are persisted as unknown.
+* `createdAt`
 
 ### questionOptionStats
 * `id`

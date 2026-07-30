@@ -25,7 +25,7 @@ interface Question {
   correctIndices: unknown;
   explanation: string;
   reviewStatus: ReviewStatus;
-  qualityScore: number;
+  qualityScore: number | null;
   useCount: number;
   createdAt: Date;
   knowledgeObjectId?: string | null;

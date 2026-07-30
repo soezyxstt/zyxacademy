@@ -284,21 +284,21 @@ Storage Services (abstracted via lib/storage/index.ts):
 ```
 Tutor clicks "Generate Questions" (/admin/ai/questions)
   → startGenerationJob() in generation-pipeline.ts
-      ├── Creates ai_generation_jobs row (status: pending)
-      ├── Fetches active KOs + assessment_profile + course_policies for the course
-      ├── Historical questions loaded from ai_question_bank (assessment index)
-      ├── Blueprint Engine (lib/question-blueprint-engine.ts)
-      │    └── Produces per-KO blueprints: question type × difficulty × pattern
-      ├── Gemini generates draft questions from blueprints
-      ├── Structural Validation (lib/question-validator.ts)
-      ├── Distractor Mapping (lib/distractor-mapper.ts)
-      │    └── Maps wrong options to misconception KOs for EIF E1 feedback
-      ├── Pedagogical Validation (lib/pedagogical-validator.ts)
-      │    ├── Checks forbiddenContexts from course_policies
-      │    ├── Validates maxApplicationLevel and maxEstimatedSteps
-      │    └── Rejects questions that violate policy
-      ├── Inserts into ai_question_bank (status: generated, generationHash tracked)
-      └── Updates job status: completed / failed
+      ├── Creates question_generation_runs audit record (status: processing)
+      ├── Blueprint Engine (lib/questions/blueprint.ts)
+      │    └── Produces per-slot specs: KO ID, learning objective, cognitive process, target difficulty, reasoning pattern, targeted misconceptions
+      ├── Gemini generates draft candidate options with stable option IDs (opt_0..opt_3)
+      ├── Application Option Shuffle (lib/questions/option-shuffle.ts)
+      │    └── Shuffles options deterministically with seed; recomputes correctIndices and stable IDs
+      ├── Distractor Provenance Engine (lib/questions/distractor-provenance.ts)
+      │    └── Maps non-correct options with targeted misconception family, method, score, and uncertainty state
+      ├── Validation & Policy Gates (lib/question-validator.ts, lib/pedagogical-validator.ts)
+      │    ├── Checks KaTeX syntax, duplicate options, and position leakage phrases
+      │    ├── Checks forbiddenContexts, maxApplicationLevel, maxEstimatedSteps, allowedPatterns
+      │    └── Rejects non-compliant questions
+      ├── Inserts into ai_question_bank (status: generated, qualityScore: null [unverified], generationRunId linked)
+      ├── Inserts into distractor_provenance table
+      └── Updates question_generation_runs status: completed / partial / failed
 ```
 
 ### B. Website Material Generation

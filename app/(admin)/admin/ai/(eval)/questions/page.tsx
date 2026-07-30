@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function AIQuestionsPage() {
   await assertTutorOrAdmin();
 
-  const [questions, allCourses, historicalQuestions] = await Promise.all([
+  const [rawQuestions, allCourses, historicalQuestions] = await Promise.all([
     db
       .select()
       .from(aiQuestionBank)
@@ -42,6 +42,7 @@ export default async function AIQuestionsPage() {
   ]);
 
   const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));
+  const questions = rawQuestions.map((q) => ({ ...q, qualityScore: q.qualityScore ?? 0 }));
 
   return (
     <div className="space-y-6">

@@ -83,6 +83,7 @@ All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
 | `FEATURE_ASSESSMENT_ASSISTANCE_POLICY` | Deterministic assessment assistance policy for AI tutor and mistake feedback |
 | `FEATURE_TUTOR_PIPELINE_V2` | V2 tutor cache isolation and query action routing |
 | `FEATURE_KO_PIPELINE_V2` | Staged KO extraction, deterministic chunking, cross-chunk reconciliation, and canonical review |
+| `FEATURE_QUESTION_GENERATOR_V2` | Question blueprint engine, application option shuffle, and machine-readable distractor provenance |
 | `FEATURE_ANALYTICS` | Coaching analytics |
 | `FEATURE_LEADERBOARD` | Leaderboard |
 | `FEATURE_PUBLISHER` | Publisher features |

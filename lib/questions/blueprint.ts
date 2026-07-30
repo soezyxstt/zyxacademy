@@ -198,7 +198,6 @@ export function buildAssessmentBlueprint(input: {
 }): AssessmentBlueprint {
   const { courseId, chapterId, kos, requestedCount } = input;
   const seed = input.seed ?? 42;
-  const rng = createSeededRandom(seed);
   const context = input.context ?? "practice";
 
   if (kos.length === 0) {

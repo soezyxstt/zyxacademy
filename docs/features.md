@@ -71,10 +71,12 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Capped at 30 AI requests per day per student
 
 ### Question Generation
-- Blueprint engine produces per-KO question specs
-- Gemini generates draft questions
-- Pedagogical validator enforces course policies (forbidden contexts, difficulty caps)
-- Distractor mapper links wrong answers to misconception KOs
+- Deterministic multidimensional blueprint engine produces per-slot specs identifying KO, cognitive process, target difficulty, reasoning pattern, and targeted misconceptions
+- Gemini generates candidate options with stable option IDs (`opt_0`..`opt_3`)
+- Application option shuffle with stored seed prevents position leakage and updates correctIndices and distractor provenances deterministically
+- Machine-readable distractor provenance engine maps non-correct options with targeted misconception family, method, score, and uncertainty state (`confident`, `ambiguous`, `unknown`)
+- Audit trail stored in `question_generation_runs` and `distractor_provenance`
+- Generated questions persisted with `qualityScore: null` (unverified) until independent verification
 
 ### Diktat PDF Compilation
 - Teacher selects chapters

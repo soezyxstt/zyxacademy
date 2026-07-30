@@ -7,8 +7,6 @@ import {
   aiQuestionBank,
   coursePolicies,
   vectorSyncQueue,
-  assessmentObjects,
-  assessmentObjectConcepts,
   questionGenerationRuns,
   distractorProvenance as distractorProvenanceTable,
 } from "@/db/schema";
@@ -20,10 +18,9 @@ import { buildDistractorMap, type MisconceptionKO } from "@/lib/distractor-mappe
 import { eq, and, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { validateQuestionAgainstPolicy, type CoursePolicyRow } from "@/lib/pedagogical-validator";
-import { getPatternProfile } from "./assessment-pattern-engine";
 import { repairJsonString } from "./ko-utils";
 
-import { buildAssessmentBlueprint, generateSlotFromKO } from "@/lib/questions/blueprint";
+import { buildAssessmentBlueprint } from "@/lib/questions/blueprint";
 import { shuffleQuestionOptions } from "@/lib/questions/option-shuffle";
 import { buildDistractorProvenances } from "@/lib/questions/distractor-provenance";
 import { UnshuffledQuestionDraft } from "@/lib/questions/contracts";

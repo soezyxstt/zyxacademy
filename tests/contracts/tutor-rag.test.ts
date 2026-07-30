@@ -239,7 +239,7 @@ describe("Tutor RAG Contract Tests", () => {
 
   it("AI-TUTOR-CIT-001: Reject citation IDs that do not exist in retrieved source set", () => {
     const citationFixture = loadAiFixture("citations.json");
-    const { invalid, unknown, unsupported } = citationFixture.fixtures;
+    const { invalid, unknown, unsupported } = citationFixture.fixtures as any;
 
     // 1. Invalid cited ID is dropped and coverage state downgraded without fallback
     const resInvalid = verifyCitations({
@@ -279,7 +279,7 @@ describe("Tutor RAG Contract Tests", () => {
 
   it("AI-TUTOR-COV-001: Return ungrounded status when retrieved chunks lack sufficient context", () => {
     const sourceFixture = loadAiFixture("source-coverage.json");
-    const { full, partial, absent, conflicting } = sourceFixture.fixtures;
+    const { full, partial, absent, conflicting } = sourceFixture.fixtures as any;
 
     // 1. Full coverage
     const resFull = classifyEvidence({
@@ -336,7 +336,7 @@ describe("Tutor RAG Contract Tests", () => {
 
   it("AI-SEC-INJ-001: Neutralize system prompt injection embedded in retrieved materials", () => {
     const injectionFixture = loadAiFixture("prompt-injection.json");
-    const { sourceInjection, historyInjection } = injectionFixture.fixtures;
+    const { sourceInjection, historyInjection } = injectionFixture.fixtures as any;
 
     // 1. Neutralize injection inside source text
     const cleanSource = sanitizePromptInput(sourceInjection.sourceText);

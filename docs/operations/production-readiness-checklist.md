@@ -11,6 +11,7 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [ ] **Targeted Contract Check**: `bun test tests/contracts/prompt-executor.test.ts` executes and passes.
 - [ ] **Tutor Cache Isolation & Query Action Router Gate**: `bun test tests/contracts/tutor-rag.test.ts` passes; Tier 1 shared KV cache is strictly student-free and follow-up queries are classified into `retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, or `clarify`.
 - [ ] **Knowledge Object Staged Extraction & Provenance Gate**: `bun test tests/contracts/ko-pipeline.test.ts` passes; sources > 30k chars are chunked without truncation, math/tables are preserved, cross-chunk spans are retained, embedding similarity without exact match flags `ambiguous`, and invalid extractions leave previous KO state untouched.
+- [ ] **Question Blueprint & Distractor Provenance Gate**: `bun test tests/contracts/question-pipeline.test.ts` passes; blueprint slots require sourced KO IDs, options are shuffled deterministically in application code with stable IDs, distractor provenances persist method, score, and uncertainty (`ambiguous` persisted as unknown), and new questions remain unverified (`qualityScore: null`).
 - [ ] **Prompt Contract Boundary**: All prompt stage executions verify policy composition, semantic validators, bounded repair allowlists, and privacy-safe provenance traces in `ai_generation_traces`.
 
 ## Architectural Guidelines & Boundaries

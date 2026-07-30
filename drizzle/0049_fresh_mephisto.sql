@@ -46,7 +46,7 @@ DROP INDEX "ai_instances_course_idx";--> statement-breakpoint
 DROP INDEX "idx_qbank_selection";--> statement-breakpoint
 DROP INDEX "idx_qbank_tags";--> statement-breakpoint
 DROP INDEX "idx_qbank_ko";--> statement-breakpoint
-DROP INDEX "idx_qbank_gen_run";--> statement-breakpoint
+DROP INDEX IF EXISTS "idx_qbank_gen_run";--> statement-breakpoint
 DROP INDEX "idx_usage_user_created";--> statement-breakpoint
 DROP INDEX "idx_ao_concepts_ao";--> statement-breakpoint
 DROP INDEX "idx_ao_concepts_concept";--> statement-breakpoint
@@ -194,6 +194,7 @@ CREATE INDEX `ai_instances_course_idx` ON `ai_material_instances` (`course_id`);
 CREATE INDEX `idx_qbank_selection` ON `ai_question_bank` (`course_id`,`review_status`,`difficulty`,`use_count`);--> statement-breakpoint
 CREATE INDEX `idx_qbank_tags` ON `ai_question_bank` (`tags`);--> statement-breakpoint
 CREATE INDEX `idx_qbank_ko` ON `ai_question_bank` (`knowledge_object_id`);--> statement-breakpoint
+ALTER TABLE `ai_question_bank` ADD `generation_run_id` text REFERENCES question_generation_runs(id);--> statement-breakpoint
 CREATE INDEX `idx_qbank_gen_run` ON `ai_question_bank` (`generation_run_id`);--> statement-breakpoint
 CREATE INDEX `idx_usage_user_created` ON `ai_usage_events` (`user_id`,`created_at`);--> statement-breakpoint
 CREATE INDEX `idx_ao_concepts_ao` ON `assessment_object_concepts` (`assessment_object_id`);--> statement-breakpoint
@@ -324,5 +325,4 @@ CREATE INDEX `idx_web_mat_ver_mat` ON `website_material_versions` (`material_id`
 CREATE INDEX `idx_web_mat_stale` ON `website_materials` (`is_stale`);--> statement-breakpoint
 CREATE INDEX `idx_web_mat_chapter` ON `website_materials` (`chapter_id`);--> statement-breakpoint
 CREATE INDEX `idx_weekly_ref_student` ON `weekly_reflections` (`student_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `uq_weekly_ref_student_week` ON `weekly_reflections` (`student_id`,`week_start`);--> statement-breakpoint
-ALTER TABLE `ai_question_bank` ADD `generation_run_id` text REFERENCES question_generation_runs(id);
+CREATE UNIQUE INDEX `uq_weekly_ref_student_week` ON `weekly_reflections` (`student_id`,`week_start`);
