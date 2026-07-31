@@ -194,9 +194,18 @@ export function validateTutorOutput(
     }
 
     if (protectedData.explanationText) {
-      const expSnippet = protectedData.explanationText.slice(0, 50).trim();
-      if (expSnippet.length >= 20 && text.toLowerCase().includes(expSnippet.toLowerCase())) {
-        violations.push('STORED_EXPLANATION_LEAK');
+      const cleanExp = protectedData.explanationText.replace(/\\[()]/g, '').replace(/[\$\s]+/g, ' ').toLowerCase().trim();
+      const cleanText = text.replace(/\\[()]/g, '').replace(/[\$\s]+/g, ' ').toLowerCase().trim();
+
+      if (cleanExp.length >= 20) {
+        const windowSize = Math.min(cleanExp.length, 35);
+        for (let offset = 0; offset <= cleanExp.length - windowSize; offset += 15) {
+          const phrase = cleanExp.slice(offset, offset + windowSize).trim();
+          if (phrase.length >= 20 && cleanText.includes(phrase)) {
+            violations.push('STORED_EXPLANATION_LEAK');
+            break;
+          }
+        }
       }
     }
   }

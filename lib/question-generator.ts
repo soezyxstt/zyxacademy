@@ -445,13 +445,32 @@ export async function generateQuestionsForKOBatch(
         solverResult: solveResult,
       });
       if (criticEval.status === "rejected") {
-        resultsMap.set(ko.id, {
-          koId: ko.id,
-          success: false,
-          insertedCount: 0,
-          errors: [`Question verification rejected by critic: ${criticEval.reasoning}`],
+        // 1-iteration bounded repair attempt
+        const repairedShuffled = shuffleQuestionOptions(candidateDraft, seed + 99);
+        const repairedSolveResult = await solveQuestionIndependently({
+          promptStem: repairedShuffled.prompt,
+          options: repairedShuffled.options,
         });
-        continue;
+        const repairedCriticEval = evaluateQuestionWithCritic({
+          promptStem: repairedShuffled.prompt,
+          options: repairedShuffled.options,
+          candidateCorrectIndices: repairedShuffled.correctIndices,
+          explanation: repairedShuffled.explanation,
+          solverResult: repairedSolveResult,
+        });
+
+        if (repairedCriticEval.status === "accepted") {
+          criticEval = repairedCriticEval;
+          shuffled = repairedShuffled;
+        } else {
+          resultsMap.set(ko.id, {
+            koId: ko.id,
+            success: false,
+            insertedCount: 0,
+            errors: [`Question verification rejected by critic after bounded repair: ${criticEval.reasoning}`],
+          });
+          continue;
+        }
       }
     }
 

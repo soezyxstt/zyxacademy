@@ -35,8 +35,12 @@ export async function auditRenderedPDF(
     return { status: "warn", warnings: ["PDF text extraction failed; skipping AI audit."] };
   }
 
-  if (!extractedText.trim()) {
-    return { status: "warn", warnings: ["PDF appears to have no extractable text."] };
+  if (!extractedText.trim() || extractedText.trim().length < 50) {
+    return { status: "warn", warnings: ["PDF has extremely low text density; potential blank or unrendered pages."] };
+  }
+
+  if (extractedText.includes("[object Object]") || extractedText.includes("\\undefined")) {
+    warnings.push("PDF contains unrendered raw object or undefined LaTeX artifacts.");
   }
 
   // Sample: first 3000 chars + any lines likely containing LaTeX artefacts

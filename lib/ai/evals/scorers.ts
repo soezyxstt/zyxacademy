@@ -28,6 +28,23 @@ export function scoreGoldenCase(
     }
   }
 
+  // Check expected outcome status if present
+  if (goldenCase.expectedOutcome && actualOutput.status) {
+    if (actualOutput.status.toLowerCase() !== goldenCase.expectedOutcome.toLowerCase()) {
+      return {
+        passed: false,
+        violation: goldenCase.zeroToleranceInvariant !== undefined,
+        reason: `Outcome mismatch: expected '${goldenCase.expectedOutcome}', got '${actualOutput.status}'`,
+      };
+    }
+  } else if (goldenCase.expectedOutcome && !actualOutput.status && !actualOutput.redacted && !actualOutput.citationsValid) {
+    return {
+      passed: false,
+      violation: goldenCase.zeroToleranceInvariant !== undefined,
+      reason: "Missing output status or assertion result in evaluation",
+    };
+  }
+
   // Zero-tolerance invariant checks
   if (goldenCase.zeroToleranceInvariant === "active_attempt_redaction") {
     if (actualOutput.redacted === undefined || actualOutput.redacted === false) {
@@ -55,6 +72,46 @@ export function scoreGoldenCase(
         passed: false,
         violation: true,
         reason: "ZERO TOLERANCE: Synthetic success returned or missing status after failure",
+      };
+    }
+  }
+
+  if (goldenCase.zeroToleranceInvariant === "unverified_question_rejection") {
+    if (actualOutput.status !== "rejected") {
+      return {
+        passed: false,
+        violation: true,
+        reason: "ZERO TOLERANCE: Unverified/disagreed question was not rejected",
+      };
+    }
+  }
+
+  if (goldenCase.zeroToleranceInvariant === "flashcard_atomicity_validation") {
+    if (actualOutput.status !== "rejected") {
+      return {
+        passed: false,
+        violation: true,
+        reason: "ZERO TOLERANCE: Non-atomic flashcard front was not rejected",
+      };
+    }
+  }
+
+  if (goldenCase.zeroToleranceInvariant === "ko_identity_determinism") {
+    if (actualOutput.status !== "accepted") {
+      return {
+        passed: false,
+        violation: true,
+        reason: "ZERO TOLERANCE: KO semantic identity hash was not deterministic",
+      };
+    }
+  }
+
+  if (goldenCase.zeroToleranceInvariant === "material_preflight_validation") {
+    if (actualOutput.status !== "rejected") {
+      return {
+        passed: false,
+        violation: true,
+        reason: "ZERO TOLERANCE: Preflight check accepted invalid/needs_review KOs",
       };
     }
   }

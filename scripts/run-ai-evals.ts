@@ -152,7 +152,7 @@ export async function runAiEvaluations() {
       pipelineOutput = { status: hash1 === hash2 ? "accepted" : "rejected", text: hash1 };
     } else if (c.zeroToleranceInvariant === "material_preflight_validation") {
       const preflight = validatePreflightKos([
-        { id: "ko-1", title: "KO 1", status: "needs_review", conceptName: "c1", learningOrder: 1 },
+        { id: "ko-1", title: "KO 1", type: "definition", content: "Content", difficulty: "easy", status: "needs_review" },
       ]);
       pipelineOutput = { status: preflight.valid ? "accepted" : "rejected", text: preflight.errors.join(", ") };
     }

@@ -7,6 +7,7 @@ import { generateContentWithFallback } from "@/lib/gemini";
 import { USE_CASES } from "@/lib/ai-router";
 import { env } from "@/lib/env";
 import { randomUUID } from "node:crypto";
+import { validateTutorOutput } from "@/lib/assessment-assistance-policy";
 
 interface FeedbackPayload {
  whyWrong: string;
@@ -271,15 +272,33 @@ ${promptItems}`;
  const miss = misses.find((m) => m.id === item.questionId);
  if (!miss) continue;
 
- const details = bankMap.get(item.questionId);
- const reviewHref = await getReviewHref(resolvedCourseId, details?.conceptName ?? null);
+  const details = bankMap.get(item.questionId);
+  const reviewHref = await getReviewHref(resolvedCourseId, details?.conceptName ?? null);
 
- const payload: FeedbackPayload = {
- whyWrong: item.whyWrong,
- misconceptionName: item.misconceptionName || null,
- correctApproach: item.correctApproach || [],
- reviewHref,
- };
+  let whyWrongText = item.whyWrong;
+  if (details) {
+    const correctOpts = Array.isArray(details.options) && Array.isArray(details.correctIndices)
+      ? details.correctIndices.map((idx: number) => details.options[idx]).filter((v: any): v is string => typeof v === "string")
+      : [];
+    const val = validateTutorOutput(
+      `${whyWrongText} ${(item.correctApproach || []).join(" ")}`,
+      {
+        correctOptions: correctOpts,
+        explanationText: details.explanation ?? "",
+      },
+      "socratic_only"
+    );
+    if (!val.valid) {
+      whyWrongText = "Periksa kembali konsep dasarnya untuk memahami letak kekeliruan.";
+    }
+  }
+
+  const payload: FeedbackPayload = {
+  whyWrong: whyWrongText,
+  misconceptionName: item.misconceptionName || null,
+  correctApproach: item.correctApproach || [],
+  reviewHref,
+  };
 
  // Cache it in KV
  await kvPut(miss.cacheKey, payload, 30 * 24 * 3600);
