@@ -1233,7 +1233,7 @@ export async function extractKnowledgeObjectsForChapter(
               for (const span of candidateInput.sourceSpans) {
                 await tx.insert(knowledgeObjectSources).values({
                   id: `kos-${randomUUID()}`,
-                  knowledgeObjectId: targetKoId,
+                  koId: targetKoId,
                   sourceDocumentId: mtdId,
                   sourceVersion: `${nextVersion}.0`,
                   chapterId,

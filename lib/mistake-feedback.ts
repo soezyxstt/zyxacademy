@@ -277,8 +277,9 @@ ${promptItems}`;
 
   let whyWrongText = item.whyWrong;
   if (details) {
-    const correctOpts = Array.isArray(details.options) && Array.isArray(details.correctIndices)
-      ? details.correctIndices.map((idx: number) => details.options[idx]).filter((v: any): v is string => typeof v === "string")
+    const detailsAny = details as any;
+    const correctOpts = Array.isArray(detailsAny.options) && Array.isArray(detailsAny.correctIndices)
+      ? detailsAny.correctIndices.map((idx: number) => detailsAny.options[idx]).filter((v: any): v is string => typeof v === "string")
       : [];
     const val = validateTutorOutput(
       `${whyWrongText} ${(item.correctApproach || []).join(" ")}`,

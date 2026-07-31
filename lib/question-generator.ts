@@ -446,7 +446,7 @@ export async function generateQuestionsForKOBatch(
       });
       if (criticEval.status === "rejected") {
         // 1-iteration bounded repair attempt
-        const repairedShuffled = shuffleQuestionOptions(candidateDraft, seed + 99);
+        const repairedShuffled = shuffleQuestionOptions(candidateDraft, 100);
         const repairedSolveResult = await solveQuestionIndependently({
           promptStem: repairedShuffled.prompt,
           options: repairedShuffled.options,
