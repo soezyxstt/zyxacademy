@@ -3,10 +3,19 @@ main = "index.ts"
 compatibility_date = "2026-06-13"
 compatibility_flags = ["nodejs_compat"]
 
+# Production environment (Default)
+# Deploy via: npx wrangler deploy
 [[vectorize]]
 binding = "VECTORIZE"
 index_name = "zyx-edu"
 
-# SHARED_SECRET must be set via: wrangler secret put SHARED_SECRET
-# Create the index first:
-#   wrangler vectorize create zyx-edu --dimensions=1024 --metric=cosine
+# Staging environment
+# Deploy via: npx wrangler deploy --env staging
+# Secret via: npx wrangler secret put SHARED_SECRET --env staging
+[env.staging]
+name = "zyx-vector-api-staging"
+
+[[env.staging.vectorize]]
+binding = "VECTORIZE"
+index_name = "zyx-edu-staging"
+
