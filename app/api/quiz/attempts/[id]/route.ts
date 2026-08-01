@@ -269,10 +269,18 @@ export async function POST(req: NextRequest, { params }: Context) {
 
   // E1: aggregate distractor analytics (once per attempt, deterministic)
   if (env.FEATURE_MISCONCEPTION === "1") {
-    const answered = snapshot.map((q) => ({
-      questionId: q.id,
-      selectedOptions: answers[q.id] ?? [],
-    }));
+    const answered = snapshot.map((q) => {
+      const rawSel = answers[q.id];
+      const selectedOptions: number[] = Array.isArray(rawSel)
+        ? rawSel.map(Number).filter((n) => !isNaN(n))
+        : typeof rawSel === "number"
+        ? [rawSel]
+        : [];
+      return {
+        questionId: q.id,
+        selectedOptions,
+      };
+    });
     await recordQuestionOptionStats(courseId, answered).catch((err) => {
       console.error("recordQuestionOptionStats failed:", err);
     });

@@ -151,18 +151,37 @@ export async function POST(req: NextRequest) {
  return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
  }
 
- const { templateId, answers, durationSeconds, questionsSnapshot } = parsed.data;
- const studentId = session.user.id;
+  const { templateId, answers, durationSeconds, questionsSnapshot } = parsed.data;
+  const studentId = session.user.id;
 
- // Calculate score
- let correct = 0;
- for (const q of questionsSnapshot) {
- const submitted = answers[q.id] ?? [];
- const isCorrect =
- submitted.length === q.correct_indices.length &&
- submitted.every((i) => q.correct_indices.includes(i));
- if (isCorrect) correct++;
- }
+  function checkDailyAnswerCorrectness(q: any, submitted: any): boolean {
+    const qType = q.question_type || q.questionType;
+    if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
+      const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : [];
+      const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
+      const trimmed = text.trim().toLowerCase();
+      return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+    }
+    if (qType === "essay") {
+      const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
+      return text.trim().length > 0;
+    }
+    const indices = Array.isArray(submitted) ? submitted : [];
+    const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
+    if (correct.length === 0) return false;
+    if (qType === "multiple_choice" || !qType) {
+      const firstIdx = indices[0];
+      return firstIdx !== undefined && correct.includes(firstIdx);
+    }
+    return indices.length === correct.length && indices.every((i: number) => correct.includes(i));
+  }
+
+  // Calculate score
+  let correct = 0;
+  for (const q of questionsSnapshot) {
+    const submitted = answers[q.id];
+    if (checkDailyAnswerCorrectness(q, submitted)) correct++;
+  }
 
  const score = Math.round((correct / questionsSnapshot.length) * 100);
  const attemptId = randomUUID();
