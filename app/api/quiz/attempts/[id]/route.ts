@@ -133,7 +133,12 @@ export async function POST(req: NextRequest, { params }: Context) {
     }
     const indices = Array.isArray(submitted) ? submitted : [];
     const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
-    return correct.length > 0 && indices.length === correct.length && indices.every((i: number) => correct.includes(i));
+    if (correct.length === 0) return false;
+    if (qType === "multiple_choice") {
+      const firstIdx = indices[0];
+      return firstIdx !== undefined && correct.includes(firstIdx);
+    }
+    return indices.length === correct.length && indices.every((i: number) => correct.includes(i));
   }
 
   // Auto-grade
