@@ -130,10 +130,32 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
               <div className="space-y-4">
                 <h2 className="font-heading text-h6 font-bold text-foreground">Pembahasan</h2>
                 {snapshot.map((q, idx) => {
-                  const selected = answers[q.id] ?? [];
-                  const correct = q.correct_indices ?? [];
-                  const isCorrect = selected.length === correct.length && selected.every((v) => correct.includes(v));
-                  const selectedText = selected.map((i) => q.options[i]).filter(Boolean).join("; ");
+                  const rawSel = answers[q.id];
+                  const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
+                  const selected = Array.isArray(rawSel)
+                    ? rawSel
+                    : typeof rawSel === "number"
+                    ? [rawSel]
+                    : [];
+                  const correct = q.correct_indices ?? (q as any).correctIndices ?? [];
+
+                  let isCorrect = false;
+                  if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
+                    const acceptable = (q as any).acceptable_answers || [];
+                    const text = typeof rawSel === "string" ? rawSel : Array.isArray(rawSel) ? String(rawSel[0] ?? "") : "";
+                    const trimmed = text.trim().toLowerCase();
+                    isCorrect = trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+                  } else if (qType === "essay") {
+                    const text = typeof rawSel === "string" ? rawSel : Array.isArray(rawSel) ? String(rawSel[0] ?? "") : "";
+                    isCorrect = text.trim().length > 0;
+                  } else if (qType === "multiple_choice" || !qType) {
+                    const firstIdx = selected[0];
+                    isCorrect = firstIdx !== undefined && correct.includes(firstIdx);
+                  } else {
+                    isCorrect = selected.length === correct.length && selected.every((v: number) => correct.includes(v));
+                  }
+
+                  const selectedText = typeof rawSel === "string" ? rawSel : selected.map((i: number) => q.options[i]).filter(Boolean).join("; ");
                   return (
                     <div key={q.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
                       <div className="flex items-start gap-2.5">

@@ -493,11 +493,33 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   Soal yang Anda Kerjakan
                 </h2>
                 {snapshot.map((q, idx) => {
-                  const studentSelected = answers[q.id] ?? [];
-                  const correctIndices = q.correct_indices ?? [];
-                  const isCorrect =
-                    studentSelected.length === correctIndices.length &&
-                    studentSelected.every((val) => correctIndices.includes(val));
+                  const rawSubmitted = answers[q.id];
+                  const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
+                  const studentSelected = Array.isArray(rawSubmitted)
+                    ? rawSubmitted
+                    : typeof rawSubmitted === "number"
+                    ? [rawSubmitted]
+                    : [];
+
+                  const correctIndices = q.correct_indices ?? (q as any).correctIndices ?? [];
+
+                  let isCorrect = false;
+                  if (qType === "short_answer" || (Array.isArray((q as any).acceptable_answers) && (q as any).acceptable_answers.length > 0)) {
+                    const acceptable = (q as any).acceptable_answers || [];
+                    const text = typeof rawSubmitted === "string" ? rawSubmitted : Array.isArray(rawSubmitted) ? String(rawSubmitted[0] ?? "") : "";
+                    const trimmed = text.trim().toLowerCase();
+                    isCorrect = trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+                  } else if (qType === "essay") {
+                    const text = typeof rawSubmitted === "string" ? rawSubmitted : Array.isArray(rawSubmitted) ? String(rawSubmitted[0] ?? "") : "";
+                    isCorrect = text.trim().length > 0;
+                  } else if (qType === "multiple_choice" || !qType) {
+                    const firstIdx = studentSelected[0];
+                    isCorrect = firstIdx !== undefined && correctIndices.includes(firstIdx);
+                  } else {
+                    isCorrect =
+                      studentSelected.length === correctIndices.length &&
+                      studentSelected.every((val: number) => correctIndices.includes(val));
+                  }
 
                   return (
                     <div
