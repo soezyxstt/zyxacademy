@@ -38,20 +38,20 @@ export interface VzMatch {
 // ---------------------------------------------------------------------------
 
 export function shouldMirrorToVectorize(): boolean {
- const mode = env.VECTOR_STORE;
- return (
- (mode === 'dual' || mode === 'vectorize') &&
- !!env.VECTORIZE_WORKER_URL &&
- !!env.VECTORIZE_SHARED_SECRET
- );
+  const mode = process.env.VECTOR_STORE;
+  return (
+    (mode === 'dual' || mode === 'vectorize') &&
+    !!(process.env.VECTORIZE_WORKER_URL || env?.VECTORIZE_WORKER_URL) &&
+    !!(process.env.VECTORIZE_SHARED_SECRET || env?.VECTORIZE_SHARED_SECRET)
+  );
 }
 
 export function shouldReadFromVectorize(): boolean {
- return (
- env.VECTOR_STORE === 'vectorize' &&
- !!env.VECTORIZE_WORKER_URL &&
- !!env.VECTORIZE_SHARED_SECRET
- );
+  return (
+    process.env.VECTOR_STORE === 'vectorize' &&
+    !!(process.env.VECTORIZE_WORKER_URL || env?.VECTORIZE_WORKER_URL) &&
+    !!(process.env.VECTORIZE_SHARED_SECRET || env?.VECTORIZE_SHARED_SECRET)
+  );
 }
 
 // ---------------------------------------------------------------------------
