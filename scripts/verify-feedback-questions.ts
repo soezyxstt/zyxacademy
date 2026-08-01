@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { aiQuestionBank } from "../db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import fs from "fs";
