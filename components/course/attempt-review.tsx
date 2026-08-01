@@ -72,6 +72,29 @@ const KIND_ICON = {
  module: BookOpen,
 };
 
+function checkReviewAnswerCorrectness(q: any, submitted: any): boolean {
+  if (!q) return false;
+  const qType = q.question_type || q.questionType || q.type;
+  if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0) || (Array.isArray(q.acceptableAnswers) && q.acceptableAnswers.length > 0)) {
+    const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : Array.isArray(q.acceptableAnswers) ? q.acceptableAnswers : [];
+    const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
+    const trimmed = text.trim().toLowerCase();
+    return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+  }
+  if (qType === "essay") {
+    const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
+    return text.trim().length > 0;
+  }
+  const indices = Array.isArray(submitted) ? submitted : [];
+  const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
+  if (correct.length === 0) return false;
+  if (qType === "multiple_choice" || !qType) {
+    const firstIdx = indices[0];
+    return firstIdx !== undefined && correct.includes(firstIdx);
+  }
+  return indices.length === correct.length && indices.every((i: number) => correct.includes(i));
+}
+
 export function AttemptReview({ attemptId }: { attemptId: string }) {
  const [pollCount, setPollCount] = useState(0);
  const [openFeedback, setOpenFeedback] = useState<Record<number, boolean>>({});
@@ -90,11 +113,8 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  // Count incorrect questions
  let incorrectCount = 0;
  data.questionsSnapshot.forEach((q) => {
- const submitted = data.answersSnapshot[q.id] ?? [];
- const isCorrect =
- submitted.length === q.correct_indices.length &&
- submitted.every((i) => q.correct_indices.includes(i));
- if (!isCorrect) incorrectCount++;
+ const submitted = data.answersSnapshot?.[q.id];
+ if (!checkReviewAnswerCorrectness(q, submitted)) incorrectCount++;
  });
 
  // Stop if all wrong answers have feedback
@@ -116,11 +136,8 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  if (isFetching && attempt) {
  let incorrectCount = 0;
  attempt.questionsSnapshot.forEach((q) => {
- const submitted = attempt.answersSnapshot[q.id] ?? [];
- const isCorrect =
- submitted.length === q.correct_indices.length &&
- submitted.every((i) => q.correct_indices.includes(i));
- if (!isCorrect) incorrectCount++;
+ const submitted = attempt.answersSnapshot?.[q.id];
+ if (!checkReviewAnswerCorrectness(q, submitted)) incorrectCount++;
  });
 
  const feedbackCount = attempt.feedback?.length ?? 0;
@@ -166,11 +183,8 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  // Grade stats
  let correctCount = 0;
  questionsSnapshot.forEach((q) => {
- const submitted = answersSnapshot[q.id] ?? [];
- const isCorrect =
- submitted.length === q.correct_indices.length &&
- submitted.every((i) => q.correct_indices.includes(i));
- if (isCorrect) correctCount++;
+ const submitted = answersSnapshot?.[q.id];
+ if (checkReviewAnswerCorrectness(q, submitted)) correctCount++;
  });
  const totalCount = questionsSnapshot.length;
 
@@ -293,16 +307,30 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  <div className="divide-y divide-border mt-8">
  {questionsSnapshot.map((q, idx) => {
  const submitted = answersSnapshot[q.id] ?? [];
- const isCorrect =
- submitted.length === q.correct_indices.length &&
- submitted.every((i) => q.correct_indices.includes(i));
+ const isCorrect = checkReviewAnswerCorrectness(q, submitted);
 
  const fbItem = feedback?.find((f) => f.questionIndex === idx);
  const hasFb = !!fbItem;
 
- // Resolve choice option labels
- const submittedLabel = submitted.map((i) => q.options[i] ?? `Opsi ${i}`).join(", ");
- const correctLabel = q.correct_indices.map((i) => q.options[i] ?? `Opsi ${i}`).join(", ");
+ const qType = (q as any).question_type || (q as any).questionType || (q as any).type;
+ let submittedLabel = "";
+ if (qType === "short_answer" || qType === "essay") {
+   submittedLabel = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
+ } else {
+   const indices = Array.isArray(submitted) ? submitted : [];
+   submittedLabel = indices.map((i: number) => q.options?.[i] ?? `Opsi ${i}`).join(", ");
+ }
+
+ let correctLabel = "";
+ if (qType === "short_answer") {
+   const acc = (q as any).acceptable_answers || (q as any).acceptableAnswers || [];
+   correctLabel = Array.isArray(acc) ? acc.join(", ") : "";
+ } else if (qType === "essay") {
+   correctLabel = (q as any).explanation || "Jawaban Uraian / Rubrik";
+ } else {
+   const correctArr = Array.isArray(q.correct_indices) ? q.correct_indices : (q as any).correctIndices || [];
+   correctLabel = correctArr.map((i: number) => q.options?.[i] ?? `Opsi ${i}`).join(", ");
+ }
 
  return (
  <div key={q.id} className="py-6 first:pt-0">

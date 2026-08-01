@@ -204,7 +204,7 @@ async function seed() {
   if (localCourses.length === 0) {
     console.log("Seeding dummy courses into local SQLite...");
     for (const c of prodCourses) {
-      await db.insert(courses).values({ id: c.id, title: c.title, category: "matematika", description: c.title }).onConflictDoNothing();
+      await db.insert(courses).values({ id: c.id, title: c.title, category: "Matematika", description: c.title }).onConflictDoNothing();
     }
     localCourses = await db.select({ id: courses.id, title: courses.title }).from(courses);
   }
