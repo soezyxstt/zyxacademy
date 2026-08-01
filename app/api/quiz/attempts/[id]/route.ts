@@ -111,66 +111,80 @@ export async function POST(req: NextRequest, { params }: Context) {
  return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
  }
 
- const { answers, durationSeconds } = parsed.data;
- const snapshot = attempt.questionsSnapshot as Array<{
- id: string;
- correct_indices: number[];
- }>;
+  const { answers, durationSeconds } = parsed.data;
+  const snapshot = attempt.questionsSnapshot as Array<{
+    id: string;
+    question_type?: string;
+    correct_indices?: number[];
+    acceptable_answers?: string[];
+  }>;
 
- // Auto-grade
- let correct = 0;
- for (const q of snapshot) {
- const submitted = answers[q.id] ?? [];
- const isCorrect =
- submitted.length === q.correct_indices.length &&
- submitted.every((i) => q.correct_indices.includes(i));
- if (isCorrect) correct++;
- }
+  function checkAnswerCorrectness(q: any, submitted: any): boolean {
+    const qType = q.question_type || q.questionType;
+    if (qType === "short_answer" || (Array.isArray(q.acceptable_answers) && q.acceptable_answers.length > 0)) {
+      const acceptable = Array.isArray(q.acceptable_answers) ? q.acceptable_answers : [];
+      const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
+      const trimmed = text.trim().toLowerCase();
+      return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
+    }
+    if (qType === "essay") {
+      const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
+      return text.trim().length > 0;
+    }
+    const indices = Array.isArray(submitted) ? submitted : [];
+    const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
+    return correct.length > 0 && indices.length === correct.length && indices.every((i: number) => correct.includes(i));
+  }
 
- const score = snapshot.length > 0 ? Math.round((correct / snapshot.length) * 100) : 0;
+  // Auto-grade
+  let correct = 0;
+  for (const q of snapshot) {
+    const submitted = answers[q.id];
+    if (checkAnswerCorrectness(q, submitted)) correct++;
+  }
 
- // Increment use counts + collect KO data for learning events
- const questionIds = snapshot.map((q) => q.id);
- const questionKoMap: Map<string, { koId: string; conceptName: string | null }> = new Map();
- if (questionIds.length > 0) {
- const [, bankRows] = await Promise.all([
- db
- .update(aiQuestionBank)
- .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })
- .where(inArray(aiQuestionBank.id, questionIds)),
- db
- .select({
- id: aiQuestionBank.id,
- koId: aiQuestionBank.knowledgeObjectId,
- conceptName: knowledgeObjects.conceptName,
- })
- .from(aiQuestionBank)
- .leftJoin(knowledgeObjects, eq(aiQuestionBank.knowledgeObjectId, knowledgeObjects.id))
- .where(inArray(aiQuestionBank.id, questionIds)),
- ]);
- for (const row of bankRows) {
- if (row.koId) {
- questionKoMap.set(row.id, { koId: row.koId, conceptName: row.conceptName ?? null });
- }
- }
- }
+  const score = snapshot.length > 0 ? Math.round((correct / snapshot.length) * 100) : 0;
 
- // Group questions by conceptName and compute strong/weak areas
- const conceptResults: Record<string, { total: number; correct: number }> = {};
- for (const q of snapshot) {
- const ko = questionKoMap.get(q.id);
- if (!ko || !ko.conceptName) continue;
- const conceptName = ko.conceptName.trim();
- if (!conceptResults[conceptName]) {
- conceptResults[conceptName] = { total: 0, correct: 0 };
- }
- const submitted = answers[q.id] ?? [];
- const isCorrect =
- submitted.length === q.correct_indices.length &&
- submitted.every((i) => q.correct_indices.includes(i));
- conceptResults[conceptName].total++;
- if (isCorrect) conceptResults[conceptName].correct++;
- }
+  // Increment use counts + collect KO data for learning events
+  const questionIds = snapshot.map((q) => q.id);
+  const questionKoMap: Map<string, { koId: string; conceptName: string | null }> = new Map();
+  if (questionIds.length > 0) {
+    const [, bankRows] = await Promise.all([
+      db
+        .update(aiQuestionBank)
+        .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })
+        .where(inArray(aiQuestionBank.id, questionIds)),
+      db
+        .select({
+          id: aiQuestionBank.id,
+          koId: aiQuestionBank.knowledgeObjectId,
+          conceptName: knowledgeObjects.conceptName,
+        })
+        .from(aiQuestionBank)
+        .leftJoin(knowledgeObjects, eq(aiQuestionBank.knowledgeObjectId, knowledgeObjects.id))
+        .where(inArray(aiQuestionBank.id, questionIds)),
+    ]);
+    for (const row of bankRows) {
+      if (row.koId) {
+        questionKoMap.set(row.id, { koId: row.koId, conceptName: row.conceptName ?? null });
+      }
+    }
+  }
+
+  // Group questions by conceptName and compute strong/weak areas
+  const conceptResults: Record<string, { total: number; correct: number }> = {};
+  for (const q of snapshot) {
+    const ko = questionKoMap.get(q.id);
+    if (!ko || !ko.conceptName) continue;
+    const conceptName = ko.conceptName.trim();
+    if (!conceptResults[conceptName]) {
+      conceptResults[conceptName] = { total: 0, correct: 0 };
+    }
+    const submitted = answers[q.id];
+    const isCorrect = checkAnswerCorrectness(q, submitted);
+    conceptResults[conceptName].total++;
+    if (isCorrect) conceptResults[conceptName].correct++;
+  }
 
  const strongAreas: string[] = [];
  const weakAreas: string[] = [];
@@ -215,22 +229,20 @@ export async function POST(req: NextRequest, { params }: Context) {
     })
     .where(eq(studentQuizAttempts.id, id));
 
- if (template) {
- const events = snapshot.map((q) => {
- const submitted = answers[q.id] ?? [];
- const isCorrect =
- submitted.length === q.correct_indices.length &&
- submitted.every((i) => q.correct_indices.includes(i));
- const ko = questionKoMap.get(q.id);
- return {
- studentId: attempt.studentId,
- courseId: template.courseId,
- eventType: 'quiz_answer' as const,
- koId: ko?.koId ?? null,
- conceptName: ko?.conceptName ?? null,
- correctness: isCorrect ? 1 : 0,
- };
- });
+  if (template) {
+    const events = snapshot.map((q) => {
+      const submitted = answers[q.id];
+      const isCorrect = checkAnswerCorrectness(q, submitted);
+      const ko = questionKoMap.get(q.id);
+      return {
+        studentId: attempt.studentId,
+        courseId: template.courseId,
+        eventType: 'quiz_answer' as const,
+        koId: ko?.koId ?? null,
+        conceptName: ko?.conceptName ?? null,
+        correctness: isCorrect ? 1 : 0,
+      };
+    });
 
   const recomputePromise = inngest
     .send({

@@ -10,9 +10,13 @@ export interface QuestionClientView {
   prompt: string;
   options: string[];
   difficulty?: string;
+  question_type?: string;
+  questionType?: string;
   tags?: string[];
   correct_indices?: number[];
   correctIndices?: number[];
+  acceptable_answers?: string[];
+  acceptableAnswers?: string[];
   explanation?: string;
 }
 
@@ -33,12 +37,17 @@ export function sanitizeQuestionsSnapshot(
   const isInProgress = attemptStatus === 'in_progress' || attemptStatus === 'submitted';
 
   return questions.map((q) => {
+    const qType = q.question_type || q.questionType;
     const clean: QuestionClientView = {
       id: String(q.id ?? ''),
       prompt: String(q.prompt ?? ''),
       options: Array.isArray(q.options) ? q.options.map(String) : [],
     };
 
+    if (qType) {
+      clean.question_type = String(qType);
+      clean.questionType = String(qType);
+    }
     if (q.difficulty) clean.difficulty = String(q.difficulty);
     if (Array.isArray(q.tags)) clean.tags = q.tags.map(String);
 
@@ -60,6 +69,8 @@ export function sanitizeQuestionsSnapshot(
     // Released: include full solution details
     if (Array.isArray(q.correct_indices)) clean.correct_indices = q.correct_indices;
     if (Array.isArray(q.correctIndices)) clean.correctIndices = q.correctIndices;
+    if (Array.isArray(q.acceptable_answers)) clean.acceptable_answers = q.acceptable_answers;
+    if (Array.isArray(q.acceptableAnswers)) clean.acceptableAnswers = q.acceptableAnswers;
     if (q.explanation) clean.explanation = String(q.explanation);
 
     return clean;

@@ -741,11 +741,13 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `reasoningType`: Mode of thinking needed.
 * `applicationLevel`: Cognitive level matching pedagogical standards.
 * `estimatedSteps`: Estimate count of reasoning steps.
+* `questionType`: Category format ('multiple_choice', 'multiple_choices', 'short_answer', 'essay').
 * `prompt`: The question prompt statement.
-* `options`: Shuffled array of 4 option text strings.
-* `correctIndices`: Array of 0-based correct option display indices after application shuffle.
+* `options`: Shuffled array of option text strings (empty for short_answer and essay).
+* `correctIndices`: Array of 0-based correct option display indices.
+* `acceptableAnswers`: JSON array of acceptable answer text variations for `short_answer` questions.
 * `distractorMap`: Legacy JSON array mapping non-correct option indices to misconception KOs.
-* `explanation`: Explanatory details supporting the answer.
+* `explanation`: Explanatory details or essay grading rubric.
 * `reviewStatus`: Question lifecycle status ('generated', 'reviewed', 'published', 'flagged', 'retired').
 * `qualityScore`: Real number score (null for unverified new questions until Plan 011 acceptance test).
 * `generationHash`: Validation checksum matching current settings state.

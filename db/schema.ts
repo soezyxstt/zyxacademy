@@ -613,11 +613,12 @@ export const aiQuestionBank = sqliteTable(
     isStale: integer("is_stale", { mode: "boolean" }).default(false).notNull(),
     
     difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().default("medium").notNull(),
-    questionType: text("question_type").$type<"multiple_choice" | "multiple_choices">().default("multiple_choice").notNull(),
+    questionType: text("question_type").$type<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">().default("multiple_choice").notNull(),
     tags: text("tags", { mode: "json" }).$defaultFn(() => []).notNull(),
     prompt: text("prompt").notNull(),
     options: text("options", { mode: "json" }).notNull(),
     correctIndices: text("correct_indices", { mode: "json" }).notNull(),
+    acceptableAnswers: text("acceptable_answers", { mode: "json" }).$type<string[]>(),
     /**
      * EIF E1: per non-correct option, the misconception it represents.
      * One entry per wrong option. Empty/null = not tagged (legacy rows).

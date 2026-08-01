@@ -23,6 +23,7 @@ interface Question {
   prompt: string;
   options: unknown;
   correctIndices: unknown;
+  acceptableAnswers?: unknown;
   explanation: string;
   reviewStatus: ReviewStatus;
   qualityScore: number | null;
@@ -85,8 +86,10 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
   // Create Form State
   const [createCourseId, setCreateCourseId] = useState(courses[0]?.id || "");
   const [createPrompt, setCreatePrompt] = useState("");
+  const [createQuestionType, setCreateQuestionType] = useState<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">("multiple_choice");
   const [createOptions, setCreateOptions] = useState<string[]>(["", "", "", "", ""]);
   const [createCorrectIndex, setCreateCorrectIndex] = useState<number>(0);
+  const [createAcceptableAnswers, setCreateAcceptableAnswers] = useState("");
   const [createExplanation, setCreateExplanation] = useState("");
   const [createDifficulty, setCreateDifficulty] = useState<Difficulty>("medium");
   const [createTagsStr, setCreateTagsStr] = useState("");
@@ -94,8 +97,10 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
   // Edit Form State
   const [editPrompt, setEditPrompt] = useState("");
+  const [editQuestionType, setEditQuestionType] = useState<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">("multiple_choice");
   const [editOptions, setEditOptions] = useState<string[]>(["", "", "", "", ""]);
   const [editCorrectIndex, setEditCorrectIndex] = useState<number>(0);
+  const [editAcceptableAnswers, setEditAcceptableAnswers] = useState("");
   const [editExplanation, setEditExplanation] = useState("");
   const [editDifficulty, setEditDifficulty] = useState<Difficulty>("medium");
   const [editTagsStr, setEditTagsStr] = useState("");
@@ -162,11 +167,14 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
   const handleStartEdit = (q: Question) => {
     setEditingQuestion(q);
     setEditPrompt(q.prompt);
+    setEditQuestionType((q.questionType as any) || "multiple_choice");
     const opts = Array.isArray(q.options) ? [...q.options] : ["", "", "", "", ""];
     while (opts.length < 5) opts.push("");
     setEditOptions(opts.slice(0, 5));
     const correctIdxs = Array.isArray(q.correctIndices) ? q.correctIndices : [];
     setEditCorrectIndex(correctIdxs[0] ?? 0);
+    const accAnswers = Array.isArray(q.acceptableAnswers) ? (q.acceptableAnswers as string[]) : [];
+    setEditAcceptableAnswers(accAnswers.join(", "));
     setEditExplanation(q.explanation || "");
     setEditDifficulty(q.difficulty);
     const tagsArr = Array.isArray(q.tags) ? q.tags : [];
@@ -182,19 +190,28 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createPrompt.trim()) return toast.error("Prompt soal wajib diisi.");
-    if (createOptions.some(opt => !opt.trim())) return toast.error("Semua 5 pilihan opsi harus diisi.");
+    
+    if (createQuestionType === "multiple_choice" || createQuestionType === "multiple_choices") {
+      if (createOptions.some(opt => !opt.trim())) return toast.error("Semua 5 pilihan opsi harus diisi.");
+    } else if (createQuestionType === "short_answer") {
+      if (!createAcceptableAnswers.trim()) return toast.error("Jawaban benar yang diterima wajib diisi.");
+    }
 
     try {
       setSubmittingCreate(true);
       const tags = createTagsStr.split(",").map((t) => t.trim()).filter(Boolean);
+      const acceptableAnswers = createAcceptableAnswers.split(",").map((a) => a.trim()).filter(Boolean);
+
       const res = await fetch("/api/admin/questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: createCourseId,
           prompt: createPrompt,
-          options: createOptions,
-          correctIndices: [createCorrectIndex],
+          questionType: createQuestionType,
+          options: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : createOptions,
+          correctIndices: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : [createCorrectIndex],
+          acceptableAnswers,
           explanation: createExplanation,
           difficulty: createDifficulty,
           tags,
@@ -214,11 +231,12 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         id: newQ.id,
         courseId: createCourseId,
         difficulty: createDifficulty,
-        questionType: "multiple_choice",
+        questionType: createQuestionType,
         tags,
         prompt: createPrompt,
-        options: createOptions,
-        correctIndices: [createCorrectIndex],
+        options: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : createOptions,
+        correctIndices: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : [createCorrectIndex],
+        acceptableAnswers,
         explanation: createExplanation,
         reviewStatus: "published",
         qualityScore: 1.0,
@@ -232,6 +250,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
       setCreatePrompt("");
       setCreateOptions(["", "", "", "", ""]);
       setCreateCorrectIndex(0);
+      setCreateAcceptableAnswers("");
       setCreateExplanation("");
       setCreateTagsStr("");
     } catch (err: any) {
@@ -293,18 +312,27 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
     e.preventDefault();
     if (!editingQuestion) return;
     if (!editPrompt.trim()) return toast.error("Prompt soal wajib diisi.");
-    if (editOptions.some(opt => !opt.trim())) return toast.error("Semua 5 pilihan opsi harus diisi.");
+
+    if (editQuestionType === "multiple_choice" || editQuestionType === "multiple_choices") {
+      if (editOptions.some(opt => !opt.trim())) return toast.error("Semua 5 pilihan opsi harus diisi.");
+    } else if (editQuestionType === "short_answer") {
+      if (!editAcceptableAnswers.trim()) return toast.error("Jawaban benar yang diterima wajib diisi.");
+    }
 
     try {
       setSubmittingEdit(true);
       const tags = editTagsStr.split(",").map((t) => t.trim()).filter(Boolean);
+      const acceptableAnswers = editAcceptableAnswers.split(",").map((a) => a.trim()).filter(Boolean);
+
       const res = await fetch(`/api/admin/questions/${editingQuestion.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: editPrompt,
-          options: editOptions,
-          correctIndices: [editCorrectIndex],
+          questionType: editQuestionType,
+          options: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : editOptions,
+          correctIndices: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : [editCorrectIndex],
+          acceptableAnswers,
           explanation: editExplanation,
           difficulty: editDifficulty,
           tags,
@@ -325,8 +353,10 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
             ? {
                 ...item,
                 prompt: editPrompt,
-                options: editOptions,
-                correctIndices: [editCorrectIndex],
+                questionType: editQuestionType,
+                options: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : editOptions,
+                correctIndices: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : [editCorrectIndex],
+                acceptableAnswers,
                 explanation: editExplanation,
                 difficulty: editDifficulty,
                 tags,
@@ -520,11 +550,11 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
             <DialogTitle className="font-heading text-h6 font-bold text-foreground">Tambah Soal Manual</DialogTitle>
-            <DialogDescription>Tambahkan soal pilihan ganda baru ke bank soal secara manual.</DialogDescription>
+            <DialogDescription>Tambahkan soal pilihan ganda, isian singkat, atau essay ke bank soal secara manual.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
                   <Select value={createCourseId} onValueChange={setCreateCourseId}>
@@ -541,6 +571,21 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                   </Select>
                 </div>
                 
+                <div className="space-y-1.5">
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipe Soal</label>
+                  <Select value={createQuestionType} onValueChange={(val) => setCreateQuestionType(val as any)}>
+                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                      <SelectValue placeholder="Pilih Tipe Soal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="multiple_choice">Pilihan Ganda (1 Jawaban)</SelectItem>
+                      <SelectItem value="multiple_choices">Pilihan Ganda Kompleks</SelectItem>
+                      <SelectItem value="short_answer">Isian Singkat</SelectItem>
+                      <SelectItem value="essay">Essay / Uraian</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tingkat Kesulitan</label>
                   <Select value={createDifficulty} onValueChange={(val) => setCreateDifficulty(val as any)}>
@@ -567,41 +612,64 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                 />
               </div>
 
-              <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi Pilihan (Isi Kelima Opsi & Pilih Opsi yang Benar)</label>
-                <div className="space-y-2.5">
-                  {createOptions.map((opt, idx) => (
-                    <div key={idx} className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="correct-option-create"
-                        checked={createCorrectIndex === idx}
-                        onChange={() => setCreateCorrectIndex(idx)}
-                        className="size-4 text-brand-primary cursor-pointer focus:ring-brand-primary accent-brand-primary"
-                      />
-                      <span className="font-bold text-muted-foreground text-body-sm w-4 text-center">{String.fromCharCode(65 + idx)}</span>
-                      <Input
-                        type="text"
-                        value={opt}
-                        onChange={(e) => {
-                          const next = [...createOptions];
-                          next[idx] = e.target.value;
-                          setCreateOptions(next);
-                        }}
-                        placeholder={`Masukkan Opsi ${String.fromCharCode(65 + idx)}`}
-                        className="h-9 border-border/85 bg-background text-body-sm font-medium"
-                      />
-                    </div>
-                  ))}
+              {(createQuestionType === "multiple_choice" || createQuestionType === "multiple_choices") && (
+                <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi Pilihan (Isi Kelima Opsi & Pilih Opsi yang Benar)</label>
+                  <div className="space-y-2.5">
+                    {createOptions.map((opt, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="correct-option-create"
+                          checked={createCorrectIndex === idx}
+                          onChange={() => setCreateCorrectIndex(idx)}
+                          className="size-4 text-brand-primary cursor-pointer focus:ring-brand-primary accent-brand-primary"
+                        />
+                        <span className="font-bold text-muted-foreground text-body-sm w-4 text-center">{String.fromCharCode(65 + idx)}</span>
+                        <Input
+                          type="text"
+                          value={opt}
+                          onChange={(e) => {
+                            const next = [...createOptions];
+                            next[idx] = e.target.value;
+                            setCreateOptions(next);
+                          }}
+                          placeholder={`Masukkan Opsi ${String.fromCharCode(65 + idx)}`}
+                          className="h-9 border-border/85 bg-background text-body-sm font-medium"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {createQuestionType === "short_answer" && (
+                <div className="space-y-1.5 rounded-xl border border-border bg-muted/5 p-5">
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Jawaban Benar yang Diterima (Pisahkan dengan koma jika ada variasi)</label>
+                  <Input
+                    type="text"
+                    value={createAcceptableAnswers}
+                    onChange={(e) => setCreateAcceptableAnswers(e.target.value)}
+                    placeholder="Contoh: 12, duabelas, 12.0"
+                    className="h-10 border-border/85 bg-background text-body-sm font-medium"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Siswa dianggap benar jika jawabannya cocok dengan salah satu kata kunci di atas (tidak peka huruf besar/kecil).</p>
+                </div>
+              )}
+
+              {createQuestionType === "essay" && (
+                <div className="p-4 rounded-xl border border-border bg-muted/5 text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground mb-1">Soal Tipe Essay / Uraian</p>
+                  Siswa akan menjawab dengan teks bebas. Tuliskan kunci jawaban referensi atau rubrik penilaian pada kolom Penjelasan Solusi di bawah.
+                </div>
+              )}
 
               <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Penjelasan Solusi (Mendukung LaTeX)</label>
+                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Penjelasan Solusi / Rubrik (Mendukung LaTeX)</label>
                 <textarea
                   value={createExplanation}
                   onChange={(e) => setCreateExplanation(e.target.value)}
-                  placeholder="Mengapa opsi ini benar..."
+                  placeholder="Mengapa opsi ini benar atau rincian poin penilaian..."
                   rows={2}
                   className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-sans text-body-sm font-medium"
                 />
@@ -639,18 +707,35 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
           {editingQuestion && (
             <form onSubmit={handleEditSubmit} className="flex-1 flex flex-col min-h-0">
               <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
-                 <div className="space-y-1.5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tingkat Kesulitan</label>
-                  <Select value={editDifficulty} onValueChange={(val) => setEditDifficulty(val as any)}>
-                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
-                      <SelectValue placeholder="Pilih Kesulitan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="easy">Easy</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="hard">Hard</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipe Soal</label>
+                    <Select value={editQuestionType} onValueChange={(val) => setEditQuestionType(val as any)}>
+                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                        <SelectValue placeholder="Pilih Tipe Soal" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="multiple_choice">Pilihan Ganda (1 Jawaban)</SelectItem>
+                        <SelectItem value="multiple_choices">Pilihan Ganda Kompleks</SelectItem>
+                        <SelectItem value="short_answer">Isian Singkat</SelectItem>
+                        <SelectItem value="essay">Essay / Uraian</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tingkat Kesulitan</label>
+                    <Select value={editDifficulty} onValueChange={(val) => setEditDifficulty(val as any)}>
+                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                        <SelectValue placeholder="Pilih Kesulitan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="easy">Easy</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="hard">Hard</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -664,34 +749,56 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                   />
                 </div>
 
-                <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi Pilihan (Isi Kelima Opsi & Pilih Opsi yang Benar)</label>
-                  <div className="space-y-2.5">
-                    {editOptions.map((opt, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
-                        <input
-                          type="radio"
-                          name="correct-option-edit"
-                          checked={editCorrectIndex === idx}
-                          onChange={() => setEditCorrectIndex(idx)}
-                          className="size-4 text-brand-primary cursor-pointer focus:ring-brand-primary accent-brand-primary"
-                        />
-                        <span className="font-bold text-muted-foreground text-body-sm w-4 text-center">{String.fromCharCode(65 + idx)}</span>
-                        <Input
-                          type="text"
-                          value={opt}
-                          onChange={(e) => {
-                            const next = [...editOptions];
-                            next[idx] = e.target.value;
-                            setEditOptions(next);
-                          }}
-                          placeholder={`Opsi ${String.fromCharCode(65 + idx)}`}
-                          className="h-9 border-border/85 bg-background text-body-sm font-medium"
-                        />
-                      </div>
-                    ))}
+                {(editQuestionType === "multiple_choice" || editQuestionType === "multiple_choices") && (
+                  <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi Pilihan (Isi Kelima Opsi & Pilih Opsi yang Benar)</label>
+                    <div className="space-y-2.5">
+                      {editOptions.map((opt, idx) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="correct-option-edit"
+                            checked={editCorrectIndex === idx}
+                            onChange={() => setEditCorrectIndex(idx)}
+                            className="size-4 text-brand-primary cursor-pointer focus:ring-brand-primary accent-brand-primary"
+                          />
+                          <span className="font-bold text-muted-foreground text-body-sm w-4 text-center">{String.fromCharCode(65 + idx)}</span>
+                          <Input
+                            type="text"
+                            value={opt}
+                            onChange={(e) => {
+                              const next = [...editOptions];
+                              next[idx] = e.target.value;
+                              setEditOptions(next);
+                            }}
+                            placeholder={`Opsi ${String.fromCharCode(65 + idx)}`}
+                            className="h-9 border-border/85 bg-background text-body-sm font-medium"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {editQuestionType === "short_answer" && (
+                  <div className="space-y-1.5 rounded-xl border border-border bg-muted/5 p-5">
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Jawaban Benar yang Diterima (Pisahkan dengan koma)</label>
+                    <Input
+                      type="text"
+                      value={editAcceptableAnswers}
+                      onChange={(e) => setEditAcceptableAnswers(e.target.value)}
+                      placeholder="Contoh: 12, duabelas"
+                      className="h-10 border-border/85 bg-background text-body-sm font-medium"
+                    />
+                  </div>
+                )}
+
+                {editQuestionType === "essay" && (
+                  <div className="p-4 rounded-xl border border-border bg-muted/5 text-xs text-muted-foreground">
+                    <p className="font-semibold text-foreground mb-1">Soal Tipe Essay / Uraian</p>
+                    Tuliskan rubrik atau kunci jawaban referensi pada kolom Penjelasan Solusi.
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Penjelasan Solusi (Mendukung LaTeX)</label>
@@ -751,7 +858,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
             <DialogTitle className="font-heading text-h6 font-bold text-foreground">Impor Soal via Markdown</DialogTitle>
-            <DialogDescription>Impor banyak soal pilihan ganda sekaligus menggunakan file Markdown (.md).</DialogDescription>
+            <DialogDescription>Impor banyak soal (Pilihan Ganda, Isian Singkat, atau Essay) sekaligus menggunakan file Markdown (.md).</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleBulkSubmit} className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
@@ -790,7 +897,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                   required
                   value={bulkMarkdown}
                   onChange={(e) => setBulkMarkdown(e.target.value)}
-                  placeholder="## Soal 1&#10;Tentukan hasil dari $2 + 2$.&#10;&#10;A. 3&#10;B. 4&#10;C. 5&#10;D. 6&#10;&#10;**Jawaban:** B&#10;**Pembahasan:** $2+2=4$."
+                  placeholder={`## Soal 1\n**Tipe:** Pilihan Ganda\n**Kesulitan:** Sedang\nTentukan hasil dari $2 + 2$.\n\nA. 3\nB. 4\nC. 5\nD. 6\n\n**Jawaban:** B\n**Pembahasan:** $2+2=4$.\n\n## Soal 2\n**Tipe:** Isian Singkat\n**Kesulitan:** Mudah\nBerapakah 5 + 7?\n\n**Jawaban:** 12, duabelas\n\n## Soal 3\n**Tipe:** Essay\n**Kesulitan:** Sulit\nJelaskan Hukum III Newton!\n\n**Kunci Jawaban:** Setiap aksi ada reaksi yang sama besar dan berlawanan arah.`}
                   rows={12}
                   className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-mono text-xs leading-relaxed"
                 />
@@ -830,7 +937,18 @@ function QuestionRow({
   const correctIndices = Array.isArray(question.correctIndices)
     ? (question.correctIndices as number[])
     : [];
+  const acceptableAnswers = Array.isArray(question.acceptableAnswers)
+    ? (question.acceptableAnswers as string[])
+    : typeof question.acceptableAnswers === "string"
+    ? JSON.parse(question.acceptableAnswers)
+    : [];
   const tags = Array.isArray(question.tags) ? (question.tags as string[]) : [];
+
+  // Question type display helper
+  const qTypeLabel = 
+    question.questionType === "short_answer" ? "Isian Singkat" :
+    question.questionType === "essay" ? "Essay" :
+    question.questionType === "multiple_choices" ? "PG Kompleks" : "Pilihan Ganda";
 
   // Edit Lock determination
   const isLocked = question.reviewStatus === "reviewed" || question.reviewStatus === "published";
@@ -841,7 +959,7 @@ function QuestionRow({
     if (!question.prompt.includes("$")) {
       warnings.push("⚠️ Kualitas Rendah: Tidak menggunakan LaTeX ($)");
     }
-    if (question.explanation.length < 50) {
+    if (question.explanation.length < 50 && question.questionType !== "short_answer") {
       warnings.push("⚠️ Kualitas Rendah: Penjelasan terlalu singkat (<50 karakter)");
     }
     const promptLower = question.prompt.toLowerCase();
@@ -868,6 +986,10 @@ function QuestionRow({
               className={cn("rounded-md px-2 py-0.5 uppercase tracking-wide border font-bold flex items-center gap-1", statusColors[question.reviewStatus])}
             >
               {question.reviewStatus}
+            </span>
+
+            <span className="rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-2 py-0.5 text-xs font-semibold">
+              {qTypeLabel}
             </span>
             
             {/* Tutor edit lock badge */}
@@ -931,27 +1053,45 @@ function QuestionRow({
       {expanded && (
         <div className="mt-4 ml-7.5 space-y-4 border-t border-border/40 pt-4 text-left">
           {/* Multiple choice options */}
-          <div className="grid gap-2 sm:grid-cols-2">
-            {options.map((opt, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex gap-3 text-body-sm rounded-lg px-3.5 py-2.5 border transition-all duration-200",
-                  correctIndices.includes(i)
-                    ? "bg-status-success/5 text-status-success border-status-success/20 font-medium"
-                    : "text-muted-foreground border-border/30 hover:border-border/60 bg-muted/5"
-                )}
-              >
-                <span className="font-bold font-sans text-muted-foreground/80 shrink-0">{String.fromCharCode(65 + i)}.</span>
-                <MarkdownRenderer content={opt} className="flex-1 text-body-sm leading-relaxed space-y-3" />
+          {(question.questionType === "multiple_choice" || question.questionType === "multiple_choices" || (!question.questionType && options.length > 0)) && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {options.map((opt, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "flex gap-3 text-body-sm rounded-lg px-3.5 py-2.5 border transition-all duration-200",
+                    correctIndices.includes(i)
+                      ? "bg-status-success/5 text-status-success border-status-success/20 font-medium"
+                      : "text-muted-foreground border-border/30 hover:border-border/60 bg-muted/5"
+                  )}
+                >
+                  <span className="font-bold font-sans text-muted-foreground/80 shrink-0">{String.fromCharCode(65 + i)}.</span>
+                  <MarkdownRenderer content={opt} className="flex-1 text-body-sm leading-relaxed space-y-3" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Short answer acceptable answers */}
+          {question.questionType === "short_answer" && (
+            <div className="rounded-xl bg-status-success/5 p-4 border border-status-success/20">
+              <p className="text-body-xs font-bold text-status-success uppercase tracking-wider mb-1.5">Jawaban Benar Diterima</p>
+              <div className="flex flex-wrap gap-2">
+                {acceptableAnswers.map((ans: string, idx: number) => (
+                  <span key={idx} className="rounded-md bg-background px-2.5 py-1 border border-status-success/30 font-mono text-body-sm font-semibold text-foreground">
+                    {ans}
+                  </span>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
           
           {/* Solution Explanation */}
           {question.explanation && (
             <div className="rounded-xl bg-muted/20 p-4 border border-border/60">
-              <p className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Penjelasan Solusi</p>
+              <p className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                {question.questionType === "essay" ? "Rubrik / Kunci Jawaban Referensi" : "Penjelasan Solusi"}
+              </p>
               <MarkdownRenderer content={question.explanation} className="text-body-sm text-foreground/80 leading-relaxed font-sans space-y-3" />
             </div>
           )}

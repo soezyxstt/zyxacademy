@@ -281,23 +281,26 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       questions: (targetAttempt.questionsSnapshot as unknown as Array<{
         id: string;
         prompt: string;
+        question_type?: string;
         options: string[];
         correct_indices: number[];
       }>).map((q, idx) => ({
         id: q.id,
         order: idx + 1,
-        type: "multiple_choice" as const,
+        type: (q.question_type as any) || "multiple_choice",
         prompt: q.prompt,
-        options: q.options,
+        options: q.options || [],
         correctIndex: q.correct_indices?.[0] ?? 0,
       })),
     };
 
-    const initialAnswers: Record<string, number> = {};
+    const initialAnswers: Record<string, any> = {};
     if (targetAttempt.answersSnapshot && typeof targetAttempt.answersSnapshot === "object") {
-      for (const [qId, sel] of Object.entries(targetAttempt.answersSnapshot as Record<string, number[]>)) {
+      for (const [qId, sel] of Object.entries(targetAttempt.answersSnapshot as Record<string, any>)) {
         if (Array.isArray(sel) && sel.length > 0 && typeof sel[0] === "number") {
           initialAnswers[qId] = sel[0];
+        } else {
+          initialAnswers[qId] = sel;
         }
       }
     }

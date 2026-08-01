@@ -371,8 +371,9 @@ export async function saveQuestionBankAction(
     prompt: string;
     options: string[];
     correctIndices: number[];
+    acceptableAnswers?: string[];
     difficulty: "easy" | "medium" | "hard";
-    questionType: "multiple_choice" | "multiple_choices";
+    questionType: "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
     explanation: string;
     tags: string[];
   }
@@ -380,6 +381,7 @@ export async function saveQuestionBankAction(
   await verifyTutorAccess(courseId);
 
   const targetId = questionId || `qbk-tutor-${randomUUID()}`;
+  const acceptableAnswers = data.acceptableAnswers || [];
 
   if (questionId) {
     await db
@@ -388,6 +390,7 @@ export async function saveQuestionBankAction(
         prompt: data.prompt,
         options: data.options,
         correctIndices: data.correctIndices,
+        acceptableAnswers: acceptableAnswers,
         difficulty: data.difficulty,
         questionType: data.questionType,
         explanation: data.explanation,
@@ -401,6 +404,7 @@ export async function saveQuestionBankAction(
       prompt: data.prompt,
       options: data.options,
       correctIndices: data.correctIndices,
+      acceptableAnswers: acceptableAnswers,
       difficulty: data.difficulty,
       questionType: data.questionType,
       explanation: data.explanation,

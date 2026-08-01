@@ -181,65 +181,68 @@ export async function POST(req: NextRequest) {
  );
  }
 
- // Build deep snapshot (includes answers ; stored server-side only)
- const snapshot = selected.map((q) => ({
- id: q.id,
- prompt: q.prompt,
- options: q.options,
- correct_indices: q.correctIndices,
- explanation: q.explanation,
- difficulty: q.difficulty,
- }));
+  // Build deep snapshot (includes answers ; stored server-side only)
+  const snapshot = selected.map((q) => ({
+    id: q.id,
+    prompt: q.prompt,
+    question_type: q.questionType,
+    options: q.options,
+    correct_indices: q.correctIndices,
+    acceptable_answers: q.acceptableAnswers,
+    explanation: q.explanation,
+    difficulty: q.difficulty,
+  }));
 
- // E2: snapshot current mastery for every concept this quiz covers (before/after delta).
- let masteryBefore: Record<string, number> | null = null;
- if (env.FEATURE_REMEDIATION === "1") {
- const koIds = Array.from(new Set(selected.map((q) => q.knowledgeObjectId).filter((x): x is string => !!x)));
- if (koIds.length > 0) {
- const koRows = await db
- .select({ conceptName: knowledgeObjects.conceptName })
- .from(knowledgeObjects)
- .where(inArray(knowledgeObjects.id, koIds));
- const conceptNames = Array.from(new Set(koRows.map((k) => k.conceptName.trim())));
- if (conceptNames.length > 0) {
- const masteryRows = await db
- .select({ conceptName: studentConceptMastery.conceptName, masteryScore: studentConceptMastery.masteryScore })
- .from(studentConceptMastery)
- .where(
- and(
- eq(studentConceptMastery.studentId, studentId),
- eq(studentConceptMastery.courseId, template.courseId),
- inArray(studentConceptMastery.conceptName, conceptNames),
- ),
- );
- const scoreByConcept = new Map(masteryRows.map((r) => [r.conceptName.trim(), r.masteryScore]));
- masteryBefore = {};
- for (const name of conceptNames) {
- masteryBefore[name] = scoreByConcept.get(name) ?? 0;
- }
- }
- }
- }
+  // E2: snapshot current mastery for every concept this quiz covers (before/after delta).
+  let masteryBefore: Record<string, number> | null = null;
+  if (env.FEATURE_REMEDIATION === "1") {
+    const koIds = Array.from(new Set(selected.map((q) => q.knowledgeObjectId).filter((x): x is string => !!x)));
+    if (koIds.length > 0) {
+      const koRows = await db
+        .select({ conceptName: knowledgeObjects.conceptName })
+        .from(knowledgeObjects)
+        .where(inArray(knowledgeObjects.id, koIds));
+      const conceptNames = Array.from(new Set(koRows.map((k) => k.conceptName.trim())));
+      if (conceptNames.length > 0) {
+        const masteryRows = await db
+          .select({ conceptName: studentConceptMastery.conceptName, masteryScore: studentConceptMastery.masteryScore })
+          .from(studentConceptMastery)
+          .where(
+            and(
+              eq(studentConceptMastery.studentId, studentId),
+              eq(studentConceptMastery.courseId, template.courseId),
+              inArray(studentConceptMastery.conceptName, conceptNames),
+            ),
+          );
+        const scoreByConcept = new Map(masteryRows.map((r) => [r.conceptName.trim(), r.masteryScore]));
+        masteryBefore = {};
+        for (const name of conceptNames) {
+          masteryBefore[name] = scoreByConcept.get(name) ?? 0;
+        }
+      }
+    }
+  }
 
- const attemptId = randomUUID();
- await db.insert(studentQuizAttempts).values({
- id: attemptId,
- studentId,
- templateId,
- status: 'in_progress',
- questionsSnapshot: snapshot as unknown as Record<string, unknown>,
- answersSnapshot: null,
- masteryBefore,
- });
+  const attemptId = randomUUID();
+  await db.insert(studentQuizAttempts).values({
+    id: attemptId,
+    studentId,
+    templateId,
+    status: 'in_progress',
+    questionsSnapshot: snapshot as unknown as Record<string, unknown>,
+    answersSnapshot: null,
+    masteryBefore,
+  });
 
- // Return questions WITHOUT correct_indices to the client
- const clientQuestions = selected.map((q) => ({
- id: q.id,
- prompt: q.prompt,
- options: q.options,
- difficulty: q.difficulty,
- tags: q.tags,
- }));
+  // Return questions WITHOUT correct_indices to the client
+  const clientQuestions = selected.map((q) => ({
+    id: q.id,
+    prompt: q.prompt,
+    question_type: q.questionType,
+    options: q.options,
+    difficulty: q.difficulty,
+    tags: q.tags,
+  }));
 
  return NextResponse.json(
  {
