@@ -122,18 +122,21 @@ export async function GET() {
 }
 
 const SubmitSchema = z.object({
- templateId: z.string().min(1),
- answers: z.record(z.string(), z.array(z.number())),
- durationSeconds: z.number().int().min(0).optional(),
- questionsSnapshot: z.array(
- z.object({
- id: z.string(),
- prompt: z.string(),
- options: z.array(z.string()),
- correct_indices: z.array(z.number()),
- explanation: z.string(),
- }),
- ),
+  templateId: z.string().min(1),
+  answers: z.record(
+    z.string(),
+    z.union([z.array(z.number()), z.string(), z.array(z.string()), z.number()])
+  ),
+  durationSeconds: z.number().int().min(0).optional(),
+  questionsSnapshot: z.array(
+    z.object({
+      id: z.string(),
+      prompt: z.string(),
+      options: z.array(z.string()),
+      correct_indices: z.array(z.number()).optional(),
+      explanation: z.string().optional(),
+    }),
+  ),
 });
 
 export async function POST(req: NextRequest) {

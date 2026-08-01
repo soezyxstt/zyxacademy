@@ -79,8 +79,11 @@ export async function GET(_req: NextRequest, { params }: Context) {
 }
 
 const SubmitSchema = z.object({
- answers: z.record(z.string(), z.array(z.number())),
- durationSeconds: z.number().int().min(0).optional(),
+  answers: z.record(
+    z.string(),
+    z.union([z.array(z.number()), z.string(), z.array(z.string()), z.number()])
+  ),
+  durationSeconds: z.number().int().min(0).optional(),
 });
 
 export async function POST(req: NextRequest, { params }: Context) {
