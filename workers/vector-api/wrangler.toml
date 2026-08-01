@@ -17,5 +17,6 @@ name = "zyx-vector-api-staging"
 
 [[env.staging.vectorize]]
 binding = "VECTORIZE"
-index_name = "zyx-edu-staging"
+index_name = "zyx-vectors-staging"
+
 
