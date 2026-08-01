@@ -78,44 +78,47 @@ export async function PUT(req: NextRequest) {
 }
 
 const CreateQuestionSchema = z.object({
- courseId: z.string().min(1),
- difficulty: z.enum(['easy', 'medium', 'hard']),
- tags: z.array(z.string()).default([]),
- prompt: z.string().min(1),
- options: z.array(z.string()).min(2),
- correctIndices: z.array(z.number().int().min(0)),
- explanation: z.string().default(''),
- reviewStatus: z.enum(['generated', 'reviewed', 'published', 'flagged', 'retired']).default('published'),
+  courseId: z.string().min(1),
+  difficulty: z.enum(['easy', 'medium', 'hard']),
+  questionType: z.enum(['multiple_choice', 'multiple_choices', 'short_answer', 'essay']).default('multiple_choice'),
+  tags: z.array(z.string()).default([]),
+  prompt: z.string().min(1),
+  options: z.array(z.string()).default([]),
+  correctIndices: z.array(z.number().int().min(0)).default([]),
+  acceptableAnswers: z.array(z.string()).default([]),
+  explanation: z.string().default(''),
+  reviewStatus: z.enum(['generated', 'reviewed', 'published', 'flagged', 'retired']).default('published'),
 });
 
 export async function POST(req: NextRequest) {
- const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
- }
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
- const body = await req.json();
- const parsed = CreateQuestionSchema.safeParse(body);
- if (!parsed.success) {
- return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
- }
+  const body = await req.json();
+  const parsed = CreateQuestionSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
 
- const { courseId, difficulty, tags, prompt, options, correctIndices, explanation, reviewStatus } = parsed.data;
+  const { courseId, difficulty, questionType, tags, prompt, options, correctIndices, acceptableAnswers, explanation, reviewStatus } = parsed.data;
 
- const id = randomUUID();
+  const id = randomUUID();
 
- await db.insert(aiQuestionBank).values({
- id,
- courseId,
- difficulty,
- questionType: 'multiple_choice',
- tags: tags as unknown as Record<string, unknown>,
- prompt,
- options: options as unknown as Record<string, unknown>,
- correctIndices: correctIndices as unknown as Record<string, unknown>,
- explanation,
- reviewStatus,
- });
+  await db.insert(aiQuestionBank).values({
+    id,
+    courseId,
+    difficulty,
+    questionType,
+    tags: tags as unknown as Record<string, unknown>,
+    prompt,
+    options: options as unknown as Record<string, unknown>,
+    correctIndices: correctIndices as unknown as Record<string, unknown>,
+    acceptableAnswers: acceptableAnswers || [],
+    explanation: explanation ?? null,
+    reviewStatus,
+  });
 
- return NextResponse.json({ id, success: true }, { status: 201 });
+  return NextResponse.json({ id, success: true }, { status: 201 });
 }

@@ -45,8 +45,9 @@ interface QuestionBankItem {
   prompt: string;
   options: any; // string[]
   correctIndices: any; // number[]
+  acceptableAnswers?: any; // string[]
   difficulty: "easy" | "medium" | "hard";
-  questionType: "multiple_choice" | "multiple_choices";
+  questionType: "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
   explanation: string;
   tags: any; // string[]
 }
@@ -108,10 +109,11 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const [isQOpen, setIsQOpen] = useState(false);
   const [editingQ, setEditingQ] = useState<QuestionBankItem | null>(null);
   const [qPrompt, setQPrompt] = useState("");
-  const [qType, setQType] = useState<"multiple_choice" | "multiple_choices">("multiple_choice");
+  const [qType, setQType] = useState<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">("multiple_choice");
   const [qDifficulty, setQDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [qOptions, setQOptions] = useState<string[]>(["", "", "", ""]);
   const [qCorrectIndices, setQCorrectIndices] = useState<number[]>([]);
+  const [qAcceptableAnswers, setQAcceptableAnswers] = useState("");
   const [qExplanation, setQExplanation] = useState("");
   const [qTags, setQTags] = useState("");
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
@@ -248,6 +250,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     setQDifficulty("medium");
     setQOptions(["", "", "", ""]);
     setQCorrectIndices([]);
+    setQAcceptableAnswers("");
     setQExplanation("");
     setQTags("");
     setIsQOpen(true);
@@ -265,6 +268,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     const correct = typeof q.correctIndices === "string" ? JSON.parse(q.correctIndices) : q.correctIndices;
     setQCorrectIndices(Array.isArray(correct) ? correct : []);
     
+    const accAnswers = typeof q.acceptableAnswers === "string" ? JSON.parse(q.acceptableAnswers) : q.acceptableAnswers;
+    setQAcceptableAnswers(Array.isArray(accAnswers) ? accAnswers.join(", ") : "");
+
     setQExplanation(q.explanation || "");
     
     const tagsArr = typeof q.tags === "string" ? JSON.parse(q.tags) : q.tags;
@@ -283,22 +289,36 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   }
 
   async function handleSaveQ() {
-    if (!qPrompt.trim() || qCorrectIndices.length === 0) {
-      toast.error("Pertanyaan dan minimal satu pilihan benar wajib diisi.");
+    if (!qPrompt.trim()) {
+      toast.error("Pertanyaan wajib diisi.");
       return;
     }
 
-    if (qOptions.some((o) => !o.trim())) {
-      toast.error("Semua opsi jawaban A, B, C, D wajib diisi.");
-      return;
+    if (qType === "multiple_choice" || qType === "multiple_choices") {
+      if (qCorrectIndices.length === 0) {
+        toast.error("Minimal satu pilihan benar wajib diisi.");
+        return;
+      }
+      if (qOptions.some((o) => !o.trim())) {
+        toast.error("Semua opsi jawaban A, B, C, D wajib diisi.");
+        return;
+      }
+    } else if (qType === "short_answer") {
+      if (!qAcceptableAnswers.trim()) {
+        toast.error("Jawaban benar yang diterima wajib diisi.");
+        return;
+      }
     }
+
+    const acceptableAnswers = qAcceptableAnswers.split(",").map((t) => t.trim()).filter(Boolean);
 
     startTransition(async () => {
       try {
         const res = await saveQuestionBankAction(courseId, editingQ?.id || null, {
           prompt: qPrompt,
-          options: qOptions,
-          correctIndices: qCorrectIndices,
+          options: qType === "short_answer" || qType === "essay" ? [] : qOptions,
+          correctIndices: qType === "short_answer" || qType === "essay" ? [] : qCorrectIndices,
+          acceptableAnswers,
           difficulty: qDifficulty,
           questionType: qType,
           explanation: qExplanation,
@@ -532,7 +552,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             {q.difficulty}
                           </Badge>
                           <Badge variant="outline" className="text-[10px] rounded-md text-muted-foreground">
-                            {q.questionType === "multiple_choice" ? "Single Choice" : "Multi Select"}
+                            {q.questionType === "short_answer" ? "Isian Singkat" :
+                             q.questionType === "essay" ? "Essay" :
+                             q.questionType === "multiple_choices" ? "Multi Select" : "Single Choice"}
                           </Badge>
                         </div>
                         <p className="text-body-base font-medium text-foreground leading-relaxed pt-1">{q.prompt}</p>
@@ -548,24 +570,43 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
                     </div>
 
-                    {/* Options list preview */}
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 pl-2">
-                      {Array.isArray(opts) && opts.map((opt, i) => {
-                        const isCorrect = Array.isArray(correct) && correct.includes(i);
-                        return (
-                          <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
-                            isCorrect ? "bg-emerald-500/5 border-emerald-500/25 text-emerald-700" : "bg-muted/10 border-border/50 text-muted-foreground"
-                          }`}>
-                            <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                              isCorrect ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                    {/* Options list / Acceptable answers preview */}
+                    {(q.questionType === "multiple_choice" || q.questionType === "multiple_choices" || (!q.questionType && Array.isArray(opts) && opts.length > 0)) && (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 pl-2">
+                        {Array.isArray(opts) && opts.map((opt, i) => {
+                          const isCorrect = Array.isArray(correct) && correct.includes(i);
+                          return (
+                            <div key={i} className={`flex items-center gap-2 text-body-xs px-3 py-1.5 rounded-lg border ${
+                              isCorrect ? "bg-emerald-500/5 border-emerald-500/25 text-emerald-700" : "bg-muted/10 border-border/50 text-muted-foreground"
                             }`}>
-                              {String.fromCharCode(65 + i)}
+                              <span className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                                isCorrect ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                              }`}>
+                                {String.fromCharCode(65 + i)}
+                              </span>
+                              <span className="truncate">{opt}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {q.questionType === "short_answer" && (
+                      <div className="mt-3 pl-2">
+                        <span className="text-body-xs font-semibold text-muted-foreground block mb-1">Jawaban Benar Diterima:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(Array.isArray(q.acceptableAnswers)
+                            ? q.acceptableAnswers
+                            : typeof q.acceptableAnswers === "string"
+                            ? JSON.parse(q.acceptableAnswers)
+                            : []).map((ans: string, i: number) => (
+                            <span key={i} className="text-body-xs font-mono font-semibold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                              {ans}
                             </span>
-                            <span className="truncate">{opt}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Tags */}
                     {Array.isArray(tagsArr) && tagsArr.length > 0 && (
@@ -851,7 +892,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
                     <SelectItem value="multiple_choice">Pilihan Ganda Tunggal</SelectItem>
-                    <SelectItem value="multiple_choices">Pilihan Ganda Kompleks (Multi Select)</SelectItem>
+                    <SelectItem value="multiple_choices">Pilihan Ganda Kompleks</SelectItem>
+                    <SelectItem value="short_answer">Isian Singkat</SelectItem>
+                    <SelectItem value="essay">Essay / Uraian</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -871,44 +914,69 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               </div>
             </div>
 
-            {/* Options Input Block */}
-            <div className="space-y-3">
-              <Label className="text-body-sm font-semibold block">Opsi Jawaban & Kunci Jawaban</Label>
-              <span className="text-[10px] text-muted-foreground block -mt-2">
-                Pilih/checklist tombol bulat/kotak di sebelah kiri sebagai kunci jawaban yang benar.
-              </span>
-              
-              {qOptions.map((opt, i) => {
-                const checked = qCorrectIndices.includes(i);
-                return (
-                  <div key={i} className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleCorrectIndex(i)}
-                      className={`flex size-6 shrink-0 items-center justify-center border transition-all ${
-                        checked ? "bg-emerald-500 border-emerald-500 text-white rounded-lg shadow-sm" : "border-border text-muted-foreground hover:border-emerald-500 rounded-lg"
-                      }`}
-                    >
-                      {qType === "multiple_choice" ? (
-                        checked ? <Check className="size-3.5" /> : <span>{String.fromCharCode(65 + i)}</span>
-                      ) : (
-                        checked ? <CheckSquare className="size-3.5" /> : <span>{String.fromCharCode(65 + i)}</span>
-                      )}
-                    </button>
-                    <Input
-                      value={opt}
-                      onChange={(e) => {
-                        const copy = [...qOptions];
-                        copy[i] = e.target.value;
-                        setQOptions(copy);
-                      }}
-                      placeholder={`Opsi ${String.fromCharCode(65 + i)}`}
-                      className="rounded-lg border-input bg-background flex-1"
-                    />
-                  </div>
-                );
-              })}
-            </div>
+            {/* Options Input Block for Multiple Choice */}
+            {(qType === "multiple_choice" || qType === "multiple_choices") && (
+              <div className="space-y-3">
+                <Label className="text-body-sm font-semibold block">Opsi Jawaban & Kunci Jawaban</Label>
+                <span className="text-[10px] text-muted-foreground block -mt-2">
+                  Pilih/checklist tombol bulat/kotak di sebelah kiri sebagai kunci jawaban yang benar.
+                </span>
+                
+                {qOptions.map((opt, i) => {
+                  const checked = qCorrectIndices.includes(i);
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleCorrectIndex(i)}
+                        className={`flex size-6 shrink-0 items-center justify-center border transition-all ${
+                          checked ? "bg-emerald-500 border-emerald-500 text-white rounded-lg shadow-sm" : "border-border text-muted-foreground hover:border-emerald-500 rounded-lg"
+                        }`}
+                      >
+                        {qType === "multiple_choice" ? (
+                          checked ? <Check className="size-3.5" /> : <span>{String.fromCharCode(65 + i)}</span>
+                        ) : (
+                          checked ? <CheckSquare className="size-3.5" /> : <span>{String.fromCharCode(65 + i)}</span>
+                        )}
+                      </button>
+                      <Input
+                        value={opt}
+                        onChange={(e) => {
+                          const copy = [...qOptions];
+                          copy[i] = e.target.value;
+                          setQOptions(copy);
+                        }}
+                        placeholder={`Opsi ${String.fromCharCode(65 + i)}`}
+                        className="rounded-lg border-input bg-background flex-1"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Input Block for Short Answer */}
+            {qType === "short_answer" && (
+              <div className="space-y-2 rounded-xl border border-border bg-muted/5 p-4">
+                <Label htmlFor="q-short-ans" className="text-body-sm font-semibold">Jawaban Benar yang Diterima (Pisahkan dengan koma)</Label>
+                <Input
+                  id="q-short-ans"
+                  value={qAcceptableAnswers}
+                  onChange={(e) => setQAcceptableAnswers(e.target.value)}
+                  placeholder="Contoh: 12, duabelas, 12.0"
+                  className="rounded-lg border-input bg-background"
+                />
+                <p className="text-xs text-muted-foreground">Siswa dianggap benar jika jawaban teks mereka cocok dengan salah satu kata kunci di atas.</p>
+              </div>
+            )}
+
+            {/* Input Block for Essay */}
+            {qType === "essay" && (
+              <div className="p-4 rounded-xl border border-border bg-muted/5 text-xs text-muted-foreground space-y-1">
+                <p className="font-semibold text-foreground">Soal Tipe Essay / Uraian</p>
+                <p>Siswa akan mengetikkan jawaban teks uraian bebas. Tuliskan rubrik penilaian atau kunci jawaban referensi pada kolom Pembahasan di bawah.</p>
+              </div>
+            )}
 
             <div className="grid gap-2">
               <Label htmlFor="q-explanation" className="text-body-sm font-semibold">Pembahasan / Penjelasan (Optional)</Label>

@@ -70,11 +70,13 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Weak-concept addendum when student struggles
 - Capped at 30 AI requests per day per student
 
-### Question Generation
+### Question Generation & Bank Soal Management
+- Multi-format question support: Pilihan Ganda (`multiple_choice`), Pilihan Ganda Kompleks (`multiple_choices`), Isian Singkat (`short_answer` with comma-separated acceptable answers), and Uraian/Essay (`essay` with reference rubric).
 - Deterministic multidimensional blueprint engine produces per-slot specs identifying KO, cognitive process, target difficulty, reasoning pattern, and targeted misconceptions
 - Gemini generates candidate options with stable option IDs (`opt_0`..`opt_3`)
 - Application option shuffle with stored seed prevents position leakage and updates correctIndices and distractor provenances deterministically
 - Machine-readable distractor provenance engine maps non-correct options with targeted misconception family, method, score, and uncertainty state (`confident`, `ambiguous`, `unknown`)
+- Bulk Markdown Importer supports multi-format tags (`**Tipe:** Pilihan Ganda | Isian Singkat | Essay`) and `**Jawaban:**` parsing for short answers.
 - Audit trail stored in `question_generation_runs` and `distractor_provenance`
 - Generated questions persisted with `qualityScore: null` (unverified) until independent verification
 

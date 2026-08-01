@@ -1,0 +1,1 @@
+ALTER TABLE `ai_question_bank` ADD `acceptable_answers` text;

@@ -17,10 +17,10 @@ type QuizPlayerProps = {
     questions: Array<{
       id: string;
       order: number;
-      type: "multiple_choice";
+      type: string;
       prompt: string;
       options: string[];
-      correctIndex: number;
+      correctIndex?: number;
     }>;
     settings?: {
       timeLimitMinutes?: number;
@@ -32,7 +32,7 @@ type QuizPlayerProps = {
   /** Serializable variant of getRedirectPath for server-component callers; `?attemptId=` is appended. */
   redirectBasePath?: string;
   /** Pre-populated answers snapshot from DB if resuming an attempt */
-  initialAnswers?: Record<string, number>;
+  initialAnswers?: Record<string, any>;
   /** Start time timestamp in ms to calculate exact remaining time relative to real time */
   startedAtMs?: number;
   /** Absolute closing timestamp in ms (e.g. quiz window closes at 20:00). Timer will not exceed this. */
@@ -45,7 +45,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const timerStorageKey = useMemo(() => `zyx-quiz-timer-deadline-${attemptId}`, [attemptId]);
   
   const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>(() => {
+  const [answers, setAnswers] = useState<Record<string, any>>(() => {
     if (typeof window !== "undefined") {
       const stored = window.localStorage.getItem(`zyx-quiz-answers-${attemptId}`);
       if (stored) {
@@ -88,16 +88,20 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       window.localStorage.removeItem(`zyx-quiz-answers-${attemptId}`);
       window.localStorage.removeItem(`zyx-quiz-flags-${attemptId}`);
 
-      // Transform answers to standard Record<string, number[]> format
-      const formattedAnswers: Record<string, number[]> = {};
-      for (const [qId, selectedIdx] of Object.entries(answers)) {
-        formattedAnswers[qId] = [selectedIdx];
+      // Transform answers to standard Record<string, any> format
+      const formattedAnswers: Record<string, any> = {};
+      for (const [qId, val] of Object.entries(answers)) {
+        if (typeof val === "number") {
+          formattedAnswers[qId] = [val];
+        } else {
+          formattedAnswers[qId] = val;
+        }
       }
 
-      // Mark all unanswered questions as empty arrays
+      // Mark all unanswered questions as empty
       for (const question of exam.questions) {
         if (formattedAnswers[question.id] === undefined) {
-          formattedAnswers[question.id] = [];
+          formattedAnswers[question.id] = question.type === "short_answer" || question.type === "essay" ? "" : [];
         }
       }
 
@@ -193,7 +197,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   );
 
   function isQuestionAnswered(questionId: string) {
-    return answers[questionId] !== undefined && answers[questionId] !== null;
+    const val = answers[questionId];
+    if (val === undefined || val === null) return false;
+    if (typeof val === "string") return val.trim().length > 0;
+    return true;
   }
 
   const q = sorted[index];
@@ -280,31 +287,66 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             </div>
           </div>
 
-          {/* Options Display */}
-          <ul className="mt-4 space-y-2 md:mt-5 md:space-y-2.5">
-            {q.options.map((opt, i) => {
-              const selected = ans === i;
-              return (
-                <li key={i}>
-                  <button
-                    type="button"
-                    disabled={submitting || isSubmitted}
-                    onClick={() => selectOption(q.id, i)}
-                    className={quizOptionClasses(selected ? "selected" : "idle")}
-                  >
-                    <span
-                      className={quizOptionLetterClasses(selected ? "selected" : "idle")}
+          {/* Options Display / Short Answer / Essay Input */}
+          {q.type === "short_answer" || q.type === "essay" ? (
+            <div className="mt-4 md:mt-5 space-y-3">
+              <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                {q.type === "short_answer" ? "Ketik Jawaban Singkat Anda:" : "Tuliskan Jawaban Essay Anda:"}
+              </label>
+              {q.type === "short_answer" ? (
+                <input
+                  type="text"
+                  disabled={submitting || isSubmitted}
+                  value={typeof ans === "string" ? ans : ""}
+                  onChange={(e) => {
+                    const next = { ...answers, [q.id]: e.target.value };
+                    setAnswers(next);
+                    window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+                  }}
+                  placeholder="Ketik jawaban singkat di sini..."
+                  className="w-full rounded-lg border border-border bg-background p-3 text-body-sm font-medium hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all"
+                />
+              ) : (
+                <textarea
+                  rows={5}
+                  disabled={submitting || isSubmitted}
+                  value={typeof ans === "string" ? ans : ""}
+                  onChange={(e) => {
+                    const next = { ...answers, [q.id]: e.target.value };
+                    setAnswers(next);
+                    window.localStorage.setItem(`zyx-quiz-answers-${attemptId}`, JSON.stringify(next));
+                  }}
+                  placeholder="Tuliskan jawaban essay Anda selengkap mungkin..."
+                  className="w-full rounded-lg border border-border bg-background p-3 text-body-sm font-medium hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-sans"
+                />
+              )}
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-2 md:mt-5 md:space-y-2.5">
+              {q.options.map((opt, i) => {
+                const selected = ans === i;
+                return (
+                  <li key={i}>
+                    <button
+                      type="button"
+                      disabled={submitting || isSubmitted}
+                      onClick={() => selectOption(q.id, i)}
+                      className={quizOptionClasses(selected ? "selected" : "idle")}
                     >
-                      {String.fromCharCode(65 + i)}
-                    </span>
-                    <div className="text-foreground leading-normal flex-1">
-                      <MarkdownRenderer content={opt} className="space-y-3" />
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                      <span
+                        className={quizOptionLetterClasses(selected ? "selected" : "idle")}
+                      >
+                        {String.fromCharCode(65 + i)}
+                      </span>
+                      <div className="text-foreground leading-normal flex-1">
+                        <MarkdownRenderer content={opt} className="space-y-3" />
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
           {/* Flagging Option Widget inside Card */}
           <div className="mt-4 flex flex-col gap-2.5 border-t border-border/80 pt-3 sm:flex-row sm:items-center sm:justify-between md:mt-5 md:pt-4">

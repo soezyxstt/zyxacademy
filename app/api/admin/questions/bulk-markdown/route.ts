@@ -11,12 +11,14 @@ const RequestSchema = z.object({
   rawMarkdown: z.string().min(1),
 });
 
-interface ExtractedQuestion {
+export interface ExtractedQuestion {
   prompt: string;
+  questionType: "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
   difficulty: "easy" | "medium" | "hard";
   tags: string[];
   options: string[];
   correctIndices: number[];
+  acceptableAnswers: string[];
   explanation: string;
 }
 
@@ -52,14 +54,32 @@ export function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
     let promptLines: string[] = [];
     let options: string[] = [];
     let correctIndices: number[] = [];
+    let acceptableAnswers: string[] = [];
     let difficulty: "easy" | "medium" | "hard" = "medium";
+    let questionType: "multiple_choice" | "multiple_choices" | "short_answer" | "essay" | null = null;
     let tags: string[] = [];
     let explanationLines: string[] = [];
     let parsingExplanation = false;
+    let answerTextRaw: string = "";
 
     for (let i = 1; i < blockLines.length; i++) {
       const line = blockLines[i];
       const trimmed = line.trim();
+
+      // Check for question type
+      if (/^\*\*(tipe|tipe soal|type):\*\*/i.test(trimmed)) {
+        const content = trimmed.replace(/^\*\*(tipe|tipe soal|type):\*\*/i, "").trim().toLowerCase();
+        if (content.includes("isian") || content.includes("short_answer") || content === "short") {
+          questionType = "short_answer";
+        } else if (content.includes("essay") || content.includes("uraian")) {
+          questionType = "essay";
+        } else if (content.includes("kompleks") || content.includes("multiple_choices")) {
+          questionType = "multiple_choices";
+        } else if (content.includes("pilihan ganda") || content.includes("multiple_choice")) {
+          questionType = "multiple_choice";
+        }
+        continue;
+      }
 
       // Check for tags
       if (/^\*\*tags?:\*\*/i.test(trimmed)) {
@@ -81,11 +101,16 @@ export function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
         continue;
       }
 
-      // Check for correct answer (letters A-E, single or multiple comma-separated)
-      if (/^\*\*(jawaban|kunci|kunci jawaban):\*\*/i.test(trimmed)) {
-        const content = trimmed.replace(/^\*\*(jawaban|kunci|kunci jawaban):\*\*/i, "").trim().toUpperCase();
-        const letters = content.match(/[A-E]/g) || [];
-        correctIndices = letters.map(letter => letter.charCodeAt(0) - 65);
+      // Check for correct answer / answer key
+      if (/^\*\*(jawaban|kunci|kunci jawaban|rubrik):\*\*/i.test(trimmed)) {
+        const content = trimmed.replace(/^\*\*(jawaban|kunci|kunci jawaban|rubrik):\*\*/i, "").trim();
+        answerTextRaw = content;
+
+        // Try extracting A-E letters first for MC
+        const letters = content.toUpperCase().match(/[A-E]/g) || [];
+        if (letters.length > 0 && !questionType) {
+          correctIndices = letters.map(letter => letter.charCodeAt(0) - 65);
+        }
         continue;
       }
 
@@ -101,14 +126,12 @@ export function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
 
       // Check for options (e.g. A. or B. or A) or B))
       const optionMatch = trimmed.match(/^([A-E])[\.\)]\s+(.*)/i);
-      if (optionMatch) {
-        if (!parsingExplanation) {
-          const letter = optionMatch[1].toUpperCase();
-          const optionText = optionMatch[2].trim();
-          const idx = letter.charCodeAt(0) - 65;
-          options[idx] = optionText;
-          continue;
-        }
+      if (optionMatch && !parsingExplanation) {
+        const letter = optionMatch[1].toUpperCase();
+        const optionText = optionMatch[2].trim();
+        const idx = letter.charCodeAt(0) - 65;
+        options[idx] = optionText;
+        continue;
       }
 
       // Collect prompt or explanation lines
@@ -127,15 +150,35 @@ export function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
       }
     }
 
+    // Infer question type if not explicitly set
+    if (!questionType) {
+      if (cleanedOptions.length > 0) {
+        questionType = correctIndices.length > 1 ? "multiple_choices" : "multiple_choice";
+      } else if (answerTextRaw) {
+        questionType = "short_answer";
+      } else {
+        questionType = "multiple_choice";
+      }
+    }
+
+    // Parse answers for short_answer / essay
+    if (questionType === "short_answer" && answerTextRaw) {
+      acceptableAnswers = answerTextRaw.split(",").map(a => a.trim()).filter(Boolean);
+    } else if (questionType === "essay" && answerTextRaw) {
+      acceptableAnswers = [answerTextRaw];
+    }
+
     const prompt = promptLines.join("\n").trim();
     const explanation = explanationLines.join("\n").trim();
 
     questions.push({
       prompt,
+      questionType,
       difficulty,
       tags,
       options: cleanedOptions,
       correctIndices,
+      acceptableAnswers,
       explanation,
     });
   }
@@ -166,7 +209,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Syntax and content validation
+  // Syntax and content validation per question type
   for (let i = 0; i < parsedQuestions.length; i++) {
     const q = parsedQuestions[i];
     const questionIndex = i + 1;
@@ -176,22 +219,31 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (q.options.length < 2) {
-      return NextResponse.json(
-        { error: `Soal nomor ${questionIndex} minimal harus memiliki 2 pilihan jawaban (A. ..., B. ...).` },
-        { status: 400 }
-      );
-    }
-    if (q.correctIndices.length === 0) {
-      return NextResponse.json(
-        { error: `Soal nomor ${questionIndex} tidak memiliki kunci jawaban yang valid. Gunakan format '**Jawaban:** A' atau '**Jawaban:** B'.` },
-        { status: 400 }
-      );
-    }
-    for (const idx of q.correctIndices) {
-      if (idx < 0 || idx >= q.options.length) {
+    if (q.questionType === "multiple_choice" || q.questionType === "multiple_choices") {
+      if (q.options.length < 2) {
         return NextResponse.json(
-          { error: `Soal nomor ${questionIndex} memiliki kunci jawaban yang di luar rentang pilihan yang disediakan.` },
+          { error: `Soal nomor ${questionIndex} (Pilihan Ganda) minimal harus memiliki 2 pilihan jawaban (A. ..., B. ...).` },
+          { status: 400 }
+        );
+      }
+      if (q.correctIndices.length === 0) {
+        return NextResponse.json(
+          { error: `Soal nomor ${questionIndex} (Pilihan Ganda) tidak memiliki kunci jawaban yang valid. Gunakan format '**Jawaban:** A' atau '**Jawaban:** B'.` },
+          { status: 400 }
+        );
+      }
+      for (const idx of q.correctIndices) {
+        if (idx < 0 || idx >= q.options.length) {
+          return NextResponse.json(
+            { error: `Soal nomor ${questionIndex} memiliki kunci jawaban yang di luar rentang pilihan yang disediakan.` },
+            { status: 400 }
+          );
+        }
+      }
+    } else if (q.questionType === "short_answer") {
+      if (q.acceptableAnswers.length === 0) {
+        return NextResponse.json(
+          { error: `Soal nomor ${questionIndex} (Isian Singkat) wajib memiliki kunci jawaban. Gunakan format '**Jawaban:** [kata kunci]'.` },
           { status: 400 }
         );
       }
@@ -208,11 +260,12 @@ export async function POST(req: NextRequest) {
           id,
           courseId,
           difficulty: q.difficulty,
-          questionType: "multiple_choice",
+          questionType: q.questionType,
           tags: q.tags as unknown as Record<string, unknown>,
           prompt: q.prompt,
           options: q.options as unknown as Record<string, unknown>,
           correctIndices: q.correctIndices as unknown as Record<string, unknown>,
+          acceptableAnswers: q.acceptableAnswers,
           explanation: q.explanation,
           status: "active",
           reviewStatus: "published",
