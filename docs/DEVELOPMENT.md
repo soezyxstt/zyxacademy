@@ -85,6 +85,19 @@ bun --env-file=.env.staging run staging:reconcile-bundle -- --run-id <runId> --t
 
 The staging test uses the authenticated Wrangler R2 adapter only for the test process when the staging script enables `STAGING_BUNDLE_WRANGLER_STORAGE=1`; production runtime storage remains the normal R2 provider.
 
+`FEATURE_ASESMEN_IDE_V1`: stable option IDs, chapter-scoped assessment metadata, deterministic blueprint selection, and Plan 010 evidence and benchmark contracts. Absent or `0` keeps the legacy quiz path visible and authoritative.
+
+Plan 010 local checks:
+
+```bash
+bun run lint
+bun test tests/contracts/question-pipeline.test.ts tests/contracts/assessment-redaction.test.ts tests/contracts/assessment-blueprint-v2.test.ts tests/contracts/idea-evidence.test.ts tests/contracts/benchmark-holdout.test.ts
+bun run typecheck
+git diff --check
+```
+
+The staging-only assessment scripts are `staging:smoke-assessment-v2` and `staging:scan-assessment-leaks`. They require `.env.staging` and must not be run without explicit staging write authorization.
+
 ## Feature Flags
 
 All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.

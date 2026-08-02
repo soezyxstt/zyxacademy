@@ -296,8 +296,10 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 ### Current Focus
 Plan 009 Article and Diktat Quality Compiler is complete and verified locally plus in a read-only staging preview. The preview records an explicit `tutorial-pka` to `mat-i` canonical fixture fallback because the staging database has no published canonical Idea rows under the PKA identity. Plan 010 Question and Assessment Integrity is the next integration lane. Plan 012A Vectorize foundation contracts are integrated; the final 768 index rebuild remains gated by Plan 011.
 
+Plan 010 local implementation is being developed from the Plan 008 commit on `codex/010-assessment-integrity`. The local contract boundary includes exact deterministic assessment blueprints, stable option ID grading compatibility, per-Idea evidence rubrics, benchmark and holdout isolation, and active-attempt allowlist coverage. Staging lifecycle writes and completion evidence remain pending explicit operator authorization.
+
 ### Blockers
-None.
+Plan 010 staging lifecycle writes, remote leak scan, and completion evidence were not run in this delegated worktree because staging mutation and deployment are out of scope for this handoff. The local implementation remains behind `FEATURE_ASESMEN_IDE_V1`.
 
 ---
 

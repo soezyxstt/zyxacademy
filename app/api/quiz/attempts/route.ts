@@ -15,6 +15,7 @@ import { env } from '@/lib/env';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
 import { serializeStudentQuizAttemptList } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
+import { buildStableOptionIds } from '@/lib/asesmen/attempt';
 
 const StartSchema = z.object({
  templateId: z.string().min(1),
@@ -32,8 +33,9 @@ export async function POST(req: NextRequest) {
  return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
  }
 
- const { templateId } = parsed.data;
- const studentId = session.user.id;
+  const { templateId } = parsed.data;
+  const studentId = session.user.id;
+  const assessmentV2Enabled = env.FEATURE_ASESMEN_IDE_V1 === '1';
 
  const [template] = await db
  .select()
@@ -192,6 +194,9 @@ export async function POST(req: NextRequest) {
     acceptable_answers: q.acceptableAnswers,
     explanation: q.explanation,
     difficulty: q.difficulty,
+    ...(assessmentV2Enabled
+      ? { stable_option_ids: buildStableOptionIds(q.id, Array.isArray(q.options) ? q.options.length : 0) }
+      : {}),
   }));
 
   // E2: snapshot current mastery for every concept this quiz covers (before/after delta).
@@ -256,6 +261,9 @@ export async function POST(req: NextRequest) {
     options: q.options,
     difficulty: q.difficulty,
     tags: q.tags,
+    ...(assessmentV2Enabled
+      ? { stable_option_ids: buildStableOptionIds(q.id, Array.isArray(q.options) ? q.options.length : 0) }
+      : {}),
   }));
 
  return NextResponse.json(

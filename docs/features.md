@@ -171,6 +171,12 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Deterministic assistance policy engine (`lib/assessment-assistance-policy.ts`): gates AI tutor and mistake feedback based on activity kind (study, practice, quiz, simulation, exam), attempt state, answer release state, and match state.
 - Answer release state matrix: active attempts enforce `socratic_only` or `refuse_answer_reveal`; completed attempts follow release settings (`hidden`, `rationale_only`, `released`).
 
+### Assessment Integrity V2
+- `lib/asesmen/blueprint.ts` compiles quiz and tryout blueprints with exact largest-remainder dimension allocation, explicit chapter scope, reproducible seeds, and publication eligibility checks.
+- `lib/asesmen/evidence-rubric.ts` derives versioned per-Idea evidence from stable option IDs. Ambiguous evidence and misconception mappings never affect mastery, and free-response evidence requires a reviewed rubric or grading result.
+- `lib/asesmen/benchmark-policy.ts` rejects exact duplicates, applies versioned similarity thresholds, and keeps holdout content inside the benchmark boundary. Missing thresholds produce `needs_review`.
+- When `FEATURE_ASESMEN_IDE_V1=1`, quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
+
 ## Money & Quota Rules
 
 - AI quota spent only on: tutoring, mistake feedback, content generation

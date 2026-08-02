@@ -39,6 +39,8 @@
     "staging:test-product-bundle": "bun scripts/staging/test-product-bundle.ts",
     "staging:compile-product-preview": "bun scripts/staging/compile-product-preview.ts",
     "staging:verify-material-quality": "bun scripts/staging/verify-material-quality.ts",
+    "staging:smoke-assessment-v2": "bun scripts/staging/smoke-assessment-v2.ts",
+    "staging:scan-assessment-leaks": "bun scripts/staging/scan-assessment-leaks.ts",
     "staging:smoke-auth": "bun scripts/staging/smoke-auth.ts",
     "staging:classify-role-literals": "bun scripts/staging/classify-role-literals.ts",
     "db:sync-prod-to-staging:destructive": "bun scripts/sync-turso-db.ts --destructive",

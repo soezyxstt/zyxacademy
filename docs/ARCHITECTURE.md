@@ -223,6 +223,26 @@ flowchart LR
 
 The new path is gated by `FEATURE_MATERIAL_COMPILER_V2`. `lib/material-storage.ts` applies the article quality gate to review and publication only when that flag is active, so the existing `website_materials` readers and rollback path remain unchanged when it is absent or `0`.
 
+### Assessment Integrity V2
+
+Assessment compilation is a deterministic boundary between authored content and a published attempt:
+
+```mermaid
+flowchart LR
+    I[Idea and question candidates] --> B[Versioned blueprint]
+    B --> R[Exact dimension rounding]
+    R --> S[Seeded eligible selection]
+    S --> V[Solver, critic, and stale checks]
+    V --> H[Benchmark and holdout policy]
+    H --> P[Published assessment snapshot]
+    P --> A[Stable option ID attempt]
+    A --> E[Versioned per-Idea evidence rubric]
+```
+
+Quiz scope is exactly one chapter. Tryout scope contains one or more chapters. Every dimension is rounded independently with the largest-remainder method, and the selected item count equals the requested count. Stable option IDs are stored in the V2 attempt snapshot; the server may accept legacy numeric input but resolves it to stable IDs before grading.
+
+The active-attempt serializer is an explicit allowlist. It can expose prompt, options, safe metadata, and stable option IDs, but never answer keys, explanations, grading rubrics, evidence mappings, or holdout content. Objective evidence uses a deterministic rubric. Free-response evidence is blocked until a tutor rubric or grading result is reviewed.
+
 ### Tutor & Booking
 | Table | Purpose |
 |---|---|

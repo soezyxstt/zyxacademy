@@ -20,6 +20,7 @@ import { PKA_COURSE_ID } from '@/lib/pka-config';
 import { normalizeDate } from '@/lib/date-utils';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
+import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -121,6 +122,7 @@ export async function POST(req: NextRequest, { params }: Context) {
     question_type?: string;
     correct_indices?: number[];
     acceptable_answers?: string[];
+    stable_option_ids?: string[];
   }>;
 
   function checkAnswerCorrectness(q: any, submitted: any): boolean {
@@ -138,6 +140,14 @@ export async function POST(req: NextRequest, { params }: Context) {
     const indices = Array.isArray(submitted) ? submitted : [];
     const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
     if (correct.length === 0) return false;
+    if (env.FEATURE_ASESMEN_IDE_V1 === '1' && Array.isArray(q.stable_option_ids)) {
+      return gradeStableOptionAnswer({
+        stableOptionIds: q.stable_option_ids,
+        correctIndices: correct,
+        submitted,
+        questionType: qType,
+      });
+    }
     if (qType === "multiple_choice") {
       const firstIdx = indices[0];
       return firstIdx !== undefined && correct.includes(firstIdx);

@@ -1089,4 +1089,17 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `relatedKoIds`: JSON array of linked KO IDs.
 * `status`: Objective status ('active', 'superseded').
 
+## 20. Assessment Integrity V2 Contract
+
+Plan 010 reuses the additive assessment tables without changing legacy quiz snapshots or adding a migration:
+
+* `blueprint_asesmen` stores the versioned assessment type and serialized blueprint.
+* `asesmen` stores the published assessment version and its immutable status.
+* `cakupan_asesmen` enforces chapter membership. Application validation requires one chapter for a quiz and at least one for a tryout.
+* `item_asesmen` stores rendered question, option order, grading policy, content version, and generation hash snapshots.
+* `percobaan_asesmen` and `jawaban_murid` preserve the rendered question, option order, response, grading policy, and content version at attempt time.
+* `bukti_ide_jawaban` stores per-Idea score contribution, weight, confidence, rubric version, derivation status, and the invariant that ambiguous evidence cannot affect mastery.
+
+The V2 runtime adds stable option IDs inside the existing JSON snapshots when `FEATURE_ASESMEN_IDE_V1=1`; this is an additive compatibility field and does not rewrite historical `questions_snapshot`, `answers_snapshot`, or `mastery_before` values.
+
 
