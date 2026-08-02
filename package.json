@@ -37,6 +37,8 @@
     "staging:test-authoring-context": "bun scripts/staging/test-authoring-context.ts",
     "staging:scan-context-pack": "bun scripts/staging/scan-context-pack.ts",
     "staging:test-product-bundle": "bun scripts/staging/test-product-bundle.ts",
+    "staging:compile-product-preview": "bun scripts/staging/compile-product-preview.ts",
+    "staging:verify-material-quality": "bun scripts/staging/verify-material-quality.ts",
     "staging:smoke-auth": "bun scripts/staging/smoke-auth.ts",
     "staging:classify-role-literals": "bun scripts/staging/classify-role-literals.ts",
     "db:sync-prod-to-staging:destructive": "bun scripts/sync-turso-db.ts --destructive",

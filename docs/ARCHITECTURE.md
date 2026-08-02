@@ -202,6 +202,27 @@ flowchart LR
 
 `FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source.
 
+### Article and Diktat Quality Compiler
+
+The Plan 009 compiler is a deterministic boundary over the staged Product Bundle representation. It does not call Gemini and does not invent canonical claims.
+
+```mermaid
+flowchart LR
+    I[Approved Ideas and source refs] --> B[Typed article block contract]
+    R[Idea prerequisite relations] --> O[Stable topological outline]
+    B --> Q[Article quality gates]
+    O --> Q
+    Q --> A[Article AST and Markdown]
+    A --> D[Approved article compression]
+    D --> G[Diktat compression gates]
+    Q --> P[Traceable admin preview]
+    G --> P
+```
+
+`lib/materials/article-contract.ts` requires block purpose, covered Ideas, source references, generation hash, and reviewer state. `lib/materials/quality-gates.ts` returns stable reason codes and fails closed for missing coverage, stale dependencies, invalid math delimiters, missing traces, and rejected blocks. `lib/materials/diktat-contract.ts` accepts an approved `ArticleDocument` only; it records the source article ID, version, and hash and checks that every preserved core statement, formula, Idea, and source trace remains present.
+
+The new path is gated by `FEATURE_MATERIAL_COMPILER_V2`. `lib/material-storage.ts` applies the article quality gate to review and publication only when that flag is active, so the existing `website_materials` readers and rollback path remain unchanged when it is absent or `0`.
+
 ### Tutor & Booking
 | Table | Purpose |
 |---|---|

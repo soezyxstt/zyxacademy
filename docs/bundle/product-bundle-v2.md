@@ -26,6 +26,14 @@ Validation is pure and fail-closed. It rejects unsafe ZIP entries, unknown field
 
 The public API is feature gated by `FEATURE_PRODUCT_BUNDLE_V2`. Setting the flag to `0` hides the page and disables the routes. Legacy importers remain available as rollback paths.
 
+## Article and diktat quality boundary
+
+Article products are compiled through `lib/materials/compiler.ts` after Product Bundle validation. The compiler orders prerequisite Ideas, normalizes each staged block into the typed article contract, and produces deterministic AST and Markdown output. Publication requires 100 percent required block coverage, source and Idea traceability for factual content, valid math delimiters, current dependencies, and an approved reviewer state.
+
+Diktat products are derived from the approved article representation through `compileDiktatFromApprovedArticle`. The compiler never reads raw source independently for diktat content. Its report records the source article version and hash, removed block IDs, preserved core statements, formulas, Idea IDs, and source references. Any mismatch returns a stable reason code and blocks publication.
+
+Admin previews are available as `ArticlePreview` and `DiktatPreview` components. The local preview scripts require `--dry-run` or an explicit read-only input and do not mutate staging resources.
+
 ## Staging verification
 
 ```bash
