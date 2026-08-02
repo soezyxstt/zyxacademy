@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import {
-  Search,
   Download,
   AtSign,
   BellRing,
@@ -12,10 +11,9 @@ import {
   GraduationCap,
   CalendarDays,
   ExternalLink,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import {
   Dialog,
   DialogContent,
@@ -143,29 +141,13 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
 
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full sm:max-w-md">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Search className="size-4 text-muted-foreground" />
-          </div>
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari nama, fakultas, email, atau Instagram..."
-            className="pl-9 pr-9"
-          />
-          {query && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Bersihkan pencarian"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
+        <SearchBar
+          value={query}
+          onSearch={setQuery}
+          onClear={() => setQuery("")}
+          placeholder="Cari nama, fakultas, email, atau Instagram..."
+          containerClassName="w-full sm:max-w-md"
+        />
         <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 rounded-lg">
           <Download className="size-4" />
           Ekspor CSV

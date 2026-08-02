@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   BarChart3,
-  Search,
   Sparkles,
   BookOpen,
   ArrowRight,
@@ -16,10 +15,10 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { FormattedDate } from "@/components/ui/formatted-date";
+import { SearchBar } from "@/components/ui/search-bar";
 
 interface QuizInsightOverviewItem {
   type: "quiz_template";
@@ -161,15 +160,13 @@ export default function AdminQuizInsightsOverviewPage() {
       {/* Filter and Search Bar */}
       <div className="bg-card border border-border rounded-xl p-4 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Cari berdasarkan judul kuis atau mata kuliah..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 rounded-lg"
-            />
-          </div>
+          <SearchBar
+            placeholder="Cari berdasarkan judul kuis atau mata kuliah..."
+            value={search}
+            onSearch={setSearch}
+            onClear={() => setSearch("")}
+            containerClassName="flex-1"
+          />
 
           <div className="flex flex-wrap sm:flex-nowrap gap-3">
             <Select value={selectedCourse} onValueChange={setSelectedCourse}>

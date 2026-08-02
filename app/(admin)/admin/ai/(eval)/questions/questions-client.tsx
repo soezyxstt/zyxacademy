@@ -7,6 +7,7 @@ import { CheckSquare, Square, ChevronDown, ChevronUp, Filter, Plus, Edit2, Trash
 import { toast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
@@ -457,12 +458,13 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
             </SelectContent>
           </Select>
 
-          <Input
-            type="text"
+          <SearchBar
+            size="sm"
             placeholder="Cari ID KO..."
-            className="h-9 border-border/80 bg-background/50 text-body-sm font-medium"
             value={filterKOId}
-            onChange={(e) => setFilterKOId(e.target.value)}
+            onSearch={setFilterKOId}
+            onClear={() => setFilterKOId("")}
+            containerClassName="sm:w-48"
           />
         </div>
 

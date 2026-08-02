@@ -22,13 +22,14 @@ import {
   CheckCircle2, 
   PanelLeftClose, 
   PanelLeft, 
-  Trash2, 
+  Trash2,
+  Sparkles,
   X,
   Check,
-  Sparkles,
   Loader2,
   AlertTriangle
 } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -1626,31 +1627,20 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                             <label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground px-1">
                               Indeks Pencarian Kata
                             </label>
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => {
-                                  setSearchQuery(e.target.value);
-                                  setActiveHighlightQuery(e.target.value);
-                                }}
-                                placeholder="Ketik kata kunci (e.g. limit, turunan)..."
-                                className="w-full bg-muted/60 text-body-xs border border-border rounded-xl pl-8 pr-8 py-2 focus:bg-card focus:outline-none transition-all placeholder:text-muted-foreground text-foreground"
-                              />
-                              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                              {searchQuery && (
-                                <button
-                                  onClick={() => {
-                                    setSearchQuery("");
-                                    setActiveHighlightQuery("");
-                                  }}
-                                  className="absolute right-2.5 top-2.5 p-0.5 rounded-full hover:bg-muted text-muted-foreground"
-                                  title="Bersihkan Pencarian"
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              )}
-                            </div>
+                            <SearchBar
+                              size="sm"
+                              variant="muted"
+                              value={searchQuery}
+                              onSearch={(val) => {
+                                setSearchQuery(val);
+                                setActiveHighlightQuery(val);
+                              }}
+                              onClear={() => {
+                                setSearchQuery("");
+                                setActiveHighlightQuery("");
+                              }}
+                              placeholder="Ketik kata kunci (e.g. limit, turunan)..."
+                            />
                           </div>
 
                           {/* Search Matches list */}

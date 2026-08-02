@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import {
   Select,
   SelectContent,
@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { Search, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 interface HistoricalQuestion {
   id: string;
@@ -65,15 +65,13 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
     <div className="space-y-6">
       {/* Filters & Search Row */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-xl border border-border">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Cari konten soal atau judul ujian..."
-            className="pl-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        <SearchBar
+          placeholder="Cari konten soal atau judul ujian..."
+          value={searchTerm}
+          onSearch={setSearchTerm}
+          onClear={() => setSearchTerm("")}
+          containerClassName="flex-1"
+        />
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-44">
