@@ -127,6 +127,8 @@ export const env = createEnv({
  FEATURE_PERAN_V2: z.string().optional(),
  /** Canonical source and Idea domain contracts. "1" enables the additive Idea architecture. */
  FEATURE_ARSITEKTUR_IDE_V1: z.string().optional(),
+ /** Migration-only transaction-scoped mirror for the additive Idea architecture. */
+ FEATURE_DUAL_WRITE_IDE: z.string().optional(),
  /** Product and Idea links domain contracts. "1" enables the additive product tables. */
  FEATURE_PRODUK_IDE_V1: z.string().optional(),
  /** Assessment and Idea coverage contracts. "1" enables the additive assessment tables. */
@@ -240,6 +242,7 @@ export const env = createEnv({
  FEATURE_ANALYTICS_DIAGNOSIS_V2: process.env.FEATURE_ANALYTICS_DIAGNOSIS_V2,
  FEATURE_PERAN_V2: process.env.FEATURE_PERAN_V2,
  FEATURE_ARSITEKTUR_IDE_V1: process.env.FEATURE_ARSITEKTUR_IDE_V1,
+ FEATURE_DUAL_WRITE_IDE: process.env.FEATURE_DUAL_WRITE_IDE,
  FEATURE_PRODUK_IDE_V1: process.env.FEATURE_PRODUK_IDE_V1,
  FEATURE_ASESMEN_IDE_V1: process.env.FEATURE_ASESMEN_IDE_V1,
  FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,

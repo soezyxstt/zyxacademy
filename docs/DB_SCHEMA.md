@@ -298,7 +298,7 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 
 ## 5.2 Product, Assessment, Evidence, and Bundle Domain
 
-Plan 004 adds the normalized target tables below. All are empty in staging after the additive migration; Plan 005 owns deterministic mapping and backfill. Existing English tables remain the source of current runtime behavior.
+Plan 004 adds the normalized target tables below. Plan 005 owns deterministic mapping and backfill. Existing English product, assessment, attempt, flashcard, learning-event, and mastery tables remain active and authoritative for reads during the expand phase.
 
 ### Product tables
 * `artikel`, `artikel_ide`, `blok_artikel`: Markdown article versions, Idea links, and ordered blocks.
@@ -328,7 +328,12 @@ Ambiguous evidence is stored with explicit status and the schema check prevents 
 * `review_bundle`, `publikasi_bundle`: Review decision and publication record; publication references the approved import review through foreign keys and contract validation.
 * `audit_mutasi`: Actor, entity, action, snapshots, correlation ID, and timestamp for mutation auditability.
 
-Future mapping is documented but not backfilled until Plan 005. The English source tables remain queryable during the expand phase.
+### Plan 005 migration tables
+* `legacy_backfill_exceptions`: Zero-loss preservation ledger for a legacy row that has no exact additive representation. It stores `runId`, source table and ID, reason code, preservation path, source checksum, details, and `blocksCutover`.
+* `peta_id_legacy`: One-to-one source and target identity mapping with mapping version and source and target checksums.
+* `migration_runs`, `migration_checkpoints`: Resumable run state and bounded batch checkpoints used by the staging backfill engine.
+
+Plan 005 populated the additive targets where the mapping was exact and recorded compatibility-only rows instead of inventing target data. Legacy source tables remain queryable during the expand phase. The no-read-switch rule remains in force until a later plan.
 
 ---
 

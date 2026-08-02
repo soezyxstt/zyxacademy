@@ -19,6 +19,7 @@ import { env } from '@/lib/env';
 import { PKA_COURSE_ID } from '@/lib/pka-config';
 import { normalizeDate } from '@/lib/date-utils';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
+import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -223,19 +224,31 @@ export async function POST(req: NextRequest, { params }: Context) {
   const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - startedMs) / 1000));
   const finalDurationSeconds = durationSeconds !== undefined ? Math.min(durationSeconds, elapsedSeconds) : elapsedSeconds;
 
-  await db
-    .update(studentQuizAttempts)
-    .set({
+  await db.transaction(async (tx) => {
+    await tx
+      .update(studentQuizAttempts)
+      .set({
+        status: 'completed',
+        score,
+        durationSeconds: finalDurationSeconds,
+        answersSnapshot: answers as unknown as Record<string, unknown>,
+        submittedAt: now,
+        strongAreas,
+        weakAreas,
+        recommendedNextSteps: nextSteps,
+      })
+      .where(eq(studentQuizAttempts.id, id));
+    await dualWriteQuizAttempt(tx, {
+      id,
+      templateId: attempt.templateId,
+      studentId: attempt.studentId,
       status: 'completed',
-      score,
-      durationSeconds: finalDurationSeconds,
-      answersSnapshot: answers as unknown as Record<string, unknown>,
+      questionsSnapshot: snapshot,
+      answersSnapshot: answers,
+      startedAt: normalizeDate(attempt.startedAt),
       submittedAt: now,
-      strongAreas,
-      weakAreas,
-      recommendedNextSteps: nextSteps,
-    })
-    .where(eq(studentQuizAttempts.id, id));
+    }, attempt.studentId);
+  });
 
   if (template) {
     const events = snapshot.map((q) => {

@@ -19,6 +19,7 @@ import {
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, inArray, asc, sql } from 'drizzle-orm';
+import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 
 const DAILY_QUESTION_COUNT = 5;
 
@@ -185,25 +186,39 @@ export async function POST(req: NextRequest) {
 
  const score = Math.round((correct / questionsSnapshot.length) * 100);
  const attemptId = randomUUID();
+ const submittedAt = new Date();
 
- await db.insert(studentQuizAttempts).values({
- id: attemptId,
- studentId,
- templateId,
- score,
- durationSeconds: durationSeconds ?? null,
- status: 'completed',
- questionsSnapshot: questionsSnapshot as unknown as Record<string, unknown>,
- answersSnapshot: answers as unknown as Record<string, unknown>,
- submittedAt: new Date(),
+ await db.transaction(async (tx) => {
+   await tx.insert(studentQuizAttempts).values({
+     id: attemptId,
+     studentId,
+     templateId,
+     score,
+     durationSeconds: durationSeconds ?? null,
+     status: 'completed',
+     questionsSnapshot: questionsSnapshot as unknown as Record<string, unknown>,
+     answersSnapshot: answers as unknown as Record<string, unknown>,
+     submittedAt,
+     startedAt: submittedAt,
+   });
+   await dualWriteQuizAttempt(tx, {
+     id: attemptId,
+     templateId,
+     studentId,
+     status: 'completed',
+     questionsSnapshot,
+     answersSnapshot: answers,
+     startedAt: submittedAt,
+     submittedAt,
+   }, studentId);
+
+   // Increment use_count for all answered questions.
+   const questionIds = questionsSnapshot.map((q) => q.id);
+   await tx
+     .update(aiQuestionBank)
+     .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })
+     .where(inArray(aiQuestionBank.id, questionIds));
  });
-
- // Increment use_count for all answered questions
- const questionIds = questionsSnapshot.map((q) => q.id);
- await db
- .update(aiQuestionBank)
- .set({ useCount: sql`${aiQuestionBank.useCount} + 1` })
- .where(inArray(aiQuestionBank.id, questionIds));
 
  return NextResponse.json({ attemptId, score, correct, total: questionsSnapshot.length });
 }

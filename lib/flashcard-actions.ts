@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import { inngest } from "@/lib/inngest";
 import { markRecommendationDone } from "@/lib/recommendation-service";
 import { env } from "@/lib/env";
+import { dualWriteFlashcardReview, dualWriteLearningEvent } from "@/lib/migrasi/repository-kompatibilitas";
 
 export interface FlashcardHistoryItem {
   reviewedAt: string;
@@ -307,6 +308,23 @@ export async function submitFlashcardReviewTx(
       createdAt: now,
     };
     await tx.insert(learningEvents).values(eventRow);
+    await dualWriteFlashcardReview(tx, {
+      id: reviewRow.id,
+      studentId,
+      flashcardId,
+      grade,
+      responseTimeMs,
+      reviewedAt: now,
+      progress: {
+        dueDate: progressResult.dueDate,
+        intervalDays: progressResult.intervalDays,
+        easeFactor: Number(progressResult.easeFactor),
+        repetitions: progressResult.repetitions,
+        lapses: progressResult.lapses,
+        lastReviewedAt: progressResult.lastReviewedAt,
+      },
+    }, studentId);
+    await dualWriteLearningEvent(tx, eventRow, studentId);
 
     return {
       progress: progressResult,
@@ -471,6 +489,23 @@ export async function skipFlashcardTx(
       createdAt: now,
     };
     await tx.insert(learningEvents).values(eventRow);
+    await dualWriteFlashcardReview(tx, {
+      id: reviewRow.id,
+      studentId,
+      flashcardId,
+      grade: 1,
+      responseTimeMs: 0,
+      reviewedAt: now,
+      progress: {
+        dueDate: progressResult.dueDate,
+        intervalDays: progressResult.intervalDays,
+        easeFactor: Number(progressResult.easeFactor),
+        repetitions: progressResult.repetitions,
+        lapses: progressResult.lapses,
+        lastReviewedAt: progressResult.lastReviewedAt,
+      },
+    }, studentId);
+    await dualWriteLearningEvent(tx, eventRow, studentId);
 
     return {
       progress: progressResult,

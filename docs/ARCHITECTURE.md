@@ -123,7 +123,27 @@ Plan 004 adds the normalized Indonesian product and learner-state layer as empty
 | Evidence and mastery | `bukti_ide_jawaban`, `bukti_pembelajaran`, `pemahaman_ide`, `perubahan_pemahaman`, `rekomendasi_flashcard` | Score and confidence remain separate; ambiguous evidence cannot affect mastery. |
 | Bundle lifecycle | `impor_bundle`, `item_impor_bundle`, `review_bundle`, `publikasi_bundle`, `audit_mutasi` | Bundle identity is checksum-versioned and publication references an approved review. |
 
-Future mapping is explicit but not backfilled: `website_materials` and `diktats` map to article and material targets; `ai_question_bank`, `assessment_objects`, and `quiz_templates` map to question and assessment targets; `student_quiz_attempts`, `learning_events`, `student_concept_mastery`, `flashcard_sets`, `flashcards`, and their progress tables map to the corresponding Indonesian targets. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` in staging.
+Plan 005 backfills the supported legacy shapes into these targets without deleting or rewriting source rows. Exact evidence is copied to target links; ambiguous questions, unattributable learning events, legacy concept baselines, and compatibility-only history are preserved in the exception ledger. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` in staging, and reads remain on the legacy tables.
+
+### Legacy Backfill and Compatibility Boundary
+
+The migration uses `lib/migrasi/backfill-engine.ts` in bounded transactions and records every source-to-target identity in `peta_id_legacy`. Rows that cannot be represented without inventing semantics are kept in `legacy_backfill_exceptions` with a source checksum, reason code, preservation path, and cutover blocking flag. A second apply is a read-and-compare operation for mapped rows and writes zero changed rows.
+
+Current mutations remain legacy-first and are wrapped by one transaction when both `FEATURE_ARSITEKTUR_IDE_V1=1` and `FEATURE_DUAL_WRITE_IDE=1` are enabled:
+
+```mermaid
+flowchart LR
+    L[Legacy mutation] --> T[One database transaction]
+    T --> LL[Legacy row remains authoritative]
+    T --> C[Compatibility repository]
+    C --> N[Additive Indonesian target]
+    C --> A[audit_mutasi]
+    R[Existing reads] --> LL
+```
+
+The boundary covers material publication, flashcard review, quiz attempt start and submission, learning events with exact Idea identity, enrollment, tutor assignment, and Tutorial PKA progress. Target failures roll back the legacy mutation. With either flag disabled, the compatibility repository is a no-op and visible reads and writes stay on the legacy model.
+
+Plan 005 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
 
 ### Tutor & Booking
 | Table | Purpose |

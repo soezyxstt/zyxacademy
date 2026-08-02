@@ -15,6 +15,7 @@ import { buildTermIndex } from "./term-index";
 import { buildConceptGraph } from "./graph-trace";
 import { env } from "./env";
 import { randomUUID, createHash } from "crypto";
+import { dualWriteMaterialPublication } from "@/lib/migrasi/repository-kompatibilitas";
 
 // ─── UTILITY: CALCULATE GENERATION HASH ──────────────────────────────────────
 
@@ -443,6 +444,20 @@ export async function approveAndPublish(
         updatedAt: new Date(),
       })
       .where(eq(websiteMaterials.chapterId, chapterId));
+
+    await dualWriteMaterialPublication(tx, {
+      id: material.id,
+      courseId: material.courseId,
+      chapterId: material.chapterId,
+      title: material.title,
+      slug: material.slug,
+      canonicalMarkdown: material.canonicalMarkdown,
+      generationHash: material.generationHash,
+      status: "published",
+      creatorId: _adminUserId,
+      version: material.contentVersion,
+      publishedAt: new Date(),
+    }, _adminUserId);
 
     // Fetch active KOs of the chapter to queue them for vector sync
     const activeKOs = await tx

@@ -22,6 +22,9 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [ ] If staging lacks a pre-seeded multi-role identity, `staging:seed-peran-smoke` adds only a deterministic tutor membership to an existing active staging admin and records a keyed, non-secret artifact.
 - [ ] Plan 003 adds the 11 source and Idea tables only; before and after manifests preserve legacy row and primary-key hashes, foreign-key violations are zero, and `FEATURE_ARSITEKTUR_IDE_V1` remains off.
 - [ ] Plan 004 adds the 34 product, assessment, evidence, mastery, bundle, and audit tables only; before and after manifests preserve legacy row and primary-key hashes, foreign-key violations are zero, and `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain off.
+- [x] Plan 005 staging backfill passed with 568 deterministic mappings, 3,175 zero-loss exception rows, zero blocking exceptions, zero foreign-key violations, zero uncovered rows, zero snapshot mismatches, and zero Tutorial PKA mismatches. Evidence: `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
+- [x] Plan 005 idempotency rerun passed with `changedRows: 0`; immutable attempt snapshots and legacy PKA grades remained unchanged.
+- [ ] Before enabling Plan 005 dual-write, verify `FEATURE_ARSITEKTUR_IDE_V1=1` and `FEATURE_DUAL_WRITE_IDE=1` only in a controlled canary. Keep both flags at `0` for rollback and keep legacy reads authoritative.
 
 ## Architectural Guidelines & Boundaries
 

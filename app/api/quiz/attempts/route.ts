@@ -14,6 +14,7 @@ import { and, or, eq, asc, inArray, sql, desc, notInArray } from 'drizzle-orm';
 import { env } from '@/lib/env';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
 import { serializeStudentQuizAttemptList } from '@/lib/assessment-serialization';
+import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 
 const StartSchema = z.object({
  templateId: z.string().min(1),
@@ -223,15 +224,28 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const attemptId = randomUUID();
-  await db.insert(studentQuizAttempts).values({
-    id: attemptId,
-    studentId,
-    templateId,
-    status: 'in_progress',
-    questionsSnapshot: snapshot as unknown as Record<string, unknown>,
-    answersSnapshot: null,
-    masteryBefore,
+ const attemptId = randomUUID();
+  await db.transaction(async (tx) => {
+    await tx.insert(studentQuizAttempts).values({
+      id: attemptId,
+      studentId,
+      templateId,
+      status: 'in_progress',
+      questionsSnapshot: snapshot as unknown as Record<string, unknown>,
+      answersSnapshot: null,
+      masteryBefore,
+      startedAt: now,
+    });
+    await dualWriteQuizAttempt(tx, {
+      id: attemptId,
+      templateId,
+      studentId,
+      status: 'in_progress',
+      questionsSnapshot: snapshot,
+      answersSnapshot: null,
+      startedAt: now,
+      submittedAt: null,
+    }, studentId);
   });
 
   // Return questions WITHOUT correct_indices to the client

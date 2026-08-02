@@ -284,9 +284,10 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Plan 002 staging gates verified with 66 mapped users, 67 role memberships, zero parity violations, idempotent backfill rerun (`changedRows: 0`), and passing admin, tutor, murid, and multi-role Better Auth session smoke. Evidence: `artifacts/staging-overhaul/20260802-plan002-staging/plan-002-result.json`.
 - Plan 003 source and Idea domain verified with 10 focused contract and SQLite constraint tests, additive migration `0053_faithful_blazing_skull.sql`, 11 new staging tables, unchanged legacy manifests, and zero foreign-key violations. Evidence: `artifacts/staging-overhaul/20260802-plan003-staging/plan-003-result.json`.
 - Plan 004 product, assessment, evidence, mastery, bundle, and audit domains verified with 16 focused tests, 70 assertions, clean lint and typecheck, additive migration `0054_green_archangel.sql`, 34 new staging tables, unchanged legacy manifests, and zero foreign-key violations. Evidence: `artifacts/staging-overhaul/20260802-plan004-staging/plan-004-result.json`.
+- Plan 005 deterministic legacy backfill and compatibility verified with clean lint and typecheck, 16 focused tests, additive migration `0055_cute_avengers.sql`, 568 deterministic mappings, 3,175 zero-loss exception rows, zero blocking exceptions, zero foreign-key violations, zero uncovered rows, zero snapshot mismatches, zero Tutorial PKA mismatches, and an idempotent apply. Evidence: `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
 
 ### Current Focus
-Plan 004 product, assessment, and mastery domain expansion is complete and reconciled in staging. Plan 005 deterministic legacy backfill and compatibility is the next predecessor-gated plan.
+Plan 005 deterministic legacy backfill and compatibility is complete and reconciled in staging. Plan 006 Idea Bundle V2 workflow is the next predecessor-gated plan.
 
 ### Blockers
 None.

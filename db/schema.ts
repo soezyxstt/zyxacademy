@@ -217,10 +217,49 @@ export const migrationRunsRelations = relations(migrationRuns, ({ many }) => ({
 }));
 
 export const migrationCheckpointsRelations = relations(migrationCheckpoints, ({ one }) => ({
- run: one(migrationRuns, {
-  fields: [migrationCheckpoints.runId],
-  references: [migrationRuns.id],
- }),
+  run: one(migrationRuns, {
+    fields: [migrationCheckpoints.runId],
+    references: [migrationRuns.id],
+  }),
+}));
+
+/**
+ * Zero-loss ledger for legacy rows that cannot be represented by the additive
+ * domain without inventing data. The source row remains authoritative and the
+ * preservation path keeps the compatibility read explicit.
+ */
+export const legacyBackfillExceptions = sqliteTable(
+ "legacy_backfill_exceptions",
+ {
+  id: text("id").primaryKey(),
+  runId: text("run_id")
+   .notNull()
+   .references(() => migrationRuns.id, { onDelete: "restrict" }),
+  legacyTable: text("legacy_table").notNull(),
+  legacyId: text("legacy_id").notNull(),
+  reasonCode: text("reason_code").notNull(),
+  preservationPath: text("preservation_path").notNull(),
+  details: text("details", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  blocksCutover: integer("blocks_cutover", { mode: "boolean" }).default(false).notNull(),
+  sourceChecksum: text("source_checksum").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("legacy_backfill_exception_source_idx").on(table.runId, table.legacyTable, table.legacyId, table.reasonCode),
+  index("legacy_backfill_exception_run_idx").on(table.runId),
+  index("legacy_backfill_exception_blocking_idx").on(table.blocksCutover),
+ ],
+);
+
+export const legacyBackfillExceptionsRelations = relations(legacyBackfillExceptions, ({ one }) => ({
+  run: one(migrationRuns, {
+    fields: [legacyBackfillExceptions.runId],
+    references: [migrationRuns.id],
+  }),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
