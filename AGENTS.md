@@ -262,7 +262,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Plan 006 Idea Bundle V2 workflow completed**: Added strict ZIP security, manifest and entity contracts, staged import and review workflow, atomic publication, deterministic vector outbox jobs, admin routes and panel, staging fixtures, and reconciliation evidence.
 - **Plan 007 Authoring Context Pack V1 completed**: Added explicit allowlist projection, nested redaction and holdout policy, deterministic ZIP export, admin-only API and panel, private run-scoped R2 staging smoke, content scan, and audit evidence.
 - **Plan 008 Product Bundle V2 completed**: Added strict typed product ZIP validation, immutable staging, traceable previews, tutor and admin review, dependency freshness gates, versioned publication, atomic product and vector outbox writes, assessment source versioning, admin routes and panel, and staging evidence.
-- **Plan 009 Article and Diktat Quality Compiler implemented locally**: Added typed article blocks, prerequisite ordering and cycle rejection, deterministic Product Bundle article compilation, approved-article-only diktat compression, stable quality-gate reason codes, traceable admin previews, and read-only staging preview scripts. Staging execution and publication remain pending and were not run in this worktree.
+- **Plan 009 Article and Diktat Quality Compiler completed**: Added typed article blocks, prerequisite ordering and cycle rejection, deterministic Product Bundle article compilation, approved-article-only diktat compression, stable quality-gate reason codes, traceable admin previews, and read-only staging preview scripts. Staging evidence records 100 percent article and diktat quality, deterministic output, and zero writes; the requested `tutorial-pka` identity used an explicit read-only fallback to canonical course `mat-i` because no published canonical Idea rows were available under the PKA identity.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -294,7 +294,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Plan 008 Product Bundle V2 verified with clean lint, typecheck, diff check, 23 focused contract tests across Product Bundle, material, and question pipelines, all seven product types staged and published, identical retry no-op, conflict rejection, seven-stage rollback matrix with zero visible partial products, stale dependency blocking, holdout rejection, versioned re-import, and independent reconcile. Evidence: `artifacts/staging-overhaul/20260803-plan008-product-v3/plan-008-result.json` and `plan-008-reconcile.json`.
 
 ### Current Focus
-Plan 008 Product Bundle V2 workflow is complete and reconciled in staging. Plan 009 Article and Diktat Quality Compiler is implemented locally on `codex/009-material-quality`; its staging evidence and status transition remain pending. Plan 010 Question and Assessment Integrity remains the next parallel lane.
+Plan 009 Article and Diktat Quality Compiler is complete and verified locally plus in a read-only staging preview. The preview records an explicit `tutorial-pka` to `mat-i` canonical fixture fallback because the staging database has no published canonical Idea rows under the PKA identity. Plan 010 Question and Assessment Integrity is the next integration lane. Plan 012A Vectorize foundation contracts are integrated; the final 768 index rebuild remains gated by Plan 011.
 
 ### Blockers
 None.

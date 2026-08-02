@@ -1,6 +1,6 @@
 # Zyx Idea-Centered Learning System Overhaul
 
-Status program: in progress, Plans 001 through 008 are complete. Plans 009 and 010 may now develop in parallel; Plan 012 foundation remains separately gated after Plan 005.
+Status program: in progress, Plans 001 through 009 are complete. Plan 010 remains in the integration queue; Plan 012 foundation is complete while its final rebuild remains gated by Plan 011.
 
 Planning snapshot:
 
@@ -42,10 +42,10 @@ Execute sequentially. A plan is a predecessor gate, not optional reading.
 | [006](006-idea-bundle-v2-workflow.md) | Idea Bundle V2 workflow | P1 | L | 005 | DONE | ZIP import is validated, idempotent, reviewed, and atomically published |
 | [007](007-authoring-context-pack-and-protected-benchmarks.md) | Authoring Context Pack and protected benchmarks | P1 | M | 006 | DONE | Context export excludes holdout content and is reproducible |
 | [008](008-product-bundle-v2-workflow.md) | Product Bundle V2 workflow | P1 | L | 007 | DONE | Product import, preview, review, and publish are atomic and dependency-aware |
-| [009](009-article-and-diktat-quality-compiler.md) | Article and diktat quality compiler | P1 | L | 008 | TODO | Required pedagogic blocks and source coverage pass publication gates |
+| [009](009-article-and-diktat-quality-compiler.md) | Article and diktat quality compiler | P1 | L | 008 | DONE | Required pedagogic blocks and source coverage pass publication gates |
 | [010](010-question-and-assessment-integrity.md) | Question and assessment integrity | P0 | L | 008 | TODO | Multi-Idea evidence, blueprint, benchmark, and active-attempt gates pass |
 | [011](011-per-idea-mastery-and-learning-loop.md) | Per-Idea mastery and learning loop | P0 | L | 010 | TODO | Mastery and confidence are separate, reproducible, and history-safe |
-| [012](012-vectorize-only-indexing-and-retrieval.md) | Vectorize-only indexing and retrieval | P0 | L | 005, 011; internal foundation after 005 | TODO | DB and Vectorize manifests match exactly in staging |
+| [012](012-vectorize-only-indexing-and-retrieval.md) | Vectorize-only indexing and retrieval | P0 | L | 005, 011; internal foundation after 005 | TODO | DB and Vectorize manifests match exactly in staging; 012A contracts complete |
 | [013](013-zyra-canonical-runtime.md) | Zyra canonical runtime | P1 | L | 011, 012 | TODO | Responses hydrate approved DB content and assessment leaks are zero |
 | [014](014-admin-and-tutor-operational-workflow.md) | Admin and tutor operational workflow | P1 | L | 009, 010, 013 | TODO | Admin and tutor can complete the new content lifecycle end to end |
 | [015](015-murid-workflow-and-tutorial-pka-parity.md) | Murid workflow and Tutorial PKA parity | P0 | L | 014 | TODO | Existing Tutorial PKA history and all core murid journeys remain operational |
@@ -66,6 +66,8 @@ Plan 006 evidence: `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-0
 Plan 007 evidence: `artifacts/staging-overhaul/20260803-plan007-authoring-v1/plan-007-result.json` records deterministic pack and ZIP checksums, private R2 round trip, exact test-object deletion, and audit metadata. Independent content scan is recorded in `plan-007-scan.json`.
 
 Plan 008 evidence: `artifacts/staging-overhaul/20260803-plan008-product-v3/plan-008-result.json` records all seven product types, identical retry no-op, conflict rejection, seven-stage rollback matrix, stale dependency blocking, holdout rejection, atomic publication, and versioned re-import. Independent reconciliation is recorded in `plan-008-reconcile.json`.
+
+Plan 009 evidence: `artifacts/staging-overhaul/20260803-plan009-article-v1/plan-009-result.json` records 100 percent article and diktat quality, deterministic AST, Markdown, and generation hashes, and zero writes or changed rows. The staging database had no published canonical Idea rows under the requested `tutorial-pka` identity, so the read-only fixture records an explicit fallback to the available canonical course `mat-i`; no Tutorial PKA material was changed.
 
 ## Serialized integration graph
 
