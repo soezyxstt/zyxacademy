@@ -137,7 +137,7 @@ Leave new flags off and revert the application revision. New empty tables may re
 
 - [x] All commands in Commands and pass criteria exit 0 with the stated result.
 - [x] `artifacts/staging-overhaul/20260802-plan004-staging/plan-004-result.json` exists, validates, and records `status=passed` without secrets.
-- [x] `git status --short` shows no modifications outside this plan's in-scope paths, generated migration when applicable, and the `plans/README.md` status row.
+- [x] The Plan 004 commits contain no changes outside this plan's in-scope paths; unrelated unstaged Plan 012 and Plan 016 work was preserved and excluded.
 - [x] This plan's row in `plans/README.md` is changed to `DONE` only after the prior checks pass.
 
 - [x] The complete target product, assessment, evidence, mastery, bundle, and audit schema exists in staging.
