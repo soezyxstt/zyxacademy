@@ -71,6 +71,16 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 
 Remote staging commands must load `.env.staging`, set `ZYX_ENVIRONMENT=staging`, and set `ALLOW_STAGING_MUTATION=1` only for an explicitly reviewed write. `STAGING_EXPORT_KEY` is supplied outside Git and is required for keyed manifests and encrypted exports. Production counterparts are compared before a staging command can continue. Do not use `db:sync-prod-to-staging`; its replacement is the separately named destructive command `db:sync-prod-to-staging:destructive`, which also requires the explicit confirmation phrase.
 
+Plan 006 staging workflow commands are:
+
+```bash
+bun --env-file=.env.staging run staging:preflight
+bun --env-file=.env.staging run staging:test-idea-bundle -- --run-id <runId> --fixture all
+bun --env-file=.env.staging run staging:reconcile-bundle -- --run-id <runId> --type idea
+```
+
+The staging test uses the authenticated Wrangler R2 adapter only for the test process when the staging script enables `STAGING_BUNDLE_WRANGLER_STORAGE=1`; production runtime storage remains the normal R2 provider.
+
 ## Feature Flags
 
 All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
@@ -84,6 +94,7 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 * `FEATURE_PRODUK_IDE_V1`: normalized article, material, question, solution, and flashcard domain.
 * `FEATURE_ASESMEN_IDE_V1`: normalized assessment definition, attempt, answer, and snapshot domain.
 * `FEATURE_PEMAHAMAN_IDE_V1`: Idea-level evidence, mastery, history, and recommendation domain.
+* `FEATURE_IDEA_BUNDLE_V2`: strict ZIP-based Idea import, review, and atomic publication.
 
 | Flag | Feature |
 |------|---------|
@@ -99,6 +110,7 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_PRODUK_IDE_V1` | Normalized product and Idea link domain |
 | `FEATURE_ASESMEN_IDE_V1` | Normalized assessment and historical snapshot domain |
 | `FEATURE_PEMAHAMAN_IDE_V1` | Idea evidence and mastery domain |
+| `FEATURE_IDEA_BUNDLE_V2` | Strict ZIP Idea Bundle upload, review, and publication |
 | `FEATURE_TUTOR_RAG` | Grounded AI tutor pipeline (P3) |
 | `FEATURE_FEEDBACK` | Answer feedback |
 | `FEATURE_STUDY_PATH` | Personalized study paths |

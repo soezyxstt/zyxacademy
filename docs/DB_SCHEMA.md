@@ -324,9 +324,11 @@ Quiz and tryout cardinality is enforced by the assessment contract: a quiz has e
 Ambiguous evidence is stored with explicit status and the schema check prevents it from being marked as mastery-affecting. No legacy mastery or learning-event row is rewritten in Plan 004.
 
 ### Bundle and audit tables
-* `impor_bundle`, `item_impor_bundle`: Checksum-identified import and entity inventory.
+* `impor_bundle`, `item_impor_bundle`: Checksum-identified import and entity inventory, optional legacy course association, and JSON validation report.
 * `review_bundle`, `publikasi_bundle`: Review decision and publication record; publication references the approved import review through foreign keys and contract validation.
 * `audit_mutasi`: Actor, entity, action, snapshots, correlation ID, and timestamp for mutation auditability.
+
+Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. A matching bundle ID and checksum is idempotent; a different checksum is a conflict. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
 
 ### Plan 005 migration tables
 * `legacy_backfill_exceptions`: Zero-loss preservation ledger for a legacy row that has no exact additive representation. It stores `runId`, source table and ID, reason code, preservation path, source checksum, details, and `blocksCutover`.

@@ -1,0 +1,51 @@
+{
+  "bundleId": "bundle-idea-motion-v2",
+  "bundleType": "idea",
+  "schemaVersion": "idea-bundle.v2",
+  "courseId": "course-physics",
+  "sourceVersions": [
+    {
+      "sourceMaterialId": "source-motion",
+      "version": 1,
+      "checksum": "0fd6c09372721f38ecadf7d9494dde1e2699d9de379e116d817701f5af4599fc",
+      "contentPath": "sources/kinematika.md"
+    }
+  ],
+  "entityFiles": [
+    {
+      "path": "entities/source-materials.json",
+      "entityType": "source_materials",
+      "checksum": "e881272d2ea9644197e78f10e77d5616147568de9ffe77538f459751c6093aaa",
+      "stableIds": ["source-motion"]
+    },
+    {
+      "path": "entities/source-chunks.json",
+      "entityType": "source_chunks",
+      "checksum": "eafa06bb49f669e900ba7e346eee5e9096101f84f9613f10f816ba1f10603dbc",
+      "stableIds": ["chunk-motion-1"]
+    },
+    {
+      "path": "entities/ideas.json",
+      "entityType": "ideas",
+      "checksum": "fc88b1b011b496af79b551422e49c4793bf8c9d2e52f0040b03f5232f2da172f",
+      "stableIds": ["idea-velocity"]
+    },
+    {
+      "path": "entities/provenance.json",
+      "entityType": "provenance",
+      "checksum": "14f45266a2db57cd8d0f681f7a2e4630e1a175e65ef94e5c1fd440acce14d4ed",
+      "stableIds": ["provenance-velocity-1"]
+    },
+    {
+      "path": "entities/relations.json",
+      "entityType": "relations",
+      "checksum": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "stableIds": []
+    }
+  ],
+  "creatorId": "creator-1",
+  "curatorId": "curator-1",
+  "createdAt": "2026-08-03T00:00:00.000Z",
+  "bundleChecksum": "3a8df40401329e6b112e39543a824c476be17b17dd1b9a9a121eef4301d93d8f",
+  "conflicts": []
+}

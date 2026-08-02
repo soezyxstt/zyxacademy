@@ -71,6 +71,14 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
 8. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0`; current runtime callers and legacy records are unchanged.
 
+### Idea Bundle V2 Workflow
+
+1. Admins upload strict ZIP bundles from `/admin/bundles/idea`; validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
+2. Valid uploads create an immutable import record and entity inventory without writing canonical source or Idea rows. Identical retries are no-ops and a different checksum for the same bundle ID is blocked.
+3. Assigned tutors can review provenance and Idea correctness. Admin approval and rejection decisions are audited and immutable.
+4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically.
+5. `FEATURE_IDEA_BUNDLE_V2` controls the workflow. When absent or `0`, the legacy JSON importer remains visible for rollback.
+
 ### Website Material Generation
 1. All KOs for a chapter are collected in order
 2. Gemini compiles them into canonical markdown with custom containers (`:::concept`, `:::formula`, `:::misconception`)

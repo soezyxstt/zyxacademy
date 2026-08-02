@@ -34,6 +34,7 @@ import {
   LineChart,
   Newspaper,
   Flag,
+  Layers,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -190,6 +191,16 @@ export default async function AdminHomePage() {
           href: "/admin/courses",
           label: "Kelola mata kuliah",
           stat: courseStat,
+        },
+        {
+          title: "Idea Bundle V2",
+          description:
+            "Validasi, staging, review, dan publikasi bundle Idea berbasis ZIP dengan audit dan outbox.",
+          icon: Layers,
+          iconColor: "text-brand-primary",
+          href: "/admin/bundles/idea",
+          label: "Kelola Idea Bundle",
+          stat: null,
         },
         {
           title: "File Storage",

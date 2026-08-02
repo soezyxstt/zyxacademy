@@ -145,6 +145,26 @@ The boundary covers material publication, flashcard review, quiz attempt start a
 
 Plan 005 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
 
+### Idea Bundle V2 Workflow
+
+Plan 006 adds a strict ZIP boundary around the additive source and Idea domain. The upload path validates archive structure, manifest checksums, source spans, entity references, stable keys, provenance, and relation acyclicity before any canonical row is written.
+
+```mermaid
+flowchart LR
+    U[Admin ZIP upload] --> V[Secure ZIP and contract validation]
+    V --> I[impor_bundle and item inventory]
+    I --> R[Tutor review]
+    R --> A[Admin approval]
+    A --> P[One Turso publication transaction]
+    P --> D[Source, chunk, Idea, provenance, relation rows]
+    P --> O[vector_sync_queue outbox]
+    P --> X[audit_mutasi and publikasi_bundle]
+```
+
+`impor_bundle` stores the checksum identity, legacy course association, and immutable validation report. `review_bundle` stores one immutable decision per reviewer. Publication is idempotent and compares existing target versions field by field; conflicts fail rather than overwrite. The transaction also inserts deterministic vector jobs for embedding-eligible source chunks and published Ideas. `FEATURE_IDEA_BUNDLE_V2` gates the admin API and panel, while the legacy importer remains the rollback path.
+
+Plan 006 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json`, with an independent database reconciliation at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-reconcile.json`.
+
 ### Tutor & Booking
 | Table | Purpose |
 |---|---|

@@ -23,6 +23,7 @@ import {
   Link as LinkIcon,
   Newspaper,
   Flag,
+  Layers,
 } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -170,6 +171,7 @@ function AdminSidebarInner() {
 
         <NavGroup label="Akademik" collapsed={c} />
         <NavItem href="/admin/courses" icon={BookText} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} />
+        <NavItem href="/admin/bundles/idea" icon={Layers} label="Idea Bundle V2" active={isPrefix("/admin/bundles/idea")} collapsed={c} />
         
         <NavCollapsible 
           icon={GraduationCap} 

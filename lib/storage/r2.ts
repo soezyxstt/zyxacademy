@@ -108,6 +108,16 @@ export class R2Provider implements StorageProvider {
     }
   }
 
+  async download(key: string): Promise<Uint8Array> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+    const response = await this.s3.send(command);
+    if (!response.Body) throw new Error(`R2 object has no body: ${key}`);
+    return response.Body.transformToByteArray();
+  }
+
   async copy(sourceKey: string, destKey: string): Promise<{ url: string; key: string }> {
     const command = new CopyObjectCommand({
       Bucket: this.bucket,

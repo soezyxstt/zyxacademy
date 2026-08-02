@@ -259,6 +259,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Feature Flags Admin Monitor completed**: Added dedicated `/admin/ops/flags` dashboard with runtime `FEATURE_*` inspection (`lib/feature-flags.ts`), admin API endpoint (`/api/admin/feature-flags`), category filters, search capabilities, env copy helpers, and sidebar/admin homepage navigation links.
 - **Per-Quiz Student Attempt Spreadsheet & CSV Export completed**: Added dedicated interactive spreadsheet view (`QuizAttemptsSpreadsheet`), item-response answer matrix, API route (`/api/admin/quiz-insights/[id]/attempts`), CSV export engine (Matrix & Summary formats), Admin Quiz Insights integration, and Tutor portal route (`/tutor/[courseId]/quizzes/[templateId]/attempts`).
 - **Plan 001 staging safety and migration ledger completed**: Added guarded staging preflight, deterministic inventory, encrypted export and disposable restore, migration ledger tables, additive migration controls, and reconciliation evidence.
+- **Plan 006 Idea Bundle V2 workflow completed**: Added strict ZIP security, manifest and entity contracts, staged import and review workflow, atomic publication, deterministic vector outbox jobs, admin routes and panel, staging fixtures, and reconciliation evidence.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -285,9 +286,10 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Plan 003 source and Idea domain verified with 10 focused contract and SQLite constraint tests, additive migration `0053_faithful_blazing_skull.sql`, 11 new staging tables, unchanged legacy manifests, and zero foreign-key violations. Evidence: `artifacts/staging-overhaul/20260802-plan003-staging/plan-003-result.json`.
 - Plan 004 product, assessment, evidence, mastery, bundle, and audit domains verified with 16 focused tests, 70 assertions, clean lint and typecheck, additive migration `0054_green_archangel.sql`, 34 new staging tables, unchanged legacy manifests, and zero foreign-key violations. Evidence: `artifacts/staging-overhaul/20260802-plan004-staging/plan-004-result.json`.
 - Plan 005 deterministic legacy backfill and compatibility verified with clean lint and typecheck, 16 focused tests, additive migration `0055_cute_avengers.sql`, 568 deterministic mappings, 3,175 zero-loss exception rows, zero blocking exceptions, zero foreign-key violations, zero uncovered rows, zero snapshot mismatches, zero Tutorial PKA mismatches, and an idempotent apply. Evidence: `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
+- Plan 006 Idea Bundle V2 verified with clean lint, typecheck, diff check, 7 focused contract tests, additive migration `0056_elite_midnight.sql`, successful staging upload, identical retry no-op, conflict rejection, partial publication rollback, atomic publish, stable invalid-fixture reason codes, and independent reconciliation. Evidence: `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json` and `plan-006-reconcile.json`.
 
 ### Current Focus
-Plan 005 deterministic legacy backfill and compatibility is complete and reconciled in staging. Plan 006 Idea Bundle V2 workflow is the next predecessor-gated plan.
+Plan 006 Idea Bundle V2 workflow is complete and reconciled in staging. Plan 007 Authoring Context Pack and protected benchmarks is the next predecessor-gated plan.
 
 ### Blockers
 None.
