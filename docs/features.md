@@ -79,6 +79,14 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically.
 5. `FEATURE_IDEA_BUNDLE_V2` controls the workflow. When absent or `0`, the legacy JSON importer remains visible for rollback.
 
+### Authoring Context Pack V1
+
+1. Admins can export a deterministic context pack from `/admin/authoring-context` rooted in a selected course snapshot.
+2. The allowlist includes only published current reviewed Ideas, active source excerpts, provenance, relations, objectives, safe requirements, and allowed benchmark summaries.
+3. Holdout content, murid data, credentials, signed URLs, embeddings, and unpublished or stale content are excluded and counted or scanned before storage.
+4. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata.
+5. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables the UI and API when absent or `0`.
+
 ### Website Material Generation
 1. All KOs for a chapter are collected in order
 2. Gemini compiles them into canonical markdown with custom containers (`:::concept`, `:::formula`, `:::misconception`)

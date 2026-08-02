@@ -144,3 +144,8 @@ The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
 ## Feature Flags
 
 All `FEATURE_*` env vars default to off. Enable gradually per environment. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the full list.
+## Authoring Context Pack V1
+
+Keep `FEATURE_AUTHORING_CONTEXT_V1` absent or `0` until the local contract suite and staging round trip pass. The export API is admin-only by default, stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.
+
+The artifact must use the private R2 staging bucket and must not use a public URL. The authenticated Wrangler adapter is limited to the staging test process when normal R2 credentials are unavailable; production runtime keeps the standard R2 provider. Rollback disables the flag and deletes only an explicitly named test object by exact key.

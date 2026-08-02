@@ -165,6 +165,22 @@ flowchart LR
 
 Plan 006 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json`, with an independent database reconciliation at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-reconcile.json`.
 
+### Authoring Context Pack V1
+
+Plan 007 adds a read-only, explicit allowlist projection for external authoring. The projection begins with published current Ideas and active source excerpts, joins only safe educational metadata, counts holdout benchmark rows, scans the projected object, then stores a private run-scoped ZIP.
+
+```mermaid
+flowchart LR
+    Q[Admin export request] --> S[Typed DB snapshot]
+    S --> A[Allowlist projection]
+    A --> R[Redaction and holdout scan]
+    R --> Z[Deterministic ZIP and checksum]
+    Z --> K[Private R2 staging key]
+    Z --> L[audit_mutasi with retention]
+```
+
+The exporter does not call an external model and never includes user, credential, attempt, answer, mastery, chat, embedding, signed URL, or holdout content. `FEATURE_AUTHORING_CONTEXT_V1` is disabled by default and tutor access remains disabled until a separate assigned-course policy test is added.
+
 ### Tutor & Booking
 | Table | Purpose |
 |---|---|

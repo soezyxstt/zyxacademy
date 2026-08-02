@@ -1,6 +1,6 @@
 # Zyx Idea-Centered Learning System Overhaul
 
-Status program: in progress, Plans 001 through 006 are complete and Plan 007 is next.
+Status program: in progress, Plans 001 through 007 are complete and Plan 008 is next.
 
 Planning snapshot:
 
@@ -40,7 +40,7 @@ Execute sequentially. A plan is a predecessor gate, not optional reading.
 | [004](004-product-assessment-and-mastery-domain-expansion.md) | Product, assessment, and mastery domain expansion | P0 | L | 003 | DONE | Target product and learner tables exist with enforced invariants |
 | [005](005-deterministic-legacy-backfill-and-compatibility.md) | Deterministic legacy backfill and compatibility layer | P0 | L | 004 | DONE | 100 percent legacy mapping or an explicit zero-loss exception ledger |
 | [006](006-idea-bundle-v2-workflow.md) | Idea Bundle V2 workflow | P1 | L | 005 | DONE | ZIP import is validated, idempotent, reviewed, and atomically published |
-| [007](007-authoring-context-pack-and-protected-benchmarks.md) | Authoring Context Pack and protected benchmarks | P1 | M | 006 | TODO | Context export excludes holdout content and is reproducible |
+| [007](007-authoring-context-pack-and-protected-benchmarks.md) | Authoring Context Pack and protected benchmarks | P1 | M | 006 | DONE | Context export excludes holdout content and is reproducible |
 | [008](008-product-bundle-v2-workflow.md) | Product Bundle V2 workflow | P1 | L | 007 | TODO | Product import, preview, review, and publish are atomic and dependency-aware |
 | [009](009-article-and-diktat-quality-compiler.md) | Article and diktat quality compiler | P1 | L | 008 | TODO | Required pedagogic blocks and source coverage pass publication gates |
 | [010](010-question-and-assessment-integrity.md) | Question and assessment integrity | P0 | L | 008 | TODO | Multi-Idea evidence, blueprint, benchmark, and active-attempt gates pass |
@@ -62,6 +62,8 @@ Plan 004 evidence: `artifacts/staging-overhaul/20260802-plan004-staging/plan-004
 Plan 005 evidence: `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json` records 568 deterministic mappings, 3,175 zero-loss exception rows, zero blocking exceptions, zero foreign-key violations, zero uncovered rows, zero snapshot mismatches, zero Tutorial PKA mismatches, and an idempotent apply with `changedRows: 0`.
 
 Plan 006 evidence: `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json` records strict ZIP validation, idempotent retry, conflict rejection, rollback after injected failure, atomic publication, and the invalid fixture reason codes. Independent reconciliation is recorded in `plan-006-reconcile.json`.
+
+Plan 007 evidence: `artifacts/staging-overhaul/20260803-plan007-authoring-v1/plan-007-result.json` records deterministic pack and ZIP checksums, private R2 round trip, exact test-object deletion, and audit metadata. Independent content scan is recorded in `plan-007-scan.json`.
 
 ## Serialized integration graph
 

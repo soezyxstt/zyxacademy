@@ -34,6 +34,8 @@ bun run dev                  # http://localhost:3000
 | `bun --env-file=.env.staging run staging:classify-role-literals -- --run-id <runId>` | Classify remaining `teacher` and `student` literals |
 | `bun --env-file=.env.staging run staging:smoke-auth -- --run-id <runId> --roles admin,tutor,murid,multi` | Validate staging sessions against canonical memberships |
 | `bun --env-file=.env.staging run staging:reconcile-peran -- --run-id <runId>` | Reconcile Plan 002 identity and role parity |
+| `bun --env-file=.env.staging run staging:test-authoring-context -- --run-id <runId> --course tutorial-pka` | Export and round-trip one protected authoring context pack |
+| `bun --env-file=.env.staging run staging:scan-context-pack -- --run-id <runId>` | Rebuild and scan the Plan 007 context projection |
 
 ## Environment Variables
 
@@ -95,6 +97,7 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 * `FEATURE_ASESMEN_IDE_V1`: normalized assessment definition, attempt, answer, and snapshot domain.
 * `FEATURE_PEMAHAMAN_IDE_V1`: Idea-level evidence, mastery, history, and recommendation domain.
 * `FEATURE_IDEA_BUNDLE_V2`: strict ZIP-based Idea import, review, and atomic publication.
+* `FEATURE_AUTHORING_CONTEXT_V1`: deterministic redacted Authoring Context Pack export.
 
 | Flag | Feature |
 |------|---------|
@@ -111,6 +114,7 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_ASESMEN_IDE_V1` | Normalized assessment and historical snapshot domain |
 | `FEATURE_PEMAHAMAN_IDE_V1` | Idea evidence and mastery domain |
 | `FEATURE_IDEA_BUNDLE_V2` | Strict ZIP Idea Bundle upload, review, and publication |
+| `FEATURE_AUTHORING_CONTEXT_V1` | Deterministic redacted authoring context export |
 | `FEATURE_TUTOR_RAG` | Grounded AI tutor pipeline (P3) |
 | `FEATURE_FEEDBACK` | Answer feedback |
 | `FEATURE_STUDY_PATH` | Personalized study paths |

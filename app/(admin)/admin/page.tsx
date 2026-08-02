@@ -35,6 +35,7 @@ import {
   Newspaper,
   Flag,
   Layers,
+  ShieldCheck,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -200,6 +201,16 @@ export default async function AdminHomePage() {
           iconColor: "text-brand-primary",
           href: "/admin/bundles/idea",
           label: "Kelola Idea Bundle",
+          stat: null,
+        },
+        {
+          title: "Authoring Context Pack",
+          description:
+            "Ekspor konteks authoring deterministik dengan filter Ideas, sumber, benchmark, dan data sensitif.",
+          icon: ShieldCheck,
+          iconColor: "text-status-success",
+          href: "/admin/authoring-context",
+          label: "Buat context pack",
           stat: null,
         },
         {
