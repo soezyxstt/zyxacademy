@@ -45,16 +45,18 @@ function sessionCookieName(): string {
   : "better-auth.session_token";
 }
 
-async function sessionForLegacyRole(
+async function sessionForPeran(
  client: ReturnType<typeof createClient>,
  role: string,
 ): Promise<{ userId: string; token: string } | null> {
  const result = await client.execute({
-  sql: `SELECT u.id AS user_id, s.token
-   FROM user u
-   INNER JOIN session s ON s.user_id = u.id
-   WHERE u.role = ? AND (s.expires_at > ? OR s.expires_at > ?)
-   ORDER BY u.id, s.expires_at DESC
+  sql: `SELECT p.id AS user_id, s.token
+   FROM pengguna p
+   INNER JOIN pengguna_peran pp ON pp.pengguna_id = p.id
+   INNER JOIN peran r ON r.id = pp.peran_id
+   INNER JOIN session s ON s.user_id = p.id
+   WHERE p.status = 'active' AND r.code = ? AND (s.expires_at > ? OR s.expires_at > ?)
+   ORDER BY s.updated_at DESC, s.expires_at DESC, p.id
    LIMIT 1`,
   args: [role, ...activeExpiryArgs()],
  });
@@ -72,7 +74,7 @@ async function multiRoleSession(client: ReturnType<typeof createClient>): Promis
     INNER JOIN pengguna_peran pp ON pp.pengguna_id = p.id
     INNER JOIN peran r ON r.id = pp.peran_id
     INNER JOIN session s ON s.user_id = p.id
-    WHERE p.id = ? AND (s.expires_at > ? OR s.expires_at > ?)
+    WHERE p.id = ? AND p.status = 'active' AND (s.expires_at > ? OR s.expires_at > ?)
     GROUP BY p.id, s.token
     HAVING COUNT(DISTINCT r.code) >= 2
     ORDER BY s.expires_at DESC
@@ -85,7 +87,7 @@ async function multiRoleSession(client: ReturnType<typeof createClient>): Promis
     INNER JOIN pengguna_peran pp ON pp.pengguna_id = p.id
     INNER JOIN peran r ON r.id = pp.peran_id
     INNER JOIN session s ON s.user_id = p.id
-    WHERE s.expires_at > ? OR s.expires_at > ?
+    WHERE p.status = 'active' AND (s.expires_at > ? OR s.expires_at > ?)
     GROUP BY p.id, s.token
     HAVING COUNT(DISTINCT r.code) >= 2
     ORDER BY p.id, s.expires_at DESC
@@ -139,8 +141,7 @@ async function main(): Promise<void> {
      cases.push(await validateSession(session.userId, session.token, ["admin", "tutor"]));
      continue;
     }
-    const legacyRole = requestedRole === "tutor" ? "teacher" : requestedRole === "murid" ? "student" : requestedRole;
-    const session = await sessionForLegacyRole(client, legacyRole);
+    const session = await sessionForPeran(client, requestedRole);
     if (!session) {
      cases.push({ name: requestedRole, status: "blocked", roleCount: 0, sessionRefreshPassed: false });
      continue;

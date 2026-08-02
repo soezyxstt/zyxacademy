@@ -19,6 +19,7 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [ ] Plan 002 `pengguna`, `peran`, and `pengguna_peran` migration is additive and foreign-key clean.
 - [ ] Plan 002 legacy role parity is exact, the idempotent rerun changes zero rows, and all `teacher` and `student` literals are classified.
 - [ ] Plan 002 auth smoke has active staging admin, tutor, murid, and multi-role sessions before `FEATURE_PERAN_V2=1` is enabled.
+- [ ] If staging lacks a pre-seeded multi-role identity, `staging:seed-peran-smoke` adds only a deterministic tutor membership to an existing active staging admin and records a keyed, non-secret artifact.
 
 ## Architectural Guidelines & Boundaries
 

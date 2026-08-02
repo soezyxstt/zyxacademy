@@ -32,6 +32,7 @@ type BackfillReport = {
 };
 type LiteralReport = { status: string; counts: Record<string, number> };
 type SmokeReport = { status: string; cases: Array<{ name: string; status: string }> };
+type SmokeSeedReport = { status: string; source?: string; changedRows?: number };
 
 function rows(result: { rows: unknown[] }): Row[] {
  return result.rows as Row[];
@@ -54,6 +55,7 @@ async function main(): Promise<void> {
   const initial = await readArtifact<BackfillReport>(runId, "backfill-peran.json");
   const rerun = await readArtifact<BackfillReport>(runId, "backfill-peran-rerun.json");
   const literalReport = await readArtifact<LiteralReport>(runId, "role-literals.json");
+  const smokeSeed = await readArtifact<SmokeSeedReport>(runId, "seed-peran-smoke.json");
   const smoke = await readArtifact<SmokeReport>(runId, "smoke-auth.json");
   const connection = resolveDatabaseConnection(process.env);
   const client = createClient(connection);
@@ -140,6 +142,7 @@ async function main(): Promise<void> {
    if (missingRoleCatalogCount !== 0 || wrongRoleCatalogIdCount !== 0 || peranCount !== PERAN_CODES.length) violations.push("role-catalog-mismatch");
    if (expectedRoleMembershipCount < legacyUserCount) violations.push("membership-count-loss");
    if (literalReport.status !== "passed" || (literalReport.counts.unclassified ?? 0) !== 0) violations.push("role-literal-inventory-failed");
+   if (smokeSeed.status !== "passed" || smokeSeed.source !== "staging_smoke_seed") violations.push("smoke-role-seed-failed");
    if (smoke.status !== "passed" || smoke.cases.some((item) => item.status !== "passed")) violations.push("auth-smoke-failed");
 
    const reconciliation = {
@@ -161,6 +164,8 @@ async function main(): Promise<void> {
     wrongRoleCatalogIdCount,
     initialChangedRows: initial.changedRows,
     rerunChangedRows: rerun.changedRows,
+    smokeSeedStatus: smokeSeed.status,
+    smokeSeedChangedRows: smokeSeed.changedRows ?? 0,
     literalInventoryStatus: literalReport.status,
     smokeStatus: smoke.status,
     violations,
@@ -187,6 +192,7 @@ async function main(): Promise<void> {
      { command: "staging:migrate --plan 002", exitCode: 0 },
      { command: "staging:backfill-peran", exitCode: initial.status === "passed" ? 0 : 1 },
      { command: "staging:backfill-peran --rerun", exitCode: rerun.status === "passed" && rerun.changedRows === 0 ? 0 : 1 },
+     { command: "staging:seed-peran-smoke", exitCode: smokeSeed.status === "passed" ? 0 : 1 },
      { command: "staging:classify-role-literals", exitCode: literalReport.status === "passed" ? 0 : 1 },
      { command: "staging:smoke-auth", exitCode: smoke.status === "passed" ? 0 : 1 },
      { command: "staging:reconcile-peran", exitCode: reconciliation.status === "passed" ? 0 : 1 },
@@ -210,7 +216,7 @@ async function main(): Promise<void> {
      passed: false,
      detail: reconciliation.status === "passed"
       ? "Legacy user.role projection remains intact; FEATURE_PERAN_V2=0 preserves the legacy authorization path."
-      : "Not attempted because staging auth smoke did not pass every required role and multi-role session case.",
+     : "Not attempted because staging auth smoke did not pass every required role and multi-role session case.",
     },
     knownLimitations: reconciliation.status === "passed" ? undefined : reconciliation.violations,
     operatorTimestamp: new Date().toISOString(),
