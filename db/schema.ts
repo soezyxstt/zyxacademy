@@ -1476,6 +1476,734 @@ export const petaIdLegacy = sqliteTable(
  ],
 );
 
+// Plan 004 product, assessment, learning-state, bundle, and audit domains.
+// These tables are additive; existing product and attempt tables remain intact.
+export const artikel = sqliteTable(
+ "artikel",
+ {
+  id: text("id").primaryKey(),
+  mataKuliahId: text("mata_kuliah_id")
+   .notNull()
+   .references(() => mataKuliah.id, { onDelete: "restrict" }),
+  babId: text("bab_id").references(() => bab.id, { onDelete: "set null" }),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  contentMarkdown: text("content_markdown").notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"draft" | "in_review" | "published" | "withdrawn">().default("draft").notNull(),
+  sourceHash: text("source_hash").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("artikel_slug_idx").on(table.slug),
+  index("artikel_course_idx").on(table.mataKuliahId),
+  index("artikel_chapter_idx").on(table.babId),
+  index("artikel_status_version_idx").on(table.status, table.version),
+  check("artikel_version_check", sql`${table.version} > 0`),
+  check("artikel_status_check", sql`${table.status} IN ('draft', 'in_review', 'published', 'withdrawn')`),
+ ],
+);
+
+export const artikelIde = sqliteTable(
+ "artikel_ide",
+ {
+  id: text("id").primaryKey(),
+  artikelId: text("artikel_id").notNull().references(() => artikel.id, { onDelete: "cascade" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  weight: real("weight").default(1).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("artikel_ide_unique_idx").on(table.artikelId, table.ideId),
+  index("artikel_ide_ide_idx").on(table.ideId),
+  check("artikel_ide_weight_check", sql`${table.weight} > 0 AND ${table.weight} <= 1`),
+ ],
+);
+
+export const blokArtikel = sqliteTable(
+ "blok_artikel",
+ {
+  id: text("id").primaryKey(),
+  artikelId: text("artikel_id").notNull().references(() => artikel.id, { onDelete: "cascade" }),
+  blockKey: text("block_key").notNull(),
+  blockType: text("block_type").notNull(),
+  orderIndex: integer("order_index").notNull(),
+  content: text("content").notNull(),
+  version: integer("version").default(1).notNull(),
+  generationHash: text("generation_hash").notNull(),
+  status: text("status").$type<"draft" | "published" | "withdrawn">().default("draft").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("blok_artikel_order_idx").on(table.artikelId, table.version, table.orderIndex),
+  index("blok_artikel_status_idx").on(table.status),
+  check("blok_artikel_order_check", sql`${table.orderIndex} >= 0`),
+  check("blok_artikel_version_check", sql`${table.version} > 0`),
+ ],
+);
+
+export const diktatMateri = sqliteTable(
+ "diktat_materi",
+ {
+  id: text("id").primaryKey(),
+  mataKuliahId: text("mata_kuliah_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+  babId: text("bab_id").references(() => bab.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  contentMarkdown: text("content_markdown").notNull(),
+  fileKey: text("file_key"),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"draft" | "in_review" | "published" | "withdrawn">().default("draft").notNull(),
+  sourceHash: text("source_hash").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  index("diktat_materi_course_idx").on(table.mataKuliahId),
+  index("diktat_materi_chapter_idx").on(table.babId),
+  index("diktat_materi_status_version_idx").on(table.status, table.version),
+  check("diktat_materi_version_check", sql`${table.version} > 0`),
+  check("diktat_materi_status_check", sql`${table.status} IN ('draft', 'in_review', 'published', 'withdrawn')`),
+ ],
+);
+
+export const diktatIde = sqliteTable(
+ "diktat_ide",
+ {
+  id: text("id").primaryKey(),
+  diktatMateriId: text("diktat_materi_id").notNull().references(() => diktatMateri.id, { onDelete: "cascade" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  weight: real("weight").default(1).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("diktat_ide_unique_idx").on(table.diktatMateriId, table.ideId),
+  index("diktat_ide_ide_idx").on(table.ideId),
+  check("diktat_ide_weight_check", sql`${table.weight} > 0 AND ${table.weight} <= 1`),
+ ],
+);
+
+export const soal = sqliteTable(
+ "soal",
+ {
+  id: text("id").primaryKey(),
+  mataKuliahId: text("mata_kuliah_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+  babId: text("bab_id").references(() => bab.id, { onDelete: "set null" }),
+  questionType: text("question_type").$type<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">().notNull(),
+  prompt: text("prompt").notNull(),
+  optionsSnapshot: text("options_snapshot", { mode: "json" }).$type<unknown[]>().$defaultFn(() => []).notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
+  difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().notNull(),
+  cognitiveLevel: text("cognitive_level").$type<"remember" | "understand" | "apply" | "analyze" | "evaluate" | "create">().notNull(),
+  reasoningPattern: text("reasoning_pattern").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  index("soal_course_idx").on(table.mataKuliahId),
+  index("soal_chapter_idx").on(table.babId),
+  index("soal_status_version_idx").on(table.status, table.version),
+  check("soal_version_check", sql`${table.version} > 0`),
+  check("soal_status_check", sql`${table.status} IN ('draft', 'in_review', 'published', 'retired')`),
+ ],
+);
+
+export const soalIde = sqliteTable(
+ "soal_ide",
+ {
+  id: text("id").primaryKey(),
+  soalId: text("soal_id").notNull().references(() => soal.id, { onDelete: "cascade" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  weight: real("weight").notNull(),
+  role: text("role").$type<"primary" | "supporting" | "required">().default("supporting").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("soal_ide_unique_idx").on(table.soalId, table.ideId),
+  index("soal_ide_ide_idx").on(table.ideId),
+  check("soal_ide_weight_check", sql`${table.weight} > 0 AND ${table.weight} <= 1`),
+ ],
+);
+
+export const soalRelasiIde = sqliteTable(
+ "soal_relasi_ide",
+ {
+  id: text("id").primaryKey(),
+  soalId: text("soal_id").notNull().references(() => soal.id, { onDelete: "cascade" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  relationType: text("relation_type").$type<"required" | "prerequisite" | "related">().notNull(),
+  rationale: text("rationale"),
+  status: text("status").$type<"active" | "withdrawn">().default("active").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("soal_relasi_ide_unique_idx").on(table.soalId, table.ideId, table.relationType),
+  index("soal_relasi_ide_ide_idx").on(table.ideId),
+  check("soal_relasi_ide_type_check", sql`${table.relationType} IN ('required', 'prerequisite', 'related')`),
+ ],
+);
+
+export const pembahasanSoal = sqliteTable(
+ "pembahasan_soal",
+ {
+  id: text("id").primaryKey(),
+  soalId: text("soal_id").notNull().references(() => soal.id, { onDelete: "cascade" }),
+  version: integer("version").default(1).notNull(),
+  content: text("content").notNull(),
+  status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("pembahasan_soal_version_idx").on(table.soalId, table.version),
+  check("pembahasan_soal_version_check", sql`${table.version} > 0`),
+  check("pembahasan_soal_status_check", sql`${table.status} IN ('draft', 'in_review', 'published', 'retired')`),
+ ],
+);
+
+export const diktatPembahasan = sqliteTable(
+ "diktat_pembahasan",
+ {
+  id: text("id").primaryKey(),
+  diktatMateriId: text("diktat_materi_id").notNull().references(() => diktatMateri.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  index("diktat_pembahasan_diktat_idx").on(table.diktatMateriId),
+  check("diktat_pembahasan_version_check", sql`${table.version} > 0`),
+  check("diktat_pembahasan_status_check", sql`${table.status} IN ('draft', 'in_review', 'published', 'retired')`),
+ ],
+);
+
+export const itemDiktatPembahasan = sqliteTable(
+ "item_diktat_pembahasan",
+ {
+  id: text("id").primaryKey(),
+  diktatPembahasanId: text("diktat_pembahasan_id").notNull().references(() => diktatPembahasan.id, { onDelete: "cascade" }),
+  soalId: text("soal_id").notNull().references(() => soal.id, { onDelete: "restrict" }),
+  orderIndex: integer("order_index").notNull(),
+  contentSnapshot: text("content_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("item_diktat_pembahasan_order_idx").on(table.diktatPembahasanId, table.orderIndex),
+  uniqueIndex("item_diktat_pembahasan_soal_idx").on(table.diktatPembahasanId, table.soalId),
+  check("item_diktat_pembahasan_order_check", sql`${table.orderIndex} >= 0`),
+ ],
+);
+
+export const soalItbReferensi = sqliteTable(
+ "soal_itb_referensi",
+ {
+  id: text("id").primaryKey(),
+  soalId: text("soal_id").references(() => soal.id, { onDelete: "set null" }),
+  sourceLabel: text("source_label").notNull(),
+  authoringVisibility: text("authoring_visibility").$type<"allowed" | "holdout">().notNull(),
+  contentSnapshot: text("content_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  checksum: text("checksum").notNull(),
+  version: integer("version").default(1).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("soal_itb_referensi_checksum_idx").on(table.checksum),
+  index("soal_itb_referensi_visibility_idx").on(table.authoringVisibility),
+  check("soal_itb_referensi_visibility_check", sql`${table.authoringVisibility} IN ('allowed', 'holdout')`),
+  check("soal_itb_referensi_version_check", sql`${table.version} > 0`),
+ ],
+);
+
+export const benchmarkSoal = sqliteTable(
+ "benchmark_soal",
+ {
+  id: text("id").primaryKey(),
+  soalItbReferensiId: text("soal_itb_referensi_id").references(() => soalItbReferensi.id, { onDelete: "set null" }),
+  datasetKey: text("dataset_key").notNull(),
+  authoringVisibility: text("authoring_visibility").$type<"allowed" | "holdout">().notNull(),
+  questionSnapshot: text("question_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  answerSnapshot: text("answer_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  version: integer("version").default(1).notNull(),
+  checksum: text("checksum").notNull(),
+  status: text("status").$type<"active" | "retired">().default("active").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("benchmark_soal_checksum_idx").on(table.checksum),
+  index("benchmark_soal_dataset_idx").on(table.datasetKey),
+  check("benchmark_soal_visibility_check", sql`${table.authoringVisibility} IN ('allowed', 'holdout')`),
+  check("benchmark_soal_version_check", sql`${table.version} > 0`),
+ ],
+);
+
+export const setFlashcard = sqliteTable(
+ "set_flashcard",
+ {
+  id: text("id").primaryKey(),
+  mataKuliahId: text("mata_kuliah_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+  babId: text("bab_id").references(() => bab.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  index("set_flashcard_course_idx").on(table.mataKuliahId),
+  index("set_flashcard_chapter_idx").on(table.babId),
+  index("set_flashcard_status_version_idx").on(table.status, table.version),
+  check("set_flashcard_version_check", sql`${table.version} > 0`),
+  check("set_flashcard_status_check", sql`${table.status} IN ('draft', 'in_review', 'published', 'retired')`),
+ ],
+);
+
+export const flashcard = sqliteTable(
+ "flashcard",
+ {
+  id: text("id").primaryKey(),
+  setFlashcardId: text("set_flashcard_id").notNull().references(() => setFlashcard.id, { onDelete: "cascade" }),
+  front: text("front").notNull(),
+  back: text("back").notNull(),
+  explanation: text("explanation"),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"draft" | "published" | "retired">().default("draft").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  index("flashcard_set_idx").on(table.setFlashcardId),
+  index("flashcard_status_version_idx").on(table.status, table.version),
+  check("flashcard_version_check", sql`${table.version} > 0`),
+ ],
+);
+
+export const flashcardIde = sqliteTable(
+ "flashcard_ide",
+ {
+  id: text("id").primaryKey(),
+  flashcardId: text("flashcard_id").notNull().references(() => flashcard.id, { onDelete: "cascade" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  weight: real("weight").default(1).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("flashcard_ide_unique_idx").on(table.flashcardId, table.ideId),
+  index("flashcard_ide_ide_idx").on(table.ideId),
+  check("flashcard_ide_weight_check", sql`${table.weight} > 0 AND ${table.weight} <= 1`),
+ ],
+);
+
+export const kemajuanFlashcardMurid = sqliteTable(
+ "kemajuan_flashcard_murid",
+ {
+  id: text("id").primaryKey(),
+  penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  flashcardId: text("flashcard_id").notNull().references(() => flashcard.id, { onDelete: "restrict" }),
+  dueAt: integer("due_at", { mode: "timestamp" }).notNull(),
+  intervalDays: real("interval_days").default(0).notNull(),
+  easeFactor: real("ease_factor").default(2.5).notNull(),
+  repetitions: integer("repetitions").default(0).notNull(),
+  lapses: integer("lapses").default(0).notNull(),
+  lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp" }),
+  status: text("status").$type<"active" | "suspended" | "completed">().default("active").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("kemajuan_flashcard_murid_unique_idx").on(table.penggunaId, table.flashcardId),
+  index("kemajuan_flashcard_murid_due_idx").on(table.penggunaId, table.dueAt),
+  check("kemajuan_flashcard_murid_interval_check", sql`${table.intervalDays} >= 0`),
+  check("kemajuan_flashcard_murid_ease_check", sql`${table.easeFactor} > 0`),
+ ],
+);
+
+export const reviewFlashcard = sqliteTable(
+ "review_flashcard",
+ {
+  id: text("id").primaryKey(),
+  kemajuanFlashcardMuridId: text("kemajuan_flashcard_murid_id").notNull().references(() => kemajuanFlashcardMurid.id, { onDelete: "restrict" }),
+  grade: integer("grade").notNull(),
+  responseMs: integer("response_ms"),
+  previousDueAt: integer("previous_due_at", { mode: "timestamp" }).notNull(),
+  nextDueAt: integer("next_due_at", { mode: "timestamp" }).notNull(),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  index("review_flashcard_progress_idx").on(table.kemajuanFlashcardMuridId, table.reviewedAt),
+  check("review_flashcard_grade_check", sql`${table.grade} >= 0 AND ${table.grade} <= 5`),
+  check("review_flashcard_response_check", sql`${table.responseMs} IS NULL OR ${table.responseMs} >= 0`),
+ ],
+);
+
+export const blueprintAsesmen = sqliteTable(
+ "blueprint_asesmen",
+ {
+  id: text("id").primaryKey(),
+  mataKuliahId: text("mata_kuliah_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+  title: text("title").notNull(),
+  assessmentType: text("assessment_type").$type<"quiz" | "tryout">().notNull(),
+  blueprint: text("blueprint", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"draft" | "approved" | "retired">().default("draft").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  index("blueprint_asesmen_course_idx").on(table.mataKuliahId),
+  index("blueprint_asesmen_status_version_idx").on(table.status, table.version),
+  check("blueprint_asesmen_version_check", sql`${table.version} > 0`),
+  check("blueprint_asesmen_type_check", sql`${table.assessmentType} IN ('quiz', 'tryout')`),
+ ],
+);
+
+export const asesmen = sqliteTable(
+ "asesmen",
+ {
+  id: text("id").primaryKey(),
+  blueprintAsesmenId: text("blueprint_asesmen_id").notNull().references(() => blueprintAsesmen.id, { onDelete: "restrict" }),
+  mataKuliahId: text("mata_kuliah_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+  title: text("title").notNull(),
+  assessmentType: text("assessment_type").$type<"quiz" | "tryout">().notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"draft" | "published" | "ended" | "retired">().default("draft").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  creatorId: text("creator_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  index("asesmen_course_idx").on(table.mataKuliahId),
+  index("asesmen_status_version_idx").on(table.status, table.version),
+  check("asesmen_version_check", sql`${table.version} > 0`),
+  check("asesmen_type_check", sql`${table.assessmentType} IN ('quiz', 'tryout')`),
+ ],
+);
+
+export const cakupanAsesmen = sqliteTable(
+ "cakupan_asesmen",
+ {
+  id: text("id").primaryKey(),
+  asesmenId: text("asesmen_id").notNull().references(() => asesmen.id, { onDelete: "cascade" }),
+  babId: text("bab_id").notNull().references(() => bab.id, { onDelete: "restrict" }),
+  orderIndex: integer("order_index").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("cakupan_asesmen_chapter_idx").on(table.asesmenId, table.babId),
+  uniqueIndex("cakupan_asesmen_order_idx").on(table.asesmenId, table.orderIndex),
+  check("cakupan_asesmen_order_check", sql`${table.orderIndex} >= 0`),
+ ],
+);
+
+export const itemAsesmen = sqliteTable(
+ "item_asesmen",
+ {
+  id: text("id").primaryKey(),
+  asesmenId: text("asesmen_id").notNull().references(() => asesmen.id, { onDelete: "cascade" }),
+  soalId: text("soal_id").notNull().references(() => soal.id, { onDelete: "restrict" }),
+  orderIndex: integer("order_index").notNull(),
+  renderedQuestionSnapshot: text("rendered_question_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  optionOrderSnapshot: text("option_order_snapshot", { mode: "json" }).$type<string[]>().notNull(),
+  gradingPolicySnapshot: text("grading_policy_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  contentVersion: integer("content_version").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("item_asesmen_order_idx").on(table.asesmenId, table.orderIndex),
+  uniqueIndex("item_asesmen_soal_idx").on(table.asesmenId, table.soalId),
+  check("item_asesmen_order_check", sql`${table.orderIndex} >= 0`),
+  check("item_asesmen_content_version_check", sql`${table.contentVersion} > 0`),
+ ],
+);
+
+export const percobaanAsesmen = sqliteTable(
+ "percobaan_asesmen",
+ {
+  id: text("id").primaryKey(),
+  asesmenId: text("asesmen_id").notNull().references(() => asesmen.id, { onDelete: "restrict" }),
+  penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  status: text("status").$type<"in_progress" | "submitted" | "graded" | "cancelled">().default("in_progress").notNull(),
+  renderedQuestionSnapshot: text("rendered_question_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  optionOrderSnapshot: text("option_order_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  gradingPolicySnapshot: text("grading_policy_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  contentVersion: integer("content_version").notNull(),
+  startedAt: integer("started_at", { mode: "timestamp" }).defaultNow().notNull(),
+  submittedAt: integer("submitted_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  index("percobaan_asesmen_murid_idx").on(table.penggunaId, table.createdAt),
+  index("percobaan_asesmen_assessment_idx").on(table.asesmenId, table.status),
+  check("percobaan_asesmen_content_version_check", sql`${table.contentVersion} > 0`),
+ ],
+);
+
+export const jawabanMurid = sqliteTable(
+ "jawaban_murid",
+ {
+  id: text("id").primaryKey(),
+  percobaanAsesmenId: text("percobaan_asesmen_id").notNull().references(() => percobaanAsesmen.id, { onDelete: "restrict" }),
+  itemAsesmenId: text("item_asesmen_id").notNull().references(() => itemAsesmen.id, { onDelete: "restrict" }),
+  renderedQuestionSnapshot: text("rendered_question_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  optionOrderSnapshot: text("option_order_snapshot", { mode: "json" }).$type<string[]>().notNull(),
+  responseSnapshot: text("response_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  gradingPolicySnapshot: text("grading_policy_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+  contentVersion: integer("content_version").notNull(),
+  score: real("score"),
+  status: text("status").$type<"ungraded" | "correct" | "incorrect" | "partial" | "needs_review">().default("ungraded").notNull(),
+  answeredAt: integer("answered_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("jawaban_murid_attempt_item_idx").on(table.percobaanAsesmenId, table.itemAsesmenId),
+  index("jawaban_murid_status_idx").on(table.status),
+  check("jawaban_murid_content_version_check", sql`${table.contentVersion} > 0`),
+ ],
+);
+
+export const buktiIdeJawaban = sqliteTable(
+ "bukti_ide_jawaban",
+ {
+  id: text("id").primaryKey(),
+  jawabanMuridId: text("jawaban_murid_id").notNull().references(() => jawabanMurid.id, { onDelete: "restrict" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  scoreContribution: real("score_contribution").notNull(),
+  weight: real("weight").notNull(),
+  confidence: integer("confidence").notNull(),
+  evidenceSource: text("evidence_source").notNull(),
+  rubricVersion: text("rubric_version").notNull(),
+  derivationStatus: text("derivation_status").$type<"deterministic" | "reviewed" | "ambiguous" | "rejected">().notNull(),
+  ambiguous: integer("ambiguous", { mode: "boolean" }).default(false).notNull(),
+  affectsMastery: integer("affects_mastery", { mode: "boolean" }).default(false).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("bukti_ide_jawaban_unique_idx").on(table.jawabanMuridId, table.ideId),
+  index("bukti_ide_jawaban_ide_idx").on(table.ideId),
+   check("bukti_ide_jawaban_weight_check", sql`${table.weight} > 0 AND ${table.weight} <= 1`),
+   check("bukti_ide_jawaban_confidence_check", sql`${table.confidence} >= 0 AND ${table.confidence} <= 100`),
+   check("bukti_ide_jawaban_ambiguous_mastery_check", sql`NOT (${table.ambiguous} AND ${table.affectsMastery})`),
+ ],
+);
+
+export const buktiPembelajaran = sqliteTable(
+ "bukti_pembelajaran",
+ {
+  id: text("id").primaryKey(),
+  penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  evidenceSource: text("evidence_source").notNull(),
+  sourceId: text("source_id").notNull(),
+  scoreContribution: real("score_contribution").notNull(),
+  confidence: integer("confidence").notNull(),
+  rubricVersion: text("rubric_version").notNull(),
+  derivationStatus: text("derivation_status").$type<"deterministic" | "reviewed" | "ambiguous" | "rejected">().notNull(),
+  ambiguous: integer("ambiguous", { mode: "boolean" }).default(false).notNull(),
+  affectsMastery: integer("affects_mastery", { mode: "boolean" }).default(false).notNull(),
+  occurredAt: integer("occurred_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  index("bukti_pembelajaran_murid_ide_idx").on(table.penggunaId, table.ideId),
+   index("bukti_pembelajaran_source_idx").on(table.evidenceSource, table.sourceId),
+   check("bukti_pembelajaran_confidence_check", sql`${table.confidence} >= 0 AND ${table.confidence} <= 100`),
+   check("bukti_pembelajaran_ambiguous_mastery_check", sql`NOT (${table.ambiguous} AND ${table.affectsMastery})`),
+ ],
+);
+
+export const pemahamanIde = sqliteTable(
+ "pemahaman_ide",
+ {
+  id: text("id").primaryKey(),
+  penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  skor: integer("skor").notNull(),
+  keyakinan: integer("keyakinan").notNull(),
+  evidenceCount: integer("evidence_count").default(0).notNull(),
+  version: integer("version").default(1).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("pemahaman_ide_murid_ide_idx").on(table.penggunaId, table.ideId),
+  index("pemahaman_ide_ide_idx").on(table.ideId),
+  check("pemahaman_ide_score_check", sql`${table.skor} >= 0 AND ${table.skor} <= 100`),
+  check("pemahaman_ide_confidence_check", sql`${table.keyakinan} >= 0 AND ${table.keyakinan} <= 100`),
+  check("pemahaman_ide_evidence_check", sql`${table.evidenceCount} >= 0`),
+  check("pemahaman_ide_version_check", sql`${table.version} > 0`),
+ ],
+);
+
+export const perubahanPemahaman = sqliteTable(
+ "perubahan_pemahaman",
+ {
+  id: text("id").primaryKey(),
+  pemahamanIdeId: text("pemahaman_ide_id").notNull().references(() => pemahamanIde.id, { onDelete: "restrict" }),
+  evidenceId: text("evidence_id").references(() => buktiPembelajaran.id, { onDelete: "set null" }),
+  previousScore: integer("previous_score").notNull(),
+  nextScore: integer("next_score").notNull(),
+  previousConfidence: integer("previous_confidence").notNull(),
+  nextConfidence: integer("next_confidence").notNull(),
+  reason: text("reason").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  index("perubahan_pemahaman_ide_idx").on(table.pemahamanIdeId, table.createdAt),
+  check("perubahan_pemahaman_score_check", sql`${table.previousScore} >= 0 AND ${table.previousScore} <= 100 AND ${table.nextScore} >= 0 AND ${table.nextScore} <= 100`),
+  check("perubahan_pemahaman_confidence_check", sql`${table.previousConfidence} >= 0 AND ${table.previousConfidence} <= 100 AND ${table.nextConfidence} >= 0 AND ${table.nextConfidence} <= 100`),
+ ],
+);
+
+export const rekomendasiFlashcard = sqliteTable(
+ "rekomendasi_flashcard",
+ {
+  id: text("id").primaryKey(),
+  penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  flashcardId: text("flashcard_id").notNull().references(() => flashcard.id, { onDelete: "restrict" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  dueAt: integer("due_at", { mode: "timestamp" }).notNull(),
+  reason: text("reason").notNull(),
+  status: text("status").$type<"pending" | "accepted" | "dismissed" | "completed">().default("pending").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("rekomendasi_flashcard_unique_idx").on(table.penggunaId, table.flashcardId, table.dueAt),
+  index("rekomendasi_flashcard_due_idx").on(table.penggunaId, table.dueAt),
+ ],
+);
+
+export const imporBundle = sqliteTable(
+ "impor_bundle",
+ {
+  id: text("id").primaryKey(),
+  bundleId: text("bundle_id").notNull(),
+  checksum: text("checksum").notNull(),
+  bundleType: text("bundle_type").$type<"idea" | "product" | "assessment" | "mixed">().notNull(),
+  sourceUriOrKey: text("source_uri_or_key").notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"received" | "validated" | "rejected" | "approved" | "published">().default("received").notNull(),
+  requestedBy: text("requested_by").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("impor_bundle_identity_idx").on(table.bundleId, table.checksum),
+  index("impor_bundle_status_idx").on(table.status),
+  check("impor_bundle_version_check", sql`${table.version} > 0`),
+ ],
+);
+
+export const itemImporBundle = sqliteTable(
+ "item_impor_bundle",
+ {
+  id: text("id").primaryKey(),
+  imporBundleId: text("impor_bundle_id").notNull().references(() => imporBundle.id, { onDelete: "cascade" }),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  entityVersion: integer("entity_version").notNull(),
+  entityHash: text("entity_hash").notNull(),
+  status: text("status").$type<"pending" | "validated" | "rejected" | "published">().default("pending").notNull(),
+  errorMessage: text("error_message"),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("item_impor_bundle_entity_idx").on(table.imporBundleId, table.entityType, table.entityId, table.entityVersion),
+  index("item_impor_bundle_status_idx").on(table.status),
+  check("item_impor_bundle_version_check", sql`${table.entityVersion} > 0`),
+ ],
+);
+
+export const reviewBundle = sqliteTable(
+ "review_bundle",
+ {
+  id: text("id").primaryKey(),
+  imporBundleId: text("impor_bundle_id").notNull().references(() => imporBundle.id, { onDelete: "restrict" }),
+  reviewerId: text("reviewer_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  status: text("status").$type<"pending" | "approved" | "rejected">().default("pending").notNull(),
+  notes: text("notes"),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("review_bundle_reviewer_idx").on(table.imporBundleId, table.reviewerId),
+  index("review_bundle_status_idx").on(table.status),
+ ],
+);
+
+export const publikasiBundle = sqliteTable(
+ "publikasi_bundle",
+ {
+  id: text("id").primaryKey(),
+  imporBundleId: text("impor_bundle_id").notNull().references(() => imporBundle.id, { onDelete: "restrict" }),
+  approvedReviewId: text("approved_review_id").notNull().references(() => reviewBundle.id, { onDelete: "restrict" }),
+  version: integer("version").default(1).notNull(),
+  publicationHash: text("publication_hash").notNull(),
+  status: text("status").$type<"pending" | "published" | "withdrawn">().default("pending").notNull(),
+  publishedBy: text("published_by").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  publishedAt: integer("published_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("publikasi_bundle_version_idx").on(table.imporBundleId, table.version),
+  index("publikasi_bundle_status_idx").on(table.status),
+  check("publikasi_bundle_version_check", sql`${table.version} > 0`),
+ ],
+);
+
+export const auditMutasi = sqliteTable(
+ "audit_mutasi",
+ {
+  id: text("id").primaryKey(),
+  actorId: text("actor_id").references(() => pengguna.id, { onDelete: "set null" }),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  action: text("action").notNull(),
+  beforeSnapshot: text("before_snapshot", { mode: "json" }).$type<Record<string, unknown> | null>(),
+  afterSnapshot: text("after_snapshot", { mode: "json" }).$type<Record<string, unknown> | null>(),
+  correlationId: text("correlation_id"),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  index("audit_mutasi_entity_idx").on(table.entityType, table.entityId, table.createdAt),
+  index("audit_mutasi_actor_idx").on(table.actorId, table.createdAt),
+ ],
+);
+
 // 4. knowledge_objects
 export const knowledgeObjects = sqliteTable(
  "knowledge_objects",
