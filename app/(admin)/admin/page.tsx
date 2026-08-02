@@ -35,6 +35,7 @@ import {
   Newspaper,
   Flag,
   Layers,
+  Package,
   ShieldCheck,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
@@ -201,6 +202,15 @@ export default async function AdminHomePage() {
           iconColor: "text-brand-primary",
           href: "/admin/bundles/idea",
           label: "Kelola Idea Bundle",
+          stat: null,
+        },
+        {
+          title: "Product Bundle V2",
+          description: "Validasi, preview, review, dan publikasi produk artikel, diktat, soal, solusi, flashcard, dan asesmen.",
+          icon: Package,
+          iconColor: "text-brand-secondary",
+          href: "/admin/bundles/product",
+          label: "Kelola Product Bundle",
           stat: null,
         },
         {

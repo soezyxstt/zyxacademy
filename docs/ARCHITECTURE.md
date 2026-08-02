@@ -181,6 +181,27 @@ flowchart LR
 
 The exporter does not call an external model and never includes user, credential, attempt, answer, mastery, chat, embedding, signed URL, or holdout content. `FEATURE_AUTHORING_CONTEXT_V1` is disabled by default and tutor access remains disabled until a separate assigned-course policy test is added.
 
+### Product Bundle V2
+
+Product Bundle V2 extends the additive product tables with a strict import lifecycle. `lib/bundle/product-validator.ts` validates the manifest and typed entity files without database writes. `lib/bundle/product-staging.ts` stores the immutable ZIP and inventory in `impor_bundle` and `item_impor_bundle`. `lib/bundle/product-preview.ts` exposes only staged product content and its Idea and source references.
+
+Publication in `lib/bundle/product-publication.ts` is a single transaction. It verifies published Idea versions and semantic hashes, active source versions and excerpts, creator and curator identities, dependency freshness, and typed product references before inserting article, diktat, question, solution, flashcard, blueprint, dependency, publication, audit, and vector outbox rows. Version greater than one uses a versioned physical target ID so the prior published row is not overwritten.
+
+```mermaid
+flowchart LR
+    U[Admin ZIP upload] --> V[Pure typed validation]
+    V --> S[Immutable staged import]
+    S --> P[Traceable product preview]
+    P --> R[Tutor and admin review]
+    R --> C{Dependencies current}
+    C -->|No| H[Needs review]
+    C -->|Yes| T[Atomic publication transaction]
+    T --> O[Product rows and vector outbox]
+    T --> A[Publication and mutation audit]
+```
+
+`FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source.
+
 ### Tutor & Booking
 | Table | Purpose |
 |---|---|

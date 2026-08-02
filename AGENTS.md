@@ -261,6 +261,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Plan 001 staging safety and migration ledger completed**: Added guarded staging preflight, deterministic inventory, encrypted export and disposable restore, migration ledger tables, additive migration controls, and reconciliation evidence.
 - **Plan 006 Idea Bundle V2 workflow completed**: Added strict ZIP security, manifest and entity contracts, staged import and review workflow, atomic publication, deterministic vector outbox jobs, admin routes and panel, staging fixtures, and reconciliation evidence.
 - **Plan 007 Authoring Context Pack V1 completed**: Added explicit allowlist projection, nested redaction and holdout policy, deterministic ZIP export, admin-only API and panel, private run-scoped R2 staging smoke, content scan, and audit evidence.
+- **Plan 008 Product Bundle V2 completed**: Added strict typed product ZIP validation, immutable staging, traceable previews, tutor and admin review, dependency freshness gates, versioned publication, atomic product and vector outbox writes, assessment source versioning, admin routes and panel, and staging evidence.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -289,9 +290,10 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Plan 005 deterministic legacy backfill and compatibility verified with clean lint and typecheck, 16 focused tests, additive migration `0055_cute_avengers.sql`, 568 deterministic mappings, 3,175 zero-loss exception rows, zero blocking exceptions, zero foreign-key violations, zero uncovered rows, zero snapshot mismatches, zero Tutorial PKA mismatches, and an idempotent apply. Evidence: `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
 - Plan 006 Idea Bundle V2 verified with clean lint, typecheck, diff check, 7 focused contract tests, additive migration `0056_elite_midnight.sql`, successful staging upload, identical retry no-op, conflict rejection, partial publication rollback, atomic publish, stable invalid-fixture reason codes, and independent reconciliation. Evidence: `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json` and `plan-006-reconcile.json`.
 - Plan 007 Authoring Context Pack V1 verified with clean lint and typecheck, 4 focused contract tests, deterministic allowlist and redaction checks, zero scan findings, identical pack and ZIP checksums, private R2 round trip, exact test-object deletion, and audit metadata. Evidence: `artifacts/staging-overhaul/20260803-plan007-authoring-v1/plan-007-result.json` and `plan-007-scan.json`.
+- Plan 008 Product Bundle V2 verified with clean lint, typecheck, diff check, 23 focused contract tests across Product Bundle, material, and question pipelines, all seven product types staged and published, identical retry no-op, conflict rejection, seven-stage rollback matrix with zero visible partial products, stale dependency blocking, holdout rejection, versioned re-import, and independent reconcile. Evidence: `artifacts/staging-overhaul/20260803-plan008-product-v3/plan-008-result.json` and `plan-008-reconcile.json`.
 
 ### Current Focus
-Plan 007 Authoring Context Pack and protected benchmarks is complete and reconciled in staging. Plan 008 Product Bundle V2 workflow is the next predecessor-gated plan.
+Plan 008 Product Bundle V2 workflow is complete and reconciled in staging. Plan 009 Article and Diktat Quality Compiler and Plan 010 Question and Assessment Integrity are the next predecessor-gated development lanes.
 
 ### Blockers
 None.

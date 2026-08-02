@@ -330,6 +330,8 @@ Ambiguous evidence is stored with explicit status and the schema check prevents 
 
 Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. A matching bundle ID and checksum is idempotent; a different checksum is a conflict. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
 
+Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Product item types are recorded in the inventory, while canonical article, diktat, question, solution, flashcard, and assessment blueprint rows are inserted only after traceability and dependency checks pass. Versions greater than one use versioned product IDs so prior rows remain queryable. No schema migration was required for this workflow.
+
 ### Plan 005 migration tables
 * `legacy_backfill_exceptions`: Zero-loss preservation ledger for a legacy row that has no exact additive representation. It stores `runId`, source table and ID, reason code, preservation path, source checksum, details, and `blocksCutover`.
 * `peta_id_legacy`: One-to-one source and target identity mapping with mapping version and source and target checksums.

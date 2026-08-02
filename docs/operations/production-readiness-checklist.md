@@ -28,6 +28,7 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [x] Plan 006 staging workflow passed for valid upload, identical retry, conflicting retry, invalid archive and bundle fixtures, forced partial publication rollback, atomic publish, and independent reconcile. Evidence: `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json` and `plan-006-reconcile.json`.
 - [x] Plan 007 local authoring context contracts passed with deterministic projection, nested redaction canaries, holdout exclusion, and zero scan findings.
 - [x] Plan 007 staging export passed with identical pack and ZIP checksums, private run-scoped R2 round trip, complete export audit metadata, exact test-object deletion, and independent content scan. Evidence: `artifacts/staging-overhaul/20260803-plan007-authoring-v1/plan-007-result.json` and `plan-007-scan.json`.
+- [x] Plan 008 Product Bundle V2 staging passed all typed product fixtures, identical retry, conflict rejection, seven-stage rollback rehearsal, dependency blocking, holdout rejection, versioned re-import, atomic publication, and independent reconcile. Evidence: `artifacts/staging-overhaul/20260803-plan008-product-v3/plan-008-result.json` and `plan-008-reconcile.json`. The flag remains disabled outside staging.
 - [ ] Before enabling Plan 005 dual-write, verify `FEATURE_ARSITEKTUR_IDE_V1=1` and `FEATURE_DUAL_WRITE_IDE=1` only in a controlled canary. Keep both flags at `0` for rollback and keep legacy reads authoritative.
 
 ## Architectural Guidelines & Boundaries

@@ -24,6 +24,7 @@ import {
   Newspaper,
   Flag,
   Layers,
+  Package,
   ShieldCheck,
 } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
@@ -173,6 +174,7 @@ function AdminSidebarInner() {
         <NavGroup label="Akademik" collapsed={c} />
         <NavItem href="/admin/courses" icon={BookText} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} />
         <NavItem href="/admin/bundles/idea" icon={Layers} label="Idea Bundle V2" active={isPrefix("/admin/bundles/idea")} collapsed={c} />
+        <NavItem href="/admin/bundles/product" icon={Package} label="Product Bundle V2" active={isPrefix("/admin/bundles/product")} collapsed={c} />
         <NavItem href="/admin/authoring-context" icon={ShieldCheck} label="Authoring Context" active={isPrefix("/admin/authoring-context")} collapsed={c} />
         
         <NavCollapsible 

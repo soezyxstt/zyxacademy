@@ -87,6 +87,14 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 4. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata.
 5. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables the UI and API when absent or `0`.
 
+### Product Bundle V2 Workflow
+
+1. Admins upload typed ZIP bundles from `/admin/bundles/product`; the server validates product schemas, checksums, Idea and source traceability, renderable blocks, assessment scope, atomic flashcards, and holdout markers.
+2. Valid uploads create immutable staged inventories. Identical retries write no rows, while a different checksum for the same bundle ID is rejected.
+3. Reviewers see a server-rendered preview for every product type with source and Idea IDs. Tutor approval is course-scoped and admin approval is required for publication.
+4. Publication verifies current published Ideas, active source excerpts, identities, and dependency freshness before one transaction writes products, links, dependencies, vector outbox entries, publication state, and mutation audit records.
+5. `FEATURE_PRODUCT_BUNDLE_V2` hides the page and API when absent or `0`; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
+
 ### Website Material Generation
 1. All KOs for a chapter are collected in order
 2. Gemini compiles them into canonical markdown with custom containers (`:::concept`, `:::formula`, `:::misconception`)

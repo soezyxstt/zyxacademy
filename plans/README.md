@@ -1,6 +1,6 @@
 # Zyx Idea-Centered Learning System Overhaul
 
-Status program: in progress, Plans 001 through 007 are complete and Plan 008 is next.
+Status program: in progress, Plans 001 through 008 are complete. Plans 009 and 010 may now develop in parallel; Plan 012 foundation remains separately gated after Plan 005.
 
 Planning snapshot:
 
@@ -41,7 +41,7 @@ Execute sequentially. A plan is a predecessor gate, not optional reading.
 | [005](005-deterministic-legacy-backfill-and-compatibility.md) | Deterministic legacy backfill and compatibility layer | P0 | L | 004 | DONE | 100 percent legacy mapping or an explicit zero-loss exception ledger |
 | [006](006-idea-bundle-v2-workflow.md) | Idea Bundle V2 workflow | P1 | L | 005 | DONE | ZIP import is validated, idempotent, reviewed, and atomically published |
 | [007](007-authoring-context-pack-and-protected-benchmarks.md) | Authoring Context Pack and protected benchmarks | P1 | M | 006 | DONE | Context export excludes holdout content and is reproducible |
-| [008](008-product-bundle-v2-workflow.md) | Product Bundle V2 workflow | P1 | L | 007 | TODO | Product import, preview, review, and publish are atomic and dependency-aware |
+| [008](008-product-bundle-v2-workflow.md) | Product Bundle V2 workflow | P1 | L | 007 | DONE | Product import, preview, review, and publish are atomic and dependency-aware |
 | [009](009-article-and-diktat-quality-compiler.md) | Article and diktat quality compiler | P1 | L | 008 | TODO | Required pedagogic blocks and source coverage pass publication gates |
 | [010](010-question-and-assessment-integrity.md) | Question and assessment integrity | P0 | L | 008 | TODO | Multi-Idea evidence, blueprint, benchmark, and active-attempt gates pass |
 | [011](011-per-idea-mastery-and-learning-loop.md) | Per-Idea mastery and learning loop | P0 | L | 010 | TODO | Mastery and confidence are separate, reproducible, and history-safe |
@@ -64,6 +64,8 @@ Plan 005 evidence: `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/
 Plan 006 evidence: `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json` records strict ZIP validation, idempotent retry, conflict rejection, rollback after injected failure, atomic publication, and the invalid fixture reason codes. Independent reconciliation is recorded in `plan-006-reconcile.json`.
 
 Plan 007 evidence: `artifacts/staging-overhaul/20260803-plan007-authoring-v1/plan-007-result.json` records deterministic pack and ZIP checksums, private R2 round trip, exact test-object deletion, and audit metadata. Independent content scan is recorded in `plan-007-scan.json`.
+
+Plan 008 evidence: `artifacts/staging-overhaul/20260803-plan008-product-v3/plan-008-result.json` records all seven product types, identical retry no-op, conflict rejection, seven-stage rollback matrix, stale dependency blocking, holdout rejection, atomic publication, and versioned re-import. Independent reconciliation is recorded in `plan-008-reconcile.json`.
 
 ## Serialized integration graph
 

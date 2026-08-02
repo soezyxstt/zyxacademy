@@ -149,3 +149,7 @@ All `FEATURE_*` env vars default to off. Enable gradually per environment. See [
 Keep `FEATURE_AUTHORING_CONTEXT_V1` absent or `0` until the local contract suite and staging round trip pass. The export API is admin-only by default, stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.
 
 The artifact must use the private R2 staging bucket and must not use a public URL. The authenticated Wrangler adapter is limited to the staging test process when normal R2 credentials are unavailable; production runtime keeps the standard R2 provider. Rollback disables the flag and deletes only an explicitly named test object by exact key.
+
+## Product Bundle V2
+
+Keep `FEATURE_PRODUCT_BUNDLE_V2` absent or `0` until local contract gates and the staging product-bundle rehearsal pass. The workflow uses the normal private R2 storage abstraction for staged ZIP artifacts and writes product publication, dependency, audit, and vector outbox records transactionally. Run the staging test with `.env.staging` and the authenticated Wrangler fallback only when the script explicitly enables it. Do not enable the flag in production as part of Plan 008; production rollout remains out of scope.

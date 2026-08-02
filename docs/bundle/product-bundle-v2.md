@@ -1,29 +1,41 @@
 # Product Bundle V2
 
-## Scope
+Product Bundle V2 is the strict ZIP workflow for externally authored articles, diktat material, questions, solutions, flashcards, and assessment blueprints.
 
-Plan 004 provides the normalized storage boundary for product, assessment, evidence, mastery, bundle, and mutation-audit records. The import and publication workflow itself is a later plan; no current runtime caller switches to these tables yet.
+## Contract
 
-## Bundle contents
+Each bundle contains `manifest.json`, `entities/products.json`, and `entities/dependencies.json`. The manifest declares `product-bundle.v2`, course identity, creator and curator, stable entity IDs, file checksums, bundle checksum, and unresolved conflicts.
 
-An import is identified by `bundleId` plus a content `checksum` and records its source, version, requester, and lifecycle status in `impor_bundle`. `item_impor_bundle` inventories each entity, entity version, and entity hash. Supported entity families include articles, diktat materials, questions, solutions, and flashcards.
+Each product declares:
 
-## Review and publication
+- stable ID, product type, version, lifecycle status, and schema version;
+- published Idea IDs, versions, semantic hashes, roles, and weights;
+- active source material IDs, versions, checksums, and source excerpt IDs;
+- creator, optional curator, source hash, generation hash, and optional AI metadata;
+- product-specific renderable content.
 
-`review_bundle` records reviewer decisions. `publikasi_bundle` references the import and the approved review, stores a publication hash and version, and is the atomic publication boundary. A publication must not expose only a subset of approved entities. `audit_mutasi` records the actor, entity, action, snapshots, correlation ID, and timestamp for each mutation.
+Validation is pure and fail-closed. It rejects unsafe ZIP entries, unknown fields, checksum drift, duplicate IDs, missing solution questions, non-atomic flashcards, invalid assessment scope, holdout markers, and unresolved manifest conflicts. Dependencies with `NEEDS_REVIEW` or `STALE` make publication ineligible.
 
-## Dependency and freshness
+## Lifecycle
 
-Product records carry generation metadata. Cross-entity freshness is tracked through `ketergantungan_produk`, which stores upstream and downstream IDs, versions, hashes, freshness state, and a reason. A changed upstream hash moves dependent work to review before publication.
+1. An admin uploads a ZIP at `/admin/bundles/product`.
+2. The server validates the archive and writes an immutable `impor_bundle` inventory and audit event.
+3. Reviewers can inspect typed previews with Idea and source traceability. Admin approval is required before publication.
+4. Publication verifies current Ideas, source materials, excerpts, identities, and dependencies, then writes every product, link, dependency, vector outbox entry, publication record, item status, and audit event in one transaction.
+5. Identical retries are no-ops. A changed version gets a physical versioned target ID such as `product-id:v2`; prior rows remain queryable.
 
-## Compatibility boundary
+The public API is feature gated by `FEATURE_PRODUCT_BUNDLE_V2`. Setting the flag to `0` hides the page and disables the routes. Legacy importers remain available as rollback paths.
 
-The current English tables remain queryable and are not rewritten by Plan 004. Future mapping is explicit:
+## Staging verification
 
-* `website_materials` and `diktats` map to `artikel` and `diktat_materi`.
-* `ai_question_bank`, `assessment_objects`, and `quiz_templates` map to `soal`, `blueprint_asesmen`, and `asesmen`.
-* `student_quiz_attempts` maps to `percobaan_asesmen` and `jawaban_murid`.
-* `learning_events` and `student_concept_mastery` map to `bukti_pembelajaran` and `pemahaman_ide`.
-* `flashcard_sets`, `flashcards`, `student_flashcard_progress`, and `flashcard_reviews` map to the normalized flashcard tables.
+```bash
+bun --env-file=.env.staging run staging:preflight
+bun --env-file=.env.staging run staging:test-product-bundle -- --run-id <runId> --fixture all
+bun --env-file=.env.staging run staging:reconcile-bundle -- --run-id <runId> --type product
+```
 
-These mappings are documentation only until Plan 005 completes deterministic backfill and reconciliation. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` in staging.
+The staging fixture exercises all seven product types, identical retry, conflicting checksum, forced transaction failure, stale dependency blocking, holdout rejection, atomic publication, and versioned re-import. Evidence is written to `artifacts/staging-overhaul/<runId>/plan-008-result.json` and `plan-008-reconcile.json`.
+
+## Rollback
+
+Set `FEATURE_PRODUCT_BUNDLE_V2=0` to hide the workflow. Do not delete imported versions or audit records. If a published test bundle must be withdrawn, use the normal audited lifecycle operation.

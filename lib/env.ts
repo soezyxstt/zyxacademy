@@ -133,6 +133,8 @@ export const env = createEnv({
  FEATURE_IDEA_BUNDLE_V2: z.string().optional(),
  /** Deterministic and redacted Authoring Context Pack export. */
  FEATURE_AUTHORING_CONTEXT_V1: z.string().optional(),
+ /** Strict ZIP-based Product Bundle V2 workflow. */
+ FEATURE_PRODUCT_BUNDLE_V2: z.string().optional(),
  /** Product and Idea links domain contracts. "1" enables the additive product tables. */
  FEATURE_PRODUK_IDE_V1: z.string().optional(),
  /** Assessment and Idea coverage contracts. "1" enables the additive assessment tables. */
@@ -249,6 +251,7 @@ export const env = createEnv({
  FEATURE_DUAL_WRITE_IDE: process.env.FEATURE_DUAL_WRITE_IDE,
  FEATURE_IDEA_BUNDLE_V2: process.env.FEATURE_IDEA_BUNDLE_V2,
  FEATURE_AUTHORING_CONTEXT_V1: process.env.FEATURE_AUTHORING_CONTEXT_V1,
+ FEATURE_PRODUCT_BUNDLE_V2: process.env.FEATURE_PRODUCT_BUNDLE_V2,
  FEATURE_PRODUK_IDE_V1: process.env.FEATURE_PRODUK_IDE_V1,
  FEATURE_ASESMEN_IDE_V1: process.env.FEATURE_ASESMEN_IDE_V1,
  FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
