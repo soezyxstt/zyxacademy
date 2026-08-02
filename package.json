@@ -24,6 +24,10 @@
     "staging:restore-export": "bun scripts/staging/restore-export.ts",
     "staging:migrate": "bun scripts/staging/migrate.ts",
     "staging:reconcile": "bun scripts/staging/reconcile.ts",
+    "staging:backfill-peran": "bun scripts/staging/backfill-peran.ts",
+    "staging:reconcile-peran": "bun scripts/staging/reconcile-peran.ts",
+    "staging:smoke-auth": "bun scripts/staging/smoke-auth.ts",
+    "staging:classify-role-literals": "bun scripts/staging/classify-role-literals.ts",
     "db:sync-prod-to-staging:destructive": "bun scripts/sync-turso-db.ts --destructive",
     "watch-start": "nodemon --watch app --watch components --watch styles -e js,jsx,ts,tsx,css --exec \"next build && next start\""
   },

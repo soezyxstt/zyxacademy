@@ -283,10 +283,10 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Plan 001 code verified with `bun run lint`, `bun run typecheck`, and 12 staging contract tests passing.
 
 ### Current Focus
-Plan 001 is complete. Plan 002, Indonesian identity and role expansion, is next. Production cutover remains out of scope until Plan 016 passes its final gates.
+Plan 002 schema expansion and deterministic legacy backfill are complete in staging. Auth smoke now passes for active admin and murid sessions, including Better Auth session validation. Plan 002 remains blocked because staging has no tutor membership and no multi-role account. Plan 003 remains gated.
 
 ### Blockers
-None
+- Plan 002 auth smoke requires active staging accounts for admin, tutor, murid, and a multi-role user. Admin and murid pass; the verified staging database has no tutor membership and no multi-role user.
 
 ---
 

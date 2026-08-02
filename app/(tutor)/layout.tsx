@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { env } from "@/lib/env";
+import { hasAnyPeran } from "@/lib/auth/authorization";
 import type { ReactNode } from "react";
 import { TutorSidebar } from "@/components/tutor/tutor-sidebar";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
@@ -12,8 +13,12 @@ export default async function TutorLayout({ children }: { children: ReactNode })
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/");
 
-  const role = (session.user as { role?: string | null }).role;
-  if (role !== "teacher" && role !== "admin") redirect("/");
+  if (env.FEATURE_PERAN_V2 === "1") {
+    if (!(await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: true }))) redirect("/");
+  } else {
+    const role = (session.user as { role?: string | null }).role;
+    if (role !== "teacher" && role !== "admin") redirect("/");
+  }
 
   return (
     <div className="relative flex min-h-screen flex-row bg-background overflow-x-clip">

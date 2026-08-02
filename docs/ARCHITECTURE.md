@@ -71,10 +71,15 @@ Assessment-specific (for type="assessment" MTDs):
 ### Auth Domain (Better-Auth)
 | Table | Purpose |
 |---|---|
-| `user` | Users with role: `admin`, `teacher`, `student` |
+| `user` | Better Auth users and temporary legacy `role` compatibility projection |
 | `session` | Auth sessions |
 | `account` | OAuth/password accounts |
 | `verification` | Email verification tokens |
+| `pengguna` | Canonical one-to-one domain identity for a Better Auth user |
+| `peran` | Stable access-role catalog: `admin`, `tutor`, `murid` |
+| `pengguna_peran` | Independent many-to-many identity membership with source and audit actor |
+
+`FEATURE_PERAN_V2=1` makes the admin and tutor layout gates read `pengguna_peran`. The legacy `user.role` column remains during expand and rollback; it is not the canonical authorization source when the flag is enabled.
 
 ### Course & Enrollment
 | Table | Purpose |

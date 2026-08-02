@@ -16,6 +16,9 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [ ] **Staging identity gate**: `bun --env-file=.env.staging run staging:preflight` identifies staging, rejects production equality, and emits no secrets.
 - [ ] **Staging recovery gate**: The keyed inventory, encrypted export, disposable restore, migration ledger, foreign-key check, and additive reconciliation all pass for the active plan.
 - [ ] **Staging evidence gate**: `artifacts/staging-overhaul/<runId>/plan-NNN-result.json` exists before a plan is marked `DONE`.
+- [ ] Plan 002 `pengguna`, `peran`, and `pengguna_peran` migration is additive and foreign-key clean.
+- [ ] Plan 002 legacy role parity is exact, the idempotent rerun changes zero rows, and all `teacher` and `student` literals are classified.
+- [ ] Plan 002 auth smoke has active staging admin, tutor, murid, and multi-role sessions before `FEATURE_PERAN_V2=1` is enabled.
 
 ## Architectural Guidelines & Boundaries
 

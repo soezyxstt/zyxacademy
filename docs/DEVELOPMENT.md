@@ -28,6 +28,11 @@ bun run dev                  # http://localhost:3000
 | `bun --env-file=.env.staging run staging:export -- --run-id <runId>` | Create an encrypted staging recovery export |
 | `bun --env-file=.env.staging run staging:migrate -- --run-id <runId> --plan <plan>` | Apply guarded staging migrations |
 | `bun --env-file=.env.staging run staging:reconcile -- --run-id <runId> --expect additive` | Reconcile before and after manifests |
+| `bun --env-file=.env.staging run staging:backfill-peran -- --run-id <runId>` | Backfill `pengguna` and legacy role memberships |
+| `bun --env-file=.env.staging run staging:backfill-peran -- --run-id <runId> --rerun` | Verify idempotent role backfill |
+| `bun --env-file=.env.staging run staging:classify-role-literals -- --run-id <runId>` | Classify remaining `teacher` and `student` literals |
+| `bun --env-file=.env.staging run staging:smoke-auth -- --run-id <runId> --roles admin,tutor,murid,multi` | Validate staging sessions against canonical memberships |
+| `bun --env-file=.env.staging run staging:reconcile-peran -- --run-id <runId>` | Reconcile Plan 002 identity and role parity |
 
 ## Environment Variables
 
@@ -69,6 +74,8 @@ Remote staging commands must load `.env.staging`, set `ZYX_ENVIRONMENT=staging`,
 
 All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
 
+`FEATURE_PERAN_V2` must remain absent or `0` until the Plan 002 identity backfill, parity checks, and active-session auth smoke all pass. The legacy `user.role` column remains a compatibility projection during this phase.
+
 | Flag | Feature |
 |------|---------|
 | `FEATURE_MASTERY` | Mastery score tracking |
@@ -88,6 +95,7 @@ All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
 | `FEATURE_REFLECTION_EMAIL` | Reflection email delivery |
 | `FEATURE_ADAPTIVE_QUIZ` | Adaptive quiz difficulty |
 | `FEATURE_PKA` | Tutorial PKA campaign |
+| `FEATURE_PERAN_V2` | Indonesian domain identity and multi-role authorization |
 | `FEATURE_AI_CONTRACT_V2` | Versioned prompt contracts, policy composition, bounded repair, and provenance |
 | `FEATURE_ASSESSMENT_ASSISTANCE_POLICY` | Deterministic assessment assistance policy for AI tutor and mistake feedback |
 | `FEATURE_TUTOR_PIPELINE_V2` | V2 tutor cache isolation and query action routing |
@@ -100,7 +108,7 @@ All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
 ## Code Conventions
 
 - **DB schema**: `db/schema.ts` only. Edit → `bun run db:generate` → `bun run db:migrate`. Never hand-edit `drizzle/`.
-- **Auth**: Better-Auth (credentials + Google OAuth). Role-based: `admin`, `teacher`, `student`.
+- **Auth**: Better-Auth (credentials + Google OAuth). Canonical access roles: `admin`, `tutor`, `murid`; `user.role` remains a legacy compatibility projection during expand.
 - **AI calls**: All Gemini traffic routes through Cloudflare AI Gateway when `CF_AI_GATEWAY_URL` is set.
 - **Cost rule**: AI quota is spent only on tutoring, mistake feedback, and content generation. Streaks, recommendations, study paths, reflections are deterministic SQL + logic.
 

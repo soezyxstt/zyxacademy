@@ -20,7 +20,7 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `email`
 * `emailVerified`: Boolean flag indicating whether the user's email has been verified.
 * `image`: URL of the user's profile avatar.
-* `role`: User permissions tier, which can be 'admin', 'teacher', or 'student'.
+* `role`: Temporary compatibility projection, which can be 'admin', 'teacher', or 'student' during the expand phase. Canonical authorization uses `pengguna_peran` when `FEATURE_PERAN_V2=1`.
 * `createdAt`
 * `updatedAt`
 
@@ -54,6 +54,26 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `expiresAt`: Verification link expiration timestamp.
 * `createdAt`
 * `updatedAt`
+
+### pengguna
+* `id`: One-to-one primary key and `RESTRICT` foreign key to `user.id`.
+* `status`: Domain identity status, currently `active` or `suspended`.
+* `createdAt`
+* `updatedAt`
+
+### peran
+* `id`: Stable immutable role identifier.
+* `code`: Canonical access role, `admin`, `tutor`, or `murid`.
+* `createdAt`
+
+### pengguna_peran
+* `id`: Deterministic membership identifier for backfilled rows.
+* `penggunaId`: Domain identity foreign key.
+* `peranId`: Canonical role foreign key.
+* `source`: Provisioning or migration source.
+* `auditActorPenggunaId`: Optional course-independent domain audit actor.
+* `createdAt`
+* `(penggunaId, peranId)` is unique. The table supports multiple roles for one identity.
 
 ---
 

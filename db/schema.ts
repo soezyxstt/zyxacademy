@@ -29,6 +29,52 @@ export const user = sqliteTable("user", {
  lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
 });
 
+/** Canonical domain identity for a Better Auth user. */
+export const pengguna = sqliteTable(
+ "pengguna",
+ {
+  id: text("id")
+   .primaryKey()
+   .references(() => user.id, { onDelete: "restrict" }),
+  status: text("status").$type<"active" | "suspended">().default("active").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [index("pengguna_status_idx").on(table.status)],
+);
+
+/** Stable access-role catalog. IDs are seeded by lib/auth/peran.ts and never regenerated. */
+export const peran = sqliteTable("peran", {
+ id: text("id").primaryKey(),
+ code: text("code").$type<"admin" | "tutor" | "murid">().notNull().unique(),
+ createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+});
+
+/** Independent many-to-many access-role memberships for domain identities. */
+export const penggunaPeran = sqliteTable(
+ "pengguna_peran",
+ {
+  id: text("id").primaryKey(),
+  penggunaId: text("pengguna_id")
+   .notNull()
+   .references(() => pengguna.id, { onDelete: "cascade" }),
+  peranId: text("peran_id")
+   .notNull()
+   .references(() => peran.id, { onDelete: "restrict" }),
+  source: text("source").notNull(),
+  auditActorPenggunaId: text("audit_actor_pengguna_id").references(() => pengguna.id, { onDelete: "set null" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("pengguna_peran_unique_idx").on(table.penggunaId, table.peranId),
+  index("pengguna_peran_pengguna_idx").on(table.penggunaId),
+  index("pengguna_peran_peran_idx").on(table.peranId),
+ ],
+);
+
 export const session = sqliteTable(
  "session",
  {
@@ -90,9 +136,36 @@ export const verification = sqliteTable(
  (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-export const userRelations = relations(user, ({ many }) => ({
+export const userRelations = relations(user, ({ many, one }) => ({
  sessions: many(session),
  accounts: many(account),
+ pengguna: one(pengguna, {
+  fields: [user.id],
+  references: [pengguna.id],
+ }),
+}));
+
+export const penggunaRelations = relations(pengguna, ({ one, many }) => ({
+ user: one(user, {
+  fields: [pengguna.id],
+  references: [user.id],
+ }),
+ memberships: many(penggunaPeran),
+}));
+
+export const peranRelations = relations(peran, ({ many }) => ({
+ memberships: many(penggunaPeran),
+}));
+
+export const penggunaPeranRelations = relations(penggunaPeran, ({ one }) => ({
+ pengguna: one(pengguna, {
+  fields: [penggunaPeran.penggunaId],
+  references: [pengguna.id],
+ }),
+ peran: one(peran, {
+  fields: [penggunaPeran.peranId],
+  references: [peran.id],
+ }),
 }));
 
 /** Append-only ledger for guarded staging migrations and reconciliation runs. */

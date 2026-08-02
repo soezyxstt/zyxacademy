@@ -6,6 +6,8 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 
 ## User Roles
 
+Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps the legacy `user.role` projection during the expand phase. `FEATURE_PERAN_V2` switches the admin and tutor layout gates to domain memberships without changing chat speaker values such as `student`.
+
 ### Student
 - Redeems enrollment tokens to access courses
 - Views personalized dashboard with progress, weak concepts, daily recommendations
