@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
+import { QuizAttemptsSpreadsheet } from "./_components/quiz-attempts-spreadsheet";
 
 
 interface QuizDetailResponse {
@@ -308,6 +309,10 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
       {/* Tabs Component */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-muted p-1 rounded-xl w-full sm:w-auto flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="attempts-sheet" className="rounded-lg text-body-sm gap-2">
+            <FileSpreadsheet className="size-4 text-emerald-500" />
+            <span>Sheet Attempt & Jawaban Siswa</span>
+          </TabsTrigger>
           <TabsTrigger value="ai-insights" className="rounded-lg text-body-sm gap-2">
             <Sparkles className="size-4 text-amber-400" />
             <span>Analisis AI Gemini</span>
@@ -325,6 +330,11 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
             <span>Distribusi & Statistik Nilai</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* TAB 0: SPREADSHEET ATTEMPT SISWA */}
+        <TabsContent value="attempts-sheet" className="space-y-6">
+          <QuizAttemptsSpreadsheet templateId={id} quizTitle={template.title} />
+        </TabsContent>
 
         {/* TAB 1: ANALISIS AI GEMINI */}
         <TabsContent value="ai-insights" className="space-y-6">

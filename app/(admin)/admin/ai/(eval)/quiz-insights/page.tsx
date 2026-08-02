@@ -158,14 +158,14 @@ export default function AdminQuizInsightsOverviewPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-card border border-border rounded-xl p-4 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="bg-card/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <SearchBar
             placeholder="Cari berdasarkan judul kuis atau mata kuliah..."
             value={search}
             onSearch={setSearch}
             onClear={() => setSearch("")}
-            containerClassName="flex-1"
+            containerClassName="flex-1 max-w-xl"
           />
 
           <div className="flex flex-wrap sm:flex-nowrap gap-3">

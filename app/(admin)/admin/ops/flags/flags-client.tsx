@@ -294,7 +294,7 @@ export function FlagsClient() {
       </div>
 
       {/* Control Panel: Search & Filters */}
-      <div className="rounded-xl border border-border bg-card p-4 space-y-4">
+      <div className="rounded-2xl border border-border/80 bg-card/80 backdrop-blur-sm p-4 space-y-4 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Search Field */}
           <SearchBar
@@ -304,7 +304,7 @@ export function FlagsClient() {
             onClear={() => setSearch("")}
             shortcut="/"
             placeholder="Cari kunci FEATURE_*, nama modul, atau deskripsi..."
-            containerClassName="flex-1"
+            containerClassName="flex-1 max-w-xl"
           />
 
           {/* Status Tabs (Segmented Button Bar) */}
@@ -453,12 +453,12 @@ export function FlagsClient() {
               return (
                 <div
                   key={flag.key}
-                  className="p-4 sm:p-5 transition-colors hover:bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  className="p-4 sm:p-5 transition-colors hover:bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-4 text-left items-start"
                 >
                   {/* Info Column */}
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-heading text-h6 font-semibold text-foreground">
+                  <div className="min-w-0 flex-1 space-y-2 text-left items-start">
+                    <div className="flex flex-wrap items-center justify-start gap-2 text-left">
+                      <span className="font-heading text-h6 font-semibold text-foreground text-left">
                         {flag.name}
                       </span>
                       <span className="rounded-md border border-border bg-muted/60 px-2 py-0.5 text-body-xs font-semibold text-muted-foreground">
@@ -466,7 +466,7 @@ export function FlagsClient() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-start gap-2 text-left">
                       <code className="rounded bg-muted/80 px-2 py-0.5 font-mono text-body-xs font-semibold text-foreground border border-border/80">
                         {flag.key}
                       </code>
@@ -484,15 +484,15 @@ export function FlagsClient() {
                       </button>
                     </div>
 
-                    <p className="text-body-sm text-muted-foreground leading-relaxed">
+                    <p className="text-body-sm text-muted-foreground leading-relaxed text-left">
                       {flag.description}
                     </p>
                   </div>
 
                   {/* Status & Value Column */}
-                  <div className="flex shrink-0 items-center gap-4 self-start md:self-center border-t md:border-t-0 border-border/40 pt-3 md:pt-0">
-                    <div className="text-left md:text-right">
-                      <span className="text-[11px] font-medium text-muted-foreground block">
+                  <div className="flex shrink-0 items-center justify-start gap-4 self-start md:self-center border-t md:border-t-0 border-border/40 pt-3 md:pt-0 text-left">
+                    <div className="text-left">
+                      <span className="text-[11px] font-medium text-muted-foreground block text-left">
                         Nilai env:
                       </span>
                       <code className="font-mono text-body-xs font-semibold text-foreground">

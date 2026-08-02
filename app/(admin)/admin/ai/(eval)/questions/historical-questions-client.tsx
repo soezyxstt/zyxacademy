@@ -64,16 +64,16 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
   return (
     <div className="space-y-6">
       {/* Filters & Search Row */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-xl border border-border">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-card/80 backdrop-blur-sm p-4 rounded-2xl border border-border/80 shadow-xs">
         <SearchBar
           placeholder="Cari konten soal atau judul ujian..."
           value={searchTerm}
           onSearch={setSearchTerm}
           onClear={() => setSearchTerm("")}
-          containerClassName="flex-1"
+          containerClassName="flex-1 max-w-xl"
         />
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="w-44">
             <Select value={filterCourse} onValueChange={setFilterCourse}>
               <SelectTrigger>

@@ -257,6 +257,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Evidence-Calibrated Learner & Admin Analytics completed**: Multi-layer analytics contracts (`lib/student-quiz-analytics/contracts.ts`), deterministic evidence sufficiency calculator (`evaluateEvidenceSufficiency`), and feature flag `FEATURE_ANALYTICS_DIAGNOSIS_V2` fully implemented.
 - **Golden AI Evaluations & Rollout Closure completed**: Offline golden evaluation suite (`scripts/run-ai-evals.ts`), zero-tolerance invariant scorers (`lib/ai/evals/scorers.ts`), npm script `bun run eval:ai`, and full documentation synchronization across all 15 plans completed.
 - **Feature Flags Admin Monitor completed**: Added dedicated `/admin/ops/flags` dashboard with runtime `FEATURE_*` inspection (`lib/feature-flags.ts`), admin API endpoint (`/api/admin/feature-flags`), category filters, search capabilities, env copy helpers, and sidebar/admin homepage navigation links.
+- **Per-Quiz Student Attempt Spreadsheet & CSV Export completed**: Added dedicated interactive spreadsheet view (`QuizAttemptsSpreadsheet`), item-response answer matrix, API route (`/api/admin/quiz-insights/[id]/attempts`), CSV export engine (Matrix & Summary formats), Admin Quiz Insights integration, and Tutor portal route (`/tutor/[courseId]/quizzes/[templateId]/attempts`).
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -276,6 +277,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Wave 4 (Plans 006, 009, 011) verified deterministically via `bun test tests/contracts/tutor-rag.test.ts tests/contracts/material-pipeline.test.ts tests/contracts/question-pipeline.test.ts` (67 passing contract tests, 0 errors across lint & typecheck).
 - Wave 5 (Plans 013, 014, 012) verified deterministically via `bun test tests/contracts/flashcard-generator.test.ts tests/contracts/diktat.test.ts tests/contracts/analytics.test.ts` (75 passing contract tests across 9 files, 0 errors across lint & typecheck).
 - Wave 6 (Plan 015) verified deterministically via `bun run eval:ai` (3/3 golden evaluation zero-tolerance invariant suites passing 100%).
+- Per-Quiz Student Attempt Spreadsheet & CSV Exporter verified deterministically via contract test suite (78 passing contract tests) and clean `bun run lint` (0 errors, 0 warnings).
 
 ### Current Focus
 All 15 Plans of the Zyx AI Reliability Remediation Roadmap are fully executed, verified, and merged into `main`. Ready for authorized production shadow deployment.

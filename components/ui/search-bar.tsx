@@ -20,38 +20,40 @@ export interface SearchBarProps
   size?: "sm" | "md" | "lg";
   /** Shows a spinning loading state instead of search icon */
   isLoading?: boolean;
-  /** Optional keyboard shortcut hint (e.g. "⌘K" or "Esc") */
+  /** Optional keyboard shortcut hint (e.g. "⌘K" or "/") */
   shortcut?: string;
   /** Additional container element CSS classes */
   containerClassName?: string;
+  /** Optional element rendered on the far right */
+  rightSection?: React.ReactNode;
 }
 
 const variantStyles = {
   default:
-    "bg-background border border-border/80 hover:border-border focus-within:border-primary/80 focus-within:ring-2 focus-within:ring-primary/20 shadow-xs",
+    "bg-card border border-border/80 hover:border-border hover:bg-card/90 focus-within:bg-card focus-within:border-brand-primary/80 focus-within:ring-2 focus-within:ring-brand-primary/20 focus-within:shadow-[0_0_16px_rgba(37,99,235,0.12)] shadow-2xs",
   muted:
-    "bg-muted/50 border border-transparent hover:bg-muted/80 hover:border-border/50 focus-within:bg-background focus-within:border-primary/80 focus-within:ring-2 focus-within:ring-primary/20",
+    "bg-muted/40 border border-transparent hover:bg-muted/70 hover:border-border/50 focus-within:bg-background focus-within:border-brand-primary/80 focus-within:ring-2 focus-within:ring-brand-primary/20 focus-within:shadow-[0_0_16px_rgba(37,99,235,0.12)]",
   bordered:
-    "bg-card border border-border hover:border-foreground/20 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25 shadow-xs",
+    "bg-background border border-border hover:border-foreground/30 focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-brand-primary/25 shadow-xs",
 };
 
 const sizeStyles = {
   sm: {
-    container: "h-8 px-2.5 rounded-lg text-body-xs",
+    container: "h-9 px-3 rounded-lg text-body-xs",
     icon: "size-3.5",
-    input: "pl-2 pr-1 text-body-xs",
+    input: "pl-2.5 pr-1.5 text-body-xs",
     clear: "p-0.5",
   },
   md: {
-    container: "h-10 px-3 rounded-xl text-body-sm",
+    container: "h-10.5 px-3.5 rounded-xl text-body-sm",
     icon: "size-4",
-    input: "pl-2.5 pr-1.5 text-body-sm",
+    input: "pl-2.5 pr-2 text-body-sm",
     clear: "p-1",
   },
   lg: {
     container: "h-12 px-4 rounded-xl text-body-base",
-    icon: "size-5",
-    input: "pl-3 pr-2 text-body-base",
+    icon: "size-4.5",
+    input: "pl-3 pr-2.5 text-body-base",
     clear: "p-1.5",
   },
 };
@@ -72,6 +74,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
       className,
       placeholder = "Cari...",
       disabled,
+      rightSection,
       ...props
     },
     ref
@@ -113,7 +116,7 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
     return (
       <div
         className={cn(
-          "group relative flex items-center w-full transition-all duration-200",
+          "group relative flex items-center w-full transition-all duration-200 ease-out",
           variantStyles[variant],
           currentSize.container,
           disabled && "opacity-50 pointer-events-none",
@@ -121,9 +124,9 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
         )}
       >
         {/* Left Search or Loading Icon */}
-        <div className="flex shrink-0 items-center justify-center text-muted-foreground transition-colors group-focus-within:text-primary">
+        <div className="flex shrink-0 items-center justify-center text-muted-foreground transition-all duration-200 group-focus-within:text-brand-primary group-focus-within:scale-105">
           {isLoading ? (
-            <Loader2 className={cn("animate-spin", currentSize.icon)} />
+            <Loader2 className={cn("animate-spin text-brand-primary", currentSize.icon)} />
           ) : (
             <Search className={cn(currentSize.icon)} aria-hidden="true" />
           )}
@@ -138,37 +141,39 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            "w-full min-w-0 bg-transparent text-foreground placeholder:text-muted-foreground/70 focus:outline-none",
+            "w-full min-w-0 bg-transparent text-foreground font-sans placeholder:text-muted-foreground/60 focus:outline-none",
             currentSize.input,
             className
           )}
           {...props}
         />
 
-        {/* Right Actions: Clear Button or Keyboard Shortcut */}
+        {/* Right Actions: Clear Button or Keyboard Shortcut or Custom Section */}
         <div className="flex shrink-0 items-center gap-1.5 ml-auto">
           {query.length > 0 ? (
             <button
               type="button"
               onClick={handleClear}
               className={cn(
-                "rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                "rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 currentSize.clear
               )}
-              aria-label="Hapus pencarian"
-              title="Hapus pencarian"
+              aria-label="Bersihkan pencarian"
+              title="Bersihkan pencarian"
             >
               <X className={cn(currentSize.icon)} />
             </button>
           ) : shortcut ? (
-            <kbd className="pointer-events-none hidden shrink-0 select-none rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground sm:inline-block">
+            <kbd className="pointer-events-none hidden shrink-0 select-none items-center gap-1 rounded-md border border-border/70 bg-muted/60 px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground transition-colors group-hover:border-border sm:inline-flex">
               {shortcut}
             </kbd>
           ) : null}
+
+          {rightSection}
         </div>
       </div>
     );
-  },
+  }
 );
 
 SearchBar.displayName = "SearchBar";

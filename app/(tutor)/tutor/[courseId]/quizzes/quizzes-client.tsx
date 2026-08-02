@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock } from "lucide-react";
+import Link from "next/link";
+import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -490,7 +491,13 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         </div>
                       )}
                     </CardContent>
-                    <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex justify-end gap-2">
+                    <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex flex-wrap justify-end gap-2">
+                      <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
+                        <Button variant="outline" size="sm" className="rounded-md border-border/80 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 gap-1">
+                          <FileSpreadsheet className="size-3.5" />
+                          Sheet Attempt
+                        </Button>
+                      </Link>
                       <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1">
                         <Eye className="size-3.5" />
                         Preview
