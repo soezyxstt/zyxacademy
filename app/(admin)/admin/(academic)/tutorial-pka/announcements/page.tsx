@@ -5,6 +5,8 @@ import { env } from "@/lib/env";
 import { getPkaAnnouncementsAction } from "../actions";
 import { AnnouncementsTab } from "../_components/announcements-tab";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: pageTitle("Pengumuman Tutorial PKA"),
   description: "Kelola pengumuman Tutorial PKA.",

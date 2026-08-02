@@ -5,6 +5,8 @@ import { env } from "@/lib/env";
 import { getPkaSchedulesAction } from "../actions";
 import { SchedulesTab } from "../_components/schedules-tab";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: pageTitle("Jadwal Live Tutorial PKA"),
   description: "Kelola jadwal live Tutorial PKA.",

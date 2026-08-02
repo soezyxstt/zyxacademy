@@ -256,6 +256,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Diktat Audit, Formula Registry & PDF QA completed**: Structured audit contracts (`lib/diktat/audit-contracts.ts`), formula registry (`lib/diktat/formula-registry.ts`), fail-closed publication gating, and feature flag `FEATURE_DIKTAT_QA_V2` fully implemented.
 - **Evidence-Calibrated Learner & Admin Analytics completed**: Multi-layer analytics contracts (`lib/student-quiz-analytics/contracts.ts`), deterministic evidence sufficiency calculator (`evaluateEvidenceSufficiency`), and feature flag `FEATURE_ANALYTICS_DIAGNOSIS_V2` fully implemented.
 - **Golden AI Evaluations & Rollout Closure completed**: Offline golden evaluation suite (`scripts/run-ai-evals.ts`), zero-tolerance invariant scorers (`lib/ai/evals/scorers.ts`), npm script `bun run eval:ai`, and full documentation synchronization across all 15 plans completed.
+- **Feature Flags Admin Monitor completed**: Added dedicated `/admin/ops/flags` dashboard with runtime `FEATURE_*` inspection (`lib/feature-flags.ts`), admin API endpoint (`/api/admin/feature-flags`), category filters, search capabilities, env copy helpers, and sidebar/admin homepage navigation links.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.

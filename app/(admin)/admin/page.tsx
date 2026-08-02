@@ -33,6 +33,7 @@ import {
   GraduationCap,
   LineChart,
   Newspaper,
+  Flag,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -303,6 +304,16 @@ export default async function AdminHomePage() {
           iconColor: "text-brand-primary",
           href: "/admin/ops/web-analytics",
           label: "Buka web analytics",
+          stat: null,
+        },
+        {
+          title: "Feature Flags",
+          description:
+            "Pantau status keaktifan dan konfigurasi seluruh feature flag (FEATURE_*) sistem.",
+          icon: Flag,
+          iconColor: "text-brand-primary",
+          href: "/admin/ops/flags",
+          label: "Buka feature flags",
           stat: null,
         },
         {

@@ -22,6 +22,7 @@ import {
   Calendar,
   Link as LinkIcon,
   Newspaper,
+  Flag,
 } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -203,6 +204,7 @@ function AdminSidebarInner() {
 
         <NavGroup label="Sistem & Ops" collapsed={c} />
         <NavItem href="/admin/ops" icon={Activity} label="Monitor Ops" active={isExact("/admin/ops")} collapsed={c} />
+        <NavItem href="/admin/ops/flags" icon={Flag} label="Feature Flags" active={isPrefix("/admin/ops/flags")} collapsed={c} />
         <NavItem href="/admin/ops/analytics" icon={BarChart3} label="Analitik AI" active={isPrefix("/admin/ops/analytics")} collapsed={c} />
         <NavItem href="/admin/ops/keys" icon={KeyRound} label="API Keys" active={isPrefix("/admin/ops/keys")} collapsed={c} />
         <NavItem href="/admin/ops/short-links" icon={LinkIcon} label="Short Links" active={isPrefix("/admin/ops/short-links")} collapsed={c} />

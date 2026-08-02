@@ -5,6 +5,8 @@ import { env } from "@/lib/env";
 import { getPkaRegistrationsAction } from "../actions";
 import { RegistrationsTab } from "../_components/registrations-tab";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: pageTitle("Pendaftar Tutorial PKA"),
   description: "Kelola pendaftar Tutorial PKA.",
