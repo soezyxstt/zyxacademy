@@ -61,6 +61,16 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 4. `asal_ide`, `relasi_ide`, and `ketergantungan_produk` preserve provenance, typed relations, and freshness transitions.
 5. `FEATURE_ARSITEKTUR_IDE_V1` remains off; existing KOs and callers are unchanged until later plans.
 
+### Product, Assessment, and Idea Mastery Domain
+1. Articles, diktat materials, questions, solutions, and flashcards have normalized versioned target records with source and generation hashes.
+2. Published products require at least one published Idea; question links support multiple Ideas with positive weights whose sum is checked within `0.000001`.
+3. Assessment definitions separate blueprint, assessment, chapter scope, ordered items, attempts, and answers. Quiz scope is exactly one chapter; tryout scope is one or more chapters.
+4. Attempt and answer records carry rendered question, option order, response, grading policy, and content version snapshots so later content changes do not alter historical context.
+5. Answer evidence records Idea attribution, contribution, weight, confidence, evidence source, rubric version, and derivation status. Ambiguous evidence is retained but cannot affect mastery.
+6. `pemahaman_ide` stores score and confidence as separate 0 to 100 values, with append-only change history and flashcard recommendations.
+7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
+8. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0`; current runtime callers and legacy records are unchanged.
+
 ### Website Material Generation
 1. All KOs for a chapter are collected in order
 2. Gemini compiles them into canonical markdown with custom containers (`:::concept`, `:::formula`, `:::misconception`)

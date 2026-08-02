@@ -21,6 +21,7 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [ ] Plan 002 auth smoke has active staging admin, tutor, murid, and multi-role sessions before `FEATURE_PERAN_V2=1` is enabled.
 - [ ] If staging lacks a pre-seeded multi-role identity, `staging:seed-peran-smoke` adds only a deterministic tutor membership to an existing active staging admin and records a keyed, non-secret artifact.
 - [ ] Plan 003 adds the 11 source and Idea tables only; before and after manifests preserve legacy row and primary-key hashes, foreign-key violations are zero, and `FEATURE_ARSITEKTUR_IDE_V1` remains off.
+- [ ] Plan 004 adds the 34 product, assessment, evidence, mastery, bundle, and audit tables only; before and after manifests preserve legacy row and primary-key hashes, foreign-key violations are zero, and `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain off.
 
 ## Architectural Guidelines & Boundaries
 

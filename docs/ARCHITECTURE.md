@@ -111,6 +111,20 @@ Plan 003 adds an additive Indonesian learning-domain layer. `mata_kuliah` and `b
 
 The existing `concepts` and `concept_localizations` tables remain the global cross-course concept registry. `FEATURE_ARSITEKTUR_IDE_V1` stays off until a later plan switches callers; existing KOs and source pipelines are not backfilled or rewritten here.
 
+### Product, Assessment, and Mastery Architecture
+
+Plan 004 adds the normalized Indonesian product and learner-state layer as empty additive tables. Existing English product, assessment, attempt, flashcard, learning-event, and mastery tables remain active; deterministic mapping and backfill are deferred to Plan 005.
+
+| Domain | Target tables | Contract boundary |
+|---|---|---|
+| Products | `artikel`, `artikel_ide`, `blok_artikel`, `diktat_materi`, `diktat_ide`, `soal`, `soal_ide`, `soal_relasi_ide`, `pembahasan_soal`, `diktat_pembahasan`, `item_diktat_pembahasan` | Published products require published Idea links; question Idea weights are positive and validated to sum to one. |
+| Protected references and flashcards | `soal_itb_referensi`, `benchmark_soal`, `set_flashcard`, `flashcard`, `flashcard_ide`, `kemajuan_flashcard_murid`, `review_flashcard` | Holdout references carry an explicit visibility state; review history is append-only by data model. |
+| Assessments | `blueprint_asesmen`, `asesmen`, `cakupan_asesmen`, `item_asesmen`, `percobaan_asesmen`, `jawaban_murid` | Quiz scope is one chapter; tryout scope is one or more chapters; rendered content and grading snapshots are required. |
+| Evidence and mastery | `bukti_ide_jawaban`, `bukti_pembelajaran`, `pemahaman_ide`, `perubahan_pemahaman`, `rekomendasi_flashcard` | Score and confidence remain separate; ambiguous evidence cannot affect mastery. |
+| Bundle lifecycle | `impor_bundle`, `item_impor_bundle`, `review_bundle`, `publikasi_bundle`, `audit_mutasi` | Bundle identity is checksum-versioned and publication references an approved review. |
+
+Future mapping is explicit but not backfilled: `website_materials` and `diktats` map to article and material targets; `ai_question_bank`, `assessment_objects`, and `quiz_templates` map to question and assessment targets; `student_quiz_attempts`, `learning_events`, `student_concept_mastery`, `flashcard_sets`, `flashcards`, and their progress tables map to the corresponding Indonesian targets. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` in staging.
+
 ### Tutor & Booking
 | Table | Purpose |
 |---|---|

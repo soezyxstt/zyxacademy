@@ -1,6 +1,6 @@
 # Plan 004: Product, Assessment, and Mastery Domain Expansion
 
-Status: blocked until Plan 003 passes.
+Status: DONE. Plan 003 passed; Plan 004 implementation, local gates, and staging reconciliation passed on 2026-08-02.
 
 > **Executor instructions**: Read this entire plan before editing. Execute each numbered step in order. Run the stated verification before continuing. If a STOP condition occurs, stop and report it; do not improvise. Update this plan's row in plans/README.md only after every done criterion passes.
 >
@@ -135,12 +135,12 @@ Leave new flags off and revert the application revision. New empty tables may re
 
 ## Done criteria
 
-- [ ] All commands in Commands and pass criteria exit 0 with the stated result.
-- [ ] `artifacts/staging-overhaul/<runId>/plan-004-result.json` exists, validates, and records `status=passed` without secrets.
-- [ ] `git status --short` shows no modifications outside this plan's in-scope paths, generated migration when applicable, and the `plans/README.md` status row.
-- [ ] This plan's row in `plans/README.md` is changed to `DONE` only after the prior checks pass.
+- [x] All commands in Commands and pass criteria exit 0 with the stated result.
+- [x] `artifacts/staging-overhaul/20260802-plan004-staging/plan-004-result.json` exists, validates, and records `status=passed` without secrets.
+- [x] `git status --short` shows no modifications outside this plan's in-scope paths, generated migration when applicable, and the `plans/README.md` status row.
+- [x] This plan's row in `plans/README.md` is changed to `DONE` only after the prior checks pass.
 
-- The complete target product, assessment, evidence, mastery, bundle, and audit schema exists in staging.
-- Publication and historical immutability invariants are test-covered.
-- No legacy data or runtime caller has changed.
-- Plan 005 can perform deterministic backfill into stable tables.
+- [x] The complete target product, assessment, evidence, mastery, bundle, and audit schema exists in staging.
+- [x] Publication and historical immutability invariants are test-covered.
+- [x] No legacy data or runtime caller has changed.
+- [x] Plan 005 can perform deterministic backfill into stable tables.

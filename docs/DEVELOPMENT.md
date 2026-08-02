@@ -79,6 +79,12 @@ All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
 
 `FEATURE_ARSITEKTUR_IDE_V1` remains absent or `0` after Plan 003. The schema and contracts are additive; no existing KO or source caller switches to `ide` until a later predecessor-gated plan.
 
+Plan 004 adds three disabled target-domain flags. They remain absent or `0` in staging until later plans prove mapping and runtime parity:
+
+* `FEATURE_PRODUK_IDE_V1`: normalized article, material, question, solution, and flashcard domain.
+* `FEATURE_ASESMEN_IDE_V1`: normalized assessment definition, attempt, answer, and snapshot domain.
+* `FEATURE_PEMAHAMAN_IDE_V1`: Idea-level evidence, mastery, history, and recommendation domain.
+
 | Flag | Feature |
 |------|---------|
 | `FEATURE_MASTERY` | Mastery score tracking |
@@ -90,6 +96,9 @@ All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
 | `FEATURE_FC_DIFFICULTY` | Flashcard difficulty (EIF E4) |
 | `FEATURE_GRAPH` | Concept graph (EIF E5) |
 | `FEATURE_ARSITEKTUR_IDE_V1` | Canonical source and Idea domain rollout |
+| `FEATURE_PRODUK_IDE_V1` | Normalized product and Idea link domain |
+| `FEATURE_ASESMEN_IDE_V1` | Normalized assessment and historical snapshot domain |
+| `FEATURE_PEMAHAMAN_IDE_V1` | Idea evidence and mastery domain |
 | `FEATURE_TUTOR_RAG` | Grounded AI tutor pipeline (P3) |
 | `FEATURE_FEEDBACK` | Answer feedback |
 | `FEATURE_STUDY_PATH` | Personalized study paths |

@@ -296,6 +296,40 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 * `aliasName`: Text variation of chapter name, used to automatically map raw text mentions to chapters.
 * `createdAt`
 
+## 5.2 Product, Assessment, Evidence, and Bundle Domain
+
+Plan 004 adds the normalized target tables below. All are empty in staging after the additive migration; Plan 005 owns deterministic mapping and backfill. Existing English tables remain the source of current runtime behavior.
+
+### Product tables
+* `artikel`, `artikel_ide`, `blok_artikel`: Markdown article versions, Idea links, and ordered blocks.
+* `diktat_materi`, `diktat_ide`, `diktat_pembahasan`, `item_diktat_pembahasan`: Material and explanation versions with Idea links and question snapshots.
+* `soal`, `soal_ide`, `soal_relasi_ide`, `pembahasan_soal`: Versioned questions, multi-Idea weights, independent relation metadata, and solutions.
+* `set_flashcard`, `flashcard`, `flashcard_ide`: Versioned flashcard sets and multi-Idea links.
+* `kemajuan_flashcard_murid`, `review_flashcard`: Per-murid scheduling state and review history.
+
+Published article, material, question, solution, and flashcard records are required by the contract layer to reference at least one published Idea. `soal_ide.weight` has a database range check and the per-question sum is validated within `0.000001` by the domain contract.
+
+### Assessment tables
+* `blueprint_asesmen`, `asesmen`, `cakupan_asesmen`: Assessment definition, version, lifecycle, and chapter scope.
+* `item_asesmen`: Ordered question membership with rendered question, option order, grading policy, content version, and generation snapshots.
+* `percobaan_asesmen`, `jawaban_murid`: Historical attempt and answer records with required immutable snapshot fields.
+
+Quiz and tryout cardinality is enforced by the assessment contract: a quiz has exactly one chapter and a tryout has at least one chapter. Foreign keys and unique indexes protect assessment item and answer membership.
+
+### Evidence and mastery tables
+* `bukti_ide_jawaban`, `bukti_pembelajaran`: Idea-level evidence with contribution, confidence, source, rubric version, and derivation status.
+* `pemahaman_ide`: Separate `skor` and `keyakinan` values, each bounded from 0 to 100.
+* `perubahan_pemahaman`, `rekomendasi_flashcard`: History-safe mastery transitions and due recommendations.
+
+Ambiguous evidence is stored with explicit status and the schema check prevents it from being marked as mastery-affecting. No legacy mastery or learning-event row is rewritten in Plan 004.
+
+### Bundle and audit tables
+* `impor_bundle`, `item_impor_bundle`: Checksum-identified import and entity inventory.
+* `review_bundle`, `publikasi_bundle`: Review decision and publication record; publication references the approved import review through foreign keys and contract validation.
+* `audit_mutasi`: Actor, entity, action, snapshots, correlation ID, and timestamp for mutation auditability.
+
+Future mapping is documented but not backfilled until Plan 005. The English source tables remain queryable during the expand phase.
+
 ---
 
 ## 6. Assessment & Ingestion Domain
