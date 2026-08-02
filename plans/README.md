@@ -1,6 +1,6 @@
 # Zyx Idea-Centered Learning System Overhaul
 
-Status program: in progress, Plans 001 through 010 are complete. Plan 012 foundation is complete while its final rebuild remains gated by Plan 011.
+Status program: in progress, Plans 001 through 011 are complete. Plan 012 foundation is complete while its final rebuild remains pending.
 
 Planning snapshot:
 
@@ -44,7 +44,7 @@ Execute sequentially. A plan is a predecessor gate, not optional reading.
 | [008](008-product-bundle-v2-workflow.md) | Product Bundle V2 workflow | P1 | L | 007 | DONE | Product import, preview, review, and publish are atomic and dependency-aware |
 | [009](009-article-and-diktat-quality-compiler.md) | Article and diktat quality compiler | P1 | L | 008 | DONE | Required pedagogic blocks and source coverage pass publication gates |
 | [010](010-question-and-assessment-integrity.md) | Question and assessment integrity | P0 | L | 008 | DONE | Multi-Idea evidence, blueprint, benchmark, and active-attempt gates pass |
-| [011](011-per-idea-mastery-and-learning-loop.md) | Per-Idea mastery and learning loop | P0 | L | 010 | TODO | Mastery and confidence are separate, reproducible, and history-safe |
+| [011](011-per-idea-mastery-and-learning-loop.md) | Per-Idea mastery and learning loop | P0 | L | 010 | DONE | Mastery and confidence are separate, reproducible, and history-safe |
 | [012](012-vectorize-only-indexing-and-retrieval.md) | Vectorize-only indexing and retrieval | P0 | L | 005, 011; internal foundation after 005 | TODO | DB and Vectorize manifests match exactly in staging; 012A contracts complete |
 | [013](013-zyra-canonical-runtime.md) | Zyra canonical runtime | P1 | L | 011, 012 | TODO | Responses hydrate approved DB content and assessment leaks are zero |
 | [014](014-admin-and-tutor-operational-workflow.md) | Admin and tutor operational workflow | P1 | L | 009, 010, 013 | TODO | Admin and tutor can complete the new content lifecycle end to end |
@@ -70,6 +70,8 @@ Plan 008 evidence: `artifacts/staging-overhaul/20260803-plan008-product-v3/plan-
 Plan 009 evidence: `artifacts/staging-overhaul/20260803-plan009-article-v1/plan-009-result.json` records 100 percent article and diktat quality, deterministic AST, Markdown, and generation hashes, and zero writes or changed rows. The staging database had no published canonical Idea rows under the requested `tutorial-pka` identity, so the read-only fixture records an explicit fallback to the available canonical course `mat-i`; no Tutorial PKA material was changed.
 
 Plan 010 evidence: `artifacts/staging-overhaul/20260803-plan010-assessment-v4/plan-010-result.json` records a passed create, publish, start, answer, submit, and summary lifecycle with 30 run-scoped IDs. The requested `tutorial-pka` identity used the explicit canonical fallback `mat-i` because it had no two published Ideas; the independent leak scan records zero findings in `plan-010-leak-scan.json`.
+
+Plan 011 evidence: `artifacts/staging-overhaul/20260803-plan011-recompute-v2/plan-011-result.json` records a passed full replay followed by an incremental `--expect-noop` replay with identical state hashes, zero duplicate evidence rows, zero legacy rows modified, and zero AI calls. Read-only shadow evidence is recorded in `artifacts/staging-overhaul/20260803-plan011-shadow-v2/plan-011-shadow.json`; the requested `tutorial-pka` identity used an explicit canonical fallback to `mat-i` because no published Ideas existed under that identity.
 
 ## Serialized integration graph
 

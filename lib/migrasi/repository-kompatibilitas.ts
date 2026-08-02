@@ -26,6 +26,7 @@ import {
   websiteMaterials,
 } from "@/db/schema";
 import { stableStringify } from "@/lib/staging/migration-ledger";
+import { PEMAHAMAN_RUBRIC_VERSION } from "@/lib/pemahaman/engine";
 
 type CompatibilityTx = {
   insert: (...args: any[]) => any;
@@ -269,7 +270,8 @@ export async function dualWriteLearningEvent(
   event: LegacyLearningEventMirror,
   actorId?: string | null,
 ): Promise<void> {
-  if (!isEnabled() || !event.koId) return;
+  const ideaEvidenceEnabled = process.env.FEATURE_PEMAHAMAN_IDE_V1 === "1";
+  if ((!isEnabled() && !ideaEvidenceEnabled) || !event.koId) return;
   const [targetIdea] = await tx.select({ id: ide.id }).from(ide).where(eq(ide.id, event.koId)).limit(1);
   if (!targetIdea) return;
   await requirePengguna(tx, event.studentId);
@@ -281,7 +283,7 @@ export async function dualWriteLearningEvent(
     sourceId: event.id,
     scoreContribution: event.correctness ?? 0,
     confidence: 100,
-    rubricVersion: "legacy-backfill-v1",
+    rubricVersion: PEMAHAMAN_RUBRIC_VERSION,
     derivationStatus: "deterministic",
     ambiguous: false,
     affectsMastery: event.correctness !== null && event.correctness !== undefined,

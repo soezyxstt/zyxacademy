@@ -6,6 +6,7 @@ import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { evaluateInterventions } from "@/lib/intervention-service";
 import { env } from "@/lib/env";
 import { recomputeStudyPath } from "@/lib/study-path-service";
+export { getIdeaMasteryWithFallback } from "@/lib/pemahaman/compatibility";
 
 export interface MasteryRow {
   conceptName: string;

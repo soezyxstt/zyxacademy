@@ -2080,6 +2080,7 @@ export const buktiPembelajaran = sqliteTable(
  (table) => [
   index("bukti_pembelajaran_murid_ide_idx").on(table.penggunaId, table.ideId),
    index("bukti_pembelajaran_source_idx").on(table.evidenceSource, table.sourceId),
+   uniqueIndex("bukti_pembelajaran_idempotency_idx").on(table.evidenceSource, table.sourceId, table.ideId, table.rubricVersion),
    check("bukti_pembelajaran_confidence_check", sql`${table.confidence} >= 0 AND ${table.confidence} <= 100`),
    check("bukti_pembelajaran_ambiguous_mastery_check", sql`NOT (${table.ambiguous} AND ${table.affectsMastery})`),
  ],
@@ -2095,6 +2096,8 @@ export const pemahamanIde = sqliteTable(
   keyakinan: integer("keyakinan").notNull(),
   evidenceCount: integer("evidence_count").default(0).notNull(),
   version: integer("version").default(1).notNull(),
+  algorithmVersion: text("algorithm_version").default("per-idea.v1").notNull(),
+  inputWatermark: text("input_watermark").default("").notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  },
@@ -2119,6 +2122,9 @@ export const perubahanPemahaman = sqliteTable(
   previousConfidence: integer("previous_confidence").notNull(),
   nextConfidence: integer("next_confidence").notNull(),
   reason: text("reason").notNull(),
+  evidenceIds: text("evidence_ids", { mode: "json" }).$type<string[]>().default([]).notNull(),
+  algorithmVersion: text("algorithm_version").default("per-idea.v1").notNull(),
+  inputWatermark: text("input_watermark").default("").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  },
  (table) => [

@@ -4,6 +4,7 @@ import { vectorSyncQueue, knowledgeObjects, chapters, masterTeachingDocuments, e
 import { computeSnapshotPayload } from "@/lib/cohort-analytics";
 import { recomputeTrends } from "@/lib/mastery-store";
 import { enqueueRecompute, processQueueBatch } from "@/lib/mastery-recompute";
+import { recomputePerIdeaMastery } from "@/lib/mastery-recompute";
 import { generateMistakeFeedback } from "@/lib/mistake-feedback";
 import { getNs } from "@/lib/pinecone";
 import { embedTexts } from "@/lib/gemini";
@@ -394,6 +395,38 @@ export const masteryRecomputeWorker = inngest.createFunction(
 
     return { studentId, courseId };
   }
+);
+
+export const ideaMasteryRecomputeWorker = inngest.createFunction(
+  {
+    id: "idea-mastery-recompute-v1",
+    name: "Per-Idea Mastery Recompute V1",
+    triggers: [{ event: "mastery/idea-recompute.requested.v1" }],
+  },
+  async ({ event, step }) => {
+    if (process.env.FEATURE_PEMAHAMAN_IDE_V1 !== "1") {
+      return { status: "disabled" as const };
+    }
+
+    const { studentId, ideaId, idempotencyKey } = event.data as {
+      studentId: string;
+      ideaId: string;
+      idempotencyKey: string;
+    };
+    const stepKey = idempotencyKey.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80);
+    return step.run(`recompute-idea-${stepKey}`, async () => {
+      const result = await recomputePerIdeaMastery(studentId, ideaId, {
+        mode: "incremental",
+        reason: "idea_mastery_event_v1",
+      });
+      return {
+        status: "processed" as const,
+        ideaId,
+        changed: result.changed,
+        stateHash: result.stateHash,
+      };
+    });
+  },
 );
 
 export const feedbackWorker = inngest.createFunction(

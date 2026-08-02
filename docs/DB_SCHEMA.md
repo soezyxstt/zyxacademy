@@ -317,11 +317,11 @@ Published article, material, question, solution, and flashcard records are requi
 Quiz and tryout cardinality is enforced by the assessment contract: a quiz has exactly one chapter and a tryout has at least one chapter. Foreign keys and unique indexes protect assessment item and answer membership.
 
 ### Evidence and mastery tables
-* `bukti_ide_jawaban`, `bukti_pembelajaran`: Idea-level evidence with contribution, confidence, source, rubric version, and derivation status.
-* `pemahaman_ide`: Separate `skor` and `keyakinan` values, each bounded from 0 to 100.
-* `perubahan_pemahaman`, `rekomendasi_flashcard`: History-safe mastery transitions and due recommendations.
+* `bukti_ide_jawaban`, `bukti_pembelajaran`: Idea-level evidence with contribution, confidence, source, rubric version, and derivation status. `bukti_pembelajaran` has a unique idempotency key across source, Idea, and rubric.
+* `pemahaman_ide`: Separate `skor` and `keyakinan` values, each bounded from 0 to 100, plus `algorithm_version` and `input_watermark` for deterministic replay.
+* `perubahan_pemahaman`, `rekomendasi_flashcard`: History-safe mastery transitions and due recommendations. Change rows retain `evidence_ids`, algorithm version, and watermark.
 
-Ambiguous evidence is stored with explicit status and the schema check prevents it from being marked as mastery-affecting. No legacy mastery or learning-event row is rewritten in Plan 004.
+Ambiguous evidence is stored with explicit status and the schema check prevents it from being marked as mastery-affecting. Plan 011 recomputes only the additive per-Idea tables; no legacy mastery, learning-event, answer, or review row is rewritten.
 
 ### Bundle and audit tables
 * `impor_bundle`, `item_impor_bundle`: Checksum-identified import and entity inventory, optional legacy course association, and JSON validation report.

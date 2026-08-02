@@ -67,9 +67,9 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 3. Assessment definitions separate blueprint, assessment, chapter scope, ordered items, attempts, and answers. Quiz scope is exactly one chapter; tryout scope is one or more chapters.
 4. Attempt and answer records carry rendered question, option order, response, grading policy, and content version snapshots so later content changes do not alter historical context.
 5. Answer evidence records Idea attribution, contribution, weight, confidence, evidence source, rubric version, and derivation status. Ambiguous evidence is retained but cannot affect mastery.
-6. `pemahaman_ide` stores score and confidence as separate 0 to 100 values, with append-only change history and flashcard recommendations.
+6. `pemahaman_ide` stores score and confidence as separate 0 to 100 values, with append-only change history, replay metadata, and deterministic flashcard recommendations. Only attributable verified evidence contributes to the score; a legacy concept baseline is explicitly labelled and never copied to an Idea.
 7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
-8. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0`; current runtime callers and legacy records are unchanged.
+8. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` until the later workflow canaries; current legacy records remain unchanged.
 
 ### Idea Bundle V2 Workflow
 

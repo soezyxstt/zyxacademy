@@ -7,6 +7,7 @@ import {
   enrollments,
   flashcardReviews,
   learningEvents,
+  flashcardIde,
 } from "@/db/schema";
 import { eq, and, lte, or, inArray, isNull, gt } from "drizzle-orm";
 import { calculateSM2 } from "./flashcard-scheduler";
@@ -15,6 +16,7 @@ import { inngest } from "@/lib/inngest";
 import { markRecommendationDone } from "@/lib/recommendation-service";
 import { env } from "@/lib/env";
 import { dualWriteFlashcardReview, dualWriteLearningEvent } from "@/lib/migrasi/repository-kompatibilitas";
+import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
 
 export interface FlashcardHistoryItem {
   reviewedAt: string;
@@ -333,6 +335,8 @@ export async function submitFlashcardReviewTx(
     };
   });
 
+  await recordFlashcardIdeaEvidence(studentId, flashcardId, result.review.id, correctness, new Date());
+
   // Post-transaction tasks (Inngest, Recommendations)
   try {
     await inngest.send({
@@ -514,6 +518,8 @@ export async function skipFlashcardTx(
     };
   });
 
+  await recordFlashcardIdeaEvidence(studentId, flashcardId, result.review.id, 0, new Date());
+
   try {
     await inngest.send({
       name: "mastery/recompute.requested",
@@ -524,4 +530,33 @@ export async function skipFlashcardTx(
   }
 
   return result;
+}
+
+async function recordFlashcardIdeaEvidence(
+  studentId: string,
+  flashcardId: string,
+  reviewId: string,
+  scoreContribution: number,
+  occurredAt: Date,
+): Promise<void> {
+  if (env.FEATURE_PEMAHAMAN_IDE_V1 !== "1") return;
+
+  const links = await db
+    .select({ ideId: flashcardIde.ideId, weight: flashcardIde.weight })
+    .from(flashcardIde)
+    .where(eq(flashcardIde.flashcardId, flashcardId));
+
+  for (const link of links) {
+    await recordLearningEvidence({
+      penggunaId: studentId,
+      ideId: link.ideId,
+      evidenceSource: "flashcard_review",
+      sourceId: reviewId,
+      scoreContribution: Math.max(0, Math.min(1, scoreContribution * link.weight)),
+      confidence: scoreContribution >= 0.8 ? 85 : 75,
+      derivationStatus: "deterministic",
+      affectsMastery: true,
+      occurredAt,
+    });
+  }
 }

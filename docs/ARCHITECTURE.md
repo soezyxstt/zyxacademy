@@ -120,10 +120,16 @@ Plan 004 adds the normalized Indonesian product and learner-state layer as empty
 | Products | `artikel`, `artikel_ide`, `blok_artikel`, `diktat_materi`, `diktat_ide`, `soal`, `soal_ide`, `soal_relasi_ide`, `pembahasan_soal`, `diktat_pembahasan`, `item_diktat_pembahasan` | Published products require published Idea links; question Idea weights are positive and validated to sum to one. |
 | Protected references and flashcards | `soal_itb_referensi`, `benchmark_soal`, `set_flashcard`, `flashcard`, `flashcard_ide`, `kemajuan_flashcard_murid`, `review_flashcard` | Holdout references carry an explicit visibility state; review history is append-only by data model. |
 | Assessments | `blueprint_asesmen`, `asesmen`, `cakupan_asesmen`, `item_asesmen`, `percobaan_asesmen`, `jawaban_murid` | Quiz scope is one chapter; tryout scope is one or more chapters; rendered content and grading snapshots are required. |
-| Evidence and mastery | `bukti_ide_jawaban`, `bukti_pembelajaran`, `pemahaman_ide`, `perubahan_pemahaman`, `rekomendasi_flashcard` | Score and confidence remain separate; ambiguous evidence cannot affect mastery. |
+| Evidence and mastery | `bukti_ide_jawaban`, `bukti_pembelajaran`, `pemahaman_ide`, `perubahan_pemahaman`, `rekomendasi_flashcard` | Score and confidence remain separate; ambiguous evidence cannot affect mastery; replay metadata makes the state reproducible. |
 | Bundle lifecycle | `impor_bundle`, `item_impor_bundle`, `review_bundle`, `publikasi_bundle`, `audit_mutasi` | Bundle identity is checksum-versioned and publication references an approved review. |
 
-Plan 005 backfills the supported legacy shapes into these targets without deleting or rewriting source rows. Exact evidence is copied to target links; ambiguous questions, unattributable learning events, legacy concept baselines, and compatibility-only history are preserved in the exception ledger. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` in staging, and reads remain on the legacy tables.
+Plan 005 backfills the supported legacy shapes into these targets without deleting or rewriting source rows. Exact evidence is copied to target links; ambiguous questions, unattributable learning events, legacy concept baselines, and compatibility-only history are preserved in the exception ledger. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` in staging until their later canary gates pass.
+
+### Per-Idea Mastery Learning Loop
+
+Plan 011 computes mastery from verified, attributable evidence only. The pure engine applies evidence contribution, weight where available, confidence, evidence source policy, and recency to the score. Confidence is calculated independently from effective count, source diversity, recency, and agreement. Every stored state records `algorithmVersion` and `inputWatermark`; every changed state appends a `perubahan_pemahaman` row with the complete evidence ID list and reason code. Full and incremental replays use the same engine and are idempotent.
+
+Legacy concept mastery remains a compatibility fallback only when no Idea state exists and an explicit concept mapping is supplied. It is labelled `concept-level baseline` and is never copied to an Idea. Flashcard scheduling remains SM-2 based; per-Idea mastery changes recommendation priority and reason codes only. `mastery/idea-recompute.requested.v1` is the versioned deterministic event boundary and does not call Gemini.
 
 ### Legacy Backfill and Compatibility Boundary
 

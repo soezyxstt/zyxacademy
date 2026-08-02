@@ -5,7 +5,16 @@ const timestamp = z.string().datetime({ offset: true });
 const boundedPercent = z.number().finite().min(0).max(100);
 
 export const evidenceSourceSchema = z.enum(["answer", "flashcard_review", "material_completion", "tutor_assessment", "manual"]);
-export const derivationStatusSchema = z.enum(["direct", "derived", "ambiguous", "invalidated"]);
+export const derivationStatusSchema = z.enum([
+  "verified",
+  "deterministic",
+  "reviewed",
+  "direct",
+  "derived",
+  "ambiguous",
+  "rejected",
+  "invalidated",
+]);
 
 export const buktiIdeJawabanSchema = z
   .object({
@@ -73,6 +82,9 @@ export const perubahanPemahamanSchema = z
     nextConfidence: boundedPercent,
     evidenceId: id,
     changedAt: timestamp,
+    evidenceIds: z.array(id).optional(),
+    algorithmVersion: z.string().min(1).optional(),
+    inputWatermark: z.string().optional(),
   })
   .strict();
 

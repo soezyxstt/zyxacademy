@@ -87,6 +87,8 @@ The staging test uses the authenticated Wrangler R2 adapter only for the test pr
 
 `FEATURE_ASESMEN_IDE_V1`: stable option IDs, chapter-scoped assessment metadata, deterministic blueprint selection, and Plan 010 evidence and benchmark contracts. Absent or `0` keeps the legacy quiz path visible and authoritative.
 
+`FEATURE_PEMAHAMAN_IDE_V1`: append-only per-Idea evidence writers, deterministic mastery and confidence, compatibility reads, and flashcard recommendation priorities. Absent or `0` keeps the additive learning loop invisible. It never enables an AI call.
+
 Plan 010 local checks:
 
 ```bash
@@ -97,6 +99,19 @@ git diff --check
 ```
 
 The staging-only assessment scripts are `staging:smoke-assessment-v2` and `staging:scan-assessment-leaks`. They require `.env.staging` and must not be run without explicit staging write authorization. The smoke keeps the requested course ID in its artifact; when that course has fewer than two published canonical Ideas, it deterministically selects the first canonical `mataKuliah` with at least two published Ideas, records `normalizedCourseId`, `fixtureMode`, `fallbackReason`, and `requestedNormalizedMismatch`, and writes fixture rows only to that resolved course. It fails closed when no fallback exists.
+
+Plan 011 local and staging checks are:
+
+```bash
+bun run lint
+bun test tests/contracts/idea-mastery-engine.test.ts tests/contracts/mastery-idempotency.test.ts tests/contracts/flashcard-generator.test.ts tests/migration/mastery-compatibility.test.ts
+bun run typecheck
+bun --env-file=.env.staging run staging:preflight
+bun --env-file=.env.staging run staging:shadow-idea-mastery -- --run-id <runId> --course tutorial-pka
+bun --env-file=.env.staging run staging:recompute-idea-mastery -- --run-id <runId> --course tutorial-pka --mode full
+bun --env-file=.env.staging run staging:recompute-idea-mastery -- --run-id <runId> --course tutorial-pka --mode incremental --expect-noop
+git diff --check
+```
 
 ## Feature Flags
 
