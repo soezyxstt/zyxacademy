@@ -5,6 +5,20 @@
 Production runs on Vercel (Next.js) + Turso (DB) with supporting Cloudflare services.
 
 ```
+
+## Staging overhaul execution
+
+Staging migrations use only `.env.staging` and the guarded commands below. Run the preflight before and after every remote step. The commands emit masked resource fingerprints and artifacts under `artifacts/staging-overhaul/<runId>/`.
+
+```bash
+bun --env-file=.env.staging run staging:preflight
+bun --env-file=.env.staging run staging:inventory -- --run-id <runId> --phase before
+bun --env-file=.env.staging run staging:migrate -- --run-id <runId> --plan <plan>
+bun --env-file=.env.staging run staging:inventory -- --run-id <runId> --phase after
+bun --env-file=.env.staging run staging:reconcile -- --run-id <runId> --expect additive
+```
+
+The old production-to-staging sync is not part of the overhaul. Any exceptional destructive sync must use the dedicated `db:sync-prod-to-staging:destructive` command and an explicit confirmation phrase after a separate operator review.
 Vercel (Next.js App Router)
  ├── Turso (libsql database)
  ├── Cloudflare R2 (object storage)

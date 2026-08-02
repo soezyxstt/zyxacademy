@@ -18,7 +18,13 @@
     "db:migrate": "bunx tsx db/migrate.ts",
     "db:seed": "bunx tsx db/seed.ts",
     "db:push:prod": "bunx tsx db/push-prod.ts",
-    "db:sync-prod-to-staging": "bun scripts/sync-turso-db.ts",
+    "staging:preflight": "bun scripts/staging/preflight.ts",
+    "staging:inventory": "bun scripts/staging/inventory.ts",
+    "staging:export": "bun scripts/staging/export.ts",
+    "staging:restore-export": "bun scripts/staging/restore-export.ts",
+    "staging:migrate": "bun scripts/staging/migrate.ts",
+    "staging:reconcile": "bun scripts/staging/reconcile.ts",
+    "db:sync-prod-to-staging:destructive": "bun scripts/sync-turso-db.ts --destructive",
     "watch-start": "nodemon --watch app --watch components --watch styles -e js,jsx,ts,tsx,css --exec \"next build && next start\""
   },
   "dependencies": {

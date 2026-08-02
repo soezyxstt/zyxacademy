@@ -23,6 +23,11 @@ bun run dev                  # http://localhost:3000
 | `bun run db:migrate` | Apply migrations to local SQLite |
 | `bun run db:push:prod` | Safe production migration (backup + verify) |
 | `bun run db:seed` | Seed local DB with test data |
+| `bun --env-file=.env.staging run staging:preflight` | Fail-closed staging identity check |
+| `bun --env-file=.env.staging run staging:inventory -- --run-id <runId> --phase before` | Write a keyed staging inventory artifact |
+| `bun --env-file=.env.staging run staging:export -- --run-id <runId>` | Create an encrypted staging recovery export |
+| `bun --env-file=.env.staging run staging:migrate -- --run-id <runId> --plan <plan>` | Apply guarded staging migrations |
+| `bun --env-file=.env.staging run staging:reconcile -- --run-id <runId> --expect additive` | Reconcile before and after manifests |
 
 ## Environment Variables
 
@@ -55,6 +60,10 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `NEXT_PUBLIC_REALTIME_URL`, `LIVE_HMAC_SECRET` ; Live quiz Worker
 - `WHATSAPP_ADMIN_NUMBER` ; Admin WhatsApp notifications
 - `SENTRY_*` ; Error tracking
+
+### Staging overhaul guard
+
+Remote staging commands must load `.env.staging`, set `ZYX_ENVIRONMENT=staging`, and set `ALLOW_STAGING_MUTATION=1` only for an explicitly reviewed write. `STAGING_EXPORT_KEY` is supplied outside Git and is required for keyed manifests and encrypted exports. Production counterparts are compared before a staging command can continue. Do not use `db:sync-prod-to-staging`; its replacement is the separately named destructive command `db:sync-prod-to-staging:destructive`, which also requires the explicit confirmation phrase.
 
 ## Feature Flags
 

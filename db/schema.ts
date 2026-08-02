@@ -95,6 +95,60 @@ export const userRelations = relations(user, ({ many }) => ({
  accounts: many(account),
 }));
 
+/** Append-only ledger for guarded staging migrations and reconciliation runs. */
+export const migrationRuns = sqliteTable(
+ "migration_runs",
+ {
+  id: text("id").primaryKey(),
+  planNumber: text("plan_number").notNull(),
+  sourceCommit: text("source_commit").notNull(),
+  schemaVersion: text("schema_version").notNull(),
+  databaseFingerprint: text("database_fingerprint").notNull(),
+  phase: text("phase").notNull(),
+  status: text("status").notNull(),
+  startedAt: integer("started_at", { mode: "timestamp" }).defaultNow().notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
+  rowCountManifestHash: text("row_count_manifest_hash"),
+  errorCode: text("error_code"),
+ },
+ (table) => [
+  index("migration_runs_plan_idx").on(table.planNumber),
+  index("migration_runs_status_idx").on(table.status),
+ ],
+);
+
+/** Append-only checkpoints emitted by guarded staging commands. */
+export const migrationCheckpoints = sqliteTable(
+ "migration_checkpoints",
+ {
+  id: text("id").primaryKey(),
+  runId: text("run_id")
+   .notNull()
+   .references(() => migrationRuns.id, { onDelete: "cascade" }),
+  phase: text("phase").notNull(),
+  checkpoint: text("checkpoint").notNull(),
+  status: text("status").notNull(),
+  manifestHash: text("manifest_hash"),
+  rowCount: integer("row_count"),
+  details: text("details", { mode: "json" }).$type<Record<string, unknown> | null>(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  index("migration_checkpoints_run_idx").on(table.runId, table.createdAt),
+ ],
+);
+
+export const migrationRunsRelations = relations(migrationRuns, ({ many }) => ({
+ checkpoints: many(migrationCheckpoints),
+}));
+
+export const migrationCheckpointsRelations = relations(migrationCheckpoints, ({ one }) => ({
+ run: one(migrationRuns, {
+  fields: [migrationCheckpoints.runId],
+  references: [migrationRuns.id],
+ }),
+}));
+
 export const sessionRelations = relations(session, ({ one }) => ({
  user: one(user, {
  fields: [session.userId],
@@ -153,7 +207,7 @@ export const driveItemRelations = relations(driveItem, ({ one, many }) => ({
 // Courses Table
 export const courses = sqliteTable("courses", {
  id: text("id").primaryKey(),
- title: text("title").notNull(), 
+ title: text("title").notNull(),
  category: text("category", { enum: [
  "Matematika",
  "Fisika",
@@ -599,7 +653,7 @@ export const aiQuestionBank = sqliteTable(
       .references(() => courses.id, { onDelete: "cascade" }),
     sourceSectionId: text("source_section_id")
       .references(() => aiMaterialInstanceSections.id, { onDelete: "set null" }),
-    
+
     // Final v4 adjustments
     knowledgeObjectId: text("knowledge_object_id")
       .references(() => knowledgeObjects.id, { onDelete: "set null" }),
@@ -611,7 +665,7 @@ export const aiQuestionBank = sqliteTable(
       .references(() => questionGenerationRuns.id, { onDelete: "set null" }),
     status: text("status").default("active").notNull(),
     isStale: integer("is_stale", { mode: "boolean" }).default(false).notNull(),
-    
+
     difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().default("medium").notNull(),
     questionType: text("question_type").$type<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">().default("multiple_choice").notNull(),
     tags: text("tags", { mode: "json" }).$defaultFn(() => []).notNull(),
@@ -3120,8 +3174,8 @@ export const blogArticles = sqliteTable(
     slug: text("slug").notNull().unique(),
     title: text("title").notNull(),
     summary: text("summary").notNull(),
-    content: text("content").notNull(), 
-    thumbnailUrl: text("thumbnail_url"), 
+    content: text("content").notNull(),
+    thumbnailUrl: text("thumbnail_url"),
     category: text("category")
       .$type<"tips_kuliah" | "pojok_kampus" | "fakta_seru" | "kegiatan_zyx">()
       .notNull(),
@@ -3130,8 +3184,8 @@ export const blogArticles = sqliteTable(
     status: text("status").$type<"draft" | "published" | "scheduled">().default("draft").notNull(),
     publishedAt: integer("published_at", { mode: "timestamp" }),
     createdById: text("created_by_id")
-      .references(() => user.id, { onDelete: "set null" }), 
-    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(), 
+      .references(() => user.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -3149,4 +3203,4 @@ export const blogArticlesRelations = relations(blogArticles, ({ one }) => ({
     fields: [blogArticles.createdById],
     references: [user.id],
   }),
-}));
+}));

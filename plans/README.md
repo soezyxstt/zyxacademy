@@ -1,76 +1,117 @@
-# Zyx AI Reliability Remediation Plan Index
+# Zyx Idea-Centered Learning System Overhaul
 
-Snapshot: `6098211`
+Status program: planned, not started.
 
-Prepared: 2026-07-30
+Planning snapshot:
 
-Purpose: replace overloaded prompts and weak AI-only controls with explicit contracts, deterministic policy, staged generation, evidence-aware validation, and measurable rollout gates. These plans are written for sequential execution by a less capable implementation model.
+- Repository: `D:\ZYX\zyx-web`
+- Branch inspected: `staging`
+- Source commit inspected: `03b68ba0e66ee90f41fe92886b15f81a7a36ec3c`
+- Planning date: 2026-08-02
+- Target environment: staging resources loaded only from `.env.staging`
+- Production deployment: out of scope
 
-Finding coverage: [AUDIT-TRACEABILITY.md](./AUDIT-TRACEABILITY.md)
+The former Plans 001 through 015 were intentionally removed after execution. Do not restore or mix them with this series. These plans start a new program and must be executed from their recorded predecessor commit.
 
-## Non-negotiable execution rules
+## Non-negotiable program invariants
 
-1. Execute one numbered plan at a time. Do not combine branches or skip prerequisites.
-2. Start each plan from a clean worktree at snapshot `6098211` or rebase the remaining plan against the latest accepted predecessor.
-3. Use the branch name stated in the plan. The repository branch prefix is `codex/`.
-4. Before editing a Next.js route, read `node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md`.
-5. Before any edit, reread `AGENTS.md`, `db/schema.ts`, and `lib/env.ts`.
-6. Database changes go through `db/schema.ts`, `bun run db:generate`, and `bun run db:migrate`. Never hand-edit `drizzle/`.
-7. New behavior must be invisible when its `FEATURE_*` flag is absent or `"0"`, except unconditional security redaction explicitly identified in Plan 002.
-8. After each meaningful edit batch run `bun run lint`. Before handoff run the targeted tests and `bun run typecheck`. Do not run a production migration or deploy.
-9. Do not use em dash or en dash characters in any changed file. Keep the brand spelling as `Zyx`.
-10. Update the documentation files named by each plan. Do not defer documentation to an unspecified later task.
-11. Commit only files in the plan's scope. Use the commit subject shown in the plan.
-12. Stop on any STOP condition. Record the blocker instead of inventing a schema, product rule, or migration result.
+1. Existing database records, immutable attempt snapshots, user identities, enrollments, Tutorial PKA progress, and historical analytics must remain queryable and operational.
+2. Use expand, backfill, verify, switch, then contract. An export is a recovery and reconciliation artifact, not the primary migration mechanism.
+3. Every remote command must load `.env.staging`, pass the staging identity guard, and refuse to run when a staging resource equals or resembles a production resource.
+4. Never print secrets or full authenticated URLs. Never use `db:sync-prod-to-staging` during this overhaul.
+5. Edit `db/schema.ts`, then run `bun run db:generate`; never hand-edit generated files under `drizzle/`.
+6. All new behavior remains invisible when its `FEATURE_*` flag is absent or `0`.
+7. Database and domain naming for access roles uses `admin`, `tutor`, and `murid`. Do not blindly replace message roles such as AI chat speakers.
+8. `ide` replaces `knowledge_objects` as the canonical learning atom. `concepts` remains the global cross-course concept registry.
+9. Turso remains the source of truth. Vectorize stores searchable representations and IDs only. Pinecone is removed only in Plan 016 after a verified Vectorize-only cutover.
+10. Each plan must pass lint, targeted tests, typecheck, its staging gates, and `git diff --check` before the next plan starts.
+11. Do not run `bun run build` unless a plan explicitly requires it or the change is breaking under `AGENTS.md`.
+12. Stop immediately on count loss, checksum mismatch, orphaned rows, unexpected production identity, non-idempotent re-run, or a failed rollback rehearsal.
 
-## Verified baseline
+## Execution order and status
 
-- `bun run lint` exits 0 with two existing warnings in `app/api/admin/quiz-insights/[id]/analyze/route.ts` for `_firstErr` and `_secondErr`.
-- `bunx tsc --noEmit --incremental false` exits 0.
-- There is no configured unit test script or `*.test.*` suite. Existing `scripts/test-*.ts` files are ad hoc checks.
-- `lib/prompt-executor.ts` validates JSON shape with Zod and performs one broad rewrite repair. It has no semantic validator interface.
-- `lib/tutor-rag.ts` mixes history, retrieval, evidence coverage, assessment policy, answer generation, citations, visuals, style, and confidence in one path.
-- `lib/ko-extractor.ts` truncates input to 30,000 characters and deletes all chapter KOs before reinsertion.
-- `lib/question-generator.ts` asks the model for fixed answer positions and persists generated questions with `qualityScore: 1.0`.
-- Active attempt rows store answers server-side, but both quiz attempt GET routes return full attempt records without status-based redaction.
+Execute sequentially. A plan is a predecessor gate, not optional reading.
 
-## Execution order
+| Plan | Title | Priority | Effort | Depends on | Status | Main exit gate |
+|---|---|---|---|---|---|---|
+| [001](001-staging-safety-and-migration-ledger.md) | Staging safety and migration ledger | P0 | M | None | DONE | Safe staging commands, complete inventory and export, rollback rehearsal |
+| [002](002-indonesian-identity-and-role-expansion.md) | Indonesian identity and role expansion | P0 | L | 001 | TODO | Every user has equivalent `admin`, `tutor`, or `murid` membership |
+| [003](003-source-and-idea-domain-expansion.md) | Source and Idea domain expansion | P0 | L | 002 | TODO | All target source, Idea, provenance, relation, and dependency tables exist |
+| [004](004-product-assessment-and-mastery-domain-expansion.md) | Product, assessment, and mastery domain expansion | P0 | L | 003 | TODO | Target product and learner tables exist with enforced invariants |
+| [005](005-deterministic-legacy-backfill-and-compatibility.md) | Deterministic legacy backfill and compatibility layer | P0 | L | 004 | TODO | 100 percent legacy mapping or an explicit zero-loss exception ledger |
+| [006](006-idea-bundle-v2-workflow.md) | Idea Bundle V2 workflow | P1 | L | 005 | TODO | ZIP import is validated, idempotent, reviewed, and atomically published |
+| [007](007-authoring-context-pack-and-protected-benchmarks.md) | Authoring Context Pack and protected benchmarks | P1 | M | 006 | TODO | Context export excludes holdout content and is reproducible |
+| [008](008-product-bundle-v2-workflow.md) | Product Bundle V2 workflow | P1 | L | 007 | TODO | Product import, preview, review, and publish are atomic and dependency-aware |
+| [009](009-article-and-diktat-quality-compiler.md) | Article and diktat quality compiler | P1 | L | 008 | TODO | Required pedagogic blocks and source coverage pass publication gates |
+| [010](010-question-and-assessment-integrity.md) | Question and assessment integrity | P0 | L | 008 | TODO | Multi-Idea evidence, blueprint, benchmark, and active-attempt gates pass |
+| [011](011-per-idea-mastery-and-learning-loop.md) | Per-Idea mastery and learning loop | P0 | L | 010 | TODO | Mastery and confidence are separate, reproducible, and history-safe |
+| [012](012-vectorize-only-indexing-and-retrieval.md) | Vectorize-only indexing and retrieval | P0 | L | 005, 011; internal foundation after 005 | TODO | DB and Vectorize manifests match exactly in staging |
+| [013](013-zyra-canonical-runtime.md) | Zyra canonical runtime | P1 | L | 011, 012 | TODO | Responses hydrate approved DB content and assessment leaks are zero |
+| [014](014-admin-and-tutor-operational-workflow.md) | Admin and tutor operational workflow | P1 | L | 009, 010, 013 | TODO | Admin and tutor can complete the new content lifecycle end to end |
+| [015](015-murid-workflow-and-tutorial-pka-parity.md) | Murid workflow and Tutorial PKA parity | P0 | L | 014 | TODO | Existing Tutorial PKA history and all core murid journeys remain operational |
+| [016](016-staging-cutover-pinecone-removal-and-legacy-contract.md) | Staging cutover, Pinecone removal, and legacy contract | P0 | L | 015 | TODO | Two clean rehearsals, rollback pass, zero active legacy write callers |
 
-| Order | Plan | Priority | Depends on | Status | Outcome |
-|---|---|---|---|---|---|
-| 001 | [Automated AI contract test foundation](./001-ai-contract-test-foundation.md) | P0 | None | **DONE** | Deterministic tests and fixtures exist before behavior changes. |
-| 002 | [Assessment answer protection and help policy](./002-assessment-integrity-and-help-policy.md) | P0 | 001 | **DONE** | Active attempts cannot expose answers; one deterministic help policy exists. |
-| 003 | [Prompt contracts, policy composition, and provenance](./003-prompt-contracts-and-provenance.md) | P0 | 001 | **DONE** | Shared prompt stages have typed identities, validators, repair codes, and trace metadata. |
-| 004 | [Tutor cache isolation and query action routing](./004-tutor-cache-and-query-routing.md) | P0 | 002, 003 | **DONE** | Student history cannot poison shared cache; style follow-ups do not force retrieval. |
-| 005 | [Tutor evidence, citation, conflict, and abstention pipeline](./005-tutor-evidence-and-citation-pipeline.md) | P0 | 002, 003, 004 | **DONE** | Coverage is multi-state, citations are verified, sources are untrusted data, and unsupported claims abstain. |
-| 006 | [Tutor pedagogy, diagnosis, and semantic visuals](./006-tutor-pedagogy-and-visuals.md) | P1 | 003, 005 | **DONE** | Explanations adapt to evidence; diagnoses are hypotheses; visuals are typed and deterministic. |
-| 007 | [Knowledge object provenance and stable identity](./007-ko-provenance-and-stable-identity.md) | P0 | 001, 003 | **DONE** | KOs carry source spans and stable IDs; type and teaching role are distinct. |
-| 008 | [Staged KO extraction and canonicalization](./008-staged-ko-extraction-and-canonicalization.md) | P1 | 007 | **DONE** | Long sources are chunked, candidates are reconciled, ambiguous merges require review. |
-| 009 | [Semantic material compiler](./009-semantic-material-compiler.md) | P1 | 007, 008 | **DONE** | The model plans semantic blocks; application code serializes validated Markdown. |
-| 010 | [Question blueprint, option shuffle, and distractor provenance](./010-question-blueprint-and-distractors.md) | P1 | 002, 003, 007 | **DONE** | Question coverage is multidimensional and persisted provenance is machine-readable. |
-| 011 | [Independent question verification and surgical repair](./011-question-verification-and-repair.md) | P1 | 010 | **DONE** | A solver and critic verify questions; repair touches only invalid fields. |
-| 012 | [Evidence-calibrated learner and admin analytics](./012-learning-analytics-calibration.md) | P1 | 002, 010, 011 | **DONE** | Observations, interpretations, and recommendations are distinct and sample-aware. |
-| 013 | [Atomic active-recall flashcards](./013-flashcard-active-recall-contract.md) | P2 | 003, 007 | **DONE** | Each card tests one recall target and difficulty is evidence-based. |
-| 014 | [Diktat audit, formula registry, and PDF QA](./014-diktat-audit-and-pdf-qa.md) | P1 | 003, 007, 009 | **DONE** | Author and reviewer are separated; formula and rendered-page QA fail closed. |
-| 015 | [Golden evaluations, shadow rollout, and documentation closure](./015-golden-evals-and-rollout.md) | P0 gate | 002 through 014 | **DONE** | All pipelines have behavioral thresholds, rollout telemetry, rollback steps, and accurate docs. |
+Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`, or `REJECTED`. `BLOCKED` and `REJECTED` require a one-line reason.
 
-## Cross-plan quality gates
+## Serialized integration graph
 
-Every plan must demonstrate:
+The numbered table preserves the program gates. Implementation lanes may run in parallel only when their write sets are disjoint. Integration, staging writes, migrations, shared files, feature flags, and evidence status remain serial.
 
-1. Shape validity: output passes Zod or deterministic schema validation.
-2. Semantic validity: evidence, policy, math, IDs, and visual rules have coded checks.
-3. Privacy: logs and caches contain no raw student history unless explicitly user-scoped and retention-approved.
-4. Assessment integrity: protected answers are removed before generation and before serialization.
-5. Failure behavior: parsing, model, and audit failures become typed unavailable, partial, conflict, or needs-review states. They never become a synthetic success.
-6. Traceability: prompt, policy, schema, validator, evidence set, model, retry, and repair versions are reconstructable without storing raw sensitive input.
+```mermaid
+flowchart TD
+    P001["001 staging safety"]
+    P002["002 identity and roles"]
+    P003["003 source and Idea domain"]
+    P004["004 product and assessment domain"]
+    P005["005 legacy backfill"]
+    P006["006 Idea Bundle"]
+    P007["007 Context Pack"]
+    P008["008 Product Bundle"]
+    P009["009 article and diktat"]
+    P010["010 question and assessment"]
+    P012A["012A Vectorize foundation"]
+    P011["011 Idea mastery"]
+    P012B["012B Vectorize rebuild"]
+    P013["013 Zyra runtime"]
+    P014["014 admin and tutor workflow"]
+    P015["015 murid and PKA parity"]
+    P016["016 staging cutover"]
 
-## Explicitly deferred findings
+    P001 --> P002 --> P003 --> P004 --> P005
+    P005 --> P006 --> P007 --> P008
+    P005 --> P012A
+    P008 --> P009
+    P008 --> P010
+    P010 --> P011
+    P008 --> P012B
+    P012A --> P012B
+    P011 --> P012B
+    P011 --> P013
+    P012B --> P013
+    P009 --> P014
+    P010 --> P014
+    P013 --> P014
+    P014 --> P015 --> P016
+```
 
-The audit found three issues that should not be silently mixed into this prompt remediation package:
+Wave ownership is one writer per schema or documentation hotspot. Plan 001 through 005 and Plan 015 through 016 are serial. Plans 009 and 010 may develop in parallel after Plan 008. Plan 012 foundation may develop after Plan 005, but its final rebuild waits for Plan 011. Only the root executor may mutate staging resources or confirm final cutover.
 
-- Generation job counters can be inconsistent after failures. Create a separate operations plan after this package.
-- Content-quality reconciliation has unrelated state bugs. Handle it in a separate maintenance plan.
-- End-to-end ingestion atomicity beyond KO replacement is broader than prompt architecture. Plan 007 fixes KO identity and transaction safety only; a full ingestion transaction redesign needs its own approved scope.
+## Dependency notes
 
-Do not address these deferred items while executing Plans 001 through 015.
+- Plans 001 through 005 establish safety, additive schema, and deterministic preservation before any workflow switches.
+- Plans 006 through 010 build the authoring, product, and assessment chain on the preserved target domain.
+- Plans 011 through 013 require attributable evidence and exact Vectorize reconciliation before the new Zyra runtime is enabled.
+- Plans 014 and 015 switch human workflows only after domain and runtime gates pass.
+- Plan 016 is the only plan allowed to remove Pinecone code or stop legacy writes.
+
+## Findings considered and rejected
+
+- Broad product audit: intentionally rejected for this run because the user selected a focused system overhaul and asked to avoid expanding the scope.
+- Destructive export, rebuild, and import as the primary migration: rejected because additive migration with deterministic backfill gives stronger rollback and data-preservation guarantees.
+- Immediate legacy-table deletion: rejected because historical data must remain operational and staging soak evidence does not justify destructive contraction.
+
+## Shared completion evidence
+
+Each plan must create `artifacts/staging-overhaul/<runId>/plan-NNN-result.json` through a script, not by manually typing evidence. The result must contain the source commit, migration run ID, masked resource fingerprints, commands and exit codes, row counts, reconciliation hashes, feature flag state, rollback result, and operator timestamp. The artifact directory must be ignored by Git.
+
+No plan may mark itself complete from prose alone. Update this index status only after the evidence file exists and all plan-specific gates pass.

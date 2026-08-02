@@ -1,14 +1,17 @@
 import { createClient } from "@libsql/client";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { assertStagingEnvironment } from "@/lib/staging/staging-guard";
 
 /**
  * Script to duplicate/clone a Turso Production database into a Staging database.
  * Auto-detects credentials from `.env.prod` and `.env.staging`.
  * 
  * Usage:
- *   bun run db:sync-prod-to-staging
+ *   TURSO_DESTRUCTIVE_CONFIRMATION="I UNDERSTAND THIS DROPS STAGING DATA" bun run db:sync-prod-to-staging:destructive
  */
+
+const DESTRUCTIVE_CONFIRMATION = "I UNDERSTAND THIS DROPS STAGING DATA";
 
 function parseEnvFile(filePath: string): Record<string, string> {
   const result: Record<string, string> = {};
@@ -31,9 +34,25 @@ function parseEnvFile(filePath: string): Record<string, string> {
 }
 
 async function main() {
+  if (!process.argv.includes("--destructive")) {
+    console.error("Destructive sync requires the dedicated command name.");
+    process.exit(1);
+  }
+  if (process.env.TURSO_DESTRUCTIVE_CONFIRMATION !== DESTRUCTIVE_CONFIRMATION) {
+    console.error("Destructive sync requires the explicit confirmation phrase.");
+    process.exit(1);
+  }
+
   const rootDir = process.cwd();
   const envProd = parseEnvFile(join(rootDir, ".env.prod"));
   const envStaging = parseEnvFile(join(rootDir, ".env.staging"));
+
+  assertStagingEnvironment({
+    env: envStaging,
+    productionEnv: envProd,
+    requireMutation: true,
+    requiredResources: ["database", "authUrl"],
+  });
 
   const prodUrl =
     process.env.PROD_TURSO_URL ||
@@ -56,21 +75,16 @@ async function main() {
     envStaging.TURSO_AUTH_TOKEN;
 
   if (!prodUrl || !prodToken) {
-    console.error("Error: Production database URL/Token not found in environment or .env.prod.");
+    console.error("Error: Production database credentials are unavailable.");
     process.exit(1);
   }
 
   if (!stagingUrl || !stagingToken) {
-    console.error("Error: Staging database URL/Token not found in environment or .env.staging.");
+    console.error("Error: Staging database credentials are unavailable.");
     process.exit(1);
   }
 
-  console.log("=============================================");
-  console.log("  TURSO DATABASE SYNC (PROD -> STAGING)");
-  console.log("=============================================");
-  console.log(`Source (Prod):    ${prodUrl}`);
-  console.log(`Target (Staging): ${stagingUrl}`);
-  console.log("=============================================\n");
+  console.log("Starting explicitly confirmed destructive sync to staging.");
 
   const prodClient = createClient({ url: prodUrl, authToken: prodToken });
   const stagingClient = createClient({ url: stagingUrl, authToken: stagingToken });
@@ -164,12 +178,17 @@ async function main() {
   // 6. Re-enable FK checks on Staging
   await stagingClient.execute("PRAGMA foreign_keys = ON;");
 
+  const foreignKeys = await stagingClient.execute("PRAGMA foreign_key_check;");
+  if (foreignKeys.rows.length > 0) {
+    throw new Error("Destructive sync produced foreign-key violations");
+  }
+
   console.log("\n=============================================");
-  console.log(`SUCCESS! Copied ${tablesRes.rows.length} tables and ${totalRowsTransferred} rows from Production to Staging.`);
+  console.log(`SUCCESS! Copied ${tablesRes.rows.length} tables and ${totalRowsTransferred} rows to staging.`);
   console.log("=============================================");
 }
 
-main().catch((err) => {
-  console.error("\nSync failed with error:", err);
+main().catch(() => {
+  console.error("\nSync failed with a guarded destructive-operation error.");
   process.exit(1);
 });

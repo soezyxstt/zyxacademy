@@ -13,6 +13,9 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [ ] **Knowledge Object Staged Extraction & Provenance Gate**: `bun test tests/contracts/ko-pipeline.test.ts` passes; sources > 30k chars are chunked without truncation, math/tables are preserved, cross-chunk spans are retained, embedding similarity without exact match flags `ambiguous`, and invalid extractions leave previous KO state untouched.
 - [ ] **Question Blueprint & Distractor Provenance Gate**: `bun test tests/contracts/question-pipeline.test.ts` passes; blueprint slots require sourced KO IDs, options are shuffled deterministically in application code with stable IDs, distractor provenances persist method, score, and uncertainty (`ambiguous` persisted as unknown), and new questions remain unverified (`qualityScore: null`).
 - [ ] **Prompt Contract Boundary**: All prompt stage executions verify policy composition, semantic validators, bounded repair allowlists, and privacy-safe provenance traces in `ai_generation_traces`.
+- [ ] **Staging identity gate**: `bun --env-file=.env.staging run staging:preflight` identifies staging, rejects production equality, and emits no secrets.
+- [ ] **Staging recovery gate**: The keyed inventory, encrypted export, disposable restore, migration ledger, foreign-key check, and additive reconciliation all pass for the active plan.
+- [ ] **Staging evidence gate**: `artifacts/staging-overhaul/<runId>/plan-NNN-result.json` exists before a plan is marked `DONE`.
 
 ## Architectural Guidelines & Boundaries
 
