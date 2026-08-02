@@ -83,7 +83,7 @@ Step verification rule: after every numbered local-code step, run `bun run lint`
 3. Backfill one `pengguna` row per Better Auth user, then backfill memberships inside one transaction per batch. Use stable deterministic membership IDs so reruns are idempotent.
 4. Run parity queries: every Better Auth user maps to exactly one `pengguna`; every legacy role maps to at least one membership; no user is lost.
 6. Switch only the top-level admin and tutor layout gates behind `FEATURE_PERAN_V2`. Keep downstream callers on legacy paths until Plan 014.
-7. Run staging sign-in and session-refresh smoke tests for one account of each role and one multi-role account. Use seeded or existing staging accounts; if staging has no pre-seeded multi-role identity, add one deterministic tutor membership to an explicitly selected existing active staging admin with `staging:seed-peran-smoke --user-id <existingAdminUserId>`. Never use production credentials.
+7. Run staging sign-in and session-refresh smoke tests for one account of each role and one multi-role account. Use seeded or existing staging accounts; if staging has no pre-seeded multi-role identity, add one deterministic tutor membership to an explicitly selected existing active staging admin with `staging:seed-peran-smoke --email <existingAdminEmail>` or `--user-id <existingAdminUserId>`. Never use production credentials.
 8. Document the role vocabulary and the temporary compatibility column.
 
 ## Commands and pass criteria
@@ -96,7 +96,7 @@ bun run db:generate
 bun --env-file=.env.staging run staging:preflight
 bun --env-file=.env.staging run staging:migrate -- --run-id <runId> --plan 002
 bun --env-file=.env.staging run staging:backfill-peran -- --run-id <runId>
-bun --env-file=.env.staging run staging:seed-peran-smoke -- --run-id <runId> --user-id <existingAdminUserId>
+bun --env-file=.env.staging run staging:seed-peran-smoke -- --run-id <runId> --email <existingAdminEmail>
 bun --env-file=.env.staging run staging:reconcile-peran -- --run-id <runId>
 bun --env-file=.env.staging run staging:smoke-auth -- --roles admin,tutor,murid,multi
 git diff --check

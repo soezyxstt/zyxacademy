@@ -49,20 +49,25 @@ async function main(): Promise<void> {
    const configuredUserId = (typeof args["user-id"] === "string"
     ? args["user-id"]
     : process.env.STAGING_SMOKE_MULTI_USER_ID)?.trim();
-   if (!configuredUserId) {
-    throw new Error("An explicit --user-id or STAGING_SMOKE_MULTI_USER_ID is required for the staging smoke seed");
+   const configuredEmail = (typeof args.email === "string"
+    ? args.email
+    : process.env.STAGING_SMOKE_MULTI_USER_EMAIL)?.trim();
+   if (!configuredUserId && !configuredEmail) {
+    throw new Error("An explicit --user-id, --email, STAGING_SMOKE_MULTI_USER_ID, or STAGING_SMOKE_MULTI_USER_EMAIL is required for the staging smoke seed");
    }
+   const target = configuredUserId ?? configuredEmail;
+   if (!target) throw new Error("An explicit staging smoke seed target is required");
    const expiry = activeExpiryArgs();
    const candidate = await client.execute({
     sql: `SELECT u.id AS user_id, u.role AS legacy_role
      FROM user u
      INNER JOIN pengguna p ON p.id = u.id
      INNER JOIN session s ON s.user_id = u.id
-     WHERE u.id = ? AND u.role = 'admin' AND p.status = 'active'
+     WHERE ${configuredUserId ? "u.id = ?" : "u.email = ?"} AND u.role = 'admin' AND p.status = 'active'
        AND (s.expires_at > ? OR s.expires_at > ?)
      ORDER BY s.updated_at DESC, s.expires_at DESC
      LIMIT 1`,
-    args: [configuredUserId, ...expiry],
+    args: [target, ...expiry],
    });
    const selected = rows(candidate)[0];
    if (!selected?.user_id) throw new Error("No active staging admin is available for the smoke seed");
