@@ -125,6 +125,8 @@ export const env = createEnv({
  FEATURE_ANALYTICS_DIAGNOSIS_V2: z.string().optional(),
  /** Indonesian domain identity and multi-role authorization. "1" enables membership checks. */
  FEATURE_PERAN_V2: z.string().optional(),
+ /** Canonical source and Idea domain contracts. "1" enables the additive Idea architecture. */
+ FEATURE_ARSITEKTUR_IDE_V1: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Active vector store: 'pinecone' (default) | 'dual' (write both) | 'vectorize' (read from VZ) */
  VECTOR_STORE: z.enum(['pinecone', 'vectorize', 'dual']).optional(),
@@ -231,6 +233,7 @@ export const env = createEnv({
  FEATURE_DIKTAT_QA_V2: process.env.FEATURE_DIKTAT_QA_V2,
  FEATURE_ANALYTICS_DIAGNOSIS_V2: process.env.FEATURE_ANALYTICS_DIAGNOSIS_V2,
  FEATURE_PERAN_V2: process.env.FEATURE_PERAN_V2,
+ FEATURE_ARSITEKTUR_IDE_V1: process.env.FEATURE_ARSITEKTUR_IDE_V1,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTOR_STORE: process.env.VECTOR_STORE,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,

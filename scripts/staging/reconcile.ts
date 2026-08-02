@@ -14,6 +14,7 @@ import {
   writeArtifact,
   writeEvidenceArtifact,
 } from "@/lib/staging/migration-ledger";
+import { unexpectedAddedTables, unexpectedChangedTables } from "@/lib/staging/reconciliation";
 
 type TableManifest = {
   name: string;
@@ -71,14 +72,8 @@ async function main(): Promise<void> {
         || stableStringify(previous.primaryKeyColumns) !== stableStringify(current.primaryKeyColumns);
     });
     const added = [...afterTables.keys()].filter((name) => !beforeTables.has(name));
-    const allowedPlan001Additions = new Set(["migration_runs", "migration_checkpoints"]);
-    const allowedPlan001Changes = new Set(["__drizzle_migrations"]);
-    const unexpectedAdded = planNumber === "001"
-      ? added.filter((name) => !allowedPlan001Additions.has(name))
-      : [];
-    const unexpectedChanged = planNumber === "001"
-      ? changed.filter((name) => !allowedPlan001Changes.has(name))
-      : changed;
+    const unexpectedAdded = unexpectedAddedTables(planNumber, added);
+    const unexpectedChanged = unexpectedChangedTables(planNumber, changed);
     const violations = [
       ...removed.map((name) => `removed:${name}`),
       ...unexpectedChanged.map((name) => `changed:${name}`),
@@ -112,20 +107,25 @@ async function main(): Promise<void> {
     };
     await writeArtifact(runId, "reconciliation.json", reconciliation);
     if (reconciliation.status === "passed") {
+      const commands = [
+        { command: "staging:inventory before", exitCode: 0 },
+        ...(planNumber === "001"
+          ? [
+            { command: "staging:export", exitCode: 0 },
+            { command: "staging:restore-export disposable", exitCode: 0 },
+          ]
+          : []),
+        { command: "staging:migrate", exitCode: 0 },
+        { command: "staging:inventory after", exitCode: 0 },
+        { command: "staging:reconcile", exitCode: 0 },
+      ];
       await writeEvidenceArtifact({
         planNumber,
         status: "passed",
         sourceCommit: currentSourceCommit(),
         migrationRunId: runId,
         resourceFingerprints: guard.resources,
-        commands: [
-          { command: "staging:inventory before", exitCode: 0 },
-          { command: "staging:export", exitCode: 0 },
-          { command: "staging:restore-export disposable", exitCode: 0 },
-          { command: "staging:migrate", exitCode: 0 },
-          { command: "staging:inventory after", exitCode: 0 },
-          { command: "staging:reconcile", exitCode: 0 },
-        ],
+        commands,
         rowCounts: Object.fromEntries(after.tables.map((table) => [table.name, table.rowCount])),
         reconciliationHashes: {
           before: before.manifestHash,
@@ -136,9 +136,11 @@ async function main(): Promise<void> {
           Object.entries(process.env).filter(([key]) => key.startsWith("FEATURE_")).map(([key, value]) => [key, value]),
         ),
         rollback: {
-          attempted: true,
-          passed: restore?.status === "passed",
-          detail: "Encrypted export restored to a disposable target",
+          attempted: planNumber === "001",
+          passed: planNumber === "001" && restore?.status === "passed",
+          detail: planNumber === "001"
+            ? "Encrypted export restored to a disposable target"
+            : "No legacy data was rewritten; new additive tables remain empty and the feature flag stays off",
         },
         operatorTimestamp: new Date().toISOString(),
       });

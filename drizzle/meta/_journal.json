@@ -372,6 +372,13 @@
       "when": 1785677504572,
       "tag": "0052_kind_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1785683586781,
+      "tag": "0053_faithful_blazing_skull",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import {
  text,
  integer,
  real,
+ check,
  index,
  unique,
  uniqueIndex,
@@ -1104,6 +1105,375 @@ export const conceptLocalizations = sqliteTable(
  index("idx_concept_loc_concept").on(table.conceptId),
  unique("uq_concept_loc_concept_lang").on(table.conceptId, table.lang),
  ]
+);
+
+// Plan 003 canonical source and Idea domain. Legacy course, chapter, enrollment,
+// tutor assignment, and knowledge-object tables remain unchanged during expand.
+export const mataKuliah = sqliteTable(
+ "mata_kuliah",
+ {
+  id: text("id").primaryKey(),
+  code: text("code").notNull(),
+  title: text("title").notNull(),
+  status: text("status").$type<"draft" | "active" | "archived">().default("active").notNull(),
+  legacyCourseId: text("legacy_course_id").references(() => courses.id, { onDelete: "set null" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("mata_kuliah_code_idx").on(table.code),
+  index("mata_kuliah_legacy_course_idx").on(table.legacyCourseId),
+  check("mata_kuliah_status_check", sql`${table.status} IN ('draft', 'active', 'archived')`),
+ ],
+);
+
+export const bab = sqliteTable(
+ "bab",
+ {
+  id: text("id").primaryKey(),
+  mataKuliahId: text("mata_kuliah_id")
+   .notNull()
+   .references(() => mataKuliah.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  title: text("title").notNull(),
+  orderIndex: integer("order_index").notNull(),
+  status: text("status").$type<"draft" | "active" | "archived">().default("active").notNull(),
+  legacyChapterId: text("legacy_chapter_id").references(() => chapters.id, { onDelete: "set null" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("bab_course_code_idx").on(table.mataKuliahId, table.code),
+  uniqueIndex("bab_course_order_idx").on(table.mataKuliahId, table.orderIndex),
+  index("bab_legacy_chapter_idx").on(table.legacyChapterId),
+  check("bab_order_index_check", sql`${table.orderIndex} >= 0`),
+  check("bab_status_check", sql`${table.status} IN ('draft', 'active', 'archived')`),
+ ],
+);
+
+export const pendaftaranMurid = sqliteTable(
+ "pendaftaran_murid",
+ {
+  id: text("id").primaryKey(),
+  penggunaId: text("pengguna_id")
+   .notNull()
+   .references(() => pengguna.id, { onDelete: "restrict" }),
+  mataKuliahId: text("mata_kuliah_id")
+   .notNull()
+   .references(() => mataKuliah.id, { onDelete: "restrict" }),
+  status: text("status")
+   .$type<"pending" | "active" | "completed" | "cancelled" | "expired">()
+   .default("active")
+   .notNull(),
+  startAt: integer("start_at", { mode: "timestamp" }),
+  endAt: integer("end_at", { mode: "timestamp" }),
+  legacyEnrollmentId: text("legacy_enrollment_id").references(() => enrollments.id, { onDelete: "set null" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("pendaftaran_murid_legacy_idx").on(table.legacyEnrollmentId),
+  index("pendaftaran_murid_pengguna_idx").on(table.penggunaId),
+  index("pendaftaran_murid_mata_kuliah_idx").on(table.mataKuliahId),
+  check("pendaftaran_murid_status_check", sql`${table.status} IN ('pending', 'active', 'completed', 'cancelled', 'expired')`),
+ ],
+);
+
+export const penugasanTutor = sqliteTable(
+ "penugasan_tutor",
+ {
+  id: text("id").primaryKey(),
+  penggunaId: text("pengguna_id")
+   .notNull()
+   .references(() => pengguna.id, { onDelete: "restrict" }),
+  mataKuliahId: text("mata_kuliah_id")
+   .notNull()
+   .references(() => mataKuliah.id, { onDelete: "restrict" }),
+  status: text("status")
+   .$type<"pending" | "active" | "suspended" | "ended" | "revoked">()
+   .default("active")
+   .notNull(),
+  assignmentScope: text("assignment_scope")
+   .$type<"course" | "chapter" | "content">()
+   .default("course")
+   .notNull(),
+  legacyTutorCourseId: text("legacy_tutor_course_id").references(() => tutorCourses.id, { onDelete: "set null" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("penugasan_tutor_legacy_idx").on(table.legacyTutorCourseId),
+  uniqueIndex("penugasan_tutor_scope_idx").on(table.penggunaId, table.mataKuliahId, table.assignmentScope),
+  index("penugasan_tutor_pengguna_idx").on(table.penggunaId),
+  index("penugasan_tutor_mata_kuliah_idx").on(table.mataKuliahId),
+  check("penugasan_tutor_status_check", sql`${table.status} IN ('pending', 'active', 'suspended', 'ended', 'revoked')`),
+  check("penugasan_tutor_scope_check", sql`${table.assignmentScope} IN ('course', 'chapter', 'content')`),
+ ],
+);
+
+export const sumberMateri = sqliteTable(
+ "sumber_materi",
+ {
+  id: text("id").primaryKey(),
+  mataKuliahId: text("mata_kuliah_id")
+   .notNull()
+   .references(() => mataKuliah.id, { onDelete: "restrict" }),
+  babId: text("bab_id").references(() => bab.id, { onDelete: "set null" }),
+  sourceType: text("source_type")
+   .$type<"markdown" | "json" | "pdf" | "docx" | "html" | "url" | "transcript" | "tutor_note">()
+   .default("markdown")
+   .notNull(),
+  title: text("title").notNull(),
+  canonicalUriOrR2Key: text("canonical_uri_or_r2_key").notNull(),
+  version: integer("version").default(1).notNull(),
+  checksum: text("checksum").notNull(),
+  status: text("status")
+   .$type<"draft" | "active" | "withdrawn" | "archived">()
+   .default("draft")
+   .notNull(),
+  creatorId: text("creator_id")
+   .notNull()
+   .references(() => pengguna.id, { onDelete: "restrict" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("sumber_materi_version_idx").on(table.mataKuliahId, table.canonicalUriOrR2Key, table.version),
+  index("sumber_materi_bab_idx").on(table.babId),
+  index("sumber_materi_status_idx").on(table.status),
+  check("sumber_materi_version_check", sql`${table.version} > 0`),
+  check("sumber_materi_source_type_check", sql`${table.sourceType} IN ('markdown', 'json', 'pdf', 'docx', 'html', 'url', 'transcript', 'tutor_note')`),
+  check("sumber_materi_status_check", sql`${table.status} IN ('draft', 'active', 'withdrawn', 'archived')`),
+ ],
+);
+
+export const potonganSumber = sqliteTable(
+ "potongan_sumber",
+ {
+  id: text("id").primaryKey(),
+  sumberMateriId: text("sumber_materi_id")
+   .notNull()
+   .references(() => sumberMateri.id, { onDelete: "cascade" }),
+  sourceVersion: integer("source_version").notNull(),
+  content: text("content").notNull(),
+  pageNumber: integer("page_number"),
+  sectionLocator: text("section_locator"),
+  startOffset: integer("start_offset").notNull(),
+  endOffset: integer("end_offset").notNull(),
+  checksum: text("checksum").notNull(),
+  embeddingEligible: integer("embedding_eligible", { mode: "boolean" }).default(true).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("potongan_sumber_span_idx").on(table.sumberMateriId, table.sourceVersion, table.startOffset, table.endOffset),
+  index("potongan_sumber_source_idx").on(table.sumberMateriId, table.sourceVersion),
+  check("potongan_sumber_version_check", sql`${table.sourceVersion} > 0`),
+  check("potongan_sumber_offset_check", sql`${table.startOffset} >= 0 AND ${table.endOffset} > ${table.startOffset}`),
+  check("potongan_sumber_page_check", sql`${table.pageNumber} IS NULL OR ${table.pageNumber} > 0`),
+ ],
+);
+
+export const ide = sqliteTable(
+ "ide",
+ {
+  id: text("id").primaryKey(),
+  mataKuliahId: text("mata_kuliah_id")
+   .notNull()
+   .references(() => mataKuliah.id, { onDelete: "restrict" }),
+  babId: text("bab_id")
+   .notNull()
+   .references(() => bab.id, { onDelete: "restrict" }),
+  conceptId: text("concept_id").references(() => concepts.id, { onDelete: "set null" }),
+  stableKey: text("stable_key").notNull(),
+  code: text("code").notNull(),
+  canonicalStatement: text("canonical_statement").notNull(),
+  conciseExplanation: text("concise_explanation").notNull(),
+  latex: text("latex"),
+  knowledgeKind: text("knowledge_kind")
+   .$type<"definition" | "principle" | "formula" | "procedure" | "example" | "constraint" | "misconception" | "other">()
+   .default("other")
+   .notNull(),
+  instructionalRole: text("instructional_role")
+   .$type<"core" | "prerequisite" | "enrichment" | "assessment_support" | "reference">()
+   .default("core")
+   .notNull(),
+  difficultyMetadata: text("difficulty_metadata", { mode: "json" })
+   .$type<Record<string, unknown>>()
+   .$defaultFn(() => ({}))
+   .notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status")
+   .$type<"draft" | "published" | "needs_review" | "withdrawn" | "superseded">()
+   .default("draft")
+   .notNull(),
+  sourcePolicy: text("source_policy")
+   .$type<"source_grounded" | "tutor_authored">()
+   .default("source_grounded")
+   .notNull(),
+  schemaVersion: text("schema_version").default("1.0").notNull(),
+  semanticHash: text("semantic_hash").notNull(),
+  generationHash: text("generation_hash").notNull(),
+  creatorId: text("creator_id")
+   .notNull()
+   .references(() => pengguna.id, { onDelete: "restrict" }),
+  curatorId: text("curator_id").references(() => pengguna.id, { onDelete: "set null" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("ide_stable_key_idx").on(table.stableKey),
+  uniqueIndex("ide_course_code_idx").on(table.mataKuliahId, table.code),
+  index("ide_bab_idx").on(table.babId),
+  index("ide_concept_idx").on(table.conceptId),
+  index("ide_status_idx").on(table.status),
+  check("ide_version_check", sql`${table.version} > 0`),
+  check("ide_status_check", sql`${table.status} IN ('draft', 'published', 'needs_review', 'withdrawn', 'superseded')`),
+  check("ide_source_policy_check", sql`${table.sourcePolicy} IN ('source_grounded', 'tutor_authored')`),
+ ],
+);
+
+export const asalIde = sqliteTable(
+ "asal_ide",
+ {
+  id: text("id").primaryKey(),
+  ideId: text("ide_id")
+   .notNull()
+   .references(() => ide.id, { onDelete: "cascade" }),
+  sourceChunkId: text("source_chunk_id")
+   .notNull()
+   .references(() => potonganSumber.id, { onDelete: "restrict" }),
+  provenanceRole: text("provenance_role")
+   .$type<"core" | "supporting" | "prerequisite" | "enrichment" | "assessment_support" | "reference" | "tutor_authored">()
+   .default("supporting")
+   .notNull(),
+  startOffset: integer("start_offset").notNull(),
+  endOffset: integer("end_offset").notNull(),
+  sourceChecksum: text("source_checksum").notNull(),
+  note: text("note"),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("asal_ide_span_idx").on(table.ideId, table.sourceChunkId, table.startOffset, table.endOffset),
+  index("asal_ide_ide_idx").on(table.ideId),
+  index("asal_ide_source_idx").on(table.sourceChunkId),
+  check("asal_ide_offset_check", sql`${table.startOffset} >= 0 AND ${table.endOffset} > ${table.startOffset}`),
+ ],
+);
+
+export const relasiIde = sqliteTable(
+ "relasi_ide",
+ {
+  id: text("id").primaryKey(),
+  sourceIdeaId: text("source_idea_id")
+   .notNull()
+   .references(() => ide.id, { onDelete: "cascade" }),
+  targetIdeaId: text("target_idea_id")
+   .notNull()
+   .references(() => ide.id, { onDelete: "cascade" }),
+  relationType: text("relation_type")
+   .$type<"prerequisite" | "related" | "extends" | "example_of" | "misconception_of">()
+   .notNull(),
+  explanation: text("explanation"),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"active" | "superseded" | "withdrawn">().default("active").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("relasi_ide_unique_idx").on(table.sourceIdeaId, table.targetIdeaId, table.relationType),
+  index("relasi_ide_source_idx").on(table.sourceIdeaId),
+  index("relasi_ide_target_idx").on(table.targetIdeaId),
+  check("relasi_ide_no_self_check", sql`${table.sourceIdeaId} <> ${table.targetIdeaId}`),
+  check("relasi_ide_version_check", sql`${table.version} > 0`),
+  check("relasi_ide_type_check", sql`${table.relationType} IN ('prerequisite', 'related', 'extends', 'example_of', 'misconception_of')`),
+ ],
+);
+
+export const ketergantunganProduk = sqliteTable(
+ "ketergantungan_produk",
+ {
+  id: text("id").primaryKey(),
+  upstreamEntityType: text("upstream_entity_type").notNull(),
+  upstreamEntityId: text("upstream_entity_id").notNull(),
+  upstreamVersion: integer("upstream_version").notNull(),
+  upstreamHash: text("upstream_hash").notNull(),
+  downstreamEntityType: text("downstream_entity_type").notNull(),
+  downstreamEntityId: text("downstream_entity_id").notNull(),
+  downstreamVersion: integer("downstream_version").notNull(),
+  downstreamHash: text("downstream_hash").notNull(),
+  freshness: text("freshness")
+   .$type<"UP_TO_DATE" | "NEEDS_REVIEW" | "STALE">()
+   .default("UP_TO_DATE")
+   .notNull(),
+  reason: text("reason"),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("ketergantungan_produk_edge_idx").on(table.upstreamEntityType, table.upstreamEntityId, table.downstreamEntityType, table.downstreamEntityId),
+  index("ketergantungan_produk_upstream_idx").on(table.upstreamEntityType, table.upstreamEntityId),
+  index("ketergantungan_produk_downstream_idx").on(table.downstreamEntityType, table.downstreamEntityId),
+  check("ketergantungan_produk_upstream_version_check", sql`${table.upstreamVersion} > 0`),
+  check("ketergantungan_produk_downstream_version_check", sql`${table.downstreamVersion} > 0`),
+  check("ketergantungan_produk_freshness_check", sql`${table.freshness} IN ('UP_TO_DATE', 'NEEDS_REVIEW', 'STALE')`),
+  check("ketergantungan_produk_no_self_check", sql`NOT (${table.upstreamEntityType} = ${table.downstreamEntityType} AND ${table.upstreamEntityId} = ${table.downstreamEntityId})`),
+ ],
+);
+
+export const petaIdLegacy = sqliteTable(
+ "peta_id_legacy",
+ {
+  id: text("id").primaryKey(),
+  legacyTable: text("legacy_table").notNull(),
+  legacyId: text("legacy_id").notNull(),
+  targetTable: text("target_table").notNull(),
+  targetId: text("target_id").notNull(),
+  mappingVersion: integer("mapping_version").notNull(),
+  sourceChecksum: text("source_checksum").notNull(),
+  targetChecksum: text("target_checksum").notNull(),
+  runId: text("run_id")
+   .notNull()
+   .references(() => migrationRuns.id, { onDelete: "restrict" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => /* @__PURE__ */ new Date())
+   .notNull(),
+ },
+ (table) => [
+  uniqueIndex("peta_id_legacy_source_idx").on(table.legacyTable, table.legacyId),
+  uniqueIndex("peta_id_legacy_target_idx").on(table.targetTable, table.targetId),
+  index("peta_id_legacy_run_idx").on(table.runId),
+  check("peta_id_legacy_mapping_version_check", sql`${table.mappingVersion} > 0`),
+ ],
 );
 
 // 4. knowledge_objects
