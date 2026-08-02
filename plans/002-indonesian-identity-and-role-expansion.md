@@ -1,6 +1,6 @@
 # Plan 002: Indonesian Identity and Role Expansion
 
-Status: BLOCKED pending seeded or existing staging tutor and multi-role auth smoke accounts.
+Status: DONE. Staging role seed, parity reconciliation, and multi-role auth smoke passed.
 
 > **Executor instructions**: Read this entire plan before editing. Execute each numbered step in order. Run the stated verification before continuing. If a STOP condition occurs, stop and report it; do not improvise. Update this plan's row in plans/README.md only after every done criterion passes.
 >

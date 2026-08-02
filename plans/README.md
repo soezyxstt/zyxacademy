@@ -1,6 +1,6 @@
 # Zyx Idea-Centered Learning System Overhaul
 
-Status program: in progress, Plan 002 is gated on staging auth test accounts.
+Status program: in progress, Plan 002 is complete and Plan 003 is ready to start.
 
 Planning snapshot:
 
@@ -35,7 +35,7 @@ Execute sequentially. A plan is a predecessor gate, not optional reading.
 | Plan | Title | Priority | Effort | Depends on | Status | Main exit gate |
 |---|---|---|---|---|---|---|
 | [001](001-staging-safety-and-migration-ledger.md) | Staging safety and migration ledger | P0 | M | None | DONE | Safe staging commands, complete inventory and export, rollback rehearsal |
-| [002](002-indonesian-identity-and-role-expansion.md) | Indonesian identity and role expansion | P0 | L | 001 | BLOCKED | Every user has equivalent `admin`, `tutor`, or `murid` membership |
+| [002](002-indonesian-identity-and-role-expansion.md) | Indonesian identity and role expansion | P0 | L | 001 | DONE | Every user has equivalent `admin`, `tutor`, or `murid` membership |
 | [003](003-source-and-idea-domain-expansion.md) | Source and Idea domain expansion | P0 | L | 002 | TODO | All target source, Idea, provenance, relation, and dependency tables exist |
 | [004](004-product-assessment-and-mastery-domain-expansion.md) | Product, assessment, and mastery domain expansion | P0 | L | 003 | TODO | Target product and learner tables exist with enforced invariants |
 | [005](005-deterministic-legacy-backfill-and-compatibility.md) | Deterministic legacy backfill and compatibility layer | P0 | L | 004 | TODO | 100 percent legacy mapping or an explicit zero-loss exception ledger |
@@ -53,7 +53,7 @@ Execute sequentially. A plan is a predecessor gate, not optional reading.
 
 Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`, or `REJECTED`. `BLOCKED` and `REJECTED` require a one-line reason.
 
-Blocked reason: Plan 002 auth smoke passes for active admin and murid sessions, but staging has no tutor membership and no multi-role account; do not enable FEATURE_PERAN_V2 until seeded or existing staging accounts cover both cases.
+Plan 002 evidence: `artifacts/staging-overhaul/20260802-plan002-staging/plan-002-result.json` records passed staging parity, idempotent rerun, seed, and four-case auth smoke. `FEATURE_PERAN_V2` remains `0` in staging pending the next plan's integration gates.
 
 ## Serialized integration graph
 
