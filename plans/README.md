@@ -1,6 +1,6 @@
 # Zyx Idea-Centered Learning System Overhaul
 
-Status program: planned, not started.
+Status program: in progress, Plan 002 is gated on staging auth test accounts.
 
 Planning snapshot:
 
