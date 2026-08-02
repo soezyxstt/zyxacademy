@@ -15,6 +15,18 @@
  */
 
 import { env } from '@/lib/env';
+import {
+  assertCanonicalDelete,
+  assertCanonicalQuery,
+  assertCanonicalProfile,
+  assertCanonicalVector,
+  type CanonicalDeleteRequest,
+  type CanonicalQueryRequest,
+  type CanonicalQueryResult,
+  type CanonicalUpsertRequest,
+  type CanonicalVectorProvider,
+  type CanonicalMutationResult,
+} from '@/lib/vectorize/contracts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -157,4 +169,92 @@ export async function vectorizeQuery(
 export async function vectorizeDelete(ids: string[]): Promise<void> {
  if (!ids.length) return;
  await post('/delete', { ids });
+}
+
+// ---------------------------------------------------------------------------
+// Canonical-content-v2 provider-neutral client
+// ---------------------------------------------------------------------------
+
+export interface CanonicalVectorClientOptions {
+  baseUrl?: string;
+  sharedSecret?: string;
+  fetcher?: typeof fetch;
+}
+
+function canonicalClientDefaults(options: CanonicalVectorClientOptions) {
+  const baseUrl = options.baseUrl ?? process.env.VECTORIZE_WORKER_URL ?? env.VECTORIZE_WORKER_URL;
+  const sharedSecret = options.sharedSecret ?? process.env.VECTORIZE_SHARED_SECRET ?? env.VECTORIZE_SHARED_SECRET;
+  if (!baseUrl || !sharedSecret) {
+    throw new Error('VECTORIZE_WORKER_URL and VECTORIZE_SHARED_SECRET must be set for canonical-content-v2');
+  }
+  return {
+    baseUrl: baseUrl.replace(/\/$/, ''),
+    sharedSecret,
+    fetcher: options.fetcher ?? fetch,
+  };
+}
+
+function createCanonicalRequestClient(options: CanonicalVectorClientOptions): CanonicalVectorProvider {
+  const defaults = canonicalClientDefaults(options);
+
+  async function postCanonical<T>(path: '/v2/upsert' | '/v2/query' | '/v2/delete', body: unknown): Promise<T> {
+    const response = await defaults.fetcher(`${defaults.baseUrl}${path}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${defaults.sharedSecret}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Vectorize canonical worker ${path} failed (${response.status}): ${text}`);
+    }
+    return (await response.json()) as T;
+  }
+
+  return {
+    async upsert(request: CanonicalUpsertRequest): Promise<CanonicalMutationResult> {
+      assertCanonicalProfile(request.profileId);
+      if (request.vectors.length === 0) throw new Error('canonical upsert requires at least one vector');
+      request.vectors.forEach(assertCanonicalVector);
+      return postCanonical<CanonicalMutationResult>('/v2/upsert', request);
+    },
+    async query(request: CanonicalQueryRequest): Promise<CanonicalQueryResult> {
+      assertCanonicalQuery(request);
+      return postCanonical<CanonicalQueryResult>('/v2/query', request);
+    },
+    async delete(request: CanonicalDeleteRequest): Promise<CanonicalMutationResult> {
+      assertCanonicalDelete(request);
+      return postCanonical<CanonicalMutationResult>('/v2/delete', request);
+    },
+  };
+}
+
+/** Creates an authenticated HTTP adapter without exposing provider-native types to callers. */
+export function createCanonicalVectorClient(
+  options: CanonicalVectorClientOptions = {},
+): CanonicalVectorProvider {
+  return createCanonicalRequestClient(options);
+}
+
+export async function vectorizeCanonicalUpsert(
+  request: CanonicalUpsertRequest,
+  options: CanonicalVectorClientOptions = {},
+): Promise<CanonicalMutationResult> {
+  return createCanonicalRequestClient(options).upsert(request);
+}
+
+export async function vectorizeCanonicalQuery(
+  request: CanonicalQueryRequest,
+  options: CanonicalVectorClientOptions = {},
+): Promise<CanonicalQueryResult> {
+  return createCanonicalRequestClient(options).query(request);
+}
+
+export async function vectorizeCanonicalDelete(
+  request: CanonicalDeleteRequest,
+  options: CanonicalVectorClientOptions = {},
+): Promise<CanonicalMutationResult> {
+  return createCanonicalRequestClient(options).delete(request);
 }
