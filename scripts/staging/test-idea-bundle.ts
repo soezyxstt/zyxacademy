@@ -105,6 +105,7 @@ function prepareValidFixture(runId: string, courseId: string, chapterId: string,
   idea.courseId = courseId;
   idea.chapterId = chapterId;
   idea.stableKey = `${courseId}:${chapterId}:${prefix}:velocity`;
+  idea.code = `KIN-VELOCITY-${sha256Text(runId).slice(0, 10).toUpperCase()}`;
   idea.creatorId = actorId;
   idea.curatorId = actorId;
   provenance.id = provenanceId;
