@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   asesmen,
@@ -22,6 +22,7 @@ import { findAssessmentLeakKeys, serializeStudentQuizAttempt } from "@/lib/asses
 import { createBenchmarkAccessBoundary, evaluateBenchmark, scanForHoldoutLeaks } from "@/lib/asesmen/benchmark-policy";
 import { compileAssessmentBlueprint, selectAssessmentItems } from "@/lib/asesmen/blueprint";
 import { gradeStableOptionAnswer, buildStableOptionIds } from "@/lib/asesmen/attempt";
+import { resolveAssessmentFixtureResolution } from "@/lib/asesmen/staging-resolution";
 import { currentSourceCommit, parseCliArgs, requiredCliArg, sha256Text, writeArtifact } from "@/lib/staging/migration-ledger";
 import { assertStagingEnvironment, parseEnvFile } from "@/lib/staging/staging-guard";
 
@@ -139,19 +140,52 @@ async function main(): Promise<void> {
     const [domainActor] = await db.select({ id: pengguna.id }).from(pengguna).where(eq(pengguna.id, actor.id)).limit(1);
     if (!domainActor) throw new Error("STAGING_ASSESSMENT_DOMAIN_IDENTITY_PREREQUISITE_MISSING");
 
-    const [course] = await db
+    const [requestedCourse] = await db
       .select({ id: mataKuliah.id, title: mataKuliah.title })
       .from(mataKuliah)
-      .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
+      .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId), eq(mataKuliah.code, courseId)))
+      .orderBy(asc(mataKuliah.id))
       .limit(1);
-    if (!course) throw new Error(`STAGING_ASSESSMENT_COURSE_PREREQUISITE_MISSING:${courseId}`);
 
-    const ideas = await db
-      .select({ id: ide.id })
+    const requestedIdeas = requestedCourse
+      ? await db
+        .select({ id: ide.id })
+        .from(ide)
+        .where(and(eq(ide.mataKuliahId, requestedCourse.id), eq(ide.status, "published")))
+        .orderBy(asc(ide.code), asc(ide.id))
+        .limit(2)
+      : [];
+    const canonicalCourses = await db
+      .select({ id: mataKuliah.id, title: mataKuliah.title })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active"))
+      .orderBy(asc(mataKuliah.id));
+    const publishedIdeaRows = await db
+      .select({ id: ide.id, mataKuliahId: ide.mataKuliahId, code: ide.code })
       .from(ide)
-      .where(and(eq(ide.mataKuliahId, course.id), eq(ide.status, "published")))
-      .limit(2);
-    if (ideas.length < 2) throw new Error("STAGING_ASSESSMENT_IDEA_PREREQUISITE_MISSING");
+      .where(eq(ide.status, "published"))
+      .orderBy(asc(ide.mataKuliahId), asc(ide.code), asc(ide.id));
+    const ideasByCourse = new Map<string, Array<{ id: string; mataKuliahId: string; code: string }>>();
+    for (const idea of publishedIdeaRows) {
+      const courseIdeas = ideasByCourse.get(idea.mataKuliahId) ?? [];
+      if (courseIdeas.length < 2) courseIdeas.push(idea);
+      ideasByCourse.set(idea.mataKuliahId, courseIdeas);
+    }
+    const fallback = canonicalCourses
+      .map((candidate) => ({ course: candidate, ideas: ideasByCourse.get(candidate.id) ?? [] }))
+      .find((candidate) => candidate.ideas.length >= 2);
+    const resolution = resolveAssessmentFixtureResolution({
+      requestedCourseId: courseId,
+      requestedNormalizedCourseId: requestedCourse?.id ?? null,
+      requestedPublishedIdeaCount: requestedIdeas.length,
+      fallbackCourseId: fallback?.course.id ?? null,
+      fallbackPublishedIdeaCount: fallback?.ideas.length ?? 0,
+    });
+    const course = requestedCourse && requestedIdeas.length >= 2 ? requestedCourse : fallback?.course;
+    const ideas = requestedCourse && requestedIdeas.length >= 2 ? requestedIdeas : fallback?.ideas ?? [];
+    if (!course || ideas.length < 2 || course.id !== resolution.normalizedCourseId) {
+      throw new Error("STAGING_ASSESSMENT_COURSE_RESOLUTION_FAILED");
+    }
 
     const ids = fixtureIds(runId);
     const audit = auditRows(ids, domainActor.id, runId);
@@ -378,8 +412,11 @@ async function main(): Promise<void> {
       status: "passed" as const,
       sourceCommit: currentSourceCommit(),
       courseId,
-      normalizedCourseId: course.id,
-      fixture: "dedicated",
+      normalizedCourseId: resolution.normalizedCourseId,
+      fixture,
+      fixtureMode: resolution.fixtureMode,
+      fallbackReason: resolution.fallbackReason,
+      requestedNormalizedMismatch: resolution.requestedNormalizedMismatch,
       resources: guard.resources,
       featureFlags: { FEATURE_ASESMEN_IDE_V1: "1" },
       stagingWrites: true,
@@ -402,6 +439,10 @@ async function main(): Promise<void> {
       status: "blocked" as const,
       sourceCommit: currentSourceCommit(),
       fixture,
+      normalizedCourseId: null,
+      fixtureMode: "none",
+      fallbackReason: error instanceof Error ? error.message : "ASSESSMENT_FIXTURE_RESOLUTION_FAILED",
+      requestedNormalizedMismatch: false,
       createdIds,
       cleanup: { order: cleanupOrder, strategy: "reconcile exact IDs before retry" },
       error: error instanceof Error ? error.message : String(error),
