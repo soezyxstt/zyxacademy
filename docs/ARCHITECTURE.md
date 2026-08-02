@@ -91,6 +91,26 @@ Assessment-specific (for type="assessment" MTDs):
 | `enrollment_tokens` | Pre-generated tokens with capacity & expiry, bound to a group |
 | `enrollment_token_courses` | Token→Course M:N (which courses the token unlocks) |
 
+### Canonical Source and Idea Architecture
+
+Plan 003 adds an additive Indonesian learning-domain layer. `mata_kuliah` and `bab` provide stable course and chapter identities while retaining legacy compatibility references. `sumber_materi` and `potongan_sumber` version canonical source content and exact source spans. `ide` is the future learning atom; it keeps stable identity, semantic and generation hashes, provenance policy, and no provider-specific vector ID.
+
+| Table | Purpose |
+|---|---|
+| `mata_kuliah` | Stable course identity with legacy `courses` reference |
+| `bab` | Stable ordered chapter identity with legacy `chapters` reference |
+| `pendaftaran_murid` | Murid enrollment identity linked to `pengguna` and legacy enrollment |
+| `penugasan_tutor` | Course tutor assignment with explicit scope and legacy assignment reference |
+| `sumber_materi` | Versioned canonical source metadata and checksum |
+| `potongan_sumber` | Exact source content spans, offsets, checksums, and embedding eligibility |
+| `ide` | Course and chapter learning atom with optional global concept link |
+| `asal_ide` | Idea to source-chunk provenance with exact offsets and source checksum |
+| `relasi_ide` | Typed Idea relations with database self-edge protection and application cycle checks |
+| `ketergantungan_produk` | Polymorphic downstream dependency freshness state |
+| `peta_id_legacy` | Deterministic legacy-to-target identity mapping and checksums |
+
+The existing `concepts` and `concept_localizations` tables remain the global cross-course concept registry. `FEATURE_ARSITEKTUR_IDE_V1` stays off until a later plan switches callers; existing KOs and source pipelines are not backfilled or rewritten here.
+
 ### Tutor & Booking
 | Table | Purpose |
 |---|---|

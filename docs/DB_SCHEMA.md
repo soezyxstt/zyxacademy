@@ -221,6 +221,68 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `aliases`: Alternative naming list stored as a JSON string array.
 * `embedding`: Normalized high-dimensional text embedding representation.
 
+## 5.1 Canonical Source and Idea Domain
+
+Plan 003 adds these tables without changing legacy courses, chapters, enrollments, tutor assignments, KOs, source spans, relationships, or the global `concepts` registry.
+
+### mata_kuliah
+* `id`, `code`, `title`, `status`
+* `legacyCourseId`: Optional compatibility reference to `courses.id`.
+* `createdAt`, `updatedAt`
+
+### bab
+* `id`, `mataKuliahId`, `code`, `title`, `orderIndex`, `status`
+* `legacyChapterId`: Optional compatibility reference to `chapters.id`.
+* `(mataKuliahId, code)` and `(mataKuliahId, orderIndex)` are unique.
+
+### pendaftaranMurid
+* `id`, `penggunaId`, `mataKuliahId`, `status`
+* `startAt`, `endAt`
+* `legacyEnrollmentId`: Optional compatibility reference to `enrollments.id`.
+
+### penugasanTutor
+* `id`, `penggunaId`, `mataKuliahId`, `status`, `assignmentScope`
+* `legacyTutorCourseId`: Optional compatibility reference to `tutor_courses.id`.
+
+### sumberMateri
+* `id`, `mataKuliahId`, optional `babId`, `sourceType`, `title`
+* `canonicalUriOrR2Key`, `version`, `checksum`, `status`
+* `creatorId`, `createdAt`, `updatedAt`
+
+### potonganSumber
+* `id`, `sumberMateriId`, `sourceVersion`, `content`
+* `pageNumber`, `sectionLocator`, `startOffset`, `endOffset`, `checksum`
+* `embeddingEligible`, `createdAt`, `updatedAt`
+* Source offsets must be non-negative and `endOffset` must be greater than `startOffset`.
+
+### ide
+* `id`, `mataKuliahId`, `babId`, optional `conceptId`, `stableKey`, `code`
+* `canonicalStatement`, `conciseExplanation`, optional `latex`
+* `knowledgeKind`, `instructionalRole`, `difficultyMetadata`, `version`, `status`
+* `sourcePolicy`, `schemaVersion`, `semanticHash`, `generationHash`
+* `creatorId`, optional `curatorId`, `createdAt`, `updatedAt`
+* `stableKey` is unique. No provider-specific vector identifier is stored.
+
+### asalIde
+* `id`, `ideId`, `sourceChunkId`, `provenanceRole`
+* `startOffset`, `endOffset`, `sourceChecksum`, optional `note`
+* The Idea, source chunk, and exact span tuple is unique.
+
+### relasiIde
+* `id`, `sourceIdeaId`, `targetIdeaId`, `relationType`, optional `explanation`
+* `version`, `status`, `createdAt`, `updatedAt`
+* Self-relations are rejected by a database check. Active prerequisite cycles are rejected by the contract layer.
+
+### ketergantunganProduk
+* Upstream and downstream entity type, ID, version, and hash fields.
+* `freshness`: `UP_TO_DATE`, `NEEDS_REVIEW`, or `STALE`.
+* `reason`, `createdAt`, `updatedAt`
+
+### petaIdLegacy
+* `legacyTable`, `legacyId`, `targetTable`, `targetId`
+* `mappingVersion`, `sourceChecksum`, `targetChecksum`, `runId`
+* Legacy and target identity pairs are each unique.
+
 ### conceptGraphEdges
 * `id`
 * `courseId`

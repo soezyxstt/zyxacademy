@@ -282,9 +282,10 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Plan 001 staging rehearsal verified with 97 tables before migration, 99 tables after migration, zero foreign-key violations, passed disposable restore, and only the two migration ledger tables added. Evidence: `artifacts/staging-overhaul/20260802-plan001-staging/plan-001-result.json`.
 - Plan 001 code verified with `bun run lint`, `bun run typecheck`, and 12 staging contract tests passing.
 - Plan 002 staging gates verified with 66 mapped users, 67 role memberships, zero parity violations, idempotent backfill rerun (`changedRows: 0`), and passing admin, tutor, murid, and multi-role Better Auth session smoke. Evidence: `artifacts/staging-overhaul/20260802-plan002-staging/plan-002-result.json`.
+- Plan 003 source and Idea domain verified with 10 focused contract and SQLite constraint tests, additive migration `0053_faithful_blazing_skull.sql`, 11 new staging tables, unchanged legacy manifests, and zero foreign-key violations. Evidence: `artifacts/staging-overhaul/20260802-plan003-staging/plan-003-result.json`.
 
 ### Current Focus
-Plan 002 Indonesian identity and role expansion is complete and reconciled in staging. Plan 003 source and Idea domain expansion is the next predecessor-gated plan.
+Plan 003 source and Idea domain expansion is complete and reconciled in staging. Plan 004 product, assessment, and mastery domain expansion is the next predecessor-gated plan.
 
 ### Blockers
 None.

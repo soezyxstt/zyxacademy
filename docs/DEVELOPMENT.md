@@ -77,6 +77,8 @@ All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
 
 `FEATURE_PERAN_V2` must remain absent or `0` until the Plan 002 identity backfill, parity checks, and active-session auth smoke all pass. The legacy `user.role` column remains a compatibility projection during this phase.
 
+`FEATURE_ARSITEKTUR_IDE_V1` remains absent or `0` after Plan 003. The schema and contracts are additive; no existing KO or source caller switches to `ide` until a later predecessor-gated plan.
+
 | Flag | Feature |
 |------|---------|
 | `FEATURE_MASTERY` | Mastery score tracking |
@@ -87,6 +89,7 @@ All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
 | `FEATURE_MATERIAL_LIVE` | Interactive material layer (EIF E3) |
 | `FEATURE_FC_DIFFICULTY` | Flashcard difficulty (EIF E4) |
 | `FEATURE_GRAPH` | Concept graph (EIF E5) |
+| `FEATURE_ARSITEKTUR_IDE_V1` | Canonical source and Idea domain rollout |
 | `FEATURE_TUTOR_RAG` | Grounded AI tutor pipeline (P3) |
 | `FEATURE_FEEDBACK` | Answer feedback |
 | `FEATURE_STUDY_PATH` | Personalized study paths |

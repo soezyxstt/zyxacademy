@@ -20,6 +20,7 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [ ] Plan 002 legacy role parity is exact, the idempotent rerun changes zero rows, and all `teacher` and `student` literals are classified.
 - [ ] Plan 002 auth smoke has active staging admin, tutor, murid, and multi-role sessions before `FEATURE_PERAN_V2=1` is enabled.
 - [ ] If staging lacks a pre-seeded multi-role identity, `staging:seed-peran-smoke` adds only a deterministic tutor membership to an existing active staging admin and records a keyed, non-secret artifact.
+- [ ] Plan 003 adds the 11 source and Idea tables only; before and after manifests preserve legacy row and primary-key hashes, foreign-key violations are zero, and `FEATURE_ARSITEKTUR_IDE_V1` remains off.
 
 ## Architectural Guidelines & Boundaries
 

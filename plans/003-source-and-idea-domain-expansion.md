@@ -1,6 +1,6 @@
 # Plan 003: Source and Idea Domain Expansion
 
-Status: blocked until Plan 002 passes.
+Status: DONE. Additive source and Idea schema, contracts, and staging reconciliation passed.
 
 > **Executor instructions**: Read this entire plan before editing. Execute each numbered step in order. Run the stated verification before continuing. If a STOP condition occurs, stop and report it; do not improvise. Update this plan's row in plans/README.md only after every done criterion passes.
 >

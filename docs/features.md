@@ -54,6 +54,13 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 6. Run validated and assigned state (`staged`, `accepted`, `needs_review`, `failed`)
 7. Accepted runs persisted atomically using stable identity keys (`stableKey`) without destructive deletion
 
+### Canonical Source and Idea Domain
+1. Versioned source metadata is stored in `sumber_materi` with a checksum and canonical URI or R2 key.
+2. Exact source spans are stored in `potongan_sumber` with offsets, checksums, and embedding eligibility.
+3. `ide` provides the future course and chapter learning atom with optional global `concepts` linkage, semantic hashes, and explicit source policy.
+4. `asal_ide`, `relasi_ide`, and `ketergantungan_produk` preserve provenance, typed relations, and freshness transitions.
+5. `FEATURE_ARSITEKTUR_IDE_V1` remains off; existing KOs and callers are unchanged until later plans.
+
 ### Website Material Generation
 1. All KOs for a chapter are collected in order
 2. Gemini compiles them into canonical markdown with custom containers (`:::concept`, `:::formula`, `:::misconception`)
