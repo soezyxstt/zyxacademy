@@ -7,9 +7,9 @@
  * 5.3 Study path determinism (byte-identical recompute)
  * B.1 Usage budget (canUseFeature gates correctly)
  *
- * Gates requiring external services (Pinecone, live Gemini):
- * 3.4 Tutor Tier-2 addendum ; run seed-tutor-rag.ts separately
- * 3.5 Tutor RAG grounding ; run seed-tutor-rag.ts separately
+ * Gates requiring external services or dedicated fixtures:
+ * 3.4 Tutor Tier-2 addendum ; use the deterministic tutor fixtures separately
+ * 3.5 Tutor grounding ; use the canonical retrieval contract suite separately
  * WR.1 Reflection math ; run seed-mastery.ts separately
  *
  * Usage: bunx tsx scripts/run-evals.ts

@@ -931,7 +931,7 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `status`: Sync state ('pending', 'synced', 'failed').
 * `error`: Log messages if sync action failed.
 * `retries`: Re-attempt count pointer.
-* `namespace`: Pinecone metadata routing pointer.
+* `namespace`: Canonical Vectorize namespace routing pointer.
 * `createdAt`
 * `updatedAt`
 
@@ -966,6 +966,20 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `lastPosition`: Reader layout index offset.
 * `createdAt`
 * `updatedAt`
+
+## 21. Content Workflow and Mutation Audit
+
+### alur_konten
+* `id`: Unique entity and version workflow key.
+* `entityType`, `entityId`, `courseId`: Canonical content identity and course scope.
+* `version`: Immutable content version number.
+* `state`: Upload, validation, staging, tutor review, admin review, approval, publication, supersession, or withdrawal state.
+* `contentHash`: Hash of the reviewed canonical content.
+* `assignedTutorId`: Optional course-scoped tutor assignment.
+* `lastRequestId`, `lastReason`: Last transition correlation and human reason.
+* `createdAt`, `updatedAt`
+
+The table is additive and does not replace historical content tables. Transitions are enforced by `lib/workflow/content-workflow.ts` and every mutation writes a structured `audit_mutasi` envelope.
 
 ### exams
 * `id`

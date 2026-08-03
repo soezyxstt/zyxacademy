@@ -203,12 +203,12 @@ describe("Plan 004 product contracts", () => {
       })).rejects.toThrow();
 
       await client.execute({
-        sql: "INSERT INTO impor_bundle (id, bundle_id, checksum, bundle_type, source_uri_or_key, version, status, requested_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        args: ["import-plan004-db", "bundle-plan004-db", hash, "product", "bundles/plan004.json", 1, "approved", "user-plan004-db", 0, 0],
+        sql: "INSERT INTO impor_bundle (id, bundle_id, checksum, bundle_type, source_uri_or_key, version, status, validation_report, requested_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        args: ["import-plan004-db", "bundle-plan004-db", hash, "product", "bundles/plan004.json", 1, "approved", JSON.stringify({}), "user-plan004-db", 0, 0],
       });
       await expect(client.execute({
-        sql: "INSERT INTO impor_bundle (id, bundle_id, checksum, bundle_type, source_uri_or_key, version, status, requested_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        args: ["import-duplicate-plan004-db", "bundle-plan004-db", hash, "product", "bundles/plan004.json", 1, "approved", "user-plan004-db", 0, 0],
+        sql: "INSERT INTO impor_bundle (id, bundle_id, checksum, bundle_type, source_uri_or_key, version, status, validation_report, requested_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        args: ["import-duplicate-plan004-db", "bundle-plan004-db", hash, "product", "bundles/plan004.json", 1, "approved", JSON.stringify({}), "user-plan004-db", 0, 0],
       })).rejects.toThrow();
       await client.execute({
         sql: "INSERT INTO review_bundle (id, impor_bundle_id, reviewer_id, status, reviewed_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",

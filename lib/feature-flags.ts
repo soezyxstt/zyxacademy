@@ -4,7 +4,8 @@ export type FeatureCategory =
   | "academic_student"
   | "pedagogy_eif"
   | "ai_v2_architecture"
-  | "quiz_live";
+  | "quiz_live"
+  | "platform";
 
 export interface FeatureFlagMeta {
   key: string;
@@ -24,6 +25,7 @@ export const FEATURE_CATEGORIES: Record<FeatureCategory, string> = {
   pedagogy_eif: "Pedagogi & Objek Pembelajaran (EIF)",
   ai_v2_architecture: "AI & Arsitektur V2",
   quiz_live: "Kuis & Kelas Live",
+  platform: "Platform & Workflow",
 };
 
 export const KNOWN_FEATURE_FLAGS: FeatureFlagMeta[] = [
@@ -229,6 +231,34 @@ export const KNOWN_FEATURE_FLAGS: FeatureFlagMeta[] = [
     category: "ai_v2_architecture",
     categoryLabel: FEATURE_CATEGORIES.ai_v2_architecture,
     description: "Diagnosa analitik kuis terkalibrasi kecukupan bukti kuantitatif.",
+  },
+  {
+    key: "FEATURE_VECTORIZE_ONLY_V1",
+    name: "Canonical Vectorize Only",
+    category: "ai_v2_architecture",
+    categoryLabel: FEATURE_CATEGORIES.ai_v2_architecture,
+    description: "Rute embedding Gemini Embedding 2 768 dimensi ke index Vectorize canonical staging.",
+  },
+  {
+    key: "FEATURE_ZYRA_IDEA_RUNTIME_V1",
+    name: "Zyra Idea Runtime",
+    category: "ai_v2_architecture",
+    categoryLabel: FEATURE_CATEGORIES.ai_v2_architecture,
+    description: "Retrieval Zyra yang fail-closed dan hanya memakai Idea canonical yang sudah dihidrasi.",
+  },
+  {
+    key: "FEATURE_ADMIN_TUTOR_WORKFLOW_V1",
+    name: "Admin Tutor Workflow",
+    category: "platform",
+    categoryLabel: FEATURE_CATEGORIES.platform,
+    description: "Transisi workflow konten admin dan tutor dengan audit mutasi terpusat.",
+  },
+  {
+    key: "FEATURE_MURID_IDEA_WORKFLOW_V1",
+    name: "Murid Idea Workflow",
+    category: "platform",
+    categoryLabel: FEATURE_CATEGORIES.platform,
+    description: "Read model murid berbasis Idea dengan adapter kompatibilitas Tutorial PKA.",
   },
 ];
 

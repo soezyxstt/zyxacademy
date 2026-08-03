@@ -2,7 +2,7 @@
  * GET /api/quiz/daily ; Pull 5 questions from approved bank filtered to student's enrolled courses
  * POST /api/quiz/daily ; Submit daily quiz answers and save attempt with score
  *
- * Zero Gemini/Pinecone cost path ; reads directly from ai_question_bank.
+ * Zero provider cost path ; reads directly from ai_question_bank.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

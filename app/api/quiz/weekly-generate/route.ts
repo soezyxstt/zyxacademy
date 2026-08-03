@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
  );
 
  if (total >= targetCount) {
- // Enough questions ; create template directly (bypass Pinecone + Gemini)
+ // Enough questions ; create template directly without vector retrieval or Gemini
  const templateId = randomUUID();
  await db.insert(quizTemplates).values({
  id: templateId,

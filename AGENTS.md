@@ -282,8 +282,8 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Staged KO Extraction & Canonical Review verified deterministically via `bun test tests/contracts/ko-pipeline.test.ts` (11 passing tests across KO pipeline suite with 0 network calls, deterministic chunking > 30k chars, span preservation, and review gating verified).
 - Question Blueprint, Option Shuffle, and Distractor Provenance verified deterministically via `bun test tests/contracts/question-pipeline.test.ts` (14 passing tests across question pipeline suite with 0 network calls, slot KO requirement, seeded shuffle, distractor provenances, position leakage prevention, independent solver, and critic loop verified).
 - Wave 4 (Plans 006, 009, 011) verified deterministically via `bun test tests/contracts/tutor-rag.test.ts tests/contracts/material-pipeline.test.ts tests/contracts/question-pipeline.test.ts` (67 passing contract tests, 0 errors across lint & typecheck).
-- Wave 5 (Plans 013, 014, 012) verified deterministically via `bun test tests/contracts/flashcard-generator.test.ts tests/contracts/diktat.test.ts tests/contracts/analytics.test.ts` (75 passing contract tests across 9 files, 0 errors across lint & typecheck).
-- Wave 6 (Plan 015) verified deterministically via `bun run eval:ai` (3/3 golden evaluation zero-tolerance invariant suites passing 100%).
+- Wave 5 contract surfaces (Plans 013, 014, 012) verified deterministically via `bun test tests/contracts/flashcard-generator.test.ts tests/contracts/diktat.test.ts tests/contracts/analytics.test.ts` (75 passing contract tests across 9 files, 0 errors across lint & typecheck).
+- Plan 015 local contract and AI evaluation surfaces verified deterministically; staging parity remains a separate gate.
 - Per-Quiz Student Attempt Spreadsheet & CSV Exporter verified deterministically via contract test suite (78 passing contract tests) and clean `bun run lint` (0 errors, 0 warnings).
 - Plan 001 staging rehearsal verified with 97 tables before migration, 99 tables after migration, zero foreign-key violations, passed disposable restore, and only the two migration ledger tables added. Evidence: `artifacts/staging-overhaul/20260802-plan001-staging/plan-001-result.json`.
 - Plan 001 code verified with `bun run lint`, `bun run typecheck`, and 12 staging contract tests passing.
@@ -298,17 +298,17 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Plan 011 Per-Idea Mastery and Learning Loop verified with clean lint, typecheck, 16 focused contract and migration tests, a passed staging shadow with zero writes, a passed full replay, and a passed incremental no-op replay with identical hashes. Evidence: `artifacts/staging-overhaul/20260803-plan011-shadow-v2/plan-011-shadow.json` and `artifacts/staging-overhaul/20260803-plan011-recompute-v2/plan-011-result.json`.
 
 ### Current Focus
-Plans 009 through 011 are complete and verified locally plus in staging. Plans 009 through 011 record explicit `tutorial-pka` to `mat-i` canonical fixture fallbacks because the staging database has no published canonical Ideas under the PKA identity. Plan 012A Vectorize foundation contracts are integrated; its final 768 index rebuild is next.
+Plans 001 through 016 have passed their recorded local and staging gates, including the authorized 313-vector canonical backfill, golden retrieval, Zyra privacy checks, admin and tutor workflow, murid parity, two full Plan 016 rehearsals, rollback, re-enable, final Vectorize reconcile, and the legacy-caller inventory. Staging never provisioned Pinecone; the final decommission evidence records the deterministic not-provisioned state, while the Pinecone values in `.env.local` and `.env.prod` remain outside staging scope.
 
 ### Blockers
-None.
+- None for the requested staging overhaul. Production deployment and deletion remain out of scope, and the preserved 1024-dimensional Vectorize indexes remain untouched.
 
 ---
 
 ## Core Architectural Stack
 
 - **Database**: Turso for production, local SQLite (`dev.db`) for development. Never attempt to use PostgreSQL or neon-client.
-- **Vector Store**: Pinecone (Serverless Starter) is the primary vector database. Vectorize (Cloudflare) is conditional only (P8).
+- **Vector Store**: Cloudflare Vectorize is the canonical vector database for staging retrieval, using `canonical-content-v2`, Gemini Embedding 2, 768 dimensions, cosine distance, and the authenticated V2 Worker. Pinecone was never provisioned in staging; local and production Pinecone variables are preserved outside the staging cutover scope.
 - **Primary LLM**: Google Gemini API via `@google/genai` (Gemini 2.5 Flash is the primary model).
 - **AI Gateway**: Cloudflare AI Gateway routes all Gemini traffic (`CF_AI_GATEWAY_URL`). Caching enabled for Tier 1 tutor queries.
 - **Storage**: Cloudflare R2 bucket (`zyx`) is the storage provider. UploadThing is deprecated and pending complete teardown (P7).
@@ -372,12 +372,11 @@ Every standalone page gets `<PageOrnaments variant="..." />` as first child insi
 | Service | Usage | Free limit |
 |---|---|---|
 | LLM | Gemini 2.5 Flash (4-key rotation via AI Gateway) | ~250 req/day per key |
-| Embeddings | Gemini text-embedding-004 | ~1,500 req/day |
+| Embeddings | Gemini Embedding 2, canonical-content-v2 | project key quota |
 | AI Gateway | Proxy, cache, rate limiting | 100k logged req/mo |
 | KV Cache | AI tutor response cache | 100k reads/day, 1k writes/day |
 | R2 | Object storage | 10 GB, zero egress |
-| Pinecone | Primary vector store | 2 GB Serverless Starter |
-| Vectorize (opt) | Secondary vector store | ~6,500 vectors at 768 dims |
+| Vectorize | Canonical vector store for staging | 768 dimensions, cosine, metadata allowlist |
 | Turso | SQLite database | 5 GB, 500M row reads/mo |
 | Inngest | Background job orchestration | 50k steps/mo |
 | Resend | Transactional emails | 100/day |

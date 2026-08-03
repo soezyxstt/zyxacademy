@@ -407,6 +407,13 @@
       "when": 1785707852581,
       "tag": "0057_outgoing_rage",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "6",
+      "when": 1785712531862,
+      "tag": "0058_open_galactus",
+      "breakpoints": true
     }
   ]
 }

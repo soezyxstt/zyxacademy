@@ -289,7 +289,7 @@ export function BundleImporterTab() {
                       Jalankan Pasca-Proses (Rekomendasi)
                     </Label>
                     <p className="text-body-sm text-muted-foreground">
-                      Mengompilasi materi markdown, membangun relasi peta konsep, pemetaan soal ujian, serta antrean sinkronisasi vektor Pinecone/Vectorize.
+                      Mengompilasi materi markdown, membangun relasi peta konsep, pemetaan soal ujian, serta antrean sinkronisasi canonical Vectorize.
                     </p>
                   </div>
                 </div>

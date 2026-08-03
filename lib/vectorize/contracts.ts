@@ -148,6 +148,30 @@ export interface CanonicalQueryResult {
   count: number;
 }
 
+export interface CanonicalListRequest {
+  profileId: typeof CANONICAL_VECTOR_PROFILE.id;
+  limit?: number;
+  cursor?: string;
+  prefix?: string;
+}
+
+export interface CanonicalListResult {
+  ids: string[];
+  count: number;
+  totalCount?: number;
+  isTruncated: boolean;
+  nextCursor?: string;
+}
+
+export interface CanonicalGetRequest {
+  profileId: typeof CANONICAL_VECTOR_PROFILE.id;
+  ids: string[];
+}
+
+export interface CanonicalGetResult {
+  vectors: CanonicalVectorRecord[];
+}
+
 export interface CanonicalMutationResult {
   count: number;
   mutationId?: string;
@@ -158,6 +182,8 @@ export interface CanonicalVectorProvider {
   upsert(request: CanonicalUpsertRequest): Promise<CanonicalMutationResult>;
   query(request: CanonicalQueryRequest): Promise<CanonicalQueryResult>;
   delete(request: CanonicalDeleteRequest): Promise<CanonicalMutationResult>;
+  list(request: CanonicalListRequest): Promise<CanonicalListResult>;
+  get(request: CanonicalGetRequest): Promise<CanonicalGetResult>;
 }
 
 export type CanonicalEmbeddingPurpose = "document" | "query";
@@ -241,15 +267,34 @@ function assertSafeIdSegment(value: string, name: string): void {
   }
 }
 
+function assertCanonicalEntityId(value: string, name = "entityId"): void {
+  assertNonEmpty(value, name);
+  if (/[\u0000-\u001f\u007f]/.test(value)) {
+    throw new VectorizeContractError("INVALID_ID", `${name} contains a control character`);
+  }
+}
+
+function encodeVectorEntityId(entityId: string): string {
+  return encodeURIComponent(entityId);
+}
+
+function decodeVectorEntityId(encodedEntityId: string): string {
+  try {
+    return decodeURIComponent(encodedEntityId);
+  } catch {
+    throw new VectorizeContractError("INVALID_ID", "entityId is not valid URI encoding");
+  }
+}
+
 export function createVersionedVectorId(
   entityType: CanonicalEntityType,
   entityId: string,
   version: number,
 ): string {
   assertSafeIdSegment(entityType, "entityType");
-  assertSafeIdSegment(entityId, "entityId");
+  assertCanonicalEntityId(entityId);
   assertVersion(version);
-  return `v2:${entityType}:${entityId}:${version}`;
+  return `v2:${entityType}:${encodeVectorEntityId(entityId)}:${version}`;
 }
 
 export function parseVersionedVectorId(id: string): {
@@ -262,12 +307,16 @@ export function parseVersionedVectorId(id: string): {
     throw new VectorizeContractError("INVALID_ID", `expected v2:<entityType>:<entityId>:<version>, received ${id}`);
   }
 
-  const [, entityType, entityId, versionText] = parts;
+  const [, entityType, encodedEntityId, versionText] = parts;
   if (!CANONICAL_ENTITY_TYPES.includes(entityType as CanonicalEntityType)) {
     throw new VectorizeContractError("INVALID_ID", `unknown entity type ${entityType}`);
   }
   const version = Number(versionText);
-  assertSafeIdSegment(entityId, "entityId");
+  const entityId = decodeVectorEntityId(encodedEntityId);
+  assertCanonicalEntityId(entityId);
+  if (encodeVectorEntityId(entityId) !== encodedEntityId) {
+    throw new VectorizeContractError("INVALID_ID", "entityId is not canonically encoded");
+  }
   assertVersion(version);
   return { entityType: entityType as CanonicalEntityType, entityId, version };
 }
@@ -280,7 +329,7 @@ export function assertCanonicalMetadata(metadata: CanonicalVectorMetadata): void
   if (!CANONICAL_ENTITY_TYPES.includes(metadata.entityType)) {
     throw new VectorizeContractError("INVALID_METADATA", `unknown entity type ${metadata.entityType}`);
   }
-  assertSafeIdSegment(metadata.entityId, "entityId");
+  assertCanonicalEntityId(metadata.entityId);
   assertVersion(metadata.version);
   assertNonEmpty(metadata.language, "language");
   if (metadata.courseId !== undefined) assertNonEmpty(metadata.courseId, "courseId");
@@ -324,6 +373,23 @@ export function assertCanonicalTopK(topK: number): void {
       `topK must be an integer between 1 and ${CANONICAL_MAX_TOP_K}`,
     );
   }
+}
+
+export function assertCanonicalList(request: CanonicalListRequest): void {
+  assertCanonicalProfile(request.profileId);
+  if (request.limit !== undefined && (!Number.isInteger(request.limit) || request.limit < 1 || request.limit > 1000)) {
+    throw new VectorizeContractError("INVALID_LIST_LIMIT", "list limit must be an integer between 1 and 1000");
+  }
+  if (request.cursor !== undefined) assertNonEmpty(request.cursor, "cursor");
+  if (request.prefix !== undefined) assertNonEmpty(request.prefix, "prefix");
+}
+
+export function assertCanonicalGet(request: CanonicalGetRequest): void {
+  assertCanonicalProfile(request.profileId);
+  if (request.ids.length === 0 || request.ids.length > 1000) {
+    throw new VectorizeContractError("INVALID_GET", "canonical get requires between 1 and 1000 IDs");
+  }
+  request.ids.forEach(parseVersionedVectorId);
 }
 
 export function assertCanonicalFilter(filter: CanonicalMetadataFilter | undefined): void {

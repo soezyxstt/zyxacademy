@@ -6,57 +6,126 @@ import { recomputeTrends } from "@/lib/mastery-store";
 import { enqueueRecompute, processQueueBatch } from "@/lib/mastery-recompute";
 import { recomputePerIdeaMastery } from "@/lib/mastery-recompute";
 import { generateMistakeFeedback } from "@/lib/mistake-feedback";
-import { getNs } from "@/lib/pinecone";
-import { embedTexts } from "@/lib/gemini";
-import { shouldMirrorToVectorize, serializeVzMetadata, vectorizeUpsert } from "@/lib/vectorize-client";
+import {
+  vectorizeCanonicalDelete,
+  vectorizeCanonicalUpsert,
+} from "@/lib/vectorize-client";
 import { eq, and, or, lt, gt, sql, inArray } from "drizzle-orm";
 import { generateFlashcardsForChapter } from "@/lib/flashcard-generator";
 import { generateQuestionsForKOBatch } from "@/lib/question-generator";
 import { executeGenerationJob } from "@/lib/generation-pipeline";
 import { generateMarkdownForChapter } from "@/lib/material-generator";
 import { saveWebsiteMaterial } from "@/lib/material-storage";
-import { VECTOR_NAMESPACES } from "@/lib/vector-store";
+import { getCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/runtime";
+import { canonicalOutboxPayload, canonicalOutboxTitle } from "@/lib/vectorize/outbox";
+import { CANONICAL_VECTOR_PROFILE, type CanonicalVectorMetadata } from "@/lib/vectorize/contracts";
 
 type VectorSyncRow = typeof vectorSyncQueue.$inferSelect;
 
 // Retrieve configurable batch size from environment or config, defaulting to 50
-const BATCH_SIZE = process.env.PINECONE_SYNC_BATCH_SIZE 
-  ? parseInt(process.env.PINECONE_SYNC_BATCH_SIZE, 10) 
+const BATCH_SIZE = process.env.VECTOR_SYNC_BATCH_SIZE
+  ? parseInt(process.env.VECTOR_SYNC_BATCH_SIZE, 10)
   : 50;
 
-/**
- * Processes a single batch of pending outbox sync items.
- * Fetches rows, batch embeds them using text-embedding-004, upserts to Pinecone,
- * and updates their status in PostgreSQL.
- */
+async function processCanonicalBatch(step: any, rows: VectorSyncRow[]) {
+  const operations = rows.map((row) => ({
+    rowId: row.id,
+    title: canonicalOutboxTitle(row),
+    outbox: canonicalOutboxPayload(row as {
+      id: string;
+      koId?: string | null;
+      action: "upsert" | "delete";
+      namespace: string;
+      courseId: string;
+      payload: unknown;
+    }),
+  }));
+
+  try {
+    await step.run("canonical-vectorize-upsert", async () => {
+      const adapter = await getCanonicalContentV2EmbeddingAdapter();
+      const upserts: Array<{ id: string; values: number[]; metadata: CanonicalVectorMetadata }> = [];
+      const deletes: string[] = [];
+      for (const operation of operations) {
+        if (operation.outbox.operation === "delete") {
+          deletes.push(operation.outbox.vectorId);
+          continue;
+        }
+        const values = await adapter.embedDocument(operation.title, operation.outbox.content);
+        upserts.push({ id: operation.outbox.vectorId, values, metadata: operation.outbox.metadata });
+      }
+      if (upserts.length > 0) {
+        await vectorizeCanonicalUpsert({ profileId: CANONICAL_VECTOR_PROFILE.id, vectors: upserts.map((vector) => ({
+          id: vector.id,
+          values: vector.values,
+          metadata: vector.metadata,
+        })) });
+      }
+      if (deletes.length > 0) {
+        await vectorizeCanonicalDelete({ profileId: CANONICAL_VECTOR_PROFILE.id, ids: deletes });
+      }
+    });
+
+    await step.run("canonical-vectorize-finalize", async () => {
+      await db.transaction(async (tx) => {
+        for (const operation of operations) {
+          const completion = operation.outbox.operation === "upsert"
+            ? {
+              vectorId: operation.outbox.vectorId,
+              profileId: operation.outbox.profileId,
+              dimensions: 768,
+              indexedContentHash: operation.outbox.metadata.contentHash ?? null,
+            }
+            : {
+              vectorId: operation.outbox.vectorId,
+              profileId: operation.outbox.profileId,
+              dimensions: 768,
+              indexedContentHash: null,
+            };
+          const existingPayload = rowPayload(rows.find((row) => row.id === operation.rowId)?.payload);
+          await tx
+            .update(vectorSyncQueue)
+            .set({
+              status: "completed",
+              payload: { ...existingPayload, providerNeutralOutbox: operation.outbox, vectorizeCompletion: completion },
+              updatedAt: new Date(),
+            })
+            .where(eq(vectorSyncQueue.id, operation.rowId));
+        }
+      });
+    });
+    return { processed: rows.length, success: rows.length, failed: 0, provider: "canonical-content-v2" as const };
+  } catch (error: any) {
+    await step.run("canonical-vectorize-failure", async () => {
+      for (const row of rows) {
+        await db
+          .update(vectorSyncQueue)
+          .set({ status: "failed", attempts: row.attempts + 1, lastError: error?.message || String(error), updatedAt: new Date() })
+          .where(eq(vectorSyncQueue.id, row.id));
+      }
+    });
+    return { processed: rows.length, success: 0, failed: rows.length, provider: "canonical-content-v2" as const };
+  }
+}
+
+function rowPayload(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+/** Processes pending outbox rows through the canonical 768-dimensional path. */
 export async function processBatch(step: any, courseId?: string) {
-  // Step 1: Fetch pending/failed queue rows from database
   const batch = await step.run("fetch-pending-batch", async () => {
     const filters = [
-      or(
-        eq(vectorSyncQueue.status, "pending"),
-        eq(vectorSyncQueue.status, "failed")
-      ),
-      lt(vectorSyncQueue.attempts, 10)
+      or(eq(vectorSyncQueue.status, "pending"), eq(vectorSyncQueue.status, "failed")),
+      lt(vectorSyncQueue.attempts, 10),
     ];
-    if (courseId) {
-      filters.push(eq(vectorSyncQueue.courseId, courseId));
-    }
-
-    return await db
-      .select()
-      .from(vectorSyncQueue)
-      .where(and(...filters))
-      .limit(BATCH_SIZE);
+    if (courseId) filters.push(eq(vectorSyncQueue.courseId, courseId));
+    return db.select().from(vectorSyncQueue).where(and(...filters)).limit(BATCH_SIZE);
   });
 
-  if (batch.length === 0) {
-    return { processed: 0, message: "No pending outbox records to process." };
-  }
+  if (batch.length === 0) return { processed: 0, message: "No pending outbox records to process." };
 
-  const batchIds = batch.map((r: VectorSyncRow) => r.id);
-
-  // Step 2: Mark records as processing inside DB to lock them
+  const batchIds = batch.map((row: VectorSyncRow) => row.id);
   await step.run("mark-records-processing", async () => {
     await db
       .update(vectorSyncQueue)
@@ -64,120 +133,7 @@ export async function processBatch(step: any, courseId?: string) {
       .where(inArray(vectorSyncQueue.id, batchIds));
   });
 
-  // Step 3: Group by course namespace (to optimize embedding & Pinecone requests)
-  const courseGroups: Record<string, VectorSyncRow[]> = {};
-  for (const row of batch) {
-    const key = `${row.courseId}:${row.namespace}`;
-    if (!courseGroups[key]) {
-      courseGroups[key] = [];
-    }
-    courseGroups[key].push(row);
-  }
-
-  let successCount = 0;
-  let failCount = 0;
-
-  for (const [key, rows] of Object.entries(courseGroups)) {
-    const [cId, namespace] = key.split(":");
-    const safeNamespace = namespace || VECTOR_NAMESPACES.learning;
-    const sanitizeKey = `${cId}-${safeNamespace}`;
-    try {
-      // Step 4: Batch embed text-embedding-004
-      const texts = rows.map((r: VectorSyncRow) => (r.payload as any).text);
-      const embeddings = await step.run(`embed-texts-${sanitizeKey}`, async () => {
-        return await embedTexts(texts);
-      });
-
-      // Step 5: Upsert to Pinecone course namespace
-      const koRecords = await step.run(`upsert-pinecone-${sanitizeKey}`, async () => {
-        const records = rows.map((row: VectorSyncRow, idx: number) => {
-          const payload = row.payload as any;
-          return {
-            id: row.koId || payload.id || row.id,
-            values: embeddings[idx],
-            metadata: {
-              courseId: row.courseId,
-              chapterId: payload.metadata.chapterId || "",
-              conceptId: payload.metadata.conceptId || "",
-              type: payload.metadata.type || "unknown",
-              bloomLevel: payload.metadata.bloomLevel || "apply",
-              difficulty: payload.metadata.difficulty || "medium",
-              importance: payload.metadata.importance || "medium",
-              tags: payload.metadata.tags || [],
-            }
-          };
-        });
-
-        const ns = getNs(`${cId}_${safeNamespace}`);
-        await ns.upsert({ records });
-        return records;
-      });
-
-      // Step 5b: Mirror to Vectorize when VECTOR_STORE=dual|vectorize
-      if (shouldMirrorToVectorize()) {
-        await step.run(`upsert-vectorize-${sanitizeKey}`, async () => {
-          await vectorizeUpsert(
-            koRecords.map((r: { id: string; values: number[]; metadata: Record<string, unknown> }) => ({
-              id: r.id,
-              values: r.values,
-              namespace: `course_${cId}_${safeNamespace}`,
-              metadata: serializeVzMetadata(r.metadata),
-            })),
-          );
-        });
-      }
-
-      // Step 6: Mark rows completed in database & update pineconeVectorId on KOs
-      await step.run(`finalize-success-${sanitizeKey}`, async () => {
-        const rowIds = rows.map((r: VectorSyncRow) => r.id);
-
-        await db.transaction(async (tx) => {
-          // Set queue rows completed
-          await tx
-            .update(vectorSyncQueue)
-            .set({ status: "completed", updatedAt: new Date() })
-            .where(inArray(vectorSyncQueue.id, rowIds));
-
-          // Set KO pineconeVectorId to the KO ID (synced successfully) for learning namespace
-          for (const row of rows) {
-            if (row.koId && row.namespace === VECTOR_NAMESPACES.learning) {
-              await tx
-                .update(knowledgeObjects)
-                .set({ pineconeVectorId: row.koId, updatedAt: new Date() })
-                .where(eq(knowledgeObjects.id, row.koId));
-            }
-          }
-        });
-      });
-
-      successCount += rows.length;
-    } catch (err: any) {
-      // Step 7: Handle failures for this specific group
-      await step.run(`handle-failure-${sanitizeKey}`, async () => {
-        const errorMessage = err?.message || String(err);
-        
-        for (const row of rows) {
-          await db
-            .update(vectorSyncQueue)
-            .set({
-              status: "failed", // remain in failed state to be retried by the cron/poller
-              attempts: row.attempts + 1,
-              lastError: errorMessage,
-              updatedAt: new Date()
-            })
-            .where(eq(vectorSyncQueue.id, row.id));
-        }
-      });
-
-      failCount += rows.length;
-    }
-  }
-
-  return {
-    processed: batch.length,
-    success: successCount,
-    failed: failCount
-  };
+  return processCanonicalBatch(step, batch);
 }
 
 /**
@@ -337,7 +293,7 @@ export const bulkChapterGenerator = inngest.createFunction(
         );
       });
 
-      // Step 5: Sync metadata-linked vector indexes to Pinecone immediately
+      // Step 5: Sync metadata-linked vector indexes through the canonical outbox
       const syncRes = await processBatch(step, info.courseId);
 
       // Set completed status

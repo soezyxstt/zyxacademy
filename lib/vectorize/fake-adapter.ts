@@ -1,5 +1,7 @@
 import {
   assertCanonicalDelete,
+  assertCanonicalGet,
+  assertCanonicalList,
   assertCanonicalQuery,
   assertCanonicalVector,
   assertCanonicalProfile,
@@ -13,6 +15,10 @@ import {
   type CanonicalVectorRecord,
   type CanonicalUpsertRequest,
   type CanonicalDeleteRequest,
+  type CanonicalGetRequest,
+  type CanonicalGetResult,
+  type CanonicalListRequest,
+  type CanonicalListResult,
 } from "@/lib/vectorize/contracts";
 
 function matchesFilter(record: CanonicalVectorRecord, filter: CanonicalMetadataFilter | undefined): boolean {
@@ -60,6 +66,8 @@ export class FakeCanonicalVectorProvider implements CanonicalVectorProvider {
     upsert: [] as CanonicalUpsertRequest[],
     query: [] as CanonicalQueryRequest[],
     delete: [] as CanonicalDeleteRequest[],
+    list: [] as CanonicalListRequest[],
+    get: [] as CanonicalGetRequest[],
   };
 
   async upsert(request: CanonicalUpsertRequest): Promise<CanonicalMutationResult> {
@@ -102,12 +110,42 @@ export class FakeCanonicalVectorProvider implements CanonicalVectorProvider {
     return { count: request.ids.length, mutationId: `fake-mutation-${this.mutationCounter}` };
   }
 
-  get(id: string): CanonicalVectorRecord | undefined {
+  async list(request: CanonicalListRequest): Promise<CanonicalListResult> {
+    assertCanonicalList(request);
+    this.calls.list.push({ ...request });
+    const sorted = [...this.records.keys()]
+      .filter((id) => !request.prefix || id.startsWith(request.prefix))
+      .sort();
+    const offset = request.cursor ? Number(request.cursor) : 0;
+    const limit = request.limit ?? 1000;
+    const ids = sorted.slice(offset, offset + limit);
+    const nextOffset = offset + ids.length;
+    return {
+      ids,
+      count: ids.length,
+      totalCount: sorted.length,
+      isTruncated: nextOffset < sorted.length,
+      ...(nextOffset < sorted.length ? { nextCursor: String(nextOffset) } : {}),
+    };
+  }
+
+  async get(request: CanonicalGetRequest): Promise<CanonicalGetResult> {
+    assertCanonicalGet(request);
+    this.calls.get.push({ ...request, ids: [...request.ids] });
+    return {
+      vectors: request.ids
+        .map((id) => this.records.get(id))
+        .filter((record): record is CanonicalVectorRecord => Boolean(record))
+        .map(cloneRecord),
+    };
+  }
+
+  getRecord(id: string): CanonicalVectorRecord | undefined {
     const record = this.records.get(id);
     return record ? cloneRecord(record) : undefined;
   }
 
-  list(): CanonicalVectorRecord[] {
+  listRecords(): CanonicalVectorRecord[] {
     return [...this.records.values()].map(cloneRecord);
   }
 }

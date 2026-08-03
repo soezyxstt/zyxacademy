@@ -1,6 +1,6 @@
 # Zyx Idea-Centered Learning System Overhaul
 
-Status program: in progress, Plans 001 through 011 are complete. Plan 012 foundation is complete while its final rebuild remains pending.
+Status program: complete, Plans 001 through 016 have passed their recorded local and staging gates. Staging never provisioned Pinecone, so Plan 016 records a deterministic not-provisioned decommission state and preserves production and local legacy configuration outside staging scope.
 
 Planning snapshot:
 
@@ -45,11 +45,11 @@ Execute sequentially. A plan is a predecessor gate, not optional reading.
 | [009](009-article-and-diktat-quality-compiler.md) | Article and diktat quality compiler | P1 | L | 008 | DONE | Required pedagogic blocks and source coverage pass publication gates |
 | [010](010-question-and-assessment-integrity.md) | Question and assessment integrity | P0 | L | 008 | DONE | Multi-Idea evidence, blueprint, benchmark, and active-attempt gates pass |
 | [011](011-per-idea-mastery-and-learning-loop.md) | Per-Idea mastery and learning loop | P0 | L | 010 | DONE | Mastery and confidence are separate, reproducible, and history-safe |
-| [012](012-vectorize-only-indexing-and-retrieval.md) | Vectorize-only indexing and retrieval | P0 | L | 005, 011; internal foundation after 005 | TODO | DB and Vectorize manifests match exactly in staging; 012A contracts complete |
-| [013](013-zyra-canonical-runtime.md) | Zyra canonical runtime | P1 | L | 011, 012 | TODO | Responses hydrate approved DB content and assessment leaks are zero |
-| [014](014-admin-and-tutor-operational-workflow.md) | Admin and tutor operational workflow | P1 | L | 009, 010, 013 | TODO | Admin and tutor can complete the new content lifecycle end to end |
-| [015](015-murid-workflow-and-tutorial-pka-parity.md) | Murid workflow and Tutorial PKA parity | P0 | L | 014 | TODO | Existing Tutorial PKA history and all core murid journeys remain operational |
-| [016](016-staging-cutover-pinecone-removal-and-legacy-contract.md) | Staging cutover, Pinecone removal, and legacy contract | P0 | L | 015 | TODO | Two clean rehearsals, rollback pass, zero active legacy write callers |
+| [012](012-vectorize-only-indexing-and-retrieval.md) | Vectorize-only indexing and retrieval | P0 | L | 005, 011; internal foundation after 005 | DONE | DB and Vectorize manifests match exactly in staging; 012A contracts complete |
+| [013](013-zyra-canonical-runtime.md) | Zyra canonical runtime | P1 | L | 011, 012 | DONE | Responses hydrate approved DB content and assessment leaks are zero |
+| [014](014-admin-and-tutor-operational-workflow.md) | Admin and tutor operational workflow | P1 | L | 009, 010, 013 | DONE | Admin and tutor can complete the new content lifecycle end to end |
+| [015](015-murid-workflow-and-tutorial-pka-parity.md) | Murid workflow and Tutorial PKA parity | P0 | L | 014 | DONE | Existing Tutorial PKA history and all core murid journeys remain operational |
+| [016](016-staging-cutover-pinecone-removal-and-legacy-contract.md) | Staging cutover, Pinecone removal, and legacy contract | P0 | L | 015 | DONE | Two clean rehearsals, rollback pass, zero active legacy write callers, and safe staging decommission state |
 
 Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`, or `REJECTED`. `BLOCKED` and `REJECTED` require a one-line reason.
 

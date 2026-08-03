@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import worker from "../../workers/vector-api/index";
 import { FakeCanonicalVectorProvider } from "@/lib/vectorize/fake-adapter";
 import { createCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/embedding";
+import { createCanonicalVectorClient } from "@/lib/vectorize-client";
 import {
   assertCanonicalDimensions,
   assertCanonicalDelete,
@@ -78,6 +79,11 @@ describe("Plan 012A Vectorize foundation contracts", () => {
     const id = createVersionedVectorId("article", "article-1", 3);
     expect(id).toBe("v2:article:article-1:3");
     expect(parseVersionedVectorId(id)).toEqual({ entityType: "article", entityId: "article-1", version: 3 });
+
+    const legacyId = "p008-20260803-plan008-product-v1-article:v2";
+    const encoded = createVersionedVectorId("article", legacyId, 2);
+    expect(encoded).toBe("v2:article:p008-20260803-plan008-product-v1-article%3Av2:2");
+    expect(parseVersionedVectorId(encoded)).toEqual({ entityType: "article", entityId: legacyId, version: 2 });
   });
 
   it("rejects mismatched dimensions, profiles, IDs, and metadata fields", () => {
@@ -239,7 +245,6 @@ describe("Plan 012A Vectorize foundation contracts", () => {
       },
     };
     const env = {
-      VECTORIZE: { upsert: async () => ({ count: 0, mutationId: "legacy" }), query: async () => ({ count: 0, matches: [] }), deleteByIds: async () => ({ count: 0, mutationId: "legacy" }), getByIds: async () => [] },
       VECTORIZE_V2: index,
       SHARED_SECRET: "secret",
       RESTRICTED_SOLUTION_CAPABILITY: "read:published_solutions",
@@ -293,6 +298,25 @@ describe("Plan 012A Vectorize foundation contracts", () => {
     expect((await worker.fetch(invalidDeleteRequest, env)).status).toBe(400);
   });
 
+  it("batches canonical get requests to the Vectorize provider limit", async () => {
+    const ids = Array.from({ length: 41 }, (_, index) => createVersionedVectorId("idea", `idea-${index}`, 1));
+    const batchSizes: number[] = [];
+    const client = createCanonicalVectorClient({
+      baseUrl: "https://vector.test",
+      sharedSecret: "secret",
+      fetcher: (async (_input, init) => {
+        const body = JSON.parse(String(init?.body)) as { ids: string[] };
+        batchSizes.push(body.ids.length);
+        return new Response(JSON.stringify({ vectors: body.ids.map((id) => ({ id, values: [] })) }), { status: 200 });
+      }) as typeof fetch,
+    });
+
+    const result = await client.get({ profileId: CANONICAL_VECTOR_PROFILE.id, ids });
+
+    expect(batchSizes).toEqual([20, 20, 1]);
+    expect(result.vectors.map((vector) => vector.id)).toEqual(ids);
+  });
+
   it("returns a bounded, explicit error when the v2 Worker binding is absent", async () => {
     const request = new Request("https://vector.test/v2/upsert", {
       method: "POST",
@@ -300,7 +324,7 @@ describe("Plan 012A Vectorize foundation contracts", () => {
       body: JSON.stringify({ profileId: CANONICAL_VECTOR_PROFILE.id, vectors: [record()] }),
     });
     const response = await worker.fetch(request, {
-      VECTORIZE: {} as never,
+      VECTORIZE_V2: undefined,
       SHARED_SECRET: "secret",
     });
     expect(response.status).toBe(503);

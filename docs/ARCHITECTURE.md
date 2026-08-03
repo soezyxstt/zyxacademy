@@ -1,6 +1,6 @@
 # Zyx Academy Architecture (vNext)
 
-**Stack:** Next.js 16 (App Router), Drizzle ORM + SQLite (dev) / Turso (prod), Better-Auth, Gemini AI via Cloudflare AI Gateway, Pinecone + Cloudflare Vectorize (vector search), UploadThing / R2 (storage abstraction), Inngest (background jobs), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
+**Stack:** Next.js 16 (App Router), Drizzle ORM + SQLite (dev) / Turso (prod), Better-Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), UploadThing / R2 (storage abstraction), Inngest (background jobs), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
 
 ---
 
@@ -36,7 +36,7 @@ Course (courses)
       │    ├── feeds into → ai_question_bank (questions tagged to KO)
       │    ├── feeds into → flashcards (per KO flashcards)
       │    ├── feeds into → knowledge_relationships (prerequisite/related/extends graph)
-      │    ├── feeds into → vector_sync_queue (Pinecone/Vectorize sync)
+      │    ├── feeds into → vector_sync_queue (canonical Vectorize sync)
       │    └── feeds into → learning_events (mastery tracking)
       ├── Website Material (website_materials) ; 1 per chapter, compiled from KOs
       │    └── Versions (website_material_versions) ; edit history
@@ -110,6 +110,12 @@ Plan 003 adds an additive Indonesian learning-domain layer. `mata_kuliah` and `b
 | `peta_id_legacy` | Deterministic legacy-to-target identity mapping and checksums |
 
 The existing `concepts` and `concept_localizations` tables remain the global cross-course concept registry. `FEATURE_ARSITEKTUR_IDE_V1` stays off until a later plan switches callers; existing KOs and source pipelines are not backfilled or rewritten here.
+
+### Canonical Vector Identity
+
+Plan 012 uses `canonical-content-v2` with Gemini Embedding 2 at 768 dimensions and cosine distance. The database entity ID remains unchanged in Vectorize metadata so Turso hydration can address the original row. When an entity ID contains a colon, the ID segment inside `v2:<entityType>:<entityId>:<version>` is URI-encoded and decoded by the shared contract; simple IDs retain their readable form. The Worker and application contract must use the same reversible encoding, and the decoded ID must match metadata exactly.
+
+Canonical hydration batches `/v2/get` requests at 20 IDs per call to respect the Vectorize provider limit.
 
 ### Product, Assessment, and Mastery Architecture
 
@@ -303,7 +309,7 @@ The active-attempt serializer is an explicit allowlist. It can expose prompt, op
 |---|---|
 | `ai_material_instances` | Legacy material metadata (pre-v4, deprecated in favor of KO flow) |
 | `ai_material_instance_sections` | Legacy sections |
-| `ai_material_instance_chunks` | Legacy text chunks for Pinecone |
+| `ai_material_instance_chunks` | Legacy text chunks retained for read-only compatibility |
 | `ai_generation_jobs` | Tracks Gemini generation: pending→processing→completed→failed, token counts |
 | `ai_question_bank` | Permanent question repository: linked to KO/MTD with generationHash, distractorMap, bloomLevel, pattern, estimatedSteps, isStale |
 | `question_option_stats` | Per-option selection counters for distractor analytics |
@@ -322,7 +328,7 @@ The active-attempt serializer is an explicit allowlist. It can expose prompt, op
 #### Vector Sync
 | Table | Purpose |
 |---|---|
-| `vector_sync_queue` | Transactional outbox for Pinecone/Vectorize sync ; upsert/delete, retry with backoff, namespace field for multi-index routing |
+| `vector_sync_queue` | Transactional outbox for canonical Vectorize sync; upsert/delete, retry with backoff, namespace, version, and content hash |
 
 #### Mastery & Analytics
 | Table | Purpose |
@@ -423,7 +429,7 @@ Upload PDF via UploadThing or direct R2
   │    ├── Source spans tracked in `knowledge_object_sources` & cognitive objectives in `learning_objectives`
   │    ├── Concept resolution (`concepts` / `concept_localizations`)
   │    ├── `vector_sync_queue` populated (namespace: "learning")
-  │    └── Inngest background job syncs to Pinecone "learning" index
+  │    └── Inngest background job syncs to canonical Vectorize `canonical_ideas`
   │
   └── type="assessment" → Assessment Extraction Pipeline (lib/assessment-extractor.ts)
        ├── Deterministic split on H2 headings → question blocks
@@ -502,17 +508,16 @@ Tutor compiles diktat in /admin/ai/diktats
       └── Creates diktats row with fileUrl, generationHash
 ```
 
-### E. Vector Sync (Pinecone / Vectorize)
+### E. Canonical Vector Sync
 ```
-Any KO or assessment_objects create/update → vector_sync_queue row (namespace: "learning"|"assessment")
+Any canonical Idea, article, question, solution, or source update → vector_sync_queue row
   → Inngest background function (vectorSyncWorker) processes batches:
-      ├── Fetch pending queue items per namespace (batch size: configurable, default 50)
-      ├── embedTexts() via Gemini text-embedding-004
-      ├── Upsert to vector store (Pinecone by default, VECTOR_STORE env controls mode)
-      │    └── VECTOR_STORE = "pinecone" | "dual" | "vectorize"
-      ├── Namespace per course: course_{courseId}_{namespace}
-      ├── Optional mirror to Cloudflare Vectorize (dual mode)
-      └── Mark queue completed, update KO pineconeVectorId
+      ├── Fetch pending queue items per namespace, retrying failed rows
+      ├── Embed with Gemini Embedding 2 through canonical-content-v2 at 768 dimensions
+      ├── Upsert to the authenticated `/v2/*` Vectorize worker contract
+      ├── Namespace per course: canonical_ideas, published_articles, source_materials, published_questions, or itb_question_references
+      ├── Preserve provider-neutral metadata, version, access class, and content hash
+      └── Mark queue completion only after the canonical mutation succeeds
 ```
 
 ---
@@ -541,7 +546,7 @@ Student redeems enrollment token
      ├── Tryout ; timed exam mode
      ├── Flashcards ; SM-2 spaced repetition (student_flashcard_progress)
      ├── Live quiz ; join via code, real-time leaderboard (WebSocket/SSE via zyxrealtime Worker)
-     ├── AI Tutor ; Gemini chat with RAG (Pinecone vector search), Query Action Router (`lib/tutor/query-action.ts`), and Tier 1 Cache Isolation (`lib/tutor/cache-contract.ts`)
+     ├── AI Tutor ; Gemini chat with canonical Vectorize retrieval, Query Action Router (`lib/tutor/query-action.ts`), and Tier 1 Cache Isolation (`lib/tutor/cache-contract.ts`)
      │    ├── Typed Query Actions: `retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, `clarify`
      │    ├── Style modifier extraction (`simpler`, `analogy`, `worked_example`, `graph`, `flowchart`, etc.) applied post-retrieval
      │    ├── Student-free Tier 1 shared KV payload: zero student ID, session ID, or history in cached data (`assertNoStudentTextInSharedCache`)
@@ -569,10 +574,9 @@ Mastery System (background, Inngest cron):
 | **Next.js 16** | App Router, Server Actions, React Server Components |
 | **Drizzle ORM** | SQLite (dev via `file:dev.db`) / Turso (prod via `@libsql/client`), schema in `db/schema.ts` |
 | **Better-Auth** | Auth: credentials + Google OAuth, role-based (admin/teacher/student) |
-| **Gemini** (`@google/genai`) | Text generation: material, flashcards, questions, assessment classification, AI tutor, embeddings (text-embedding-004) |
+| **Gemini** (`@google/genai`) | Text generation plus the fixed Gemini Embedding 2 canonical-content-v2 profile at 768 dimensions |
 | **Cloudflare AI Gateway** | All Gemini requests routed through gateway for caching, rate limiting, observability |
-| **Pinecone** | Primary vector store for KO + assessment embeddings, namespace per course × type (`course_{courseId}_learning` / `course_{courseId}_assessment`), RAG for AI tutor |
-| **Cloudflare Vectorize** | Secondary/migration vector store. `VECTOR_STORE` env controls mode: `pinecone` (default), `dual` (write both), or `vectorize` (read from VZ) |
+| **Cloudflare Vectorize** | Canonical vector store through `zyx-vector-api`, profile `canonical-content-v2`, 768 dimensions, cosine metric, versioned IDs, and allowlisted metadata |
 | **Cloudflare R2** | S3-compatible object storage for diktat PDFs, long-term assets, course materials (via `lib/storage/index.ts`) |
 | **Cloudflare KV** | AI response cache (used by AI tutor for repeated questions) |
 | **Cloudflare Workers** | Three dedicated Workers: `zyx-vector-api` (Vectorize proxy), `zyxrealtime` (live quiz WebSocket/SSE), `zyxacademydiktat` (Puppeteer PDF, hosted on Railway) |
@@ -642,9 +646,8 @@ lib/
 │       └── query-action.ts      ; Deterministic & AI follow-up Query Action Router
 
 ├── (Vector & Search)
-│   ├── vector-store.ts          ; Store abstraction (Pinecone / Vectorize / dual)
-│   ├── pinecone.ts              ; Pinecone client driver
-│   ├── vectorize-client.ts      ; Cloudflare Vectorize client
+│   ├── vector-store.ts          ; Canonical Vectorize store and read-only rollback seam
+│   ├── vectorize-client.ts      ; Canonical Cloudflare Vectorize client
 │   └── context-assembly.ts      ; RAG context assembly for AI tutor
 
 ├── (Jobs)
@@ -706,11 +709,10 @@ lib/
                           ┌──────────────────────────┼──────────┐
                           ▼                          ▼          ▼
                ┌──────────────────┐    ┌────────────────────┐
-               │ Pinecone (vector) │    │ CF Vectorize (vec) │
-               │  or               │    │  via zyx-vector-api│
-               │  VECTOR_STORE=dual│    │  Worker            │
-               │  namespaces:      │    └────────────────────┘
-               │  learning/assess  │
+               │ Canonical Vectorize│    │ via zyx-vector-api │
+               │ profile v2, 768  │    │  Worker            │
+               │ course namespaces │    └────────────────────┘
+               │ and versioned IDs │
                └──────────────────┘
 
 Cloudflare Workers (deployed via wrangler):
@@ -725,7 +727,7 @@ Cloudflare Workers (deployed via wrangler):
 |---|---|---|
 | **Database** | SQLite file (`dev.db`) | Turso (libsql, distributed SQLite) |
 | **Object Storage** | UploadThing (default) | R2 via `lib/storage/index.ts` (`STORAGE_PROVIDER_MODE`) |
-| **Vector Store** | Pinecone | `VECTOR_STORE` env: `pinecone` (default), `dual`, `vectorize` |
+| **Vector Store** | Cloudflare Vectorize | `FEATURE_VECTORIZE_ONLY_V1=1`, canonical-content-v2, 768 dimensions |
 | **AI Gateway** | Direct Gemini API | Cloudflare AI Gateway (rate limit, caching, observability) |
 | **Auth URL** | `localhost:3000` | `BETTER_AUTH_URL` = production origin |
 | **Diktat Renderer** | Mock PDF | Railway Puppeteer service at `DIKTAT_RENDERER_URL` |
@@ -763,12 +765,12 @@ Upload PDF/Markdown
          │    │      ├──→ Generate Flashcards (Gemini → flashcard_sets → flashcards)
          │    │      ├──→ Generate Questions (Gemini + Blueprint Engine + Pedagogical Validator → ai_question_bank)
          │    │      ├──→ Generate Diktat PDF (Puppeteer → R2)
-         │    │      └──→ Vector Sync (Inngest → Pinecone, namespace: "learning")
+         │    │      └──→ Vector Sync (Inngest → canonical Vectorize, namespace: "canonical_ideas")
          │
          └── type="assessment":
               └──→ Assessment Extraction (Deterministic split + Gemini classification)
                      ├──→ assessment_objects + assessment_profiles
-                     └──→ Vector Sync (Inngest → Pinecone, namespace: "assessment")
+                     └──→ Vector Sync (Inngest → canonical Vectorize, namespace: "published_questions")
 ```
 
 ### Student Interaction Flow
@@ -780,7 +782,7 @@ Student
   │                  → student_quiz_attempts → learning_events
   │                  → mastery recompute → daily_recommendations update
   ├── Reviews Flashcards → SM-2 scheduler → student_flashcard_progress
-  ├── AI Tutor Chat → tutor-rag.ts (Pinecone similarity search, "learning" namespace)
+  ├── AI Tutor Chat → tutor-rag.ts (canonical Vectorize similarity search, "canonical_ideas" namespace)
   │                    → tutor_chat_messages → tutor_session_summaries
   └── Live Quiz → WebSocket/SSE (zyxrealtime Worker) → live_quiz_sessions → live_quiz_results
 ```

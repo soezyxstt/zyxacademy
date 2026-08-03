@@ -2251,6 +2251,32 @@ export const auditMutasi = sqliteTable(
  ],
 );
 
+export const alurKonten = sqliteTable(
+ "alur_konten",
+ {
+  id: text("id").primaryKey(),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  courseId: text("course_id").notNull(),
+  version: integer("version").notNull(),
+  state: text("state")
+   .$type<"uploaded" | "validated" | "staged" | "tutor_review" | "changes_requested" | "admin_review" | "approved" | "published" | "superseded" | "withdrawn">()
+   .notNull(),
+  contentHash: text("content_hash").notNull(),
+  assignedTutorId: text("assigned_tutor_id").references(() => pengguna.id, { onDelete: "set null" }),
+  lastRequestId: text("last_request_id").notNull(),
+  lastReason: text("last_reason").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("alur_konten_entity_version_idx").on(table.entityType, table.entityId, table.version),
+  index("alur_konten_course_state_idx").on(table.courseId, table.state),
+  check("alur_konten_version_check", sql`${table.version} > 0`),
+  check("alur_konten_state_check", sql`${table.state} IN ('uploaded', 'validated', 'staged', 'tutor_review', 'changes_requested', 'admin_review', 'approved', 'published', 'superseded', 'withdrawn')`),
+ ],
+);
+
 // 4. knowledge_objects
 export const knowledgeObjects = sqliteTable(
  "knowledge_objects",

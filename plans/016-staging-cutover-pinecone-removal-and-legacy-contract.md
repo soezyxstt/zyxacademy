@@ -21,7 +21,7 @@ Run the complete staging cutover twice, prove rollback, remove Pinecone from the
 
 ## Current state
 
-At the planning snapshot, `lib/vector-store.ts:20-33` imports both Pinecone and Vectorize, `lib/inngest-functions.ts:8-10` imports the Pinecone namespace plus Vectorize mirroring, and `db/schema.ts:1009` stores `pinecone_vector_id`. Plan 012 must make all of these unnecessary before this plan removes runtime dependencies. The existing data-bearing legacy tables are preservation inputs and must not be dropped.
+At the planning snapshot, `lib/vector-store.ts:20-33` imports both Pinecone and Vectorize, `lib/inngest-functions.ts:8-10` imports the Pinecone namespace plus Vectorize mirroring, `lib/gemini.ts` requests 1024-dimension embeddings, and `db/schema.ts:1009` stores `pinecone_vector_id`. Plan 012 must create and reconcile `zyx-vectors-staging-v2` at 768 dimensions using the fixed `canonical-content-v2` Gemini Embedding 2 profile before this plan removes runtime dependencies. The existing data-bearing legacy tables and 1024 Vectorize indexes are preservation inputs and must not be dropped.
 
 ## Git workflow
 
@@ -36,6 +36,7 @@ At the planning snapshot, `lib/vector-store.ts:20-33` imports both Pinecone and 
 - remove `lib/pinecone.ts` and Pinecone-only scripts after caller inventory is zero
 - `lib/vector-store.ts`, `lib/inngest-functions.ts`, `package.json`, lockfile, env schema, and docs
 - remove Pinecone variables from `.env.example` and staging deployment configuration without exposing values
+- remove active 1024-dimension embedding generation and old Vectorize bindings after the 768 cutover is proven
 - new `scripts/staging/full-rehearsal.ts`
 - new `scripts/staging/legacy-caller-inventory.ts`
 - new `scripts/staging/decommission-pinecone.ts`
@@ -55,6 +56,9 @@ Out of scope: production deploy, production schema contract, production Pinecone
 5. Staging Pinecone decommission is a two-step operation: read-only inventory and fingerprint, then exact confirmed removal of the staging index or namespaces. No wildcard or production credential is allowed.
 6. Vector data is rebuildable from Turso. Save final DB and Vectorize manifests before decommission.
 7. Run two complete rehearsals with distinct run IDs. Rehearsal A includes feature rollback. Rehearsal B starts from the rolled-back application state and proves repeatability.
+8. The only active canonical embedding profile after cutover is `canonical-content-v2`: `gemini-embedding-2`, 768 dimensions, cosine, with versioned normalization and task instruction.
+9. `zyx-vectors-staging-v2` is the only canonical Vectorize index bound to the active staging runtime. The 1024 indexes remain unbound and unchanged as rollback evidence; deleting them is out of scope and requires later explicit approval.
+10. Semantic cache may use `zyx-zyra-cache-staging`, also at 768 dimensions, but its profile, instructions, vector IDs, metadata, authorization, and lifecycle remain isolated from canonical retrieval.
 
 ## Full rehearsal sequence
 
@@ -65,11 +69,11 @@ Step verification rule: after every numbered local-code step, run `bun run lint`
 3. Verify all migrations and backfills are no-ops on the already migrated staging database.
 4. Enable flags in dependency order: peran, Idea architecture, product, assessment, mastery, Vectorize-only, Zyra, admin and tutor workflow, then murid workflow.
 5. Drain versioned Inngest work and require zero pending or failed overhaul jobs.
-6. Reconcile Turso, Vectorize, R2 test artifacts, audit events, and Tutorial PKA manifest.
+6. Reconcile Turso, the 768 canonical Vectorize index, the separate 768 semantic-cache index, R2 test artifacts, audit events, and Tutorial PKA manifest. Verify both 1024 index fingerprints remain unchanged.
 7. Run admin, tutor, murid, active assessment, Zyra, and rollback smoke suites.
 8. Turn all new flags off and prove legacy reads still work. Then turn them back on and prove no duplicate data.
 9. Repeat the entire sequence with a second run ID.
-10. Only after both passes, remove Pinecone code, package, env schema, and staging secret references. Run the Pinecone decommission dry run, verify the exact staging fingerprint, then require operator confirmation for the final external deletion.
+10. Only after both passes, remove Pinecone code, package, env schema, staging secret references, active 1024 embedding generation, and old Vectorize bindings. Run the Pinecone decommission dry run, verify the exact staging fingerprint, then require operator confirmation for the final external deletion. Do not delete either preserved 1024 Vectorize resource.
 11. Disable legacy writes in application repositories. Keep legacy read paths needed for history and route compatibility.
 12. Synchronize all documentation and generate the staging go or no-go dossier.
 
@@ -93,7 +97,7 @@ git diff --check
 
 The final external decommission command requires an explicit operator approval at execution time even though it is planned here.
 
-Pass only when both rehearsals have zero count loss, zero checksum mismatch, zero orphan, zero failed queue job, zero unauthorized access, zero assessment leak, zero holdout leak, exact Tutorial PKA parity, exact Vectorize manifest parity, successful flag rollback, and a no-op second backfill. After code removal, repository search and dependency tree must show zero Pinecone runtime dependency. Legacy write callers must be zero.
+Pass only when both rehearsals have zero count loss, zero checksum mismatch, zero orphan, zero failed queue job, zero unauthorized access, zero assessment leak, zero holdout leak, exact Tutorial PKA parity, exact 768 Vectorize manifest parity, successful flag rollback, and a no-op second backfill. Every active canonical upsert and query must use `canonical-content-v2` with exactly 768 values. After code removal, repository search and dependency tree must show zero Pinecone runtime dependency, zero active 1024 embedding generation, and zero old-index binding. Legacy write callers must be zero.
 
 ## Test plan
 
@@ -107,6 +111,7 @@ Classify results and require zero runtime matches:
 
 ```powershell
 rg -n -i "pinecone|PINECONE_|getNs\(|shouldMirrorToVectorize" app components db lib scripts workers package.json bun.lock docs AGENTS.md
+rg -n "outputDimensionality\s*:\s*1024|new Array\(1024\)|zyx-vectors-staging[\"'']" app components lib scripts workers package.json docs AGENTS.md
 rg -n 'role\s*[!=]==?\s*["''](teacher|student)["'']|["''](teacher|student)["'']\s*as\s*const' app components lib db
 rg -n 'from\((knowledgeObjects|websiteMaterials|aiQuestionBank|studentConceptMastery)\)|insert\((knowledgeObjects|websiteMaterials|aiQuestionBank|studentConceptMastery)\)|update\((knowledgeObjects|websiteMaterials|aiQuestionBank|studentConceptMastery)\)' app components lib
 ```
@@ -118,6 +123,9 @@ Documentation history and explicitly named migration fixtures may contain old te
 - Either rehearsal loses one row, key, snapshot, or semantic value.
 - Feature rollback fails or re-enable creates duplicates.
 - Any runtime caller still needs Pinecone.
+- Any active runtime caller generates, upserts, or queries a 1024-dimension vector.
+- The active canonical index is not `zyx-vectors-staging-v2` at exactly 768 dimensions.
+- Canonical retrieval and semantic cache share a profile ID, vector IDs, or an index binding.
 - The decommission fingerprint is ambiguous or not demonstrably staging-only.
 - Any legacy write caller remains.
 - Any data-bearing legacy table is proposed for deletion.
@@ -125,7 +133,7 @@ Documentation history and explicitly named migration fixtures may contain old te
 
 ## Maintenance notes
 
-Legacy data tables remain a preservation boundary until a separately approved production retention plan exists. After Pinecone removal, all vector recovery documentation must point to Turso-to-Vectorize rebuild and never to a second vector source of truth.
+Legacy data tables and the unbound 1024 Vectorize indexes remain a preservation boundary until a separately approved retention plan exists. After Pinecone removal, all active vector recovery documentation must point to Turso-to-768-Vectorize rebuild and never to a second vector source of truth. A future embedding model or dimension change always creates a new profile and side-by-side index.
 
 ## Rollback
 
@@ -141,6 +149,6 @@ Before Pinecone decommission, turn new flags off and deploy the prior staging re
 - The complete overhaul works twice in staging and survives a full flag rollback.
 - All active domain names and access roles use tutor and murid conventions.
 - All active learning reads and writes use Ideas and the new Indonesian schema.
-- Vectorize is the only vector store in staging and Pinecone is absent from runtime code and dependencies.
+- The 768-dimension `zyx-vectors-staging-v2` index is the only active canonical vector store in staging; Pinecone and 1024 embedding paths are absent from runtime code and dependencies.
 - All prior database data remains preserved and operational through the new model or explicit read-only compatibility path.
 - A machine-generated dossier states staging-ready only. It makes no production-readiness claim.

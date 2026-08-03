@@ -24,7 +24,7 @@ Vercel (Next.js App Router)
  ├── Cloudflare R2 (object storage)
  ├── Inngest Cloud (background jobs)
  ├── Cloudflare AI Gateway (Gemini proxy)
- ├── Pinecone (vector store)
+ ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
  └── Cloudflare Workers (3 services)
 ```
 
@@ -76,8 +76,10 @@ workers/vector-api/
 ├── index.ts
 ```
 
-- Proxies upsert/query/delete to Cloudflare Vectorize
-- Required only when `VECTOR_STORE=vectorize` or `dual`
+- Exposes only authenticated `/v2/upsert`, `/v2/query`, `/v2/delete`, `/v2/list`, and `/v2/get` routes
+- Canonical `/v2/get` hydration is sent in batches of at most 20 IDs per request
+- Staging binds only `VECTORIZE_V2` to `zyx-vectors-staging-v2`; the 1024-dimensional indexes remain unbound preservation resources
+- Staging sets `RESTRICTED_SOLUTION_CAPABILITY` so published solution queries require the server-side capability check
 
 ```bash
 cd workers/vector-api
@@ -110,7 +112,7 @@ wrangler deploy
 | Service | Usage | Free Tier Limit |
 |---|---|---|
 | R2 | Object storage (PDFs, assets) | 10 GB, zero egress |
-| Pinecone | Primary vector store | 2 GB Serverless Starter |
+| Cloudflare Vectorize | Canonical 768-dimensional vector store | 2 GB Serverless Starter |
 | Cloudflare AI Gateway | Gemini proxy, caching, rate limiting | 100k logged req/mo |
 | Cloudflare KV | AI response cache | 100k reads/day, 1k writes/day |
 | Inngest | Background job orchestration | 50k steps/mo |

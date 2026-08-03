@@ -287,11 +287,23 @@ export function safeGuardError(error: unknown): { code: string; message: string 
     if (message.includes("foreign key") || message.includes("foreign-key")) {
       return { code: "FOREIGN_KEY_CHECK_FAILED", message: "The staging operation produced foreign-key violations" };
     }
+    if (message.includes("unique constraint") || message.includes("already exists")) {
+      return { code: "STAGING_DATABASE_CONFLICT", message: "The staging database rejected a duplicate migration or object" };
+    }
+    if (message.includes("not authorized") || message.includes("permission denied") || message.includes("forbidden")) {
+      return { code: "STAGING_DATABASE_AUTHORIZATION_FAILED", message: "The staging database rejected the operation" };
+    }
+    if (message.includes("syntax error") || message.includes("no such table") || message.includes("sqlite")) {
+      return { code: "STAGING_DATABASE_ERROR", message: "The staging database rejected the migration operation" };
+    }
     if (message.includes("no such file") || message.includes("enoent")) {
       return { code: "STAGING_ARTIFACT_MISSING", message: "A required staging artifact is missing" };
     }
     if (message.includes("fetch") || message.includes("socket") || message.includes("network") || message.includes("timeout")) {
       return { code: "STAGING_NETWORK_ERROR", message: "The staging service could not be reached" };
+    }
+    if (/^[A-Z][A-Z0-9_]{2,100}$/.test(error.message)) {
+      return { code: error.message, message: "The staging operation failed a named prerequisite" };
     }
   }
   return { code: "STAGING_GUARD_ERROR", message: "The staging guard failed" };

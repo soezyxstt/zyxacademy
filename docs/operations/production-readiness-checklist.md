@@ -32,6 +32,13 @@ This document tracks system validation gates and pre-deployment readiness checks
 - [x] Plan 007 staging export passed with identical pack and ZIP checksums, private run-scoped R2 round trip, complete export audit metadata, exact test-object deletion, and independent content scan. Evidence: `artifacts/staging-overhaul/20260803-plan007-authoring-v1/plan-007-result.json` and `plan-007-scan.json`.
 - [x] Plan 008 Product Bundle V2 staging passed all typed product fixtures, identical retry, conflict rejection, seven-stage rollback rehearsal, dependency blocking, holdout rejection, versioned re-import, atomic publication, and independent reconcile. Evidence: `artifacts/staging-overhaul/20260803-plan008-product-v3/plan-008-result.json` and `plan-008-reconcile.json`. The flag remains disabled outside staging.
 - [ ] Before enabling Plan 005 dual-write, verify `FEATURE_ARSITEKTUR_IDE_V1=1` and `FEATURE_DUAL_WRITE_IDE=1` only in a controlled canary. Keep both flags at `0` for rollback and keep legacy reads authoritative.
+- [x] Plan 012 canonical index uses `canonical-content-v2`, Gemini Embedding 2, 768 dimensions, cosine metric, eight allowlisted metadata indexes, and exact Turso to Vectorize manifest reconciliation.
+- [x] Plan 012 backfill and golden retrieval ran only after explicit operator authorization to transfer canonical staging content to Gemini and Vectorize.
+- [x] Plan 013 proves current-version hydration, course and enrollment scope, active-attempt answer safety, restricted-solution capability, and student-free shared cache payloads.
+- [x] Plan 014 proves the complete admin and tutor workflow, six transition audit envelopes, course scope, and zero legacy writes.
+- [x] Plan 015 proves Tutorial PKA manifest parity, dedicated murid read-model access, no answer fields, immutable historical snapshots, and zero historical mutations.
+- [x] Plan 016 requires two distinct staging rehearsals, full rollback and re-enable, zero active legacy write callers, and either an exact staging-only legacy fingerprint or a deterministic not-provisioned fingerprint. Operator confirmation is required only when a staging Pinecone target exists.
+- [x] Plan 016 final dossier is staging-only and passes `staging:finalize-cutover` only when Plan 012 through Plan 015 result artifacts, both rehearsal artifacts, the zero-caller inventory, and the confirmed decommission state all pass.
 
 ## Architectural Guidelines & Boundaries
 

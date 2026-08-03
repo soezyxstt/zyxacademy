@@ -14,6 +14,9 @@
     "test:ai-contracts": "bun test tests/contracts",
     "eval:ai": "bun scripts/run-ai-evals.ts",
     "vectorize:backfill": "bun scripts/vectorize-backfill.ts",
+    "vectorize:prepare-index": "bun scripts/vectorize-prepare-index.ts",
+    "vectorize:reconcile": "bun scripts/vectorize-reconcile.ts",
+    "vectorize:golden": "bun scripts/vectorize-golden.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bunx tsx db/migrate.ts",
     "db:seed": "bunx tsx db/seed.ts",
@@ -43,6 +46,18 @@
     "staging:scan-assessment-leaks": "bun scripts/staging/scan-assessment-leaks.ts",
     "staging:shadow-idea-mastery": "bun scripts/staging/shadow-idea-mastery.ts",
     "staging:recompute-idea-mastery": "bun scripts/staging/recompute-idea-mastery.ts",
+    "staging:rehearse-flag": "bun scripts/staging/rehearse-flag.ts",
+    "staging:smoke-zyra": "bun scripts/staging/smoke-zyra.ts",
+    "staging:scan-zyra-privacy": "bun scripts/staging/scan-zyra-privacy.ts",
+    "staging:e2e-admin-tutor": "bun scripts/staging/e2e-admin-tutor.ts",
+    "staging:reconcile-audit": "bun scripts/staging/reconcile-audit.ts",
+    "staging:pka-manifest": "bun scripts/staging/pka-manifest.ts",
+    "staging:e2e-murid": "bun scripts/staging/e2e-murid.ts",
+    "staging:reconcile-pka": "bun scripts/staging/reconcile-pka.ts",
+    "staging:full-rehearsal": "bun scripts/staging/full-rehearsal.ts",
+    "staging:finalize-cutover": "bun scripts/staging/finalize-cutover.ts",
+    "staging:legacy-caller-inventory": "bun scripts/staging/legacy-caller-inventory.ts",
+    "staging:decommission-pinecone": "bun scripts/staging/decommission-pinecone.ts",
     "staging:smoke-auth": "bun scripts/staging/smoke-auth.ts",
     "staging:classify-role-literals": "bun scripts/staging/classify-role-literals.ts",
     "db:sync-prod-to-staging:destructive": "bun scripts/sync-turso-db.ts --destructive",
@@ -51,12 +66,10 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1071.0",
     "@aws-sdk/s3-request-presigner": "^3.1071.0",
-    "@cloudflare/workers-types": "^4.20260617.1",
     "@google-analytics/data": "^6.1.0",
     "@google/genai": "^2.8.0",
     "@google/generative-ai": "^0.24.1",
     "@libsql/client": "^0.17.4",
-    "@pinecone-database/pinecone": "^7.2.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@sentry/nextjs": "^10.58.0",
@@ -106,6 +119,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260801.1",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/bun": "^1.3.14",
     "@types/node": "^20.19.43",
@@ -120,7 +134,7 @@
     "nodemon": "^3.1.14",
     "tailwindcss": "^4.3.1",
     "typescript": "^5.9.3",
-    "wrangler": "^4.101.0"
+    "wrangler": "^4.118.0"
   },
   "ignoreScripts": [
     "unrs-resolver"

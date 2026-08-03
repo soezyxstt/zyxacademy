@@ -250,7 +250,7 @@ export function AssessmentBundleImporterTab() {
                       Jalankan Pasca-Proses (Rekomendasi)
                     </Label>
                     <p className="text-body-sm text-muted-foreground">
-                      Memetakan soal ke konsep/materi secara heuristik dan mengantrekan sinkronisasi vektor Pinecone/Vectorize.
+                      Memetakan soal ke konsep/materi secara heuristik dan mengantrekan sinkronisasi canonical Vectorize.
                     </p>
                   </div>
                 </div>

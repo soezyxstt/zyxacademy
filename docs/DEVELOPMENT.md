@@ -38,6 +38,20 @@ bun run dev                  # http://localhost:3000
 | `bun --env-file=.env.staging run staging:scan-context-pack -- --run-id <runId>` | Rebuild and scan the Plan 007 context projection |
 | `bun --env-file=.env.staging run staging:test-product-bundle -- --run-id <runId> --fixture all` | Validate, stage, publish, and rollback-test all Product Bundle V2 types |
 | `bun --env-file=.env.staging run staging:reconcile-bundle -- --run-id <runId> --type product` | Independently reconcile the Plan 008 product publication |
+| `bun --env-file=.env.staging run vectorize:prepare-index -- --run-id <runId> --env staging` | Validate the 768-dimensional canonical staging index and metadata indexes |
+| `bun --env-file=.env.staging run vectorize:backfill -- --run-id <runId> --source db --resume` | Rebuild canonical vectors from Turso through the fixed Gemini Embedding 2 profile |
+| `bun --env-file=.env.staging run vectorize:reconcile -- --run-id <runId> --exact` | Compare the Turso manifest and canonical Vectorize IDs and metadata |
+| `bun --env-file=.env.staging run vectorize:golden -- --run-id <runId> --course <courseId>` | Run canonical retrieval and restricted-solution capability checks |
+| `bun --env-file=.env.staging run staging:smoke-zyra -- --run-id <runId> --course <courseId> --suite canonical` | Run the approved-content Zyra smoke suite |
+| `bun --env-file=.env.staging run staging:scan-zyra-privacy -- --run-id <runId>` | Reconcile Zyra cache and active-attempt privacy artifacts |
+| `bun --env-file=.env.staging run staging:e2e-admin-tutor -- --run-id <runId> --course <courseId>` | Exercise the guarded admin and tutor workflow fixture |
+| `bun --env-file=.env.staging run staging:e2e-murid -- --run-id <runId> --course <courseId> --account dedicated` | Exercise the dedicated murid read-model smoke |
+| `bun --env-file=.env.staging run staging:full-rehearsal -- --run-id <runId> --plan-012-run-id <runId> --plan-013-run-id <runId> --plan-014-run-id <runId> --plan-015-run-id <runId> --with-rollback` | Rehearse canonical enable, full rollback, and re-enable after all predecessor result artifacts pass |
+| `bun --env-file=.env.staging run staging:legacy-caller-inventory -- --run-id <runId> --fail-on-write` | Inventory remaining legacy provider matches and fail on active writers |
+| `bun --env-file=.env.staging run staging:decommission-pinecone -- --dry-run --not-provisioned` | Record the exact deterministic absence fingerprint when staging never provisioned a legacy Pinecone index |
+| `bun --env-file=.env.staging run staging:finalize-cutover -- --run-id <runId> --run-a <runId> --run-b <runId> --plan-012-run-id <runId> --plan-013-run-id <runId> --plan-014-run-id <runId> --plan-015-run-id <runId> --inventory-run-id <runId> --decommission-run-id <runId>` | Generate the staging-only Plan 016 go or no-go dossier after both rehearsals, zero runtime legacy callers, and confirmed decommission |
+
+Canonical vector IDs preserve the database entity identity in metadata. IDs containing `:` use the shared URI-encoded vector-ID segment and are decoded before Turso hydration. If a Gemini rate limit interrupts `vectorize:backfill`, rerun the same `--run-id` with `--resume`; the artifact checkpoint prevents already processed vector IDs from being embedded or upserted again. Do not switch models or use a 1024-dimensional fallback.
 
 ## Environment Variables
 
@@ -60,10 +74,13 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN` ; Cloudflare AI Gateway
 - `CF_ACCOUNT_ID`, `CF_KV_NAMESPACE_ID`, `CF_API_TOKEN` ; KV cache for tutor
 
-### Optional ; Vector Store
-- `PINECONE_API_KEY`, `PINECONE_INDEX_NAME` ; Pinecone (default)
-- `VECTOR_STORE` ; `pinecone` (dev) | `dual` | `vectorize`
-- `VECTORIZE_WORKER_URL`, `VECTORIZE_SHARED_SECRET` ; Cloudflare Vectorize
+### Optional ; Canonical Vectorize
+- `VECTORIZE_WORKER_URL`, `VECTORIZE_SHARED_SECRET` ; authenticated canonical Vectorize worker
+- `RESTRICTED_SOLUTION_CAPABILITY` ; staging Worker capability required for published solution retrieval
+- `FEATURE_VECTORIZE_ONLY_V1` ; canonical 768-dimensional retrieval and outbox writes
+- `FEATURE_ZYRA_IDEA_RUNTIME_V1` ; canonical Zyra hydration and assessment safety
+- `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` ; admin and tutor content lifecycle
+- `FEATURE_MURID_IDEA_WORKFLOW_V1` ; murid Idea read model and compatibility adapters
 
 ### Optional ; Production Services
 - `DIKTAT_RENDERER_URL`, `DIKTAT_RENDERER_SECRET` ; Puppeteer PDF service
@@ -147,6 +164,10 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_IDEA_BUNDLE_V2` | Strict ZIP Idea Bundle upload, review, and publication |
 | `FEATURE_AUTHORING_CONTEXT_V1` | Deterministic redacted authoring context export |
 | `FEATURE_PRODUCT_BUNDLE_V2` | Typed product bundle workflow and atomic publication |
+| `FEATURE_VECTORIZE_ONLY_V1` | Canonical 768-dimensional Vectorize-only indexing and retrieval |
+| `FEATURE_ZYRA_IDEA_RUNTIME_V1` | Course-scoped Zyra retrieval and approved-content hydration |
+| `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` | Admin and tutor content lifecycle with mutation audit |
+| `FEATURE_MURID_IDEA_WORKFLOW_V1` | Murid Idea-centered read model and Tutorial PKA adapters |
 | `FEATURE_TUTOR_RAG` | Grounded AI tutor pipeline (P3) |
 | `FEATURE_FEEDBACK` | Answer feedback |
 | `FEATURE_STUDY_PATH` | Personalized study paths |

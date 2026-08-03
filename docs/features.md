@@ -177,6 +177,24 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - `lib/asesmen/benchmark-policy.ts` rejects exact duplicates, applies versioned similarity thresholds, and keeps holdout content inside the benchmark boundary. Missing thresholds produce `needs_review`.
 - When `FEATURE_ASESMEN_IDE_V1=1`, quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
 
+### Canonical Vectorize Retrieval V2
+
+- Canonical content is indexed through the `canonical-content-v2` profile using Gemini Embedding 2, 768 dimensions, cosine distance, versioned IDs, and allowlisted metadata.
+- Turso remains the source of truth. `vector_sync_queue` is the retryable outbox, and the staging worker exposes only the authenticated `/v2/*` contract.
+- `FEATURE_VECTORIZE_ONLY_V1` is the read and write switch. When absent or `0`, the compatibility path is read-only. When `1`, active retrieval uses `zyx-vectors-staging-v2` in staging.
+- The old 1024-dimensional indexes are preserved as unbound rollback evidence. They are not active sources of truth.
+
+### Zyra Canonical Runtime V1
+
+- `FEATURE_ZYRA_IDEA_RUNTIME_V1` enables course-scoped retrieval that rehydrates current approved content from Turso before it reaches the tutor response.
+- Enrollment, status, version, content hash, active-assessment, restricted-solution capability, and source attribution checks fail closed.
+- Shared cache payloads remain student-free and active attempts never receive answer-bearing content.
+
+### Admin, Tutor, and Murid Workflows
+
+- `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` enables the guarded `alur_konten` lifecycle from upload through tutor review, admin approval, publication, supersession, or withdrawal. Every mutation carries an actor, course, version, request, reason, and snapshot hash in `audit_mutasi`.
+- `FEATURE_MURID_IDEA_WORKFLOW_V1` enables the `/murid` read model and compatibility route adapters. It projects published Ideas and preserves Tutorial PKA and historical attempt snapshots without rewriting them.
+
 ## Money & Quota Rules
 
 - AI quota spent only on: tutoring, mistake feedback, content generation

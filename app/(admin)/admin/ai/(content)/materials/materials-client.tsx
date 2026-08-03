@@ -1095,7 +1095,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                 <div className="flex gap-2 p-3 bg-muted/30 border border-border rounded-lg text-xs text-muted-foreground">
                   <Info className="size-4 shrink-0 mt-0.5 text-primary" />
                   <span>
-                    <strong className="text-foreground">Cara kerja dual-document:</strong> PDF disimpan sebagai arsip sumber asli dan tidak diproses. Markdown kanonik adalah satu-satunya input yang dianalisis LLM, diindeks ke Pinecone (RAG), dan menghasilkan Knowledge Objects.
+                    <strong className="text-foreground">Cara kerja dual-document:</strong> PDF disimpan sebagai arsip sumber asli dan tidak diproses. Markdown kanonik adalah satu-satunya input yang dianalisis LLM, diindeks ke canonical Vectorize (RAG), dan menghasilkan Knowledge Objects.
                   </span>
                 </div>
               </div>
