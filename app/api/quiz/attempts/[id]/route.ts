@@ -19,6 +19,8 @@ import { env } from '@/lib/env';
 import { PKA_COURSE_ID } from '@/lib/pka-config';
 import { normalizeDate } from '@/lib/date-utils';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
+import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
+import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -120,6 +122,7 @@ export async function POST(req: NextRequest, { params }: Context) {
     question_type?: string;
     correct_indices?: number[];
     acceptable_answers?: string[];
+    stable_option_ids?: string[];
   }>;
 
   function checkAnswerCorrectness(q: any, submitted: any): boolean {
@@ -137,6 +140,14 @@ export async function POST(req: NextRequest, { params }: Context) {
     const indices = Array.isArray(submitted) ? submitted : [];
     const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
     if (correct.length === 0) return false;
+    if (env.FEATURE_ASESMEN_IDE_V1 === '1' && Array.isArray(q.stable_option_ids)) {
+      return gradeStableOptionAnswer({
+        stableOptionIds: q.stable_option_ids,
+        correctIndices: correct,
+        submitted,
+        questionType: qType,
+      });
+    }
     if (qType === "multiple_choice") {
       const firstIdx = indices[0];
       return firstIdx !== undefined && correct.includes(firstIdx);
@@ -223,19 +234,31 @@ export async function POST(req: NextRequest, { params }: Context) {
   const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - startedMs) / 1000));
   const finalDurationSeconds = durationSeconds !== undefined ? Math.min(durationSeconds, elapsedSeconds) : elapsedSeconds;
 
-  await db
-    .update(studentQuizAttempts)
-    .set({
+  await db.transaction(async (tx) => {
+    await tx
+      .update(studentQuizAttempts)
+      .set({
+        status: 'completed',
+        score,
+        durationSeconds: finalDurationSeconds,
+        answersSnapshot: answers as unknown as Record<string, unknown>,
+        submittedAt: now,
+        strongAreas,
+        weakAreas,
+        recommendedNextSteps: nextSteps,
+      })
+      .where(eq(studentQuizAttempts.id, id));
+    await dualWriteQuizAttempt(tx, {
+      id,
+      templateId: attempt.templateId,
+      studentId: attempt.studentId,
       status: 'completed',
-      score,
-      durationSeconds: finalDurationSeconds,
-      answersSnapshot: answers as unknown as Record<string, unknown>,
+      questionsSnapshot: snapshot,
+      answersSnapshot: answers,
+      startedAt: normalizeDate(attempt.startedAt),
       submittedAt: now,
-      strongAreas,
-      weakAreas,
-      recommendedNextSteps: nextSteps,
-    })
-    .where(eq(studentQuizAttempts.id, id));
+    }, attempt.studentId);
+  });
 
   if (template) {
     const events = snapshot.map((q) => {

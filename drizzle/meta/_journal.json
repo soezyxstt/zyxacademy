@@ -358,6 +358,62 @@
       "when": 1785548916393,
       "tag": "0050_white_marvel_zombies",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1785673689197,
+      "tag": "0051_dapper_vector",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1785677504572,
+      "tag": "0052_kind_warlock",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1785683586781,
+      "tag": "0053_faithful_blazing_skull",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
+      "when": 1785688255048,
+      "tag": "0054_green_archangel",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1785691863179,
+      "tag": "0055_cute_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1785695934975,
+      "tag": "0056_elite_midnight",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "6",
+      "when": 1785707852581,
+      "tag": "0057_outgoing_rage",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "6",
+      "when": 1785712531862,
+      "tag": "0058_open_galactus",
+      "breakpoints": true
     }
   ]
 }

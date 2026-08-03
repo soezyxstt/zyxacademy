@@ -6,6 +6,8 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 
 ## User Roles
 
+Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps the legacy `user.role` projection during the expand phase. `FEATURE_PERAN_V2` switches the admin and tutor layout gates to domain memberships without changing chat speaker values such as `student`.
+
 ### Student
 - Redeems enrollment tokens to access courses
 - Views personalized dashboard with progress, weak concepts, daily recommendations
@@ -51,6 +53,55 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 5. Canonical concept resolution checks exact names, aliases, and flags high embedding similarity without exact match as `ambiguous`
 6. Run validated and assigned state (`staged`, `accepted`, `needs_review`, `failed`)
 7. Accepted runs persisted atomically using stable identity keys (`stableKey`) without destructive deletion
+
+### Canonical Source and Idea Domain
+1. Versioned source metadata is stored in `sumber_materi` with a checksum and canonical URI or R2 key.
+2. Exact source spans are stored in `potongan_sumber` with offsets, checksums, and embedding eligibility.
+3. `ide` provides the future course and chapter learning atom with optional global `concepts` linkage, semantic hashes, and explicit source policy.
+4. `asal_ide`, `relasi_ide`, and `ketergantungan_produk` preserve provenance, typed relations, and freshness transitions.
+5. `FEATURE_ARSITEKTUR_IDE_V1` remains off; existing KOs and callers are unchanged until later plans.
+
+### Product, Assessment, and Idea Mastery Domain
+1. Articles, diktat materials, questions, solutions, and flashcards have normalized versioned target records with source and generation hashes.
+2. Published products require at least one published Idea; question links support multiple Ideas with positive weights whose sum is checked within `0.000001`.
+3. Assessment definitions separate blueprint, assessment, chapter scope, ordered items, attempts, and answers. Quiz scope is exactly one chapter; tryout scope is one or more chapters.
+4. Attempt and answer records carry rendered question, option order, response, grading policy, and content version snapshots so later content changes do not alter historical context.
+5. Answer evidence records Idea attribution, contribution, weight, confidence, evidence source, rubric version, and derivation status. Ambiguous evidence is retained but cannot affect mastery.
+6. `pemahaman_ide` stores score and confidence as separate 0 to 100 values, with append-only change history, replay metadata, and deterministic flashcard recommendations. Only attributable verified evidence contributes to the score; a legacy concept baseline is explicitly labelled and never copied to an Idea.
+7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
+8. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` until the later workflow canaries; current legacy records remain unchanged.
+
+### Idea Bundle V2 Workflow
+
+1. Admins upload strict ZIP bundles from `/admin/bundles/idea`; validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
+2. Valid uploads create an immutable import record and entity inventory without writing canonical source or Idea rows. Identical retries are no-ops and a different checksum for the same bundle ID is blocked.
+3. Assigned tutors can review provenance and Idea correctness. Admin approval and rejection decisions are audited and immutable.
+4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically.
+5. `FEATURE_IDEA_BUNDLE_V2` controls the workflow. When absent or `0`, the legacy JSON importer remains visible for rollback.
+
+### Authoring Context Pack V1
+
+1. Admins can export a deterministic context pack from `/admin/authoring-context` rooted in a selected course snapshot.
+2. The allowlist includes only published current reviewed Ideas, active source excerpts, provenance, relations, objectives, safe requirements, and allowed benchmark summaries.
+3. Holdout content, murid data, credentials, signed URLs, embeddings, and unpublished or stale content are excluded and counted or scanned before storage.
+4. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata.
+5. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables the UI and API when absent or `0`.
+
+### Product Bundle V2 Workflow
+
+1. Admins upload typed ZIP bundles from `/admin/bundles/product`; the server validates product schemas, checksums, Idea and source traceability, renderable blocks, assessment scope, atomic flashcards, and holdout markers.
+2. Valid uploads create immutable staged inventories. Identical retries write no rows, while a different checksum for the same bundle ID is rejected.
+3. Reviewers see a server-rendered preview for every product type with source and Idea IDs. Tutor approval is course-scoped and admin approval is required for publication.
+4. Publication verifies current published Ideas, active source excerpts, identities, and dependency freshness before one transaction writes products, links, dependencies, vector outbox entries, publication state, and mutation audit records.
+5. `FEATURE_PRODUCT_BUNDLE_V2` hides the page and API when absent or `0`; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
+
+### Article and Diktat Quality Compiler
+
+1. Approved article products are normalized into typed pedagogic blocks with Idea IDs, source excerpts, learning purpose, generation hash, and reviewer state.
+2. Required article coverage includes prior-knowledge activation, problem introduction, per-Idea teaching blocks, synthesis for multi-Idea articles, summary, and retrieval close. Conditional blocks must carry a typed inapplicability reason.
+3. Idea prerequisites are ordered deterministically and cycles are rejected before compilation. Quality gates reject stale dependencies, empty blocks, broken math delimiters, missing traceability, and rejected review states.
+4. Diktat material is compressed only from an approved article representation. The compression report records the source article version and hash, every removed block, preserved formulas, preserved Idea coverage, and source traces.
+5. Admin previews expose block-level Idea and source traceability plus stable quality-gate reason codes. `FEATURE_MATERIAL_COMPILER_V2` keeps the new publication gate disabled when absent or `0`.
 
 ### Website Material Generation
 1. All KOs for a chapter are collected in order
@@ -119,6 +170,30 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Active attempt answer protection: GET `/api/quiz/attempts` and `/api/quiz/attempts/[id]` strip `correct_indices`, stored explanations, and grading feedback during in-progress attempts.
 - Deterministic assistance policy engine (`lib/assessment-assistance-policy.ts`): gates AI tutor and mistake feedback based on activity kind (study, practice, quiz, simulation, exam), attempt state, answer release state, and match state.
 - Answer release state matrix: active attempts enforce `socratic_only` or `refuse_answer_reveal`; completed attempts follow release settings (`hidden`, `rationale_only`, `released`).
+
+### Assessment Integrity V2
+- `lib/asesmen/blueprint.ts` compiles quiz and tryout blueprints with exact largest-remainder dimension allocation, explicit chapter scope, reproducible seeds, and publication eligibility checks.
+- `lib/asesmen/evidence-rubric.ts` derives versioned per-Idea evidence from stable option IDs. Ambiguous evidence and misconception mappings never affect mastery, and free-response evidence requires a reviewed rubric or grading result.
+- `lib/asesmen/benchmark-policy.ts` rejects exact duplicates, applies versioned similarity thresholds, and keeps holdout content inside the benchmark boundary. Missing thresholds produce `needs_review`.
+- When `FEATURE_ASESMEN_IDE_V1=1`, quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
+
+### Canonical Vectorize Retrieval V2
+
+- Canonical content is indexed through the `canonical-content-v2` profile using Gemini Embedding 2, 768 dimensions, cosine distance, versioned IDs, and allowlisted metadata.
+- Turso remains the source of truth. `vector_sync_queue` is the retryable outbox, and the staging worker exposes only the authenticated `/v2/*` contract.
+- `FEATURE_VECTORIZE_ONLY_V1` is the read and write switch. When absent or `0`, the compatibility path is read-only. When `1`, active retrieval uses `zyx-vectors-staging-v2` in staging.
+- The old 1024-dimensional indexes are preserved as unbound rollback evidence. They are not active sources of truth.
+
+### Zyra Canonical Runtime V1
+
+- `FEATURE_ZYRA_IDEA_RUNTIME_V1` enables course-scoped retrieval that rehydrates current approved content from Turso before it reaches the tutor response.
+- Enrollment, status, version, content hash, active-assessment, restricted-solution capability, and source attribution checks fail closed.
+- Shared cache payloads remain student-free and active attempts never receive answer-bearing content.
+
+### Admin, Tutor, and Murid Workflows
+
+- `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` enables the guarded `alur_konten` lifecycle from upload through tutor review, admin approval, publication, supersession, or withdrawal. Every mutation carries an actor, course, version, request, reason, and snapshot hash in `audit_mutasi`.
+- `FEATURE_MURID_IDEA_WORKFLOW_V1` enables the `/murid` read model and compatibility route adapters. It projects published Ideas and preserves Tutorial PKA and historical attempt snapshots without rewriting them.
 
 ## Money & Quota Rules
 

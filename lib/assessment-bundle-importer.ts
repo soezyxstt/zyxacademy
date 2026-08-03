@@ -16,13 +16,11 @@
  * in-memory bundle-local $id map built while importing that bundle's
  * chapters; see resolveChapterRef in import-actions.ts.
  *
- * Re-importing the same source diffs assessmentObjects by
- * `canonicalQuestionHash` (stable across reordering): unchanged objects are
- * left untouched, changed ones are updated in place, new ones are inserted.
- * The assessmentObjects table has no retire/soft-delete column, so objects
- * removed from a re-uploaded source are left in the database untouched
- * rather than deleted; they show up as `aoOrphaned` in the diff for the
- * admin to clean up manually if needed.
+ * Re-importing the same source is idempotent by source hash. A changed source
+ * gets a new immutable source version and new assessment object IDs; the
+ * previous source and objects remain queryable. Objects removed from a
+ * re-uploaded source are left in the previous version and are reported as
+ * `aoOrphaned` for review.
  */
 
 import { db } from "@/db";
@@ -51,7 +49,9 @@ export type AssessmentImportMode = "create" | "upsert" | "append";
 export interface AssessmentSourceDiff {
   sourceId: string;
   sourceTitle: string;
+  version: number;
   isNew: boolean;
+  preservedPreviousVersion: boolean;
   aoAdded: number;
   aoUpdated: number;
   aoUnchanged: number;
@@ -204,24 +204,22 @@ export async function importAssessmentBundle(
       for (const as of assessmentSourcesInput) {
         if (!as.title) throw new Error("Each assessmentSource must specify a title.");
 
-        let asrcUuid = `asrc-${randomUUID()}`;
-        let isNew = true;
-        if (mode !== "create") {
-          const [existingAsrc] = await tx
-            .select()
-            .from(assessmentSources)
-            .where(and(eq(assessmentSources.courseId, courseId), eq(assessmentSources.title, as.title)))
-            .limit(1);
-          if (existingAsrc) {
-            asrcUuid = existingAsrc.id;
-            isNew = false;
-          }
-        }
-
-        if (mode === "append" && !isNew) {
+        const sourceHash = sha256(as.sourceMarkdown);
+        const existingSources = mode === "create"
+          ? []
+          : await tx.select().from(assessmentSources).where(and(eq(assessmentSources.courseId, courseId), eq(assessmentSources.title, as.title)));
+        const exactSource = existingSources.find((source) => source.sourceHash === sourceHash);
+        const latestSource = [...existingSources].sort((left, right) => right.version - left.version)[0];
+        if (mode === "append" && latestSource) {
           log(`Assessment source "${as.title}": already exists, skipped (append mode).`);
           continue;
         }
+
+        const isNew = !exactSource;
+        const sourceVersion = exactSource?.version ?? (latestSource?.version ?? 0) + 1;
+        const asrcUuid = exactSource?.id ?? (latestSource && mode === "upsert"
+          ? `asrc-${sha256(`${courseId}:${as.title}:${sourceVersion}:${sourceHash}`).slice(0, 32)}`
+          : `asrc-${randomUUID()}`);
 
         const sourceFields = {
           title: as.title,
@@ -230,7 +228,8 @@ export async function importAssessmentBundle(
           year: as.year,
           semester: as.semester || null,
           sourceMarkdown: as.sourceMarkdown,
-          sourceHash: sha256(as.sourceMarkdown),
+          sourceHash,
+          version: sourceVersion,
           originalFilename: as.source?.file || null,
           uploadedByUserId: authorUuid,
           ingestionStatus: "completed" as const,
@@ -239,22 +238,6 @@ export async function importAssessmentBundle(
 
         if (isNew) {
           await tx.insert(assessmentSources).values({ id: asrcUuid, courseId, ...sourceFields });
-        } else if (mode === "upsert") {
-          await tx
-            .update(assessmentSources)
-            .set({
-              title: sourceFields.title,
-              category: sourceFields.category,
-              year: sourceFields.year,
-              semester: sourceFields.semester,
-              sourceMarkdown: sourceFields.sourceMarkdown,
-              sourceHash: sourceFields.sourceHash,
-              originalFilename: sourceFields.originalFilename,
-              ingestionStatus: sourceFields.ingestionStatus,
-              ingestionCompletedAt: sourceFields.ingestionCompletedAt,
-              updatedAt: new Date(),
-            })
-            .where(eq(assessmentSources.id, asrcUuid));
         }
         asCount++;
 
@@ -342,14 +325,16 @@ export async function importAssessmentBundle(
 
         log(
           `Assessment source "${as.title}": ${aoAdded} object(s) added, ${aoUpdated} updated, ${aoUnchanged} unchanged` +
-            (aoOrphaned > 0 ? `, ${aoOrphaned} no longer present in bundle (left untouched, no retire column on assessment_objects)` : "") +
+            (aoOrphaned > 0 ? `, ${aoOrphaned} no longer present in bundle (preserved in the previous source version)` : "") +
             ".",
         );
 
         sourceDiffs.push({
           sourceId: asrcUuid,
           sourceTitle: as.title,
+          version: sourceVersion,
           isNew,
+          preservedPreviousVersion: Boolean(latestSource && isNew),
           aoAdded,
           aoUpdated,
           aoUnchanged,

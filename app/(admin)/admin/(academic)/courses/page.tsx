@@ -9,6 +9,7 @@ import { PDFMaterialsTab } from "@/components/admin/pdf-materials-tab";
 import { BundleImporterTab } from "@/components/admin/bundle-importer-tab";
 import { AssessmentBundleImporterTab } from "@/components/admin/assessment-bundle-importer-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { env } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: pageTitle("Kelola Mata Kuliah"),
@@ -27,6 +28,7 @@ export default async function AdminCoursesPage() {
     getAllChapters(),
     getUploadedMaterials(),
   ]);
+  const ideaBundleV2Enabled = env.FEATURE_IDEA_BUNDLE_V2 === "1";
 
   return (
     <div className="space-y-6">
@@ -46,10 +48,12 @@ export default async function AdminCoursesPage() {
             <FileText className="size-4" />
             Unggah PDF (Materi & Soal)
           </TabsTrigger>
-          <TabsTrigger value="bundle-importer" className="rounded-lg font-semibold flex items-center gap-1.5 px-4 py-2">
-            <Layers className="size-4" />
-            Import Learning Bundle
-          </TabsTrigger>
+          {!ideaBundleV2Enabled && (
+            <TabsTrigger value="bundle-importer" className="rounded-lg font-semibold flex items-center gap-1.5 px-4 py-2">
+              <Layers className="size-4" />
+              Import Learning Bundle
+            </TabsTrigger>
+          )}
           <TabsTrigger value="assessment-bundle-importer" className="rounded-lg font-semibold flex items-center gap-1.5 px-4 py-2">
             <HelpCircle className="size-4" />
             Import Assessment Bundle
@@ -68,9 +72,11 @@ export default async function AdminCoursesPage() {
           />
         </TabsContent>
 
-        <TabsContent value="bundle-importer" className="outline-hidden">
-          <BundleImporterTab />
-        </TabsContent>
+        {!ideaBundleV2Enabled && (
+          <TabsContent value="bundle-importer" className="outline-hidden">
+            <BundleImporterTab />
+          </TabsContent>
+        )}
 
         <TabsContent value="assessment-bundle-importer" className="outline-hidden">
           <AssessmentBundleImporterTab />

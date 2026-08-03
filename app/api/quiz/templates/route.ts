@@ -11,6 +11,8 @@ import { quizTemplates } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, desc } from 'drizzle-orm';
+import { env } from '@/lib/env';
+import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
 
 const CreateTemplateSchema = z.object({
   courseId: z.string().min(1),
@@ -33,6 +35,10 @@ const CreateTemplateSchema = z.object({
         hard: z.number().int().min(0),
       })
       .optional(),
+    assessmentType: z.enum(['quiz', 'tryout']).optional(),
+    chapterIds: z.array(z.string().min(1)).optional(),
+    blueprint: z.record(z.string(), z.unknown()).optional(),
+    seed: z.number().int().optional(),
   }),
 });
 
@@ -62,6 +68,16 @@ export async function POST(req: NextRequest) {
     closeAt,
     manualStatus,
   } = parsed.data;
+
+  if (env.FEATURE_ASESMEN_IDE_V1 === '1' && selectionRules.assessmentType) {
+    const scope = assessmentScopeSchema.safeParse({
+      assessmentType: selectionRules.assessmentType,
+      chapterIds: selectionRules.chapterIds ?? [],
+    });
+    if (!scope.success) {
+      return NextResponse.json({ error: 'Assessment scope must match quiz or tryout chapter rules.' }, { status: 400 });
+    }
+  }
 
   // Uniqueness check for tags per course
   const tags = (selectionRules.tags as string[] | undefined) || [];

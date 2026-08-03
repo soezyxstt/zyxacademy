@@ -20,7 +20,7 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `email`
 * `emailVerified`: Boolean flag indicating whether the user's email has been verified.
 * `image`: URL of the user's profile avatar.
-* `role`: User permissions tier, which can be 'admin', 'teacher', or 'student'.
+* `role`: Temporary compatibility projection, which can be 'admin', 'teacher', or 'student' during the expand phase. Canonical authorization uses `pengguna_peran` when `FEATURE_PERAN_V2=1`.
 * `createdAt`
 * `updatedAt`
 
@@ -54,6 +54,26 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `expiresAt`: Verification link expiration timestamp.
 * `createdAt`
 * `updatedAt`
+
+### pengguna
+* `id`: One-to-one primary key and `RESTRICT` foreign key to `user.id`.
+* `status`: Domain identity status, currently `active` or `suspended`.
+* `createdAt`
+* `updatedAt`
+
+### peran
+* `id`: Stable immutable role identifier.
+* `code`: Canonical access role, `admin`, `tutor`, or `murid`.
+* `createdAt`
+
+### pengguna_peran
+* `id`: Deterministic membership identifier for backfilled rows.
+* `penggunaId`: Domain identity foreign key.
+* `peranId`: Canonical role foreign key.
+* `source`: Provisioning or migration source.
+* `auditActorPenggunaId`: Optional course-independent domain audit actor.
+* `createdAt`
+* `(penggunaId, peranId)` is unique. The table supports multiple roles for one identity.
 
 ---
 
@@ -201,6 +221,68 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `aliases`: Alternative naming list stored as a JSON string array.
 * `embedding`: Normalized high-dimensional text embedding representation.
 
+## 5.1 Canonical Source and Idea Domain
+
+Plan 003 adds these tables without changing legacy courses, chapters, enrollments, tutor assignments, KOs, source spans, relationships, or the global `concepts` registry.
+
+### mata_kuliah
+* `id`, `code`, `title`, `status`
+* `legacyCourseId`: Optional compatibility reference to `courses.id`.
+* `createdAt`, `updatedAt`
+
+### bab
+* `id`, `mataKuliahId`, `code`, `title`, `orderIndex`, `status`
+* `legacyChapterId`: Optional compatibility reference to `chapters.id`.
+* `(mataKuliahId, code)` and `(mataKuliahId, orderIndex)` are unique.
+
+### pendaftaranMurid
+* `id`, `penggunaId`, `mataKuliahId`, `status`
+* `startAt`, `endAt`
+* `legacyEnrollmentId`: Optional compatibility reference to `enrollments.id`.
+
+### penugasanTutor
+* `id`, `penggunaId`, `mataKuliahId`, `status`, `assignmentScope`
+* `legacyTutorCourseId`: Optional compatibility reference to `tutor_courses.id`.
+
+### sumberMateri
+* `id`, `mataKuliahId`, optional `babId`, `sourceType`, `title`
+* `canonicalUriOrR2Key`, `version`, `checksum`, `status`
+* `creatorId`, `createdAt`, `updatedAt`
+
+### potonganSumber
+* `id`, `sumberMateriId`, `sourceVersion`, `content`
+* `pageNumber`, `sectionLocator`, `startOffset`, `endOffset`, `checksum`
+* `embeddingEligible`, `createdAt`, `updatedAt`
+* Source offsets must be non-negative and `endOffset` must be greater than `startOffset`.
+
+### ide
+* `id`, `mataKuliahId`, `babId`, optional `conceptId`, `stableKey`, `code`
+* `canonicalStatement`, `conciseExplanation`, optional `latex`
+* `knowledgeKind`, `instructionalRole`, `difficultyMetadata`, `version`, `status`
+* `sourcePolicy`, `schemaVersion`, `semanticHash`, `generationHash`
+* `creatorId`, optional `curatorId`, `createdAt`, `updatedAt`
+* `stableKey` is unique. No provider-specific vector identifier is stored.
+
+### asalIde
+* `id`, `ideId`, `sourceChunkId`, `provenanceRole`
+* `startOffset`, `endOffset`, `sourceChecksum`, optional `note`
+* The Idea, source chunk, and exact span tuple is unique.
+
+### relasiIde
+* `id`, `sourceIdeaId`, `targetIdeaId`, `relationType`, optional `explanation`
+* `version`, `status`, `createdAt`, `updatedAt`
+* Self-relations are rejected by a database check. Active prerequisite cycles are rejected by the contract layer.
+
+### ketergantunganProduk
+* Upstream and downstream entity type, ID, version, and hash fields.
+* `freshness`: `UP_TO_DATE`, `NEEDS_REVIEW`, or `STALE`.
+* `reason`, `createdAt`, `updatedAt`
+
+### petaIdLegacy
+* `legacyTable`, `legacyId`, `targetTable`, `targetId`
+* `mappingVersion`, `sourceChecksum`, `targetChecksum`, `runId`
+* Legacy and target identity pairs are each unique.
+
 ### conceptGraphEdges
 * `id`
 * `courseId`
@@ -213,6 +295,49 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `chapterId`
 * `aliasName`: Text variation of chapter name, used to automatically map raw text mentions to chapters.
 * `createdAt`
+
+## 5.2 Product, Assessment, Evidence, and Bundle Domain
+
+Plan 004 adds the normalized target tables below. Plan 005 owns deterministic mapping and backfill. Existing English product, assessment, attempt, flashcard, learning-event, and mastery tables remain active and authoritative for reads during the expand phase.
+
+### Product tables
+* `artikel`, `artikel_ide`, `blok_artikel`: Markdown article versions, Idea links, and ordered blocks.
+* `diktat_materi`, `diktat_ide`, `diktat_pembahasan`, `item_diktat_pembahasan`: Material and explanation versions with Idea links and question snapshots.
+* `soal`, `soal_ide`, `soal_relasi_ide`, `pembahasan_soal`: Versioned questions, multi-Idea weights, independent relation metadata, and solutions.
+* `set_flashcard`, `flashcard`, `flashcard_ide`: Versioned flashcard sets and multi-Idea links.
+* `kemajuan_flashcard_murid`, `review_flashcard`: Per-murid scheduling state and review history.
+
+Published article, material, question, solution, and flashcard records are required by the contract layer to reference at least one published Idea. `soal_ide.weight` has a database range check and the per-question sum is validated within `0.000001` by the domain contract.
+
+### Assessment tables
+* `blueprint_asesmen`, `asesmen`, `cakupan_asesmen`: Assessment definition, version, lifecycle, and chapter scope.
+* `item_asesmen`: Ordered question membership with rendered question, option order, grading policy, content version, and generation snapshots.
+* `percobaan_asesmen`, `jawaban_murid`: Historical attempt and answer records with required immutable snapshot fields.
+
+Quiz and tryout cardinality is enforced by the assessment contract: a quiz has exactly one chapter and a tryout has at least one chapter. Foreign keys and unique indexes protect assessment item and answer membership.
+
+### Evidence and mastery tables
+* `bukti_ide_jawaban`, `bukti_pembelajaran`: Idea-level evidence with contribution, confidence, source, rubric version, and derivation status. `bukti_pembelajaran` has a unique idempotency key across source, Idea, and rubric.
+* `pemahaman_ide`: Separate `skor` and `keyakinan` values, each bounded from 0 to 100, plus `algorithm_version` and `input_watermark` for deterministic replay.
+* `perubahan_pemahaman`, `rekomendasi_flashcard`: History-safe mastery transitions and due recommendations. Change rows retain `evidence_ids`, algorithm version, and watermark.
+
+Ambiguous evidence is stored with explicit status and the schema check prevents it from being marked as mastery-affecting. Plan 011 recomputes only the additive per-Idea tables; no legacy mastery, learning-event, answer, or review row is rewritten.
+
+### Bundle and audit tables
+* `impor_bundle`, `item_impor_bundle`: Checksum-identified import and entity inventory, optional legacy course association, and JSON validation report.
+* `review_bundle`, `publikasi_bundle`: Review decision and publication record; publication references the approved import review through foreign keys and contract validation.
+* `audit_mutasi`: Actor, entity, action, snapshots, correlation ID, and timestamp for mutation auditability.
+
+Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. A matching bundle ID and checksum is idempotent; a different checksum is a conflict. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
+
+Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Product item types are recorded in the inventory, while canonical article, diktat, question, solution, flashcard, and assessment blueprint rows are inserted only after traceability and dependency checks pass. Versions greater than one use versioned product IDs so prior rows remain queryable. No schema migration was required for this workflow.
+
+### Plan 005 migration tables
+* `legacy_backfill_exceptions`: Zero-loss preservation ledger for a legacy row that has no exact additive representation. It stores `runId`, source table and ID, reason code, preservation path, source checksum, details, and `blocksCutover`.
+* `peta_id_legacy`: One-to-one source and target identity mapping with mapping version and source and target checksums.
+* `migration_runs`, `migration_checkpoints`: Resumable run state and bounded batch checkpoints used by the staging backfill engine.
+
+Plan 005 populated the additive targets where the mapping was exact and recorded compatibility-only rows instead of inventing target data. Legacy source tables remain queryable during the expand phase. The no-read-switch rule remains in force until a later plan.
 
 ---
 
@@ -806,7 +931,7 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `status`: Sync state ('pending', 'synced', 'failed').
 * `error`: Log messages if sync action failed.
 * `retries`: Re-attempt count pointer.
-* `namespace`: Pinecone metadata routing pointer.
+* `namespace`: Canonical Vectorize namespace routing pointer.
 * `createdAt`
 * `updatedAt`
 
@@ -841,6 +966,20 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `lastPosition`: Reader layout index offset.
 * `createdAt`
 * `updatedAt`
+
+## 21. Content Workflow and Mutation Audit
+
+### alur_konten
+* `id`: Unique entity and version workflow key.
+* `entityType`, `entityId`, `courseId`: Canonical content identity and course scope.
+* `version`: Immutable content version number.
+* `state`: Upload, validation, staging, tutor review, admin review, approval, publication, supersession, or withdrawal state.
+* `contentHash`: Hash of the reviewed canonical content.
+* `assignedTutorId`: Optional course-scoped tutor assignment.
+* `lastRequestId`, `lastReason`: Last transition correlation and human reason.
+* `createdAt`, `updatedAt`
+
+The table is additive and does not replace historical content tables. Transitions are enforced by `lib/workflow/content-workflow.ts` and every mutation writes a structured `audit_mutasi` envelope.
 
 ### exams
 * `id`
@@ -963,5 +1102,18 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `evidenceSourceIds`: JSON array of source IDs.
 * `relatedKoIds`: JSON array of linked KO IDs.
 * `status`: Objective status ('active', 'superseded').
+
+## 20. Assessment Integrity V2 Contract
+
+Plan 010 reuses the additive assessment tables without changing legacy quiz snapshots or adding a migration:
+
+* `blueprint_asesmen` stores the versioned assessment type and serialized blueprint.
+* `asesmen` stores the published assessment version and its immutable status.
+* `cakupan_asesmen` enforces chapter membership. Application validation requires one chapter for a quiz and at least one for a tryout.
+* `item_asesmen` stores rendered question, option order, grading policy, content version, and generation hash snapshots.
+* `percobaan_asesmen` and `jawaban_murid` preserve the rendered question, option order, response, grading policy, and content version at attempt time.
+* `bukti_ide_jawaban` stores per-Idea score contribution, weight, confidence, rubric version, derivation status, and the invariant that ambiguous evidence cannot affect mastery.
+
+The V2 runtime adds stable option IDs inside the existing JSON snapshots when `FEATURE_ASESMEN_IDE_V1=1`; this is an additive compatibility field and does not rewrite historical `questions_snapshot`, `answers_snapshot`, or `mastery_before` values.
 
 

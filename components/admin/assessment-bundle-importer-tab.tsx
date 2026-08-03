@@ -149,6 +149,9 @@ export function AssessmentBundleImporterTab() {
                 Unggah berkas JSON bundel asesmen (soal ujian/kuis) untuk mata kuliah yang sudah ada. Bab direferensikan
                 berdasarkan judul (title), bukan $id, karena bundel ini diunggah terpisah dari Learning Bundle.
               </p>
+              <p className="text-body-sm text-muted-foreground">
+                Mode upsert membuat versi sumber baru saat isi berubah dan mempertahankan versi sebelumnya untuk audit.
+              </p>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div
@@ -247,7 +250,7 @@ export function AssessmentBundleImporterTab() {
                       Jalankan Pasca-Proses (Rekomendasi)
                     </Label>
                     <p className="text-body-sm text-muted-foreground">
-                      Memetakan soal ke konsep/materi secara heuristik dan mengantrekan sinkronisasi vektor Pinecone/Vectorize.
+                      Memetakan soal ke konsep/materi secara heuristik dan mengantrekan sinkronisasi canonical Vectorize.
                     </p>
                   </div>
                 </div>

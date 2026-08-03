@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq, and, inArray, sql } from "drizzle-orm";
+import { dualWriteTutorAssignment } from "@/lib/migrasi/repository-kompatibilitas";
 
 // Helper to authenticate user
 async function requireUser() {
@@ -478,17 +479,37 @@ export async function updateTutorCourses(courseIds: string[]) {
 
   try {
     await db.transaction(async (tx) => {
+      const previousAssignments = await tx
+        .select({ id: tutorCourses.id, tutorId: tutorCourses.tutorId, courseId: tutorCourses.courseId })
+        .from(tutorCourses)
+        .where(eq(tutorCourses.tutorId, dbUser.id));
+
       // 1. Delete all existing certifications
       await tx.delete(tutorCourses).where(eq(tutorCourses.tutorId, dbUser.id));
+      for (const previous of previousAssignments) {
+        await dualWriteTutorAssignment(tx, {
+          id: previous.id,
+          tutorId: previous.tutorId,
+          courseId: previous.courseId,
+          status: "revoked",
+        }, dbUser.id);
+      }
 
       // 2. Insert new certifications
       if (courseIds.length > 0) {
         for (const cid of courseIds) {
+          const assignmentId = randomUUID();
           await tx.insert(tutorCourses).values({
-            id: randomUUID(),
+            id: assignmentId,
             tutorId: dbUser.id,
             courseId: cid,
           });
+          await dualWriteTutorAssignment(tx, {
+            id: assignmentId,
+            tutorId: dbUser.id,
+            courseId: cid,
+            status: "active",
+          }, dbUser.id);
         }
       }
     });

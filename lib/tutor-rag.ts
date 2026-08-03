@@ -69,6 +69,10 @@ import {
   buildAnswerPlan as _buildAnswerPlan,
 } from "@/lib/tutor/evidence-coverage";
 import { verifyCitations } from "@/lib/tutor/citation-verifier";
+import {
+  rehydrateCanonicalSourceIds,
+  retrieveCanonicalEvidence,
+} from "@/lib/zyra/canonical-runtime";
 
 const SIMILARITY_FLOOR = 0.5;
 const _CACHE_CONFIDENCE_FLOOR = 0.6;
@@ -278,10 +282,37 @@ interface RetrievedSource extends TutorSource {
  * Chapter filtering is native for KO vectors only (chunks have no chapter metadata).
  */
 async function retrieve(
- courseId: string,
- chapterId: string | null,
- question: string
+  courseId: string,
+  chapterId: string | null,
+  question: string,
+  runtime?: {
+    studentId: string;
+    activityKind: ActivityKind;
+    attemptState: AttemptState;
+    answerReleaseState: AnswerReleaseState;
+    matchState: MatchState;
+  }
 ): Promise<RetrievedSource[]> {
+ if (env.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
+  const result = await retrieveCanonicalEvidence({
+   studentId: runtime?.studentId,
+   courseId,
+   chapterId,
+   isEnrolled: false,
+   activityKind: runtime?.activityKind,
+   attemptState: runtime?.attemptState,
+   answerReleaseState: runtime?.answerReleaseState,
+   matchState: runtime?.matchState,
+  }, question);
+  return result.sources.map((source) => ({
+   type: source.type,
+   id: source.id,
+   label: source.label,
+   href: source.href,
+   content: source.content,
+  }));
+ }
+
  const [learningMatches, practiceMatches, pastExamMatches] = await Promise.all([
   vectorStore.query(`${courseId}_${VECTOR_NAMESPACES.learning}`, question, {
    topK: TOP_K,
@@ -603,7 +634,27 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         }
       }
     }
-    retrieved = historySources;
+    if (env.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
+      const rehydrated = await rehydrateCanonicalSourceIds({
+        studentId,
+        courseId,
+        chapterId,
+        isEnrolled: false,
+        activityKind,
+        attemptState,
+        answerReleaseState,
+        matchState,
+      }, historySources.map((source) => source.id));
+      retrieved = rehydrated.sources.map((source) => ({
+        type: source.type,
+        id: source.id,
+        label: source.label,
+        href: source.href,
+        content: source.content,
+      }));
+    } else {
+      retrieved = historySources;
+    }
   } else if (await isMetaExamQuery(searchQuestion)) {
     const statsSummary = await executeMetaQuery(courseId, searchQuestion);
     retrieved = [
@@ -616,7 +667,13 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       },
     ];
   } else {
-    retrieved = await retrieve(courseId, chapterId, searchQuestion);
+    retrieved = await retrieve(courseId, chapterId, searchQuestion, {
+      studentId,
+      activityKind,
+      attemptState,
+      answerReleaseState,
+      matchState,
+    });
   }
 
   const evidenceVersion = computeEvidenceVersion(retrieved);

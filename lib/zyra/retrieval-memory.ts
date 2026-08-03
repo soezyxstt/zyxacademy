@@ -3,8 +3,11 @@ import { vectorStore, VECTOR_NAMESPACES } from "@/lib/vector-store";
 import { db } from "@/db";
 import { knowledgeObjects } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
+import { env } from "@/lib/env";
+import { retrieveCanonicalEvidence } from "./canonical-runtime";
 
 export interface RetrievalMemoryInput {
+  studentId?: string;
   courseId: string;
   chapterId: string | null;
   question: string;
@@ -16,6 +19,25 @@ export async function getRetrievalMemory(input: RetrievalMemoryInput): Promise<R
   const sources: TutorSource[] = [];
 
   try {
+    if (env.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
+      const result = await retrieveCanonicalEvidence({
+        studentId: input.studentId,
+        courseId,
+        chapterId,
+        isEnrolled: false,
+      }, question);
+      return {
+        sources: result.sources.map((source) => ({
+          type: source.type,
+          id: source.id,
+          label: source.label,
+          href: source.href,
+        })),
+        retrievedAt: new Date(),
+        query: question,
+      };
+    }
+
     const learningMatches = await vectorStore.query(
       `${courseId}_${VECTOR_NAMESPACES.learning}`,
       question,

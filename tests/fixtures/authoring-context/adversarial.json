@@ -1,0 +1,15 @@
+{
+  "course": {
+    "id": "course-fixture",
+    "title": "Authoring fixture",
+    "nested": {
+      "studentEmail": "murid@example.test",
+      "apiKey": "SECRET_CANARY"
+    }
+  },
+  "benchmark": {
+    "authoringVisibility": "holdout",
+    "questionSnapshot": "HOLDOUT_CANARY",
+    "signedUrl": "https://r2.example.test/object?X-Amz-Signature=SECRET_CANARY"
+  }
+}

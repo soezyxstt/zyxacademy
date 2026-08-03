@@ -34,10 +34,6 @@ export const env = createEnv({
  GEMINI_API_KEY_3: z.string().optional(),
  /** Gemini API Key #4 for failover/load balancing */
  GEMINI_API_KEY_4: z.string().optional(),
- /** Pinecone API Key for vector search (required for AI quiz generation) */
- PINECONE_API_KEY: z.string().transform((v) => v || undefined).optional(),
- /** Pinecone index name (e.g. "zyx-edu") */
- PINECONE_INDEX_NAME: z.string().transform((v) => v || undefined).optional(),
  /** Inngest event key for sending events */
  INNGEST_EVENT_KEY: z.string().min(1),
  /** Inngest signing key for production request verification */
@@ -123,9 +119,33 @@ export const env = createEnv({
  FEATURE_DIKTAT_QA_V2: z.string().optional(),
  /** P1 Analytics Diagnosis V2: evidence-calibrated analytics. "1" enables. */
  FEATURE_ANALYTICS_DIAGNOSIS_V2: z.string().optional(),
+ /** Indonesian domain identity and multi-role authorization. "1" enables membership checks. */
+ FEATURE_PERAN_V2: z.string().optional(),
+ /** Canonical source and Idea domain contracts. "1" enables the additive Idea architecture. */
+ FEATURE_ARSITEKTUR_IDE_V1: z.string().optional(),
+ /** Migration-only transaction-scoped mirror for the additive Idea architecture. */
+ FEATURE_DUAL_WRITE_IDE: z.string().optional(),
+ /** Strict ZIP-based Idea Bundle V2 workflow. */
+ FEATURE_IDEA_BUNDLE_V2: z.string().optional(),
+ /** Deterministic and redacted Authoring Context Pack export. */
+ FEATURE_AUTHORING_CONTEXT_V1: z.string().optional(),
+ /** Strict ZIP-based Product Bundle V2 workflow. */
+ FEATURE_PRODUCT_BUNDLE_V2: z.string().optional(),
+ /** Product and Idea links domain contracts. "1" enables the additive product tables. */
+ FEATURE_PRODUK_IDE_V1: z.string().optional(),
+ /** Assessment and Idea coverage contracts. "1" enables the additive assessment tables. */
+ FEATURE_ASESMEN_IDE_V1: z.string().optional(),
+ /** Canonical 768-dimension Vectorize-only read and write path. "1" enables it. */
+ FEATURE_VECTORIZE_ONLY_V1: z.string().optional(),
+ /** Canonical Zyra retrieval and hydration over approved Idea content. "1" enables it. */
+ FEATURE_ZYRA_IDEA_RUNTIME_V1: z.string().optional(),
+ /** Admin and tutor content workflow with centralized transitions and audit. "1" enables it. */
+ FEATURE_ADMIN_TUTOR_WORKFLOW_V1: z.string().optional(),
+ /** Murid Idea-centered read model with Tutorial PKA compatibility adapters. "1" enables it. */
+ FEATURE_MURID_IDEA_WORKFLOW_V1: z.string().optional(),
+ /** Idea evidence and mastery contracts. "1" enables the additive mastery tables. */
+ FEATURE_PEMAHAMAN_IDE_V1: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
- /** Active vector store: 'pinecone' (default) | 'dual' (write both) | 'vectorize' (read from VZ) */
- VECTOR_STORE: z.enum(['pinecone', 'vectorize', 'dual']).optional(),
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
   /** Shared secret matching SHARED_SECRET set on the zyx-vector-api Worker */
@@ -182,8 +202,6 @@ export const env = createEnv({
  GEMINI_API_KEY_2: process.env.GEMINI_API_KEY_2,
  GEMINI_API_KEY_3: process.env.GEMINI_API_KEY_3,
  GEMINI_API_KEY_4: process.env.GEMINI_API_KEY_4,
- PINECONE_API_KEY: process.env.PINECONE_API_KEY,
- PINECONE_INDEX_NAME: process.env.PINECONE_INDEX_NAME,
  INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
  INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
  // R2
@@ -228,8 +246,20 @@ export const env = createEnv({
  FEATURE_FLASHCARD_GENERATOR_V2: process.env.FEATURE_FLASHCARD_GENERATOR_V2,
  FEATURE_DIKTAT_QA_V2: process.env.FEATURE_DIKTAT_QA_V2,
  FEATURE_ANALYTICS_DIAGNOSIS_V2: process.env.FEATURE_ANALYTICS_DIAGNOSIS_V2,
+ FEATURE_PERAN_V2: process.env.FEATURE_PERAN_V2,
+ FEATURE_ARSITEKTUR_IDE_V1: process.env.FEATURE_ARSITEKTUR_IDE_V1,
+ FEATURE_DUAL_WRITE_IDE: process.env.FEATURE_DUAL_WRITE_IDE,
+ FEATURE_IDEA_BUNDLE_V2: process.env.FEATURE_IDEA_BUNDLE_V2,
+ FEATURE_AUTHORING_CONTEXT_V1: process.env.FEATURE_AUTHORING_CONTEXT_V1,
+ FEATURE_PRODUCT_BUNDLE_V2: process.env.FEATURE_PRODUCT_BUNDLE_V2,
+ FEATURE_PRODUK_IDE_V1: process.env.FEATURE_PRODUK_IDE_V1,
+ FEATURE_ASESMEN_IDE_V1: process.env.FEATURE_ASESMEN_IDE_V1,
+ FEATURE_VECTORIZE_ONLY_V1: process.env.FEATURE_VECTORIZE_ONLY_V1,
+ FEATURE_ZYRA_IDEA_RUNTIME_V1: process.env.FEATURE_ZYRA_IDEA_RUNTIME_V1,
+ FEATURE_ADMIN_TUTOR_WORKFLOW_V1: process.env.FEATURE_ADMIN_TUTOR_WORKFLOW_V1,
+ FEATURE_MURID_IDEA_WORKFLOW_V1: process.env.FEATURE_MURID_IDEA_WORKFLOW_V1,
+ FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
- VECTOR_STORE: process.env.VECTOR_STORE,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,
   // Diktat PDF Renderer

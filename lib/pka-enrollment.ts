@@ -12,6 +12,7 @@ import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { sendToUser } from "@/lib/notifications/send";
 import { pkaAnnouncementPayload } from "@/lib/notifications/templates";
 import { pkaAnnouncementEmailHtml, scheduleEmailHtml } from "@/lib/pka-email-template";
+import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 
 /** True when the user already holds a Tutorial PKA enrollment row. */
 export async function isPkaEnrolled(userId: string): Promise<boolean> {
@@ -39,12 +40,23 @@ export async function ensurePkaEnrollment(userId: string, notify = true): Promis
   if (existing) return;
 
   const now = new Date();
-  await db.insert(enrollments).values({
-    id: randomUUID(),
-    userId,
-    courseId: PKA_COURSE_ID,
-    enrolledAt: now,
-    expiresAt: getSemesterEndDate(now),
+  const enrollmentId = randomUUID();
+  const expiresAt = getSemesterEndDate(now);
+  await db.transaction(async (tx) => {
+    await tx.insert(enrollments).values({
+      id: enrollmentId,
+      userId,
+      courseId: PKA_COURSE_ID,
+      enrolledAt: now,
+      expiresAt,
+    });
+    await dualWriteEnrollment(tx, {
+      id: enrollmentId,
+      userId,
+      courseId: PKA_COURSE_ID,
+      enrolledAt: now,
+      expiresAt,
+    }, userId);
   });
 
   if (!notify) return;

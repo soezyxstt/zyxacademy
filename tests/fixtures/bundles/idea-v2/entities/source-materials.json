@@ -1,0 +1,16 @@
+[
+  {
+    "id": "source-motion",
+    "courseId": "course-physics",
+    "chapterId": "chapter-kinematics",
+    "sourceType": "markdown",
+    "title": "Kinematika",
+    "canonicalUriOrR2Key": "sources/course-physics/kinematika.md",
+    "version": 1,
+    "checksum": "0fd6c09372721f38ecadf7d9494dde1e2699d9de379e116d817701f5af4599fc",
+    "status": "active",
+    "creatorId": "creator-1",
+    "createdAt": "2026-08-03T00:00:00.000Z",
+    "updatedAt": "2026-08-03T00:00:00.000Z"
+  }
+]

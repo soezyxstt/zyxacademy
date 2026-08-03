@@ -36,56 +36,14 @@ function getClientsPriority(key: typeof geminiKeyPool['keys'][0]): ClientPriorit
 // Embedding
 // ---------------------------------------------------------------------------
 
-const EMBEDDING_MODELS = ['gemini-embedding-2', 'gemini-embedding-002', 'gemini-embedding-001'];
+const EMBEDDING_PROFILE = "canonical-content-v2";
 
-/** Generates a 1024‑dimensional embedding vector for a single text string.
- * Uses the best key selected by the scheduler, trying fallback models if needed.
- */
+/** Generates the canonical 768-dimensional embedding for a single text string. */
 export async function embedText(text: string): Promise<number[]> {
-  if (process.env.MOCK_GEMINI === 'true') {
-    return new Array(1024).fill(0).map(() => Math.random() - 0.5);
-  }
-  let lastError: any = null;
-
- for (const model of EMBEDDING_MODELS) {
- const maxKeyAttempts = geminiKeyPool.getAllKeys().length;
- for (let attempt = 0; attempt < maxKeyAttempts; attempt++) {
- const key = geminiKeyPool.getBestKey(model);
- if (!key) {
- break; // No more keys available for this model, try next model
- }
-
- const clients = getClientsPriority(key);
- for (const { client, viaGateway } of clients) {
- try {
- const t0 = Date.now();
- const result = await client.models.embedContent({
- model,
- contents: text,
- config: { outputDimensionality: 1024 },
- });
- const values = result.embeddings?.[0]?.values;
- if (values && values.length > 0) {
- logAiRequest({
- operation: 'embed',
- model,
- viaGateway,
- latencyMs: Date.now() - t0,
- success: true,
- });
- geminiKeyPool.markSuccess(key.id, model);
- return values;
- }
- } catch (err: any) {
- lastError = err;
- geminiKeyPool.markFailure(key.id, model, err);
- console.warn(`Embedding model ${model} via key ${key.id} failed: ${err?.message || err}`);
- }
- }
- }
- }
-
- throw lastError || new Error('All Gemini embedding models failed to generate vector');
+  const { getCanonicalContentV2EmbeddingAdapter } = await import("@/lib/vectorize/runtime");
+  const adapter = await getCanonicalContentV2EmbeddingAdapter();
+  if (adapter.profileId !== EMBEDDING_PROFILE) throw new Error("CANONICAL_EMBEDDING_PROFILE_MISMATCH");
+  return adapter.embedDocument("", text);
 }
 
 /** Batch version ; processes in chunks of 5 to avoid hammering the rate limit. */

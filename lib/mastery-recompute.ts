@@ -3,6 +3,24 @@ import { masteryRecomputeQueue } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { MasteryEngine } from "./mastery-engine";
+import {
+  recomputeIdeaMastery,
+  type IdeaMasteryRecomputeResult,
+} from "./pemahaman/evidence";
+
+export type IdeaRecomputeMode = "full" | "incremental";
+
+/** Replays append-only per-Idea evidence without touching legacy concept rows. */
+export async function recomputePerIdeaMastery(
+  studentId: string,
+  ideaId: string,
+  options: { mode?: IdeaRecomputeMode; asOf?: Date; reason?: string } = {},
+): Promise<IdeaMasteryRecomputeResult> {
+  return recomputeIdeaMastery(studentId, ideaId, {
+    asOf: options.asOf,
+    reason: options.reason ?? `idea_mastery_${options.mode ?? "full"}`,
+  });
+}
 
 /**
  * Enqueues a mastery recomputation request for a student and course.

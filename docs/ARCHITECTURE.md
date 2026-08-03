@@ -1,6 +1,6 @@
 # Zyx Academy Architecture (vNext)
 
-**Stack:** Next.js 16 (App Router), Drizzle ORM + SQLite (dev) / Turso (prod), Better-Auth, Gemini AI via Cloudflare AI Gateway, Pinecone + Cloudflare Vectorize (vector search), UploadThing / R2 (storage abstraction), Inngest (background jobs), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
+**Stack:** Next.js 16 (App Router), Drizzle ORM + SQLite (dev) / Turso (prod), Better-Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), UploadThing / R2 (storage abstraction), Inngest (background jobs), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
 
 ---
 
@@ -36,7 +36,7 @@ Course (courses)
       │    ├── feeds into → ai_question_bank (questions tagged to KO)
       │    ├── feeds into → flashcards (per KO flashcards)
       │    ├── feeds into → knowledge_relationships (prerequisite/related/extends graph)
-      │    ├── feeds into → vector_sync_queue (Pinecone/Vectorize sync)
+      │    ├── feeds into → vector_sync_queue (canonical Vectorize sync)
       │    └── feeds into → learning_events (mastery tracking)
       ├── Website Material (website_materials) ; 1 per chapter, compiled from KOs
       │    └── Versions (website_material_versions) ; edit history
@@ -71,10 +71,15 @@ Assessment-specific (for type="assessment" MTDs):
 ### Auth Domain (Better-Auth)
 | Table | Purpose |
 |---|---|
-| `user` | Users with role: `admin`, `teacher`, `student` |
+| `user` | Better Auth users and temporary legacy `role` compatibility projection |
 | `session` | Auth sessions |
 | `account` | OAuth/password accounts |
 | `verification` | Email verification tokens |
+| `pengguna` | Canonical one-to-one domain identity for a Better Auth user |
+| `peran` | Stable access-role catalog: `admin`, `tutor`, `murid` |
+| `pengguna_peran` | Independent many-to-many identity membership with source and audit actor |
+
+`FEATURE_PERAN_V2=1` makes the admin and tutor layout gates read `pengguna_peran`. The legacy `user.role` column remains during expand and rollback; it is not the canonical authorization source when the flag is enabled.
 
 ### Course & Enrollment
 | Table | Purpose |
@@ -85,6 +90,170 @@ Assessment-specific (for type="assessment" MTDs):
 | `group_members` | User→Group M:N |
 | `enrollment_tokens` | Pre-generated tokens with capacity & expiry, bound to a group |
 | `enrollment_token_courses` | Token→Course M:N (which courses the token unlocks) |
+
+### Canonical Source and Idea Architecture
+
+Plan 003 adds an additive Indonesian learning-domain layer. `mata_kuliah` and `bab` provide stable course and chapter identities while retaining legacy compatibility references. `sumber_materi` and `potongan_sumber` version canonical source content and exact source spans. `ide` is the future learning atom; it keeps stable identity, semantic and generation hashes, provenance policy, and no provider-specific vector ID.
+
+| Table | Purpose |
+|---|---|
+| `mata_kuliah` | Stable course identity with legacy `courses` reference |
+| `bab` | Stable ordered chapter identity with legacy `chapters` reference |
+| `pendaftaran_murid` | Murid enrollment identity linked to `pengguna` and legacy enrollment |
+| `penugasan_tutor` | Course tutor assignment with explicit scope and legacy assignment reference |
+| `sumber_materi` | Versioned canonical source metadata and checksum |
+| `potongan_sumber` | Exact source content spans, offsets, checksums, and embedding eligibility |
+| `ide` | Course and chapter learning atom with optional global concept link |
+| `asal_ide` | Idea to source-chunk provenance with exact offsets and source checksum |
+| `relasi_ide` | Typed Idea relations with database self-edge protection and application cycle checks |
+| `ketergantungan_produk` | Polymorphic downstream dependency freshness state |
+| `peta_id_legacy` | Deterministic legacy-to-target identity mapping and checksums |
+
+The existing `concepts` and `concept_localizations` tables remain the global cross-course concept registry. `FEATURE_ARSITEKTUR_IDE_V1` stays off until a later plan switches callers; existing KOs and source pipelines are not backfilled or rewritten here.
+
+### Canonical Vector Identity
+
+Plan 012 uses `canonical-content-v2` with Gemini Embedding 2 at 768 dimensions and cosine distance. The database entity ID remains unchanged in Vectorize metadata so Turso hydration can address the original row. When an entity ID contains a colon, the ID segment inside `v2:<entityType>:<entityId>:<version>` is URI-encoded and decoded by the shared contract; simple IDs retain their readable form. The Worker and application contract must use the same reversible encoding, and the decoded ID must match metadata exactly.
+
+Canonical hydration batches `/v2/get` requests at 20 IDs per call to respect the Vectorize provider limit.
+
+### Product, Assessment, and Mastery Architecture
+
+Plan 004 adds the normalized Indonesian product and learner-state layer as empty additive tables. Existing English product, assessment, attempt, flashcard, learning-event, and mastery tables remain active; deterministic mapping and backfill are deferred to Plan 005.
+
+| Domain | Target tables | Contract boundary |
+|---|---|---|
+| Products | `artikel`, `artikel_ide`, `blok_artikel`, `diktat_materi`, `diktat_ide`, `soal`, `soal_ide`, `soal_relasi_ide`, `pembahasan_soal`, `diktat_pembahasan`, `item_diktat_pembahasan` | Published products require published Idea links; question Idea weights are positive and validated to sum to one. |
+| Protected references and flashcards | `soal_itb_referensi`, `benchmark_soal`, `set_flashcard`, `flashcard`, `flashcard_ide`, `kemajuan_flashcard_murid`, `review_flashcard` | Holdout references carry an explicit visibility state; review history is append-only by data model. |
+| Assessments | `blueprint_asesmen`, `asesmen`, `cakupan_asesmen`, `item_asesmen`, `percobaan_asesmen`, `jawaban_murid` | Quiz scope is one chapter; tryout scope is one or more chapters; rendered content and grading snapshots are required. |
+| Evidence and mastery | `bukti_ide_jawaban`, `bukti_pembelajaran`, `pemahaman_ide`, `perubahan_pemahaman`, `rekomendasi_flashcard` | Score and confidence remain separate; ambiguous evidence cannot affect mastery; replay metadata makes the state reproducible. |
+| Bundle lifecycle | `impor_bundle`, `item_impor_bundle`, `review_bundle`, `publikasi_bundle`, `audit_mutasi` | Bundle identity is checksum-versioned and publication references an approved review. |
+
+Plan 005 backfills the supported legacy shapes into these targets without deleting or rewriting source rows. Exact evidence is copied to target links; ambiguous questions, unattributable learning events, legacy concept baselines, and compatibility-only history are preserved in the exception ledger. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` in staging until their later canary gates pass.
+
+### Per-Idea Mastery Learning Loop
+
+Plan 011 computes mastery from verified, attributable evidence only. The pure engine applies evidence contribution, weight where available, confidence, evidence source policy, and recency to the score. Confidence is calculated independently from effective count, source diversity, recency, and agreement. Every stored state records `algorithmVersion` and `inputWatermark`; every changed state appends a `perubahan_pemahaman` row with the complete evidence ID list and reason code. Full and incremental replays use the same engine and are idempotent.
+
+Legacy concept mastery remains a compatibility fallback only when no Idea state exists and an explicit concept mapping is supplied. It is labelled `concept-level baseline` and is never copied to an Idea. Flashcard scheduling remains SM-2 based; per-Idea mastery changes recommendation priority and reason codes only. `mastery/idea-recompute.requested.v1` is the versioned deterministic event boundary and does not call Gemini.
+
+### Legacy Backfill and Compatibility Boundary
+
+The migration uses `lib/migrasi/backfill-engine.ts` in bounded transactions and records every source-to-target identity in `peta_id_legacy`. Rows that cannot be represented without inventing semantics are kept in `legacy_backfill_exceptions` with a source checksum, reason code, preservation path, and cutover blocking flag. A second apply is a read-and-compare operation for mapped rows and writes zero changed rows.
+
+Current mutations remain legacy-first and are wrapped by one transaction when both `FEATURE_ARSITEKTUR_IDE_V1=1` and `FEATURE_DUAL_WRITE_IDE=1` are enabled:
+
+```mermaid
+flowchart LR
+    L[Legacy mutation] --> T[One database transaction]
+    T --> LL[Legacy row remains authoritative]
+    T --> C[Compatibility repository]
+    C --> N[Additive Indonesian target]
+    C --> A[audit_mutasi]
+    R[Existing reads] --> LL
+```
+
+The boundary covers material publication, flashcard review, quiz attempt start and submission, learning events with exact Idea identity, enrollment, tutor assignment, and Tutorial PKA progress. Target failures roll back the legacy mutation. With either flag disabled, the compatibility repository is a no-op and visible reads and writes stay on the legacy model.
+
+Plan 005 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
+
+### Idea Bundle V2 Workflow
+
+Plan 006 adds a strict ZIP boundary around the additive source and Idea domain. The upload path validates archive structure, manifest checksums, source spans, entity references, stable keys, provenance, and relation acyclicity before any canonical row is written.
+
+```mermaid
+flowchart LR
+    U[Admin ZIP upload] --> V[Secure ZIP and contract validation]
+    V --> I[impor_bundle and item inventory]
+    I --> R[Tutor review]
+    R --> A[Admin approval]
+    A --> P[One Turso publication transaction]
+    P --> D[Source, chunk, Idea, provenance, relation rows]
+    P --> O[vector_sync_queue outbox]
+    P --> X[audit_mutasi and publikasi_bundle]
+```
+
+`impor_bundle` stores the checksum identity, legacy course association, and immutable validation report. `review_bundle` stores one immutable decision per reviewer. Publication is idempotent and compares existing target versions field by field; conflicts fail rather than overwrite. The transaction also inserts deterministic vector jobs for embedding-eligible source chunks and published Ideas. `FEATURE_IDEA_BUNDLE_V2` gates the admin API and panel, while the legacy importer remains the rollback path.
+
+Plan 006 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json`, with an independent database reconciliation at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-reconcile.json`.
+
+### Authoring Context Pack V1
+
+Plan 007 adds a read-only, explicit allowlist projection for external authoring. The projection begins with published current Ideas and active source excerpts, joins only safe educational metadata, counts holdout benchmark rows, scans the projected object, then stores a private run-scoped ZIP.
+
+```mermaid
+flowchart LR
+    Q[Admin export request] --> S[Typed DB snapshot]
+    S --> A[Allowlist projection]
+    A --> R[Redaction and holdout scan]
+    R --> Z[Deterministic ZIP and checksum]
+    Z --> K[Private R2 staging key]
+    Z --> L[audit_mutasi with retention]
+```
+
+The exporter does not call an external model and never includes user, credential, attempt, answer, mastery, chat, embedding, signed URL, or holdout content. `FEATURE_AUTHORING_CONTEXT_V1` is disabled by default and tutor access remains disabled until a separate assigned-course policy test is added.
+
+### Product Bundle V2
+
+Product Bundle V2 extends the additive product tables with a strict import lifecycle. `lib/bundle/product-validator.ts` validates the manifest and typed entity files without database writes. `lib/bundle/product-staging.ts` stores the immutable ZIP and inventory in `impor_bundle` and `item_impor_bundle`. `lib/bundle/product-preview.ts` exposes only staged product content and its Idea and source references.
+
+Publication in `lib/bundle/product-publication.ts` is a single transaction. It verifies published Idea versions and semantic hashes, active source versions and excerpts, creator and curator identities, dependency freshness, and typed product references before inserting article, diktat, question, solution, flashcard, blueprint, dependency, publication, audit, and vector outbox rows. Version greater than one uses a versioned physical target ID so the prior published row is not overwritten.
+
+```mermaid
+flowchart LR
+    U[Admin ZIP upload] --> V[Pure typed validation]
+    V --> S[Immutable staged import]
+    S --> P[Traceable product preview]
+    P --> R[Tutor and admin review]
+    R --> C{Dependencies current}
+    C -->|No| H[Needs review]
+    C -->|Yes| T[Atomic publication transaction]
+    T --> O[Product rows and vector outbox]
+    T --> A[Publication and mutation audit]
+```
+
+`FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source.
+
+### Article and Diktat Quality Compiler
+
+The Plan 009 compiler is a deterministic boundary over the staged Product Bundle representation. It does not call Gemini and does not invent canonical claims.
+
+```mermaid
+flowchart LR
+    I[Approved Ideas and source refs] --> B[Typed article block contract]
+    R[Idea prerequisite relations] --> O[Stable topological outline]
+    B --> Q[Article quality gates]
+    O --> Q
+    Q --> A[Article AST and Markdown]
+    A --> D[Approved article compression]
+    D --> G[Diktat compression gates]
+    Q --> P[Traceable admin preview]
+    G --> P
+```
+
+`lib/materials/article-contract.ts` requires block purpose, covered Ideas, source references, generation hash, and reviewer state. `lib/materials/quality-gates.ts` returns stable reason codes and fails closed for missing coverage, stale dependencies, invalid math delimiters, missing traces, and rejected blocks. `lib/materials/diktat-contract.ts` accepts an approved `ArticleDocument` only; it records the source article ID, version, and hash and checks that every preserved core statement, formula, Idea, and source trace remains present.
+
+The new path is gated by `FEATURE_MATERIAL_COMPILER_V2`. `lib/material-storage.ts` applies the article quality gate to review and publication only when that flag is active, so the existing `website_materials` readers and rollback path remain unchanged when it is absent or `0`.
+
+### Assessment Integrity V2
+
+Assessment compilation is a deterministic boundary between authored content and a published attempt:
+
+```mermaid
+flowchart LR
+    I[Idea and question candidates] --> B[Versioned blueprint]
+    B --> R[Exact dimension rounding]
+    R --> S[Seeded eligible selection]
+    S --> V[Solver, critic, and stale checks]
+    V --> H[Benchmark and holdout policy]
+    H --> P[Published assessment snapshot]
+    P --> A[Stable option ID attempt]
+    A --> E[Versioned per-Idea evidence rubric]
+```
+
+Quiz scope is exactly one chapter. Tryout scope contains one or more chapters. Every dimension is rounded independently with the largest-remainder method, and the selected item count equals the requested count. Stable option IDs are stored in the V2 attempt snapshot; the server may accept legacy numeric input but resolves it to stable IDs before grading.
+
+The active-attempt serializer is an explicit allowlist. It can expose prompt, options, safe metadata, and stable option IDs, but never answer keys, explanations, grading rubrics, evidence mappings, or holdout content. Objective evidence uses a deterministic rubric. Free-response evidence is blocked until a tutor rubric or grading result is reviewed.
 
 ### Tutor & Booking
 | Table | Purpose |
@@ -140,7 +309,7 @@ Assessment-specific (for type="assessment" MTDs):
 |---|---|
 | `ai_material_instances` | Legacy material metadata (pre-v4, deprecated in favor of KO flow) |
 | `ai_material_instance_sections` | Legacy sections |
-| `ai_material_instance_chunks` | Legacy text chunks for Pinecone |
+| `ai_material_instance_chunks` | Legacy text chunks retained for read-only compatibility |
 | `ai_generation_jobs` | Tracks Gemini generation: pending→processing→completed→failed, token counts |
 | `ai_question_bank` | Permanent question repository: linked to KO/MTD with generationHash, distractorMap, bloomLevel, pattern, estimatedSteps, isStale |
 | `question_option_stats` | Per-option selection counters for distractor analytics |
@@ -159,7 +328,7 @@ Assessment-specific (for type="assessment" MTDs):
 #### Vector Sync
 | Table | Purpose |
 |---|---|
-| `vector_sync_queue` | Transactional outbox for Pinecone/Vectorize sync ; upsert/delete, retry with backoff, namespace field for multi-index routing |
+| `vector_sync_queue` | Transactional outbox for canonical Vectorize sync; upsert/delete, retry with backoff, namespace, version, and content hash |
 
 #### Mastery & Analytics
 | Table | Purpose |
@@ -260,7 +429,7 @@ Upload PDF via UploadThing or direct R2
   │    ├── Source spans tracked in `knowledge_object_sources` & cognitive objectives in `learning_objectives`
   │    ├── Concept resolution (`concepts` / `concept_localizations`)
   │    ├── `vector_sync_queue` populated (namespace: "learning")
-  │    └── Inngest background job syncs to Pinecone "learning" index
+  │    └── Inngest background job syncs to canonical Vectorize `canonical_ideas`
   │
   └── type="assessment" → Assessment Extraction Pipeline (lib/assessment-extractor.ts)
        ├── Deterministic split on H2 headings → question blocks
@@ -339,17 +508,16 @@ Tutor compiles diktat in /admin/ai/diktats
       └── Creates diktats row with fileUrl, generationHash
 ```
 
-### E. Vector Sync (Pinecone / Vectorize)
+### E. Canonical Vector Sync
 ```
-Any KO or assessment_objects create/update → vector_sync_queue row (namespace: "learning"|"assessment")
+Any canonical Idea, article, question, solution, or source update → vector_sync_queue row
   → Inngest background function (vectorSyncWorker) processes batches:
-      ├── Fetch pending queue items per namespace (batch size: configurable, default 50)
-      ├── embedTexts() via Gemini text-embedding-004
-      ├── Upsert to vector store (Pinecone by default, VECTOR_STORE env controls mode)
-      │    └── VECTOR_STORE = "pinecone" | "dual" | "vectorize"
-      ├── Namespace per course: course_{courseId}_{namespace}
-      ├── Optional mirror to Cloudflare Vectorize (dual mode)
-      └── Mark queue completed, update KO pineconeVectorId
+      ├── Fetch pending queue items per namespace, retrying failed rows
+      ├── Embed with Gemini Embedding 2 through canonical-content-v2 at 768 dimensions
+      ├── Upsert to the authenticated `/v2/*` Vectorize worker contract
+      ├── Namespace per course: canonical_ideas, published_articles, source_materials, published_questions, or itb_question_references
+      ├── Preserve provider-neutral metadata, version, access class, and content hash
+      └── Mark queue completion only after the canonical mutation succeeds
 ```
 
 ---
@@ -378,7 +546,7 @@ Student redeems enrollment token
      ├── Tryout ; timed exam mode
      ├── Flashcards ; SM-2 spaced repetition (student_flashcard_progress)
      ├── Live quiz ; join via code, real-time leaderboard (WebSocket/SSE via zyxrealtime Worker)
-     ├── AI Tutor ; Gemini chat with RAG (Pinecone vector search), Query Action Router (`lib/tutor/query-action.ts`), and Tier 1 Cache Isolation (`lib/tutor/cache-contract.ts`)
+     ├── AI Tutor ; Gemini chat with canonical Vectorize retrieval, Query Action Router (`lib/tutor/query-action.ts`), and Tier 1 Cache Isolation (`lib/tutor/cache-contract.ts`)
      │    ├── Typed Query Actions: `retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, `clarify`
      │    ├── Style modifier extraction (`simpler`, `analogy`, `worked_example`, `graph`, `flowchart`, etc.) applied post-retrieval
      │    ├── Student-free Tier 1 shared KV payload: zero student ID, session ID, or history in cached data (`assertNoStudentTextInSharedCache`)
@@ -406,10 +574,9 @@ Mastery System (background, Inngest cron):
 | **Next.js 16** | App Router, Server Actions, React Server Components |
 | **Drizzle ORM** | SQLite (dev via `file:dev.db`) / Turso (prod via `@libsql/client`), schema in `db/schema.ts` |
 | **Better-Auth** | Auth: credentials + Google OAuth, role-based (admin/teacher/student) |
-| **Gemini** (`@google/genai`) | Text generation: material, flashcards, questions, assessment classification, AI tutor, embeddings (text-embedding-004) |
+| **Gemini** (`@google/genai`) | Text generation plus the fixed Gemini Embedding 2 canonical-content-v2 profile at 768 dimensions |
 | **Cloudflare AI Gateway** | All Gemini requests routed through gateway for caching, rate limiting, observability |
-| **Pinecone** | Primary vector store for KO + assessment embeddings, namespace per course × type (`course_{courseId}_learning` / `course_{courseId}_assessment`), RAG for AI tutor |
-| **Cloudflare Vectorize** | Secondary/migration vector store. `VECTOR_STORE` env controls mode: `pinecone` (default), `dual` (write both), or `vectorize` (read from VZ) |
+| **Cloudflare Vectorize** | Canonical vector store through `zyx-vector-api`, profile `canonical-content-v2`, 768 dimensions, cosine metric, versioned IDs, and allowlisted metadata |
 | **Cloudflare R2** | S3-compatible object storage for diktat PDFs, long-term assets, course materials (via `lib/storage/index.ts`) |
 | **Cloudflare KV** | AI response cache (used by AI tutor for repeated questions) |
 | **Cloudflare Workers** | Three dedicated Workers: `zyx-vector-api` (Vectorize proxy), `zyxrealtime` (live quiz WebSocket/SSE), `zyxacademydiktat` (Puppeteer PDF, hosted on Railway) |
@@ -479,9 +646,8 @@ lib/
 │       └── query-action.ts      ; Deterministic & AI follow-up Query Action Router
 
 ├── (Vector & Search)
-│   ├── vector-store.ts          ; Store abstraction (Pinecone / Vectorize / dual)
-│   ├── pinecone.ts              ; Pinecone client driver
-│   ├── vectorize-client.ts      ; Cloudflare Vectorize client
+│   ├── vector-store.ts          ; Canonical Vectorize store and read-only rollback seam
+│   ├── vectorize-client.ts      ; Canonical Cloudflare Vectorize client
 │   └── context-assembly.ts      ; RAG context assembly for AI tutor
 
 ├── (Jobs)
@@ -543,11 +709,10 @@ lib/
                           ┌──────────────────────────┼──────────┐
                           ▼                          ▼          ▼
                ┌──────────────────┐    ┌────────────────────┐
-               │ Pinecone (vector) │    │ CF Vectorize (vec) │
-               │  or               │    │  via zyx-vector-api│
-               │  VECTOR_STORE=dual│    │  Worker            │
-               │  namespaces:      │    └────────────────────┘
-               │  learning/assess  │
+               │ Canonical Vectorize│    │ via zyx-vector-api │
+               │ profile v2, 768  │    │  Worker            │
+               │ course namespaces │    └────────────────────┘
+               │ and versioned IDs │
                └──────────────────┘
 
 Cloudflare Workers (deployed via wrangler):
@@ -562,7 +727,7 @@ Cloudflare Workers (deployed via wrangler):
 |---|---|---|
 | **Database** | SQLite file (`dev.db`) | Turso (libsql, distributed SQLite) |
 | **Object Storage** | UploadThing (default) | R2 via `lib/storage/index.ts` (`STORAGE_PROVIDER_MODE`) |
-| **Vector Store** | Pinecone | `VECTOR_STORE` env: `pinecone` (default), `dual`, `vectorize` |
+| **Vector Store** | Cloudflare Vectorize | `FEATURE_VECTORIZE_ONLY_V1=1`, canonical-content-v2, 768 dimensions |
 | **AI Gateway** | Direct Gemini API | Cloudflare AI Gateway (rate limit, caching, observability) |
 | **Auth URL** | `localhost:3000` | `BETTER_AUTH_URL` = production origin |
 | **Diktat Renderer** | Mock PDF | Railway Puppeteer service at `DIKTAT_RENDERER_URL` |
@@ -600,12 +765,12 @@ Upload PDF/Markdown
          │    │      ├──→ Generate Flashcards (Gemini → flashcard_sets → flashcards)
          │    │      ├──→ Generate Questions (Gemini + Blueprint Engine + Pedagogical Validator → ai_question_bank)
          │    │      ├──→ Generate Diktat PDF (Puppeteer → R2)
-         │    │      └──→ Vector Sync (Inngest → Pinecone, namespace: "learning")
+         │    │      └──→ Vector Sync (Inngest → canonical Vectorize, namespace: "canonical_ideas")
          │
          └── type="assessment":
               └──→ Assessment Extraction (Deterministic split + Gemini classification)
                      ├──→ assessment_objects + assessment_profiles
-                     └──→ Vector Sync (Inngest → Pinecone, namespace: "assessment")
+                     └──→ Vector Sync (Inngest → canonical Vectorize, namespace: "published_questions")
 ```
 
 ### Student Interaction Flow
@@ -617,7 +782,7 @@ Student
   │                  → student_quiz_attempts → learning_events
   │                  → mastery recompute → daily_recommendations update
   ├── Reviews Flashcards → SM-2 scheduler → student_flashcard_progress
-  ├── AI Tutor Chat → tutor-rag.ts (Pinecone similarity search, "learning" namespace)
+  ├── AI Tutor Chat → tutor-rag.ts (canonical Vectorize similarity search, "canonical_ideas" namespace)
   │                    → tutor_chat_messages → tutor_session_summaries
   └── Live Quiz → WebSocket/SSE (zyxrealtime Worker) → live_quiz_sessions → live_quiz_results
 ```

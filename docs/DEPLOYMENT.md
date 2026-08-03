@@ -5,12 +5,26 @@
 Production runs on Vercel (Next.js) + Turso (DB) with supporting Cloudflare services.
 
 ```
+
+## Staging overhaul execution
+
+Staging migrations use only `.env.staging` and the guarded commands below. Run the preflight before and after every remote step. The commands emit masked resource fingerprints and artifacts under `artifacts/staging-overhaul/<runId>/`.
+
+```bash
+bun --env-file=.env.staging run staging:preflight
+bun --env-file=.env.staging run staging:inventory -- --run-id <runId> --phase before
+bun --env-file=.env.staging run staging:migrate -- --run-id <runId> --plan <plan>
+bun --env-file=.env.staging run staging:inventory -- --run-id <runId> --phase after
+bun --env-file=.env.staging run staging:reconcile -- --run-id <runId> --expect additive
+```
+
+The old production-to-staging sync is not part of the overhaul. Any exceptional destructive sync must use the dedicated `db:sync-prod-to-staging:destructive` command and an explicit confirmation phrase after a separate operator review.
 Vercel (Next.js App Router)
  ├── Turso (libsql database)
  ├── Cloudflare R2 (object storage)
  ├── Inngest Cloud (background jobs)
  ├── Cloudflare AI Gateway (Gemini proxy)
- ├── Pinecone (vector store)
+ ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
  └── Cloudflare Workers (3 services)
 ```
 
@@ -62,8 +76,10 @@ workers/vector-api/
 ├── index.ts
 ```
 
-- Proxies upsert/query/delete to Cloudflare Vectorize
-- Required only when `VECTOR_STORE=vectorize` or `dual`
+- Exposes only authenticated `/v2/upsert`, `/v2/query`, `/v2/delete`, `/v2/list`, and `/v2/get` routes
+- Canonical `/v2/get` hydration is sent in batches of at most 20 IDs per request
+- Staging binds only `VECTORIZE_V2` to `zyx-vectors-staging-v2`; the 1024-dimensional indexes remain unbound preservation resources
+- Staging sets `RESTRICTED_SOLUTION_CAPABILITY` so published solution queries require the server-side capability check
 
 ```bash
 cd workers/vector-api
@@ -96,7 +112,7 @@ wrangler deploy
 | Service | Usage | Free Tier Limit |
 |---|---|---|
 | R2 | Object storage (PDFs, assets) | 10 GB, zero egress |
-| Pinecone | Primary vector store | 2 GB Serverless Starter |
+| Cloudflare Vectorize | Canonical 768-dimensional vector store | 2 GB Serverless Starter |
 | Cloudflare AI Gateway | Gemini proxy, caching, rate limiting | 100k logged req/mo |
 | Cloudflare KV | AI response cache | 100k reads/day, 1k writes/day |
 | Inngest | Background job orchestration | 50k steps/mo |
@@ -130,3 +146,12 @@ The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
 ## Feature Flags
 
 All `FEATURE_*` env vars default to off. Enable gradually per environment. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the full list.
+## Authoring Context Pack V1
+
+Keep `FEATURE_AUTHORING_CONTEXT_V1` absent or `0` until the local contract suite and staging round trip pass. The export API is admin-only by default, stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.
+
+The artifact must use the private R2 staging bucket and must not use a public URL. The authenticated Wrangler adapter is limited to the staging test process when normal R2 credentials are unavailable; production runtime keeps the standard R2 provider. Rollback disables the flag and deletes only an explicitly named test object by exact key.
+
+## Product Bundle V2
+
+Keep `FEATURE_PRODUCT_BUNDLE_V2` absent or `0` until local contract gates and the staging product-bundle rehearsal pass. The workflow uses the normal private R2 storage abstraction for staged ZIP artifacts and writes product publication, dependency, audit, and vector outbox records transactionally. Run the staging test with `.env.staging` and the authenticated Wrangler fallback only when the script explicitly enables it. Do not enable the flag in production as part of Plan 008; production rollout remains out of scope.

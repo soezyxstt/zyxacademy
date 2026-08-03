@@ -258,6 +258,13 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Golden AI Evaluations & Rollout Closure completed**: Offline golden evaluation suite (`scripts/run-ai-evals.ts`), zero-tolerance invariant scorers (`lib/ai/evals/scorers.ts`), npm script `bun run eval:ai`, and full documentation synchronization across all 15 plans completed.
 - **Feature Flags Admin Monitor completed**: Added dedicated `/admin/ops/flags` dashboard with runtime `FEATURE_*` inspection (`lib/feature-flags.ts`), admin API endpoint (`/api/admin/feature-flags`), category filters, search capabilities, env copy helpers, and sidebar/admin homepage navigation links.
 - **Per-Quiz Student Attempt Spreadsheet & CSV Export completed**: Added dedicated interactive spreadsheet view (`QuizAttemptsSpreadsheet`), item-response answer matrix, API route (`/api/admin/quiz-insights/[id]/attempts`), CSV export engine (Matrix & Summary formats), Admin Quiz Insights integration, and Tutor portal route (`/tutor/[courseId]/quizzes/[templateId]/attempts`).
+- **Plan 001 staging safety and migration ledger completed**: Added guarded staging preflight, deterministic inventory, encrypted export and disposable restore, migration ledger tables, additive migration controls, and reconciliation evidence.
+- **Plan 006 Idea Bundle V2 workflow completed**: Added strict ZIP security, manifest and entity contracts, staged import and review workflow, atomic publication, deterministic vector outbox jobs, admin routes and panel, staging fixtures, and reconciliation evidence.
+- **Plan 007 Authoring Context Pack V1 completed**: Added explicit allowlist projection, nested redaction and holdout policy, deterministic ZIP export, admin-only API and panel, private run-scoped R2 staging smoke, content scan, and audit evidence.
+- **Plan 008 Product Bundle V2 completed**: Added strict typed product ZIP validation, immutable staging, traceable previews, tutor and admin review, dependency freshness gates, versioned publication, atomic product and vector outbox writes, assessment source versioning, admin routes and panel, and staging evidence.
+- **Plan 009 Article and Diktat Quality Compiler completed**: Added typed article blocks, prerequisite ordering and cycle rejection, deterministic Product Bundle article compilation, approved-article-only diktat compression, stable quality-gate reason codes, traceable admin previews, and read-only staging preview scripts. Staging evidence records 100 percent article and diktat quality, deterministic output, and zero writes; the requested `tutorial-pka` identity used an explicit read-only fallback to canonical course `mat-i` because no published canonical Idea rows were available under the PKA identity.
+- **Plan 010 Question and Assessment Integrity completed**: Added deterministic multi-Idea assessment blueprints, per-Idea evidence rubrics, stable option-ID grading, benchmark and holdout boundaries, active-attempt redaction, and staging lifecycle plus leak-scan evidence. The requested `tutorial-pka` identity used an explicit run-scoped fallback to canonical course `mat-i`; no cross-course fixture data was mixed.
+- **Plan 011 Per-Idea Mastery and Learning Loop completed**: Added deterministic per-Idea score and confidence calculation, append-only evidence identity, replay metadata, change history, compatibility reads, deterministic recommendations, versioned Inngest recompute events, and guarded staging shadow/full/incremental replay scripts. The staging run used an explicit `tutorial-pka` to `mat-i` canonical fallback and did not modify legacy mastery rows.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -275,22 +282,33 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Staged KO Extraction & Canonical Review verified deterministically via `bun test tests/contracts/ko-pipeline.test.ts` (11 passing tests across KO pipeline suite with 0 network calls, deterministic chunking > 30k chars, span preservation, and review gating verified).
 - Question Blueprint, Option Shuffle, and Distractor Provenance verified deterministically via `bun test tests/contracts/question-pipeline.test.ts` (14 passing tests across question pipeline suite with 0 network calls, slot KO requirement, seeded shuffle, distractor provenances, position leakage prevention, independent solver, and critic loop verified).
 - Wave 4 (Plans 006, 009, 011) verified deterministically via `bun test tests/contracts/tutor-rag.test.ts tests/contracts/material-pipeline.test.ts tests/contracts/question-pipeline.test.ts` (67 passing contract tests, 0 errors across lint & typecheck).
-- Wave 5 (Plans 013, 014, 012) verified deterministically via `bun test tests/contracts/flashcard-generator.test.ts tests/contracts/diktat.test.ts tests/contracts/analytics.test.ts` (75 passing contract tests across 9 files, 0 errors across lint & typecheck).
-- Wave 6 (Plan 015) verified deterministically via `bun run eval:ai` (3/3 golden evaluation zero-tolerance invariant suites passing 100%).
+- Wave 5 contract surfaces (Plans 013, 014, 012) verified deterministically via `bun test tests/contracts/flashcard-generator.test.ts tests/contracts/diktat.test.ts tests/contracts/analytics.test.ts` (75 passing contract tests across 9 files, 0 errors across lint & typecheck).
+- Plan 015 local contract and AI evaluation surfaces verified deterministically; staging parity remains a separate gate.
 - Per-Quiz Student Attempt Spreadsheet & CSV Exporter verified deterministically via contract test suite (78 passing contract tests) and clean `bun run lint` (0 errors, 0 warnings).
+- Plan 001 staging rehearsal verified with 97 tables before migration, 99 tables after migration, zero foreign-key violations, passed disposable restore, and only the two migration ledger tables added. Evidence: `artifacts/staging-overhaul/20260802-plan001-staging/plan-001-result.json`.
+- Plan 001 code verified with `bun run lint`, `bun run typecheck`, and 12 staging contract tests passing.
+- Plan 002 staging gates verified with 66 mapped users, 67 role memberships, zero parity violations, idempotent backfill rerun (`changedRows: 0`), and passing admin, tutor, murid, and multi-role Better Auth session smoke. Evidence: `artifacts/staging-overhaul/20260802-plan002-staging/plan-002-result.json`.
+- Plan 003 source and Idea domain verified with 10 focused contract and SQLite constraint tests, additive migration `0053_faithful_blazing_skull.sql`, 11 new staging tables, unchanged legacy manifests, and zero foreign-key violations. Evidence: `artifacts/staging-overhaul/20260802-plan003-staging/plan-003-result.json`.
+- Plan 004 product, assessment, evidence, mastery, bundle, and audit domains verified with 16 focused tests, 70 assertions, clean lint and typecheck, additive migration `0054_green_archangel.sql`, 34 new staging tables, unchanged legacy manifests, and zero foreign-key violations. Evidence: `artifacts/staging-overhaul/20260802-plan004-staging/plan-004-result.json`.
+- Plan 005 deterministic legacy backfill and compatibility verified with clean lint and typecheck, 16 focused tests, additive migration `0055_cute_avengers.sql`, 568 deterministic mappings, 3,175 zero-loss exception rows, zero blocking exceptions, zero foreign-key violations, zero uncovered rows, zero snapshot mismatches, zero Tutorial PKA mismatches, and an idempotent apply. Evidence: `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
+- Plan 006 Idea Bundle V2 verified with clean lint, typecheck, diff check, 7 focused contract tests, additive migration `0056_elite_midnight.sql`, successful staging upload, identical retry no-op, conflict rejection, partial publication rollback, atomic publish, stable invalid-fixture reason codes, and independent reconciliation. Evidence: `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json` and `plan-006-reconcile.json`.
+- Plan 007 Authoring Context Pack V1 verified with clean lint and typecheck, 4 focused contract tests, deterministic allowlist and redaction checks, zero scan findings, identical pack and ZIP checksums, private R2 round trip, exact test-object deletion, and audit metadata. Evidence: `artifacts/staging-overhaul/20260803-plan007-authoring-v1/plan-007-result.json` and `plan-007-scan.json`.
+- Plan 008 Product Bundle V2 verified with clean lint, typecheck, diff check, 23 focused contract tests across Product Bundle, material, and question pipelines, all seven product types staged and published, identical retry no-op, conflict rejection, seven-stage rollback matrix with zero visible partial products, stale dependency blocking, holdout rejection, versioned re-import, and independent reconcile. Evidence: `artifacts/staging-overhaul/20260803-plan008-product-v3/plan-008-result.json` and `plan-008-reconcile.json`.
+- Plan 010 Question and Assessment Integrity verified with clean lint, typecheck, diff check, 31 focused tests and 110 assertions, a passed staging create, publish, start, answer, submit, and summary lifecycle, and zero findings from the independent leak scan. Evidence: `artifacts/staging-overhaul/20260803-plan010-assessment-v4/plan-010-result.json` and `plan-010-leak-scan.json`.
+- Plan 011 Per-Idea Mastery and Learning Loop verified with clean lint, typecheck, 16 focused contract and migration tests, a passed staging shadow with zero writes, a passed full replay, and a passed incremental no-op replay with identical hashes. Evidence: `artifacts/staging-overhaul/20260803-plan011-shadow-v2/plan-011-shadow.json` and `artifacts/staging-overhaul/20260803-plan011-recompute-v2/plan-011-result.json`.
 
 ### Current Focus
-All 15 Plans of the Zyx AI Reliability Remediation Roadmap are fully executed, verified, and merged into `main`. Ready for authorized production shadow deployment.
+Plans 001 through 016 have passed their recorded local and staging gates, including the authorized 313-vector canonical backfill, golden retrieval, Zyra privacy checks, admin and tutor workflow, murid parity, two full Plan 016 rehearsals, rollback, re-enable, final Vectorize reconcile, and the legacy-caller inventory. Staging never provisioned Pinecone; the final decommission evidence records the deterministic not-provisioned state, while the Pinecone values in `.env.local` and `.env.prod` remain outside staging scope.
 
 ### Blockers
-None
+- None for the requested staging overhaul. Production deployment and deletion remain out of scope, and the preserved 1024-dimensional Vectorize indexes remain untouched.
 
 ---
 
 ## Core Architectural Stack
 
 - **Database**: Turso for production, local SQLite (`dev.db`) for development. Never attempt to use PostgreSQL or neon-client.
-- **Vector Store**: Pinecone (Serverless Starter) is the primary vector database. Vectorize (Cloudflare) is conditional only (P8).
+- **Vector Store**: Cloudflare Vectorize is the canonical vector database for staging retrieval, using `canonical-content-v2`, Gemini Embedding 2, 768 dimensions, cosine distance, and the authenticated V2 Worker. Pinecone was never provisioned in staging; local and production Pinecone variables are preserved outside the staging cutover scope.
 - **Primary LLM**: Google Gemini API via `@google/genai` (Gemini 2.5 Flash is the primary model).
 - **AI Gateway**: Cloudflare AI Gateway routes all Gemini traffic (`CF_AI_GATEWAY_URL`). Caching enabled for Tier 1 tutor queries.
 - **Storage**: Cloudflare R2 bucket (`zyx`) is the storage provider. UploadThing is deprecated and pending complete teardown (P7).
@@ -354,12 +372,11 @@ Every standalone page gets `<PageOrnaments variant="..." />` as first child insi
 | Service | Usage | Free limit |
 |---|---|---|
 | LLM | Gemini 2.5 Flash (4-key rotation via AI Gateway) | ~250 req/day per key |
-| Embeddings | Gemini text-embedding-004 | ~1,500 req/day |
+| Embeddings | Gemini Embedding 2, canonical-content-v2 | project key quota |
 | AI Gateway | Proxy, cache, rate limiting | 100k logged req/mo |
 | KV Cache | AI tutor response cache | 100k reads/day, 1k writes/day |
 | R2 | Object storage | 10 GB, zero egress |
-| Pinecone | Primary vector store | 2 GB Serverless Starter |
-| Vectorize (opt) | Secondary vector store | ~6,500 vectors at 768 dims |
+| Vectorize | Canonical vector store for staging | 768 dimensions, cosine, metadata allowlist |
 | Turso | SQLite database | 5 GB, 500M row reads/mo |
 | Inngest | Background job orchestration | 50k steps/mo |
 | Resend | Transactional emails | 100/day |

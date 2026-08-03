@@ -150,7 +150,6 @@ export const DbKnowledgeObjectSchema = z.object({
  tags: z.array(z.string()).min(1),
  importance: z.enum(["high", "medium", "low"]),
  metadata: z.record(z.string(), z.any()),
- pineconeVectorId: z.string().nullable().optional(),
  status: z.enum(["active", "retired"]),
 });
 
@@ -1081,7 +1080,6 @@ export async function extractKnowledgeObjectsForChapter(
  tags: candidate.tags,
  importance: candidate.importance,
  metadata: mergedMetadata,
- pineconeVectorId: null,
  status: "active" as const,
  };
 

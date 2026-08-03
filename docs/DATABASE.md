@@ -62,4 +62,4 @@ Full table reference in [ARCHITECTURE.md](./ARCHITECTURE.md#3-database-schema--a
 - **SQLite stays** ; no Postgres. Turso for production scale.
 - **Dual-hashing** ; `sourceHash` (raw content) + `derivedHash` (structured attributes) prevent unnecessary regeneration on cosmetic edits.
 - **All timestamps** use `integer` (Unix ms) with `{ mode: "timestamp" }`.
-- **Vectors** are stored externally (Pinecone / Vectorize), not in SQLite.
+- **Vectors** are stored externally in canonical Cloudflare Vectorize, not in SQLite. Legacy vector columns remain only as preserved migration history.
