@@ -27,7 +27,7 @@ function validProducts(): Record<string, unknown>[] {
   return [
     { ...productBase("article-008", "article"), slug: "article-008", title: "Article", blocks: [{ id: "block-008", blockType: "concept", orderIndex: 0, content: "Article block" }] },
     { ...productBase("diktat-008", "diktat"), title: "Diktat", contentMarkdown: "# Diktat" },
-    { ...productBase("question-008", "question"), questionType: "multiple_choice", prompt: "What is velocity?", options: ["A", "B"], difficulty: "medium", cognitiveLevel: "understand", reasoningPattern: "definition" },
+    { ...productBase("question-008", "question"), questionType: "multiple_choice", prompt: "What is velocity?", options: ["A", "B"], difficulty: "medium", cognitiveLevel: "understand", reasoningPattern: "definition", itbCuration: [{ referenceId: "itb-ref-008", dimensions: { difficulty: "similar", format: "similar", terminology: "similar", reasoningPattern: "similar" }, curatorNote: "Curation fixture" }] },
     { ...productBase("solution-008", "solution"), questionId: "question-008", content: "Because velocity is displacement over time." },
     { ...productBase("set-008", "flashcard_set"), title: "Set", cards: ["flashcard-008"] },
     { ...productBase("flashcard-008", "flashcard"), front: "What is velocity?", back: "Displacement over time", atomic: true },
@@ -115,5 +115,84 @@ describe("Plan 008 Product Bundle V2", () => {
     const assessmentResult = validateProductBundle(archive(buildFiles(missingQuestion)));
     expect(assessmentResult.success).toBe(false);
     if (!assessmentResult.success) expect(assessmentResult.issues[0]?.code).toBe("PRODUCT_ASSESSMENT_QUESTION_MISSING");
+  });
+
+  test("requires ITB curation for every question product", () => {
+    const missingCuration = validProducts();
+    (missingCuration[2] as { itbCuration: unknown[] }).itbCuration = [];
+    const result = validateProductBundle(archive(buildFiles(missingCuration)));
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.issues[0]?.code).toBe("BUNDLE_ENTITY_INVALID");
+  });
+
+  test("enforces atomic flashcards, normalized Idea weights, complete multi-Idea relations, and HOT cognitive level", () => {
+    const invalidFlashcard = validProducts();
+    (invalidFlashcard[5] as { ideaLinks: unknown[] }).ideaLinks = [
+      { id: "idea-008", version: 1, semanticHash: HASH_A, weight: 0.5, role: "primary" },
+      { id: "idea-009", version: 1, semanticHash: HASH_B, weight: 0.5, role: "supporting" },
+    ];
+    const flashcardResult = validateProductBundle(archive(buildFiles(invalidFlashcard)));
+    expect(flashcardResult.success).toBe(false);
+    if (!flashcardResult.success) expect(flashcardResult.issues[0]?.code).toBe("PRODUCT_FLASHCARD_IDEA_COUNT_INVALID");
+
+    const invalidWeights = validProducts();
+    (invalidWeights[0] as { ideaLinks: unknown[] }).ideaLinks = [{ id: "idea-008", version: 1, semanticHash: HASH_A, weight: 0.5, role: "primary" }];
+    const weightResult = validateProductBundle(archive(buildFiles(invalidWeights)));
+    expect(weightResult.success).toBe(false);
+    if (!weightResult.success) expect(weightResult.issues[0]?.code).toBe("PRODUCT_IDEA_WEIGHT_SUM_INVALID");
+
+    const nonHotMultiIdea = validProducts();
+    (nonHotMultiIdea[2] as { ideaLinks: unknown[]; ideaRelations: unknown[] }).ideaLinks = [
+      { id: "idea-008", version: 1, semanticHash: HASH_A, weight: 0.5, role: "primary" },
+      { id: "idea-009", version: 1, semanticHash: HASH_B, weight: 0.5, role: "required" },
+    ];
+    (nonHotMultiIdea[2] as { ideaRelations: unknown[] }).ideaRelations = [
+      { ideaId: "idea-008", relationType: "required", rationale: "Primary Idea" },
+      { ideaId: "idea-009", relationType: "prerequisite", rationale: "Required connection" },
+    ];
+    const nonHotResult = validateProductBundle(archive(buildFiles(nonHotMultiIdea)));
+    expect(nonHotResult.success).toBe(false);
+    if (!nonHotResult.success) expect(nonHotResult.issues[0]?.code).toBe("PRODUCT_QUESTION_MULTI_IDEA_HOT_REQUIRED");
+
+    const validMultiIdea = validProducts();
+    (validMultiIdea[2] as { cognitiveLevel: string }).cognitiveLevel = "analyze";
+    (validMultiIdea[2] as { ideaLinks: unknown[]; ideaRelations: unknown[] }).ideaLinks = [
+      { id: "idea-008", version: 1, semanticHash: HASH_A, weight: 0.5, role: "primary" },
+      { id: "idea-009", version: 1, semanticHash: HASH_B, weight: 0.5, role: "required" },
+    ];
+    (validMultiIdea[2] as { ideaRelations: unknown[] }).ideaRelations = [
+      { ideaId: "idea-008", relationType: "required", rationale: "Primary Idea" },
+      { ideaId: "idea-009", relationType: "prerequisite", rationale: "Required connection" },
+    ];
+    expect(validateProductBundle(archive(buildFiles(validMultiIdea))).success).toBe(true);
+
+    (validMultiIdea[2] as { ideaRelations: unknown[] }).ideaRelations = [{ ideaId: "idea-008", relationType: "required" }];
+    const relationResult = validateProductBundle(archive(buildFiles(validMultiIdea)));
+    expect(relationResult.success).toBe(false);
+    if (!relationResult.success) expect(relationResult.issues[0]?.code).toBe("PRODUCT_QUESTION_RELATION_INCOMPLETE");
+  });
+
+  test("requires an explicit Article dependency when Diktat lineage is declared", () => {
+    const products = validProducts();
+    (products[1] as { sourceArticleId: string; sourceArticleVersion: number; sourceArticleHash: string }).sourceArticleId = "article-008";
+    (products[1] as { sourceArticleVersion: number }).sourceArticleVersion = 1;
+    (products[1] as { sourceArticleHash: string }).sourceArticleHash = HASH_A;
+    const dependency: ProductDependency = {
+      id: "dependency-diktat-article",
+      upstreamEntityType: "product",
+      upstreamEntityId: "article-008",
+      upstreamVersion: 1,
+      upstreamHash: HASH_A,
+      downstreamEntityType: "diktat",
+      downstreamEntityId: "diktat-008",
+      downstreamVersion: 1,
+      downstreamHash: HASH_A,
+      freshness: "UP_TO_DATE",
+    };
+    expect(validateProductBundle(archive(buildFiles(products, [dependency]))).success).toBe(true);
+
+    const missing = validateProductBundle(archive(buildFiles(products)));
+    expect(missing.success).toBe(false);
+    if (!missing.success) expect(missing.issues[0]?.code).toBe("PRODUCT_DIKTAT_LINEAGE_DEPENDENCY_MISSING");
   });
 });

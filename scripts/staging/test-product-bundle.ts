@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { strToU8, zipSync } from "fflate";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   artikel,
@@ -16,6 +16,7 @@ import {
   setFlashcard,
   soal,
   sumberMateri,
+  soalItbReferensi,
   user,
 } from "@/db/schema";
 import {
@@ -72,7 +73,7 @@ function refreshChecksums(files: FixtureFiles): void {
   writeJson(files, "manifest.json", manifest);
 }
 
-async function findPrerequisites(): Promise<{ adminId: string; courseId: string; idea: typeof ide.$inferSelect; source: typeof sumberMateri.$inferSelect; chunk: typeof potonganSumber.$inferSelect }> {
+async function findPrerequisites(): Promise<{ adminId: string; courseId: string; idea: typeof ide.$inferSelect; source: typeof sumberMateri.$inferSelect; chunk: typeof potonganSumber.$inferSelect; itbReference: typeof soalItbReferensi.$inferSelect; itbReferenceV2: typeof soalItbReferensi.$inferSelect }> {
   const [admin] = await db.select({ id: user.id }).from(user).where(eq(user.role, "admin")).limit(1);
   if (!admin) throw new Error("STAGING_PRODUCT_ADMIN_PREREQUISITE_MISSING");
   const candidates = await db.select().from(ide).where(eq(ide.status, "published")).limit(50);
@@ -82,12 +83,13 @@ async function findPrerequisites(): Promise<{ adminId: string; courseId: string;
     const [chunk] = await db.select().from(potonganSumber).where(and(eq(potonganSumber.sumberMateriId, source.id), eq(potonganSumber.sourceVersion, source.version))).limit(1);
     if (!chunk) continue;
     const [course] = await db.select({ id: mataKuliah.id }).from(mataKuliah).where(eq(mataKuliah.id, idea.mataKuliahId)).limit(1);
-    if (course) return { adminId: admin.id, courseId: course.id, idea, source, chunk };
+    const itbReferences = await db.select().from(soalItbReferensi).where(and(eq(soalItbReferensi.authoringVisibility, "allowed"), isNull(soalItbReferensi.soalId))).limit(2);
+    if (course && itbReferences.length === 2) return { adminId: admin.id, courseId: course.id, idea, source, chunk, itbReference: itbReferences[0], itbReferenceV2: itbReferences[1] };
   }
   throw new Error("STAGING_PRODUCT_IDEA_SOURCE_PREREQUISITE_MISSING");
 }
 
-function makeValidFiles(runId: string, courseId: string, idea: typeof ide.$inferSelect, source: typeof sumberMateri.$inferSelect, chunk: typeof potonganSumber.$inferSelect, actorId: string): FixtureFiles {
+function makeValidFiles(runId: string, courseId: string, idea: typeof ide.$inferSelect, source: typeof sumberMateri.$inferSelect, chunk: typeof potonganSumber.$inferSelect, itbReference: typeof soalItbReferensi.$inferSelect, actorId: string): FixtureFiles {
   const prefix = `p008-${safeSegment(runId)}`;
   const articleId = `${prefix}-article`;
   const diktatId = `${prefix}-diktat`;
@@ -112,7 +114,7 @@ function makeValidFiles(runId: string, courseId: string, idea: typeof ide.$infer
     return { ...base, sourceHash: productHash(id, { sourceId: source.id, checksum: source.checksum }), generationHash: productHash(id, base) };
   };
   const article = product(articleId, "article", { slug: `${prefix}-article`, title: "Staging Product Article", blocks: [{ id: `${articleId}-intro`, blockType: "paragraph", orderIndex: 0, content: "Article staging berbasis Idea dan source yang sudah dipublikasikan." }] });
-  const question = product(questionId, "question", { questionType: "multiple_choice", prompt: "Apa fungsi utama fixture Product Bundle V2 ini?", options: [{ id: "a", label: "Menguji traceability dan publication" }, { id: "b", label: "Menghapus source lama" }], difficulty: "medium", cognitiveLevel: "understand", reasoningPattern: "traceability_check", relationTypes: ["required"] });
+  const question = product(questionId, "question", { questionType: "multiple_choice", prompt: "Apa fungsi utama fixture Product Bundle V2 ini?", options: [{ id: "a", label: "Menguji traceability dan publication" }, { id: "b", label: "Menghapus source lama" }], difficulty: "medium", cognitiveLevel: "understand", reasoningPattern: "traceability_check", relationTypes: ["required"], itbCuration: [{ referenceId: itbReference.id, dimensions: { difficulty: "similar", format: "similar", terminology: "similar", reasoningPattern: "similar" }, curatorNote: "Staging fixture uses an allowed ITB reference." }] });
   const products = [
     article,
     product(diktatId, "diktat", { title: "Staging Product Diktat", contentMarkdown: "Materi diktat untuk verifikasi Product Bundle V2." }),
@@ -159,9 +161,15 @@ function reasonCode(bytes: Uint8Array): string {
   return result.success ? "VALID" : result.issues[0].code;
 }
 
-function cloneVersionTwo(files: FixtureFiles, bundleId: string): FixtureFiles {
+function cloneVersionTwo(files: FixtureFiles, bundleId: string, itbReferenceId: string): FixtureFiles {
   const next = cloneFiles(files);
-  const products = json<JsonRecord[]>(next, "entities/products.json").map((product) => ({ ...product, version: 2, generationHash: productHash(product.id, { ...product, version: 2, revision: "v2" }) }));
+  const products = json<JsonRecord[]>(next, "entities/products.json").map((product) => {
+    const versioned: JsonRecord = { ...product, version: 2 };
+    if (versioned.productType === "question" && Array.isArray(versioned.itbCuration)) {
+      versioned.itbCuration = versioned.itbCuration.map((entry: JsonRecord, index: number) => index === 0 ? { ...entry, referenceId: itbReferenceId } : entry);
+    }
+    return { ...versioned, generationHash: productHash(product.id, { ...versioned, revision: "v2" }) };
+  });
   const dependencies = json<JsonRecord[]>(next, "entities/dependencies.json").map((dependency) => ({ ...dependency, downstreamVersion: 2, downstreamHash: sha256Text(`${dependency.downstreamEntityId}:v2`) }));
   const manifest = json<JsonRecord>(next, "manifest.json");
   manifest.bundleId = bundleId;
@@ -217,7 +225,7 @@ async function main(): Promise<void> {
     const prerequisites = await findPrerequisites();
     console.log(JSON.stringify({ phase: "fixture_prerequisites", courseId: prerequisites.courseId, ideaId: prerequisites.idea.id, sourceId: prerequisites.source.id }));
 
-    const validFiles = makeValidFiles(runId, prerequisites.courseId, prerequisites.idea, prerequisites.source, prerequisites.chunk, prerequisites.adminId);
+    const validFiles = makeValidFiles(runId, prerequisites.courseId, prerequisites.idea, prerequisites.source, prerequisites.chunk, prerequisites.itbReference, prerequisites.adminId);
     const validBytes = archive(validFiles);
     const validValidation = validateProductBundle(validBytes);
     if (!validValidation.success) throw new Error(`STAGING_PRODUCT_VALID_FIXTURE_INVALID:${validValidation.issues.map((issue) => issue.code).join(",")}`);
@@ -263,7 +271,7 @@ async function main(): Promise<void> {
     const failureStages = ["flashcard_set", "question", "diktat", "flashcard", "solution", "assessment_blueprint", "outbox"] as const;
     const failureMatrix: JsonRecord[] = [];
     for (const failureStage of failureStages) {
-      const failureFiles = makeValidFiles(`${runId}-${failureStage}`, prerequisites.courseId, prerequisites.idea, prerequisites.source, prerequisites.chunk, prerequisites.adminId);
+      const failureFiles = makeValidFiles(`${runId}-${failureStage}`, prerequisites.courseId, prerequisites.idea, prerequisites.source, prerequisites.chunk, prerequisites.itbReference, prerequisites.adminId);
       const failureBytes = archive(failureFiles);
       const failureValidation = validateProductBundle(failureBytes);
       if (!failureValidation.success) throw new Error(`STAGING_PRODUCT_FAILURE_FIXTURE_INVALID:${failureStage}`);
@@ -300,7 +308,7 @@ async function main(): Promise<void> {
     }
     if (staleCode !== "PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW") throw new Error(`STAGING_PRODUCT_STALE_EXPECTATION_FAILED:${staleCode}`);
 
-    const versionFiles = cloneVersionTwo(validFiles, `p008-${safeSegment(runId)}-v2-bundle`);
+    const versionFiles = cloneVersionTwo(validFiles, `p008-${safeSegment(runId)}-v2-bundle`, prerequisites.itbReferenceV2.id);
     const versionStage = await stageProductBundle(stageInput(versionFiles, archive(versionFiles), runId, prerequisites.adminId));
     await reviewProductBundle({ importId: versionStage.importId, reviewerId: prerequisites.adminId, decision: "approved", notes: "Plan 008 versioned reimport" });
     const versionPublished = await publishProductBundle({ importId: versionStage.importId, publishedBy: prerequisites.adminId });

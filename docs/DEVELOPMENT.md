@@ -104,7 +104,7 @@ The staging test uses the authenticated Wrangler R2 adapter only for the test pr
 
 `FEATURE_ASESMEN_IDE_V1`: stable option IDs, chapter-scoped assessment metadata, deterministic blueprint selection, and Plan 010 evidence and benchmark contracts. Absent or `0` keeps the legacy quiz path visible and authoritative.
 
-`FEATURE_PEMAHAMAN_IDE_V1`: append-only per-Idea evidence writers, deterministic mastery and confidence, compatibility reads, and flashcard recommendation priorities. Absent or `0` keeps the additive learning loop invisible. It never enables an AI call.
+`FEATURE_PEMAHAMAN_IDE_V1`: append-only per-Idea evidence writers, deterministic mastery and confidence, compatibility reads, and flashcard recommendation priorities with suppression for mastery scores of 80 or higher. Absent or `0` keeps the additive learning loop invisible. It never enables an AI call.
 
 Plan 010 local checks:
 
@@ -129,6 +129,17 @@ bun --env-file=.env.staging run staging:recompute-idea-mastery -- --run-id <runI
 bun --env-file=.env.staging run staging:recompute-idea-mastery -- --run-id <runId> --course tutorial-pka --mode incremental --expect-noop
 git diff --check
 ```
+
+Plan 017 branch-local checks are intentionally read-only with respect to remote resources. Do not run database migrations, Vectorize backfills, R2 cleanup, deployment, or staging rehearsal from this branch without separate approval. The local contract gate is:
+
+```bash
+bun test tests/contracts/product-bundle-v2.test.ts tests/contracts/material-pipeline.test.ts tests/contracts/flashcard-generator.test.ts tests/contracts/vector-outbox.test.ts tests/contracts/vectorize-contract.test.ts tests/contracts/assessment-domain.test.ts tests/contracts/idea-evidence.test.ts tests/contracts/idea-mastery-domain.test.ts tests/contracts/mastery-idempotency.test.ts tests/contracts/live-idea-evidence.test.ts
+bun run lint
+bun run typecheck
+git diff --check
+```
+
+The live compatibility bridge uses the existing `FEATURE_ARSITEKTUR_IDE_V1`, `FEATURE_DUAL_WRITE_IDE`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` flags together. Keep any missing flag at `0` to preserve the legacy-only path.
 
 ## Feature Flags
 

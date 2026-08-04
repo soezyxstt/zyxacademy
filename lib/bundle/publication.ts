@@ -316,24 +316,54 @@ export async function publishIdeaBundle(input: {
     }
     maybeInjectFailure(input.testFailureAfter, "relations");
 
+    const sourceMaterialById = new Map(bundle.entities.sourceMaterials.map((source) => [source.id, source]));
     const vectorJobs = [
       ...bundle.entities.sourceChunks
         .filter((chunk) => chunk.embeddingEligible)
-        .map((chunk) => ({
-          id: deterministicId("vector-idea-source", `${chunk.id}:${chunk.sourceVersion}`),
-          courseId: course.legacyId,
-          koId: null,
-          action: "upsert" as const,
-          namespace: "idea",
-          payload: { entityType: "source_chunk", entityId: chunk.id, version: chunk.sourceVersion, checksum: chunk.checksum },
-        })),
+        .map((chunk) => {
+          const source = sourceMaterialById.get(chunk.sourceMaterialId);
+          return {
+            id: deterministicId("vector-idea-source", `${chunk.id}:${chunk.sourceVersion}`),
+            courseId: course.legacyId,
+            koId: null,
+            action: "upsert" as const,
+            namespace: "source_materials",
+            payload: {
+              entityType: "source_material",
+              entityId: chunk.id,
+              version: chunk.sourceVersion,
+              text: chunk.content,
+              title: source?.title ?? chunk.id,
+              metadata: {
+                entityId: chunk.id,
+                version: chunk.sourceVersion,
+                status: "active",
+                ...(source?.chapterId ? { chapterId: source.chapterId } : {}),
+              },
+            },
+          };
+        }),
       ...bundle.entities.ideas.map((idea) => ({
         id: deterministicId("vector-idea", `${idea.id}:${idea.version}`),
         courseId: course.legacyId,
         koId: null,
         action: "upsert" as const,
-        namespace: "idea",
-        payload: { entityType: "idea", entityId: idea.id, version: idea.version, semanticHash: idea.semanticHash },
+        namespace: "canonical_ideas",
+        payload: {
+          entityType: "idea",
+          entityId: idea.id,
+          version: idea.version,
+          text: [idea.canonicalStatement, idea.conciseExplanation, idea.latex ? `Formula: ${idea.latex}` : ""]
+            .filter(Boolean)
+            .join("\n\n"),
+          title: idea.code,
+          metadata: {
+            entityId: idea.id,
+            version: idea.version,
+            status: "published",
+            chapterId: idea.chapterId,
+          },
+        },
       })),
     ];
     for (const job of vectorJobs) {
@@ -386,7 +416,10 @@ export async function reconcilePublishedIdeaBundle(importId: string) {
   const [publication] = await db.select().from(publikasiBundle).where(eq(publikasiBundle.imporBundleId, importId)).limit(1);
   const items = await db.select().from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, importId));
   const audits = await db.select({ id: auditMutasi.id }).from(auditMutasi).where(and(eq(auditMutasi.entityType, "idea_bundle"), eq(auditMutasi.entityId, importId)));
-  const vectorJobs = await db.select({ id: vectorSyncQueue.id }).from(vectorSyncQueue).where(eq(vectorSyncQueue.namespace, "idea"));
+  const vectorJobs = await db
+    .select({ id: vectorSyncQueue.id })
+    .from(vectorSyncQueue)
+    .where(or(eq(vectorSyncQueue.namespace, "source_materials"), eq(vectorSyncQueue.namespace, "canonical_ideas")));
   return {
     importId,
     publicationStatus: publication?.status ?? null,

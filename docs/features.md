@@ -63,11 +63,11 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 
 ### Product, Assessment, and Idea Mastery Domain
 1. Articles, diktat materials, questions, solutions, and flashcards have normalized versioned target records with source and generation hashes.
-2. Published products require at least one published Idea; question links support multiple Ideas with positive weights whose sum is checked within `0.000001`.
+2. Published products require at least one published Idea; question links support multiple Ideas with positive weights whose sum is checked within `0.000001`. Product Bundle questions require ITB curation, and multi-Idea questions require a HOT cognitive level.
 3. Assessment definitions separate blueprint, assessment, chapter scope, ordered items, attempts, and answers. Quiz scope is exactly one chapter; tryout scope is one or more chapters.
 4. Attempt and answer records carry rendered question, option order, response, grading policy, and content version snapshots so later content changes do not alter historical context.
 5. Answer evidence records Idea attribution, contribution, weight, confidence, evidence source, rubric version, and derivation status. Ambiguous evidence is retained but cannot affect mastery.
-6. `pemahaman_ide` stores score and confidence as separate 0 to 100 values, with append-only change history, replay metadata, and deterministic flashcard recommendations. Only attributable verified evidence contributes to the score; a legacy concept baseline is explicitly labelled and never copied to an Idea.
+6. `pemahaman_ide` stores score and confidence as separate 0 to 100 values, with append-only change history, replay metadata, and deterministic flashcard recommendations. Cards for Ideas with mastery score 80 or higher are suppressed. Only attributable verified evidence contributes to the score; a legacy concept baseline is explicitly labelled and never copied to an Idea.
 7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
 8. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` until the later workflow canaries; current legacy records remain unchanged.
 
@@ -92,8 +92,11 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 1. Admins upload typed ZIP bundles from `/admin/bundles/product`; the server validates product schemas, checksums, Idea and source traceability, renderable blocks, assessment scope, atomic flashcards, and holdout markers.
 2. Valid uploads create immutable staged inventories. Identical retries write no rows, while a different checksum for the same bundle ID is rejected.
 3. Reviewers see a server-rendered preview for every product type with source and Idea IDs. Tutor approval is course-scoped and admin approval is required for publication.
-4. Publication verifies current published Ideas, active source excerpts, identities, and dependency freshness before one transaction writes products, links, dependencies, vector outbox entries, publication state, and mutation audit records.
-5. `FEATURE_PRODUCT_BUNDLE_V2` hides the page and API when absent or `0`; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
+4. Product Idea-link weights must be positive and sum to one. An atomic flashcard has exactly one Idea. A multi-Idea question carries an explicit relation and rationale per linked Idea instead of attaching every relation to the first Idea.
+5. Question products may carry ITB curation dimensions for difficulty, format, terminology, and reasoning pattern. Publication accepts only `allowed` references, links them to the published question, and rejects holdout references.
+6. A Diktat may declare its source Article ID, version, and generation hash. When declared, the bundle must include the matching Article dependency so the Diktat cannot silently drift from its Article.
+7. Publication verifies current published Ideas, active source excerpts, identities, and dependency freshness before one transaction writes products, links, dependencies, canonical vector outbox entries, publication state, and mutation audit records. Only articles, questions, and solutions request runtime vectors; flashcards, Diktat, and assessment blueprints do not create generic product vectors.
+8. `FEATURE_PRODUCT_BUNDLE_V2` hides the page and API when absent or `0`; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
 
 ### Article and Diktat Quality Compiler
 
@@ -176,6 +179,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - `lib/asesmen/evidence-rubric.ts` derives versioned per-Idea evidence from stable option IDs. Ambiguous evidence and misconception mappings never affect mastery, and free-response evidence requires a reviewed rubric or grading result.
 - `lib/asesmen/benchmark-policy.ts` rejects exact duplicates, applies versioned similarity thresholds, and keeps holdout content inside the benchmark boundary. Missing thresholds produce `needs_review`.
 - When `FEATURE_ASESMEN_IDE_V1=1`, quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
+- When `FEATURE_ARSITEKTUR_IDE_V1`, `FEATURE_DUAL_WRITE_IDE`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` are all `1`, a legacy quiz submission is bridged only when every snapshot question exactly matches a published canonical question and published Idea links. The bridge writes immutable canonical item and answer snapshots, per-Idea evidence, and deterministic mastery recompute events. Missing, stale, ambiguous, or unreviewed mappings leave the legacy submission intact and produce no canonical mastery evidence.
 
 ### Canonical Vectorize Retrieval V2
 

@@ -20,6 +20,16 @@ describe("Plan 008 product preview boundary", () => {
       questionType: "essay",
       prompt: "Explain the method.",
       options: [],
+      itbCuration: [{
+        referenceId: "itb-preview",
+        dimensions: {
+          difficulty: "similar",
+          format: "similar",
+          terminology: "similar",
+          reasoningPattern: "similar",
+        },
+        curatorNote: "Preview fixture is curated against an ITB reference.",
+      }],
       difficulty: "medium",
       cognitiveLevel: "analyze",
       reasoningPattern: "derivation",

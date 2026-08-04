@@ -330,7 +330,9 @@ Ambiguous evidence is stored with explicit status and the schema check prevents 
 
 Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. A matching bundle ID and checksum is idempotent; a different checksum is a conflict. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
 
-Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Product item types are recorded in the inventory, while canonical article, diktat, question, solution, flashcard, and assessment blueprint rows are inserted only after traceability and dependency checks pass. Versions greater than one use versioned product IDs so prior rows remain queryable. No schema migration was required for this workflow.
+Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Product item types are recorded in the inventory, while canonical article, diktat, question, solution, flashcard, and assessment blueprint rows are inserted only after traceability and dependency checks pass. Question products require ITB curation, and multi-Idea questions require a HOT cognitive level before publication. Versions greater than one use versioned product IDs so prior rows remain queryable. No schema migration was required for this workflow.
+
+The branch-local Plan 017 audit rework continues to use these existing tables. Product Bundle curation dimensions are retained in the publication audit snapshot, while the existing `soal_itb_referensi.soal_id` links an allowed ITB reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes; no new lineage column or migration is added. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
 
 ### Plan 005 migration tables
 * `legacy_backfill_exceptions`: Zero-loss preservation ledger for a legacy row that has no exact additive representation. It stores `runId`, source table and ID, reason code, preservation path, source checksum, details, and `blocksCutover`.
@@ -1115,5 +1117,7 @@ Plan 010 reuses the additive assessment tables without changing legacy quiz snap
 * `bukti_ide_jawaban` stores per-Idea score contribution, weight, confidence, rubric version, derivation status, and the invariant that ambiguous evidence cannot affect mastery.
 
 The V2 runtime adds stable option IDs inside the existing JSON snapshots when `FEATURE_ASESMEN_IDE_V1=1`; this is an additive compatibility field and does not rewrite historical `questions_snapshot`, `answers_snapshot`, or `mastery_before` values.
+
+The compatibility submit bridge is flag-gated by the complete canonical rollout set. It uses deterministic IDs compatible with the legacy backfill, writes no rows when any question mapping is missing or stale, and leaves legacy attempt and answer snapshots authoritative. Holdout and unreviewed content never contributes to `bukti_ide_jawaban`.
 
 

@@ -10,8 +10,35 @@ const id = z.string().min(1);
 const hash = z.string().regex(/^[a-f0-9]{64}$/i);
 const positive = z.number().int().positive();
 const timestamp = z.string().datetime({ offset: true });
+const questionRelationTypeSchema = z.enum(["required", "prerequisite", "related"]);
 
-export const productIdeaLinkSchema = z.object({ id: id, version: positive, semanticHash: hash, weight: z.number().positive().max(1), role: z.enum(["primary", "supporting", "required"]).default("supporting") }).strict();
+export const productIdeaRelationSchema = z.object({
+  ideaId: id,
+  relationType: questionRelationTypeSchema,
+  rationale: z.string().trim().min(1).optional(),
+}).strict();
+
+const itbDifficultyAlignmentSchema = z.enum(["similar", "easier", "harder"]);
+const itbStyleAlignmentSchema = z.enum(["similar", "adapted"]);
+
+export const productItbCurationSchema = z.object({
+  referenceId: id,
+  dimensions: z.object({
+    difficulty: itbDifficultyAlignmentSchema,
+    format: itbStyleAlignmentSchema,
+    terminology: itbStyleAlignmentSchema,
+    reasoningPattern: itbStyleAlignmentSchema,
+  }).strict(),
+  curatorNote: z.string().trim().min(1),
+}).strict();
+
+const productDiktatLineageFields = {
+  sourceArticleId: id.optional(),
+  sourceArticleVersion: positive.optional(),
+  sourceArticleHash: hash.optional(),
+};
+
+export const productIdeaLinkSchema = z.object({ id: id, version: positive, semanticHash: hash, weight: z.number().finite().positive().max(1), role: z.enum(["primary", "supporting", "required"]).default("supporting") }).strict();
 export const productSourceRefSchema = z.object({ sourceId: id, version: positive, checksum: hash, excerptIds: z.array(id).min(1) }).strict();
 
 const commonProduct = z.object({
@@ -33,8 +60,8 @@ const commonProduct = z.object({
 
 export const productEntitySchema = z.discriminatedUnion("productType", [
   commonProduct.extend({ productType: z.literal("article"), slug: id, title: z.string().min(1), blocks: z.array(z.object({ id, blockType: id, orderIndex: z.number().int().nonnegative(), content: z.string().min(1) }).strict()).min(1) }),
-  commonProduct.extend({ productType: z.literal("diktat"), title: z.string().min(1), contentMarkdown: z.string().min(1) }),
-  commonProduct.extend({ productType: z.literal("question"), questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]), prompt: z.string().min(1), options: z.array(z.unknown()), difficulty: z.enum(["easy", "medium", "hard"]), cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]), reasoningPattern: id, relationTypes: z.array(z.enum(["required", "prerequisite", "related"])).default([]) }),
+  commonProduct.extend({ productType: z.literal("diktat"), title: z.string().min(1), contentMarkdown: z.string().min(1), ...productDiktatLineageFields }),
+  commonProduct.extend({ productType: z.literal("question"), questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]), prompt: z.string().min(1), options: z.array(z.unknown()), difficulty: z.enum(["easy", "medium", "hard"]), cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]), reasoningPattern: id, relationTypes: z.array(questionRelationTypeSchema).default([]), ideaRelations: z.array(productIdeaRelationSchema).default([]), itbCuration: z.array(productItbCurationSchema).min(1) }),
   commonProduct.extend({ productType: z.literal("solution"), questionId: id, content: z.string().min(1) }),
   commonProduct.extend({ productType: z.literal("flashcard_set"), title: z.string().min(1), cards: z.array(id).min(1) }),
   commonProduct.extend({ productType: z.literal("flashcard"), setId: z.string().min(1).optional(), front: z.string().min(1), back: z.string().min(1), explanation: z.string().optional(), atomic: z.literal(true) }),
@@ -129,13 +156,58 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       productKeys.add(key);
       if (product.courseId !== manifest.courseId) return { success: false, issues: [issue("PRODUCT_COURSE_MISMATCH", `product ${product.id} belongs to another course`)] };
       if (new Set(product.ideaLinks.map((link) => link.id)).size !== product.ideaLinks.length) return { success: false, issues: [issue("PRODUCT_IDEA_LINK_INVALID", `product ${product.id} has duplicate Idea links`)] };
+      const weightSum = product.ideaLinks.reduce((sum, link) => sum + link.weight, 0);
+      if (Math.abs(weightSum - 1) > 0.000001) return { success: false, issues: [issue("PRODUCT_IDEA_WEIGHT_SUM_INVALID", `product ${product.id} Idea-link weights must sum to 1`)] };
       if (product.productType === "article" && new Set(product.blocks.map((block) => block.orderIndex)).size !== product.blocks.length) return { success: false, issues: [issue("PRODUCT_BLOCK_INVALID", `article ${product.id} has duplicate block order`)] };
-      if (product.productType === "flashcard" && product.front.split("?").length > 2) return { success: false, issues: [issue("PRODUCT_FLASHCARD_NOT_ATOMIC", `flashcard ${product.id} contains multiple prompts`)] };
+      if (product.productType === "flashcard") {
+        if (product.ideaLinks.length !== 1) return { success: false, issues: [issue("PRODUCT_FLASHCARD_IDEA_COUNT_INVALID", `flashcard ${product.id} must reference exactly one Idea`)] };
+        if (product.front.split("?").length > 2) return { success: false, issues: [issue("PRODUCT_FLASHCARD_NOT_ATOMIC", `flashcard ${product.id} contains multiple prompts`)] };
+      }
+      if (product.productType === "question") {
+        const ideaIds = new Set(product.ideaLinks.map((link) => link.id));
+        if (ideaIds.size > 1 && !["analyze", "evaluate", "create"].includes(product.cognitiveLevel)) return { success: false, issues: [issue("PRODUCT_QUESTION_MULTI_IDEA_HOT_REQUIRED", `question ${product.id} with multiple Ideas must use analyze, evaluate, or create cognitive level`)] };
+        const relationKeys = new Set<string>();
+        for (const relation of product.ideaRelations) {
+          if (!ideaIds.has(relation.ideaId)) return { success: false, issues: [issue("PRODUCT_QUESTION_RELATION_IDEA_MISSING", `question ${product.id} relation references an unlinked Idea ${relation.ideaId}`)] };
+          const relationKey = `${relation.ideaId}:${relation.relationType}`;
+          if (relationKeys.has(relationKey)) return { success: false, issues: [issue("PRODUCT_QUESTION_RELATION_DUPLICATE", `question ${product.id} contains a duplicate Idea relation`)] };
+          relationKeys.add(relationKey);
+        }
+        if (ideaIds.size > 1) {
+          const coveredIdeaIds = new Set(product.ideaRelations.map((relation) => relation.ideaId));
+          const missingIdeaIds = [...ideaIds].filter((ideaId) => !coveredIdeaIds.has(ideaId));
+          if (missingIdeaIds.length > 0) return { success: false, issues: [issue("PRODUCT_QUESTION_RELATION_INCOMPLETE", `question ${product.id} requires relation data for every linked Idea: ${missingIdeaIds.join(",")}`)] };
+        }
+        const curationIds = product.itbCuration.map((entry) => entry.referenceId);
+        if (new Set(curationIds).size !== curationIds.length) return { success: false, issues: [issue("PRODUCT_ITB_CURATION_DUPLICATE", `question ${product.id} contains duplicate ITB references`)] };
+      }
+      if (product.productType === "diktat") {
+        const lineageValues = [product.sourceArticleId, product.sourceArticleVersion, product.sourceArticleHash];
+        const lineageCount = lineageValues.filter((value) => value !== undefined).length;
+        if (lineageCount !== 0 && lineageCount !== lineageValues.length) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_INCOMPLETE", `diktat ${product.id} must provide Article ID, version, and hash together`)] };
+        if (product.sourceArticleId === product.id) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_INVALID", `diktat ${product.id} cannot reference itself as its Article`)] };
+      }
       if (product.productType === "assessment_blueprint") {
         if ((product.assessmentType === "quiz" && product.chapterIds.length !== 1) || (product.assessmentType === "tryout" && product.chapterIds.length < 1)) return { success: false, issues: [issue("PRODUCT_ASSESSMENT_SCOPE_INVALID", `assessment ${product.id} has invalid chapter scope`)] };
       }
       const serialized = deterministicProductSerialization(product);
       if (/HOLDOUT_CANARY|authoringVisibility\s*[:=]\s*["']holdout|questionSnapshot|answerSnapshot/i.test(serialized)) return { success: false, issues: [issue("PRODUCT_HOLDOUT_LEAK", `product ${product.id} contains holdout content`)] };
+    }
+    for (const product of products) {
+      if (product.productType !== "diktat" || !product.sourceArticleId || product.sourceArticleVersion === undefined || !product.sourceArticleHash) continue;
+      const sourceArticle = products.find((candidate) => candidate.productType === "article" && candidate.id === product.sourceArticleId && candidate.version === product.sourceArticleVersion);
+      if (sourceArticle && sourceArticle.generationHash !== product.sourceArticleHash) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_HASH_MISMATCH", `diktat ${product.id} does not match the referenced Article generation hash`)] };
+      const lineageDependency = dependencies.find((dependency) =>
+        dependency.upstreamEntityType === "product" &&
+        dependency.upstreamEntityId === product.sourceArticleId &&
+        dependency.upstreamVersion === product.sourceArticleVersion &&
+        dependency.upstreamHash === product.sourceArticleHash &&
+        dependency.downstreamEntityType === "diktat" &&
+        dependency.downstreamEntityId === product.id &&
+        dependency.downstreamVersion === product.version &&
+        dependency.downstreamHash === product.generationHash,
+      );
+      if (!lineageDependency) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_DEPENDENCY_MISSING", `diktat ${product.id} must lock its source Article dependency`)] };
     }
     const questionIds = new Set(products.filter((product) => product.productType === "question").map((product) => product.id));
     for (const product of products) if (product.productType === "solution" && !questionIds.has(product.questionId)) return { success: false, issues: [issue("PRODUCT_SOLUTION_QUESTION_MISSING", `solution ${product.id} references a missing question`)] };
