@@ -4399,6 +4399,37 @@ export const shortLinkRelations = relations(shortLink, ({ one }) => ({
   }),
 }));
 
+/** Master Google Meet session persistence table for titles & space metadata. */
+export const googleMeetSessions = sqliteTable(
+  "google_meet_sessions",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    spaceName: text("space_name").notNull().unique(),
+    meetingUri: text("meeting_uri").notNull(),
+    meetingCode: text("meeting_code").notNull(),
+    accessType: text("access_type").$type<"OPEN" | "TRUSTED" | "RESTRICTED">().default("OPEN").notNull(),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_meet_space_name").on(table.spaceName),
+    index("idx_meet_code").on(table.meetingCode),
+  ]
+);
+
+export const googleMeetSessionsRelations = relations(googleMeetSessions, ({ one }) => ({
+  creator: one(user, {
+    fields: [googleMeetSessions.createdById],
+    references: [user.id],
+  }),
+}));
+
 // ─── Analytics ────────────────────────────────────────────────────────────
 // Synchronization of GA4 popular pages cache
 

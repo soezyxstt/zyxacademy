@@ -14,6 +14,7 @@ import {
   AlertCircle,
   PlayCircle,
   MessageSquare,
+  TrendingUp,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
@@ -53,7 +54,7 @@ export default function DetailedMeetingLogPage({
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  const formatTimeOnly = (isoStr: string) => {
+  const formatTimeOnly = (isoStr?: string) => {
     if (!isoStr) return "-";
     return new Date(isoStr).toLocaleTimeString("id-ID", {
       hour: "2-digit",
@@ -124,7 +125,7 @@ export default function DetailedMeetingLogPage({
       ) : (
         <div className="mt-8 space-y-8">
           {/* Overview Metric Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="size-4" />
@@ -136,7 +137,22 @@ export default function DetailedMeetingLogPage({
                 {formatDurationSec(analytics.totalDurationSeconds)}
               </p>
               <p className="mt-1 text-body-xs text-muted-foreground">
-                {formatIsoDate(new Date(analytics.startTime))} ({formatTimeOnly(analytics.startTime)} - {formatTimeOnly(analytics.endTime || "")})
+                {formatIsoDate(new Date(analytics.startTime))} ({formatTimeOnly(analytics.startTime)} - {formatTimeOnly(analytics.endTime)})
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <TrendingUp className="size-4 text-brand-primary" />
+                <span className="text-body-xs font-semibold uppercase tracking-wider">
+                  Peak Peserta
+                </span>
+              </div>
+              <p className="mt-2 font-heading text-h5 font-bold text-brand-primary">
+                {analytics.peakConcurrentParticipants} Peserta
+              </p>
+              <p className="mt-1 text-body-xs text-muted-foreground">
+                Maksimal bersamaan dalam 1 sesi
               </p>
             </div>
 
@@ -151,7 +167,7 @@ export default function DetailedMeetingLogPage({
                 {analytics.participantCount} Orang
               </p>
               <p className="mt-1 text-body-xs text-muted-foreground">
-                Tercatat hadir dalam sesi
+                Tercatat pernah masuk
               </p>
             </div>
 
@@ -181,7 +197,7 @@ export default function DetailedMeetingLogPage({
                 {analytics.transcripts.reduce((acc, t) => acc + t.entries.length, 0)} Baris
               </p>
               <p className="mt-1 text-body-xs text-muted-foreground">
-                Tersedia dialog teks otomatis
+                Teks percakapan otomatis
               </p>
             </div>
           </div>
@@ -224,8 +240,8 @@ export default function DetailedMeetingLogPage({
                               {p.userType}
                             </span>
                           </div>
-                          {p.userResourceNameOrEmail && (
-                            <p className="text-body-xs font-mono text-muted-foreground">
+                          {p.userResourceNameOrEmail && p.userResourceNameOrEmail.includes("@") && (
+                            <p className="text-body-xs font-medium text-muted-foreground">
                               {p.userResourceNameOrEmail}
                             </p>
                           )}
@@ -282,14 +298,18 @@ export default function DetailedMeetingLogPage({
           </section>
 
           {/* Recordings Section */}
-          {analytics.recordings.length > 0 && (
-            <section className="space-y-4">
-              <div className="border-b border-border pb-3">
-                <h2 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
-                  <PlayCircle className="size-5 text-brand-primary" />
-                  Rekaman Video Sesi
-                </h2>
+          <section className="space-y-4">
+            <div className="border-b border-border pb-3">
+              <h2 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+                <PlayCircle className="size-5 text-brand-primary" />
+                Rekaman Video Sesi
+              </h2>
+            </div>
+            {analytics.recordings.length === 0 ? (
+              <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-sm text-muted-foreground">
+                Belum ada rekaman video yang tersedia untuk sesi ini (Google Drive Recording).
               </div>
+            ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {analytics.recordings.map((rec) => (
                   <div
@@ -300,69 +320,89 @@ export default function DetailedMeetingLogPage({
                       <p className="font-semibold text-body-sm text-foreground">
                         Rekaman Video ({formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)})
                       </p>
-                      <p className="text-body-xs text-muted-foreground">Tersimpan di Google Drive</p>
+                      <p className="text-body-xs text-muted-foreground">Google Drive Cloud Storage</p>
                     </div>
-                    {rec.driveExportUri && (
+                    {rec.driveExportUri ? (
                       <a
                         href={rec.driveExportUri}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-xs font-semibold text-brand-primary hover:bg-brand-primary/20 transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3.5 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors"
                       >
-                        Buka Drive <ExternalLink className="size-3.5" />
+                        Buka Google Drive <ExternalLink className="size-3.5" />
                       </a>
+                    ) : (
+                      <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
+                        File Sedang Diproses
+                      </span>
                     )}
                   </div>
                 ))}
               </div>
-            </section>
-          )}
+            )}
+          </section>
 
           {/* Transcripts Section */}
-          {analytics.transcripts.length > 0 && (
-            <section className="space-y-4">
-              <div className="border-b border-border pb-3">
-                <h2 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
-                  <MessageSquare className="size-5 text-brand-primary" />
-                  Transkrip Bicara Otomatis
-                </h2>
+          <section className="space-y-4">
+            <div className="border-b border-border pb-3">
+              <h2 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+                <MessageSquare className="size-5 text-brand-primary" />
+                Transkrip Bicara Otomatis
+              </h2>
+            </div>
+            {analytics.transcripts.length === 0 ? (
+              <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-sm text-muted-foreground">
+                Belum ada transkrip ucapan yang dihasilkan untuk sesi ini.
               </div>
-              {analytics.transcripts.map((t) => (
-                <div key={t.transcriptId} className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            ) : (
+              analytics.transcripts.map((t) => (
+                <div key={t.transcriptId} className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-sm">
                   <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                    <p className="text-body-xs font-semibold text-muted-foreground">
-                      Transkrip ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
+                    <p className="text-body-xs font-bold text-foreground">
+                      Dokumen Transkrip ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
                     </p>
-                    {t.docsExportUri && (
+                    {t.docsExportUri ? (
                       <a
                         href={t.docsExportUri}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3.5 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors"
                       >
-                        Buka Google Docs <ExternalLink className="size-3" />
+                        Buka Google Docs <ExternalLink className="size-3.5" />
                       </a>
+                    ) : (
+                      <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
+                        Dokumen Sedang Diproses
+                      </span>
                     )}
                   </div>
 
-                  <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
-                    {t.entries.map((entry) => (
-                      <div
-                        key={entry.entryId}
-                        className="rounded-lg bg-muted/40 p-3 text-body-sm leading-relaxed"
-                      >
-                        <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground mb-1">
-                          <span>{entry.participantResourceName || "Peserta"}</span>
-                          <span>{formatTimeOnly(entry.startTime)}</span>
+                  {t.entries.length === 0 ? (
+                    <p className="text-body-sm text-muted-foreground italic">
+                      Tidak ada entri teks percakapan yang terekam.
+                    </p>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto space-y-2.5 pr-2">
+                      {t.entries.map((entry) => (
+                        <div
+                          key={entry.entryId}
+                          className="rounded-xl border border-border bg-muted/30 p-3 text-body-sm leading-relaxed"
+                        >
+                          <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground mb-1">
+                            <span className="text-brand-primary font-bold">
+                              {entry.participantResourceName || "Peserta"}
+                            </span>
+                            <span>{formatTimeOnly(entry.startTime)}</span>
+                          </div>
+                          <p className="text-foreground">{entry.text}</p>
                         </div>
-                        <p className="text-foreground">{entry.text}</p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </section>
-          )}
+              ))
+            )}
+          </section>
         </div>
       )}
     </Reveal>

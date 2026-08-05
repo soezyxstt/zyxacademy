@@ -15,6 +15,8 @@ import {
   Shield,
   Check,
   AlertCircle,
+  Trash2,
+  TrendingUp,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
@@ -23,6 +25,7 @@ interface MeetSpaceInfo {
   name: string;
   meetingUri: string;
   meetingCode: string;
+  title?: string;
 }
 
 interface ConferenceRecordItem {
@@ -30,11 +33,15 @@ interface ConferenceRecordItem {
   startTime: string;
   endTime?: string;
   space: string;
+  title?: string;
+  participantCount?: number;
+  peakConcurrentParticipants?: number;
 }
 
 export default function AdminMeetPage() {
   const [creating, setCreating] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [title, setTitle] = useState("");
   const [accessType, setAccessType] = useState<"OPEN" | "TRUSTED" | "RESTRICTED">("OPEN");
   const [activeSpace, setActiveSpace] = useState<MeetSpaceInfo | null>(null);
   const [copied, setCopied] = useState(false);
@@ -43,6 +50,7 @@ export default function AdminMeetPage() {
   // Conference Records
   const [records, setRecords] = useState<ConferenceRecordItem[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchRecords = useCallback(async () => {
     setLoadingRecords(true);
@@ -72,11 +80,15 @@ export default function AdminMeetPage() {
       const res = await fetch("/api/admin/meet/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessType }),
+        body: JSON.stringify({
+          title: title.trim() || undefined,
+          accessType,
+        }),
       });
       const data = await res.json();
       if (data.success && data.space) {
-        setActiveSpace(data.space);
+        setActiveSpace({ ...data.space, title: title.trim() || "Sesi Meeting Baru" });
+        setTitle("");
       } else {
         setErrorMsg(data.error || "Gagal membuat Google Meet space.");
       }
@@ -111,6 +123,28 @@ export default function AdminMeetPage() {
     }
   };
 
+  const handleDeleteRecord = async (recordName: string) => {
+    const recordId = recordName.replace(/^conferenceRecords\//, "");
+    if (!confirm("Apakah Anda yakin ingin menghapus log meeting ini dari daftar?")) return;
+
+    setDeletingId(recordId);
+    try {
+      const res = await fetch(`/api/admin/meet/records/${recordId}/delete`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRecords((prev) => prev.filter((r) => r.name !== recordName));
+      } else {
+        alert(data.error || "Gagal menghapus log meeting.");
+      }
+    } catch (err: any) {
+      alert(err.message || "Terjadi kesalahan jaringan.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleCopyLink = () => {
     if (!activeSpace?.meetingUri) return;
     navigator.clipboard.writeText(activeSpace.meetingUri);
@@ -118,12 +152,20 @@ export default function AdminMeetPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const formatTimeOnly = (isoStr?: string) => {
+    if (!isoStr) return "-";
+    return new Date(isoStr).toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const calculateDuration = (startStr: string, endStr?: string) => {
     if (!endStr) return "Sedang Berlangsung";
     const start = new Date(startStr).getTime();
     const end = new Date(endStr).getTime();
     const diffSec = Math.round((end - start) / 1000);
-    if (diffSec < 60) return `${diffSec} detik`;
+    if (diffSec < 60) return `${diffSec} s`;
     const mins = Math.floor(diffSec / 60);
     const secs = diffSec % 60;
     return `${mins} m ${secs} s`;
@@ -143,7 +185,7 @@ export default function AdminMeetPage() {
             </h1>
           </div>
           <p className="mt-2 text-body-md text-muted-foreground">
-            Kelola sesi ruang Google Meet, jalankan meeting langsung di bawah akun Pro, dan pantau log kehadiran peserta.
+            Kelola sesi ruang Google Meet, jalankan meeting langsung di bawah akun Pro, dan pantau log serta metrik kehadiran peserta.
           </p>
         </div>
       </div>
@@ -166,22 +208,37 @@ export default function AdminMeetPage() {
             </h2>
           </div>
           <p className="mt-2 text-body-sm text-muted-foreground">
-            Inisiasi ruang Google Meet baru dengan Master Host Pro. Siapa pun dapat bergabung melalui link yang dihasilkan.
+            Inisiasi ruang Google Meet baru dengan Master Host Pro. Beri nama meeting agar mudah diidentifikasi.
           </p>
 
           <div className="mt-4 space-y-3">
-            <label className="block text-body-xs font-semibold text-foreground">
-              Aksesibilitas Ruang Meeting
-            </label>
-            <select
-              value={accessType}
-              onChange={(e) => setAccessType(e.target.value as any)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="OPEN">OPEN (Siapa pun dapat langsung masuk)</option>
-              <option value="TRUSTED">TRUSTED (Anggota organisasi / diundang)</option>
-              <option value="RESTRICTED">RESTRICTED (Memerlukan izin host)</option>
-            </select>
+            <div>
+              <label className="block text-body-xs font-semibold text-foreground mb-1">
+                Nama / Judul Meeting (Opsional)
+              </label>
+              <input
+                type="text"
+                placeholder="Contoh: Tutorial Fisika Kinematika Bab 2"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+
+            <div>
+              <label className="block text-body-xs font-semibold text-foreground mb-1">
+                Aksesibilitas Ruang Meeting
+              </label>
+              <select
+                value={accessType}
+                onChange={(e) => setAccessType(e.target.value as any)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="OPEN">OPEN (Siapa pun dapat langsung masuk)</option>
+                <option value="TRUSTED">TRUSTED (Anggota organisasi / diundang)</option>
+                <option value="RESTRICTED">RESTRICTED (Memerlukan izin host)</option>
+              </select>
+            </div>
 
             <button
               type="button"
@@ -229,12 +286,13 @@ export default function AdminMeetPage() {
             {activeSpace ? (
               <div className="mt-4 space-y-3">
                 <div className="rounded-xl border border-border/80 bg-muted/40 p-3">
-                  <p className="text-body-xs font-medium text-muted-foreground">Kode Ruang:</p>
-                  <p className="font-mono text-body-md font-bold text-foreground">
-                    {activeSpace.meetingCode}
+                  <p className="font-heading text-h6 font-bold text-foreground">
+                    {activeSpace.title}
                   </p>
-                  <p className="mt-1 text-body-xs font-medium text-muted-foreground">URL Join:</p>
-                  <p className="truncate text-body-sm font-medium text-brand-primary">
+                  <p className="text-body-xs font-mono text-muted-foreground mt-0.5">
+                    Kode: {activeSpace.meetingCode}
+                  </p>
+                  <p className="mt-2 truncate text-body-sm font-medium text-brand-primary">
                     {activeSpace.meetingUri}
                   </p>
                 </div>
@@ -262,7 +320,7 @@ export default function AdminMeetPage() {
               </div>
             ) : (
               <p className="mt-4 text-body-sm text-muted-foreground">
-                Belum ada sesi meeting yang dibuat dari panel ini. Buat meeting baru menggunakan tombol di sebelah kiri.
+                Belum ada sesi meeting yang dibuat dari panel ini. Buat meeting baru menggunakan formulir di sebelah kiri.
               </p>
             )}
           </div>
@@ -295,7 +353,7 @@ export default function AdminMeetPage() {
               Daftar Log Meeting (Conference Records)
             </h2>
             <p className="text-body-sm text-muted-foreground">
-              Riwayat sesi meeting yang telah selesai beserta rekaman, transkrip, dan analisis kehadiran peserta.
+              Riwayat sesi meeting yang telah selesai beserta metrik peak peserta, rekaman, transkrip, dan analisis kehadiran.
             </p>
           </div>
           <button
@@ -320,7 +378,7 @@ export default function AdminMeetPage() {
               Belum Ada Log Sesi Meeting
             </p>
             <p className="mt-1 text-body-sm text-muted-foreground max-w-md">
-              Sesi meeting yang diselesaikan akan muncul di sini secara otomatis beserta rekaman dan log partisipannya.
+              Sesi meeting yang diselesaikan akan muncul di sini secara otomatis beserta metrik dan log partisipannya.
             </p>
           </div>
         ) : (
@@ -329,33 +387,52 @@ export default function AdminMeetPage() {
               <table className="w-full text-left text-body-sm">
                 <thead className="border-b border-border bg-muted/50 text-body-xs font-semibold text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-3">Waktu Mulai</th>
+                    <th className="px-4 py-3">Nama / Judul Meeting</th>
+                    <th className="px-4 py-3">Waktu Mulai & Selesai</th>
                     <th className="px-4 py-3">Durasi</th>
-                    <th className="px-4 py-3">Resource / ID Space</th>
+                    <th className="px-4 py-3">Peak & Total Peserta</th>
                     <th className="px-4 py-3 text-right">Aksi & Log</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {records.map((rec) => {
                     const recordId = rec.name.replace(/^conferenceRecords\//, "");
-                    const spaceId = rec.space ? rec.space.replace(/^spaces\//, "") : "-";
+                    const isDeleting = deletingId === recordId;
+                    const peak = rec.peakConcurrentParticipants || rec.participantCount || 0;
+                    const total = rec.participantCount || 0;
+
                     return (
                       <tr key={rec.name} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3.5 font-medium text-foreground whitespace-nowrap">
-                          {formatIsoDate(new Date(rec.startTime))}
-                          <span className="block text-body-xs text-muted-foreground">
-                            {new Date(rec.startTime).toLocaleTimeString("id-ID", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
+                          <p className="font-bold text-body-sm text-foreground">
+                            {rec.title || `Meeting ${recordId.slice(0, 8)}`}
+                          </p>
+                          <p className="font-mono text-body-xs text-muted-foreground">
+                            ID: {recordId.slice(0, 16)}...
+                          </p>
                         </td>
-                        <td className="px-4 py-3.5 text-muted-foreground whitespace-nowrap">
+
+                        <td className="px-4 py-3.5 text-foreground whitespace-nowrap">
+                          <p className="font-semibold text-body-xs">
+                            {formatIsoDate(new Date(rec.startTime))}
+                          </p>
+                          <p className="text-body-xs text-muted-foreground">
+                            {formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)}
+                          </p>
+                        </td>
+
+                        <td className="px-4 py-3.5 text-muted-foreground whitespace-nowrap font-medium">
                           {calculateDuration(rec.startTime, rec.endTime)}
                         </td>
-                        <td className="px-4 py-3.5 font-mono text-body-xs text-muted-foreground">
-                          {spaceId}
+
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 text-body-xs font-semibold text-foreground">
+                            <TrendingUp className="size-3.5 text-brand-primary" />
+                            <span>Peak: <strong className="text-brand-primary">{peak}</strong></span>
+                            <span className="text-muted-foreground font-normal">(Total: {total})</span>
+                          </div>
                         </td>
+
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
                             <Link
@@ -366,6 +443,20 @@ export default function AdminMeetPage() {
                               Detail Log Peserta
                               <ChevronRight className="size-3.5" />
                             </Link>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRecord(rec.name)}
+                              disabled={isDeleting}
+                              title="Hapus log meeting"
+                              className="inline-flex items-center justify-center rounded-lg border border-status-error/30 bg-status-error/10 p-1.5 text-status-error hover:bg-status-error/20 transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                              {isDeleting ? (
+                                <RefreshCw className="size-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="size-3.5" />
+                              )}
+                            </button>
                           </div>
                         </td>
                       </tr>

@@ -414,6 +414,13 @@
       "when": 1785712531862,
       "tag": "0058_open_galactus",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1785928220934,
+      "tag": "0059_furry_electro",
+      "breakpoints": true
     }
   ]
 }

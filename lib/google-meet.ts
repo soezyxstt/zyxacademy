@@ -153,6 +153,7 @@ export interface ComprehensiveMeetingAnalytics {
   endTime?: string;
   totalDurationSeconds?: number;
   participantCount: number;
+  peakConcurrentParticipants: number;
   participants: ComprehensiveParticipantAnalytics[];
   recordings: {
     recordingId: string;
@@ -350,6 +351,18 @@ export async function getConferenceRecord(
     ? conferenceRecordId
     : `conferenceRecords/${conferenceRecordId}`;
   return await meetApiFetch<ConferenceRecord>(name);
+}
+
+/**
+ * Deletes a specific conference record.
+ */
+export async function deleteConferenceRecord(
+  conferenceRecordId: string
+): Promise<void> {
+  const name = conferenceRecordId.startsWith("conferenceRecords/")
+    ? conferenceRecordId
+    : `conferenceRecords/${conferenceRecordId}`;
+  await meetApiFetch<object>(name, { method: "DELETE" });
 }
 
 // ── PARTICIPANTS & SESSIONS HELPER FUNCTIONS ─────────────────────────────────
@@ -568,7 +581,9 @@ export async function getCompleteMeetingAnalytics(
       if (p.signedinUser) {
         userType = "signedIn";
         displayName = p.signedinUser.displayName;
-        userResourceNameOrEmail = p.signedinUser.user;
+        userResourceNameOrEmail = p.signedinUser.user.includes("@")
+          ? p.signedinUser.user
+          : undefined;
       } else if (p.phoneUser) {
         userType = "phone";
         displayName = p.phoneUser.displayName;
@@ -587,15 +602,42 @@ export async function getCompleteMeetingAnalytics(
     })
   );
 
+  // Calculate Peak Concurrent Participants
+  const sessionEvents: { time: number; delta: number }[] = [];
+  for (const p of participants) {
+    for (const s of p.sessions) {
+      if (s.startTime) sessionEvents.push({ time: new Date(s.startTime).getTime(), delta: 1 });
+      if (s.endTime) sessionEvents.push({ time: new Date(s.endTime).getTime(), delta: -1 });
+    }
+  }
+  sessionEvents.sort((a, b) => a.time - b.time || a.delta - b.delta);
+  let currentConcurrency = 0;
+  let peakConcurrentParticipants = 0;
+  for (const event of sessionEvents) {
+    currentConcurrency += event.delta;
+    if (currentConcurrency > peakConcurrentParticipants) {
+      peakConcurrentParticipants = currentConcurrency;
+    }
+  }
+  if (peakConcurrentParticipants === 0 && participants.length > 0) {
+    peakConcurrentParticipants = participants.length;
+  }
+
   // 3. Recordings
   const recordingsRes = await listMeetingRecordings(confId);
   const rawRecordings = recordingsRes.recordings || [];
-  const recordings = rawRecordings.map((r) => ({
-    recordingId: r.name.split("/").pop() || "",
-    startTime: r.startTime,
-    endTime: r.endTime,
-    driveExportUri: r.driveDestination?.exportUri,
-  }));
+  const recordings = rawRecordings.map((r) => {
+    let driveExportUri = r.driveDestination?.exportUri;
+    if (!driveExportUri && r.driveDestination?.file) {
+      driveExportUri = `https://drive.google.com/file/d/${r.driveDestination.file}/view`;
+    }
+    return {
+      recordingId: r.name.split("/").pop() || "",
+      startTime: r.startTime,
+      endTime: r.endTime,
+      driveExportUri,
+    };
+  });
 
   // 4. Transcripts
   const transcriptsRes = await listMeetingTranscripts(confId);
@@ -616,12 +658,16 @@ export async function getCompleteMeetingAnalytics(
       }));
 
       const fullText = entries.map((e) => e.text).join(" ");
+      let docsExportUri = t.docsDestination?.exportUri;
+      if (!docsExportUri && t.docsDestination?.document) {
+        docsExportUri = `https://docs.google.com/document/d/${t.docsDestination.document}/edit`;
+      }
 
       return {
         transcriptId: tId,
         startTime: t.startTime,
         endTime: t.endTime,
-        docsExportUri: t.docsDestination?.exportUri,
+        docsExportUri,
         fullText,
         entries,
       };
@@ -635,6 +681,7 @@ export async function getCompleteMeetingAnalytics(
     endTime: record.endTime,
     totalDurationSeconds,
     participantCount: participants.length,
+    peakConcurrentParticipants,
     participants,
     recordings,
     transcripts,
