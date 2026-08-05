@@ -27,6 +27,7 @@ import {
   Package,
   ShieldCheck,
   Video,
+  FileText,
 } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -211,6 +212,7 @@ function AdminSidebarInner() {
 
         <NavGroup label="Sistem & Ops" collapsed={c} />
         <NavItem href="/admin/meet" icon={Video} label="Google Meet" active={isPrefix("/admin/meet")} collapsed={c} />
+        <NavItem href="/admin/forms" icon={FileText} label="Google Forms" active={isPrefix("/admin/forms")} collapsed={c} />
         <NavItem href="/admin/ops" icon={Activity} label="Monitor Ops" active={isExact("/admin/ops")} collapsed={c} />
         <NavItem href="/admin/ops/flags" icon={Flag} label="Feature Flags" active={isPrefix("/admin/ops/flags")} collapsed={c} />
         <NavItem href="/admin/ops/analytics" icon={BarChart3} label="Analitik AI" active={isPrefix("/admin/ops/analytics")} collapsed={c} />

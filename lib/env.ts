@@ -22,6 +22,8 @@ export const env = createEnv({
  GOOGLE_CLIENT_SECRET: z.string(),
  /** Google OAuth Refresh Token for Master Pro Account (Meet REST API) */
  GOOGLE_MEET_REFRESH_TOKEN: z.string().optional(),
+ /** Dedicated Google OAuth Refresh Token for Google Forms REST API (optional fallback to GOOGLE_MEET_REFRESH_TOKEN) */
+ GOOGLE_FORMS_REFRESH_TOKEN: z.string().optional(),
  /** From https://uploadthing.com/dashboard ; replaces direct S3/Tigris uploads. */
  UPLOADTHING_TOKEN: z.string().min(1),
  /** Resend API Key for sending transactional emails. */
@@ -198,6 +200,7 @@ export const env = createEnv({
  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
  GOOGLE_MEET_REFRESH_TOKEN: process.env.GOOGLE_MEET_REFRESH_TOKEN,
+ GOOGLE_FORMS_REFRESH_TOKEN: process.env.GOOGLE_FORMS_REFRESH_TOKEN,
  UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
  RESEND_API_KEY: process.env.RESEND_API_KEY,
  WHATSAPP_ADMIN_NUMBER: process.env.WHATSAPP_ADMIN_NUMBER,

@@ -38,6 +38,7 @@ import {
   Package,
   ShieldCheck,
   Video,
+  FileText,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -317,6 +318,16 @@ export default async function AdminHomePage() {
           iconColor: "text-brand-primary",
           href: "/admin/meet",
           label: "Buka Google Meet ops",
+          stat: null,
+        },
+        {
+          title: "Google Forms Custom Builder",
+          description:
+            "Rancang survei dan kuis custom dengan Google Forms API, lalu lihat visualisasi grafik dan matriks respon secara real-time.",
+          icon: FileText,
+          iconColor: "text-brand-secondary",
+          href: "/admin/forms",
+          label: "Buka Google Forms ops",
           stat: null,
         },
         {

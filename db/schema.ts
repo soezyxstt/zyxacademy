@@ -4433,6 +4433,38 @@ export const googleMeetSessionsRelations = relations(googleMeetSessions, ({ one 
 // ─── Analytics ────────────────────────────────────────────────────────────
 // Synchronization of GA4 popular pages cache
 
+/** Master Google Forms table for custom form builder & response analytics. */
+export const googleForms = sqliteTable(
+  "google_forms",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id").notNull().unique(),
+    title: text("title").notNull(),
+    description: text("description"),
+    responderUri: text("responder_uri").notNull(),
+    editUri: text("edit_uri"),
+    category: text("category").$type<"survey" | "quiz" | "feedback" | "registration">().default("survey").notNull(),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_forms_form_id").on(table.formId),
+    index("idx_forms_category").on(table.category),
+  ]
+);
+
+export const googleFormsRelations = relations(googleForms, ({ one }) => ({
+  creator: one(user, {
+    fields: [googleForms.createdById],
+    references: [user.id],
+  }),
+}));
+
 export const pageAnalytics = sqliteTable("page_analytics", {
   id: text("id").primaryKey(), // The path of the page, e.g., "/courses"
   title: text("title").notNull(),
