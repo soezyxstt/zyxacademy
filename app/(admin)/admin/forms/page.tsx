@@ -163,18 +163,24 @@ export default function AdminFormsPage() {
   };
 
   const handleAddQuestion = () => {
-    const newIdx = questions.length;
-    setQuestions((prev) => [
-      ...prev,
-      {
-        title: "",
-        description: "",
-        showDescription: true,
-        type: "TEXT",
-        required: true,
-      },
-    ]);
-    setActiveQIndex(newIdx);
+    const newQ: ExtendedQuestionInput = {
+      title: "",
+      type: "TEXT",
+      required: true,
+    };
+    setQuestions([...questions, newQ]);
+    setActiveQIndex(questions.length);
+  };
+
+  const handleAddSection = () => {
+    const newSection: ExtendedQuestionInput = {
+      title: "Bagian Baru",
+      description: "Petunjuk atau deskripsi untuk bagian ini",
+      type: "SECTION",
+      required: false,
+    };
+    setQuestions([...questions, newSection]);
+    setActiveQIndex(questions.length);
   };
 
   const handleLoadFull12TypePreset = () => {
@@ -814,6 +820,7 @@ export default function AdminFormsPage() {
                           <SelectItem value="GRID_CHECKBOX">Checkbox grid (Kisi Kotak Centang)</SelectItem>
                           <SelectItem value="DATE">Date (Tanggal)</SelectItem>
                           <SelectItem value="TIME">Time (Waktu)</SelectItem>
+                          <SelectItem value="SECTION">Section Header (Bagian / Break Section)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -821,6 +828,19 @@ export default function AdminFormsPage() {
 
                   {/* Question Content & Option Editors per Type */}
                   <div className="pt-2">
+                    {/* SECTION */}
+                    {q.type === "SECTION" && (
+                      <div className="rounded-xl border border-brand-secondary/40 bg-brand-secondary/10 p-4 space-y-2">
+                        <div className="flex items-center gap-2 text-body-xs font-bold text-brand-secondary uppercase tracking-wider">
+                          <Layers className="size-4" />
+                          Pembatas Bagian Baru (Section Break)
+                        </div>
+                        <p className="text-body-2xs text-muted-foreground">
+                          Pertanyaan setelah pembatas ini akan ditampilkan pada halaman/bagian berikutnya di formulir responden.
+                        </p>
+                      </div>
+                    )}
+
                     {/* 1. TEXT */}
                     {q.type === "TEXT" && (
                       <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-2 text-body-xs text-muted-foreground w-2/3">
@@ -1113,6 +1133,15 @@ export default function AdminFormsPage() {
               >
                 <PlusCircle className="size-4" />
                 Tambah Pertanyaan
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddSection}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-brand-secondary/40 bg-brand-secondary/10 px-3 py-2.5 text-body-xs font-bold text-brand-secondary hover:bg-brand-secondary/20 transition-colors cursor-pointer"
+              >
+                <Layers className="size-4" />
+                Tambah Bagian (Section)
               </button>
 
               <button

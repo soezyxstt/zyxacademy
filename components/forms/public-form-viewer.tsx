@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   CheckCircle2,
   AlertCircle,
@@ -97,6 +97,70 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   useEffect(() => {
     fetchForm();
   }, [fetchForm]);
+
+  const [currentStep, setCurrentStep] = useState<number>(0);
+
+  const sections = useMemo(() => {
+    if (!form || !form.questions || form.questions.length === 0) return [];
+
+    const result: { title?: string; description?: string; questionIndices: number[] }[] = [];
+    let currentSec = {
+      title: form.title,
+      description: form.description,
+      questionIndices: [] as number[],
+    };
+
+    form.questions.forEach((q: any, idx: number) => {
+      if (q.type === "SECTION") {
+        if (currentSec.questionIndices.length > 0 || result.length > 0) {
+          result.push(currentSec);
+        }
+        currentSec = {
+          title: q.title || `Bagian ${result.length + 1}`,
+          description: q.description,
+          questionIndices: [],
+        };
+      } else {
+        currentSec.questionIndices.push(idx);
+      }
+    });
+
+    if (currentSec.questionIndices.length > 0 || result.length === 0) {
+      result.push(currentSec);
+    }
+
+    return result;
+  }, [form]);
+
+  const handleNextStep = () => {
+    if (!form) return;
+    const activeSec = sections[currentStep];
+    if (!activeSec) return;
+
+    for (const qIdx of activeSec.questionIndices) {
+      const q = form.questions[qIdx];
+      if (q && q.required) {
+        const userAns = answers[qIdx];
+        if (
+          userAns === undefined ||
+          userAns === null ||
+          userAns === "" ||
+          (Array.isArray(userAns) && userAns.length === 0)
+        ) {
+          toast.error(`Harap isi pertanyaan wajib: "${q.title || `Pertanyaan #${qIdx + 1}`}"`);
+          return;
+        }
+      }
+    }
+
+    setCurrentStep((prev) => Math.min(sections.length - 1, prev + 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep((prev) => Math.max(0, prev - 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const handleAnswerChange = (qIdx: number, val: any) => {
     setAnswers((prev) => ({ ...prev, [qIdx]: val }));
@@ -242,18 +306,41 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
           <span className="rounded-md bg-brand-primary/10 px-2.5 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-primary">
             {form.category}
           </span>
+          {sections.length > 1 && (
+            <span className="text-body-xs font-bold text-muted-foreground">
+              Bagian {currentStep + 1} dari {sections.length}
+            </span>
+          )}
         </div>
-        <h1 className="font-heading text-h3 font-bold text-foreground">{form.title}</h1>
-        {form.description && (
+
+        {/* Section Title & Description */}
+        <h1 className="font-heading text-h3 font-bold text-foreground">
+          {sections[currentStep]?.title || form.title}
+        </h1>
+        {sections[currentStep]?.description && (
           <p className="text-body-sm text-muted-foreground whitespace-pre-line border-t border-border/40 pt-3">
-            {form.description}
+            {sections[currentStep].description}
           </p>
+        )}
+
+        {/* Progress Bar for multi-section forms */}
+        {sections.length > 1 && (
+          <div className="pt-2 space-y-1">
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-brand-primary transition-all duration-300"
+                style={{ width: `${((currentStep + 1) / sections.length) * 100}%` }}
+              />
+            </div>
+          </div>
         )}
       </div>
 
       {/* Form Submission Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
-        {form.questions.map((q, qIdx) => {
+        {(sections[currentStep]?.questionIndices || []).map((qIdx: number) => {
+          const q = form.questions[qIdx];
+          if (!q) return null;
           const answerVal = answers[qIdx];
 
           return (
@@ -303,7 +390,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     value={answerVal || ""}
                     onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
                     placeholder="Jawaban Anda"
-                    className="w-full sm:w-3/4 rounded-xl border border-input bg-background px-4 py-2.5 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="w-full sm:w-2/3 rounded-xl border border-input bg-background px-4 py-2.5 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 )}
 
@@ -314,7 +401,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     required={q.required}
                     value={answerVal || ""}
                     onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
-                    placeholder="Tuliskan jawaban lengkap Anda di sini..."
+                    placeholder="Jawaban Anda"
                     className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
                   />
                 )}
@@ -323,19 +410,16 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                 {q.type === "RADIO" && (
                   <div className="space-y-2.5">
                     {(q.options || []).map((opt, oIdx) => (
-                      <label
-                        key={oIdx}
-                        className="flex items-center gap-3 rounded-xl border border-border/80 bg-background p-3 text-body-sm font-medium text-foreground hover:bg-muted/40 cursor-pointer transition-colors"
-                      >
+                      <label key={oIdx} className="flex items-center gap-3 cursor-pointer group text-body-sm">
                         <input
                           type="radio"
                           name={`q_${qIdx}`}
                           required={q.required && !answerVal}
                           checked={answerVal === opt}
                           onChange={() => handleAnswerChange(qIdx, opt)}
-                          className="size-4 text-brand-primary focus:ring-ring"
+                          className="size-4.5 text-brand-primary focus:ring-ring"
                         />
-                        <span>{opt}</span>
+                        <span className="text-foreground group-hover:text-brand-primary transition-colors">{opt}</span>
                       </label>
                     ))}
                   </div>
@@ -346,20 +430,15 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                   <div className="space-y-2.5">
                     {(q.options || []).map((opt, oIdx) => {
                       const selectedList: string[] = Array.isArray(answerVal) ? answerVal : [];
-                      const isChecked = selectedList.includes(opt);
-
                       return (
-                        <label
-                          key={oIdx}
-                          className="flex items-center gap-3 rounded-xl border border-border/80 bg-background p-3 text-body-sm font-medium text-foreground hover:bg-muted/40 cursor-pointer transition-colors"
-                        >
+                        <label key={oIdx} className="flex items-center gap-3 cursor-pointer group text-body-sm">
                           <input
                             type="checkbox"
-                            checked={isChecked}
+                            checked={selectedList.includes(opt)}
                             onChange={() => handleCheckboxToggle(qIdx, opt)}
-                            className="size-4 rounded border-input text-brand-primary focus:ring-ring"
+                            className="size-4.5 rounded border-input text-brand-primary focus:ring-ring"
                           />
-                          <span>{opt}</span>
+                          <span className="text-foreground group-hover:text-brand-primary transition-colors">{opt}</span>
                         </label>
                       );
                     })}
@@ -368,12 +447,9 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
                 {/* 5. DROP_DOWN */}
                 {q.type === "DROP_DOWN" && (
-                  <Select
-                    value={answerVal || ""}
-                    onValueChange={(val) => handleAnswerChange(qIdx, val)}
-                  >
-                    <SelectTrigger className="w-full sm:w-2/3 h-11 text-body-sm">
-                      <SelectValue placeholder="Pilih salah satu jawaban" />
+                  <Select value={answerVal || ""} onValueChange={(val) => handleAnswerChange(qIdx, val)}>
+                    <SelectTrigger className="w-full sm:w-2/3 h-11 text-body-sm font-medium">
+                      <SelectValue placeholder="Pilih satu opsi..." />
                     </SelectTrigger>
                     <SelectContent>
                       {(q.options || []).map((opt, oIdx) => (
@@ -387,122 +463,116 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
                 {/* 6. FILE_UPLOAD */}
                 {q.type === "FILE_UPLOAD" && (
-                  <div className="space-y-2">
-                    {answerVal ? (
-                      <div className="flex items-center justify-between rounded-xl border border-status-success/40 bg-status-success/10 p-3 text-body-xs">
-                        <span className="font-semibold text-foreground truncate">File Terunggah: {answerVal}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleAnswerChange(qIdx, undefined)}
-                        >
-                          Ganti File
-                        </Button>
-                      </div>
-                    ) : (
-                      <label className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-brand-primary/40 bg-brand-primary/5 p-6 text-center cursor-pointer hover:bg-brand-primary/10 transition-colors">
-                        <UploadCloud className="size-8 text-brand-primary mb-2" />
-                        <span className="text-body-sm font-bold text-foreground">
-                          {uploadingQIdx === qIdx ? "Mengunggah Berkas..." : "Klik untuk Mengunggah Berkas / Dokumen"}
-                        </span>
-                        <span className="text-body-xs text-muted-foreground mt-1">
-                          File akan disimpan dengan aman di Zyx Storage
-                        </span>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <label className="inline-flex items-center gap-2 rounded-xl border border-input bg-background px-4 py-2.5 text-body-xs font-bold text-foreground hover:bg-muted transition-colors cursor-pointer shadow-xs">
+                        <UploadCloud className="size-4 text-brand-primary" />
+                        {uploadingQIdx === qIdx ? "Mengunggah..." : "Pilih & Unggah Berkas"}
                         <input
                           type="file"
-                          disabled={uploadingQIdx === qIdx}
+                          className="hidden"
                           onChange={(e) => {
                             const f = e.target.files?.[0];
                             if (f) handleFileUpload(qIdx, f);
                           }}
-                          className="hidden"
                         />
                       </label>
+                      {uploadingQIdx === qIdx && <RefreshCw className="size-4 animate-spin text-brand-primary" />}
+                    </div>
+
+                    {answerVal && (
+                      <div className="flex items-center gap-2 text-body-xs font-semibold text-status-success bg-status-success/10 p-3 rounded-xl border border-status-success/30">
+                        <CheckCircle2 className="size-4 shrink-0" />
+                        <span className="truncate">Berkas terunggah: {String(answerVal)}</span>
+                      </div>
                     )}
                   </div>
                 )}
 
-                {/* 7. SCALE */}
+                {/* 7. SCALE (1-5) */}
                 {q.type === "SCALE" && (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between text-body-xs font-semibold text-muted-foreground px-1">
-                      <span>{q.scaleLowLabel || "Sangat Buruk"} (1)</span>
-                      <span>{q.scaleHighLabel || "Sangat Baik"} (5)</span>
+                    <div className="flex items-center justify-between text-body-xs text-muted-foreground max-w-md">
+                      <span>{q.scaleLowLabel || "1 (Sangat Tidak Setuju)"}</span>
+                      <span>{q.scaleHighLabel || "5 (Sangat Setuju)"}</span>
                     </div>
-                    <div className="flex items-center justify-between gap-2 rounded-xl border border-border/80 bg-background p-3">
-                      {[1, 2, 3, 4, 5].map((val) => (
-                        <label key={val} className="flex flex-col items-center gap-1 cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      {[1, 2, 3, 4, 5].map((valNum) => (
+                        <label key={valNum} className="flex flex-col items-center gap-1 cursor-pointer">
                           <input
                             type="radio"
                             name={`q_${qIdx}`}
                             required={q.required}
-                            checked={Number(answerVal) === val}
-                            onChange={() => handleAnswerChange(qIdx, val)}
-                            className="size-4 text-brand-primary focus:ring-ring"
+                            checked={answerVal === valNum.toString()}
+                            onChange={() => handleAnswerChange(qIdx, valNum.toString())}
+                            className="size-5 text-brand-primary focus:ring-ring"
                           />
-                          <span className="text-body-xs font-bold">{val}</span>
+                          <span className="text-body-xs font-bold text-foreground">{valNum}</span>
                         </label>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* 8. RATING */}
+                {/* 8. RATING (Bintang) */}
                 {q.type === "RATING" && (
-                  <div className="flex items-center gap-2 p-3 rounded-xl border border-border/80 bg-background">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => handleAnswerChange(qIdx, star)}
-                        className="p-1 hover:scale-110 transition-transform cursor-pointer"
-                      >
-                        <Star
-                          className={`size-7 ${
-                            Number(answerVal) >= star
-                              ? "text-status-warning fill-status-warning"
-                              : "text-muted-foreground/30"
-                          }`}
-                        />
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((starIdx) => {
+                      const currentRating = parseInt(answerVal || "0", 10);
+                      const isFilled = starIdx <= currentRating;
+                      return (
+                        <button
+                          key={starIdx}
+                          type="button"
+                          onClick={() => handleAnswerChange(qIdx, starIdx.toString())}
+                          className="p-1 cursor-pointer transition-transform hover:scale-110"
+                        >
+                          <Star
+                            className={`size-7 ${
+                              isFilled ? "fill-status-warning text-status-warning" : "text-muted-foreground/40"
+                            }`}
+                          />
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
-                {/* 9 & 10. MATRIX (GRID_RADIO & GRID_CHECKBOX) */}
+                {/* 9. GRID_RADIO & 10. GRID_CHECKBOX */}
                 {(q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX") && (
-                  <div className="overflow-x-auto rounded-xl border border-border bg-background p-3">
-                    <table className="w-full text-left text-body-xs border-collapse">
+                  <div className="overflow-x-auto rounded-xl border border-border bg-card p-4">
+                    <table className="w-full text-left text-body-xs">
                       <thead>
-                        <tr className="border-b border-border text-muted-foreground font-semibold">
-                          <th className="p-2.5 w-1/3">Pertanyaan</th>
-                          {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((col, cIdx) => (
-                            <th key={cIdx} className="p-2.5 text-center">{col}</th>
+                        <tr className="border-b border-border bg-muted/40">
+                          <th className="p-2.5 font-bold text-foreground">Baris / Kolom</th>
+                          {(q.gridColumns || []).map((col: string, cIdx: number) => (
+                            <th key={cIdx} className="p-2.5 font-bold text-foreground text-center">
+                              {col}
+                            </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
-                        {(q.gridRows || ["Baris 1", "Baris 2"]).map((row, rIdx) => {
-                          const gridObj = typeof answerVal === "object" && !Array.isArray(answerVal) ? answerVal : {};
-                          const rowAns = gridObj[row];
+                        {(q.gridRows || []).map((rowName: string, rIdx: number) => {
+                          const currentObj = typeof answerVal === "object" && !Array.isArray(answerVal) ? answerVal : {};
+                          const rowAns = currentObj[rowName];
 
                           return (
                             <tr key={rIdx} className="hover:bg-muted/20">
-                              <td className="p-2.5 font-medium text-foreground">{row}</td>
-                              {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((col, cIdx) => {
+                              <td className="p-2.5 font-semibold text-foreground">{rowName}</td>
+                              {(q.gridColumns || []).map((colName: string, cIdx: number) => {
                                 const isChecked = q.type === "GRID_CHECKBOX"
-                                  ? Array.isArray(rowAns) && rowAns.includes(col)
-                                  : rowAns === col;
+                                  ? Array.isArray(rowAns) && rowAns.includes(colName)
+                                  : rowAns === colName;
 
                                 return (
                                   <td key={cIdx} className="p-2.5 text-center">
                                     <input
-                                      type={q.type === "GRID_RADIO" ? "radio" : "checkbox"}
-                                      name={`q_${qIdx}_row_${rIdx}`}
-                                      checked={isChecked}
-                                      onChange={() => handleGridChoice(qIdx, row, col, q.type === "GRID_CHECKBOX")}
-                                      className="size-4 text-brand-primary focus:ring-ring cursor-pointer"
+                                      type={q.type === "GRID_CHECKBOX" ? "checkbox" : "radio"}
+                                      name={`grid_${qIdx}_${rIdx}`}
+                                      checked={Boolean(isChecked)}
+                                      onChange={() => handleGridChoice(qIdx, rowName, colName, q.type === "GRID_CHECKBOX")}
+                                      className="size-4.5 text-brand-primary focus:ring-ring cursor-pointer"
                                     />
                                   </td>
                                 );
@@ -547,22 +617,50 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
           );
         })}
 
-        <div className="pt-2">
-          <Button
-            type="submit"
-            disabled={submitting}
-            size="lg"
-            className="w-full sm:w-auto px-8 font-bold"
-          >
-            {submitting ? (
-              <>
-                <RefreshCw className="size-4 animate-spin mr-2" />
-                Mengirimkan...
-              </>
-            ) : (
-              "Kirimkan Jawaban"
+        {/* Section Navigation Buttons (Kembali / Berikutnya / Kirimkan) */}
+        <div className="flex items-center justify-between pt-4 border-t border-border/60">
+          <div>
+            {currentStep > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={handlePrevStep}
+                className="px-6 font-semibold"
+              >
+                Kembali
+              </Button>
             )}
-          </Button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {currentStep < sections.length - 1 ? (
+              <Button
+                type="button"
+                size="lg"
+                onClick={handleNextStep}
+                className="px-8 font-bold bg-brand-primary hover:bg-brand-primary/90 text-white"
+              >
+                Berikutnya
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={submitting}
+                size="lg"
+                className="px-8 font-bold"
+              >
+                {submitting ? (
+                  <>
+                    <RefreshCw className="size-4 animate-spin mr-2" />
+                    Mengirimkan...
+                  </>
+                ) : (
+                  "Kirimkan Jawaban"
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </form>
 

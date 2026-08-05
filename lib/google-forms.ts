@@ -129,7 +129,8 @@ export type QuestionType =
   | "GRID_RADIO"
   | "GRID_CHECKBOX"
   | "DATE"
-  | "TIME";
+  | "TIME"
+  | "SECTION";
 
 export interface CreateCustomQuestionInput {
   title: string;

@@ -101,6 +101,89 @@ function SimpleSvgPieChart({
   );
 }
 
+function formatAnswerForText(val: any): string {
+  if (val === null || val === undefined || val === "") return "-";
+  if (typeof val !== "object") return String(val);
+
+  if (Array.isArray(val)) {
+    return val.map((v) => formatAnswerForText(v)).join(", ");
+  }
+
+  // Object (e.g. GRID_RADIO / GRID_CHECKBOX)
+  const entries = Object.entries(val);
+  if (entries.length === 0) return "-";
+
+  return entries
+    .map(([row, colVal]) => {
+      const colStr = Array.isArray(colVal) ? colVal.join(", ") : String(colVal ?? "");
+      return `${row}: ${colStr}`;
+    })
+    .join(" | ");
+}
+
+function RenderFormattedAnswer({ val }: { val: any }) {
+  if (val === null || val === undefined || val === "") {
+    return <span className="text-muted-foreground italic">-</span>;
+  }
+
+  // Handle URL / File upload
+  if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://"))) {
+    return (
+      <a
+        href={val}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors"
+      >
+        📄 Buka Lampiran File <ExternalLink className="size-3.5" />
+      </a>
+    );
+  }
+
+  if (typeof val !== "object") {
+    return <span>{String(val)}</span>;
+  }
+
+  if (Array.isArray(val)) {
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {val.map((item, idx) => (
+          <span key={idx} className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-body-2xs font-semibold text-foreground border border-border">
+            {String(item)}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  // Object: Grid responses (GRID_RADIO / GRID_CHECKBOX)
+  const entries = Object.entries(val);
+  if (entries.length === 0) return <span className="text-muted-foreground italic">-</span>;
+
+  return (
+    <div className="space-y-1.5 w-full rounded-xl border border-border/80 bg-card p-3 shadow-2xs">
+      {entries.map(([rowName, colVal], idx) => (
+        <div key={idx} className="flex flex-wrap items-center justify-between text-body-xs gap-2 py-1 border-b border-border/40 last:border-0">
+          <span className="font-semibold text-foreground">{rowName}</span>
+          <div className="flex flex-wrap items-center gap-1">
+            {Array.isArray(colVal) ? (
+              colVal.map((c: any, cIdx: number) => (
+                <span key={cIdx} className="rounded-md bg-brand-primary/15 text-brand-primary font-bold px-2 py-0.5 text-body-2xs">
+                  {String(c)}
+                </span>
+              ))
+            ) : (
+              <span className="rounded-md bg-brand-primary/15 text-brand-primary font-bold px-2 py-0.5 text-body-2xs">
+                {String(colVal)}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const PIE_COLORS = [
   "#3b82f6", // Blue
   "#ef4444", // Red
@@ -211,7 +294,7 @@ export default function DetailedFormAnalyticsPage({
     const rows = responses.map((r) => {
       const answerCols = (form.questions || []).map((q: any, i: number) => {
         const val = r.answers[i] ?? r.answers[q.title] ?? "";
-        const formatted = typeof val === "object" ? JSON.stringify(val) : String(val);
+        const formatted = formatAnswerForText(val);
         return `"${formatted.replace(/"/g, '""')}"`;
       });
       return [
@@ -244,7 +327,7 @@ export default function DetailedFormAnalyticsPage({
       const rowsMatrix = responses.map((r) => {
         const answerCols = (form.questions || []).map((q: any, i: number) => {
           const val = r.answers[i] ?? r.answers[q.title] ?? "";
-          return typeof val === "object" ? JSON.stringify(val) : String(val);
+          return formatAnswerForText(val);
         });
         return [r.id, r.submittedAt, r.responderEmail || "Anonim", ...answerCols];
       });
@@ -515,6 +598,54 @@ export default function DetailedFormAnalyticsPage({
                       </p>
                     ) : isChoiceType ? (
                       <SimpleSvgPieChart slices={slices} />
+                    ) : q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX" ? (
+                      <div className="overflow-x-auto rounded-xl border border-border bg-card p-4">
+                        <table className="w-full text-left text-body-xs">
+                          <thead>
+                            <tr className="border-b border-border bg-muted/40">
+                              <th className="p-2.5 font-bold text-foreground">Baris / Kolom</th>
+                              {(q.gridColumns || []).map((col: string, cIdx: number) => (
+                                <th key={cIdx} className="p-2.5 font-bold text-foreground text-center">
+                                  {col}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/60">
+                            {(q.gridRows || []).map((rowName: string, rIdx: number) => (
+                              <tr key={rIdx} className="hover:bg-muted/20">
+                                <td className="p-2.5 font-semibold text-foreground">{rowName}</td>
+                                {(q.gridColumns || []).map((colName: string, cIdx: number) => {
+                                  let matchCount = 0;
+                                  allAnswers.forEach((ansObj: any) => {
+                                    if (ansObj && typeof ansObj === "object") {
+                                      const userCol = ansObj[rowName];
+                                      if (Array.isArray(userCol)) {
+                                        if (userCol.includes(colName)) matchCount++;
+                                      } else if (userCol === colName) {
+                                        matchCount++;
+                                      }
+                                    }
+                                  });
+                                  const pct = allAnswers.length > 0 ? Math.round((matchCount / allAnswers.length) * 100) : 0;
+
+                                  return (
+                                    <td key={cIdx} className="p-2.5 text-center">
+                                      <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-body-2xs font-bold ${
+                                        matchCount > 0
+                                          ? "bg-brand-primary/15 text-brand-primary border border-brand-primary/20"
+                                          : "text-muted-foreground bg-muted/30"
+                                      }`}>
+                                        {matchCount} ({pct}%)
+                                      </span>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     ) : q.type === "FILE_UPLOAD" ? (
                       <div className="space-y-2">
                         {allAnswers.map((fileUrl: any, fIdx: number) => (
@@ -536,18 +667,14 @@ export default function DetailedFormAnalyticsPage({
                     ) : (
                       /* Text & List answers */
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {allAnswers.map((ans: any, aIdx: number) => {
-                          const displayStr = typeof ans === "object" ? JSON.stringify(ans) : String(ans);
-
-                          return (
-                            <div
-                              key={aIdx}
-                              className="rounded-xl border border-border/80 bg-muted/20 p-3 text-body-xs font-medium text-foreground"
-                            >
-                              {displayStr}
-                            </div>
-                          );
-                        })}
+                        {allAnswers.map((ans: any, aIdx: number) => (
+                          <div
+                            key={aIdx}
+                            className="rounded-xl border border-border/80 bg-muted/20 p-3 text-body-xs font-medium text-foreground"
+                          >
+                            <RenderFormattedAnswer val={ans} />
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -603,11 +730,10 @@ export default function DetailedFormAnalyticsPage({
                             </td>
                             {(form.questions || []).map((q: any, i: number) => {
                               const val = row.answers[i] ?? row.answers[q.title] ?? "-";
-                              const valStr = typeof val === "object" ? JSON.stringify(val) : String(val);
 
                               return (
                                 <td key={i} className="px-4 py-3 text-foreground font-medium max-w-xs truncate">
-                                  {valStr}
+                                  <RenderFormattedAnswer val={val} />
                                 </td>
                               );
                             })}
@@ -689,21 +815,18 @@ export default function DetailedFormAnalyticsPage({
                         {responsesForQ.length} responses tercatat
                       </p>
                     </div>
-
                     <div className="space-y-3">
-                      {responsesForQ.map((item, idx) => {
-                        const strVal = typeof item.answer === "object" ? JSON.stringify(item.answer) : String(item.answer);
-
-                        return (
-                          <div key={idx} className="rounded-xl border border-border bg-muted/20 p-4 space-y-1">
-                            <div className="flex items-center justify-between text-body-2xs font-semibold text-muted-foreground">
-                              <span>Responden: {item.responderEmail}</span>
-                              <span className="font-mono">{formatIsoDate(new Date(item.submittedAt))}</span>
-                            </div>
-                            <p className="text-body-sm font-semibold text-foreground">{strVal}</p>
+                      {responsesForQ.map((item, idx) => (
+                        <div key={idx} className="rounded-xl border border-border bg-muted/20 p-4 space-y-1">
+                          <div className="flex items-center justify-between text-body-2xs font-semibold text-muted-foreground">
+                            <span>Responden: {item.responderEmail}</span>
+                            <span className="font-mono">{formatIsoDate(new Date(item.submittedAt))}</span>
                           </div>
-                        );
-                      })}
+                          <div className="pt-1">
+                            <RenderFormattedAnswer val={item.answer} />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
@@ -721,8 +844,8 @@ export default function DetailedFormAnalyticsPage({
               ) : (
                 <>
                   {/* Respondent Switcher Header */}
-                  <div className="rounded-2xl border border-border bg-card p-4 shadow-sm flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
+                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         disabled={individualIndex === 0}
@@ -731,11 +854,9 @@ export default function DetailedFormAnalyticsPage({
                       >
                         <ChevronLeft className="size-5" />
                       </button>
-
-                      <span className="font-heading text-h6 font-bold text-foreground">
-                        {individualIndex + 1} dari {responses.length}
+                      <span className="text-body-sm font-semibold text-foreground">
+                        Responden {individualIndex + 1} dari {responses.length}
                       </span>
-
                       <button
                         type="button"
                         disabled={individualIndex === responses.length - 1}
@@ -764,7 +885,6 @@ export default function DetailedFormAnalyticsPage({
                         {(form.questions || []).map((q: any, qIdx: number) => {
                           const qTitle = q.title || `Soal #${qIdx + 1}`;
                           const userAns = currentResp.answers[qIdx] ?? currentResp.answers[qTitle];
-                          const strAns = typeof userAns === "object" ? JSON.stringify(userAns) : String(userAns ?? "-");
 
                           return (
                             <div key={qIdx} className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-2">
@@ -776,20 +896,7 @@ export default function DetailedFormAnalyticsPage({
                               )}
 
                               <div className="pt-2">
-                                {userAns && String(userAns).startsWith("http") ? (
-                                  <a
-                                    href={String(userAns)}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1.5 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors"
-                                  >
-                                    📄 Buka Lampiran File <ExternalLink className="size-3.5" />
-                                  </a>
-                                ) : (
-                                  <div className="rounded-xl border border-border bg-muted/30 p-4 text-body-sm font-semibold text-foreground">
-                                    {strAns}
-                                  </div>
-                                )}
+                                <RenderFormattedAnswer val={userAns} />
                               </div>
                             </div>
                           );
