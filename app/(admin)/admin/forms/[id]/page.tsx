@@ -123,8 +123,8 @@ export default function DetailedFormAnalyticsPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 3 Response Sub-Tabs: "summary" | "question" | "individual"
-  const [responseTab, setResponseTab] = useState<"summary" | "question" | "individual">("summary");
+  // 4 Response Sub-Tabs: "summary" | "question" | "individual" | "settings"
+  const [responseTab, setResponseTab] = useState<"summary" | "question" | "individual" | "settings">("summary");
 
   // State for "question" tab selector
   const [selectedQIndex, setSelectedQIndex] = useState<number>(0);
@@ -135,6 +135,10 @@ export default function DetailedFormAnalyticsPage({
   // Search filter state in summary spreadsheet
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Settings state for existing form
+  const [formSettings, setFormSettings] = useState<any>({});
+  const [savingSettings, setSavingSettings] = useState(false);
+
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -144,6 +148,18 @@ export default function DetailedFormAnalyticsPage({
       if (data.success && data.form) {
         setForm(data.form);
         setResponses(data.responses || []);
+        setFormSettings(data.form.settings || {
+          acceptingResponses: true,
+          closedMessage: "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
+          openAt: "",
+          closeAt: "",
+          collectEmail: "none",
+          sendResponseCopy: "off",
+          allowResponseEditing: false,
+          limitToOneResponse: false,
+          maxFileSizeLimit: "1GB",
+          customSuccessMessage: "Jawaban Anda telah berhasil disimpan.",
+        });
       } else {
         setError(data.error || "Gagal memuat data formulir.");
       }
@@ -157,6 +173,31 @@ export default function DetailedFormAnalyticsPage({
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const res = await fetch(`/api/admin/custom-forms/${formId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          settings: formSettings,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.form) {
+        setForm(data.form);
+        setFormSettings(data.form.settings || {});
+        alert("Pengaturan formulir berhasil diperbarui!");
+      } else {
+        alert(data.error || "Gagal menyimpan pengaturan formulir.");
+      }
+    } catch (err: any) {
+      alert(err.message || "Terjadi kesalahan jaringan saat menyimpan pengaturan.");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const [exportingSheets, setExportingSheets] = useState(false);
 
@@ -377,6 +418,19 @@ export default function DetailedFormAnalyticsPage({
                 >
                   <User className="size-4 text-tertiary-1" />
                   Individual (Per Responden)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setResponseTab("settings")}
+                  className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-lg px-6 py-2 text-body-xs font-bold transition-all cursor-pointer ${
+                    responseTab === "settings"
+                      ? "bg-card text-foreground shadow-xs border border-border/60"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <FileText className="size-4 text-status-warning" />
+                  Settings (Pengaturan)
                 </button>
               </div>
             </div>
@@ -742,6 +796,207 @@ export default function DetailedFormAnalyticsPage({
                   })()}
                 </>
               )}
+            </div>
+          )}
+
+          {/* TAB 4: SETTINGS (PENGATURAN FORMULIR DITERBITKAN) */}
+          {responseTab === "settings" && (
+            <div className="space-y-6 max-w-3xl">
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
+                <div className="flex items-center justify-between border-b border-border pb-4">
+                  <div>
+                    <h2 className="font-heading text-h5 font-bold text-foreground">
+                      Pengaturan Tanggapan & Akses ({form.title})
+                    </h2>
+                    <p className="text-body-xs text-muted-foreground mt-0.5">
+                      Perbarui status penerimaan tanggapan, jadwal buka/tutup, dan batasan respon.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveSettings}
+                    disabled={savingSettings}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-body-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                  >
+                    <RefreshCw className={`size-3.5 ${savingSettings ? "animate-spin" : "hidden"}`} />
+                    {savingSettings ? "Menyimpan..." : "Simpan Perubahan Settings"}
+                  </button>
+                </div>
+
+                {/* 1. Menerima Tanggapan & Jadwal Tutup/Buka */}
+                <div className="space-y-4">
+                  <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
+                    Menerima Tanggapan & Jadwal (Status Form)
+                  </p>
+
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+                    <div>
+                      <p className="text-body-sm font-semibold text-foreground">Menerima Tanggapan (Accepting Responses)</p>
+                      <p className="text-body-xs text-muted-foreground">Aktifkan untuk mengizinkan responden mengisi formulir ini.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={formSettings.acceptingResponses ?? true}
+                      onChange={(e) => setFormSettings({ ...formSettings, acceptingResponses: e.target.checked })}
+                      className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-body-xs font-semibold text-foreground mb-1">
+                        Jadwal Otomatis Buka (openAt)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formSettings.openAt || ""}
+                        onChange={(e) => setFormSettings({ ...formSettings, openAt: e.target.value })}
+                        className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                      <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-body-xs font-semibold text-foreground mb-1">
+                        Jadwal Otomatis Tutup (closeAt)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formSettings.closeAt || ""}
+                        onChange={(e) => setFormSettings({ ...formSettings, closeAt: e.target.value })}
+                        className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                      <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-body-xs font-semibold text-foreground mb-1">
+                      Pesan Saat Formulir Ditutup (Closed Message)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={formSettings.closedMessage || ""}
+                      onChange={(e) => setFormSettings({ ...formSettings, closedMessage: e.target.value })}
+                      placeholder="Formulir ini telah ditutup dan tidak lagi menerima tanggapan."
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Collect Email & Privacy */}
+                <div className="space-y-4 border-t border-border/60 pt-4">
+                  <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
+                    Pengumpulan Alamat Email & Autentikasi
+                  </p>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-body-xs font-semibold text-foreground mb-1">
+                        Collect email addresses
+                      </label>
+                      <Select
+                        value={formSettings.collectEmail || "none"}
+                        onValueChange={(val: any) => setFormSettings({ ...formSettings, collectEmail: val })}
+                      >
+                        <SelectTrigger className="w-full h-10 text-body-xs">
+                          <SelectValue placeholder="Pilih Pengumpulan Email" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Do not collect (Tidak dikumpulkan)</SelectItem>
+                          <SelectItem value="input">Responder input (Diisi manual)</SelectItem>
+                          <SelectItem value="verified">Verified (Verifikasi Akun Zyx)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="block text-body-xs font-semibold text-foreground mb-1">
+                        Send responders a copy of their response
+                      </label>
+                      <Select
+                        value={formSettings.sendResponseCopy || "off"}
+                        onValueChange={(val: any) => setFormSettings({ ...formSettings, sendResponseCopy: val })}
+                      >
+                        <SelectTrigger className="w-full h-10 text-body-xs">
+                          <SelectValue placeholder="Kirim Salinan Respon" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="off">Off (Mati)</SelectItem>
+                          <SelectItem value="requested">When requested (Saat diminta)</SelectItem>
+                          <SelectItem value="always">Always (Selalu dikirim)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+                    <div>
+                      <p className="text-body-sm font-semibold text-foreground">Allow response editing</p>
+                      <p className="text-body-xs text-muted-foreground">Respon dapat diubah kembali setelah dikirimkan.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={formSettings.allowResponseEditing ?? false}
+                      onChange={(e) => setFormSettings({ ...formSettings, allowResponseEditing: e.target.checked })}
+                      className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+                    <div>
+                      <p className="text-body-sm font-semibold text-foreground">Limit to 1 response (Requires Sign in)</p>
+                      <p className="text-body-xs text-muted-foreground">Membatasi responden hanya boleh mengisi 1 kali pengisian.</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={formSettings.limitToOneResponse ?? false}
+                      onChange={(e) => setFormSettings({ ...formSettings, limitToOneResponse: e.target.checked })}
+                      className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. File Upload Limits & Presentation */}
+                <div className="space-y-4 border-t border-border/60 pt-4">
+                  <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
+                    Batas Ukuran File Upload & Tampilan
+                  </p>
+
+                  <div>
+                    <label className="block text-body-xs font-semibold text-foreground mb-1">
+                      Total size limit for all uploaded files
+                    </label>
+                    <Select
+                      value={formSettings.maxFileSizeLimit || "1GB"}
+                      onValueChange={(val: any) => setFormSettings({ ...formSettings, maxFileSizeLimit: val })}
+                    >
+                      <SelectTrigger className="w-full sm:w-1/2 h-10 text-body-xs">
+                        <SelectValue placeholder="Batas Ukuran File" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1GB">1 GB</SelectItem>
+                        <SelectItem value="10GB">10 GB</SelectItem>
+                        <SelectItem value="100GB">100 GB</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-body-xs font-semibold text-foreground mb-1">
+                      Pesan Konfirmasi Setelah Submit (Presentation)
+                    </label>
+                    <input
+                      type="text"
+                      value={formSettings.customSuccessMessage || ""}
+                      onChange={(e) => setFormSettings({ ...formSettings, customSuccessMessage: e.target.value })}
+                      placeholder="Jawaban Anda telah berhasil disimpan."
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -48,6 +48,47 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    if (env.FEATURE_PERAN_V2 === "1") {
+      const session = await auth.api.getSession({ headers: await headers() });
+      if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
+        return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
+      }
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const updateData: Record<string, any> = {
+      updatedAt: new Date(),
+    };
+
+    if (body.title !== undefined) updateData.title = String(body.title).trim();
+    if (body.description !== undefined) updateData.description = String(body.description).trim() || null;
+    if (body.category !== undefined) updateData.category = body.category;
+    if (body.questions !== undefined) updateData.questions = body.questions;
+    if (body.settings !== undefined) updateData.settings = body.settings;
+
+    const [updated] = await db
+      .update(customForms)
+      .set(updateData)
+      .where(eq(customForms.id, id))
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Form not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, form: updated });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Failed to update form settings" }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }

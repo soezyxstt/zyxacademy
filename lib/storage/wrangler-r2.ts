@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import type { StorageProvider } from "./index";
 
@@ -15,7 +16,7 @@ function objectPath(bucket: string, key: string): string {
 }
 
 function temporaryRoot(): string {
-  return process.env.STAGING_BUNDLE_WRANGLER_TMP || (process.platform === "win32" ? "C:\\tmp\\zyx-staging-r2" : "/tmp/zyx-staging-r2");
+  return process.env.STAGING_BUNDLE_WRANGLER_TMP || join(/* turbopackIgnore: true */ tmpdir(), "zyx-staging-r2");
 }
 
 async function asBytes(file: File | Buffer | Uint8Array): Promise<Uint8Array> {
@@ -48,12 +49,12 @@ export class WranglerR2Provider implements StorageProvider {
 
   private async withTempFile<T>(suffix: string, action: (filePath: string) => Promise<T>): Promise<T> {
     const root = temporaryRoot();
-    await mkdir(root, { recursive: true });
-    const filePath = join(root, `${randomUUID()}${suffix}`);
+    await mkdir(/* turbopackIgnore: true */ root, { recursive: true });
+    const filePath = join(/* turbopackIgnore: true */ root, `${randomUUID()}${suffix}`);
     try {
       return await action(filePath);
     } finally {
-      await unlink(filePath).catch(() => undefined);
+      await unlink(/* turbopackIgnore: true */ filePath).catch(() => undefined);
     }
   }
 
@@ -67,7 +68,7 @@ export class WranglerR2Provider implements StorageProvider {
     const key = options?.key || `${randomUUID()}-${filename.replace(/\s+/g, "_")}`;
     const target = objectPath(this.bucket, key);
     await this.withTempFile(".upload", async (filePath) => {
-      await writeFile(filePath, bytes);
+      await writeFile(/* turbopackIgnore: true */ filePath, bytes);
       await this.run([
         "r2",
         "object",
@@ -104,7 +105,7 @@ export class WranglerR2Provider implements StorageProvider {
   async download(key: string): Promise<Uint8Array> {
     return this.withTempFile(".download", async (filePath) => {
       await this.run(["r2", "object", "get", objectPath(this.bucket, key), "--file", filePath, "--remote"]);
-      return new Uint8Array(await readFile(filePath));
+      return new Uint8Array(await readFile(/* turbopackIgnore: true */ filePath));
     });
   }
 
