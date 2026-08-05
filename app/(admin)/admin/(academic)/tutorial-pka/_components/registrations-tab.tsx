@@ -11,6 +11,8 @@ import {
   GraduationCap,
   CalendarDays,
   ExternalLink,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -106,6 +108,8 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
     );
   }, [query, registrations]);
 
+  const [exportingSheets, setExportingSheets] = useState(false);
+
   const handleExport = () => {
     const csv = toCsv(filtered);
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
@@ -115,6 +119,52 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
     a.download = `pendaftar-tutorial-pka-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportGoogleSheets = async () => {
+    setExportingSheets(true);
+    try {
+      const headersRow = [
+        "Nama Lengkap",
+        "Fakultas",
+        "Email Siswa",
+        "Instagram",
+        "Waktu Pendaftaran",
+        "Notifikasi Pengumuman",
+        "Link Bukti",
+      ];
+      const rowsMatrix = filtered.map((r) => [
+        r.fullName,
+        r.faculty,
+        r.email,
+        `@${r.instagramUsername}`,
+        r.createdAt ? formatDate(r.createdAt) : "-",
+        r.receiveAnnouncements ? "Ya" : "Tidak",
+        r.proofUrl,
+      ]);
+
+      const res = await fetch("/api/admin/export-spreadsheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Pendaftar Tutorial PKA",
+          headers: headersRow,
+          rows: rowsMatrix,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.spreadsheetUrl) {
+        window.open(data.spreadsheetUrl, "_blank");
+      } else {
+        alert(data.error || "Gagal membuat Google Spreadsheet. Menggunakan ekspor CSV.");
+        handleExport();
+      }
+    } catch (err: any) {
+      alert(err.message || "Terjadi kesalahan saat mengekspor ke Google Spreadsheet.");
+    } finally {
+      setExportingSheets(false);
+    }
   };
 
   if (registrations.length === 0) {
@@ -148,10 +198,18 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
           placeholder="Cari nama, fakultas, email, atau Instagram..."
           containerClassName="w-full sm:max-w-md"
         />
-        <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 rounded-lg">
-          <Download className="size-4" />
-          Ekspor CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleExportGoogleSheets} disabled={exportingSheets} variant="outline" size="sm" className="gap-2 rounded-lg text-brand-primary border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10">
+            <RefreshCw className={`size-4 ${exportingSheets ? "animate-spin" : "hidden"}`} />
+            <FileText className="size-4" />
+            {exportingSheets ? "Mengekspor..." : "Ekspor Google Sheets"}
+          </Button>
+
+          <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 rounded-lg">
+            <Download className="size-4" />
+            Ekspor CSV
+          </Button>
+        </div>
       </div>
 
       {/* Table */}

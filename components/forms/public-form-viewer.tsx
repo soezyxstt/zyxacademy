@@ -68,14 +68,21 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   // Lightbox Image Dialog State
   const [zoomImageUri, setZoomImageUri] = useState<{ url: string; title: string } | null>(null);
 
+  const [isClosed, setIsClosed] = useState(false);
+  const [closedReason, setClosedReason] = useState<string | null>(null);
+
   const fetchForm = useCallback(async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
       const res = await fetch(`/api/forms/${idOrSlug}`);
       const data = await res.json();
-      if (data.success && data.form) {
+      if (data.form) {
         setForm(data.form);
+        if (data.isClosed) {
+          setIsClosed(true);
+          setClosedReason(data.closedReason || "Formulir ini tidak lagi menerima tanggapan.");
+        }
       } else {
         setErrorMsg(data.error || "Formulir tidak ditemukan.");
       }
@@ -181,7 +188,23 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
         <div className="rounded-2xl border border-status-error/30 bg-card p-8 shadow-sm space-y-4">
           <AlertCircle className="size-12 text-status-error mx-auto" />
           <h1 className="font-heading text-h5 font-bold text-foreground">Formulir Tidak Ditemukan</h1>
-          <p className="text-body-sm text-muted-foreground">{errorMsg || "Formulir ini mungkin telah dihapus atau ditutup."}</p>
+          <p className="text-body-sm text-muted-foreground">{errorMsg || "Formulir ini mungkin telah dihapus."}</p>
+        </div>
+      </Reveal>
+    );
+  }
+
+  if (isClosed) {
+    return (
+      <Reveal className="mx-auto max-w-xl px-4 py-16 text-center space-y-6">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm border-t-8 border-t-status-warning space-y-3">
+          <span className="rounded-md bg-status-warning/10 px-2.5 py-1 text-body-2xs font-bold uppercase tracking-wider text-status-warning">
+            Pendaftaran / Tanggapan Ditutup
+          </span>
+          <h1 className="font-heading text-h3 font-bold text-foreground">{form.title}</h1>
+          <p className="text-body-sm text-muted-foreground whitespace-pre-line border-t border-border/40 pt-3">
+            {closedReason || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan baru."}
+          </p>
         </div>
       </Reveal>
     );

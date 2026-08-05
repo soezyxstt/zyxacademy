@@ -35,7 +35,40 @@ export async function GET(
       return NextResponse.json({ error: "Formulir tidak ditemukan atau telah dihapus." }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, form });
+    const settings = form.settings || {};
+    const now = new Date();
+
+    // Check acceptingResponses toggle
+    if (settings.acceptingResponses === false) {
+      return NextResponse.json({
+        success: false,
+        form,
+        isClosed: true,
+        closedReason: settings.closedMessage || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
+      });
+    }
+
+    // Check openAt schedule
+    if (settings.openAt && now < new Date(settings.openAt)) {
+      return NextResponse.json({
+        success: false,
+        form,
+        isClosed: true,
+        closedReason: `Formulir belum dibuka. Jadwal pembukaan: ${new Date(settings.openAt).toLocaleString("id-ID")}`,
+      });
+    }
+
+    // Check closeAt schedule
+    if (settings.closeAt && now > new Date(settings.closeAt)) {
+      return NextResponse.json({
+        success: false,
+        form,
+        isClosed: true,
+        closedReason: settings.closedMessage || `Formulir telah ditutup secara otomatis pada ${new Date(settings.closeAt).toLocaleString("id-ID")}`,
+      });
+    }
+
+    return NextResponse.json({ success: true, form, isClosed: false });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Gagal mengambil data formulir." }, { status: 500 });
   }
@@ -68,6 +101,60 @@ export async function POST(
 
     if (!form) {
       return NextResponse.json({ error: "Formulir tidak ditemukan." }, { status: 404 });
+    }
+
+    const settings = form.settings || {};
+    const now = new Date();
+
+    // Check acceptingResponses toggle
+    if (settings.acceptingResponses === false) {
+      return NextResponse.json(
+        { error: settings.closedMessage || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan." },
+        { status: 403 }
+      );
+    }
+
+    // Check schedule
+    if (settings.openAt && now < new Date(settings.openAt)) {
+      return NextResponse.json(
+        { error: `Formulir belum dibuka. Jadwal pembukaan: ${new Date(settings.openAt).toLocaleString("id-ID")}` },
+        { status: 403 }
+      );
+    }
+    if (settings.closeAt && now > new Date(settings.closeAt)) {
+      return NextResponse.json(
+        { error: settings.closedMessage || `Formulir telah ditutup pada ${new Date(settings.closeAt).toLocaleString("id-ID")}` },
+        { status: 403 }
+      );
+    }
+
+    // Check Login Requirement
+    if (settings.requireLogin && !session?.user) {
+      return NextResponse.json(
+        { error: "Anda harus login ke akun Zyx untuk mengisi formulir ini." },
+        { status: 401 }
+      );
+    }
+
+    // Check 1 Response Limit
+    if (settings.limitToOneResponse && session?.user?.id) {
+      const existingUserResponse = await db
+        .select({ id: customFormResponses.id })
+        .from(customFormResponses)
+        .where(
+          and(
+            eq(customFormResponses.formId, form.id),
+            eq(customFormResponses.responderUserId, session.user.id)
+          )
+        )
+        .limit(1);
+
+      if (existingUserResponse.length > 0) {
+        return NextResponse.json(
+          { error: "Anda sudah pernah mengisi formulir ini (Dibatasi 1 kali pengisian)." },
+          { status: 403 }
+        );
+      }
     }
 
     const body = await req.json().catch(() => ({}));
@@ -104,7 +191,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       submission,
-      message: form.settings?.customSuccessMessage || "Jawaban Anda telah berhasil disimpan.",
+      message: settings.customSuccessMessage || "Jawaban Anda telah berhasil disimpan.",
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Gagal menyimpan pengisian formulir." }, { status: 500 });

@@ -4477,8 +4477,15 @@ export const customForms = sqliteTable(
     questions: text("questions", { mode: "json" }).$type<any[]>().notNull(),
     settings: text("settings", { mode: "json" }).$type<{
       acceptingResponses?: boolean;
+      closedMessage?: string;
+      openAt?: string;
+      closeAt?: string;
+      collectEmail?: "none" | "input" | "verified";
+      limitToOneResponse?: boolean;
       requireLogin?: boolean;
-      collectEmail?: boolean;
+      allowResponseEditing?: boolean;
+      sendResponseCopy?: "off" | "requested" | "always";
+      maxFileSizeLimit?: "1GB" | "10GB" | "100GB";
       shuffleQuestions?: boolean;
       customSuccessMessage?: string;
     }>(),

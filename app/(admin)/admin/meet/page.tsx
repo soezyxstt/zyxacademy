@@ -181,11 +181,11 @@ export default function AdminMeetPage() {
               <Video className="size-5" />
             </span>
             <h1 className="font-heading text-h4 font-bold text-foreground">
-              Google Meet Operations
+              Studio Sesi & Temu (Meet)
             </h1>
           </div>
           <p className="mt-2 text-body-md text-muted-foreground">
-            Kelola sesi ruang Google Meet, jalankan meeting langsung di bawah akun Pro, dan pantau log serta metrik kehadiran peserta.
+            Kelola sesi ruang temu, jalankan meeting langsung di bawah akun Pro, dan pantau log serta metrik kehadiran peserta.
           </p>
         </div>
       </div>

@@ -155,12 +155,74 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
     });
   }, [attempts, statusFilter, searchQuery]);
 
+  const [exportingSheets, setExportingSheets] = useState(false);
+
   // Trigger CSV Download via API
   const handleExportCsv = (type: "matrix" | "summary") => {
     const url = `/api/admin/quiz-insights/${templateId}/attempts?export=csv&exportType=${type}&includeInProgress=${includeInProgress}`;
     window.open(url, "_blank");
     toast.success(`Memulai pengunduhan CSV (${type === "matrix" ? "Matriks Jawaban Detail" : "Ringkasan Attempt"})...`);
     setExportDialogOpen(false);
+  };
+
+  const handleExportGoogleSheets = async (type: "matrix" | "summary") => {
+    setExportingSheets(true);
+    try {
+      let headersRow: string[] = [];
+      let rowsMatrix: (string | number)[][] = [];
+
+      if (type === "summary") {
+        headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Status", "Skor (%)", "Durasi (detik)", "Mulai", "Selesai"];
+        rowsMatrix = filteredAttempts.map((att) => [
+          att.id,
+          att.studentName,
+          att.studentEmail,
+          att.status,
+          att.score ?? 0,
+          att.durationSeconds ?? 0,
+          att.startedAt ? new Date(att.startedAt).toLocaleString("id-ID") : "-",
+          att.submittedAt ? new Date(att.submittedAt).toLocaleString("id-ID") : "-",
+        ]);
+      } else {
+        // Matrix export
+        const allQuestions = questionsList;
+        const qHeaders = allQuestions.map((q: any, idx: number) => `Q${idx + 1}: ${(q.prompt || q.content || "").slice(0, 30)}`);
+        headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Skor (%)", ...qHeaders];
+
+        rowsMatrix = filteredAttempts.map((att) => {
+          const itemAnswers = allQuestions.map((q: any) => {
+            const userChoice = att.answersSnapshot[q.id];
+            if (userChoice === undefined || userChoice === null) return "TIDAK DIJAWAB";
+            return String(userChoice);
+          });
+          return [att.id, att.studentName, att.studentEmail, att.score ?? 0, ...itemAnswers];
+        });
+      }
+
+      const res = await fetch("/api/admin/export-spreadsheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${quizTitle} (${type === "matrix" ? "Matrix" : "Summary"})`,
+          headers: headersRow,
+          rows: rowsMatrix,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.spreadsheetUrl) {
+        window.open(data.spreadsheetUrl, "_blank");
+        toast.success("Google Spreadsheet berhasil dibuat!");
+        setExportDialogOpen(false);
+      } else {
+        toast.error(data.error || "Gagal membuat Google Spreadsheet. Mengalihkan ke CSV.");
+        handleExportCsv(type);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan koneksi Google Sheets API.");
+    } finally {
+      setExportingSheets(false);
+    }
   };
 
   const formatDuration = (secs: number) => {
@@ -558,13 +620,23 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
               onClick={() => setExportDialogOpen(false)}
               className="rounded-lg"
             >
               Batal
+            </Button>
+            <Button
+              onClick={() => handleExportGoogleSheets(exportType)}
+              disabled={exportingSheets}
+              variant="outline"
+              className="border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 rounded-lg gap-2"
+            >
+              <RefreshCw className={`size-4 ${exportingSheets ? "animate-spin" : "hidden"}`} />
+              <FileSpreadsheet className="size-4" />
+              {exportingSheets ? "Mengekspor..." : "Export Google Sheets"}
             </Button>
             <Button
               onClick={() => handleExportCsv(exportType)}

@@ -311,23 +311,23 @@ export default async function AdminHomePage() {
       name: "Sistem & Operasional",
       items: [
         {
-          title: "Google Meet Operations",
+          title: "Studio Sesi & Temu (Meet)",
           description:
             "Buat dan akhiri ruang meeting Pro, lihat status live, serta pantau log kehadiran peserta, rekaman, dan transkrip.",
           icon: Video,
           iconColor: "text-brand-primary",
           href: "/admin/meet",
-          label: "Buka Google Meet ops",
+          label: "Buka studio temu",
           stat: null,
         },
         {
-          title: "Google Forms Custom Builder",
+          title: "Form Studio & Visualizer",
           description:
-            "Rancang survei dan kuis custom dengan Google Forms API, lalu lihat visualisasi grafik dan matriks respon secara real-time.",
+            "Rancang survei, kuis, dan pendaftaran mandiri dengan 12 tipe soal, short link, dan visualisasi data real-time.",
           icon: FileText,
           iconColor: "text-brand-secondary",
           href: "/admin/forms",
-          label: "Buka Google Forms ops",
+          label: "Buka Form Studio",
           stat: null,
         },
         {

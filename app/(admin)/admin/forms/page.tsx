@@ -81,13 +81,26 @@ interface StoredNativeForm {
 }
 
 export default function AdminFormsPage() {
-  const [activeTab, setActiveTab] = useState<"builder" | "forms">("builder");
+  const [activeTab, setActiveTab] = useState<"builder" | "settings" | "forms">("builder");
 
   const [creating, setCreating] = useState(false);
-  const [title, setTitle] = useState("Formulir Pembelajaran & Evaluasi Custom");
-  const [description, setDescription] = useState("Silakan isi formulir ini dengan cermat dan seksama.");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [category, setCategory] = useState<"survey" | "quiz" | "feedback" | "registration">("survey");
-  const [slug, setSlug] = useState("tpb2026-eval");
+  const [slug, setSlug] = useState("");
+
+  const [settings, setSettings] = useState({
+    acceptingResponses: true,
+    closedMessage: "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
+    openAt: "",
+    closeAt: "",
+    collectEmail: "none" as "none" | "input" | "verified",
+    sendResponseCopy: "off" as "off" | "requested" | "always",
+    allowResponseEditing: false,
+    limitToOneResponse: false,
+    maxFileSizeLimit: "1GB" as "1GB" | "10GB" | "100GB",
+    customSuccessMessage: "Jawaban Anda telah berhasil disimpan.",
+  });
 
   const [activeQIndex, setActiveQIndex] = useState<number>(0);
 
@@ -100,42 +113,14 @@ export default function AdminFormsPage() {
   const [alertDialogInfo, setAlertDialogInfo] = useState<{ title: string; message: string } | null>(null);
   const [zoomImageUri, setZoomImageUri] = useState<{ url: string; title: string } | null>(null);
 
-  // Question Builder state
+  // Question Builder state (Default blank single question card)
   const [questions, setQuestions] = useState<ExtendedQuestionInput[]>([
     {
-      title: "Nama Lengkap",
-      description: "Sesuai dengan kartu identitas mahasiswa (KTM / KTP)",
+      title: "",
+      description: "",
       showDescription: true,
       type: "TEXT",
       required: true,
-    },
-    {
-      title: "Topik Mana yang Paling Dipahami?",
-      description: "Pilih salah satu materi utama",
-      showDescription: true,
-      type: "RADIO",
-      required: true,
-      options: ["Fisika Kinematika", "Kalkulus Vektor", "Kimia Organik"],
-    },
-    {
-      title: "Tingkat Kepuasan Sesi Tutorial",
-      description: "Penilaian 1 (Sangat Buruk) hingga 5 (Sangat Baik)",
-      showDescription: true,
-      type: "SCALE",
-      required: true,
-      scaleLow: 1,
-      scaleHigh: 5,
-      scaleLowLabel: "Sangat Buruk",
-      scaleHighLabel: "Sangat Baik",
-    },
-    {
-      title: "Evaluasi Komponen Pembelajaran",
-      description: "Beri penilaian untuk tiap aspek di bawah ini",
-      showDescription: true,
-      type: "GRID_RADIO",
-      required: true,
-      gridRows: ["Kejelasan Penjelasan", "Kecepatan Penyampaian Materi", "Kualitas Bahan Ajar"],
-      gridColumns: ["Perlu Perbaikan", "Cukup Baik", "Sangat Baik"],
     },
   ]);
 
@@ -383,6 +368,7 @@ export default function AdminFormsPage() {
           category,
           slug: slug.trim() || undefined,
           questions,
+          settings,
         }),
       });
       const data = await res.json();
@@ -442,7 +428,7 @@ export default function AdminFormsPage() {
           </span>
           <div>
             <h1 className="font-heading text-h5 font-bold text-foreground">
-              Zyx Native Form Studio & Visualizer
+              Form Studio & Visualizer
             </h1>
             <p className="text-body-xs text-muted-foreground">
               Mendukung 12 Jenis Soal Lengkap, Short Links (/f/[slug]), Unggah Berkas & Custom UI.
@@ -463,6 +449,19 @@ export default function AdminFormsPage() {
           >
             <FileText className="size-3.5" />
             Editor Pertanyaan ({questions.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("settings")}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-body-xs font-semibold transition-colors cursor-pointer ${
+              activeTab === "settings"
+                ? "bg-card text-foreground shadow-xs border border-border/60"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Sliders className="size-3.5" />
+            Settings (Pengaturan)
           </button>
 
           <button
@@ -1139,7 +1138,196 @@ export default function AdminFormsPage() {
         </div>
       )}
 
-      {/* TAB 2: PUBLISHED FORMS LIST */}
+      {/* TAB 2: SETTINGS (PENGATURAN FORMULIR) */}
+      {activeTab === "settings" && (
+        <div className="space-y-6 max-w-3xl">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
+            <div>
+              <h2 className="font-heading text-h5 font-bold text-foreground">
+                Pengaturan Tanggapan & Akses (Responses)
+              </h2>
+              <p className="text-body-xs text-muted-foreground mt-0.5">
+                Kelola bagaimana respon dikumpulkan, dilindungi, dan dibatasi.
+              </p>
+            </div>
+
+            {/* 1. Menerima Tanggapan & Jadwal Tutup/Buka */}
+            <div className="space-y-4 border-t border-border/60 pt-4">
+              <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
+                Menerima Tanggapan & Jadwal (Status Form)
+              </p>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+                <div>
+                  <p className="text-body-sm font-semibold text-foreground">Menerima Tanggapan (Accepting Responses)</p>
+                  <p className="text-body-xs text-muted-foreground">Aktifkan untuk mengizinkan responden mengisi formulir ini.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.acceptingResponses}
+                  onChange={(e) => setSettings({ ...settings, acceptingResponses: e.target.checked })}
+                  className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-body-xs font-semibold text-foreground mb-1">
+                    Jadwal Otomatis Buka (openAt)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={settings.openAt}
+                    onChange={(e) => setSettings({ ...settings, openAt: e.target.value })}
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                  <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
+                </div>
+
+                <div>
+                  <label className="block text-body-xs font-semibold text-foreground mb-1">
+                    Jadwal Otomatis Tutup (closeAt)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={settings.closeAt}
+                    onChange={(e) => setSettings({ ...settings, closeAt: e.target.value })}
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                  <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-body-xs font-semibold text-foreground mb-1">
+                  Pesan Saat Formulir Ditutup (Closed Message)
+                </label>
+                <textarea
+                  rows={2}
+                  value={settings.closedMessage}
+                  onChange={(e) => setSettings({ ...settings, closedMessage: e.target.value })}
+                  placeholder="Formulir ini telah ditutup dan tidak lagi menerima tanggapan."
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                />
+              </div>
+            </div>
+
+            {/* 2. Collect Email & Privacy */}
+            <div className="space-y-4 border-t border-border/60 pt-4">
+              <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
+                Pengumpulan Alamat Email & Autentikasi
+              </p>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-body-xs font-semibold text-foreground mb-1">
+                    Collect email addresses
+                  </label>
+                  <Select
+                    value={settings.collectEmail}
+                    onValueChange={(val: any) => setSettings({ ...settings, collectEmail: val })}
+                  >
+                    <SelectTrigger className="w-full h-10 text-body-xs">
+                      <SelectValue placeholder="Pilih Pengumpulan Email" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Do not collect (Tidak dikumpulkan)</SelectItem>
+                      <SelectItem value="input">Responder input (Diisi manual)</SelectItem>
+                      <SelectItem value="verified">Verified (Verifikasi Akun Zyx)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="block text-body-xs font-semibold text-foreground mb-1">
+                    Send responders a copy of their response
+                  </label>
+                  <Select
+                    value={settings.sendResponseCopy}
+                    onValueChange={(val: any) => setSettings({ ...settings, sendResponseCopy: val })}
+                  >
+                    <SelectTrigger className="w-full h-10 text-body-xs">
+                      <SelectValue placeholder="Kirim Salinan Respon" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="off">Off (Mati)</SelectItem>
+                      <SelectItem value="requested">When requested (Saat diminta)</SelectItem>
+                      <SelectItem value="always">Always (Selalu dikirim)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+                <div>
+                  <p className="text-body-sm font-semibold text-foreground">Allow response editing</p>
+                  <p className="text-body-xs text-muted-foreground">Respon dapat diubah kembali setelah dikirimkan.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.allowResponseEditing}
+                  onChange={(e) => setSettings({ ...settings, allowResponseEditing: e.target.checked })}
+                  className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+                <div>
+                  <p className="text-body-sm font-semibold text-foreground">Limit to 1 response (Requires Sign in)</p>
+                  <p className="text-body-xs text-muted-foreground">Membatasi responden hanya boleh mengisi 1 kali pengisian.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.limitToOneResponse}
+                  onChange={(e) => setSettings({ ...settings, limitToOneResponse: e.target.checked })}
+                  className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* 3. File Upload Limits & Presentation */}
+            <div className="space-y-4 border-t border-border/60 pt-4">
+              <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
+                Batas Ukuran File Upload & Tampilan
+              </p>
+
+              <div>
+                <label className="block text-body-xs font-semibold text-foreground mb-1">
+                  Total size limit for all uploaded files
+                </label>
+                <Select
+                  value={settings.maxFileSizeLimit}
+                  onValueChange={(val: any) => setSettings({ ...settings, maxFileSizeLimit: val })}
+                >
+                  <SelectTrigger className="w-full sm:w-1/2 h-10 text-body-xs">
+                    <SelectValue placeholder="Batas Ukuran File" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1GB">1 GB</SelectItem>
+                    <SelectItem value="10GB">10 GB</SelectItem>
+                    <SelectItem value="100GB">100 GB</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-body-xs font-semibold text-foreground mb-1">
+                  Pesan Konfirmasi Setelah Submit (Presentation)
+                </label>
+                <input
+                  type="text"
+                  value={settings.customSuccessMessage}
+                  onChange={(e) => setSettings({ ...settings, customSuccessMessage: e.target.value })}
+                  placeholder="Jawaban Anda telah berhasil disimpan."
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: PUBLISHED FORMS LIST */}
       {activeTab === "forms" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-3">
