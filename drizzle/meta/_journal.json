@@ -428,6 +428,13 @@
       "when": 1785933009599,
       "tag": "0060_striped_jane_foster",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1785954353413,
+      "tag": "0061_boring_talkback",
+      "breakpoints": true
     }
   ]
 }

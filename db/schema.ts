@@ -4465,6 +4465,78 @@ export const googleFormsRelations = relations(googleForms, ({ one }) => ({
   }),
 }));
 
+/** Native Zyx Custom Forms table supporting 12 question types, short links, and native uploads. */
+export const customForms = sqliteTable(
+  "custom_forms",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    description: text("description"),
+    category: text("category").$type<"survey" | "quiz" | "feedback" | "registration">().default("survey").notNull(),
+    questions: text("questions", { mode: "json" }).$type<any[]>().notNull(),
+    settings: text("settings", { mode: "json" }).$type<{
+      acceptingResponses?: boolean;
+      requireLogin?: boolean;
+      collectEmail?: boolean;
+      shuffleQuestions?: boolean;
+      customSuccessMessage?: string;
+    }>(),
+    googleFormId: text("google_form_id"),
+    googleResponderUri: text("google_responder_uri"),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_custom_forms_slug").on(table.slug),
+    index("idx_custom_forms_category").on(table.category),
+  ]
+);
+
+export const customFormsRelations = relations(customForms, ({ one, many }) => ({
+  creator: one(user, {
+    fields: [customForms.createdById],
+    references: [user.id],
+  }),
+  responses: many(customFormResponses),
+}));
+
+/** Native Zyx Custom Form Responses table storing submissions & file attachments. */
+export const customFormResponses = sqliteTable(
+  "custom_form_responses",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id")
+      .notNull()
+      .references(() => customForms.id, { onDelete: "cascade" }),
+    responderUserId: text("responder_user_id").references(() => user.id, { onDelete: "set null" }),
+    responderEmail: text("responder_email"),
+    answers: text("answers", { mode: "json" }).$type<Record<string, any>>().notNull(),
+    submittedAt: integer("submitted_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_custom_form_responses_form_id").on(table.formId),
+    index("idx_custom_form_responses_user_id").on(table.responderUserId),
+  ]
+);
+
+export const customFormResponsesRelations = relations(customFormResponses, ({ one }) => ({
+  form: one(customForms, {
+    fields: [customFormResponses.formId],
+    references: [customForms.id],
+  }),
+  responderUser: one(user, {
+    fields: [customFormResponses.responderUserId],
+    references: [user.id],
+  }),
+}));
+
 export const pageAnalytics = sqliteTable("page_analytics", {
   id: text("id").primaryKey(), // The path of the page, e.g., "/courses"
   title: text("title").notNull(),

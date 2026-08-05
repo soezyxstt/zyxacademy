@@ -18,7 +18,24 @@ import {
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
-import type { CompleteFormAnalytics } from "@/lib/google-forms";
+
+interface NativeFormDetails {
+  id: string;
+  slug: string;
+  title: string;
+  description?: string;
+  category: string;
+  questions: any[];
+  googleResponderUri?: string;
+  createdAt: string;
+}
+
+interface FormResponseItem {
+  id: string;
+  responderEmail?: string;
+  answers: Record<string, any>;
+  submittedAt: string;
+}
 
 export default function DetailedFormAnalyticsPage({
   params,
@@ -28,7 +45,8 @@ export default function DetailedFormAnalyticsPage({
   const resolvedParams = use(params);
   const formId = resolvedParams.id;
 
-  const [analytics, setAnalytics] = useState<CompleteFormAnalytics | null>(null);
+  const [form, setForm] = useState<NativeFormDetails | null>(null);
+  const [responses, setResponses] = useState<FormResponseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,12 +55,13 @@ export default function DetailedFormAnalyticsPage({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/forms/${formId}`);
+      const res = await fetch(`/api/admin/custom-forms/${formId}`);
       const data = await res.json();
-      if (data.success && data.analytics) {
-        setAnalytics(data.analytics);
+      if (data.success && data.form) {
+        setForm(data.form);
+        setResponses(data.responses || []);
       } else {
-        setError(data.error || "Gagal memuat visualisasi data formulir.");
+        setError(data.error || "Gagal memuat data formulir.");
       }
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan jaringan.");
@@ -56,20 +75,21 @@ export default function DetailedFormAnalyticsPage({
   }, [fetchAnalytics]);
 
   const handleExportCSV = () => {
-    if (!analytics || analytics.responseMatrix.length === 0) return;
+    if (!form || responses.length === 0) return;
 
-    const allQuestionTitles = analytics.questionAnalytics.map((q) => q.title);
-    const headersRow = ["Response ID", "Timestamp", "Respondent Email", ...allQuestionTitles];
+    const allQuestionTitles = (form.questions || []).map((q: any, i: number) => q.title || `Soal #${i + 1}`);
+    const headersRow = ["Response ID", "Submitted At", "Responder Email", ...allQuestionTitles];
 
-    const rows = analytics.responseMatrix.map((row) => {
-      const answerCols = allQuestionTitles.map((t) => {
-        const val = row.answers[t] || "";
-        return `"${val.replace(/"/g, '""')}"`;
+    const rows = responses.map((r) => {
+      const answerCols = (form.questions || []).map((q: any, i: number) => {
+        const val = r.answers[i] ?? r.answers[q.title] ?? "";
+        const formatted = typeof val === "object" ? JSON.stringify(val) : String(val);
+        return `"${formatted.replace(/"/g, '""')}"`;
       });
       return [
-        `"${row.responseId}"`,
-        `"${row.createTime}"`,
-        `"${row.respondentEmail}"`,
+        `"${r.id}"`,
+        `"${r.submittedAt}"`,
+        `"${r.responderEmail || "Anonim"}"`,
         ...answerCols,
       ].join(",");
     });
@@ -78,18 +98,18 @@ export default function DetailedFormAnalyticsPage({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `google_form_${formId}_responses.csv`);
+    link.setAttribute("download", `zyx_form_${form.slug}_responses.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const filteredMatrix = (analytics?.responseMatrix || []).filter((row) => {
+  const filteredResponses = responses.filter((r) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    if (row.respondentEmail.toLowerCase().includes(q)) return true;
-    for (const val of Object.values(row.answers)) {
-      if (val.toLowerCase().includes(q)) return true;
+    if ((r.responderEmail || "").toLowerCase().includes(q)) return true;
+    for (const val of Object.values(r.answers || {})) {
+      if (String(val).toLowerCase().includes(q)) return true;
     }
     return false;
   });
@@ -102,7 +122,7 @@ export default function DetailedFormAnalyticsPage({
         className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6"
       >
         <ArrowLeft className="size-4" />
-        Kembali ke Google Forms Dashboard
+        Kembali ke Dashboard Formulir
       </Link>
 
       {/* Header */}
@@ -110,25 +130,25 @@ export default function DetailedFormAnalyticsPage({
         <div>
           <h1 className="font-heading text-h4 font-bold text-foreground flex items-center gap-2">
             <BarChart3 className="size-6 text-brand-primary" />
-            Visualisasi & Diagnostik Respon Formulir
+            Visualisasi & Diagnostik Respon Formulir Zyx
           </h1>
-          {analytics && (
-            <p className="mt-1 text-body-sm font-semibold text-foreground">
-              {analytics.title} <span className="font-mono text-muted-foreground">(ID: {formId})</span>
+          {form && (
+            <p className="mt-1 text-body-sm font-semibold text-foreground flex items-center gap-2">
+              <span>{form.title}</span>
+              <span className="font-mono text-muted-foreground">(Slug: /f/{form.slug})</span>
             </p>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          {analytics?.responderUri && (
-            <a
-              href={analytics.responderUri}
+          {form && (
+            <Link
+              href={`/f/${form.slug}`}
               target="_blank"
-              rel="noreferrer"
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-xs font-semibold text-brand-primary hover:bg-muted transition-colors"
             >
-              Buka Form Asli <ExternalLink className="size-3.5" />
-            </a>
+              Buka Short Link /f/{form.slug} <ExternalLink className="size-3.5" />
+            </Link>
           )}
 
           <button
@@ -154,7 +174,7 @@ export default function DetailedFormAnalyticsPage({
         <div className="mt-10 flex h-60 items-center justify-center rounded-2xl border border-border bg-card">
           <RefreshCw className="size-8 animate-spin text-brand-primary" />
         </div>
-      ) : !analytics ? (
+      ) : !form ? (
         <div className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
           <AlertCircle className="size-10 text-muted-foreground" />
           <p className="mt-3 font-heading text-h6 font-semibold text-foreground">
@@ -173,10 +193,10 @@ export default function DetailedFormAnalyticsPage({
                 </span>
               </div>
               <p className="mt-2 font-heading text-h4 font-bold text-brand-primary">
-                {analytics.totalSubmissions} Responden
+                {responses.length} Responden
               </p>
               <p className="mt-1 text-body-xs text-muted-foreground">
-                Tercatat pada Google Forms API
+                Tercatat pada Zyx Storage Engine
               </p>
             </div>
 
@@ -188,7 +208,7 @@ export default function DetailedFormAnalyticsPage({
                 </span>
               </div>
               <p className="mt-2 font-heading text-h4 font-bold text-foreground">
-                {analytics.totalQuestions} Soal
+                {(form.questions || []).length} Soal
               </p>
               <p className="mt-1 text-body-xs text-muted-foreground">
                 Di dalam instrumen formulir
@@ -199,14 +219,14 @@ export default function DetailedFormAnalyticsPage({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <CheckCircle2 className="size-4 text-status-success" />
                 <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Tingkat Kelengkapan
+                  Short Link Path
                 </span>
               </div>
-              <p className="mt-2 font-heading text-h4 font-bold text-foreground">
-                100%
+              <p className="mt-2 font-mono font-bold text-body-md text-foreground truncate">
+                /f/{form.slug}
               </p>
               <p className="mt-1 text-body-xs text-muted-foreground">
-                Respon terekam lengkap
+                Siap dibagikan ke responden
               </p>
             </div>
 
@@ -218,8 +238,8 @@ export default function DetailedFormAnalyticsPage({
                 </span>
               </div>
               <p className="mt-2 font-heading text-h5 font-bold text-foreground">
-                {analytics.submissionTimeline.length > 0
-                  ? formatIsoDate(new Date(analytics.submissionTimeline[analytics.submissionTimeline.length - 1].date))
+                {responses.length > 0
+                  ? formatIsoDate(new Date(responses[0].submittedAt))
                   : "Belum ada"}
               </p>
               <p className="mt-1 text-body-xs text-muted-foreground">
@@ -228,105 +248,72 @@ export default function DetailedFormAnalyticsPage({
             </div>
           </div>
 
-          {/* Question Visualizations Section */}
+          {/* Question Breakdown Cards */}
           <section className="space-y-6">
             <div className="border-b border-border pb-3">
               <h2 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
                 <BarChart3 className="size-5 text-brand-primary" />
                 Visualisasi Distribusi Respon per Pertanyaan
               </h2>
-              <p className="text-body-sm text-muted-foreground">
-                Grafik batang dan persentase pilihan jawaban secara visual.
-              </p>
             </div>
 
-            {analytics.questionAnalytics.map((q, idx) => (
-              <div key={q.questionId || idx} className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-                <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
-                  <div>
-                    <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-xs font-bold text-brand-primary">
-                      Pertanyaan #{idx + 1}
+            {(form.questions || []).map((q: any, qIdx: number) => {
+              const questionTitle = q.title || `Soal #${qIdx + 1}`;
+              const allAnswersForQ = responses.map((r) => r.answers[qIdx] ?? r.answers[questionTitle]).filter((a) => a !== undefined && a !== null && a !== "");
+
+              return (
+                <div key={qIdx} className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+                  <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
+                    <div>
+                      <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-body-xs font-bold text-brand-primary">
+                        Pertanyaan #{qIdx + 1} ({q.type})
+                      </span>
+                      <h3 className="font-heading text-h6 font-semibold text-foreground mt-1">
+                        {questionTitle}
+                      </h3>
+                    </div>
+                    <span className="text-body-xs font-semibold text-muted-foreground">
+                      {allAnswersForQ.length} Jawaban
                     </span>
-                    <h3 className="font-heading text-h6 font-semibold text-foreground mt-1">
-                      {q.title}
-                    </h3>
                   </div>
-                  <span className="text-body-xs font-semibold text-muted-foreground">
-                    {q.totalAnswers} Jawaban
-                  </span>
-                </div>
 
-                {/* CHOICE QUESTION VISUALIZATION */}
-                {q.type === "choice" && q.optionsBreakdown && (
-                  <div className="space-y-3">
-                    {q.optionsBreakdown.map((opt, oIdx) => (
-                      <div key={oIdx} className="space-y-1">
-                        <div className="flex items-center justify-between text-body-sm">
-                          <span className="font-medium text-foreground">{opt.label}</span>
-                          <span className="font-bold text-brand-primary">
-                            {opt.count} respon ({opt.percentage}%)
-                          </span>
-                        </div>
-                        {/* CSS Progress Bar */}
-                        <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full bg-brand-primary rounded-full transition-all duration-500"
-                            style={{ width: `${Math.max(opt.percentage, 3)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* SCALE QUESTION VISUALIZATION */}
-                {q.type === "scale" && q.scaleDistribution && (
-                  <div className="grid gap-3 sm:grid-cols-5 pt-2">
-                    {q.scaleDistribution.map((s) => {
-                      const maxCount = Math.max(...q.scaleDistribution!.map((x) => x.count), 1);
-                      const heightPercent = Math.round((s.count / maxCount) * 100);
-
-                      return (
-                        <div key={s.rating} className="flex flex-col items-center rounded-xl border border-border bg-muted/20 p-3 text-center">
-                          <div className="h-24 w-full flex items-end justify-center py-1">
-                            <div
-                              className="w-10 rounded-t-lg bg-brand-primary/80 transition-all duration-500"
-                              style={{ height: `${Math.max(heightPercent, 8)}%` }}
-                            />
-                          </div>
-                          <span className="mt-2 font-bold text-body-md text-foreground">
-                            Nilai {s.rating}
-                          </span>
-                          <span className="text-body-xs text-muted-foreground font-semibold">
-                            {s.count} Responden
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* TEXT QUESTION VISUALIZATION */}
-                {q.type === "text" && q.sampleTextAnswers && (
+                  {/* Sample Text / Link Answers */}
                   <div className="space-y-2">
                     <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <MessageSquare className="size-3.5" /> Sampel Jawaban Responden:
+                      <MessageSquare className="size-3.5" /> Sampel Isian Jawaban Responden:
                     </p>
-                    {q.sampleTextAnswers.length === 0 ? (
-                      <p className="text-body-sm text-muted-foreground italic">Belum ada isian teks.</p>
+                    {allAnswersForQ.length === 0 ? (
+                      <p className="text-body-sm text-muted-foreground italic">Belum ada pengisian.</p>
                     ) : (
                       <div className="grid gap-2 sm:grid-cols-2">
-                        {q.sampleTextAnswers.map((ans, aIdx) => (
-                          <div key={aIdx} className="rounded-xl border border-border bg-muted/40 p-3 text-body-sm italic text-foreground">
-                            &quot;{ans}&quot;
-                          </div>
-                        ))}
+                        {allAnswersForQ.slice(0, 8).map((ans: any, aIdx: number) => {
+                          const displayStr = typeof ans === "object" ? JSON.stringify(ans) : String(ans);
+                          const isUrl = displayStr.startsWith("http");
+
+                          return (
+                            <div key={aIdx} className="rounded-xl border border-border bg-muted/40 p-3 text-body-sm text-foreground">
+                              {isUrl ? (
+                                <a
+                                  href={displayStr}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-brand-primary font-semibold hover:underline flex items-center gap-1.5 truncate"
+                                >
+                                  <ExternalLink className="size-3.5 shrink-0" />
+                                  {displayStr}
+                                </a>
+                              ) : (
+                                <span className="italic">&quot;{displayStr}&quot;</span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </section>
 
           {/* Structured Response Matrix Table Section */}
@@ -363,7 +350,7 @@ export default function DetailedFormAnalyticsPage({
               />
             </div>
 
-            {filteredMatrix.length === 0 ? (
+            {filteredResponses.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
                 Tidak ada data jawaban yang cocok dengan pencarian.
               </div>
@@ -375,27 +362,32 @@ export default function DetailedFormAnalyticsPage({
                       <tr>
                         <th className="px-4 py-3 whitespace-nowrap">Timestamp</th>
                         <th className="px-4 py-3 whitespace-nowrap">Responden</th>
-                        {analytics.questionAnalytics.map((q) => (
-                          <th key={q.questionId} className="px-4 py-3 min-w-[200px]">
-                            {q.title}
+                        {(form.questions || []).map((q: any, i: number) => (
+                          <th key={i} className="px-4 py-3 min-w-[200px]">
+                            {q.title || `Soal #${i + 1}`}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {filteredMatrix.map((row) => (
-                        <tr key={row.responseId} className="hover:bg-muted/30 transition-colors">
+                      {filteredResponses.map((row) => (
+                        <tr key={row.id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-3 text-muted-foreground whitespace-nowrap font-mono">
-                            {formatIsoDate(new Date(row.createTime))}
+                            {formatIsoDate(new Date(row.submittedAt))}
                           </td>
                           <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
-                            {row.respondentEmail}
+                            {row.responderEmail || "Anonim"}
                           </td>
-                          {analytics.questionAnalytics.map((q) => (
-                            <td key={q.questionId} className="px-4 py-3 text-foreground font-medium">
-                              {row.answers[q.title] || "-"}
-                            </td>
-                          ))}
+                          {(form.questions || []).map((q: any, i: number) => {
+                            const val = row.answers[i] ?? row.answers[q.title] ?? "-";
+                            const valStr = typeof val === "object" ? JSON.stringify(val) : String(val);
+
+                            return (
+                              <td key={i} className="px-4 py-3 text-foreground font-medium max-w-xs truncate">
+                                {valStr}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>

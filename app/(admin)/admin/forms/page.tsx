@@ -34,9 +34,12 @@ import {
   ArrowDown,
   Table as TableIcon,
   Layers,
+  MoreVertical,
+  Shuffle,
+  ZoomIn,
+  Link2,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
-import { formatIsoDate } from "@/lib/date-utils";
 import type { CreateCustomQuestionInput, QuestionType } from "@/lib/google-forms";
 import {
   Dialog,
@@ -54,14 +57,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 
-interface StoredFormItem {
+interface ExtendedQuestionInput extends CreateCustomQuestionInput {
+  showDescription?: boolean;
+  shuffleOptions?: boolean;
+}
+
+interface StoredNativeForm {
   id: string;
-  formId: string;
+  slug: string;
   title: string;
   description?: string;
-  responderUri: string;
   category: "survey" | "quiz" | "feedback" | "registration";
+  questions: ExtendedQuestionInput[];
+  googleResponderUri?: string;
+  totalResponses: number;
   createdAt: string;
 }
 
@@ -72,6 +87,7 @@ export default function AdminFormsPage() {
   const [title, setTitle] = useState("Formulir Pembelajaran & Evaluasi Custom");
   const [description, setDescription] = useState("Silakan isi formulir ini dengan cermat dan seksama.");
   const [category, setCategory] = useState<"survey" | "quiz" | "feedback" | "registration">("survey");
+  const [slug, setSlug] = useState("tpb2026-eval");
 
   const [activeQIndex, setActiveQIndex] = useState<number>(0);
 
@@ -82,18 +98,21 @@ export default function AdminFormsPage() {
   // Shadcn Dialog states
   const [confirmDeleteFormId, setConfirmDeleteFormId] = useState<string | null>(null);
   const [alertDialogInfo, setAlertDialogInfo] = useState<{ title: string; message: string } | null>(null);
+  const [zoomImageUri, setZoomImageUri] = useState<{ url: string; title: string } | null>(null);
 
   // Question Builder state
-  const [questions, setQuestions] = useState<CreateCustomQuestionInput[]>([
+  const [questions, setQuestions] = useState<ExtendedQuestionInput[]>([
     {
       title: "Nama Lengkap",
       description: "Sesuai dengan kartu identitas mahasiswa (KTM / KTP)",
+      showDescription: true,
       type: "TEXT",
       required: true,
     },
     {
       title: "Topik Mana yang Paling Dipahami?",
       description: "Pilih salah satu materi utama",
+      showDescription: true,
       type: "RADIO",
       required: true,
       options: ["Fisika Kinematika", "Kalkulus Vektor", "Kimia Organik"],
@@ -101,6 +120,7 @@ export default function AdminFormsPage() {
     {
       title: "Tingkat Kepuasan Sesi Tutorial",
       description: "Penilaian 1 (Sangat Buruk) hingga 5 (Sangat Baik)",
+      showDescription: true,
       type: "SCALE",
       required: true,
       scaleLow: 1,
@@ -111,6 +131,7 @@ export default function AdminFormsPage() {
     {
       title: "Evaluasi Komponen Pembelajaran",
       description: "Beri penilaian untuk tiap aspek di bawah ini",
+      showDescription: true,
       type: "GRID_RADIO",
       required: true,
       gridRows: ["Kejelasan Penjelasan", "Kecepatan Penyampaian Materi", "Kualitas Bahan Ajar"],
@@ -118,7 +139,7 @@ export default function AdminFormsPage() {
     },
   ]);
 
-  const [forms, setForms] = useState<StoredFormItem[]>([]);
+  const [forms, setForms] = useState<StoredNativeForm[]>([]);
   const [loadingForms, setLoadingForms] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -127,7 +148,7 @@ export default function AdminFormsPage() {
   const fetchForms = useCallback(async () => {
     setLoadingForms(true);
     try {
-      const res = await fetch("/api/admin/forms");
+      const res = await fetch("/api/admin/custom-forms");
       const data = await res.json();
       if (data.success && Array.isArray(data.forms)) {
         setForms(data.forms);
@@ -163,6 +184,7 @@ export default function AdminFormsPage() {
       {
         title: "",
         description: "",
+        showDescription: true,
         type: "TEXT",
         required: true,
       },
@@ -172,18 +194,18 @@ export default function AdminFormsPage() {
 
   const handleLoadFull12TypePreset = () => {
     setQuestions([
-      { title: "Nama Lengkap (Short Answer)", type: "TEXT", required: true },
-      { title: "Saran & Masukan (Paragraph)", type: "PARAGRAPH", required: false },
-      { title: "Peminatan Matkul (Multiple Choice)", type: "RADIO", options: ["Matematika", "Fisika", "Kimia"], required: true },
-      { title: "Fasilitas Diinginkan (Checkboxes)", type: "CHECKBOX", options: ["Diktat PDF", "Video Rekaman", "Gmeet Live"], required: true },
-      { title: "Pilih Angkatan (Dropdown)", type: "DROP_DOWN", options: ["TPB 2024", "TPB 2025", "Lainnya"], required: true },
-      { title: "Unggah Berkas / Dokumen (File Upload)", type: "FILE_UPLOAD", required: false },
-      { title: "Skala Penilaian Pembelajaran (Linear Scale)", type: "SCALE", scaleLow: 1, scaleHigh: 5, scaleLowLabel: "Kurang", scaleHighLabel: "Baik", required: true },
-      { title: "Rating Pengajar (Rating Bintang)", type: "RATING", required: true },
-      { title: "Matrix Kinerja (Multiple Choice Grid)", type: "GRID_RADIO", gridRows: ["Penguasaan Materi", "Kerapihan Slide"], gridColumns: ["Cukup", "Baik", "Sangat Baik"], required: true },
-      { title: "Matrix Keahlian (Checkbox Grid)", type: "GRID_CHECKBOX", gridRows: ["Dasar", "Lanjut"], gridColumns: ["Teori", "Praktek"], required: true },
-      { title: "Tanggal Pengisian (Date)", type: "DATE", required: true },
-      { title: "Jam Kehadiran (Time)", type: "TIME", required: true },
+      { title: "Nama Lengkap (Short Answer)", type: "TEXT", required: true, showDescription: true },
+      { title: "Saran & Masukan (Paragraph)", type: "PARAGRAPH", required: false, showDescription: true },
+      { title: "Peminatan Matkul (Multiple Choice)", type: "RADIO", options: ["Matematika", "Fisika", "Kimia"], required: true, showDescription: true },
+      { title: "Fasilitas Diinginkan (Checkboxes)", type: "CHECKBOX", options: ["Diktat PDF", "Video Rekaman", "Gmeet Live"], required: true, showDescription: true },
+      { title: "Pilih Angkatan (Dropdown)", type: "DROP_DOWN", options: ["TPB 2024", "TPB 2025", "Lainnya"], required: true, showDescription: true },
+      { title: "Unggah Berkas / Dokumen (File Upload)", type: "FILE_UPLOAD", required: false, showDescription: true },
+      { title: "Skala Penilaian Pembelajaran (Linear Scale)", type: "SCALE", scaleLow: 1, scaleHigh: 5, scaleLowLabel: "Kurang", scaleHighLabel: "Baik", required: true, showDescription: true },
+      { title: "Rating Pengajar (Rating Bintang)", type: "RATING", required: true, showDescription: true },
+      { title: "Matrix Kinerja (Multiple Choice Grid)", type: "GRID_RADIO", gridRows: ["Penguasaan Materi", "Kerapihan Slide"], gridColumns: ["Cukup", "Baik", "Sangat Baik"], required: true, showDescription: true },
+      { title: "Matrix Keahlian (Checkbox Grid)", type: "GRID_CHECKBOX", gridRows: ["Dasar", "Lanjut"], gridColumns: ["Teori", "Praktek"], required: true, showDescription: true },
+      { title: "Tanggal Pengisian (Date)", type: "DATE", required: true, showDescription: true },
+      { title: "Jam Kehadiran (Time)", type: "TIME", required: true, showDescription: true },
     ]);
     setActiveQIndex(0);
   };
@@ -191,7 +213,7 @@ export default function AdminFormsPage() {
   const handleDuplicateQuestion = (index: number) => {
     const target = questions[index];
     if (!target) return;
-    const duplicated: CreateCustomQuestionInput = {
+    const duplicated: ExtendedQuestionInput = {
       ...target,
       title: `${target.title} (Salinan)`,
       options: target.options ? [...target.options] : undefined,
@@ -210,7 +232,7 @@ export default function AdminFormsPage() {
     setActiveQIndex(Math.max(0, index - 1));
   };
 
-  const handleQuestionChange = (index: number, updated: Partial<CreateCustomQuestionInput>) => {
+  const handleQuestionChange = (index: number, updated: Partial<ExtendedQuestionInput>) => {
     setQuestions((prev) =>
       prev.map((q, i) => (i === index ? { ...q, ...updated } : q))
     );
@@ -327,7 +349,7 @@ export default function AdminFormsPage() {
       });
       const data = await res.json();
       if (data.success && data.url) {
-        handleQuestionChange(qIndex, { imageUrl: data.url });
+        handleQuestionChange(qIndex, { imageUrl: data.url, showDescription: true });
       } else {
         setAlertDialogInfo({
           title: "Gagal Mengunggah Gambar",
@@ -352,13 +374,14 @@ export default function AdminFormsPage() {
     setCreating(true);
     setErrorMsg(null);
     try {
-      const res = await fetch("/api/admin/forms", {
+      const res = await fetch("/api/admin/custom-forms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim() || undefined,
           category,
+          slug: slug.trim() || undefined,
           questions,
         }),
       });
@@ -367,7 +390,7 @@ export default function AdminFormsPage() {
         fetchForms();
         setActiveTab("forms");
       } else {
-        setErrorMsg(data.error || "Gagal membuat Google Form.");
+        setErrorMsg(data.error || "Gagal membuat formulir.");
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Terjadi kesalahan jaringan.");
@@ -380,12 +403,12 @@ export default function AdminFormsPage() {
     setDeletingId(formId);
     setConfirmDeleteFormId(null);
     try {
-      const res = await fetch(`/api/admin/forms/${formId}`, {
+      const res = await fetch(`/api/admin/custom-forms/${formId}`, {
         method: "DELETE",
       });
       const data = await res.json();
       if (data.success) {
-        setForms((prev) => prev.filter((f) => f.formId !== formId));
+        setForms((prev) => prev.filter((f) => f.id !== formId));
       } else {
         setAlertDialogInfo({
           title: "Gagal Menghapus Formulir",
@@ -402,9 +425,10 @@ export default function AdminFormsPage() {
     }
   };
 
-  const handleCopyLink = (uri: string, formId: string) => {
-    navigator.clipboard.writeText(uri);
-    setCopiedId(formId);
+  const handleCopyLink = (path: string, itemKey: string) => {
+    const fullUrl = `${window.location.origin}${path}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedId(itemKey);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -418,10 +442,10 @@ export default function AdminFormsPage() {
           </span>
           <div>
             <h1 className="font-heading text-h5 font-bold text-foreground">
-              Google Forms Studio & Visualizer
+              Zyx Native Form Studio & Visualizer
             </h1>
             <p className="text-body-xs text-muted-foreground">
-              Mendukung 12 Jenis Soal Lengkap Google Forms dengan komponen Shadcn & Zyx Design System.
+              Mendukung 12 Jenis Soal Lengkap, Short Links (/f/[slug]), Unggah Berkas & Custom UI.
             </p>
           </div>
         </div>
@@ -463,12 +487,12 @@ export default function AdminFormsPage() {
         </div>
       )}
 
-      {/* TAB 1: GOOGLE FORMS EDITOR EXPERIENCE */}
+      {/* TAB 1: FORM EDITOR EXPERIENCE */}
       {activeTab === "builder" && (
         <div className="grid gap-6 md:grid-cols-12 items-start">
           {/* Main Question Cards Column */}
           <div className="md:col-span-9 space-y-5">
-            {/* Header Card (Title & Description Card) */}
+            {/* Header Card (Title, Description, & Short Slug Card) */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-sm border-l-4 border-l-brand-primary space-y-4">
               <div>
                 <input
@@ -488,6 +512,23 @@ export default function AdminFormsPage() {
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full text-body-sm text-muted-foreground bg-transparent border-b border-border/40 pb-1 focus:border-brand-primary focus:outline-none transition-colors resize-none"
                 />
+              </div>
+
+              {/* Short Link Custom Slug Row */}
+              <div className="rounded-xl border border-border/80 bg-muted/20 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-body-xs">
+                <div className="flex items-center gap-2">
+                  <Link2 className="size-4 text-brand-primary shrink-0" />
+                  <span className="font-bold text-foreground">Short Link Custom:</span>
+                  <span className="font-mono text-muted-foreground">/f/</span>
+                  <input
+                    type="text"
+                    placeholder="tpb2026-eval"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+                    className="font-mono font-semibold rounded-md border border-input bg-background px-2 py-0.5 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-36"
+                  />
+                </div>
+                <span className="text-body-2xs text-muted-foreground">Responden dapat mengakses via /f/{slug || "slug"}</span>
               </div>
 
               <div className="flex items-center justify-between pt-2">
@@ -570,7 +611,7 @@ export default function AdminFormsPage() {
                       <span>Geser Posisi Pertanyaan #{qIdx + 1}</span>
                     </div>
 
-                    {/* Quick Move Buttons */}
+                    {/* Quick Move Buttons & Three-Dots Menu */}
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
@@ -597,6 +638,76 @@ export default function AdminFormsPage() {
                       >
                         <ArrowDown className="size-3.5" />
                       </button>
+
+                      {/* Three-Dots Menu Popover */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
+                            title="Opsi Kustomisasi Lainnya"
+                          >
+                            <MoreVertical className="size-4" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-1 space-y-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicateQuestion(qIdx)}
+                            className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
+                          >
+                            <Copy className="size-3.5 text-muted-foreground" />
+                            Salin Pertanyaan
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleQuestionChange(qIdx, { showDescription: !q.showDescription })}
+                            className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
+                          >
+                            <FileText className="size-3.5 text-muted-foreground" />
+                            {q.showDescription ? "Sembunyikan Subteks" : "Tampilkan Subteks"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (q.imageUrl) {
+                                handleQuestionChange(qIdx, { imageUrl: undefined });
+                              } else {
+                                handleQuestionChange(qIdx, { showDescription: true });
+                              }
+                            }}
+                            className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
+                          >
+                            <ImageIcon className="size-3.5 text-muted-foreground" />
+                            {q.imageUrl ? "Hapus Gambar" : "Lampirkan Gambar"}
+                          </button>
+
+                          {(q.type === "RADIO" || q.type === "CHECKBOX" || q.type === "DROP_DOWN") && (
+                            <button
+                              type="button"
+                              onClick={() => handleQuestionChange(qIdx, { shuffleOptions: !q.shuffleOptions })}
+                              className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-foreground hover:bg-muted transition-colors cursor-pointer text-left"
+                            >
+                              <Shuffle className="size-3.5 text-muted-foreground" />
+                              {q.shuffleOptions ? "Nonaktifkan Acak Opsi" : "Acak Urutan Opsi"}
+                            </button>
+                          )}
+
+                          {questions.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveQuestion(qIdx)}
+                              className="w-full inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-body-xs font-medium text-status-error hover:bg-status-error/10 transition-colors cursor-pointer text-left border-t border-border/40 mt-1 pt-1.5"
+                            >
+                              <Trash2 className="size-3.5 text-status-error" />
+                              Hapus Pertanyaan
+                            </button>
+                          )}
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
 
@@ -610,23 +721,34 @@ export default function AdminFormsPage() {
                         onChange={(e) => handleQuestionChange(qIdx, { title: e.target.value })}
                         className="w-full font-heading text-h6 font-semibold text-foreground bg-transparent border-b border-border/40 pb-1.5 focus:border-brand-primary focus:outline-none transition-colors"
                       />
-                      <input
-                        type="text"
-                        placeholder="Deskripsi tambahan pertanyaan (Opsional)"
-                        value={q.description || ""}
-                        onChange={(e) => handleQuestionChange(qIdx, { description: e.target.value })}
-                        className="w-full text-body-xs text-muted-foreground bg-transparent border-b border-border/20 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
-                      />
 
-                      {/* Image Attachment Bar */}
+                      {(q.showDescription ?? true) && (
+                        <input
+                          type="text"
+                          placeholder="Deskripsi tambahan pertanyaan (Opsional)"
+                          value={q.description || ""}
+                          onChange={(e) => handleQuestionChange(qIdx, { description: e.target.value })}
+                          className="w-full text-body-xs text-muted-foreground bg-transparent border-b border-border/20 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
+                        />
+                      )}
+
+                      {/* Image Attachment Bar & Lightbox Zoom Button */}
                       {q.imageUrl ? (
-                        <div className="relative mt-2 inline-block rounded-xl border border-border bg-muted/30 p-2 overflow-hidden">
+                        <div className="relative mt-2 inline-block rounded-xl border border-border bg-muted/30 p-2 overflow-hidden group">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={q.imageUrl}
                             alt="Pratinjau Gambar Soal"
-                            className="max-h-48 rounded-lg object-contain"
+                            className="max-h-48 rounded-lg object-contain cursor-pointer"
+                            onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title })}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title })}
+                            className="absolute bottom-3 left-3 bg-black/75 hover:bg-black text-white px-2 py-1 rounded-md text-body-2xs font-semibold inline-flex items-center gap-1 transition-opacity cursor-pointer"
+                          >
+                            <ZoomIn className="size-3" /> Perbesar
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleQuestionChange(qIdx, { imageUrl: undefined })}
@@ -758,7 +880,7 @@ export default function AdminFormsPage() {
                       <div className="rounded-xl border border-dashed border-brand-primary/40 bg-brand-primary/5 p-4 text-center text-body-xs text-muted-foreground space-y-1">
                         <UploadCloud className="size-6 text-brand-primary mx-auto" />
                         <p className="font-semibold text-foreground">Area Unggah Berkas Responden</p>
-                        <p>Responden akan memasukkan link file Google Drive/R2 pada isian teks</p>
+                        <p>Responden dapat mengunggah berkas secara langsung ke Zyx Storage</p>
                       </div>
                     )}
 
@@ -1003,12 +1125,12 @@ export default function AdminFormsPage() {
                 {creating ? (
                   <>
                     <RefreshCw className="size-4 animate-spin" />
-                    Terbitkan ke Google...
+                    Menerbitkan Formulir...
                   </>
                 ) : (
                   <>
                     <ArrowUpRight className="size-4" />
-                    Terbitkan ke Google Forms
+                    Terbitkan Formulir Zyx
                   </>
                 )}
               </button>
@@ -1023,10 +1145,10 @@ export default function AdminFormsPage() {
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
               <h2 className="font-heading text-h5 font-bold text-foreground">
-                Daftar Formulir Google Terbit
+                Daftar Formulir Terbit Zyx Native
               </h2>
               <p className="text-body-sm text-muted-foreground">
-                Daftar Google Forms yang dibuat dari panel ini beserta link responden dan akses ke dashboard analisis grafik.
+                Daftar Formulir Zyx yang telah diterbitkan dengan dukungan Short Link (/f/[slug]) dan analisis grafik respon.
               </p>
             </div>
             <button
@@ -1048,7 +1170,7 @@ export default function AdminFormsPage() {
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
               <FileText className="size-10 text-muted-foreground/60" />
               <p className="mt-3 font-heading text-h6 font-semibold text-foreground">
-                Belum Ada Google Form Terbuat
+                Belum Ada Formulir Terbuat
               </p>
               <p className="mt-1 text-body-sm text-muted-foreground max-w-md">
                 Gunakan tab &quot;Editor Pertanyaan&quot; untuk merancang dan menerbitkan formulir baru.
@@ -1062,22 +1184,25 @@ export default function AdminFormsPage() {
                     <tr>
                       <th className="px-4 py-3">Nama Formulir</th>
                       <th className="px-4 py-3">Kategori</th>
-                      <th className="px-4 py-3">Waktu Pembuatan</th>
-                      <th className="px-4 py-3">URL Responden</th>
+                      <th className="px-4 py-3">Total Respon</th>
+                      <th className="px-4 py-3">Link Responden & Short Link</th>
                       <th className="px-4 py-3 text-right">Visualisasi & Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {forms.map((f) => {
-                      const isDeleting = deletingId === f.formId;
-                      const isCopied = copiedId === f.formId;
+                      const isDeleting = deletingId === f.id;
+                      const shortPath = `/f/${f.slug}`;
+                      const fullPath = `/forms/${f.id}`;
+                      const isShortCopied = copiedId === `short_${f.id}`;
+                      const isFullCopied = copiedId === `full_${f.id}`;
 
                       return (
                         <tr key={f.id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-3.5 font-medium text-foreground whitespace-nowrap">
                             <p className="font-bold text-body-sm text-foreground">{f.title}</p>
                             <p className="font-mono text-body-xs text-muted-foreground">
-                              ID: {f.formId}
+                              Slug: /f/{f.slug}
                             </p>
                           </td>
 
@@ -1087,36 +1212,60 @@ export default function AdminFormsPage() {
                             </span>
                           </td>
 
-                          <td className="px-4 py-3.5 text-muted-foreground whitespace-nowrap font-medium">
-                            {formatIsoDate(new Date(f.createdAt))}
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <span className="font-mono font-bold text-body-sm text-brand-primary">
+                              {f.totalResponses || 0} Pengisian
+                            </span>
                           </td>
 
                           <td className="px-4 py-3.5 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleCopyLink(f.responderUri, f.formId)}
-                                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
-                              >
-                                {isCopied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-                                {isCopied ? "Tersalin!" : "Salin Link"}
-                              </button>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-body-2xs text-muted-foreground w-14">Short:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyLink(shortPath, `short_${f.id}`)}
+                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-body-2xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+                                >
+                                  {isShortCopied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
+                                  {isShortCopied ? "Tersalin!" : shortPath}
+                                </button>
+                                <a
+                                  href={shortPath}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-brand-primary hover:underline text-body-2xs"
+                                >
+                                  <ExternalLink className="size-3 inline" />
+                                </a>
+                              </div>
 
-                              <a
-                                href={f.responderUri}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
-                              >
-                                Buka Form <ExternalLink className="size-3" />
-                              </a>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-body-2xs text-muted-foreground w-14">Full:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyLink(fullPath, `full_${f.id}`)}
+                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-body-2xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+                                >
+                                  {isFullCopied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
+                                  {isFullCopied ? "Tersalin!" : fullPath}
+                                </button>
+                                <a
+                                  href={fullPath}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-brand-primary hover:underline text-body-2xs"
+                                >
+                                  <ExternalLink className="size-3 inline" />
+                                </a>
+                              </div>
                             </div>
                           </td>
 
                           <td className="px-4 py-3.5 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2">
                               <Link
-                                href={`/admin/forms/${f.formId}`}
+                                href={`/admin/forms/${f.id}`}
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-xs font-semibold text-brand-primary hover:bg-brand-primary/20 transition-colors"
                               >
                                 <BarChart3 className="size-3.5" />
@@ -1126,7 +1275,7 @@ export default function AdminFormsPage() {
 
                               <button
                                 type="button"
-                                onClick={() => setConfirmDeleteFormId(f.formId)}
+                                onClick={() => setConfirmDeleteFormId(f.id)}
                                 disabled={isDeleting}
                                 title="Hapus formulir"
                                 className="inline-flex items-center justify-center rounded-lg border border-status-error/30 bg-status-error/10 p-1.5 text-status-error hover:bg-status-error/20 transition-colors disabled:opacity-50 cursor-pointer"
@@ -1204,6 +1353,30 @@ export default function AdminFormsPage() {
               Tutup
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SHADCN DIALOG: LIGHTBOX IMAGE ZOOM IN EDITOR */}
+      <Dialog
+        open={Boolean(zoomImageUri)}
+        onOpenChange={(open) => {
+          if (!open) setZoomImageUri(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{zoomImageUri?.title || "Pratinjau Gambar Soal"}</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-2">
+            {zoomImageUri && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={zoomImageUri.url}
+                alt={zoomImageUri.title}
+                className="max-h-[75vh] rounded-xl object-contain"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </Reveal>
