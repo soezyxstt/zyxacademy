@@ -26,6 +26,7 @@ import {
   Layers,
   Package,
   ShieldCheck,
+  Video,
 } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -209,6 +210,7 @@ function AdminSidebarInner() {
         <NavItem href="/admin/notifications" icon={Bell} label="Push Notification" active={isPrefix("/admin/notifications")} collapsed={c} />
 
         <NavGroup label="Sistem & Ops" collapsed={c} />
+        <NavItem href="/admin/meet" icon={Video} label="Google Meet" active={isPrefix("/admin/meet")} collapsed={c} />
         <NavItem href="/admin/ops" icon={Activity} label="Monitor Ops" active={isExact("/admin/ops")} collapsed={c} />
         <NavItem href="/admin/ops/flags" icon={Flag} label="Feature Flags" active={isPrefix("/admin/ops/flags")} collapsed={c} />
         <NavItem href="/admin/ops/analytics" icon={BarChart3} label="Analitik AI" active={isPrefix("/admin/ops/analytics")} collapsed={c} />

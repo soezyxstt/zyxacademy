@@ -37,6 +37,7 @@ import {
   Layers,
   Package,
   ShieldCheck,
+  Video,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -308,6 +309,16 @@ export default async function AdminHomePage() {
     {
       name: "Sistem & Operasional",
       items: [
+        {
+          title: "Google Meet Operations",
+          description:
+            "Buat dan akhiri ruang meeting Pro, lihat status live, serta pantau log kehadiran peserta, rekaman, dan transkrip.",
+          icon: Video,
+          iconColor: "text-brand-primary",
+          href: "/admin/meet",
+          label: "Buka Google Meet ops",
+          stat: null,
+        },
         {
           title: "Push Notification",
           description:
