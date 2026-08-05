@@ -53,4 +53,17 @@ describe("Google Forms Contract & Payload Tests", () => {
     expect(gridQuestion.gridRows?.length).toBe(3);
     expect(gridQuestion.gridColumns?.length).toBe(5);
   });
+
+  test("FORMS-003: Questions accept optional imageUrl for image attachments", () => {
+    const questionWithImage: CreateCustomQuestionInput = {
+      title: "Perhatikan diagram berikut!",
+      type: "RADIO",
+      options: ["Fisika 1", "Fisika 2"],
+      imageUrl: "https://pub-storage.zyx.edu/diagrams/fig-01.png",
+      required: true,
+    };
+
+    expect(questionWithImage.imageUrl).toBeDefined();
+    expect(questionWithImage.imageUrl).toContain("http");
+  });
 });

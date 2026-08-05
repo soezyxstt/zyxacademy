@@ -134,6 +134,7 @@ export type QuestionType =
 export interface CreateCustomQuestionInput {
   title: string;
   description?: string;
+  imageUrl?: string; // Public image URL for question illustration
   type: QuestionType;
   required?: boolean;
   options?: string[]; // For RADIO, CHECKBOX, DROP_DOWN
@@ -336,10 +337,9 @@ export async function createCustomGoogleForm(
           highLabel: "5 Bintang",
         };
       } else if (q.type === "FILE_UPLOAD") {
-        questionObj.fileUploadQuestion = {
-          types: ["ANY"],
-          maxFiles: 1,
-        };
+        // Google Forms REST API does not support programmatic creation of fileUploadQuestion items via API.
+        // We gracefully map it to a short answer text question asking for the file URL.
+        questionObj.textQuestion = { paragraph: false };
       } else if (q.type === "DATE") {
         questionObj.dateQuestion = {
           includeTime: false,
@@ -351,15 +351,26 @@ export async function createCustomGoogleForm(
         };
       }
 
+      const itemObj: any = {
+        title: q.title || `Pertanyaan #${index + 1}`,
+        description: q.type === "FILE_UPLOAD"
+          ? (q.description ? `${q.description} (Unggah file ke Google Drive/R2 lalu tempelkan link)` : "Unggah file ke Google Drive/R2 lalu tempelkan link file di sini.")
+          : (q.description?.trim() || undefined),
+        questionItem: {
+          question: questionObj,
+        },
+      };
+
+      if (q.imageUrl && q.imageUrl.trim()) {
+        itemObj.image = {
+          sourceUri: q.imageUrl.trim(),
+          altText: q.title || "Gambar Pertanyaan",
+        };
+      }
+
       return {
         createItem: {
-          item: {
-            title: q.title || `Pertanyaan #${index + 1}`,
-            description: q.description?.trim() || undefined,
-            questionItem: {
-              question: questionObj,
-            },
-          },
+          item: itemObj,
           location: {
             index,
           },

@@ -29,6 +29,7 @@ import {
   Grid,
   Grid3X3,
   Sparkles,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
@@ -274,6 +275,30 @@ export default function AdminFormsPage() {
     );
   };
 
+  const [uploadingQIndex, setUploadingQIndex] = useState<number | null>(null);
+
+  const handleImageFileUpload = async (qIndex: number, file: File) => {
+    setUploadingQIndex(qIndex);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/storage/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        handleQuestionChange(qIndex, { imageUrl: data.url });
+      } else {
+        alert(data.error || "Gagal mengunggah gambar.");
+      }
+    } catch (err: any) {
+      alert(err.message || "Terjadi kesalahan pengunggahan.");
+    } finally {
+      setUploadingQIndex(null);
+    }
+  };
+
   const handleCreateForm = async () => {
     if (!title.trim()) {
       setErrorMsg("Nama / Judul Formulir tidak boleh kosong.");
@@ -476,6 +501,43 @@ export default function AdminFormsPage() {
                         onChange={(e) => handleQuestionChange(qIdx, { description: e.target.value })}
                         className="w-full text-body-xs text-muted-foreground bg-transparent border-b border-border/20 pb-1 focus:border-brand-primary focus:outline-none transition-colors"
                       />
+
+                      {/* Image Attachment Bar */}
+                      {q.imageUrl ? (
+                        <div className="relative mt-2 inline-block rounded-xl border border-border bg-muted/30 p-2 overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={q.imageUrl}
+                            alt="Pratinjau Gambar Soal"
+                            className="max-h-48 rounded-lg object-contain"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleQuestionChange(qIdx, { imageUrl: undefined })}
+                            className="absolute top-3 right-3 bg-black/70 hover:bg-status-error text-white p-1 rounded-md text-body-xs font-bold transition-colors cursor-pointer"
+                            title="Hapus Gambar"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 pt-1">
+                          <label className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
+                            <ImageIcon className="size-3.5 text-brand-primary" />
+                            {uploadingQIndex === qIdx ? "Mengunggah..." : "Unggah Gambar Pertanyaan"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={uploadingQIndex === qIdx}
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) handleImageFileUpload(qIdx, f);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      )}
                     </div>
 
                     <div className="sm:col-span-5">
