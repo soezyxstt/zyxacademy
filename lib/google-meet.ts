@@ -182,9 +182,9 @@ export interface ComprehensiveMeetingAnalytics {
  * Exchanges the master `GOOGLE_MEET_REFRESH_TOKEN` for a fresh OAuth2 access token.
  */
 export async function getGoogleMeetAccessToken(): Promise<string> {
-  const refreshToken = process.env.GOOGLE_MEET_REFRESH_TOKEN;
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_MEET_REFRESH_TOKEN?.trim();
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 
   if (!refreshToken) {
     throw new Error("Missing GOOGLE_MEET_REFRESH_TOKEN in environment variables.");
@@ -210,7 +210,7 @@ export async function getGoogleMeetAccessToken(): Promise<string> {
   }
 
   const data = (await res.json()) as { access_token: string };
-  return data.access_token;
+  return data.access_token.trim();
 }
 
 /**
@@ -223,11 +223,11 @@ async function meetApiFetch<T>(
   const accessToken = await getGoogleMeetAccessToken();
   const url = endpoint.startsWith("https://")
     ? endpoint
-    : `https://meetings.googleapis.com/v2/${endpoint.replace(/^\//, "")}`;
+    : `https://meet.googleapis.com/v2/${endpoint.replace(/^\//, "")}`;
 
   const headers = new Headers(options.headers);
   headers.set("Authorization", `Bearer ${accessToken}`);
-  if (options.body && !headers.has("Content-Type")) {
+  if (options.body != null && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
