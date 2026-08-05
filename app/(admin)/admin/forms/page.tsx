@@ -30,10 +30,30 @@ import {
   Grid3X3,
   Sparkles,
   Image as ImageIcon,
+  ArrowUp,
+  ArrowDown,
+  Table as TableIcon,
+  Layers,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
 import type { CreateCustomQuestionInput, QuestionType } from "@/lib/google-forms";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface StoredFormItem {
   id: string;
@@ -55,7 +75,15 @@ export default function AdminFormsPage() {
 
   const [activeQIndex, setActiveQIndex] = useState<number>(0);
 
-  // Question Builder state (Default initialized with common questions)
+  // Drag & Drop reorder state
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  // Shadcn Dialog states
+  const [confirmDeleteFormId, setConfirmDeleteFormId] = useState<string | null>(null);
+  const [alertDialogInfo, setAlertDialogInfo] = useState<{ title: string; message: string } | null>(null);
+
+  // Question Builder state
   const [questions, setQuestions] = useState<CreateCustomQuestionInput[]>([
     {
       title: "Nama Lengkap",
@@ -82,11 +110,11 @@ export default function AdminFormsPage() {
     },
     {
       title: "Evaluasi Komponen Pembelajaran",
-      description: "Beri jawaban per baris",
+      description: "Beri penilaian untuk tiap aspek di bawah ini",
       type: "GRID_RADIO",
       required: true,
-      gridRows: ["Kejelasan Penjelasan", "Kecepatan Materi"],
-      gridColumns: ["Kurang", "Cukup", "Sangat Baik"],
+      gridRows: ["Kejelasan Penjelasan", "Kecepatan Penyampaian Materi", "Kualitas Bahan Ajar"],
+      gridColumns: ["Perlu Perbaikan", "Cukup Baik", "Sangat Baik"],
     },
   ]);
 
@@ -117,6 +145,17 @@ export default function AdminFormsPage() {
     fetchForms();
   }, [fetchForms]);
 
+  const moveQuestion = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= questions.length || fromIdx === toIdx) return;
+    setQuestions((prev) => {
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIdx, 1);
+      updated.splice(toIdx, 0, moved);
+      return updated;
+    });
+    setActiveQIndex(toIdx);
+  };
+
   const handleAddQuestion = () => {
     const newIdx = questions.length;
     setQuestions((prev) => [
@@ -138,10 +177,10 @@ export default function AdminFormsPage() {
       { title: "Peminatan Matkul (Multiple Choice)", type: "RADIO", options: ["Matematika", "Fisika", "Kimia"], required: true },
       { title: "Fasilitas Diinginkan (Checkboxes)", type: "CHECKBOX", options: ["Diktat PDF", "Video Rekaman", "Gmeet Live"], required: true },
       { title: "Pilih Angkatan (Dropdown)", type: "DROP_DOWN", options: ["TPB 2024", "TPB 2025", "Lainnya"], required: true },
-      { title: "Unggah KTM / Berkas (File Upload)", type: "FILE_UPLOAD", required: false },
+      { title: "Unggah Berkas / Dokumen (File Upload)", type: "FILE_UPLOAD", required: false },
       { title: "Skala Penilaian Pembelajaran (Linear Scale)", type: "SCALE", scaleLow: 1, scaleHigh: 5, scaleLowLabel: "Kurang", scaleHighLabel: "Baik", required: true },
       { title: "Rating Pengajar (Rating Bintang)", type: "RATING", required: true },
-      { title: "Matrix Kinerja (Multiple Choice Grid)", type: "GRID_RADIO", gridRows: ["Materi", "Kejelasan"], gridColumns: ["Buruk", "Baik"], required: true },
+      { title: "Matrix Kinerja (Multiple Choice Grid)", type: "GRID_RADIO", gridRows: ["Penguasaan Materi", "Kerapihan Slide"], gridColumns: ["Cukup", "Baik", "Sangat Baik"], required: true },
       { title: "Matrix Keahlian (Checkbox Grid)", type: "GRID_CHECKBOX", gridRows: ["Dasar", "Lanjut"], gridColumns: ["Teori", "Praktek"], required: true },
       { title: "Tanggal Pengisian (Date)", type: "DATE", required: true },
       { title: "Jam Kehadiran (Time)", type: "TIME", required: true },
@@ -290,10 +329,16 @@ export default function AdminFormsPage() {
       if (data.success && data.url) {
         handleQuestionChange(qIndex, { imageUrl: data.url });
       } else {
-        alert(data.error || "Gagal mengunggah gambar.");
+        setAlertDialogInfo({
+          title: "Gagal Mengunggah Gambar",
+          message: data.error || "Gagal mengunggah berkas gambar ke penyimpan media.",
+        });
       }
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan pengunggahan.");
+      setAlertDialogInfo({
+        title: "Kesalahan Jaringan",
+        message: err.message || "Terjadi kesalahan pengunggahan.",
+      });
     } finally {
       setUploadingQIndex(null);
     }
@@ -331,9 +376,9 @@ export default function AdminFormsPage() {
     }
   };
 
-  const handleDeleteForm = async (formId: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus formulir ini dari daftar?")) return;
+  const executeDeleteForm = async (formId: string) => {
     setDeletingId(formId);
+    setConfirmDeleteFormId(null);
     try {
       const res = await fetch(`/api/admin/forms/${formId}`, {
         method: "DELETE",
@@ -342,10 +387,16 @@ export default function AdminFormsPage() {
       if (data.success) {
         setForms((prev) => prev.filter((f) => f.formId !== formId));
       } else {
-        alert(data.error || "Gagal menghapus formulir.");
+        setAlertDialogInfo({
+          title: "Gagal Menghapus Formulir",
+          message: data.error || "Gagal menghapus formulir dari daftar terbit.",
+        });
       }
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan jaringan.");
+      setAlertDialogInfo({
+        title: "Kesalahan Jaringan",
+        message: err.message || "Terjadi kesalahan jaringan saat menghapus formulir.",
+      });
     } finally {
       setDeletingId(null);
     }
@@ -370,7 +421,7 @@ export default function AdminFormsPage() {
               Google Forms Studio & Visualizer
             </h1>
             <p className="text-body-xs text-muted-foreground">
-              Mendukung 12 Jenis Soal Lengkap Google Forms dengan kustomisasi Zyx Design System.
+              Mendukung 12 Jenis Soal Lengkap Google Forms dengan komponen Shadcn & Zyx Design System.
             </p>
           </div>
         </div>
@@ -442,16 +493,17 @@ export default function AdminFormsPage() {
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2">
                   <span className="text-body-xs font-semibold text-muted-foreground">Kategori:</span>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
-                    className="rounded-lg border border-input bg-background px-2.5 py-1 text-body-xs font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="survey">Survei & Riset</option>
-                    <option value="feedback">Umpan Balik / Feedback</option>
-                    <option value="quiz">Kuis & Ujian</option>
-                    <option value="registration">Pendaftaran / Registrasi</option>
-                  </select>
+                  <Select value={category} onValueChange={(val: any) => setCategory(val)}>
+                    <SelectTrigger className="w-48 h-8 text-body-xs font-semibold">
+                      <SelectValue placeholder="Pilih Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="survey">Survei & Riset</SelectItem>
+                      <SelectItem value="feedback">Umpan Balik / Feedback</SelectItem>
+                      <SelectItem value="quiz">Kuis & Ujian</SelectItem>
+                      <SelectItem value="registration">Pendaftaran / Registrasi</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <button
@@ -465,23 +517,87 @@ export default function AdminFormsPage() {
               </div>
             </div>
 
-            {/* Question Cards List */}
+            {/* Question Cards List with Drag & Drop */}
             {questions.map((q, qIdx) => {
               const isActive = activeQIndex === qIdx;
+              const isDragging = draggedIdx === qIdx;
+              const isDragOver = dragOverIdx === qIdx && draggedIdx !== qIdx;
 
               return (
                 <div
                   key={qIdx}
                   onClick={() => setActiveQIndex(qIdx)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverIdx(qIdx);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const fromIdxStr = e.dataTransfer.getData("text/plain");
+                    const fromIdx = parseInt(fromIdxStr, 10);
+                    if (!isNaN(fromIdx)) {
+                      moveQuestion(fromIdx, qIdx);
+                    }
+                    setDraggedIdx(null);
+                    setDragOverIdx(null);
+                  }}
                   className={`rounded-2xl border bg-card p-6 shadow-sm transition-all space-y-4 relative ${
-                    isActive
+                    isDragging
+                      ? "opacity-40 border-dashed border-brand-primary"
+                      : isDragOver
+                      ? "border-2 border-brand-primary bg-brand-primary/5"
+                      : isActive
                       ? "border-l-4 border-l-brand-primary border-border ring-1 ring-brand-primary/20"
                       : "border-border hover:border-border/80"
                   }`}
                 >
-                  {/* Top Drag Handle */}
-                  <div className="flex items-center justify-center -mt-2 text-muted-foreground/40 hover:text-muted-foreground cursor-grab">
-                    <GripVertical className="size-5 rotate-90" />
+                  {/* Top Drag Handle & Quick Reorder Controls */}
+                  <div className="flex items-center justify-between border-b border-border/40 pb-2 -mt-1">
+                    <div
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", qIdx.toString());
+                        setDraggedIdx(qIdx);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedIdx(null);
+                        setDragOverIdx(null);
+                      }}
+                      className="inline-flex items-center gap-1 text-body-xs font-semibold text-muted-foreground hover:text-brand-primary cursor-grab active:cursor-grabbing transition-colors"
+                      title="Geser & Tarik untuk Mengubah Urutan Pertanyaan"
+                    >
+                      <GripVertical className="size-4 text-brand-primary" />
+                      <span>Geser Posisi Pertanyaan #{qIdx + 1}</span>
+                    </div>
+
+                    {/* Quick Move Buttons */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={qIdx === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveQuestion(qIdx, qIdx - 1);
+                        }}
+                        title="Pindahkan Ke Atas"
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
+                      >
+                        <ArrowUp className="size-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={qIdx === questions.length - 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveQuestion(qIdx, qIdx + 1);
+                        }}
+                        title="Pindahkan Ke Bawah"
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
+                      >
+                        <ArrowDown className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Question Title & Question Type Selector Row */}
@@ -541,42 +657,44 @@ export default function AdminFormsPage() {
                     </div>
 
                     <div className="sm:col-span-5">
-                      <div className="relative">
-                        <select
-                          value={q.type}
-                          onChange={(e) => handleQuestionChange(qIdx, { type: e.target.value as QuestionType })}
-                          className="w-full rounded-xl border border-input bg-background pl-9 pr-8 py-2 text-body-xs font-semibold text-foreground appearance-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
-                        >
-                          <option value="TEXT">Short answer (Jawaban Singkat)</option>
-                          <option value="PARAGRAPH">Paragraph (Teks Panjang)</option>
-                          <option value="RADIO">Multiple choice (Pilihan Ganda)</option>
-                          <option value="CHECKBOX">Checkboxes (Kotak Centang)</option>
-                          <option value="DROP_DOWN">Dropdown</option>
-                          <option value="FILE_UPLOAD">File upload (Unggah Berkas)</option>
-                          <option value="SCALE">Linear scale (Skala Penilaian 1-5)</option>
-                          <option value="RATING">Rating (Penilaian Bintang)</option>
-                          <option value="GRID_RADIO">Multiple choice grid (Kisi Pilihan Ganda)</option>
-                          <option value="GRID_CHECKBOX">Checkbox grid (Kisi Kotak Centang)</option>
-                          <option value="DATE">Date (Tanggal)</option>
-                          <option value="TIME">Time (Waktu)</option>
-                        </select>
-
-                        {/* Icon Prefix for Question Type */}
-                        <span className="absolute left-3 top-2.5 text-brand-primary pointer-events-none">
-                          {q.type === "TEXT" && <AlignLeft className="size-4" />}
-                          {q.type === "PARAGRAPH" && <Menu className="size-4" />}
-                          {q.type === "RADIO" && <CircleDot className="size-4" />}
-                          {q.type === "CHECKBOX" && <CheckSquare className="size-4" />}
-                          {q.type === "DROP_DOWN" && <ChevronDown className="size-4" />}
-                          {q.type === "FILE_UPLOAD" && <UploadCloud className="size-4" />}
-                          {q.type === "SCALE" && <Sliders className="size-4" />}
-                          {q.type === "RATING" && <Star className="size-4" />}
-                          {q.type === "GRID_RADIO" && <Grid className="size-4" />}
-                          {q.type === "GRID_CHECKBOX" && <Grid3X3 className="size-4" />}
-                          {q.type === "DATE" && <Calendar className="size-4" />}
-                          {q.type === "TIME" && <Clock className="size-4" />}
-                        </span>
-                      </div>
+                      <Select
+                        value={q.type}
+                        onValueChange={(val: QuestionType) => handleQuestionChange(qIdx, { type: val })}
+                      >
+                        <SelectTrigger className="w-full h-10 text-body-xs font-semibold">
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="text-brand-primary shrink-0">
+                              {q.type === "TEXT" && <AlignLeft className="size-4" />}
+                              {q.type === "PARAGRAPH" && <Menu className="size-4" />}
+                              {q.type === "RADIO" && <CircleDot className="size-4" />}
+                              {q.type === "CHECKBOX" && <CheckSquare className="size-4" />}
+                              {q.type === "DROP_DOWN" && <ChevronDown className="size-4" />}
+                              {q.type === "FILE_UPLOAD" && <UploadCloud className="size-4" />}
+                              {q.type === "SCALE" && <Sliders className="size-4" />}
+                              {q.type === "RATING" && <Star className="size-4" />}
+                              {q.type === "GRID_RADIO" && <Grid className="size-4" />}
+                              {q.type === "GRID_CHECKBOX" && <Grid3X3 className="size-4" />}
+                              {q.type === "DATE" && <Calendar className="size-4" />}
+                              {q.type === "TIME" && <Clock className="size-4" />}
+                            </span>
+                            <SelectValue placeholder="Tipe Pertanyaan" />
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TEXT">Short answer (Jawaban Singkat)</SelectItem>
+                          <SelectItem value="PARAGRAPH">Paragraph (Teks Panjang)</SelectItem>
+                          <SelectItem value="RADIO">Multiple choice (Pilihan Ganda)</SelectItem>
+                          <SelectItem value="CHECKBOX">Checkboxes (Kotak Centang)</SelectItem>
+                          <SelectItem value="DROP_DOWN">Dropdown</SelectItem>
+                          <SelectItem value="FILE_UPLOAD">File upload (Unggah Berkas)</SelectItem>
+                          <SelectItem value="SCALE">Linear scale (Skala Penilaian 1-5)</SelectItem>
+                          <SelectItem value="RATING">Rating (Penilaian Bintang)</SelectItem>
+                          <SelectItem value="GRID_RADIO">Multiple choice grid (Kisi Pilihan Ganda)</SelectItem>
+                          <SelectItem value="GRID_CHECKBOX">Checkbox grid (Kisi Kotak Centang)</SelectItem>
+                          <SelectItem value="DATE">Date (Tanggal)</SelectItem>
+                          <SelectItem value="TIME">Time (Waktu)</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -640,7 +758,7 @@ export default function AdminFormsPage() {
                       <div className="rounded-xl border border-dashed border-brand-primary/40 bg-brand-primary/5 p-4 text-center text-body-xs text-muted-foreground space-y-1">
                         <UploadCloud className="size-6 text-brand-primary mx-auto" />
                         <p className="font-semibold text-foreground">Area Unggah Berkas Responden</p>
-                        <p>File akan diunggah langsung ke Google Drive Cloud Storage</p>
+                        <p>Responden akan memasukkan link file Google Drive/R2 pada isian teks</p>
                       </div>
                     )}
 
@@ -678,71 +796,123 @@ export default function AdminFormsPage() {
                       </div>
                     )}
 
-                    {/* 7. GRID (GRID_RADIO & GRID_CHECKBOX) */}
+                    {/* 7. ENHANCED MATRIX EDITOR & PREVIEW UI (GRID_RADIO & GRID_CHECKBOX) */}
                     {(q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX") && (
-                      <div className="grid gap-4 sm:grid-cols-2 rounded-xl border border-border/80 bg-muted/20 p-4 text-body-xs">
-                        {/* Rows Editor */}
-                        <div className="space-y-2">
-                          <p className="font-bold text-foreground">Baris (Pertanyaan Per-Baris):</p>
-                          {(q.gridRows || ["Baris 1", "Baris 2"]).map((rowVal, rIdx) => (
-                            <div key={rIdx} className="flex items-center gap-2">
-                              <span className="text-muted-foreground font-bold">{rIdx + 1}.</span>
-                              <input
-                                type="text"
-                                value={rowVal}
-                                onChange={(e) => handleGridRowChange(qIdx, rIdx, e.target.value)}
-                                className="flex-1 rounded-lg border border-input bg-background px-2.5 py-1"
-                              />
-                              {(q.gridRows || []).length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveGridRow(qIdx, rIdx)}
-                                  className="text-muted-foreground hover:text-status-error px-1"
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => handleAddGridRow(qIdx)}
-                            className="text-brand-primary font-semibold hover:underline text-body-xs mt-1"
-                          >
-                            + Tambah Baris
-                          </button>
+                      <div className="space-y-4 rounded-2xl border border-border/80 bg-card p-4 text-body-xs">
+                        {/* Editor Controls Header */}
+                        <div className="flex items-center gap-2 border-b border-border/60 pb-2">
+                          <Layers className="size-4 text-brand-primary" />
+                          <p className="font-bold text-foreground">
+                            Pengaturan Matriks Kisi ({q.type === "GRID_RADIO" ? "Pilihan Ganda Per Baris" : "Kotak Centang Per Baris"})
+                          </p>
                         </div>
 
-                        {/* Columns Editor */}
-                        <div className="space-y-2">
-                          <p className="font-bold text-foreground">Kolom (Pilihan Kolom):</p>
-                          {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((colVal, cIdx) => (
-                            <div key={cIdx} className="flex items-center gap-2">
-                              <span className="text-muted-foreground font-bold">{cIdx + 1}.</span>
-                              <input
-                                type="text"
-                                value={colVal}
-                                onChange={(e) => handleGridColChange(qIdx, cIdx, e.target.value)}
-                                className="flex-1 rounded-lg border border-input bg-background px-2.5 py-1"
-                              />
-                              {(q.gridColumns || []).length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveGridCol(qIdx, cIdx)}
-                                  className="text-muted-foreground hover:text-status-error px-1"
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => handleAddGridCol(qIdx)}
-                            className="text-brand-primary font-semibold hover:underline text-body-xs mt-1"
-                          >
-                            + Tambah Kolom
-                          </button>
+                        {/* Side-by-Side Row & Column Item Editors */}
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {/* Rows Editor */}
+                          <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+                            <p className="font-bold text-foreground flex items-center justify-between">
+                              <span>Baris (Pertanyaan)</span>
+                              <span className="text-muted-foreground font-mono text-body-2xs">({(q.gridRows || []).length} items)</span>
+                            </p>
+                            {(q.gridRows || ["Baris 1", "Baris 2"]).map((rowVal, rIdx) => (
+                              <div key={rIdx} className="flex items-center gap-2">
+                                <span className="text-muted-foreground font-mono font-bold w-4">{rIdx + 1}.</span>
+                                <input
+                                  type="text"
+                                  value={rowVal}
+                                  onChange={(e) => handleGridRowChange(qIdx, rIdx, e.target.value)}
+                                  className="flex-1 rounded-lg border border-input bg-background px-2.5 py-1 text-body-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                />
+                                {(q.gridRows || []).length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveGridRow(qIdx, rIdx)}
+                                    className="text-muted-foreground hover:text-status-error px-1 text-body-sm transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => handleAddGridRow(qIdx)}
+                              className="inline-flex items-center gap-1 text-brand-primary font-semibold hover:underline text-body-xs mt-1 cursor-pointer"
+                            >
+                              <Plus className="size-3" /> Tambah Baris
+                            </button>
+                          </div>
+
+                          {/* Columns Editor */}
+                          <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+                            <p className="font-bold text-foreground flex items-center justify-between">
+                              <span>Kolom (Skala Opsi)</span>
+                              <span className="text-muted-foreground font-mono text-body-2xs">({(q.gridColumns || []).length} items)</span>
+                            </p>
+                            {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((colVal, cIdx) => (
+                              <div key={cIdx} className="flex items-center gap-2">
+                                <span className="text-muted-foreground font-mono font-bold w-4">{cIdx + 1}.</span>
+                                <input
+                                  type="text"
+                                  value={colVal}
+                                  onChange={(e) => handleGridColChange(qIdx, cIdx, e.target.value)}
+                                  className="flex-1 rounded-lg border border-input bg-background px-2.5 py-1 text-body-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                />
+                                {(q.gridColumns || []).length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveGridCol(qIdx, cIdx)}
+                                    className="text-muted-foreground hover:text-status-error px-1 text-body-sm transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => handleAddGridCol(qIdx)}
+                              className="inline-flex items-center gap-1 text-brand-primary font-semibold hover:underline text-body-xs mt-1 cursor-pointer"
+                            >
+                              <Plus className="size-3" /> Tambah Kolom
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Live Matrix Table Preview Panel */}
+                        <div className="space-y-2 pt-2">
+                          <p className="font-bold text-muted-foreground flex items-center gap-1.5 text-body-2xs uppercase tracking-wider">
+                            <TableIcon className="size-3.5 text-brand-primary" /> Pratinjau Tampilan Matriks Responden:
+                          </p>
+                          <div className="overflow-x-auto rounded-xl border border-border bg-background p-3">
+                            <table className="w-full text-left text-body-xs border-collapse">
+                              <thead>
+                                <tr className="border-b border-border text-muted-foreground font-semibold">
+                                  <th className="p-2 w-1/3">Baris / Kolom</th>
+                                  {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((col, cIdx) => (
+                                    <th key={cIdx} className="p-2 text-center">{col || `Kolom ${cIdx + 1}`}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border/60">
+                                {(q.gridRows || ["Baris 1", "Baris 2"]).map((row, rIdx) => (
+                                  <tr key={rIdx} className="hover:bg-muted/20">
+                                    <td className="p-2 font-medium text-foreground">{row || `Baris ${rIdx + 1}`}</td>
+                                    {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((_, cIdx) => (
+                                      <td key={cIdx} className="p-2 text-center">
+                                        {q.type === "GRID_RADIO" ? (
+                                          <CircleDot className="size-4 text-muted-foreground/50 mx-auto" />
+                                        ) : (
+                                          <CheckSquare className="size-4 text-muted-foreground/50 mx-auto" />
+                                        )}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -956,7 +1126,7 @@ export default function AdminFormsPage() {
 
                               <button
                                 type="button"
-                                onClick={() => handleDeleteForm(f.formId)}
+                                onClick={() => setConfirmDeleteFormId(f.formId)}
                                 disabled={isDeleting}
                                 title="Hapus formulir"
                                 className="inline-flex items-center justify-center rounded-lg border border-status-error/30 bg-status-error/10 p-1.5 text-status-error hover:bg-status-error/20 transition-colors disabled:opacity-50 cursor-pointer"
@@ -979,6 +1149,63 @@ export default function AdminFormsPage() {
           )}
         </div>
       )}
+
+      {/* SHADCN DIALOG: DELETE CONFIRMATION */}
+      <Dialog
+        open={Boolean(confirmDeleteFormId)}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteFormId(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Formulir Terbit</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus formulir ini dari daftar terbit platform? Akses ke visualisasi respon pada formulir ini akan dihapus.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDeleteFormId(null)}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (confirmDeleteFormId) executeDeleteForm(confirmDeleteFormId);
+              }}
+            >
+              Hapus Formulir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SHADCN DIALOG: GENERIC ALERT / ERROR MESSAGE */}
+      <Dialog
+        open={Boolean(alertDialogInfo)}
+        onOpenChange={(open) => {
+          if (!open) setAlertDialogInfo(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{alertDialogInfo?.title || "Pemberitahuan Sistem"}</DialogTitle>
+            <DialogDescription>
+              {alertDialogInfo?.message}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={() => setAlertDialogInfo(null)}
+            >
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Reveal>
   );
 }

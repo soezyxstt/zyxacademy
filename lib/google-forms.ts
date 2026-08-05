@@ -353,22 +353,24 @@ export async function createCustomGoogleForm(
         };
       }
 
+      const questionItemObj: any = {
+        question: questionObj,
+      };
+
+      if (q.imageUrl && q.imageUrl.trim()) {
+        questionItemObj.image = {
+          sourceUri: q.imageUrl.trim(),
+          altText: q.title || "Gambar Pertanyaan",
+        };
+      }
+
       const itemObj: any = {
         title: q.title || `Pertanyaan #${index + 1}`,
         description: q.type === "FILE_UPLOAD"
           ? (q.description ? `${q.description} (Unggah file ke Google Drive/R2 lalu tempelkan link)` : "Unggah file ke Google Drive/R2 lalu tempelkan link file di sini.")
           : (q.description?.trim() || undefined),
-        questionItem: {
-          question: questionObj,
-        },
+        questionItem: questionItemObj,
       };
-
-      if (q.imageUrl && q.imageUrl.trim()) {
-        itemObj.image = {
-          sourceUri: q.imageUrl.trim(),
-          altText: q.title || "Gambar Pertanyaan",
-        };
-      }
 
       return {
         createItem: {
