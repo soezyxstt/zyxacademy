@@ -117,15 +117,32 @@ export interface CompleteFormAnalytics {
   responseMatrix: ResponseMatrixRow[];
 }
 
+export type QuestionType =
+  | "TEXT"
+  | "PARAGRAPH"
+  | "RADIO"
+  | "CHECKBOX"
+  | "DROP_DOWN"
+  | "FILE_UPLOAD"
+  | "SCALE"
+  | "RATING"
+  | "GRID_RADIO"
+  | "GRID_CHECKBOX"
+  | "DATE"
+  | "TIME";
+
 export interface CreateCustomQuestionInput {
   title: string;
-  type: "RADIO" | "CHECKBOX" | "DROP_DOWN" | "TEXT" | "PARAGRAPH" | "SCALE";
+  description?: string;
+  type: QuestionType;
   required?: boolean;
   options?: string[]; // For RADIO, CHECKBOX, DROP_DOWN
   scaleLow?: number; // Default: 1
   scaleHigh?: number; // Default: 5
   scaleLowLabel?: string;
   scaleHighLabel?: string;
+  gridRows?: string[]; // For GRID_RADIO, GRID_CHECKBOX
+  gridColumns?: string[]; // For GRID_RADIO, GRID_CHECKBOX
 }
 
 // ── AUTHENTICATION HELPER ─────────────────────────────────────────────────────
@@ -204,19 +221,15 @@ async function formsApiFetch<T>(
 // ── FORM CREATION & MANAGEMENT ───────────────────────────────────────────────
 
 /**
- * Creates a new blank Google Form with a title and optional description.
+ * Creates a new blank Google Form with a title.
+ * Google Forms API only accepts info.title when creating a form.
  */
-export async function createGoogleForm(
-  title: string,
-  description?: string
-): Promise<GoogleForm> {
+export async function createGoogleForm(title: string): Promise<GoogleForm> {
   const form = await formsApiFetch<GoogleForm>("forms", {
     method: "POST",
     body: JSON.stringify({
       info: {
         title,
-        documentTitle: title,
-        description: description || undefined,
       },
     }),
   });
@@ -239,61 +252,129 @@ export async function batchUpdateGoogleForm(
 }
 
 /**
- * Creates a complete Google Form with custom questions in a single operation.
+ * Creates a complete Google Form with description and custom questions.
  */
 export async function createCustomGoogleForm(
   title: string,
   description: string | undefined,
   questions: CreateCustomQuestionInput[]
 ): Promise<GoogleForm> {
-  // 1. Create base form
-  const initialForm = await createGoogleForm(title, description);
+  // 1. Create base form (Title only)
+  const initialForm = await createGoogleForm(title);
   const formId = initialForm.formId;
 
-  if (!questions || questions.length === 0) {
+  const batchRequests: any[] = [];
+
+  // 2. Add description update if present
+  if (description && description.trim()) {
+    batchRequests.push({
+      updateFormInfo: {
+        info: {
+          description: description.trim(),
+        },
+        updateMask: "description",
+      },
+    });
+  }
+
+  // 3. Build batchUpdate requests for questions
+  if (questions && questions.length > 0) {
+    const createItemRequests = questions.map((q, index) => {
+      const isGrid = q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX";
+
+      if (isGrid) {
+        return {
+          createItem: {
+            item: {
+              title: q.title || `Grid Pertanyaan #${index + 1}`,
+              description: q.description?.trim() || undefined,
+              questionGroupItem: {
+                grid: {
+                  columns: {
+                    type: q.type === "GRID_RADIO" ? "RADIO" : "CHECKBOX",
+                    options: (q.gridColumns || ["Kolom 1", "Kolom 2"]).map((c) => ({ value: c })),
+                  },
+                },
+                questions: (q.gridRows || ["Baris 1", "Baris 2"]).map((r) => ({
+                  rowQuestion: { title: r },
+                  required: q.required ?? true,
+                })),
+              },
+            },
+            location: {
+              index,
+            },
+          },
+        };
+      }
+
+      const questionObj: any = {
+        required: q.required ?? true,
+      };
+
+      if (q.type === "RADIO" || q.type === "CHECKBOX" || q.type === "DROP_DOWN") {
+        questionObj.choiceQuestion = {
+          type: q.type,
+          options: (q.options || ["Pilihan 1", "Pilihan 2"]).map((opt) => ({ value: opt })),
+        };
+      } else if (q.type === "TEXT") {
+        questionObj.textQuestion = { paragraph: false };
+      } else if (q.type === "PARAGRAPH") {
+        questionObj.textQuestion = { paragraph: true };
+      } else if (q.type === "SCALE") {
+        questionObj.scaleQuestion = {
+          low: q.scaleLow ?? 1,
+          high: q.scaleHigh ?? 5,
+          lowLabel: q.scaleLowLabel || "Sangat Buruk",
+          highLabel: q.scaleHighLabel || "Sangat Baik",
+        };
+      } else if (q.type === "RATING") {
+        questionObj.scaleQuestion = {
+          low: 1,
+          high: 5,
+          lowLabel: "1 Bintang",
+          highLabel: "5 Bintang",
+        };
+      } else if (q.type === "FILE_UPLOAD") {
+        questionObj.fileUploadQuestion = {
+          types: ["ANY"],
+          maxFiles: 1,
+        };
+      } else if (q.type === "DATE") {
+        questionObj.dateQuestion = {
+          includeTime: false,
+          includeYear: true,
+        };
+      } else if (q.type === "TIME") {
+        questionObj.timeQuestion = {
+          duration: false,
+        };
+      }
+
+      return {
+        createItem: {
+          item: {
+            title: q.title || `Pertanyaan #${index + 1}`,
+            description: q.description?.trim() || undefined,
+            questionItem: {
+              question: questionObj,
+            },
+          },
+          location: {
+            index,
+          },
+        },
+      };
+    });
+
+    batchRequests.push(...createItemRequests);
+  }
+
+  if (batchRequests.length === 0) {
     return initialForm;
   }
 
-  // 2. Build batchUpdate requests for questions
-  const createItemRequests = questions.map((q, index) => {
-    const questionObj: any = {
-      required: q.required ?? true,
-    };
-
-    if (q.type === "RADIO" || q.type === "CHECKBOX" || q.type === "DROP_DOWN") {
-      questionObj.choiceQuestion = {
-        type: q.type,
-        options: (q.options || ["Pilihan 1", "Pilihan 2"]).map((opt) => ({ value: opt })),
-      };
-    } else if (q.type === "TEXT") {
-      questionObj.textQuestion = { paragraph: false };
-    } else if (q.type === "PARAGRAPH") {
-      questionObj.textQuestion = { paragraph: true };
-    } else if (q.type === "SCALE") {
-      questionObj.scaleQuestion = {
-        low: q.scaleLow ?? 1,
-        high: q.scaleHigh ?? 5,
-        lowLabel: q.scaleLowLabel || "Sangat Buruk",
-        highLabel: q.scaleHighLabel || "Sangat Baik",
-      };
-    }
-
-    return {
-      createItem: {
-        item: {
-          title: q.title,
-          questionItem: {
-            question: questionObj,
-          },
-        },
-        location: {
-          index,
-        },
-      },
-    };
-  });
-
-  const updatedForm = await batchUpdateGoogleForm(formId, createItemRequests);
+  const updatedForm = await batchUpdateGoogleForm(formId, batchRequests);
   return updatedForm;
 }
 
