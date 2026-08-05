@@ -53,12 +53,16 @@ export async function POST(req: Request) {
     const form = await createCustomGoogleForm(title, description, questions);
 
     const formRecordId = crypto.randomUUID();
+    const formTitle = form?.info?.title || title;
+    const formDescription = form?.info?.description || description || null;
+    const responderUri = form?.responderUri || `https://docs.google.com/forms/d/${form?.formId || ""}/viewform`;
+
     await db.insert(googleForms).values({
       id: formRecordId,
       formId: form.formId,
-      title: form.info.title,
-      description: form.info.description,
-      responderUri: form.responderUri,
+      title: formTitle,
+      description: formDescription,
+      responderUri,
       category,
       createdById,
     }).onConflictDoNothing();

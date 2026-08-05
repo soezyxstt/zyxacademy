@@ -218,8 +218,10 @@ async function formsApiFetch<T>(
 
   return (await res.json()) as T;
 }
-
-// ── FORM CREATION & MANAGEMENT ───────────────────────────────────────────────
+export interface BatchUpdateFormResponse {
+  form: GoogleForm;
+  replies?: any[];
+}
 
 /**
  * Creates a new blank Google Form with a title.
@@ -244,9 +246,9 @@ export async function createGoogleForm(title: string): Promise<GoogleForm> {
 export async function batchUpdateGoogleForm(
   formId: string,
   requests: any[]
-): Promise<GoogleForm> {
+): Promise<BatchUpdateFormResponse> {
   const fId = formId.replace(/^forms\//, "");
-  return await formsApiFetch<GoogleForm>(`forms/${fId}:batchUpdate`, {
+  return await formsApiFetch<BatchUpdateFormResponse>(`forms/${fId}:batchUpdate`, {
     method: "POST",
     body: JSON.stringify({ requests }),
   });
@@ -385,8 +387,8 @@ export async function createCustomGoogleForm(
     return initialForm;
   }
 
-  const updatedForm = await batchUpdateGoogleForm(formId, batchRequests);
-  return updatedForm;
+  const batchRes = await batchUpdateGoogleForm(formId, batchRequests);
+  return batchRes.form || (await getGoogleForm(formId));
 }
 
 /**
