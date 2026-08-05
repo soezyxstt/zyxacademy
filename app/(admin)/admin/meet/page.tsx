@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
+import { toast } from "@/components/ui/toast";
 
 interface MeetSpaceInfo {
   name: string;
@@ -135,11 +136,12 @@ export default function AdminMeetPage() {
       const data = await res.json();
       if (data.success) {
         setRecords((prev) => prev.filter((r) => r.name !== recordName));
+        toast.success("Log meeting berhasil dihapus.");
       } else {
-        alert(data.error || "Gagal menghapus log meeting.");
+        toast.error(data.error || "Gagal menghapus log meeting.");
       }
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan jaringan.");
+      toast.error(err.message || "Terjadi kesalahan jaringan.");
     } finally {
       setDeletingId(null);
     }

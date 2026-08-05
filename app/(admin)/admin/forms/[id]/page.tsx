@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "@/components/ui/toast";
 
 interface NativeFormDetails {
   id: string;
@@ -188,12 +189,12 @@ export default function DetailedFormAnalyticsPage({
       if (data.success && data.form) {
         setForm(data.form);
         setFormSettings(data.form.settings || {});
-        alert("Pengaturan formulir berhasil diperbarui!");
+        toast.success("Pengaturan formulir berhasil diperbarui!");
       } else {
-        alert(data.error || "Gagal menyimpan pengaturan formulir.");
+        toast.error(data.error || "Gagal menyimpan pengaturan formulir.");
       }
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan jaringan saat menyimpan pengaturan.");
+      toast.error(err.message || "Terjadi kesalahan jaringan saat menyimpan pengaturan.");
     } finally {
       setSavingSettings(false);
     }
@@ -229,6 +230,7 @@ export default function DetailedFormAnalyticsPage({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success("File CSV berhasil diunduh.");
   };
 
   const handleExportGoogleSheets = async () => {
@@ -260,11 +262,12 @@ export default function DetailedFormAnalyticsPage({
       const data = await res.json();
       if (data.success && data.spreadsheetUrl) {
         window.open(data.spreadsheetUrl, "_blank");
+        toast.success("Google Spreadsheet berhasil dibuat!");
       } else {
-        alert(data.error || "Gagal membuat Google Spreadsheet. Silakan gunakan ekspor CSV.");
+        toast.error(data.error || "Gagal membuat Google Spreadsheet. Silakan gunakan ekspor CSV.");
       }
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan saat mengekspor ke Google Spreadsheet.");
+      toast.error(err.message || "Terjadi kesalahan saat mengekspor ke Google Spreadsheet.");
     } finally {
       setExportingSheets(false);
     }
@@ -495,7 +498,7 @@ export default function DetailedFormAnalyticsPage({
                             navigator.clipboard.writeText(
                               `${questionTitle}:\n` + slices.map((s) => `- ${s.label}: ${s.count} (${s.percentage}%)`).join("\n")
                             );
-                            alert("Data grafik disalin ke clipboard!");
+                            toast.success("Data grafik disalin ke clipboard!");
                           }}
                           className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline cursor-pointer"
                         >

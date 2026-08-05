@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "@/components/ui/toast";
 import { 
   Terminal, 
   FileCode, 
@@ -151,7 +152,7 @@ export function ASTInspectorClient() {
           });
         }
       } catch (err: any) {
-        alert("Gagal mengimpor file: " + err.message);
+        toast.error("Gagal mengimpor file: " + err.message);
       }
     };
     reader.readAsText(file);
@@ -451,7 +452,7 @@ export function ASTInspectorClient() {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(JSON.stringify(result.ast, null, 2));
-                          alert("AST JSON berhasil disalin!");
+                          toast.success("AST JSON berhasil disalin!");
                         }}
                         className="px-2 py-1.2 rounded bg-card hover:bg-muted border border-border text-[10px] font-semibold"
                       >

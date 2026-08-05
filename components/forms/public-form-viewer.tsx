@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "@/components/ui/toast";
 import {
   Dialog,
   DialogContent,
@@ -132,18 +133,19 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/storage/upload", {
+      const res = await fetch("/api/forms/upload", {
         method: "POST",
         body: formData,
       });
       const data = await res.json();
       if (data.success && data.url) {
         handleAnswerChange(qIdx, data.url);
+        toast.success("Berkas berhasil terunggah!");
       } else {
-        alert(data.error || "Gagal mengunggah berkas.");
+        toast.error(data.error || "Gagal mengunggah berkas.");
       }
     } catch {
-      alert("Terjadi kesalahan pengunggahan.");
+      toast.error("Terjadi kesalahan pengunggahan.");
     } finally {
       setUploadingQIdx(null);
     }

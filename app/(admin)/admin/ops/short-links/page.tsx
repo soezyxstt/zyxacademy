@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -61,13 +62,14 @@ export default function ShortLinksPage() {
         setUrl("");
         setTitle("");
         setSlug("");
+        toast.success("Short link berhasil dibuat!");
       } else {
         const err = await res.text();
-        alert(`Error: ${err}`);
+        toast.error(`Error: ${err}`);
       }
     } catch (error) {
       console.error(error);
-      alert("Failed to create short link");
+      toast.error("Failed to create short link");
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +77,7 @@ export default function ShortLinksPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Copied to clipboard!");
+    toast.success("Tautan berhasil disalin!");
   };
 
   const getFullUrl = (slug: string) => {

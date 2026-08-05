@@ -24,6 +24,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { normalizeDate } from "@/lib/date-utils";
+import { toast } from "@/components/ui/toast";
 import type { PkaRegistrationRow } from "../actions";
 
 
@@ -156,12 +157,13 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       const data = await res.json();
       if (data.success && data.spreadsheetUrl) {
         window.open(data.spreadsheetUrl, "_blank");
+        toast.success("Google Spreadsheet berhasil dibuat!");
       } else {
-        alert(data.error || "Gagal membuat Google Spreadsheet. Menggunakan ekspor CSV.");
+        toast.error(data.error || "Gagal membuat Google Spreadsheet. Menggunakan ekspor CSV.");
         handleExport();
       }
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan saat mengekspor ke Google Spreadsheet.");
+      toast.error(err.message || "Terjadi kesalahan saat mengekspor ke Google Spreadsheet.");
     } finally {
       setExportingSheets(false);
     }
