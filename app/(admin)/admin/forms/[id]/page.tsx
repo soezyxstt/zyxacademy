@@ -16,6 +16,7 @@ import {
   PieChart as PieIcon,
   User,
   HelpCircle as QuestionIcon,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
@@ -27,6 +28,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface NativeFormDetails {
   id: string;
@@ -46,7 +55,6 @@ interface FormResponseItem {
   submittedAt: string;
 }
 
-// Pure SVG Pie Chart Component for Choice Question Visualizations
 function SimpleSvgPieChart({
   slices,
 }: {
@@ -63,7 +71,6 @@ function SimpleSvgPieChart({
     const endAngle = startAngle + angle;
     currentAngle = endAngle;
 
-    // Convert angles to SVG arc paths
     const x1 = 100 + 80 * Math.cos((Math.PI * (startAngle - 90)) / 180);
     const y1 = 100 + 80 * Math.sin((Math.PI * (startAngle - 90)) / 180);
     const x2 = 100 + 80 * Math.cos((Math.PI * (endAngle - 90)) / 180);
@@ -109,7 +116,6 @@ function formatAnswerForText(val: any): string {
     return val.map((v) => formatAnswerForText(v)).join(", ");
   }
 
-  // Object (e.g. GRID_RADIO / GRID_CHECKBOX)
   const entries = Object.entries(val);
   if (entries.length === 0) return "-";
 
@@ -126,14 +132,13 @@ function RenderFormattedAnswer({ val }: { val: any }) {
     return <span className="text-muted-foreground italic">-</span>;
   }
 
-  // Handle URL / File upload
   if (typeof val === "string" && (val.startsWith("http://") || val.startsWith("https://"))) {
     return (
       <a
         href={val}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-body-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
       >
         📄 Buka Lampiran File <ExternalLink className="size-3.5" />
       </a>
@@ -141,41 +146,40 @@ function RenderFormattedAnswer({ val }: { val: any }) {
   }
 
   if (typeof val !== "object") {
-    return <span>{String(val)}</span>;
+    return <span className="text-body-sm text-foreground">{String(val)}</span>;
   }
 
   if (Array.isArray(val)) {
     return (
       <div className="flex flex-wrap gap-1.5">
         {val.map((item, idx) => (
-          <span key={idx} className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-body-2xs font-semibold text-foreground border border-border">
+          <Badge key={idx} variant="secondary" className="text-body-2xs font-semibold">
             {String(item)}
-          </span>
+          </Badge>
         ))}
       </div>
     );
   }
 
-  // Object: Grid responses (GRID_RADIO / GRID_CHECKBOX)
   const entries = Object.entries(val);
   if (entries.length === 0) return <span className="text-muted-foreground italic">-</span>;
 
   return (
-    <div className="space-y-1.5 w-full rounded-xl border border-border/80 bg-card p-3 shadow-2xs">
+    <div className="space-y-1.5 w-full rounded-lg border border-border bg-card p-3 shadow-2xs">
       {entries.map(([rowName, colVal], idx) => (
         <div key={idx} className="flex flex-wrap items-center justify-between text-body-xs gap-2 py-1 border-b border-border/40 last:border-0">
           <span className="font-semibold text-foreground">{rowName}</span>
           <div className="flex flex-wrap items-center gap-1">
             {Array.isArray(colVal) ? (
               colVal.map((c: any, cIdx: number) => (
-                <span key={cIdx} className="rounded-md bg-brand-primary/15 text-brand-primary font-bold px-2 py-0.5 text-body-2xs">
+                <Badge key={cIdx} variant="secondary" className="bg-primary/15 text-primary text-body-2xs">
                   {String(c)}
-                </span>
+                </Badge>
               ))
             ) : (
-              <span className="rounded-md bg-brand-primary/15 text-brand-primary font-bold px-2 py-0.5 text-body-2xs">
+              <Badge variant="secondary" className="bg-primary/15 text-primary text-body-2xs">
                 {String(colVal)}
-              </span>
+              </Badge>
             )}
           </div>
         </div>
@@ -185,13 +189,13 @@ function RenderFormattedAnswer({ val }: { val: any }) {
 }
 
 const PIE_COLORS = [
-  "#3b82f6", // Blue
-  "#ef4444", // Red
-  "#f59e0b", // Yellow/Orange
-  "#10b981", // Teal/Green
-  "#8b5cf6", // Purple
-  "#ec4899", // Pink
-  "#06b6d4", // Cyan
+  "#3b82f6",
+  "#ef4444",
+  "#f59e0b",
+  "#10b981",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
 ];
 
 export default function DetailedFormAnalyticsPage({
@@ -207,21 +211,14 @@ export default function DetailedFormAnalyticsPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 4 Response Sub-Tabs: "summary" | "question" | "individual" | "settings"
   const [responseTab, setResponseTab] = useState<"summary" | "question" | "individual" | "settings">("summary");
-
-  // State for "question" tab selector
   const [selectedQIndex, setSelectedQIndex] = useState<number>(0);
-
-  // State for "individual" tab respondent index
   const [individualIndex, setIndividualIndex] = useState<number>(0);
-
-  // Search filter state in summary spreadsheet
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Settings state for existing form
   const [formSettings, setFormSettings] = useState<any>({});
   const [savingSettings, setSavingSettings] = useState(false);
+  const [exportingSheets, setExportingSheets] = useState(false);
 
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
@@ -282,8 +279,6 @@ export default function DetailedFormAnalyticsPage({
       setSavingSettings(false);
     }
   };
-
-  const [exportingSheets, setExportingSheets] = useState(false);
 
   const handleExportCSV = () => {
     if (!form || responses.length === 0) return;
@@ -371,235 +366,204 @@ export default function DetailedFormAnalyticsPage({
       {/* Back Link */}
       <Link
         href="/admin/forms"
-        className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-1.5 text-body-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="size-4" />
         Kembali ke Form Studio
       </Link>
 
-      {/* Main Form Title Header Card */}
+      {/* Main Header Card */}
       {form && (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm border-t-8 border-t-brand-primary space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="rounded-md bg-brand-primary/10 px-2.5 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-primary">
-              {form.category}
-            </span>
-            <Link
-              href={`/f/${form.slug}`}
-              target="_blank"
-              className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
-            >
-              Short Link: /f/{form.slug} <ExternalLink className="size-3.5" />
-            </Link>
-          </div>
-          <h1 className="font-heading text-h3 font-bold text-foreground">{form.title}</h1>
-          {form.description && (
-            <p className="text-body-sm text-muted-foreground">{form.description}</p>
-          )}
-        </div>
+        <Card className="border-t-4 border-t-primary shadow-sm">
+          <CardHeader className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Badge variant="secondary" className="bg-primary/10 text-primary uppercase font-bold text-body-2xs">
+                {form.category}
+              </Badge>
+              <Link
+                href={`/f/${form.slug}`}
+                target="_blank"
+                className="inline-flex items-center gap-1 text-body-xs font-semibold text-primary hover:underline"
+              >
+                Short Link: /f/{form.slug} <ExternalLink className="size-3.5" />
+              </Link>
+            </div>
+            <CardTitle className="text-h4 font-heading">{form.title}</CardTitle>
+            {form.description && (
+              <CardDescription className="text-body-sm">{form.description}</CardDescription>
+            )}
+          </CardHeader>
+        </Card>
       )}
 
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-body-sm text-destructive">
           <AlertCircle className="size-5 shrink-0" />
           <p>{error}</p>
         </div>
       )}
 
       {loading ? (
-        <div className="flex h-60 items-center justify-center rounded-2xl border border-border bg-card">
-          <RefreshCw className="size-8 animate-spin text-brand-primary" />
-        </div>
+        <Card className="flex h-60 items-center justify-center">
+          <RefreshCw className="size-8 animate-spin text-primary" />
+        </Card>
       ) : !form ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
+        <Card className="flex flex-col items-center justify-center p-12 text-center">
           <AlertCircle className="size-10 text-muted-foreground" />
-          <p className="mt-3 font-heading text-h6 font-semibold text-foreground">
-            Data Formulir Tidak Ditemukan
-          </p>
-        </div>
+          <CardTitle className="mt-3 text-h6 font-heading">Data Formulir Tidak Ditemukan</CardTitle>
+        </Card>
       ) : (
-        <div className="space-y-6">
-          {/* Top Responses Header & 3-Tab Selector Bar */}
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <Tabs
+          value={responseTab}
+          onValueChange={(val) => setResponseTab(val as any)}
+          className="w-full space-y-6"
+        >
+          {/* Action Header & Tabs List */}
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
               <div>
-                <h2 className="font-heading text-h3 font-bold text-foreground">
+                <CardTitle className="text-h3 font-heading">
                   {responses.length} responses
-                </h2>
-                <p className="text-body-xs text-muted-foreground mt-0.5">
+                </CardTitle>
+                <CardDescription className="mt-1">
                   Visualisasi & diagnosa pengisian responden secara real-time
-                </p>
+                </CardDescription>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleExportGoogleSheets}
                   disabled={responses.length === 0 || exportingSheets}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-brand-primary/40 bg-brand-primary/10 px-3.5 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors disabled:opacity-50 cursor-pointer"
+                  isLoading={exportingSheets}
+                  className="text-primary hover:text-primary"
                 >
-                  <RefreshCw className={`size-4 ${exportingSheets ? "animate-spin" : "hidden"}`} />
                   <FileText className="size-4" />
-                  {exportingSheets ? "Mengekspor..." : "Ekspor ke Google Sheets"}
-                </button>
+                  <span>{exportingSheets ? "Mengekspor..." : "Ekspor ke Google Sheets"}</span>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleExportCSV}
                   disabled={responses.length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-status-success/40 bg-status-success/10 px-3.5 py-2 text-body-xs font-bold text-status-success hover:bg-status-success/20 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
                 >
                   <Download className="size-4" />
-                  Ekspor ke CSV
-                </button>
+                  <span>Ekspor ke CSV</span>
+                </Button>
 
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={fetchAnalytics}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background p-2 text-body-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                   title="Muat Ulang"
                 >
                   <RefreshCw className="size-4" />
-                </button>
+                </Button>
               </div>
-            </div>
+            </CardHeader>
 
-            {/* Google Forms 3-Tab Selector (Summary | Question | Individual) */}
-            <div className="flex items-center justify-center border-t border-border/60 pt-4">
-              <div className="inline-flex items-center gap-2 rounded-xl bg-muted/60 p-1.5 border border-border/80 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => setResponseTab("summary")}
-                  className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-lg px-6 py-2 text-body-xs font-bold transition-all cursor-pointer ${
-                    responseTab === "summary"
-                      ? "bg-card text-foreground shadow-xs border border-border/60"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <PieIcon className="size-4 text-brand-primary" />
+            <CardContent className="border-t border-border pt-4">
+              <TabsList className="w-full justify-center h-auto p-1 bg-muted/60 flex-wrap sm:flex-nowrap gap-1">
+                <TabsTrigger value="summary" className="flex-1 gap-2 text-body-xs font-semibold py-2">
+                  <PieIcon className="size-4 text-primary" />
                   Summary (Ringkasan Total)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setResponseTab("question")}
-                  className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-lg px-6 py-2 text-body-xs font-bold transition-all cursor-pointer ${
-                    responseTab === "question"
-                      ? "bg-card text-foreground shadow-xs border border-border/60"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <QuestionIcon className="size-4 text-brand-secondary" />
+                </TabsTrigger>
+                <TabsTrigger value="question" className="flex-1 gap-2 text-body-xs font-semibold py-2">
+                  <QuestionIcon className="size-4 text-orange-500" />
                   Question (Per Soal)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setResponseTab("individual")}
-                  className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-lg px-6 py-2 text-body-xs font-bold transition-all cursor-pointer ${
-                    responseTab === "individual"
-                      ? "bg-card text-foreground shadow-xs border border-border/60"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <User className="size-4 text-tertiary-1" />
+                </TabsTrigger>
+                <TabsTrigger value="individual" className="flex-1 gap-2 text-body-xs font-semibold py-2">
+                  <User className="size-4 text-teal-500" />
                   Individual (Per Responden)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setResponseTab("settings")}
-                  className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-lg px-6 py-2 text-body-xs font-bold transition-all cursor-pointer ${
-                    responseTab === "settings"
-                      ? "bg-card text-foreground shadow-xs border border-border/60"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <FileText className="size-4 text-status-warning" />
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="flex-1 gap-2 text-body-xs font-semibold py-2">
+                  <SettingsIcon className="size-4 text-amber-500" />
                   Settings (Pengaturan)
-                </button>
-              </div>
-            </div>
-          </div>
+                </TabsTrigger>
+              </TabsList>
+            </CardContent>
+          </Card>
 
-          {/* TAB 1: SUMMARY (RINGKASAN TOTAL VISUAL) */}
-          {responseTab === "summary" && (
-            <div className="space-y-6">
-              {(form.questions || []).map((q: any, qIdx: number) => {
-                const questionTitle = q.title || `Pertanyaan #${qIdx + 1}`;
-                const allAnswers = responses
-                  .map((r) => r.answers[qIdx] ?? r.answers[questionTitle])
-                  .filter((a) => a !== undefined && a !== null && a !== "");
+          {/* TAB 1: SUMMARY */}
+          <TabsContent value="summary" className="space-y-6 mt-0">
+            {(form.questions || []).map((q: any, qIdx: number) => {
+              const questionTitle = q.title || `Pertanyaan #${qIdx + 1}`;
+              const allAnswers = responses
+                .map((r) => r.answers[qIdx] ?? r.answers[questionTitle])
+                .filter((a) => a !== undefined && a !== null && a !== "");
 
-                const isChoiceType =
-                  q.type === "RADIO" ||
-                  q.type === "CHECKBOX" ||
-                  q.type === "DROP_DOWN" ||
-                  q.type === "SCALE" ||
-                  q.type === "RATING";
+              const isChoiceType =
+                q.type === "RADIO" ||
+                q.type === "CHECKBOX" ||
+                q.type === "DROP_DOWN" ||
+                q.type === "SCALE" ||
+                q.type === "RATING";
 
-                // Calculate breakdown for choices
-                let slices: { label: string; count: number; percentage: number; color: string }[] = [];
-                if (isChoiceType && allAnswers.length > 0) {
-                  const counts: Record<string, number> = {};
-                  allAnswers.forEach((ans) => {
-                    if (Array.isArray(ans)) {
-                      ans.forEach((sub) => {
-                        counts[sub] = (counts[sub] || 0) + 1;
-                      });
-                    } else {
-                      const str = String(ans);
-                      counts[str] = (counts[str] || 0) + 1;
-                    }
-                  });
+              let slices: { label: string; count: number; percentage: number; color: string }[] = [];
+              if (isChoiceType && allAnswers.length > 0) {
+                const counts: Record<string, number> = {};
+                allAnswers.forEach((ans) => {
+                  if (Array.isArray(ans)) {
+                    ans.forEach((sub) => {
+                      counts[sub] = (counts[sub] || 0) + 1;
+                    });
+                  } else {
+                    const str = String(ans);
+                    counts[str] = (counts[str] || 0) + 1;
+                  }
+                });
 
-                  const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
-                  slices = Object.entries(counts).map(([lbl, cnt], i) => ({
-                    label: lbl,
-                    count: cnt,
-                    percentage: Math.round((cnt / totalCount) * 100),
-                    color: PIE_COLORS[i % PIE_COLORS.length],
-                  }));
-                }
+                const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
+                slices = Object.entries(counts).map(([lbl, cnt], i) => ({
+                  label: lbl,
+                  count: cnt,
+                  percentage: Math.round((cnt / totalCount) * 100),
+                  color: PIE_COLORS[i % PIE_COLORS.length],
+                }));
+              }
 
-                return (
-                  <div key={qIdx} className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-heading text-h6 font-semibold text-foreground">
-                          {qIdx + 1}. {questionTitle}
-                        </h3>
-                        <p className="text-body-2xs text-muted-foreground mt-0.5 font-semibold">
-                          {allAnswers.length} responses
-                        </p>
-                      </div>
-
-                      {isChoiceType && slices.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(
-                              `${questionTitle}:\n` + slices.map((s) => `- ${s.label}: ${s.count} (${s.percentage}%)`).join("\n")
-                            );
-                            toast.success("Data grafik disalin ke clipboard!");
-                          }}
-                          className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline cursor-pointer"
-                        >
-                          <Copy className="size-3.5" />
-                          Salin Grafik
-                        </button>
-                      )}
+              return (
+                <Card key={qIdx} className="shadow-sm">
+                  <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
+                    <div>
+                      <CardTitle className="text-h6 font-heading">
+                        {qIdx + 1}. {questionTitle}
+                      </CardTitle>
+                      <CardDescription className="text-body-xs font-medium mt-1">
+                        {allAnswers.length} responses
+                      </CardDescription>
                     </div>
 
-                    {/* Content visualization */}
+                    {isChoiceType && slices.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            `${questionTitle}:\n` + slices.map((s) => `- ${s.label}: ${s.count} (${s.percentage}%)`).join("\n")
+                          );
+                          toast.success("Data grafik disalin ke clipboard!");
+                        }}
+                        className="text-primary hover:text-primary gap-1 text-body-xs font-semibold"
+                      >
+                        <Copy className="size-3.5" />
+                        Salin Grafik
+                      </Button>
+                    )}
+                  </CardHeader>
+
+                  <CardContent>
                     {allAnswers.length === 0 ? (
-                      <p className="text-body-xs text-muted-foreground italic bg-muted/20 p-4 rounded-xl">
+                      <p className="text-body-xs text-muted-foreground italic bg-muted/30 p-4 rounded-lg">
                         Belum ada jawaban untuk pertanyaan ini.
                       </p>
                     ) : isChoiceType ? (
                       <SimpleSvgPieChart slices={slices} />
                     ) : q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX" ? (
-                      <div className="overflow-x-auto rounded-xl border border-border bg-card p-4">
+                      <div className="overflow-x-auto rounded-lg border border-border bg-card p-4">
                         <table className="w-full text-left text-body-xs">
                           <thead>
                             <tr className="border-b border-border bg-muted/40">
@@ -631,13 +595,12 @@ export default function DetailedFormAnalyticsPage({
 
                                   return (
                                     <td key={cIdx} className="p-2.5 text-center">
-                                      <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-body-2xs font-bold ${
-                                        matchCount > 0
-                                          ? "bg-brand-primary/15 text-brand-primary border border-brand-primary/20"
-                                          : "text-muted-foreground bg-muted/30"
-                                      }`}>
+                                      <Badge
+                                        variant="secondary"
+                                        className={matchCount > 0 ? "bg-primary/15 text-primary" : "text-muted-foreground bg-muted/30"}
+                                      >
                                         {matchCount} ({pct}%)
-                                      </span>
+                                      </Badge>
                                     </td>
                                   );
                                 })}
@@ -649,15 +612,15 @@ export default function DetailedFormAnalyticsPage({
                     ) : q.type === "FILE_UPLOAD" ? (
                       <div className="space-y-2">
                         {allAnswers.map((fileUrl: any, fIdx: number) => (
-                          <div key={fIdx} className="flex items-center justify-between rounded-xl border border-border bg-muted/30 p-3 text-body-xs">
-                            <span className="font-semibold text-foreground truncate max-w-md">
+                          <div key={fIdx} className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3 text-body-xs">
+                            <span className="font-medium text-foreground truncate max-w-md">
                               📄 {String(fileUrl)}
                             </span>
                             <a
                               href={String(fileUrl)}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-brand-primary font-bold hover:underline"
+                              className="inline-flex items-center gap-1 text-primary font-semibold hover:underline"
                             >
                               Buka File <ExternalLink className="size-3" />
                             </a>
@@ -665,102 +628,99 @@ export default function DetailedFormAnalyticsPage({
                         ))}
                       </div>
                     ) : (
-                      /* Text & List answers */
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                         {allAnswers.map((ans: any, aIdx: number) => (
                           <div
                             key={aIdx}
-                            className="rounded-xl border border-border/80 bg-muted/20 p-3 text-body-xs font-medium text-foreground"
+                            className="rounded-lg border border-border/80 bg-muted/20 p-3 text-body-xs font-medium text-foreground"
                           >
                             <RenderFormattedAnswer val={ans} />
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
-                );
-              })}
+                  </CardContent>
+                </Card>
+              );
+            })}
 
-              {/* Structured Response Matrix Table Section */}
-              <section className="space-y-4 pt-4 border-t border-border">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div>
-                    <h3 className="font-heading text-h5 font-bold text-foreground">
-                      Spreadsheet Jawaban Responden
-                    </h3>
-                    <p className="text-body-xs text-muted-foreground">
-                      Tabel matriks terstruktur seluruh pengisian jawaban.
-                    </p>
-                  </div>
-
-                  <div className="relative w-full sm:w-72">
-                    <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder="Cari email / kata kunci..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-xl border border-input bg-card pl-9 pr-4 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                  </div>
+            {/* Spreadsheet Matrix Section */}
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <CardTitle className="text-h5 font-heading">
+                    Spreadsheet Jawaban Responden
+                  </CardTitle>
+                  <CardDescription className="text-body-xs">
+                    Tabel matriks terstruktur seluruh pengisian jawaban.
+                  </CardDescription>
                 </div>
 
-                <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-body-xs">
-                      <thead className="border-b border-border bg-muted/60 text-muted-foreground font-semibold">
-                        <tr>
-                          <th className="px-4 py-3 whitespace-nowrap">Timestamp</th>
-                          <th className="px-4 py-3 whitespace-nowrap">Responden</th>
-                          {(form.questions || []).map((q: any, i: number) => (
-                            <th key={i} className="px-4 py-3 min-w-[180px]">
-                              {q.title || `Soal #${i + 1}`}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {filteredResponses.map((row) => (
-                          <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap font-mono">
-                              {formatIsoDate(new Date(row.submittedAt))}
-                            </td>
-                            <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
-                              {row.responderEmail || "Anonim"}
-                            </td>
-                            {(form.questions || []).map((q: any, i: number) => {
-                              const val = row.answers[i] ?? row.answers[q.title] ?? "-";
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Cari email / kata kunci..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9 text-body-xs"
+                  />
+                </div>
+              </CardHeader>
 
-                              return (
-                                <td key={i} className="px-4 py-3 text-foreground font-medium max-w-xs truncate">
-                                  <RenderFormattedAnswer val={val} />
-                                </td>
-                              );
-                            })}
-                          </tr>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto border-t border-border">
+                  <table className="w-full text-left text-body-xs">
+                    <thead className="border-b border-border bg-muted/60 text-muted-foreground font-semibold">
+                      <tr>
+                        <th className="px-4 py-3 whitespace-nowrap">Timestamp</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Responden</th>
+                        {(form.questions || []).map((q: any, i: number) => (
+                          <th key={i} className="px-4 py-3 min-w-[180px]">
+                            {q.title || `Soal #${i + 1}`}
+                          </th>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {filteredResponses.map((row) => (
+                        <tr key={row.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap font-mono text-body-2xs">
+                            {formatIsoDate(new Date(row.submittedAt))}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
+                            {row.responderEmail || "Anonim"}
+                          </td>
+                          {(form.questions || []).map((q: any, i: number) => {
+                            const val = row.answers[i] ?? row.answers[q.title] ?? "-";
+                            return (
+                              <td key={i} className="px-4 py-3 text-foreground font-medium max-w-xs truncate">
+                                <RenderFormattedAnswer val={val} />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </section>
-            </div>
-          )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          {/* TAB 2: QUESTION (PER PERTANYAAN) */}
-          {responseTab === "question" && (
-            <div className="space-y-6">
-              {/* Question Selector Bar */}
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex-1 space-y-1">
-                  <span className="text-body-2xs font-bold text-brand-primary uppercase tracking-wider">
+          {/* TAB 2: QUESTION */}
+          <TabsContent value="question" className="space-y-6 mt-0">
+            <Card className="shadow-sm">
+              <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex-1 space-y-1.5">
+                  <Label className="text-body-2xs font-bold text-primary uppercase tracking-wider">
                     Pertanyaan {selectedQIndex + 1} dari {(form.questions || []).length}
-                  </span>
+                  </Label>
                   <Select
                     value={selectedQIndex.toString()}
                     onValueChange={(val) => setSelectedQIndex(parseInt(val, 10))}
                   >
-                    <SelectTrigger className="w-full h-11 text-body-sm font-semibold">
+                    <SelectTrigger className="w-full text-body-sm font-medium">
                       <SelectValue placeholder="Pilih Pertanyaan" />
                     </SelectTrigger>
                     <SelectContent>
@@ -774,342 +734,363 @@ export default function DetailedFormAnalyticsPage({
                 </div>
 
                 <div className="flex items-center gap-2 self-end sm:self-center">
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     disabled={selectedQIndex === 0}
                     onClick={() => setSelectedQIndex((prev) => Math.max(0, prev - 1))}
-                    className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-2 text-body-xs font-semibold text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
                   >
                     <ChevronLeft className="size-4" /> Prev Soal
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     disabled={selectedQIndex === (form.questions || []).length - 1}
                     onClick={() => setSelectedQIndex((prev) => Math.min((form.questions || []).length - 1, prev + 1))}
-                    className="inline-flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-2 text-body-xs font-semibold text-foreground hover:bg-muted disabled:opacity-30 cursor-pointer"
                   >
                     Next Soal <ChevronRight className="size-4" />
-                  </button>
+                  </Button>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Inspector for Selected Question */}
-              {(() => {
-                const targetQ = (form.questions || [])[selectedQIndex];
-                if (!targetQ) return null;
-                const qTitle = targetQ.title || `Soal #${selectedQIndex + 1}`;
+            {(() => {
+              const targetQ = (form.questions || [])[selectedQIndex];
+              if (!targetQ) return null;
+              const qTitle = targetQ.title || `Soal #${selectedQIndex + 1}`;
 
-                const responsesForQ = responses.map((r) => ({
-                  responderEmail: r.responderEmail || "Anonim",
-                  submittedAt: r.submittedAt,
-                  answer: r.answers[selectedQIndex] ?? r.answers[qTitle],
-                })).filter((x) => x.answer !== undefined && x.answer !== null && x.answer !== "");
+              const responsesForQ = responses.map((r) => ({
+                responderEmail: r.responderEmail || "Anonim",
+                submittedAt: r.submittedAt,
+                answer: r.answers[selectedQIndex] ?? r.answers[qTitle],
+              })).filter((x) => x.answer !== undefined && x.answer !== null && x.answer !== "");
 
-                return (
-                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-                    <div className="border-b border-border pb-3">
-                      <h3 className="font-heading text-h5 font-bold text-foreground">
-                        {selectedQIndex + 1}. {qTitle}
-                      </h3>
-                      <p className="text-body-xs text-muted-foreground mt-0.5 font-semibold">
-                        {responsesForQ.length} responses tercatat
-                      </p>
-                    </div>
-                    <div className="space-y-3">
-                      {responsesForQ.map((item, idx) => (
-                        <div key={idx} className="rounded-xl border border-border bg-muted/20 p-4 space-y-1">
-                          <div className="flex items-center justify-between text-body-2xs font-semibold text-muted-foreground">
-                            <span>Responden: {item.responderEmail}</span>
-                            <span className="font-mono">{formatIsoDate(new Date(item.submittedAt))}</span>
-                          </div>
-                          <div className="pt-1">
-                            <RenderFormattedAnswer val={item.answer} />
-                          </div>
+              return (
+                <Card className="shadow-sm">
+                  <CardHeader className="border-b border-border pb-3">
+                    <CardTitle className="text-h5 font-heading">
+                      {selectedQIndex + 1}. {qTitle}
+                    </CardTitle>
+                    <CardDescription className="text-body-xs font-semibold">
+                      {responsesForQ.length} responses tercatat
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-3">
+                    {responsesForQ.map((item, idx) => (
+                      <div key={idx} className="rounded-lg border border-border bg-muted/20 p-4 space-y-1.5">
+                        <div className="flex items-center justify-between text-body-2xs font-medium text-muted-foreground">
+                          <span>Responden: {item.responderEmail}</span>
+                          <span className="font-mono">{formatIsoDate(new Date(item.submittedAt))}</span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
+                        <div className="pt-1">
+                          <RenderFormattedAnswer val={item.answer} />
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })()}
+          </TabsContent>
 
-          {/* TAB 3: INDIVIDUAL (PER RESPONDEN) */}
-          {responseTab === "individual" && (
-            <div className="space-y-6">
-              {responses.length === 0 ? (
-                <div className="rounded-2xl border border-border bg-card p-12 text-center text-muted-foreground">
-                  Belum ada respon yang masuk.
-                </div>
-              ) : (
-                <>
-                  {/* Respondent Switcher Header */}
-                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* TAB 3: INDIVIDUAL */}
+          <TabsContent value="individual" className="space-y-6 mt-0">
+            {responses.length === 0 ? (
+              <Card className="p-12 text-center text-muted-foreground text-body-sm">
+                Belum ada respon yang masuk.
+              </Card>
+            ) : (
+              <>
+                <Card className="shadow-sm">
+                  <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
                         disabled={individualIndex === 0}
                         onClick={() => setIndividualIndex((prev) => Math.max(0, prev - 1))}
-                        className="p-2 rounded-xl border border-border bg-background hover:bg-muted disabled:opacity-30 cursor-pointer"
                       >
-                        <ChevronLeft className="size-5" />
-                      </button>
-                      <span className="text-body-sm font-semibold text-foreground">
+                        <ChevronLeft className="size-4" />
+                      </Button>
+                      <span className="text-body-sm font-semibold text-foreground px-2">
                         Responden {individualIndex + 1} dari {responses.length}
                       </span>
-                      <button
-                        type="button"
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
                         disabled={individualIndex === responses.length - 1}
                         onClick={() => setIndividualIndex((prev) => Math.min(responses.length - 1, prev + 1))}
-                        className="p-2 rounded-xl border border-border bg-background hover:bg-muted disabled:opacity-30 cursor-pointer"
                       >
-                        <ChevronRight className="size-5" />
-                      </button>
+                        <ChevronRight className="size-4" />
+                      </Button>
                     </div>
 
                     <div className="text-right text-body-xs">
-                      <p className="font-bold text-foreground">{responses[individualIndex]?.responderEmail || "Anonim"}</p>
+                      <p className="font-semibold text-foreground">{responses[individualIndex]?.responderEmail || "Anonim"}</p>
                       <p className="text-muted-foreground font-mono text-body-2xs">
                         {formatIsoDate(new Date(responses[individualIndex]?.submittedAt))}
                       </p>
                     </div>
-                  </div>
+                  </CardContent>
+                </Card>
 
-                  {/* Individual Respondent Form View */}
-                  {(() => {
-                    const currentResp = responses[individualIndex];
-                    if (!currentResp) return null;
+                {(() => {
+                  const currentResp = responses[individualIndex];
+                  if (!currentResp) return null;
 
-                    return (
-                      <div className="space-y-4">
-                        {(form.questions || []).map((q: any, qIdx: number) => {
-                          const qTitle = q.title || `Soal #${qIdx + 1}`;
-                          const userAns = currentResp.answers[qIdx] ?? currentResp.answers[qTitle];
+                  return (
+                    <div className="space-y-4">
+                      {(form.questions || []).map((q: any, qIdx: number) => {
+                        const qTitle = q.title || `Soal #${qIdx + 1}`;
+                        const userAns = currentResp.answers[qIdx] ?? currentResp.answers[qTitle];
 
-                          return (
-                            <div key={qIdx} className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-2">
-                              <h4 className="font-heading text-h6 font-semibold text-foreground">
+                        return (
+                          <Card key={qIdx} className="shadow-sm">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-h6 font-heading">
                                 {qIdx + 1}. {qTitle}
-                              </h4>
+                              </CardTitle>
                               {q.description && (
-                                <p className="text-body-xs text-muted-foreground">{q.description}</p>
+                                <CardDescription className="text-body-xs">{q.description}</CardDescription>
                               )}
+                            </CardHeader>
+                            <CardContent className="pt-2">
+                              <RenderFormattedAnswer val={userAns} />
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </TabsContent>
 
-                              <div className="pt-2">
-                                <RenderFormattedAnswer val={userAns} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </>
-              )}
-            </div>
-          )}
+          {/* TAB 4: SETTINGS */}
+          <TabsContent value="settings" className="w-full space-y-6 mt-0">
+            {/* Header / Save Action Bar */}
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="text-h5 font-heading">
+                    Pengaturan Tanggapan & Akses
+                  </CardTitle>
+                  <CardDescription className="text-body-xs mt-1">
+                    Perbarui status penerimaan tanggapan, jadwal buka/tutup, dan batasan respon formulir ({form.title}).
+                  </CardDescription>
+                </div>
 
-          {/* TAB 4: SETTINGS (PENGATURAN FORMULIR DITERBITKAN) */}
-          {responseTab === "settings" && (
-            <div className="space-y-6 max-w-3xl">
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
-                <div className="flex items-center justify-between border-b border-border pb-4">
-                  <div>
-                    <h2 className="font-heading text-h5 font-bold text-foreground">
-                      Pengaturan Tanggapan & Akses ({form.title})
-                    </h2>
-                    <p className="text-body-xs text-muted-foreground mt-0.5">
-                      Perbarui status penerimaan tanggapan, jadwal buka/tutup, dan batasan respon.
+                <Button
+                  onClick={handleSaveSettings}
+                  disabled={savingSettings}
+                  isLoading={savingSettings}
+                  size="marketing"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                >
+                  {savingSettings ? "Menyimpan..." : "Simpan Perubahan Settings"}
+                </Button>
+              </CardHeader>
+            </Card>
+
+            {/* 1. Status & Schedule */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-h6 font-heading uppercase text-body-2xs text-primary tracking-wider">
+                  Menerima Tanggapan & Jadwal (Status Form)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4 gap-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="accepting-responses" className="text-body-sm font-semibold cursor-pointer">
+                      Menerima Tanggapan (Accepting Responses)
+                    </Label>
+                    <p className="text-body-xs text-muted-foreground">
+                      Aktifkan untuk mengizinkan responden mengisi formulir ini.
                     </p>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={handleSaveSettings}
-                    disabled={savingSettings}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-body-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
-                  >
-                    <RefreshCw className={`size-3.5 ${savingSettings ? "animate-spin" : "hidden"}`} />
-                    {savingSettings ? "Menyimpan..." : "Simpan Perubahan Settings"}
-                  </button>
+                  <Switch
+                    id="accepting-responses"
+                    checked={formSettings.acceptingResponses ?? true}
+                    onCheckedChange={(checked) => setFormSettings({ ...formSettings, acceptingResponses: checked })}
+                  />
                 </div>
 
-                {/* 1. Menerima Tanggapan & Jadwal Tutup/Buka */}
-                <div className="space-y-4">
-                  <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-                    Menerima Tanggapan & Jadwal (Status Form)
-                  </p>
-
-                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
-                    <div>
-                      <p className="text-body-sm font-semibold text-foreground">Menerima Tanggapan (Accepting Responses)</p>
-                      <p className="text-body-xs text-muted-foreground">Aktifkan untuk mengizinkan responden mengisi formulir ini.</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={formSettings.acceptingResponses ?? true}
-                      onChange={(e) => setFormSettings({ ...formSettings, acceptingResponses: e.target.checked })}
-                      className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="open-at" className="text-body-sm font-semibold">
+                      Jadwal Otomatis Buka (openAt)
+                    </Label>
+                    <Input
+                      id="open-at"
+                      type="datetime-local"
+                      value={formSettings.openAt || ""}
+                      onChange={(e) => setFormSettings({ ...formSettings, openAt: e.target.value })}
+                      className="text-body-sm"
                     />
+                    <p className="text-body-xs text-muted-foreground">Kosongkan jika selalu dibuka.</p>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-body-xs font-semibold text-foreground mb-1">
-                        Jadwal Otomatis Buka (openAt)
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={formSettings.openAt || ""}
-                        onChange={(e) => setFormSettings({ ...formSettings, openAt: e.target.value })}
-                        className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      />
-                      <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-body-xs font-semibold text-foreground mb-1">
-                        Jadwal Otomatis Tutup (closeAt)
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={formSettings.closeAt || ""}
-                        onChange={(e) => setFormSettings({ ...formSettings, closeAt: e.target.value })}
-                        className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      />
-                      <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-body-xs font-semibold text-foreground mb-1">
-                      Pesan Saat Formulir Ditutup (Closed Message)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={formSettings.closedMessage || ""}
-                      onChange={(e) => setFormSettings({ ...formSettings, closedMessage: e.target.value })}
-                      placeholder="Formulir ini telah ditutup dan tidak lagi menerima tanggapan."
-                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                  <div className="space-y-1.5">
+                    <Label htmlFor="close-at" className="text-body-sm font-semibold">
+                      Jadwal Otomatis Tutup (closeAt)
+                    </Label>
+                    <Input
+                      id="close-at"
+                      type="datetime-local"
+                      value={formSettings.closeAt || ""}
+                      onChange={(e) => setFormSettings({ ...formSettings, closeAt: e.target.value })}
+                      className="text-body-sm"
                     />
+                    <p className="text-body-xs text-muted-foreground">Kosongkan jika selalu dibuka.</p>
                   </div>
                 </div>
 
-                {/* 2. Collect Email & Privacy */}
-                <div className="space-y-4 border-t border-border/60 pt-4">
-                  <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-                    Pengumpulan Alamat Email & Autentikasi
-                  </p>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-body-xs font-semibold text-foreground mb-1">
-                        Collect email addresses
-                      </label>
-                      <Select
-                        value={formSettings.collectEmail || "none"}
-                        onValueChange={(val: any) => setFormSettings({ ...formSettings, collectEmail: val })}
-                      >
-                        <SelectTrigger className="w-full h-10 text-body-xs">
-                          <SelectValue placeholder="Pilih Pengumpulan Email" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Do not collect (Tidak dikumpulkan)</SelectItem>
-                          <SelectItem value="input">Responder input (Diisi manual)</SelectItem>
-                          <SelectItem value="verified">Verified (Verifikasi Akun Zyx)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <label className="block text-body-xs font-semibold text-foreground mb-1">
-                        Send responders a copy of their response
-                      </label>
-                      <Select
-                        value={formSettings.sendResponseCopy || "off"}
-                        onValueChange={(val: any) => setFormSettings({ ...formSettings, sendResponseCopy: val })}
-                      >
-                        <SelectTrigger className="w-full h-10 text-body-xs">
-                          <SelectValue placeholder="Kirim Salinan Respon" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="off">Off (Mati)</SelectItem>
-                          <SelectItem value="requested">When requested (Saat diminta)</SelectItem>
-                          <SelectItem value="always">Always (Selalu dikirim)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
-                    <div>
-                      <p className="text-body-sm font-semibold text-foreground">Allow response editing</p>
-                      <p className="text-body-xs text-muted-foreground">Respon dapat diubah kembali setelah dikirimkan.</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={formSettings.allowResponseEditing ?? false}
-                      onChange={(e) => setFormSettings({ ...formSettings, allowResponseEditing: e.target.checked })}
-                      className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
-                    <div>
-                      <p className="text-body-sm font-semibold text-foreground">Limit to 1 response (Requires Sign in)</p>
-                      <p className="text-body-xs text-muted-foreground">Membatasi responden hanya boleh mengisi 1 kali pengisian.</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={formSettings.limitToOneResponse ?? false}
-                      onChange={(e) => setFormSettings({ ...formSettings, limitToOneResponse: e.target.checked })}
-                      className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
-                    />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="closed-message" className="text-body-sm font-semibold">
+                    Pesan Saat Formulir Ditutup (Closed Message)
+                  </Label>
+                  <Textarea
+                    id="closed-message"
+                    rows={2}
+                    value={formSettings.closedMessage || ""}
+                    onChange={(e) => setFormSettings({ ...formSettings, closedMessage: e.target.value })}
+                    placeholder="Formulir ini telah ditutup dan tidak lagi menerima tanggapan."
+                    className="text-body-sm resize-y"
+                  />
+                  <p className="text-body-xs text-muted-foreground">Pesan yang ditampilkan jika formulir tidak menerima tanggapan.</p>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* 3. File Upload Limits & Presentation */}
-                <div className="space-y-4 border-t border-border/60 pt-4">
-                  <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-                    Batas Ukuran File Upload & Tampilan
-                  </p>
-
-                  <div>
-                    <label className="block text-body-xs font-semibold text-foreground mb-1">
-                      Total size limit for all uploaded files
-                    </label>
+            {/* 2. Authentication & Response Rules */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-h6 font-heading uppercase text-body-2xs text-primary tracking-wider">
+                  Pengumpulan Alamat Email & Autentikasi
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-body-sm font-semibold">
+                      Collect email addresses
+                    </Label>
                     <Select
-                      value={formSettings.maxFileSizeLimit || "1GB"}
-                      onValueChange={(val: any) => setFormSettings({ ...formSettings, maxFileSizeLimit: val })}
+                      value={formSettings.collectEmail || "none"}
+                      onValueChange={(val: any) => setFormSettings({ ...formSettings, collectEmail: val })}
                     >
-                      <SelectTrigger className="w-full sm:w-1/2 h-10 text-body-xs">
-                        <SelectValue placeholder="Batas Ukuran File" />
+                      <SelectTrigger className="w-full text-body-sm">
+                        <SelectValue placeholder="Pilih Pengumpulan Email" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1GB">1 GB</SelectItem>
-                        <SelectItem value="10GB">10 GB</SelectItem>
-                        <SelectItem value="100GB">100 GB</SelectItem>
+                        <SelectItem value="none">Do not collect (Tidak dikumpulkan)</SelectItem>
+                        <SelectItem value="input">Responder input (Diisi manual)</SelectItem>
+                        <SelectItem value="verified">Verified (Verifikasi Akun Zyx)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div>
-                    <label className="block text-body-xs font-semibold text-foreground mb-1">
-                      Pesan Konfirmasi Setelah Submit (Presentation)
-                    </label>
-                    <input
-                      type="text"
-                      value={formSettings.customSuccessMessage || ""}
-                      onChange={(e) => setFormSettings({ ...formSettings, customSuccessMessage: e.target.value })}
-                      placeholder="Jawaban Anda telah berhasil disimpan."
-                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-body-sm font-semibold">
+                      Send responders a copy of their response
+                    </Label>
+                    <Select
+                      value={formSettings.sendResponseCopy || "off"}
+                      onValueChange={(val: any) => setFormSettings({ ...formSettings, sendResponseCopy: val })}
+                    >
+                      <SelectTrigger className="w-full text-body-sm">
+                        <SelectValue placeholder="Kirim Salinan Respon" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="off">Off (Mati)</SelectItem>
+                        <SelectItem value="requested">When requested (Saat diminta)</SelectItem>
+                        <SelectItem value="always">Always (Selalu dikirim)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
+
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4 gap-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="allow-editing" className="text-body-sm font-semibold cursor-pointer">
+                      Allow response editing
+                    </Label>
+                    <p className="text-body-xs text-muted-foreground">
+                      Respon dapat diubah kembali oleh responden setelah dikirimkan.
+                    </p>
+                  </div>
+                  <Switch
+                    id="allow-editing"
+                    checked={formSettings.allowResponseEditing ?? false}
+                    onCheckedChange={(checked) => setFormSettings({ ...formSettings, allowResponseEditing: checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4 gap-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="limit-one" className="text-body-sm font-semibold cursor-pointer">
+                      Limit to 1 response (Requires Sign in)
+                    </Label>
+                    <p className="text-body-xs text-muted-foreground">
+                      Membatasi responden hanya boleh mengisi 1 kali pengisian.
+                    </p>
+                  </div>
+                  <Switch
+                    id="limit-one"
+                    checked={formSettings.limitToOneResponse ?? false}
+                    onCheckedChange={(checked) => setFormSettings({ ...formSettings, limitToOneResponse: checked })}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 3. Storage & Presentation */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-h6 font-heading uppercase text-body-2xs text-primary tracking-wider">
+                  Batas Ukuran File Upload & Tampilan
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-1.5">
+                  <Label className="text-body-sm font-semibold">
+                    Total size limit for all uploaded files
+                  </Label>
+                  <Select
+                    value={formSettings.maxFileSizeLimit || "1GB"}
+                    onValueChange={(val: any) => setFormSettings({ ...formSettings, maxFileSizeLimit: val })}
+                  >
+                    <SelectTrigger className="w-full sm:w-1/2 text-body-sm">
+                      <SelectValue placeholder="Batas Ukuran File" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1GB">1 GB</SelectItem>
+                      <SelectItem value="10GB">10 GB</SelectItem>
+                      <SelectItem value="100GB">100 GB</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="custom-success" className="text-body-sm font-semibold">
+                    Pesan Konfirmasi Setelah Submit (Presentation)
+                  </Label>
+                  <Input
+                    id="custom-success"
+                    type="text"
+                    value={formSettings.customSuccessMessage || ""}
+                    onChange={(e) => setFormSettings({ ...formSettings, customSuccessMessage: e.target.value })}
+                    placeholder="Jawaban Anda telah berhasil disimpan."
+                    className="text-body-sm"
+                  />
+                  <p className="text-body-xs text-muted-foreground">Pesan yang ditampilkan setelah responden selesai mengirimkan formulir.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
     </Reveal>
   );

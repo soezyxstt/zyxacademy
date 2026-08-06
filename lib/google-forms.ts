@@ -154,6 +154,7 @@ export interface CreateCustomQuestionInput {
  */
 export async function getGoogleFormsAccessToken(): Promise<string> {
   const refreshToken =
+    process.env.GOOGLE_REFRESH_TOKEN?.trim() ||
     process.env.GOOGLE_FORMS_REFRESH_TOKEN?.trim() ||
     process.env.GOOGLE_MEET_REFRESH_TOKEN?.trim();
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
@@ -161,7 +162,7 @@ export async function getGoogleFormsAccessToken(): Promise<string> {
 
   if (!refreshToken) {
     throw new Error(
-      "Missing GOOGLE_FORMS_REFRESH_TOKEN or GOOGLE_MEET_REFRESH_TOKEN in environment variables."
+      "Missing GOOGLE_REFRESH_TOKEN (or GOOGLE_FORMS_REFRESH_TOKEN / GOOGLE_MEET_REFRESH_TOKEN) in environment variables."
     );
   }
   if (!clientId || !clientSecret) {

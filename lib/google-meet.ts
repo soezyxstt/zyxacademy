@@ -183,12 +183,16 @@ export interface ComprehensiveMeetingAnalytics {
  * Exchanges the master `GOOGLE_MEET_REFRESH_TOKEN` for a fresh OAuth2 access token.
  */
 export async function getGoogleMeetAccessToken(): Promise<string> {
-  const refreshToken = process.env.GOOGLE_MEET_REFRESH_TOKEN?.trim();
+  const refreshToken =
+    process.env.GOOGLE_REFRESH_TOKEN?.trim() ||
+    process.env.GOOGLE_MEET_REFRESH_TOKEN?.trim();
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 
   if (!refreshToken) {
-    throw new Error("Missing GOOGLE_MEET_REFRESH_TOKEN in environment variables.");
+    throw new Error(
+      "Missing GOOGLE_REFRESH_TOKEN (or GOOGLE_MEET_REFRESH_TOKEN) in environment variables."
+    );
   }
   if (!clientId || !clientSecret) {
     throw new Error("Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in environment variables.");

@@ -334,7 +334,12 @@ export default function AdminFormsPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/storage/upload", {
+      if (title) {
+        formData.append("formTitle", title);
+      }
+      formData.append("questionNumber", String(qIndex + 1));
+
+      const res = await fetch("/api/forms/upload", {
         method: "POST",
         body: formData,
       });

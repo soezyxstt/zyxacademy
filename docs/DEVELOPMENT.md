@@ -62,6 +62,7 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `BETTER_AUTH_SECRET` ; 32+ char high-entropy secret (`openssl rand -base64 32`)
 - `BETTER_AUTH_URL` ; app origin for OAuth callbacks
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ; Google OAuth
+- `GOOGLE_REFRESH_TOKEN` ; Unified Google OAuth refresh token for Meet, Forms, Sheets, Drive (fallbacks: `GOOGLE_MEET_REFRESH_TOKEN`, `GOOGLE_FORMS_REFRESH_TOKEN`)
 - `UPLOADTHING_TOKEN` ; UploadThing API token
 - `GEMINI_API_KEY` ; Google Gemini API key (4-key rotation supported)
 - `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` ; Inngest job queue

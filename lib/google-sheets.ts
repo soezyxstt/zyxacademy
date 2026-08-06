@@ -56,7 +56,7 @@ export async function createGoogleSpreadsheet(
     ],
   };
 
-  const res = await fetch("https://sheets.googleapis.com/v1/spreadsheets", {
+  const res = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -68,7 +68,20 @@ export async function createGoogleSpreadsheet(
   if (!res.ok) {
     const errorBody = await res.text();
     console.error("Google Sheets API Error:", errorBody);
-    throw new Error(`Google Sheets API error (${res.status}): ${errorBody}`);
+    if (errorBody.trim().startsWith("<!DOCTYPE html>") || errorBody.includes("<html")) {
+      throw new Error(
+        `Google Sheets API returned an HTML error page (${res.status}). Please verify that Google Sheets API is enabled in your Google Cloud Console project and that your OAuth refresh token has the 'https://www.googleapis.com/auth/spreadsheets' scope.`
+      );
+    }
+    try {
+      const parsed = JSON.parse(errorBody);
+      if (parsed.error?.message) {
+        throw new Error(`Google Sheets API error (${res.status}): ${parsed.error.message}`);
+      }
+    } catch (e: any) {
+      if (e.message?.startsWith("Google Sheets API error")) throw e;
+    }
+    throw new Error(`Google Sheets API error (${res.status}): ${errorBody.slice(0, 300)}`);
   }
 
   const data = await res.json();

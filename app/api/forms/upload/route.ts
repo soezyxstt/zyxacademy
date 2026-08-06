@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { storage } from "@/lib/storage";
+import { buildFormStorageKey } from "@/lib/forms/storage-utils";
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File;
+    const formTitle = (formData.get("formTitle") as string | null) || undefined;
+    const formSlug = (formData.get("formSlug") as string | null) || undefined;
+    const questionNumber = (formData.get("questionNumber") as string | null) || undefined;
 
     if (!file) {
       return NextResponse.json({ error: "File tidak ditemukan." }, { status: 400 });
@@ -16,8 +20,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Ukuran berkas melebihi batas 50MB." }, { status: 400 });
     }
 
-    // Upload to active storage provider (R2 / UploadThing)
-    const uploadRes = await storage.upload(file, file.name, file.type);
+    // Build structured storage key: forms/[judul-forms]/question-[number]/[filename]
+    const customKey = buildFormStorageKey({
+      formTitle,
+      formSlug,
+      questionNumber,
+      filename: file.name,
+    });
+
+    // Upload to active storage provider (R2 / UploadThing) using custom key
+    const uploadRes = await storage.upload(file, file.name, file.type, { key: customKey });
     const publicUrl = storage.getUrl(uploadRes.key);
 
     return NextResponse.json({
@@ -30,3 +42,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message || "Gagal mengunggah berkas." }, { status: 500 });
   }
 }
+

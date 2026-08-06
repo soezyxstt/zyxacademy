@@ -197,6 +197,14 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      if (form?.title) {
+        formData.append("formTitle", form.title);
+      }
+      if (form?.slug || form?.id) {
+        formData.append("formSlug", form.slug || form.id);
+      }
+      formData.append("questionNumber", String(qIdx + 1));
+
       const res = await fetch("/api/forms/upload", {
         method: "POST",
         body: formData,
