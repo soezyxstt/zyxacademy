@@ -128,6 +128,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("courseId", form.courseId);
 
       const res = await fetch("/api/admin/upload-pdf", { method: "POST", body: fd });
       if (!res.ok) {

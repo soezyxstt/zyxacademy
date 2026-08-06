@@ -237,6 +237,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
     setPdfFileName(file.name);
     const fd = new FormData();
     fd.append("file", file);
+    fd.append("courseId", form.courseId);
 
     try {
       const res = await fetch("/api/admin/upload-pdf", { method: "POST", body: fd });

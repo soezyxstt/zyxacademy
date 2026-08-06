@@ -5,13 +5,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import type { StorageProvider } from "./index";
+import { assertSafeKey, INVALID_OBJECT_KEY } from "./keys";
 
 const execFileAsync = promisify(execFile);
 
 function objectPath(bucket: string, key: string): string {
-  if (!key || key.startsWith("/") || key.includes("\\") || key.includes("..")) {
-    throw new Error("WRANGLER_R2_INVALID_OBJECT_KEY");
-  }
+  assertSafeKey(key);
   return `${bucket}/${key}`;
 }
 
@@ -65,7 +64,9 @@ export class WranglerR2Provider implements StorageProvider {
     options?: any
   ): Promise<{ url: string; key: string; size: number }> {
     const bytes = await asBytes(file);
-    const key = options?.key || `${randomUUID()}-${filename.replace(/\s+/g, "_")}`;
+    const key = options?.key;
+    if (!key) throw new Error(INVALID_OBJECT_KEY);
+    assertSafeKey(key);
     const target = objectPath(this.bucket, key);
     await this.withTempFile(".upload", async (filePath) => {
       await writeFile(/* turbopackIgnore: true */ filePath, bytes);

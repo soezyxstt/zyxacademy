@@ -14,6 +14,17 @@ function extractFileKeyFromUrl(url: string): string | null {
   return parts.length > 1 ? parts[1] : url;
 }
 
+const CONFORMING_DOMAINS = ['courses', 'blog', 'forms', 'pka', 'overhaul', 'uploads'];
+
+/** Structured keys look like `{domain}/{entity-slug}/{subfolder...}/{leaf}`. */
+function isConformingKey(key: string): boolean {
+  const parts = key.split('/').filter(Boolean);
+  if (parts.length < 2) return false;
+  if (!CONFORMING_DOMAINS.includes(parts[0])) return false;
+  if (parts[0] === 'courses') return parts.length >= 3;
+  return true;
+}
+
 interface LinkCheckResult {
   id: string;
   name: string;
@@ -21,6 +32,7 @@ interface LinkCheckResult {
   url: string;
   httpStatus: number | string;
   pass: boolean;
+  conforms: boolean;
 }
 
 async function main() {
@@ -52,6 +64,7 @@ async function main() {
         url: 'N/A',
         httpStatus: 'No URL/Key',
         pass: false,
+        conforms: false,
       });
       overallPass = false;
       continue;
@@ -79,6 +92,7 @@ async function main() {
       url: publicUrl,
       httpStatus: status,
       pass,
+      conforms: isConformingKey(cleanKey),
     });
   }
 
@@ -109,6 +123,7 @@ async function main() {
       url: publicUrl,
       httpStatus: status,
       pass,
+      conforms: isConformingKey(cleanKey),
     });
   }
 
@@ -119,6 +134,7 @@ async function main() {
       Name: r.name.slice(0, 30),
       URL: r.url.slice(0, 60),
       'HTTP Status': r.httpStatus,
+      'Conforms': r.conforms ? 'YES' : 'NO',
       Result: r.pass ? 'PASS' : 'FAIL',
     }))
   );

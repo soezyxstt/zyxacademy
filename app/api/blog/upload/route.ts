@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { storage } from "@/lib/storage";
+import { joinKey, userFileLeaf } from "@/lib/storage/keys";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm"];
 const MAX_SIZE_MB = 20;
@@ -24,9 +25,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `File size exceeds the ${MAX_SIZE_MB}MB limit.` }, { status: 400 });
     }
 
-    const timestamp = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-    const key = `blog/${timestamp}-${safeName}`;
+    const key = joinKey("blog", userFileLeaf(file.name));
 
     // Upload to R2 via generic storage interface (pass standard File directly)
     const result = await storage.upload(file, key, file.type, { key });

@@ -7,8 +7,8 @@ import {
   GetObjectCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { randomUUID } from "node:crypto";
 import type { StorageProvider } from "./index";
+import { assertSafeKey, INVALID_OBJECT_KEY } from "./keys";
 
 export class R2Provider implements StorageProvider {
   private s3: S3Client;
@@ -35,8 +35,11 @@ export class R2Provider implements StorageProvider {
     mimeType: string,
     options?: any
   ): Promise<{ url: string; key: string; size: number }> {
-    // Generate a unique storage key if not provided to avoid collision
-    const key = options?.key || `${randomUUID()}-${filename.replace(/\s+/g, "_")}`;
+    // Keys are structured (`{domain}/{entity-slug}/{subfolder...}/{leaf}`); the
+    // caller must always pass an explicit safe key.
+    const key = options?.key;
+    if (!key) throw new Error(INVALID_OBJECT_KEY);
+    assertSafeKey(key);
     
     let body: Uint8Array;
     let size: number;

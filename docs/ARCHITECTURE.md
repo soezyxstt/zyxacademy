@@ -396,7 +396,7 @@ The compatibility submit route keeps the legacy quiz as the source of the user-v
 #### Admin Drive
 | Table | Purpose |
 |---|---|
-| `drive_item` | Folder tree + file pointers (folder\|file, uploadthingKey, ufsUrl, mimeType, sizeBytes) |
+| `drive_item` | Legacy read-only file pointers (folder\|file, uploadthingKey, ufsUrl, mimeType, sizeBytes); the admin drive is now a read-only browser over R2 domain prefixes and no longer accepts uploads or folder writes |
 
 #### Push Notifications
 | Table | Purpose |
@@ -409,9 +409,9 @@ The compatibility submit route keeps the legacy quiz as the source of the user-v
 ## 4. Upload & Ingestion Pipeline (vNext)
 
 ```
-Upload PDF via UploadThing or direct R2
+Upload PDF via direct R2 (structured object keys)
   │
-  ├──→ Admin Drive (/admin/files) ; Google-Drive-style folder tree
+  ├──→ Admin Drive (/admin/files) ; read-only browser over domain prefixes
   │
   ├──→ Create Master Teaching Document (MTD)
   │    ├── Select type: "learning" or "assessment"
@@ -756,7 +756,8 @@ FEATURE_REFLECTION_EMAIL, FEATURE_ADAPTIVE_QUIZ, FEATURE_PKA
 ```
 Upload PDF/Markdown
    │
-   ├──→ Admin Drive (drive_item table)
+   ├──→ R2 via structured object keys (lib/storage/keys.ts)
+   │    └──→ Admin Drive (/admin/files) ; read-only browser over domain prefixes
    │
    └──→ Create MTD (type: "learning" | "assessment")
          │

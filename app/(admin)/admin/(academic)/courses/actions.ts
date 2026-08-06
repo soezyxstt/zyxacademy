@@ -7,6 +7,7 @@ import { assertAdmin } from "@/lib/uploadthing-admin";
 import { eq, asc, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
+import { joinKey, slugifySegment, userFileLeaf } from "@/lib/storage/keys";
 
 export async function getCourses() {
   await assertAdmin();
@@ -274,8 +275,12 @@ export async function uploadCourseMaterial(
 
   try {
     const fileBuffer = Buffer.from(fileData.bufferBase64, "base64");
-    const fileExtension = fileData.name.split(".").pop() || "pdf";
-    const r2Key = `pdf-materials/${courseId}/${randomUUID()}.${fileExtension}`;
+    const r2Key = joinKey(
+      "courses",
+      slugifySegment(courseId),
+      "materials",
+      userFileLeaf(fileData.name)
+    );
     
     const uploadRes = await storage.upload(fileBuffer, r2Key, fileData.type);
     

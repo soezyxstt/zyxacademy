@@ -214,6 +214,44 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 
 ---
 
+## R2 Object Key Convention
+
+Every file uploaded to Cloudflare R2 MUST live under a structured, folder-style object key. Flat UUID keys, `{uuid}-{filename}` defaults, and ad hoc inline key building are forbidden.
+
+### Rules
+
+1. **One helper**: build every key through `lib/storage/keys.ts`. That file is the only place that sanitizes names and joins segments. Never re-implement `safeName` / `slugify` regexes inside a route, action, or component.
+2. **Key shape**: `{domain}/{entity-slug}/{subfolder...}/{leaf}`.
+   - `domain`: fixed lowercase top-level folder (`courses`, `blog`, `forms`, `pka`, `overhaul`, `uploads`).
+   - `entity-slug`: kebab-case slug of the owning record (course id, form title, user id, run id).
+   - `leaf` for user files: `{timestamp}-{short-hash}-{sanitized-original-filename}` so a re-upload of the same name never overwrites the previous object and the real filename stays visible.
+   - `leaf` for generated artifacts (diktat PDF, bundle ZIP): a stable name; versioning comes from run id or checksum and the old object is deleted on replace.
+3. **Preserve the real filename**: the leaf always ends with the sanitized original filename and its extension (e.g. `1719000000000-a1b2c3d4-materi-kelas.pdf`), never a bare UUID.
+4. **Reject unsafe keys**: any key containing `..`, a leading `/`, or `\` is invalid and the provider must throw (`INVALID_OBJECT_KEY`).
+5. **Provider enforcement**: `R2Provider.upload()` must require `options.key` and throw when it is missing. It must never fall back to a generated `${uuid}-${filename}` key.
+6. **Proxy filename**: `app/api/storage/file/[...key]/route.ts` must derive the download `Content-Disposition` filename with `leafFilename(key)` (last path segment minus the `{timestamp}-{hash}-` prefix), never a UUID-strip regex.
+
+### Canonical prefixes
+
+| Domain | Key pattern | Where |
+|--------|-------------|-------|
+| Course material PDF | `courses/{course-slug}/materials/{leaf}.pdf` | `uploadCourseMaterial` (`app/(admin)/admin/(academic)/courses/actions.ts`); `/api/admin/upload-pdf` when the client sends a `courseId` |
+| Generic admin PDF (no course context) | `uploads/{yyyy}/{mm}/{leaf}.pdf` | `/api/admin/upload-pdf` fallback when no `courseId` |
+| Course canonical markdown | `courses/{course-slug}/canonical/{leaf}.md` | `/api/admin/material-instances` |
+| Diktat PDF | `courses/{course-slug}/diktats/{title-slug}.pdf` | `lib/diktat-actions.ts` |
+| Blog media | `blog/{timestamp}-{hash}-{filename}` | `/api/blog/upload` |
+| Forms | `forms/{form-slug}/question-{n}/{leaf}` | `/api/forms/upload` (already correct; move its helpers into `lib/storage/keys.ts`) |
+| PKA follow proof | `pka/{userId}/proofs/{leaf}` | `registerPkaAction` (`app/(student)/courses/tutorial-pka/daftar/actions.ts`) |
+| Idea bundle | `overhaul/idea-bundles/{runId}/{bundleId}-{checksum16}.zip` | `lib/bundle/staging.ts` (already correct) |
+| Product bundle | `overhaul/product-bundles/{runId}/{bundleId}-{checksum16}.zip` | `lib/bundle/product-staging.ts` (already correct) |
+| Authoring pack | `overhaul/{runId}/authoring-context/{packId}.zip` | `lib/authoring/export.ts` (already correct) |
+
+When a new upload flow is added, reuse a domain above or add a new row to this table, and always route the key through `lib/storage/keys.ts`. Existing legacy keys stay readable in place; only new objects are written under the new convention.
+
+The admin drive (`/admin/files`) is a read-only browser over these domain prefixes; it accepts no uploads and owns no key prefix. Do not add a `drive/` write path.
+
+---
+
 ## Execution Rules
 
 1. Before writing code, read `db/schema.ts` and `lib/env.ts` for current schema/env state.
@@ -273,6 +311,7 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Plan 011 Per-Idea Mastery and Learning Loop completed**: Added deterministic per-Idea score and confidence calculation, append-only evidence identity, replay metadata, change history, compatibility reads, deterministic recommendations, versioned Inngest recompute events, and guarded staging shadow/full/incremental replay scripts. The staging run used an explicit `tutorial-pka` to `mat-i` canonical fallback and did not modify legacy mastery rows.
 - **Plan 017 policy gate slice completed**: Product Bundle questions now require ITB curation and HOT cognitive levels for multi-Idea questions, while canonical flashcard recommendations suppress Idea mastery scores of 80 or higher. No schema migration was added.
 - **Structured Form Upload Storage System completed**: Form image and file uploads (public form responder uploads & admin form builder question attachments) now use a structured folder key hierarchy (`forms/[judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`) handled via `lib/forms/storage-utils.ts`, `app/api/forms/upload/route.ts`, `components/forms/public-form-viewer.tsx`, and verified via `tests/contracts/form-storage.test.ts` (4/4 tests passing, 0 lint errors).
+- **R2 Object Key Convention completed**: All upload flows now build keys through the single helper `lib/storage/keys.ts` (`{domain}/{entity-slug}/{subfolder...}/{leaf}` with `{timestamp}-{shorthash8}-{sanitized-filename}` leaves). `R2Provider.upload()` and `WranglerR2Provider.upload()` now require `options.key` and reject unsafe keys with `INVALID_OBJECT_KEY`. Call sites migrated to conforming prefixes (`courses/{slug}/materials|canonical|diktats`, `blog/{leaf}`, `pka/{userId}/proofs`, `uploads/{yyyy}/{mm}` fallback for `/api/admin/upload-pdf`). The admin drive (`/admin/files`) became a read-only browser over domain prefixes: `/api/storage/upload` and `driveUploader` removed, `drive_item` write actions deleted, the proxy route now uses `leafFilename(key)`. Verified via `tests/contracts/storage-keys.test.ts` + `tests/contracts/form-storage.test.ts` (15/15 passing), `bun run lint` (0 errors), and `bun run typecheck` (0 errors).
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.

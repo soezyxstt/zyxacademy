@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { storage } from '@/lib/storage';
-import { randomUUID } from 'crypto';
+import { joinKey, slugifySegment, userFileLeaf } from '@/lib/storage/keys';
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -26,10 +26,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'File size exceeds 50 MB limit' }, { status: 413 });
   }
 
-  const safeName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
-  const storageKey = `materials/pdf/${randomUUID()}-${safeName}`;
+  const courseId = formData.get('courseId')?.toString().trim();
+  const leaf = userFileLeaf(file.name);
 
-  const { key, url } = await storage.upload(file, safeName, 'application/pdf', {
+  const storageKey = courseId
+    ? joinKey("courses", slugifySegment(courseId), "materials", leaf)
+    : joinKey(
+        "uploads",
+        String(new Date().getUTCFullYear()),
+        String(new Date().getUTCMonth() + 1).padStart(2, "0"),
+        leaf
+      );
+
+  const { key, url } = await storage.upload(file, leaf, 'application/pdf', {
     key: storageKey,
     metadata: {
       uploadedBy: session.user.id,

@@ -1,0 +1,91 @@
+import { randomBytes } from "node:crypto";
+
+const LEAF_HASH_BYTES = 4;
+
+export const INVALID_OBJECT_KEY = "INVALID_OBJECT_KEY";
+
+export function isSafeKey(key: string): boolean {
+  return Boolean(key) && !key.startsWith("/") && !key.includes("\\") && !key.includes("..");
+}
+
+export function assertSafeKey(key: string): void {
+  if (!isSafeKey(key)) throw new Error(INVALID_OBJECT_KEY);
+}
+
+export function slugifySegment(input?: string | null, fallback = "untitled"): string {
+  const cleaned = (input || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return cleaned || fallback;
+}
+
+export function sanitizeFilename(filename: string): string {
+  const extensionIndex = filename.lastIndexOf(".");
+  let baseName = filename;
+  let ext = "";
+  if (extensionIndex !== -1) {
+    baseName = filename.substring(0, extensionIndex);
+    ext = filename.substring(extensionIndex);
+  }
+
+  const cleanBaseName =
+    baseName
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "file";
+
+  return `${cleanBaseName}${ext.trim().toLowerCase()}`;
+}
+
+export function userFileLeaf(filename: string): string {
+  return `${Date.now()}-${randomBytes(LEAF_HASH_BYTES).toString("hex")}-${sanitizeFilename(filename)}`;
+}
+
+export function joinKey(...segments: string[]): string {
+  const key = segments.filter(Boolean).join("/");
+  assertSafeKey(key);
+  return key;
+}
+
+export function leafFilename(key: string): string {
+  const leaf = key.split("/").filter(Boolean).pop() || key;
+  return leaf.replace(/^\d+-[a-f0-9]{8}-/, "");
+}
+
+export function slugifyFormTitle(title?: string | null): string {
+  return slugifySegment(title, "unnamed-form");
+}
+
+export function formatQuestionFolder(qNum?: string | number | null): string {
+  if (qNum === null || qNum === undefined || qNum === "") {
+    return "general";
+  }
+
+  const rawStr = String(qNum).trim();
+  const match = rawStr.match(/\d+/);
+  if (match) {
+    return `question-${match[0]}`;
+  }
+
+  return `question-${slugifySegment(rawStr, "general")}`;
+}
+
+export function buildFormStorageKey(params: {
+  formTitle?: string | null;
+  formSlug?: string | null;
+  questionNumber?: string | number | null;
+  filename: string;
+}): string {
+  return joinKey(
+    "forms",
+    slugifyFormTitle(params.formTitle || params.formSlug),
+    formatQuestionFolder(params.questionNumber),
+    userFileLeaf(params.filename)
+  );
+}

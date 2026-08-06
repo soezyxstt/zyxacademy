@@ -7,6 +7,7 @@ import { pkaRegistrations } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
+import { joinKey, slugifySegment, userFileLeaf } from "@/lib/storage/keys";
 import { ensurePkaEnrollment, isPkaEnrolled } from "@/lib/pka-enrollment";
 
 export interface PkaRegisterState {
@@ -71,7 +72,7 @@ export async function registerPkaAction(
     }
 
     const safeName = (proof.name || "proof.jpg").replace(/\s+/g, "_");
-    const key = `pka-proof/${userId}-${randomUUID()}-${safeName}`;
+    const key = joinKey("pka", slugifySegment(userId), "proofs", userFileLeaf(proof.name));
     const uploaded = await storage.upload(proof, safeName, proof.type, { key });
 
     await db.insert(pkaRegistrations).values({
