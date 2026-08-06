@@ -203,6 +203,9 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          entityType: "quiz",
+          entityId: `${templateId}:${type}`,
+          folderSubpath: "quizzes/" + quizTitle,
           title: `${quizTitle} (${type === "matrix" ? "Matrix" : "Summary"})`,
           headers: headersRow,
           rows: rowsMatrix,

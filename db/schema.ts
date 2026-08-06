@@ -892,6 +892,8 @@ export const quizTemplates = sqliteTable(
     closeAt: integer("close_at", { mode: "timestamp" }),
     manualStatus: text("manual_status").$type<"open" | "closed" | "scheduled">().default("scheduled").notNull(),
     showDiscussion: integer("show_discussion", { mode: "boolean" }).default(false).notNull(),
+    spreadsheetId: text("spreadsheet_id"),
+    spreadsheetUrl: text("spreadsheet_url"),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
       .defaultNow()
@@ -4491,6 +4493,8 @@ export const customForms = sqliteTable(
     }>(),
     googleFormId: text("google_form_id"),
     googleResponderUri: text("google_responder_uri"),
+    spreadsheetId: text("spreadsheet_id"),
+    spreadsheetUrl: text("spreadsheet_url"),
     createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
     deletedAt: integer("deleted_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
@@ -4590,3 +4594,24 @@ export const blogArticlesRelations = relations(blogArticles, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const exportSpreadsheets = sqliteTable(
+  "export_spreadsheets",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").$type<"form" | "quiz" | "pka" | "system">().notNull(),
+    entityId: text("entity_id").notNull(),
+    spreadsheetId: text("spreadsheet_id").notNull(),
+    spreadsheetUrl: text("spreadsheet_url").notNull(),
+    driveFolderId: text("drive_folder_id").notNull(),
+    folderPath: text("folder_path").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("export_spreadsheets_entity_idx").on(table.entityType, table.entityId),
+  ]
+);

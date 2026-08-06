@@ -435,6 +435,13 @@
       "when": 1785954353413,
       "tag": "0061_boring_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1786032199463,
+      "tag": "0062_big_grey_gargoyle",
+      "breakpoints": true
     }
   ]
 }

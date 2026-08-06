@@ -403,3 +403,8 @@ Every standalone page gets `<PageOrnaments variant="..." />` as first child insi
   3. Master Teaching Document chapter content generation.
 - **Zero-AI Features**: Recommendations, Streaks, Study Paths, Cohort Analytics, and reflections are computed deterministically with SQL + logic. Do NOT call Gemini.
 - **Write-Limit Guards**: Cloudflare Workers KV write limits must be guarded. Daily write counter under `meta:writes:{yyyy-mm-dd}` must stop writing when it approaches 900.
+
+## Google Spreadsheet Export & Drive Structuring
+1. Never recreate a Google Spreadsheet if one already exists for the entity instance. Update content in-place.
+2. Maintain structured folder placement under `Zyx Export/{domain}/...` on Google Drive.
+3. Route all exports through `lib/google-sheets.ts` / `/api/admin/export-spreadsheet`.

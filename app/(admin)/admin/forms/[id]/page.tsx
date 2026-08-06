@@ -331,6 +331,9 @@ export default function DetailedFormAnalyticsPage({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          entityType: "form",
+          entityId: form.id,
+          folderSubpath: "forms/" + form.title,
           title: `${form.title} Responses`,
           headers: headersRow,
           rows: rowsMatrix,

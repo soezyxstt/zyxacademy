@@ -41,7 +41,7 @@ async function main() {
   // 1. Test Google Forms API & Token Exchange
   try {
     console.log("[1/3] Testing Google Forms API...");
-    const formsToken = await getGoogleFormsAccessToken();
+    const _formsToken = await getGoogleFormsAccessToken();
     console.log("  ✓ Token exchange successful (Forms)");
     const testForm = await createGoogleForm(`Zyx Test Form (${new Date().toISOString().slice(0, 10)})`);
     console.log(`  ✓ Form created successfully! ID: ${testForm.formId}`);
@@ -56,7 +56,7 @@ async function main() {
   // 2. Test Google Meet API & Token Exchange
   try {
     console.log("[2/3] Testing Google Meet API...");
-    const meetToken = await getGoogleMeetAccessToken();
+    const _meetToken = await getGoogleMeetAccessToken();
     console.log("  ✓ Token exchange successful (Meet)");
     const testSpace = await createGoogleMeetSpace({ accessType: "OPEN" });
     console.log(`  ✓ Meet space created successfully! Name: ${testSpace.name}`);
