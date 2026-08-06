@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, use } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Clock,
   Users,
   Video,
@@ -16,9 +14,11 @@ import {
   MessageSquare,
   TrendingUp,
 } from "lucide-react";
-import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
 import type { ComprehensiveMeetingAnalytics } from "@/lib/google-meet";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminSectionTitle } from "@/components/admin/section-title";
+import { Button } from "@/components/ui/button";
 
 export default function DetailedMeetingLogPage({
   params,
@@ -72,58 +72,47 @@ export default function DetailedMeetingLogPage({
   };
 
   return (
-    <Reveal className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-      {/* Back Button */}
-      <Link
-        href="/admin/meet"
-        className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-muted-foreground hover:text-foreground transition-colors mb-6"
-      >
-        <ArrowLeft className="size-4" />
-        Kembali ke Operational Meet
-      </Link>
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <h1 className="font-heading text-h4 font-bold text-foreground flex items-center gap-2">
-            <Video className="size-6 text-brand-primary" />
-            Detail Log & Analytics Meeting
-          </h1>
-          <p className="mt-1 font-mono text-body-sm text-muted-foreground">
-            ID Record: conferenceRecords/{conferenceRecordId}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={fetchAnalytics}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50 cursor-pointer"
-        >
-          <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-          Muat Ulang
-        </button>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={Video}
+        title="Detail Log & Analytics Meeting"
+        description={`ID Record: conferenceRecords/${conferenceRecordId}`}
+        backHref="/admin/meet"
+        backLabel="Kembali ke Operational Meet"
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={fetchAnalytics}
+            disabled={loading}
+          >
+            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+            Muat Ulang
+          </Button>
+        }
+      />
 
       {error && (
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
+        <div className="flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
           <AlertCircle className="size-5 shrink-0" />
           <p>{error}</p>
         </div>
       )}
 
       {loading ? (
-        <div className="mt-10 flex h-60 items-center justify-center rounded-2xl border border-border bg-card">
+        <div className="flex h-60 items-center justify-center rounded-2xl border border-border bg-card">
           <RefreshCw className="size-8 animate-spin text-brand-primary" />
         </div>
       ) : !analytics ? (
-        <div className="mt-10 flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
           <AlertCircle className="size-10 text-muted-foreground" />
           <p className="mt-3 font-heading text-h6 font-semibold text-foreground">
             Log Meeting Tidak Ditemukan
           </p>
         </div>
       ) : (
-        <div className="mt-8 space-y-8">
+        <div className="space-y-8">
           {/* Overview Metric Cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -204,15 +193,14 @@ export default function DetailedMeetingLogPage({
 
           {/* Participant Log & Session Timeline Section */}
           <section className="space-y-4">
-            <div className="border-b border-border pb-3">
-              <h2 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
-                <Users className="size-5 text-brand-primary" />
-                Daftar & Timeline Kehadiran Peserta (Session Logs)
-              </h2>
-              <p className="text-body-sm text-muted-foreground">
-                Rincian timestamp menit masuk (hijau) dan menit keluar (merah) untuk setiap peserta.
-              </p>
-            </div>
+            <AdminSectionTitle
+              as="h2"
+              size="h5"
+              border
+              icon={Users}
+              title="Daftar & Timeline Kehadiran Peserta (Session Logs)"
+              description="Rincian timestamp menit masuk (hijau) dan menit keluar (merah) untuk setiap peserta."
+            />
 
             {analytics.participants.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
@@ -299,12 +287,7 @@ export default function DetailedMeetingLogPage({
 
           {/* Recordings Section */}
           <section className="space-y-4">
-            <div className="border-b border-border pb-3">
-              <h2 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
-                <PlayCircle className="size-5 text-brand-primary" />
-                Rekaman Video Sesi
-              </h2>
-            </div>
+            <AdminSectionTitle as="h2" size="h5" border icon={PlayCircle} title="Rekaman Video Sesi" />
             {analytics.recordings.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-sm text-muted-foreground">
                 Belum ada rekaman video yang tersedia untuk sesi ini (Google Drive Recording).
@@ -323,14 +306,11 @@ export default function DetailedMeetingLogPage({
                       <p className="text-body-xs text-muted-foreground">Google Drive Cloud Storage</p>
                     </div>
                     {rec.driveExportUri ? (
-                      <a
-                        href={rec.driveExportUri}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3.5 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors"
-                      >
-                        Buka Google Drive <ExternalLink className="size-3.5" />
-                      </a>
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={rec.driveExportUri} target="_blank" rel="noreferrer">
+                          Buka Google Drive <ExternalLink className="size-3.5" />
+                        </a>
+                      </Button>
                     ) : (
                       <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
                         File Sedang Diproses
@@ -344,12 +324,7 @@ export default function DetailedMeetingLogPage({
 
           {/* Transcripts Section */}
           <section className="space-y-4">
-            <div className="border-b border-border pb-3">
-              <h2 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
-                <MessageSquare className="size-5 text-brand-primary" />
-                Transkrip Bicara Otomatis
-              </h2>
-            </div>
+            <AdminSectionTitle as="h2" size="h5" border icon={MessageSquare} title="Transkrip Bicara Otomatis" />
             {analytics.transcripts.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-sm text-muted-foreground">
                 Belum ada transkrip ucapan yang dihasilkan untuk sesi ini.
@@ -362,14 +337,11 @@ export default function DetailedMeetingLogPage({
                       Dokumen Transkrip ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
                     </p>
                     {t.docsExportUri ? (
-                      <a
-                        href={t.docsExportUri}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/40 bg-brand-primary/10 px-3.5 py-2 text-body-xs font-bold text-brand-primary hover:bg-brand-primary/20 transition-colors"
-                      >
-                        Buka Google Docs <ExternalLink className="size-3.5" />
-                      </a>
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={t.docsExportUri} target="_blank" rel="noreferrer">
+                          Buka Google Docs <ExternalLink className="size-3.5" />
+                        </a>
+                      </Button>
                     ) : (
                       <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
                         Dokumen Sedang Diproses
@@ -405,6 +377,6 @@ export default function DetailedMeetingLogPage({
           </section>
         </div>
       )}
-    </Reveal>
+    </div>
   );
 }

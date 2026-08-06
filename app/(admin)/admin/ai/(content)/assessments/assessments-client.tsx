@@ -22,6 +22,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import {
   Plus,
   FileText,
@@ -254,10 +256,10 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
       </div>
 
       {/* Table Surface */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <AdminTable>
         <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-muted/50 border-b border-border">
+          <AdminTableHead>
             <tr>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Nama Ujian / Judul</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Mata Kuliah</th>
@@ -269,7 +271,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Tanggal</th>
               <th className="px-4 py-3 w-10"></th>
             </tr>
-          </thead>
+          </AdminTableHead>
           <tbody>
             {filteredSources.length === 0 ? (
               <tr>
@@ -365,7 +367,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
           </tbody>
         </table>
         </div>
-      </div>
+      </AdminTable>
 
       {/* Upload/Add Modal */}
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
@@ -452,39 +454,18 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
         </DialogContent>
       </Dialog>
       {/* Confirmation Deletion Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="rounded-xl border border-border">
-          <DialogHeader>
-            <DialogTitle>Hapus Dokumen Asesmen?</DialogTitle>
-            <DialogDescription>
-              Apakah Anda yakin ingin menghapus dokumen asesmen/bank soal ini?
-              Tindakan ini akan menghapus dokumen secara permanen dan menyinkronkan profil asesmen
-              kursus terkait.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              className="rounded-lg"
-              onClick={() => {
-                setIsDeleteDialogOpen(false);
-                setDeletingId(null);
-              }}
-              disabled={isDeleting}
-            >
-              Batal
-            </Button>
-            <Button
-              variant="destructive"
-              className="rounded-lg"
-              onClick={handleDelete}
-              isLoading={isDeleting}
-            >
-              Hapus Permanen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AdminConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) setDeletingId(null);
+        }}
+        title="Hapus Dokumen Asesmen?"
+        description="Apakah Anda yakin ingin menghapus dokumen asesmen/bank soal ini? Tindakan ini akan menghapus dokumen secara permanen dan menyinkronkan profil asesmen kursus terkait."
+        confirmLabel="Hapus Permanen"
+        loading={isDeleting}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

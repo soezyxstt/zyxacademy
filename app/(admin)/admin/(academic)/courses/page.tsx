@@ -4,11 +4,12 @@ import { GraduationCap, FileText, Layers, HelpCircle } from "lucide-react";
 import { pageTitle } from "@/lib/site";
 import { assertAdmin } from "@/lib/uploadthing-admin";
 import { getCourses, getAllChapters, getUploadedMaterials } from "./actions";
+import { AdminPageHeader } from "@/components/admin/page-header";
 import { CoursesDashboard } from "@/components/admin/courses-dashboard";
 import { PDFMaterialsTab } from "@/components/admin/pdf-materials-tab";
 import { BundleImporterTab } from "@/components/admin/bundle-importer-tab";
 import { AssessmentBundleImporterTab } from "@/components/admin/assessment-bundle-importer-tab";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
 import { env } from "@/lib/env";
 
 export const metadata: Metadata = {
@@ -31,57 +32,56 @@ export default async function AdminCoursesPage() {
   const ideaBundleV2Enabled = env.FEATURE_IDEA_BUNDLE_V2 === "1";
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6 text-left">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Manajemen Mata Kuliah</h1>
-        <p className="mt-1 text-body-sm text-muted-foreground">
-          Kelola data mata kuliah dan silabus kurikulum.
-        </p>
-      </div>
-      <Tabs defaultValue="courses" className="space-y-6">
-        <TabsList className="bg-muted p-1 rounded-xl w-fit flex gap-1">
-          <TabsTrigger value="courses" className="rounded-lg font-semibold flex items-center gap-1.5 px-4 py-2">
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={GraduationCap}
+        title="Manajemen Mata Kuliah"
+        description="Kelola data mata kuliah dan silabus kurikulum."
+      />
+      <AdminTabs defaultValue="courses">
+        <AdminTabsList>
+          <AdminTabsTrigger value="courses" className="gap-1.5">
             <GraduationCap className="size-4" />
             Kelola Mata Kuliah
-          </TabsTrigger>
-          <TabsTrigger value="pdf-materials" className="rounded-lg font-semibold flex items-center gap-1.5 px-4 py-2">
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="pdf-materials" className="gap-1.5">
             <FileText className="size-4" />
             Unggah PDF (Materi & Soal)
-          </TabsTrigger>
+          </AdminTabsTrigger>
           {!ideaBundleV2Enabled && (
-            <TabsTrigger value="bundle-importer" className="rounded-lg font-semibold flex items-center gap-1.5 px-4 py-2">
+            <AdminTabsTrigger value="bundle-importer" className="gap-1.5">
               <Layers className="size-4" />
               Import Learning Bundle
-            </TabsTrigger>
+            </AdminTabsTrigger>
           )}
-          <TabsTrigger value="assessment-bundle-importer" className="rounded-lg font-semibold flex items-center gap-1.5 px-4 py-2">
+          <AdminTabsTrigger value="assessment-bundle-importer" className="gap-1.5">
             <HelpCircle className="size-4" />
             Import Assessment Bundle
-          </TabsTrigger>
-        </TabsList>
+          </AdminTabsTrigger>
+        </AdminTabsList>
 
-        <TabsContent value="courses" className="outline-hidden">
+        <AdminTabsContent value="courses">
           <CoursesDashboard initialCourses={coursesList} />
-        </TabsContent>
+        </AdminTabsContent>
 
-        <TabsContent value="pdf-materials" className="outline-hidden">
+        <AdminTabsContent value="pdf-materials">
           <PDFMaterialsTab
             courses={coursesList}
             chapters={chaptersList}
             initialMaterials={materialsList}
           />
-        </TabsContent>
+        </AdminTabsContent>
 
         {!ideaBundleV2Enabled && (
-          <TabsContent value="bundle-importer" className="outline-hidden">
+          <AdminTabsContent value="bundle-importer">
             <BundleImporterTab />
-          </TabsContent>
+          </AdminTabsContent>
         )}
 
-        <TabsContent value="assessment-bundle-importer" className="outline-hidden">
+        <AdminTabsContent value="assessment-bundle-importer">
           <AssessmentBundleImporterTab />
-        </TabsContent>
-      </Tabs>
+        </AdminTabsContent>
+      </AdminTabs>
     </div>
   );
 }

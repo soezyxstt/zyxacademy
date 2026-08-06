@@ -4,8 +4,8 @@ import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { getDashboardMetrics } from "@/lib/analytics-dashboard";
 import { WebAnalyticsCharts } from "@/components/admin/web-analytics-charts";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
-import { Users, MousePointerClick, Eye, AlertCircle } from "lucide-react";
-import { Reveal } from "@/components/ui/reveal";
+import { Users, MousePointerClick, Eye, AlertCircle, Globe } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -19,16 +19,13 @@ export default async function WebAnalyticsPage() {
   const metrics = await getDashboardMetrics(30);
 
   return (
-    <Reveal className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <h1 className="font-heading text-h4 font-bold text-foreground">Web Analytics</h1>
-          <p className="mt-1 text-body-sm text-muted-foreground">
-            Wawasan lalu lintas pengunjung Zyx Academy 30 hari terakhir.
-          </p>
-        </div>
-        <RefreshAnalyticsButton />
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={Globe}
+        title="Web Analytics"
+        description="Wawasan lalu lintas pengunjung Zyx Academy 30 hari terakhir."
+        actions={<RefreshAnalyticsButton />}
+      />
 
       {!metrics ? (
         <div className="rounded-xl border border-status-warning/20 bg-status-warning/10 p-6 flex flex-col items-center justify-center text-center">
@@ -127,6 +124,6 @@ export default async function WebAnalyticsPage() {
           </div>
         </>
       )}
-    </Reveal>
+    </div>
   );
 }

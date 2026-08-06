@@ -18,9 +18,12 @@ import {
   Trash2,
   TrendingUp,
 } from "lucide-react";
-import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
 import { toast } from "@/components/ui/toast";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface MeetSpaceInfo {
   name: string;
@@ -174,33 +177,22 @@ export default function AdminMeetPage() {
   };
 
   return (
-    <Reveal className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-              <Video className="size-5" />
-            </span>
-            <h1 className="font-heading text-h4 font-bold text-foreground">
-              Studio Sesi & Temu (Meet)
-            </h1>
-          </div>
-          <p className="mt-2 text-body-md text-muted-foreground">
-            Kelola sesi ruang temu, jalankan meeting langsung di bawah akun Pro, dan pantau log serta metrik kehadiran peserta.
-          </p>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={Video}
+        title="Studio Sesi & Temu (Meet)"
+        description="Kelola sesi ruang temu, jalankan meeting langsung di bawah akun Pro, dan pantau log serta metrik kehadiran peserta."
+      />
 
       {errorMsg && (
-        <div className="mt-6 flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
+        <div className="flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
           <AlertCircle className="size-5 shrink-0" />
           <p>{errorMsg}</p>
         </div>
       )}
 
       {/* Top Action Section: Create & Manage Active Meeting */}
-      <div className="mt-8 grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Card 1: Start Meeting Controls */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-2">
@@ -215,38 +207,38 @@ export default function AdminMeetPage() {
 
           <div className="mt-4 space-y-3">
             <div>
-              <label className="block text-body-xs font-semibold text-foreground mb-1">
+              <label className="mb-1 block text-body-xs font-semibold text-foreground">
                 Nama / Judul Meeting (Opsional)
               </label>
-              <input
+              <Input
                 type="text"
                 placeholder="Contoh: Tutorial Fisika Kinematika Bab 2"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
             <div>
-              <label className="block text-body-xs font-semibold text-foreground mb-1">
+              <label className="mb-1 block text-body-xs font-semibold text-foreground">
                 Aksesibilitas Ruang Meeting
               </label>
-              <select
-                value={accessType}
-                onChange={(e) => setAccessType(e.target.value as any)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="OPEN">OPEN (Siapa pun dapat langsung masuk)</option>
-                <option value="TRUSTED">TRUSTED (Anggota organisasi / diundang)</option>
-                <option value="RESTRICTED">RESTRICTED (Memerlukan izin host)</option>
-              </select>
+              <Select value={accessType} onValueChange={(v) => setAccessType(v as any)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih akses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OPEN">OPEN (Siapa pun dapat langsung masuk)</SelectItem>
+                  <SelectItem value="TRUSTED">TRUSTED (Anggota organisasi / diundang)</SelectItem>
+                  <SelectItem value="RESTRICTED">RESTRICTED (Memerlukan izin host)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <button
+            <Button
               type="button"
               onClick={handleCreateSpace}
               disabled={creating}
-              className="w-full mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-body-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
+              className="mt-2 w-full"
             >
               {creating ? (
                 <>
@@ -259,7 +251,7 @@ export default function AdminMeetPage() {
                   Mulai & Inisiasi Meeting
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -300,24 +292,26 @@ export default function AdminMeetPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={handleCopyLink}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
                   >
                     {copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}
                     {copied ? "Tersalin!" : "Salin Link"}
-                  </button>
+                  </Button>
 
-                  <a
-                    href={activeSpace.meetingUri}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-xs font-semibold text-brand-primary hover:bg-muted transition-colors"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
                   >
-                    <ExternalLink className="size-3.5" />
-                    Buka sebagai Host
-                  </a>
+                    <a href={activeSpace.meetingUri} target="_blank" rel="noreferrer">
+                      <ExternalLink className="size-3.5" />
+                      Buka sebagai Host
+                    </a>
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -328,12 +322,13 @@ export default function AdminMeetPage() {
           </div>
 
           {activeSpace && (
-            <div className="mt-4 pt-4 border-t border-border">
-              <button
+            <div className="mt-4 border-t border-border pt-4">
+              <Button
                 type="button"
+                variant="destructive"
+                className="w-full"
                 onClick={handleEndConference}
                 disabled={ending}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-status-error/10 border border-status-error/30 px-3 py-2 text-body-sm font-semibold text-status-error hover:bg-status-error/20 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {ending ? (
                   <RefreshCw className="size-4 animate-spin" />
@@ -341,14 +336,14 @@ export default function AdminMeetPage() {
                   <Square className="size-4 fill-current" />
                 )}
                 Akhiri Sesi Meeting Aktif
-              </button>
+              </Button>
             </div>
           )}
         </div>
       </div>
 
       {/* Conference Records / Log Section */}
-      <section className="mt-10 space-y-4">
+      <section className="space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
             <h2 className="font-heading text-h5 font-bold text-foreground">
@@ -358,15 +353,16 @@ export default function AdminMeetPage() {
               Riwayat sesi meeting yang telah selesai beserta metrik peak peserta, rekaman, transkrip, dan analisis kehadiran.
             </p>
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={fetchRecords}
             disabled={loadingRecords}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`size-3.5 ${loadingRecords ? "animate-spin" : ""}`} />
             Muat Ulang
-          </button>
+          </Button>
         </div>
 
         {loadingRecords ? (
@@ -437,28 +433,29 @@ export default function AdminMeetPage() {
 
                         <td className="px-4 py-3.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
-                            <Link
-                              href={`/admin/meet/${recordId}`}
-                              className="inline-flex items-center gap-1 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-xs font-semibold text-brand-primary hover:bg-brand-primary/20 transition-colors"
-                            >
-                              <Users className="size-3.5" />
-                              Detail Log Peserta
-                              <ChevronRight className="size-3.5" />
-                            </Link>
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/admin/meet/${recordId}`}>
+                                <Users className="size-3.5" />
+                                Detail Log Peserta
+                                <ChevronRight className="size-3.5" />
+                              </Link>
+                            </Button>
 
-                            <button
+                            <Button
                               type="button"
+                              variant="destructive"
+                              size="icon"
                               onClick={() => handleDeleteRecord(rec.name)}
                               disabled={isDeleting}
                               title="Hapus log meeting"
-                              className="inline-flex items-center justify-center rounded-lg border border-status-error/30 bg-status-error/10 p-1.5 text-status-error hover:bg-status-error/20 transition-colors disabled:opacity-50 cursor-pointer"
+                              className="border-status-error/30 bg-status-error/10 text-status-error hover:bg-status-error/20"
                             >
                               {isDeleting ? (
                                 <RefreshCw className="size-3.5 animate-spin" />
                               ) : (
                                 <Trash2 className="size-3.5" />
                               )}
-                            </button>
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -470,6 +467,6 @@ export default function AdminMeetPage() {
           </div>
         )}
       </section>
-    </Reveal>
+    </div>
   );
 }

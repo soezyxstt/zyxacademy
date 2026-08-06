@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import { gradeSubmissionAction } from "@/app/actions/tutor-management";
 
@@ -123,7 +124,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-body-base font-medium text-foreground leading-relaxed pt-2">{q.prompt}</p>
+                      <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-2" as="p">{q.prompt}</MathText>
                     </div>
                   </div>
 
@@ -153,7 +154,9 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                             }`}>
                               {String.fromCharCode(65 + i)}
                             </span>
-                            <span className="truncate">{opt}</span>
+                            <span className="truncate">
+                              <MathText className="leading-normal" as="span">{opt}</MathText>
+                            </span>
                           </div>
                         );
                       })}

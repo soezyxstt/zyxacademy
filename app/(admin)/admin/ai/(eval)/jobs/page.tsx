@@ -5,6 +5,8 @@ import { aiGenerationJobs, courses, chapters, knowledgeObjects } from "@/db/sche
 import { desc, eq } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { GenerationJobsClient } from "./jobs-client";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { Zap } from "lucide-react";
 
 export const metadata: Metadata = {
   title: pageTitle("Generation Jobs"),
@@ -45,13 +47,12 @@ export default async function GenerationJobsPage() {
   const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6 text-left">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Generasi Soal AI</h1>
-        <p className="mt-1 text-body-sm text-muted-foreground">
-          Pantau dan kelola background jobs untuk pembuatan soal berbasis AI.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={Zap}
+        title="Generasi Soal AI"
+        description="Pantau dan kelola background jobs untuk pembuatan soal berbasis AI."
+      />
       <GenerationJobsClient
         jobs={jobs}
         courses={allCourses}

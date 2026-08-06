@@ -40,8 +40,9 @@ import {
   Video,
   FileText,
 } from "lucide-react";
-import { Reveal } from "@/components/ui/reveal";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { LayoutDashboard } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -385,21 +386,16 @@ export default async function AdminHomePage() {
   ];
 
   return (
-    <Reveal className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-h4 font-bold text-foreground">
-            Admin Panel
-          </h1>
-          <p className="mt-2 text-body-md text-muted-foreground">
-            Statistik operasional langsung dan pengaturan situs Zyx Academy.
-          </p>
-        </div>
-        <RefreshAnalyticsButton />
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={LayoutDashboard}
+        title="Admin Panel"
+        description="Statistik operasional langsung dan pengaturan situs Zyx Academy."
+        actions={<RefreshAnalyticsButton />}
+      />
 
       {failedJobs > 0 && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-status-error/20 bg-status-error/5 p-4 text-body-sm text-status-error">
+        <div className="flex items-start gap-3 rounded-xl border border-status-error/20 bg-status-error/5 p-4 text-body-sm text-status-error">
           <Zap className="size-5 shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Perhatian: Generasi Soal Gagal</p>
@@ -411,7 +407,7 @@ export default async function AdminHomePage() {
         </div>
       )}
 
-      <div className="mt-8 space-y-10">
+      <div className="space-y-8">
         {categories.map((category) => (
           <section key={category.name} className="space-y-3">
             <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
@@ -461,6 +457,6 @@ export default async function AdminHomePage() {
           </section>
         ))}
       </div>
-    </Reveal>
+    </div>
   );
 }

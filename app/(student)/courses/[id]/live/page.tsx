@@ -10,6 +10,7 @@ import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import type { QuizOptionState } from "@/components/course/quiz-option-styles";
 import { CoursePageShell } from "@/components/course/course-page-shell";
+import { MathText } from "@/components/course/math-text";
 // Fixture import removed
 import { getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
@@ -192,9 +193,9 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
             )}
           </div>
 
-          <p className="font-heading text-h5 font-semibold text-foreground">
+          <MathText className="font-heading text-h5 font-semibold text-foreground block" as="div">
             {currentQuestion.prompt}
-          </p>
+          </MathText>
 
           <ul className="space-y-2">
             {currentQuestion.options.map((opt, i) => {
@@ -222,7 +223,7 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
                     <span className={quizOptionLetterClasses(optState)}>
                       {String.fromCharCode(65 + i)}
                     </span>
-                    <span className="flex-1 text-left leading-normal">{opt}</span>
+                    <MathText className="flex-1 text-left leading-normal" as="span">{opt}</MathText>
                   </button>
                 </li>
               );

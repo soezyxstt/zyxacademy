@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
+import { AdminPageHeader } from "@/components/admin/page-header";
 import { FlagsClient } from "./flags-client";
+import { Flag } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -11,15 +13,12 @@ export const metadata: Metadata = {
 
 export default function FeatureFlagsPage() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-      <div className="flex flex-col space-y-1">
-        <h1 className="font-heading text-h3 font-bold text-foreground tracking-tight">
-          Feature Flags
-        </h1>
-        <p className="text-body-sm text-muted-foreground">
-          Pantau status keaktifan fitur flag sistem secara real-time dan tinjau modul yang berjalan.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-7xl space-y-8">
+      <AdminPageHeader
+        icon={Flag}
+        title="Feature Flags"
+        description="Pantau status keaktifan fitur flag sistem secara real-time dan tinjau modul yang berjalan."
+      />
       <FlagsClient />
     </div>
   );

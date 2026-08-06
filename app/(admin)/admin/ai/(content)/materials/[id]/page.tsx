@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { pageTitle } from "@/lib/site";
-import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { aiMaterialInstances, courses, chapters, knowledgeObjects, websiteMaterials } from "@/db/schema";
 import { eq, asc, inArray } from "drizzle-orm";
@@ -67,7 +66,7 @@ export default async function MaterialDetailPage({ params }: Props) {
     : [];
 
   return (
-    <Reveal className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+    <div className="space-y-8">
       <MaterialDetailClient
         instance={instance}
         course={course}
@@ -75,6 +74,6 @@ export default async function MaterialDetailPage({ params }: Props) {
         knowledgeObjects={kos}
         websiteMaterials={webMaterials}
       />
-    </Reveal>
+    </div>
   );
 }

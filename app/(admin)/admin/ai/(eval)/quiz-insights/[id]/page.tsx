@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, use } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Sparkles,
   BarChart3,
   CheckCircle2,
@@ -18,10 +17,13 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
 import { QuizAttemptsSpreadsheet } from "./_components/quiz-attempts-spreadsheet";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminStatCard } from "@/components/admin/stat-card";
+import { StatusBadge } from "@/components/admin/status-badges";
+import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
 
 
 interface QuizDetailResponse {
@@ -200,39 +202,29 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb & Navigation */}
-      <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
-        <Link href="/admin/ai/quiz-insights" className="hover:text-foreground transition-colors flex items-center gap-1">
-          <ArrowLeft className="size-3.5" />
-          <span>Analisis & Insight Kuis</span>
-        </Link>
-        <span>/</span>
-        <span className="text-foreground font-medium truncate max-w-md">{template.title}</span>
-      </div>
-
-      {/* Header Banner */}
-      <div className="bg-card border border-border rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={BarChart3}
+        backHref="/admin/ai/quiz-insights"
+        backLabel="Analisis & Insight Kuis"
+        title={
+          <span className="flex flex-wrap items-center gap-2">
+            {template.title}
             <Badge variant="outline" className="rounded-md font-medium text-body-xs">
               {template.courseName || template.courseId}
             </Badge>
             <Badge variant="secondary" className="rounded-md text-body-xs capitalize">
               {template.category}
             </Badge>
-            <Badge variant="outline" className="rounded-md text-body-xs">
-              Limit: {template.timeLimitSeconds ? formatDuration(template.timeLimitSeconds) : "Tanpa Batas"}
-            </Badge>
-          </div>
-          <h1 className="font-heading text-h3 text-foreground font-bold">{template.title}</h1>
-          <p className="text-body-xs text-muted-foreground">
-            ID Kuis: {template.id} | Dibuat pada: <FormattedDate date={template.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
-          </p>
-
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+          </span>
+        }
+        description={
+          <>
+            ID Kuis: {template.id} | Limit: {template.timeLimitSeconds ? formatDuration(template.timeLimitSeconds) : "Tanpa Batas"} | Dibuat pada:{" "}
+            <FormattedDate date={template.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
+          </>
+        }
+        actions={
           <Button
             onClick={handleRunAiAnalysis}
             disabled={analyzingAi || summary.totalCompleted === 0}
@@ -245,8 +237,8 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
             )}
             <span>{analyzingAi ? "Menganalisis AI..." : "Jalankan Analisis AI Gemini"}</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {errorMsg && (
         <div className="p-4 border border-status-error/40 bg-status-error/10 text-status-error rounded-xl text-body-sm flex items-center gap-2">
@@ -257,87 +249,97 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
 
       {/* Summary KPI Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-card border border-border rounded-xl p-4 space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Total Selesai</p>
-          <p className="text-h5 font-heading font-bold text-foreground">{summary.totalCompleted}</p>
-          <p className="text-[11px] text-muted-foreground">dari {summary.totalStarted} dimulai ({summary.completionRate}%)</p>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-4 space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Rata-rata Skor</p>
-          <p className="text-h5 font-heading font-bold text-brand-primary">{summary.avgScore} <span className="text-body-xs text-muted-foreground font-normal">/ 100</span></p>
-          <p className="text-[11px] text-muted-foreground">Median: {summary.medianScore}</p>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-4 space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Tertinggi / Terendah</p>
-          <p className="text-h5 font-heading font-bold text-foreground">{summary.maxScore} <span className="text-body-xs text-muted-foreground font-normal">/ {summary.minScore}</span></p>
-          <p className="text-[11px] text-muted-foreground">Rentang nilai siswa</p>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-4 space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Rata-rata Durasi</p>
-          <p className="text-h5 font-heading font-bold text-foreground">{formatDuration(summary.avgDurationSeconds)}</p>
-          <p className="text-[11px] text-muted-foreground">Waktu pengerjaan</p>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-4 space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Total Soal</p>
-          <p className="text-h5 font-heading font-bold text-foreground">{questionAnalysis.length}</p>
-          <p className="text-[11px] text-muted-foreground">Butir soal teruji</p>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-4 space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Status AI Insight</p>
-          <div className="mt-1">
-            {latestAiInsight ? (
-              <Badge className="bg-status-success/15 text-status-success border-status-success/30 rounded-md font-semibold text-[11px]">
-                Tersedia
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="rounded-md text-[11px] text-muted-foreground">
-                Belum dibuat
-              </Badge>
-            )}
-          </div>
-          <p className="text-[11px] text-muted-foreground truncate">
-            {latestAiInsight ? `Sampel: ${latestAiInsight.sampleSize} siswa` : "Klik tombol AI"}
-          </p>
-        </div>
+        <AdminStatCard
+          size="sm"
+          label="Total Selesai"
+          value={summary.totalCompleted}
+          caption={`dari ${summary.totalStarted} dimulai (${summary.completionRate}%)`}
+        />
+        <AdminStatCard
+          size="sm"
+          label="Rata-rata Skor"
+          value={
+            <>
+              {summary.avgScore}{" "}
+              <span className="text-body-xs text-muted-foreground font-normal">/ 100</span>
+            </>
+          }
+          caption={`Median: ${summary.medianScore}`}
+          tone="brand"
+        />
+        <AdminStatCard
+          size="sm"
+          label="Tertinggi / Terendah"
+          value={
+            <>
+              {summary.maxScore}{" "}
+              <span className="text-body-xs text-muted-foreground font-normal">/ {summary.minScore}</span>
+            </>
+          }
+          caption="Rentang nilai siswa"
+        />
+        <AdminStatCard
+          size="sm"
+          label="Rata-rata Durasi"
+          value={formatDuration(summary.avgDurationSeconds)}
+          caption="Waktu pengerjaan"
+        />
+        <AdminStatCard
+          size="sm"
+          label="Total Soal"
+          value={questionAnalysis.length}
+          caption="Butir soal teruji"
+        />
+        <AdminStatCard
+          size="sm"
+          label="Status AI Insight"
+          value={
+            <div className="mt-1">
+              {latestAiInsight ? (
+                <StatusBadge tone="success">Tersedia</StatusBadge>
+              ) : (
+                <StatusBadge tone="muted">Belum dibuat</StatusBadge>
+              )}
+            </div>
+          }
+          caption={
+            latestAiInsight ? `Sampel: ${latestAiInsight.sampleSize} siswa` : "Klik tombol AI"
+          }
+        />
       </div>
 
       {/* Tabs Component */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-muted p-1 rounded-xl w-full sm:w-auto flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="attempts-sheet" className="rounded-lg text-body-sm gap-2">
+      <AdminTabs value={activeTab} onValueChange={setActiveTab}>
+        <AdminTabsList>
+          <AdminTabsTrigger value="attempts-sheet">
             <FileSpreadsheet className="size-4 text-emerald-500" />
             <span>Sheet Attempt & Jawaban Siswa</span>
-          </TabsTrigger>
-          <TabsTrigger value="ai-insights" className="rounded-lg text-body-sm gap-2">
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="ai-insights">
             <Sparkles className="size-4 text-amber-400" />
             <span>Analisis AI Gemini</span>
-          </TabsTrigger>
-          <TabsTrigger value="questions" className="rounded-lg text-body-sm gap-2">
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="questions">
             <FileSpreadsheet className="size-4 text-brand-primary" />
             <span>Analisis Butir Soal & Distraktor</span>
-          </TabsTrigger>
-          <TabsTrigger value="concepts" className="rounded-lg text-body-sm gap-2">
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="concepts">
             <Target className="size-4 text-brand-secondary" />
             <span>Analisis Konsep & Topik</span>
-          </TabsTrigger>
-          <TabsTrigger value="distribution" className="rounded-lg text-body-sm gap-2">
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="distribution">
             <BarChart3 className="size-4 text-status-info" />
             <span>Distribusi & Statistik Nilai</span>
-          </TabsTrigger>
-        </TabsList>
+          </AdminTabsTrigger>
+        </AdminTabsList>
 
         {/* TAB 0: SPREADSHEET ATTEMPT SISWA */}
-        <TabsContent value="attempts-sheet" className="space-y-6">
+        <AdminTabsContent value="attempts-sheet" className="space-y-6">
           <QuizAttemptsSpreadsheet templateId={id} quizTitle={template.title} />
-        </TabsContent>
+        </AdminTabsContent>
 
         {/* TAB 1: ANALISIS AI GEMINI */}
-        <TabsContent value="ai-insights" className="space-y-6">
+        <AdminTabsContent value="ai-insights" className="space-y-6">
           {!latestAiInsight ? (
             <div className="bg-card border border-border rounded-xl p-10 text-center space-y-4">
               <div className="size-12 rounded-full bg-brand-primary/10 flex items-center justify-center mx-auto text-brand-primary">
@@ -512,10 +514,10 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               )}
             </div>
           )}
-        </TabsContent>
+        </AdminTabsContent>
 
         {/* TAB 2: ANALISIS BUTIR SOAL & DISTRAKTOR */}
-        <TabsContent value="questions" className="space-y-6">
+        <AdminTabsContent value="questions" className="space-y-6">
           <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
@@ -641,10 +643,10 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               </div>
             )}
           </div>
-        </TabsContent>
+        </AdminTabsContent>
 
         {/* TAB 3: ANALISIS KONSEP & TOPIK */}
-        <TabsContent value="concepts" className="space-y-6">
+        <AdminTabsContent value="concepts" className="space-y-6">
           <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
             <div className="border-b border-border pb-3">
               <h3 className="font-heading text-h5 font-bold text-foreground">Analisis Tingkat Penguasaan Konsep</h3>
@@ -708,10 +710,10 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               </div>
             )}
           </div>
-        </TabsContent>
+        </AdminTabsContent>
 
         {/* TAB 4: DISTRIBUSI & STATISTIK NILAI */}
-        <TabsContent value="distribution" className="space-y-6">
+        <AdminTabsContent value="distribution" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Rentang Nilai */}
             <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
@@ -773,8 +775,8 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               </div>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </AdminTabsContent>
+      </AdminTabs>
     </div>
   );
 }

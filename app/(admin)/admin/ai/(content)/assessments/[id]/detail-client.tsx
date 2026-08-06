@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DifficultyBadge } from "@/components/admin/status-badges";
 import {
   Tabs,
   TabsContent,
@@ -38,6 +39,7 @@ import {
   Hash,
 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { MathText } from "@/components/course/math-text";
 import { parseFrontmatter } from "@/lib/assessment-extractor";
 
 interface Source {
@@ -409,18 +411,7 @@ export function AssessmentDetailClient({
                     <Badge variant="outline" className="text-[10px] tracking-wide uppercase">
                       Bloom: L{q.applicationLevel}
                     </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] tracking-wide uppercase ${
-                        q.difficulty === 3
-                          ? "border-status-error/30 text-status-error bg-status-error/5"
-                          : q.difficulty === 2
-                          ? "border-status-warning/30 text-status-warning bg-status-warning/5"
-                          : "border-status-success/30 text-status-success bg-status-success/5"
-                      }`}
-                    >
-                      Kesulitan: {q.difficulty === 3 ? "Hard" : q.difficulty === 2 ? "Medium" : "Easy"}
-                    </Badge>
+                    <DifficultyBadge difficulty={q.difficulty} prefix="Kesulitan" />
                   </div>
                 </div>
 
@@ -440,7 +431,7 @@ export function AssessmentDetailClient({
                         {q.options.map((opt, idx) => (
                           <div key={idx} className="bg-background/20 px-3 py-2 rounded border border-border/30 text-body-sm text-foreground flex gap-2">
                             <span className="font-semibold text-primary">{String.fromCharCode(65 + idx)}.</span>
-                            <span>{opt}</span>
+                            <MathText as="span">{opt}</MathText>
                           </div>
                         ))}
                       </div>

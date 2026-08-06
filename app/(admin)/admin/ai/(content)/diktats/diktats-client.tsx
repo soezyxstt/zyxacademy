@@ -10,13 +10,14 @@ import {
   Download, 
   RefreshCw, 
   Layers, 
-  ShieldAlert,
   Sliders,
   Calendar,
   Compass
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { AdminSectionTitle } from "@/components/admin/section-title";
+import { CourseBadge, StatusBadge } from "@/components/admin/status-badges";
 import { cn } from "@/lib/utils";
 import {
   createDiktatDraftAction,
@@ -236,10 +237,7 @@ export function DiktatCompilerClient({
       
       {/* LEFT: COMPILER FORM */}
       <div className="lg:col-span-1 bg-card border border-border rounded-xl p-6 shadow-xs text-left h-fit space-y-5">
-        <h2 className="font-heading text-body-lg font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
-          <Sliders className="size-5 text-primary" />
-          Konfigurasi Diktat
-        </h2>
+        <AdminSectionTitle size="lg" border icon={Sliders} title="Konfigurasi Diktat" />
 
         {/* Course Target Select */}
         <div className="space-y-1.5">
@@ -364,10 +362,7 @@ export function DiktatCompilerClient({
       {/* RIGHT: ACTIVE DIKTATS LIST */}
       <div className="lg:col-span-2 space-y-4 text-left">
         <div className="bg-card border border-border rounded-xl p-6 shadow-xs space-y-4">
-          <h2 className="font-heading text-body-lg font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
-            <BookText className="size-5 text-primary" />
-            Daftar Diktat Terkompilasi ({diktatsList.length})
-          </h2>
+        <AdminSectionTitle size="lg" border icon={BookText} title={`Daftar Diktat Terkompilasi (${diktatsList.length})`} />
 
           {diktatsList.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-body-sm border border-dashed border-border rounded-xl bg-muted/5 flex flex-col items-center justify-center">
@@ -388,23 +383,15 @@ export function DiktatCompilerClient({
                   <div key={diktat.id} className="p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:bg-muted/10 transition-colors">
                     <div className="space-y-1.5 flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-brand-primary uppercase tracking-wider bg-brand-primary/8 px-2 py-0.5 rounded-md border border-brand-primary/10">
-                          {courseMap[diktat.courseId] ?? diktat.courseId}
-                        </span>
+                        <CourseBadge>{courseMap[diktat.courseId] ?? diktat.courseId}</CourseBadge>
                         
                         {/* Status Badge */}
-                        <span className={cn(
-                          "rounded-md px-2 py-0.5 text-xs font-semibold border uppercase tracking-wider",
-                          status === "ready"
-                            ? "bg-status-success/10 text-status-success border-status-success/20"
-                            : status === "generating"
-                              ? "bg-status-warning/10 text-status-warning border-status-warning/20 animate-pulse"
-                              : status === "failed"
-                                ? "bg-status-error/10 text-status-error border-status-error/20"
-                                : "bg-muted text-muted-foreground border-border"
-                        )}>
-                          {status === "generating" ? "Compiling..." : status}
-                        </span>
+                        <StatusBadge
+                          tone={status === "ready" ? "success" : status === "generating" ? "warning" : status === "failed" ? "error" : "muted"}
+                          className={status === "generating" ? "animate-pulse" : undefined}
+                        >
+                          {status === "generating" ? "Compiling" : status}
+                        </StatusBadge>
                       </div>
 
                       <h3 className="font-heading text-body-md font-bold text-foreground leading-snug">
@@ -478,27 +465,15 @@ export function DiktatCompilerClient({
       </div>
 
       {/* CONFIRM DELETION DIALOG */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg text-left">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-status-error font-heading text-h6 font-bold">
-              <ShieldAlert className="size-5 shrink-0" />
-              Hapus Diktat Terkompilasi?
-            </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-2 leading-relaxed">
-              Tindakan ini akan menghapus diktat buku &ldquo;{deletingDiktat?.title}&rdquo; secara permanen dari basis data dan menghapus berkas fisiknya dari UploadThing CDN. Siswa tidak akan dapat mengunduh berkas ini lagi.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
-            <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setIsDeleteDialogOpen(false)} disabled={loadingDiktatId !== null}>
-              Batal
-            </Button>
-            <Button variant="destructive" className="rounded-lg cursor-pointer font-bold px-6 shadow-sm" onClick={handleDeleteConfirm} disabled={loadingDiktatId !== null}>
-              Ya, Hapus Permanen
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AdminConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Hapus Diktat Terkompilasi?"
+        description={`Tindakan ini akan menghapus diktat buku "${deletingDiktat?.title}" secara permanen dari basis data dan menghapus berkas fisiknya dari UploadThing CDN. Siswa tidak akan dapat mengunduh berkas ini lagi.`}
+        confirmLabel="Ya, Hapus Permanen"
+        loading={loadingDiktatId !== null}
+        onConfirm={handleDeleteConfirm}
+      />
 
     </div>
   );

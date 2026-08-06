@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <main
         id="main-content"
         tabIndex={-1}
-        className="relative z-10 min-w-0 flex-1 focus:outline-none"
+        className="relative z-10 min-w-0 flex-1 px-4 py-8 focus:outline-none sm:px-6"
       >
         {children}
       </main>

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { QRCodeSVG } from "qrcode.react";
 import { Link as LinkIcon, QrCode, Copy } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/page-header";
 
 
 type ShortLink = {
@@ -88,59 +89,58 @@ export default function ShortLinksPage() {
   };
 
   return (
-    <div className="space-y-8 p-0 sm:p-2">
-      <div>
-        <h1 className="font-heading text-h3">Short Links</h1>
-        <p className="text-muted-foreground text-body-base">
-          Create and manage custom short URLs (zyxacademy.com/s/[slug]) and generate QR codes.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={LinkIcon}
+        title="Short Links"
+        description="Buat dan kelola tautan pendek kustom (zyxacademy.com/s/[slug]) serta buat kode QR."
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1">
           <Card>
             <CardHeader>
-              <CardTitle>Create Link</CardTitle>
-              <CardDescription>Generate a new short URL</CardDescription>
+              <CardTitle>Buat Tautan</CardTitle>
+              <CardDescription>Buat tautan pendek baru</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="url">Destination URL</Label>
+                  <Label htmlFor="url">URL Tujuan</Label>
                   <Input
                     id="url"
                     type="url"
-                    placeholder="https://example.com/some/long/path"
+                    placeholder="https://contoh.com/beberapa/halaman/panjang"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title (Optional)</Label>
+                  <Label htmlFor="title">Judul (Opsional)</Label>
                   <Input
                     id="title"
                     type="text"
-                    placeholder="e.g. Spring Sale Campaign"
+                    placeholder="Contoh: Promo Musim Semi"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="slug">Custom Slug (Optional)</Label>
+                  <Label htmlFor="slug">Slug Kustom (Opsional)</Label>
                   <Input
                     id="slug"
                     type="text"
-                    placeholder="e.g. spring-sale"
+                    placeholder="Contoh: promo-musim-semi"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
                   />
                   <p className="text-body-sm text-muted-foreground">
-                    Leave blank to generate a random slug.
+                    Kosongkan untuk membuat slug acak otomatis.
                   </p>
                 </div>
                 <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? "Creating..." : "Create Link"}
+                  {submitting ? "Membuat..." : "Buat Tautan"}
                 </Button>
               </form>
             </CardContent>
@@ -150,9 +150,9 @@ export default function ShortLinksPage() {
         <div className="md:col-span-2 space-y-4">
           <div className="rounded-xl border border-border bg-card">
             {loading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading...</div>
+              <div className="p-8 text-center text-muted-foreground">Memuat...</div>
             ) : links.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">No short links created yet.</div>
+              <div className="p-8 text-center text-muted-foreground">Belum ada tautan pendek.</div>
             ) : (
               <div className="divide-y divide-border">
                 {links.map((link) => (
@@ -167,26 +167,26 @@ export default function ShortLinksPage() {
                         {link.url}
                       </p>
                       <p className="text-body-sm text-muted-foreground">
-                        {link.clicks} clicks • {new Date(link.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        {link.clicks} klik · {new Date(link.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
                       <Button variant="outline" size="sm" onClick={() => copyToClipboard(getFullUrl(link.slug))}>
                         <Copy className="size-4 mr-2" />
-                        Copy
+                        Salin
                       </Button>
                       
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
                             <QrCode className="size-4 mr-2" />
-                            QR Code
+                            Kode QR
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-md">
                           <DialogHeader>
-                            <DialogTitle>QR Code for /s/{link.slug}</DialogTitle>
+                            <DialogTitle>Kode QR untuk /s/{link.slug}</DialogTitle>
                           </DialogHeader>
                           <div className="flex flex-col items-center justify-center p-6 space-y-6">
                             <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
@@ -221,7 +221,7 @@ export default function ShortLinksPage() {
                                 img.src = "data:image/svg+xml;base64," + btoa(svgData);
                               }}
                             >
-                              Download PNG
+                              Unduh PNG
                             </Button>
                           </div>
                         </DialogContent>

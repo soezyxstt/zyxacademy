@@ -4,6 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Zap, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { StatusBadge } from "@/components/admin/status-badges";
+import { AdminSectionTitle } from "@/components/admin/section-title";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type JobStatus = "pending" | "processing" | "completed" | "failed";
 
@@ -49,11 +53,11 @@ interface Props {
  courseMap: Record<string, string>;
 }
 
-const statusColors: Record<JobStatus, string> = {
- pending: "bg-muted text-muted-foreground",
- processing: "bg-status-info/10 text-status-info",
- completed: "bg-status-success/10 text-status-success",
- failed: "bg-status-error/10 text-status-error",
+const statusTone: Record<JobStatus, "muted" | "info" | "success" | "error"> = {
+  pending: "muted",
+  processing: "info",
+  completed: "success",
+  failed: "error",
 };
 
 export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects, courseMap }: Props) {
@@ -171,70 +175,73 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  onSubmit={handleCreate}
  className="mb-8 rounded-xl border border-border bg-card p-6 shadow-sm space-y-4"
  >
- <h2 className="font-heading text-h6 font-semibold text-foreground flex items-center gap-2">
- <Zap className="size-5 text-status-warning" />
- Buat Generation Job
- </h2>
+  <AdminSectionTitle size="h6" icon={Zap} iconClassName="text-status-warning" title="Buat Generation Job" />
 
- <div className="grid gap-4 sm:grid-cols-2">
- <div>
- <label className="text-body-sm font-medium text-foreground mb-1 block">Kursus</label>
- <select
- className="w-full rounded-md border border-input bg-background px-3 py-2 text-body-sm"
- value={form.courseId}
- onChange={(e) => {
- const courseId = e.target.value;
- setForm({ courseId, chapterId: "", koId: "all" });
- }}
- required
- >
- <option value="">Pilih kursus...</option>
- {courses.map((c) => (
- <option key={c.id} value={c.id}>
- {c.title}
- </option>
- ))}
- </select>
- </div>
+  <div className="grid gap-4 sm:grid-cols-2">
+  <div>
+  <label className="text-body-sm font-medium text-foreground mb-1 block">Kursus</label>
+  <Select
+    value={form.courseId}
+    onValueChange={(courseId) => {
+      setForm({ courseId, chapterId: "", koId: "all" });
+    }}
+  >
+    <SelectTrigger className="w-full">
+      <SelectValue placeholder="Pilih kursus..." />
+    </SelectTrigger>
+    <SelectContent>
+      {courses.map((c) => (
+        <SelectItem key={c.id} value={c.id}>
+          {c.title}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+  </div>
 
- <div>
- <label className="text-body-sm font-medium text-foreground mb-1 block">Bab (Chapter)</label>
- <select
- className="w-full rounded-md border border-input bg-background px-3 py-2 text-body-sm disabled:opacity-50"
- value={form.chapterId}
- onChange={(e) => {
- const chapterId = e.target.value;
- setForm((f) => ({ ...f, chapterId, koId: "all" }));
- }}
- disabled={!form.courseId}
- required
- >
- <option value="">Pilih bab...</option>
- {filteredChapters.map((c) => (
- <option key={c.id} value={c.id}>
- Bab {c.orderIndex}: {c.title}
- </option>
- ))}
- </select>
- </div>
- </div>
+  <div>
+  <label className="text-body-sm font-medium text-foreground mb-1 block">Bab (Chapter)</label>
+  <Select
+    value={form.chapterId}
+    onValueChange={(chapterId) => {
+      setForm((f) => ({ ...f, chapterId, koId: "all" }));
+    }}
+    disabled={!form.courseId}
+  >
+    <SelectTrigger className="w-full">
+      <SelectValue placeholder="Pilih bab..." />
+    </SelectTrigger>
+    <SelectContent>
+      {filteredChapters.map((c) => (
+        <SelectItem key={c.id} value={c.id}>
+          Bab {c.orderIndex}: {c.title}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+  </div>
+  </div>
 
- <div>
- <label className="text-body-sm font-medium text-foreground mb-1 block">Objek Pengetahuan (KO)</label>
- <select
- className="w-full rounded-md border border-input bg-background px-3 py-2 text-body-sm disabled:opacity-50"
- value={form.koId}
- onChange={(e) => setForm((f) => ({ ...f, koId: e.target.value }))}
- disabled={!form.chapterId}
- >
- <option value="all">Semua Objek Pengetahuan (Generate Massal)</option>
- {filteredKOs.map((k) => (
- <option key={k.id} value={k.id}>
- [{k.conceptName}] {k.title}
- </option>
- ))}
- </select>
- </div>
+  <div>
+  <label className="text-body-sm font-medium text-foreground mb-1 block">Objek Pengetahuan (KO)</label>
+  <Select
+    value={form.koId}
+    onValueChange={(koId) => setForm((f) => ({ ...f, koId }))}
+    disabled={!form.chapterId}
+  >
+    <SelectTrigger className="w-full">
+      <SelectValue placeholder="Semua Objek Pengetahuan (Generate Massal)" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="all">Semua Objek Pengetahuan (Generate Massal)</SelectItem>
+      {filteredKOs.map((k) => (
+        <SelectItem key={k.id} value={k.id}>
+          [{k.conceptName}] {k.title}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+  </div>
 
  {form.chapterId && (
  <p className="text-xs text-muted-foreground">
@@ -261,9 +268,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  )}
 
  {localJobs.length === 0 ? (
- <div className="py-16 text-center text-muted-foreground text-body-sm">
- Belum ada generation job.
- </div>
+ <AdminEmptyState compact className="py-16" title="Belum ada generation job." />
  ) : (
  <div className="divide-y divide-border">
  {localJobs.map((job) => {
@@ -290,11 +295,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  <span className="text-body-sm text-muted-foreground">
  {courseMap[job.courseId] ?? job.courseId}
  </span>
- <span
- className={`rounded-md px-2 py-0.5 text-xs font-medium ${statusColors[job.status]}`}
- >
- {job.status}
- </span>
+ <StatusBadge tone={statusTone[job.status]}>{job.status}</StatusBadge>
  </div>
  <p className="text-body-sm text-muted-foreground mt-1">
  {job.generatedCount}/{job.targetCount} soal ·{" "}

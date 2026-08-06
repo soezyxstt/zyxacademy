@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
+import { AdminTable } from "@/components/admin/table";
 import {
   Dialog,
   DialogContent,
@@ -215,7 +216,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <AdminTable>
         <div className="hidden grid-cols-[minmax(0,1fr)_5rem_7rem_6rem] items-center gap-6 border-b border-border bg-muted/30 px-5 py-2.5 md:grid">
           <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Pendaftar</span>
           <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Bukti</span>
@@ -299,7 +300,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
             ))}
           </ul>
         )}
-      </div>
+      </AdminTable>
 
       {/* Proof lightbox */}
       <Dialog open={!!preview} onOpenChange={(open) => !open && setPreview(null)}>

@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTRenderer } from "@/components/course/markdown-renderer";
+import { MathText } from "@/components/course/math-text";
 import { CompilerResult, ASTBlock } from "@/lib/ast-validator";
 
 // Demos
@@ -348,7 +349,7 @@ export function ASTInspectorClient() {
                                 {block.type}
                               </span>
                               <span className="text-body-sm font-semibold text-foreground truncate max-w-md">
-                                {getBlockSummary(block)}
+                                <MathText as="span">{getBlockSummary(block)}</MathText>
                               </span>
                             </div>
                             <span className="text-xs text-muted-foreground">

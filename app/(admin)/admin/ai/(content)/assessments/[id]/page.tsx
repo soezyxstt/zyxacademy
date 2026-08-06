@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
-import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import {
   assessmentSources,
@@ -86,7 +85,7 @@ export default async function AssessmentDetailPage({
   ]);
 
   return (
-    <Reveal className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+    <div className="space-y-8">
       <AssessmentDetailClient
         source={source}
         course={course || { id: source.courseId, title: "Mata Kuliah Tidak Diketahui" }}
@@ -94,6 +93,6 @@ export default async function AssessmentDetailPage({
         conceptMappings={conceptMappings}
         resolvedChapters={resolvedChapters}
       />
-    </Reveal>
+    </div>
   );
 }

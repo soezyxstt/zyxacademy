@@ -2,10 +2,11 @@ import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Eye, Share2 } from "lucide-react";
+import { Plus, Edit, Eye, Share2, PenLine } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ShareDialog } from "@/components/blog/share-widget";
+import { AdminPageHeader } from "@/components/admin/page-header";
 
 export default async function AdminBlogDashboard() {
   const articles = await db.query.blogArticles.findMany({
@@ -16,19 +17,20 @@ export default async function AdminBlogDashboard() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 p-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-h2 font-heading tracking-tight">Manajemen Blog</h1>
-          <p className="text-muted-foreground mt-2 text-body-md">Kelola artikel, berita, dan tips untuk ditampilkan di Zyx Blog.</p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/blog/new">
-            <Plus className="w-4 h-4 mr-2" />
-            Tulis Artikel
-          </Link>
-        </Button>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={PenLine}
+        title="Manajemen Blog"
+        description="Kelola artikel, berita, dan tips untuk ditampilkan di Zyx Blog."
+        actions={
+          <Button asChild>
+            <Link href="/admin/blog/new">
+              <Plus className="size-4" />
+              Tulis Artikel
+            </Link>
+          </Button>
+        }
+      />
 
       <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
         <table className="w-full text-left text-body-sm">
@@ -73,13 +75,13 @@ export default async function AdminBlogDashboard() {
                   <td className="px-6 py-4 flex items-center gap-2">
                     <Button variant="ghost" size="sm" asChild>
                       <Link href={`/admin/blog/${article.id}/edit`}>
-                        <Edit className="w-4.5 h-4.5 mr-1" />
+                        <Edit className="size-4" />
                         Sunting
                       </Link>
                     </Button>
                     <Button variant="ghost" size="sm" asChild>
                       <Link href={`/blog/${article.slug}`} target="_blank">
-                        <Eye className="w-4.5 h-4.5 mr-1" />
+                        <Eye className="size-4" />
                         Lihat
                       </Link>
                     </Button>
@@ -89,7 +91,7 @@ export default async function AdminBlogDashboard() {
                       description={article.summary || ""}
                       trigger={
                         <Button variant="ghost" size="sm">
-                          <Share2 className="w-4.5 h-4.5 mr-1" />
+                          <Share2 className="size-4" />
                           Bagikan
                         </Button>
                       }

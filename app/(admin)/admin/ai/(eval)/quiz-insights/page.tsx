@@ -19,6 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { SearchBar } from "@/components/ui/search-bar";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminStatCard } from "@/components/admin/stat-card";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 
 interface QuizInsightOverviewItem {
   type: "quiz_template";
@@ -92,69 +95,60 @@ export default function AdminQuizInsightsOverviewPage() {
   const analyzedWithAiCount = items.filter((i) => i.lastAiInsight !== null).length;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between border-b border-border pb-5">
-        <div>
-          <h1 className="font-heading text-h3 text-foreground font-bold flex items-center gap-2.5">
-            <BarChart3 className="size-7 text-brand-primary" />
-            Analisis & Insight Kuis / Exam
-          </h1>
-          <p className="text-body-base text-muted-foreground mt-1">
-            Halaman khusus evaluasi performa kuis, simulasi, dan asesmen. Temukan konsep yang menyulitkan, distraktor jebakan, serta rekomendasi pengajaran AI Gemini untuk tutor.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchItems}
-          disabled={loading}
-          className="self-start md:self-auto gap-2 rounded-lg"
-        >
-          <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-          Perbarui Data
-        </Button>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={BarChart3}
+        title="Analisis & Insight Kuis / Exam"
+        description="Halaman khusus evaluasi performa kuis, simulasi, dan asesmen. Temukan konsep yang menyulitkan, distraktor jebakan, serta rekomendasi pengajaran AI Gemini untuk tutor."
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchItems}
+            disabled={loading}
+            className="gap-2 rounded-lg"
+          >
+            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+            Perbarui Data
+          </Button>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-body-sm font-medium">Total Kuis & Simulasi</span>
-            <BookOpen className="size-4 text-brand-primary" />
-          </div>
-          <p className="text-h4 font-heading font-bold text-foreground">{totalQuizzes}</p>
-          <p className="text-body-xs text-muted-foreground">Terdaftar di sistem Zyx</p>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-body-sm font-medium font-sans">Total Pengerjaan</span>
-            <TrendingUp className="size-4 text-status-info" />
-          </div>
-          <p className="text-h4 font-heading font-bold text-foreground">{totalAttemptsSum}</p>
-          <p className="text-body-xs text-muted-foreground">Pengerjaan selesai oleh siswa</p>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-body-sm font-medium">Rata-rata Nilai</span>
-            <Award className="size-4 text-brand-secondary" />
-          </div>
-          <p className="text-h4 font-heading font-bold text-foreground">{avgOverallScore} / 100</p>
-          <p className="text-body-xs text-muted-foreground">Rata-rata dari seluruh kuis</p>
-        </div>
-
-        <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-body-sm font-medium">Dianalisis AI</span>
-            <Sparkles className="size-4 text-brand-primary" />
-          </div>
-          <p className="text-h4 font-heading font-bold text-foreground">
-            {analyzedWithAiCount} <span className="text-body-sm text-muted-foreground font-normal">/ {totalQuizzes}</span>
-          </p>
-          <p className="text-body-xs text-muted-foreground">Kuis memiliki insight Gemini</p>
-        </div>
+        <AdminStatCard
+          label="Total Kuis & Simulasi"
+          value={totalQuizzes}
+          caption="Terdaftar di sistem Zyx"
+          icon={BookOpen}
+          iconClassName="text-brand-primary"
+        />
+        <AdminStatCard
+          label="Total Pengerjaan"
+          value={totalAttemptsSum}
+          caption="Pengerjaan selesai oleh siswa"
+          icon={TrendingUp}
+          iconClassName="text-status-info"
+        />
+        <AdminStatCard
+          label="Rata-rata Nilai"
+          value={`${avgOverallScore} / 100`}
+          caption="Rata-rata dari seluruh kuis"
+          icon={Award}
+          iconClassName="text-brand-secondary"
+        />
+        <AdminStatCard
+          label="Dianalisis AI"
+          value={
+            <>
+              {analyzedWithAiCount}{" "}
+              <span className="text-body-sm text-muted-foreground font-normal">/ {totalQuizzes}</span>
+            </>
+          }
+          caption="Kuis memiliki insight Gemini"
+          icon={Sparkles}
+          iconClassName="text-brand-primary"
+        />
       </div>
 
       {/* Filter and Search Bar */}
@@ -208,11 +202,11 @@ export default function AdminQuizInsightsOverviewPage() {
             <p>Memuat data kuis dan evaluasi...</p>
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="p-12 text-center text-body-sm text-muted-foreground space-y-2">
-            <HelpCircle className="size-8 mx-auto text-muted-foreground/60" />
-            <p className="font-semibold text-foreground">Tidak ada kuis yang ditemukan</p>
-            <p className="text-body-xs">Coba sesuaikan kata kunci pencarian atau filter mata kuliah.</p>
-          </div>
+          <AdminEmptyState
+            icon={HelpCircle}
+            title="Tidak ada kuis yang ditemukan"
+            description="Coba sesuaikan kata kunci pencarian atau filter mata kuliah."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-body-sm">

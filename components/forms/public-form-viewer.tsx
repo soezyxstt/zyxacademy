@@ -12,6 +12,7 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
+import { MathText } from "@/components/course/math-text";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -359,11 +360,11 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
               {/* Title & Required */}
               <div className="space-y-1">
                 <h3 className="font-heading text-h6 font-semibold text-foreground flex items-center gap-1.5">
-                  <span>{qIdx + 1}. {q.title}</span>
+                  <span><MathText as="span">{`${qIdx + 1}. ${q.title}`}</MathText></span>
                   {q.required && <span className="text-status-error font-bold">*</span>}
                 </h3>
                 {q.description && (
-                  <p className="text-body-xs text-muted-foreground">{q.description}</p>
+                  <MathText className="text-body-xs text-muted-foreground block" as="div">{q.description}</MathText>
                 )}
               </div>
 

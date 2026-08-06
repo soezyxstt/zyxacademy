@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, use } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   RefreshCw,
   AlertCircle,
   ExternalLink,
@@ -18,7 +17,6 @@ import {
   HelpCircle as QuestionIcon,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { Reveal } from "@/components/ui/reveal";
 import { formatIsoDate } from "@/lib/date-utils";
 import {
   Select,
@@ -29,13 +27,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { MathText } from "@/components/course/math-text";
 
 interface NativeFormDetails {
   id: string;
@@ -365,38 +365,31 @@ export default function DetailedFormAnalyticsPage({
   });
 
   return (
-    <Reveal className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 space-y-6">
-      {/* Back Link */}
-      <Link
-        href="/admin/forms"
-        className="inline-flex items-center gap-1.5 text-body-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="size-4" />
-        Kembali ke Form Studio
-      </Link>
-
-      {/* Main Header Card */}
+    <div className="space-y-8">
       {form && (
-        <Card className="border-t-4 border-t-primary shadow-sm">
-          <CardHeader className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
+        <AdminPageHeader
+          icon={FileText}
+          backHref="/admin/forms"
+          backLabel="Kembali ke Form Studio"
+          title={
+            <span className="flex flex-wrap items-center gap-3">
+              {form.title}
               <Badge variant="secondary" className="bg-primary/10 text-primary uppercase font-bold text-body-2xs">
                 {form.category}
               </Badge>
-              <Link
-                href={`/f/${form.slug}`}
-                target="_blank"
-                className="inline-flex items-center gap-1 text-body-xs font-semibold text-primary hover:underline"
-              >
-                Short Link: /f/{form.slug} <ExternalLink className="size-3.5" />
-              </Link>
-            </div>
-            <CardTitle className="text-h4 font-heading">{form.title}</CardTitle>
-            {form.description && (
-              <CardDescription className="text-body-sm">{form.description}</CardDescription>
-            )}
-          </CardHeader>
-        </Card>
+            </span>
+          }
+          description={form.description}
+          actions={
+            <Link
+              href={`/f/${form.slug}`}
+              target="_blank"
+              className="inline-flex items-center gap-1 text-body-xs font-semibold text-primary hover:underline"
+            >
+              Short Link: /f/{form.slug} <ExternalLink className="size-3.5" />
+            </Link>
+          }
+        />
       )}
 
       {error && (
@@ -416,10 +409,10 @@ export default function DetailedFormAnalyticsPage({
           <CardTitle className="mt-3 text-h6 font-heading">Data Formulir Tidak Ditemukan</CardTitle>
         </Card>
       ) : (
-        <Tabs
+        <AdminTabs
           value={responseTab}
           onValueChange={(val) => setResponseTab(val as any)}
-          className="w-full space-y-6"
+          className="w-full"
         >
           {/* Action Header & Tabs List */}
           <Card className="shadow-sm">
@@ -469,29 +462,29 @@ export default function DetailedFormAnalyticsPage({
             </CardHeader>
 
             <CardContent className="border-t border-border pt-4">
-              <TabsList className="w-full justify-center h-auto p-1 bg-muted/60 flex-wrap sm:flex-nowrap gap-1">
-                <TabsTrigger value="summary" className="flex-1 gap-2 text-body-xs font-semibold py-2">
+              <AdminTabsList className="w-full justify-center">
+                <AdminTabsTrigger value="summary" className="flex-1 py-2">
                   <PieIcon className="size-4 text-primary" />
                   Summary (Ringkasan Total)
-                </TabsTrigger>
-                <TabsTrigger value="question" className="flex-1 gap-2 text-body-xs font-semibold py-2">
+                </AdminTabsTrigger>
+                <AdminTabsTrigger value="question" className="flex-1 py-2">
                   <QuestionIcon className="size-4 text-orange-500" />
                   Question (Per Soal)
-                </TabsTrigger>
-                <TabsTrigger value="individual" className="flex-1 gap-2 text-body-xs font-semibold py-2">
+                </AdminTabsTrigger>
+                <AdminTabsTrigger value="individual" className="flex-1 py-2">
                   <User className="size-4 text-teal-500" />
                   Individual (Per Responden)
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="flex-1 gap-2 text-body-xs font-semibold py-2">
+                </AdminTabsTrigger>
+                <AdminTabsTrigger value="settings" className="flex-1 py-2">
                   <SettingsIcon className="size-4 text-amber-500" />
                   Settings (Pengaturan)
-                </TabsTrigger>
-              </TabsList>
+                </AdminTabsTrigger>
+              </AdminTabsList>
             </CardContent>
           </Card>
 
           {/* TAB 1: SUMMARY */}
-          <TabsContent value="summary" className="space-y-6 mt-0">
+          <AdminTabsContent value="summary" className="space-y-6">
             {(form.questions || []).map((q: any, qIdx: number) => {
               const questionTitle = q.title || `Pertanyaan #${qIdx + 1}`;
               const allAnswers = responses
@@ -709,10 +702,10 @@ export default function DetailedFormAnalyticsPage({
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </AdminTabsContent>
 
           {/* TAB 2: QUESTION */}
-          <TabsContent value="question" className="space-y-6 mt-0">
+          <AdminTabsContent value="question" className="space-y-6">
             <Card className="shadow-sm">
               <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex-1 space-y-1.5">
@@ -794,10 +787,10 @@ export default function DetailedFormAnalyticsPage({
                 </Card>
               );
             })()}
-          </TabsContent>
+          </AdminTabsContent>
 
           {/* TAB 3: INDIVIDUAL */}
-          <TabsContent value="individual" className="space-y-6 mt-0">
+          <AdminTabsContent value="individual" className="space-y-6">
             {responses.length === 0 ? (
               <Card className="p-12 text-center text-muted-foreground text-body-sm">
                 Belum ada respon yang masuk.
@@ -851,10 +844,10 @@ export default function DetailedFormAnalyticsPage({
                           <Card key={qIdx} className="shadow-sm">
                             <CardHeader className="pb-2">
                               <CardTitle className="text-h6 font-heading">
-                                {qIdx + 1}. {qTitle}
+                                <MathText as="span">{`${qIdx + 1}. ${qTitle}`}</MathText>
                               </CardTitle>
                               {q.description && (
-                                <CardDescription className="text-body-xs">{q.description}</CardDescription>
+                                <CardDescription className="text-body-xs"><MathText as="span">{q.description}</MathText></CardDescription>
                               )}
                             </CardHeader>
                             <CardContent className="pt-2">
@@ -868,10 +861,10 @@ export default function DetailedFormAnalyticsPage({
                 })()}
               </>
             )}
-          </TabsContent>
+          </AdminTabsContent>
 
           {/* TAB 4: SETTINGS */}
-          <TabsContent value="settings" className="w-full space-y-6 mt-0">
+          <AdminTabsContent value="settings" className="w-full space-y-6">
             {/* Header / Save Action Bar */}
             <Card className="shadow-sm">
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1092,9 +1085,9 @@ export default function DetailedFormAnalyticsPage({
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </AdminTabsContent>
+        </AdminTabs>
       )}
-    </Reveal>
+    </div>
   );
 }

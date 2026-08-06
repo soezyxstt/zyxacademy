@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
@@ -288,11 +289,10 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
               </div>
 
               <label className="flex items-center gap-2 text-body-sm text-muted-foreground cursor-pointer select-none">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={includeInProgress}
-                  onChange={(e) => setIncludeInProgress(e.target.checked)}
-                  className="rounded border-border text-brand-primary focus:ring-brand-primary"
+                  onCheckedChange={(checked) => setIncludeInProgress(Boolean(checked))}
+                  className="rounded-sm border-border text-brand-primary data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
                 />
                 Sertakan In-Progress
               </label>

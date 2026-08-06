@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Eye, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MathText } from "@/components/course/math-text";
 
 type BundleRow = {
   id: string;
@@ -165,7 +166,7 @@ export function ProductBundleV2Panel({ initialImports }: Props) {
               <article key={`${preview.id}:${preview.version}`} className="space-y-2 py-4">
                 <p className="font-semibold text-foreground">{preview.title} <span className="font-normal text-muted-foreground">({preview.productType} v{preview.version})</span></p>
                 <p className="text-body-sm text-muted-foreground">Ideas: {preview.traceability.ideaIds.join(", ")} ; sumber: {preview.traceability.sourceIds.join(", ")}</p>
-                {preview.sections.slice(0, 2).map((section) => <p key={section.label} className="line-clamp-3 text-body-sm text-muted-foreground"><span className="font-medium text-foreground">{section.label}:</span> {section.content}</p>)}
+                {preview.sections.slice(0, 2).map((section) => <p key={section.label} className="line-clamp-3 text-body-sm text-muted-foreground"><span className="font-medium text-foreground">{section.label}:</span> <MathText as="span">{section.content}</MathText></p>)}
               </article>
             ))}
           </div>

@@ -312,6 +312,7 @@ The admin drive (`/admin/files`) is a read-only browser over these domain prefix
 - **Plan 017 policy gate slice completed**: Product Bundle questions now require ITB curation and HOT cognitive levels for multi-Idea questions, while canonical flashcard recommendations suppress Idea mastery scores of 80 or higher. No schema migration was added.
 - **Structured Form Upload Storage System completed**: Form image and file uploads (public form responder uploads & admin form builder question attachments) now use a structured folder key hierarchy (`forms/[judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`) handled via `lib/forms/storage-utils.ts`, `app/api/forms/upload/route.ts`, `components/forms/public-form-viewer.tsx`, and verified via `tests/contracts/form-storage.test.ts` (4/4 tests passing, 0 lint errors).
 - **R2 Object Key Convention completed**: All upload flows now build keys through the single helper `lib/storage/keys.ts` (`{domain}/{entity-slug}/{subfolder...}/{leaf}` with `{timestamp}-{shorthash8}-{sanitized-filename}` leaves). `R2Provider.upload()` and `WranglerR2Provider.upload()` now require `options.key` and reject unsafe keys with `INVALID_OBJECT_KEY`. Call sites migrated to conforming prefixes (`courses/{slug}/materials|canonical|diktats`, `blog/{leaf}`, `pka/{userId}/proofs`, `uploads/{yyyy}/{mm}` fallback for `/api/admin/upload-pdf`). The admin drive (`/admin/files`) became a read-only browser over domain prefixes: `/api/storage/upload` and `driveUploader` removed, `drive_item` write actions deleted, the proxy route now uses `leafFilename(key)`. Verified via `tests/contracts/storage-keys.test.ts` + `tests/contracts/form-storage.test.ts` (15/15 passing), `bun run lint` (0 errors), and `bun run typecheck` (0 errors).
+- **Admin UI shared component library completed**: Added reusable `components/admin/` components (`stat-card.tsx`, `status-badges.tsx`, `section-title.tsx`, `confirm-dialog.tsx`, `state-panels.tsx`, `option-letter.tsx`, `table.tsx`) and migrated duplicated markup across admin pages: delete-confirmation dialogs (quizzes, diktats, questions, assessments), KPI stat cards (quiz-insights list/detail, ops analytics), difficulty/status/course badges (quizzes, materials detail, assessments detail, historical questions, jobs, questions bank, diktats), section titles (meet detail, diktats, jobs), empty states (quiz-insights, jobs), table/list card wrappers (historical questions, assessments, tutorial-pka tabs, notifications history). Rules documented in AGENTS.md. Verified with `bun run lint` (0 errors), `bun run typecheck` (0 errors), and all 226 contract tests passing.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -382,6 +383,34 @@ Branch-local Plan 017 (`codex/rework-audit`) is an isolated follow-up for the au
 | Scroll entrance | `Reveal` (handles reduced motion + admin bypass) | `components/ui/reveal` |
 | Icons | lucide-react, default `size-4`, section icons `size-5` | `lucide-react` |
 | Math | `MathText` | `components/course/math-text` |
+
+### Admin UI shared components (use these, do not re-implement)
+
+All admin pages live under `app/(admin)/admin/` and must compose the shared components in `components/admin/` instead of re-declaring the same markup per page. A lint/typecheck clean does not excuse duplication; if a pattern below fits, use the component.
+
+| Component | Import | Replaces |
+|---|---|---|
+| `AdminPageHeader` | `components/admin/page-header` | Manual page `<h1>` + description + icon blocks. Every standalone admin page uses it; do not hand-roll a page header. |
+| `AdminTabs` / `AdminTabsList` / `AdminTabsTrigger` / `AdminTabsContent` | `components/admin/tabs` | Raw `Tabs` wiring for admin tab views (settings panels, detail pages). |
+| `AdminStatCard` | `components/admin/stat-card` | Local `Stat`/`StatCard` KPI cards. `size` = `sm` (p-4, `text-h5`) or `md` (p-5, `text-h4`); `tone` colors the value + icon (default/brand/brand-secondary/info/success/warning/error); `iconClassName` overrides the icon color when the value stays foreground. |
+| `AdminSectionTitle` | `components/admin/section-title` | Repeated heading markup: `font-heading text-h5/h6/lg ... flex items-center gap-2` with icon + optional micro-label/description. `size` = `h5`/`h6`/`lg`; `border` adds `border-b border-border pb-3`; `right` slots an action; `as` picks the heading level (default `h3`). |
+| `AdminConfirmDialog` | `components/admin/confirm-dialog` | All destructive confirmation dialogs. Prefer over hand-rolled `Dialog` + "Batal"/destructive footer. `destructive={false}` yields a default confirm button; `loading` disables submit. |
+| `StatusBadge` | `components/admin/status-badges` | Raw status ternaries. `tone` = muted/info/success/warning/error/brand. Prefer tone-mapped dictionaries (`statusTone`) over per-file `statusColors` class maps. |
+| `DifficultyBadge` | `components/admin/status-badges` | Easy/Medium/Hard ternaries (string or numeric 3/2/1 input). Maps easy→success, medium→warning, hard→error; `prefix="Kesulitan"` for labeled variants. |
+| `CourseBadge` | `components/admin/status-badges` | The brand-primary course pill `text-xs font-bold uppercase tracking-wider bg-brand-primary/8 ...`. |
+| `AdminEmptyState` | `components/admin/state-panels` | Empty states. `compact` = single centered line `text-body-sm text-muted-foreground`; full = icon + title + description + optional `action`. |
+| `AdminErrorState` | `components/admin/state-panels` | `TriangleAlert` + message + optional Retry button. |
+| `AdminOptionLetter` | `components/admin/option-letter` | Question option letter badges; `isCorrect` renders the filled emerald variant. Never write `String.fromCharCode(65 + i)` for option badges. |
+| `AdminTable` / `AdminTableHead` | `components/admin/table` | The card table wrapper `overflow-hidden rounded-xl border border-border bg-card shadow-sm` and `thead` `bg-muted/50 border-b border-border`. Works for `<table>` and grid-based list surfaces. |
+
+Rules:
+- **Difficulty = semantic status tones, never the raw emerald/amber/rose palette.** `easy`→success, `medium`→warning, `hard`→error.
+- **Status badges are uppercase** (`uppercase tracking-wide`, `text-[10px] font-semibold`); display keys come from the API value, not invented labels.
+- **Table/list card wrappers use `AdminTable`.** A new table surface must not re-type `overflow-hidden rounded-xl border border-border bg-card shadow-sm`.
+- **Dialog edit shells** may keep the base `Dialog` family from `components/ui/dialog` (they vary too much to share), but **destructive confirmations must use `AdminConfirmDialog`**.
+- **Section headings** within a page use `AdminSectionTitle`, not ad hoc `h2`/`h3` blocks; the only exception is a card header that needs bespoke chrome (e.g. `flags-client.tsx`).
+- **KPI grids** are `AdminStatCard` inside a `grid`; never build a local stat-card component per page.
+- Keep dialog/form shells in `components/ui/*` and `radix-ui`; do not introduce a second component library.
 
 ### Layout
 

@@ -1,5 +1,6 @@
 import type { ArticleDocument } from "@/lib/materials/article-contract";
 import type { QualityGateResult } from "@/lib/materials/quality-gates";
+import { MathText } from "@/components/course/math-text";
 
 export interface ArticlePreviewProps {
   article: ArticleDocument;
@@ -40,7 +41,7 @@ export function ArticlePreview({ article, quality }: ArticlePreviewProps) {
               <h3 className="font-heading text-h6">{block.blockType.replaceAll("_", " ")}</h3>
               <span className="text-body-sm text-muted-foreground">{block.reviewerState}</span>
             </div>
-            <p className="whitespace-pre-wrap text-body-base">{block.content}</p>
+            <MathText className="whitespace-pre-wrap text-body-base block" as="div">{block.content}</MathText>
             <p className="text-body-sm text-muted-foreground">
               Ideas: {block.ideaIds.length ? block.ideaIds.join(", ") : "none"} · Sources: {block.sourceRefs.length}
             </p>

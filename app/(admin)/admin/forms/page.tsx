@@ -39,7 +39,6 @@ import {
   ZoomIn,
   Link2,
 } from "lucide-react";
-import { Reveal } from "@/components/ui/reveal";
 import type { CreateCustomQuestionInput, QuestionType } from "@/lib/google-forms";
 import {
   Dialog,
@@ -50,6 +49,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -62,6 +64,8 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
 
 interface ExtendedQuestionInput extends CreateCustomQuestionInput {
   showDescription?: boolean;
@@ -430,75 +434,37 @@ export default function AdminFormsPage() {
   };
 
   return (
-    <Reveal className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-      {/* Top App Bar & Tab Navigation */}
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
-            <FileText className="size-5" />
-          </span>
-          <div>
-            <h1 className="font-heading text-h5 font-bold text-foreground">
-              Form Studio & Visualizer
-            </h1>
-            <p className="text-body-xs text-muted-foreground">
-              Mendukung 12 Jenis Soal Lengkap, Short Links (/f/[slug]), Unggah Berkas & Custom UI.
-            </p>
-          </div>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1 rounded-xl bg-muted/60 p-1 border border-border/80">
-          <button
-            type="button"
-            onClick={() => setActiveTab("builder")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-body-xs font-semibold transition-colors cursor-pointer ${
-              activeTab === "builder"
-                ? "bg-card text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <FileText className="size-3.5" />
-            Editor Pertanyaan ({questions.length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("settings")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-body-xs font-semibold transition-colors cursor-pointer ${
-              activeTab === "settings"
-                ? "bg-card text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Sliders className="size-3.5" />
-            Settings (Pengaturan)
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("forms")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-body-xs font-semibold transition-colors cursor-pointer ${
-              activeTab === "forms"
-                ? "bg-card text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <BarChart3 className="size-3.5" />
-            Daftar Terbit ({forms.length})
-          </button>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={FileText}
+        title="Form Studio & Visualizer"
+        description="Mendukung 12 jenis soal lengkap, short links (/f/[slug]), unggah berkas, dan custom UI."
+      />
 
       {errorMsg && (
-        <div className="mb-6 flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
+        <div className="flex items-center gap-3 rounded-xl border border-status-error/30 bg-status-error/10 p-4 text-body-sm text-status-error">
           <AlertCircle className="size-5 shrink-0" />
           <p>{errorMsg}</p>
         </div>
       )}
 
-      {/* TAB 1: FORM EDITOR EXPERIENCE */}
-      {activeTab === "builder" && (
+      <AdminTabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+        <AdminTabsList>
+          <AdminTabsTrigger value="builder">
+            <FileText className="size-3.5" />
+            Editor Pertanyaan ({questions.length})
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="settings">
+            <Sliders className="size-3.5" />
+            Settings (Pengaturan)
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="forms">
+            <BarChart3 className="size-3.5" />
+            Daftar Terbit ({forms.length})
+          </AdminTabsTrigger>
+        </AdminTabsList>
+
+        <AdminTabsContent value="builder">
         <div className="grid gap-6 md:grid-cols-12 items-start">
           {/* Main Question Cards Column */}
           <div className="md:col-span-9 space-y-5">
@@ -530,12 +496,12 @@ export default function AdminFormsPage() {
                   <Link2 className="size-4 text-brand-primary shrink-0" />
                   <span className="font-bold text-foreground">Short Link Custom:</span>
                   <span className="font-mono text-muted-foreground">/f/</span>
-                  <input
+                  <Input
                     type="text"
                     placeholder="tpb2026-eval"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
-                    className="font-mono font-semibold rounded-md border border-input bg-background px-2 py-0.5 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-36"
+                    className="font-mono font-semibold rounded-md px-2 py-0.5 text-body-xs h-7 w-36"
                   />
                 </div>
                 <span className="text-body-2xs text-muted-foreground">Responden dapat mengakses via /f/{slug || "slug"}</span>
@@ -869,11 +835,11 @@ export default function AdminFormsPage() {
                             {q.type === "CHECKBOX" && <CheckSquare className="size-4 text-muted-foreground shrink-0" />}
                             {q.type === "DROP_DOWN" && <span className="text-body-xs font-mono font-bold text-muted-foreground w-4">{oIdx + 1}.</span>}
 
-                            <input
+                            <Input
                               type="text"
                               value={opt}
                               onChange={(e) => handleOptionChange(qIdx, oIdx, e.target.value)}
-                              className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              className="flex-1 rounded-lg px-3 py-1.5 text-body-xs h-8"
                             />
 
                             {(q.options || []).length > 1 && (
@@ -913,20 +879,20 @@ export default function AdminFormsPage() {
                       <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-border/80 bg-muted/20 p-3 text-body-xs">
                         <div>
                           <label className="block text-muted-foreground font-semibold mb-1">Label Terendah (1)</label>
-                          <input
+                          <Input
                             type="text"
                             value={q.scaleLowLabel || "Sangat Buruk"}
                             onChange={(e) => handleQuestionChange(qIdx, { scaleLowLabel: e.target.value })}
-                            className="w-full rounded-lg border border-input bg-background px-3 py-1 text-body-xs"
+                            className="w-full rounded-lg px-3 py-1 text-body-xs h-8"
                           />
                         </div>
                         <div>
                           <label className="block text-muted-foreground font-semibold mb-1">Label Tertinggi (5)</label>
-                          <input
+                          <Input
                             type="text"
                             value={q.scaleHighLabel || "Sangat Baik"}
                             onChange={(e) => handleQuestionChange(qIdx, { scaleHighLabel: e.target.value })}
-                            className="w-full rounded-lg border border-input bg-background px-3 py-1 text-body-xs"
+                            className="w-full rounded-lg px-3 py-1 text-body-xs h-8"
                           />
                         </div>
                       </div>
@@ -964,11 +930,11 @@ export default function AdminFormsPage() {
                             {(q.gridRows || ["Baris 1", "Baris 2"]).map((rowVal, rIdx) => (
                               <div key={rIdx} className="flex items-center gap-2">
                                 <span className="text-muted-foreground font-mono font-bold w-4">{rIdx + 1}.</span>
-                                <input
+                                <Input
                                   type="text"
                                   value={rowVal}
                                   onChange={(e) => handleGridRowChange(qIdx, rIdx, e.target.value)}
-                                  className="flex-1 rounded-lg border border-input bg-background px-2.5 py-1 text-body-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                  className="flex-1 rounded-lg px-2.5 py-1 text-body-xs h-8"
                                 />
                                 {(q.gridRows || []).length > 1 && (
                                   <button
@@ -999,11 +965,11 @@ export default function AdminFormsPage() {
                             {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((colVal, cIdx) => (
                               <div key={cIdx} className="flex items-center gap-2">
                                 <span className="text-muted-foreground font-mono font-bold w-4">{cIdx + 1}.</span>
-                                <input
+                                <Input
                                   type="text"
                                   value={colVal}
                                   onChange={(e) => handleGridColChange(qIdx, cIdx, e.target.value)}
-                                  className="flex-1 rounded-lg border border-input bg-background px-2.5 py-1 text-body-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                  className="flex-1 rounded-lg px-2.5 py-1 text-body-xs h-8"
                                 />
                                 {(q.gridColumns || []).length > 1 && (
                                   <button
@@ -1109,11 +1075,10 @@ export default function AdminFormsPage() {
                     <div className="flex items-center gap-2">
                       <div className="h-4 w-px bg-border" />
                       <label className="inline-flex items-center gap-1.5 text-body-xs font-semibold text-foreground cursor-pointer">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={q.required ?? true}
-                          onChange={(e) => handleQuestionChange(qIdx, { required: e.target.checked })}
-                          className="rounded border-input text-brand-primary focus:ring-ring"
+                          onCheckedChange={(checked) => handleQuestionChange(qIdx, { required: Boolean(checked) })}
+                          className="size-4 rounded-md border-input text-brand-primary data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
                         />
                         Wajib Diisi
                       </label>
@@ -1170,10 +1135,9 @@ export default function AdminFormsPage() {
             </div>
           </div>
         </div>
-      )}
+        </AdminTabsContent>
 
-      {/* TAB 2: SETTINGS (PENGATURAN FORMULIR) */}
-      {activeTab === "settings" && (
+        <AdminTabsContent value="settings">
         <div className="space-y-6 max-w-3xl">
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
             <div>
@@ -1196,11 +1160,10 @@ export default function AdminFormsPage() {
                   <p className="text-body-sm font-semibold text-foreground">Menerima Tanggapan (Accepting Responses)</p>
                   <p className="text-body-xs text-muted-foreground">Aktifkan untuk mengizinkan responden mengisi formulir ini.</p>
                 </div>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.acceptingResponses}
-                  onChange={(e) => setSettings({ ...settings, acceptingResponses: e.target.checked })}
-                  className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                  onCheckedChange={(checked) => setSettings({ ...settings, acceptingResponses: Boolean(checked) })}
+                  className="size-5 rounded-md border-input text-brand-primary data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary cursor-pointer"
                 />
               </div>
 
@@ -1209,11 +1172,11 @@ export default function AdminFormsPage() {
                   <label className="block text-body-xs font-semibold text-foreground mb-1">
                     Jadwal Otomatis Buka (openAt)
                   </label>
-                  <input
+                  <Input
                     type="datetime-local"
                     value={settings.openAt}
                     onChange={(e) => setSettings({ ...settings, openAt: e.target.value })}
-                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="w-full rounded-xl px-3 py-2 text-body-xs h-9"
                   />
                   <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
                 </div>
@@ -1222,11 +1185,11 @@ export default function AdminFormsPage() {
                   <label className="block text-body-xs font-semibold text-foreground mb-1">
                     Jadwal Otomatis Tutup (closeAt)
                   </label>
-                  <input
+                  <Input
                     type="datetime-local"
                     value={settings.closeAt}
                     onChange={(e) => setSettings({ ...settings, closeAt: e.target.value })}
-                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="w-full rounded-xl px-3 py-2 text-body-xs h-9"
                   />
                   <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
                 </div>
@@ -1236,12 +1199,12 @@ export default function AdminFormsPage() {
                 <label className="block text-body-xs font-semibold text-foreground mb-1">
                   Pesan Saat Formulir Ditutup (Closed Message)
                 </label>
-                <textarea
+                <Textarea
                   rows={2}
                   value={settings.closedMessage}
                   onChange={(e) => setSettings({ ...settings, closedMessage: e.target.value })}
                   placeholder="Formulir ini telah ditutup dan tidak lagi menerima tanggapan."
-                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
+                  className="w-full rounded-xl px-3 py-2 text-body-xs min-h-[44px]"
                 />
               </div>
             </div>
@@ -1297,11 +1260,10 @@ export default function AdminFormsPage() {
                   <p className="text-body-sm font-semibold text-foreground">Allow response editing</p>
                   <p className="text-body-xs text-muted-foreground">Respon dapat diubah kembali setelah dikirimkan.</p>
                 </div>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.allowResponseEditing}
-                  onChange={(e) => setSettings({ ...settings, allowResponseEditing: e.target.checked })}
-                  className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                  onCheckedChange={(checked) => setSettings({ ...settings, allowResponseEditing: Boolean(checked) })}
+                  className="size-5 rounded-md border-input text-brand-primary data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary cursor-pointer"
                 />
               </div>
 
@@ -1310,11 +1272,10 @@ export default function AdminFormsPage() {
                   <p className="text-body-sm font-semibold text-foreground">Limit to 1 response (Requires Sign in)</p>
                   <p className="text-body-xs text-muted-foreground">Membatasi responden hanya boleh mengisi 1 kali pengisian.</p>
                 </div>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={settings.limitToOneResponse}
-                  onChange={(e) => setSettings({ ...settings, limitToOneResponse: e.target.checked })}
-                  className="size-5 rounded border-input text-brand-primary focus:ring-ring cursor-pointer"
+                  onCheckedChange={(checked) => setSettings({ ...settings, limitToOneResponse: Boolean(checked) })}
+                  className="size-5 rounded-md border-input text-brand-primary data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary cursor-pointer"
                 />
               </div>
             </div>
@@ -1348,21 +1309,20 @@ export default function AdminFormsPage() {
                 <label className="block text-body-xs font-semibold text-foreground mb-1">
                   Pesan Konfirmasi Setelah Submit (Presentation)
                 </label>
-                <input
+                <Input
                   type="text"
                   value={settings.customSuccessMessage}
                   onChange={(e) => setSettings({ ...settings, customSuccessMessage: e.target.value })}
                   placeholder="Jawaban Anda telah berhasil disimpan."
-                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-body-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="w-full rounded-xl px-3 py-2 text-body-xs h-9"
                 />
               </div>
             </div>
           </div>
         </div>
-      )}
+        </AdminTabsContent>
 
-      {/* TAB 3: PUBLISHED FORMS LIST */}
-      {activeTab === "forms" && (
+        <AdminTabsContent value="forms">
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
@@ -1519,7 +1479,8 @@ export default function AdminFormsPage() {
             </div>
           )}
         </div>
-      )}
+        </AdminTabsContent>
+      </AdminTabs>
 
       {/* SHADCN DIALOG: DELETE CONFIRMATION */}
       <Dialog
@@ -1601,6 +1562,6 @@ export default function AdminFormsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </Reveal>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { eq, isNotNull } from "drizzle-orm";
@@ -16,9 +15,8 @@ import { DriveExplorer, type DriveRow } from "@/components/admin/drive-explorer"
 import { leafFilename } from "@/lib/storage/keys";
 import { pageTitle } from "@/lib/site";
 import { assertAdmin } from "@/lib/uploadthing-admin";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { Reveal } from "@/components/ui/reveal";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { HardDrive } from "lucide-react";
 import { storage } from "@/lib/storage";
 
 export const metadata: Metadata = {
@@ -110,19 +108,14 @@ export default async function AdminFilesPage() {
   rows.sort((a, b) => (a.domain === b.domain ? a.name.localeCompare(b.name) : a.domain.localeCompare(b.domain)));
 
   return (
-    <Reveal className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Button variant="ghost" size="xs" className="text-muted-foreground -ml-2 mb-1 gap-1" asChild>
-            <Link href="/admin">
-              <ArrowLeft className="size-3.5" aria-hidden />
-              Admin home
-            </Link>
-          </Button>
-          <h1 className="font-heading text-h4 font-semibold text-foreground">File storage</h1>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={HardDrive}
+        title="Penyimpanan File"
+        description="Jelajahi file yang diunggah di setiap domain penyimpanan."
+        backHref="/admin"
+      />
       <DriveExplorer rows={rows} />
-    </Reveal>
+    </div>
   );
 }

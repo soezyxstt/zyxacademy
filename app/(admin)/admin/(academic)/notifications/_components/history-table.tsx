@@ -7,6 +7,7 @@
  */
 
 import { CheckCircle2, Circle } from "lucide-react";
+import { AdminTable } from "@/components/admin/table";
 
 interface HistoryRow {
   id: string;
@@ -68,7 +69,7 @@ export function NotificationHistoryTable({ history }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+    <AdminTable>
       {/* Header */}
       <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 border-b border-border bg-muted/30">
         <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Judul</span>
@@ -124,6 +125,6 @@ export function NotificationHistoryTable({ history }: Props) {
           </li>
         ))}
       </ul>
-    </div>
+    </AdminTable>
   );
 }

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { DistributionBar } from "@/components/tutor/distribution-bar";
+import { MathText } from "@/components/course/math-text";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import type { WeakConcept, ConceptTrend, MostMissedQuestion } from "@/lib/cohort-analytics";
 import { useSwipe } from "@/hooks/use-swipe";
@@ -108,7 +109,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
               <div className="divide-y divide-border">
                 {mostMissed.map((q) => (
                   <div key={q.id} className="py-2.5 flex items-start justify-between gap-4">
-                    <p className="text-body-sm line-clamp-2 min-w-0">{q.prompt}</p>
+                    <MathText className="text-body-sm line-clamp-2 min-w-0 block" as="div">{q.prompt}</MathText>
                     <span className="text-body-sm tabular-nums text-status-error shrink-0 font-medium">
                       {Math.round(q.correctRate * 100)}%
                     </span>

@@ -6,6 +6,8 @@ import { desc, asc } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { DiktatCompilerClient } from "./diktats-client";
 import { storage } from "@/lib/storage";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { FileStack } from "lucide-react";
 
 export const metadata: Metadata = {
   title: pageTitle("Kompilasi Diktat"),
@@ -43,13 +45,12 @@ export default async function DiktatCompilerPage() {
   const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 space-y-6">
-      <div className="mb-6 text-left">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Kompilasi Diktat</h1>
-        <p className="mt-1 text-body-sm text-muted-foreground">
-          Kelola generasi PDF diktat otomatis.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={FileStack}
+        title="Kompilasi Diktat"
+        description="Kelola generasi PDF diktat otomatis."
+      />
       <DiktatCompilerClient
         initialDiktats={serializedDiktats}
         courses={allCourses}
