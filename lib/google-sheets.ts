@@ -144,7 +144,7 @@ export async function createGoogleSpreadsheet(
   title: string,
   headers: string[],
   rows: (string | number | boolean | null | undefined)[][]
-) {
+): Promise<{ spreadsheetId: string; spreadsheetUrl: string }> {
   const token = await getGoogleFormsAccessToken();
 
   const formattedHeaderValues = headers.map((h) => ({
