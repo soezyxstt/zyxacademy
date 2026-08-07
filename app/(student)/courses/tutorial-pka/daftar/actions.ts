@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/db";
 import { pkaRegistrations } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { env } from "@/lib/env";
+
 import { storage } from "@/lib/storage";
 import { ensurePkaEnrollment, isPkaEnrolled } from "@/lib/pka-enrollment";
 
@@ -31,9 +31,7 @@ export async function registerPkaAction(
   formData: FormData,
 ): Promise<PkaRegisterState> {
   try {
-    if (env.FEATURE_PKA !== "1") {
-      return { error: "Pendaftaran Tutorial PKA sedang tidak aktif." };
-    }
+    return { error: "Mohon maaf, pendaftaran Tutorial PKA saat ini telah ditutup." };
 
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user?.id) {
