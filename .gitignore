@@ -52,6 +52,7 @@ drizzle-pg-backup/
 drizzle/backups/
 *.log
 /artifacts/staging-overhaul/
+pka_scores.csv
 
 .agents
 

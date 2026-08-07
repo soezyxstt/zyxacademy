@@ -402,7 +402,7 @@ The compatibility submit route keeps the legacy quiz as the source of the user-v
 | Table | Purpose |
 |---|---|
 | `user_push_tokens` | FCM device tokens per user |
-| `notifications` | In-app notification log (quiz_published, flashcard_reminder, tutor_reminder, etc.) |
+| `notifications` | In-app notification log (quiz_published, flashcard_reminder, tutor_reminder, etc.) with persisted FCM delivery stats (`attempted`, `succeeded`, `failedCount`, `sentAt`) |
 
 ---
 
@@ -678,7 +678,9 @@ lib/
 │   ├── pubic-app-url.ts         ; Public URL helper
 │   └── whatsapp-admin.ts        ; WhatsApp admin notifications
 ├── notifications/
-│   └── jobs.ts                  ; Push notification job logic
+│   ├── send.ts                 ; Server-side FCM delivery layer (multicast, prune, persist)
+│   ├── templates.ts            ; Pure payload builders per event type
+│   └── types.ts                ; Shared notification payload/result types
 └── site.ts, site-search.ts, testimonials.ts, youtube.ts ; Static content
 ```
 

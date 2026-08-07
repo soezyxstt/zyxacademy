@@ -3367,11 +3367,17 @@ export const notifications = sqliteTable(
  | "announcement"
  >()
  .notNull(),
- /** Whether the user has read/dismissed this notification. */
- read: integer("read", { mode: "boolean" }).default(false).notNull(),
- /** Arbitrary JSON payload (e.g. quizId, courseId, bookingId). */
- metadata: text("metadata", { mode: "json" }).$defaultFn(() => ({})).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  /** Whether the user has read/dismissed this notification. */
+  read: integer("read", { mode: "boolean" }).default(false).notNull(),
+  /** Arbitrary JSON payload (e.g. quizId, courseId, bookingId). */
+  metadata: text("metadata", { mode: "json" }).$defaultFn(() => ({})).notNull(),
+  /** FCM delivery stats for the push attempt to this user's devices. */
+  attempted: integer("attempted").default(0).notNull(),
+  succeeded: integer("succeeded").default(0).notNull(),
+  failedCount: integer("failed_count").default(0).notNull(),
+  /** When the push attempt happened; null when the user had no registered device. */
+  sentAt: integer("sent_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_notifications_user_read").on(table.userId, table.read),

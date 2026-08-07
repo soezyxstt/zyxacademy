@@ -15,7 +15,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
  // 1. Authenticate
@@ -51,7 +51,22 @@ export async function GET(req: NextRequest) {
  .limit(limit)
  .offset(offset);
 
- return NextResponse.json({ notifications: rows, page, limit });
+ const unreadCount = await db
+ .select({ count: sql<number>`count(*)` })
+ .from(notifications)
+ .where(
+  and(
+   eq(notifications.userId, targetUserId),
+   eq(notifications.read, false)
+  )
+ );
+
+ return NextResponse.json({
+  notifications: rows,
+  unreadCount: Number(unreadCount[0]?.count ?? 0),
+  page,
+  limit,
+ });
  } catch (err) {
  console.error("[notifications/history] Error:", err);
  return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -17,10 +17,7 @@ import { db } from "@/db";
 import {
  userPushTokens,
  notifications,
- user,
  enrollments,
- bookings,
- tutorSlots,
 } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { adminMessaging } from "@/lib/firebase/admin";
@@ -28,12 +25,16 @@ import { randomUUID } from "crypto";
 import type { NotificationPayload, SendResult } from "./types";
 import {
  quizPublishedPayload,
- flashcardReminderPayload,
- tutorReminderPayload,
- paymentSuccessPayload,
  adminBroadcastPayload,
- pkaAnnouncementPayload,
 } from "./templates";
+
+// ─── Delivery stats persisted on every notification row ───────────────────────
+export interface DeliveryStats {
+ attempted: number;
+ succeeded: number;
+ failedCount: number;
+ sentAt: Date | null;
+}
 
 // ─── FCM error codes that signal an invalid / expired token ──────────────────
 const INVALID_TOKEN_CODES = new Set([
@@ -60,22 +61,27 @@ async function pruneInvalidTokens(tokens: string[]): Promise<void> {
 
 async function persistNotification(
  userId: string,
- payload: NotificationPayload
+ payload: NotificationPayload,
+ delivery: DeliveryStats
 ): Promise<void> {
  try {
- await db.insert(notifications).values({
- id: randomUUID(),
- userId,
- title: payload.title,
- body: payload.body,
- type: payload.type,
- read: false,
- metadata: (payload.metadata ?? {}) as Record<string, unknown>,
- createdAt: new Date(),
- });
+  await db.insert(notifications).values({
+  id: randomUUID(),
+  userId,
+  title: payload.title,
+  body: payload.body,
+  type: payload.type,
+  read: false,
+  metadata: (payload.metadata ?? {}) as Record<string, unknown>,
+  attempted: delivery.attempted,
+  succeeded: delivery.succeeded,
+  failedCount: delivery.failedCount,
+  sentAt: delivery.sentAt,
+  createdAt: new Date(),
+  });
  } catch (err) {
- // Non-fatal ; push was already sent; log and continue.
- console.error("[FCM] Failed to persist notification record:", err);
+  // Non-fatal ; push was already sent; log and continue.
+  console.error("[FCM] Failed to persist notification record:", err);
  }
 }
 
@@ -163,7 +169,12 @@ export async function sendToUser(
  const result = await sendMulticast(tokens, payload);
 
  // Persist one notification record per user (not per token)
- await persistNotification(userId, payload);
+ await persistNotification(userId, payload, {
+  attempted: tokens.length,
+  succeeded: result.succeeded,
+  failedCount: result.failedTokens.length,
+  sentAt: tokens.length > 0 ? new Date() : null,
+ });
 
  return {
  attempted: tokens.length,
@@ -247,80 +258,6 @@ export async function sendQuizPublished(
 }
 
 /**
- * Sends a flashcard review reminder to a single user.
- *
- * @param userId - Target student.
- * @param dueCount - Number of cards due today.
- * @param courseTitle - Course the cards belong to.
- * @param reviewUrl - Link to the flashcard review page.
- */
-export async function sendFlashcardReminder(
- userId: string,
- dueCount: number,
- courseTitle: string,
- reviewUrl: string
-): Promise<SendResult> {
- const payload = flashcardReminderPayload(dueCount, courseTitle, reviewUrl);
- return sendToUser(userId, payload);
-}
-
-/**
- * Sends a tutor session reminder to the booked student.
- *
- * @param bookingId - ID of the booking row.
- */
-export async function sendTutorReminder(bookingId: string): Promise<SendResult> {
- // Hydrate booking → slot → tutor name
- const rows = await db
- .select({
- studentId: bookings.studentId,
- dayOfWeek: tutorSlots.dayOfWeek,
- startTime: tutorSlots.startTime,
- endTime: tutorSlots.endTime,
- tutorName: user.name,
- })
- .from(bookings)
- .innerJoin(tutorSlots, eq(bookings.slotId, tutorSlots.id))
- .innerJoin(user, eq(tutorSlots.tutorId, user.id))
- .where(eq(bookings.id, bookingId))
- .limit(1);
-
- if (rows.length === 0) {
- return { attempted: 0, succeeded: 0, failedTokens: [], errors: [`Booking ${bookingId} not found`] };
- }
-
- const { studentId, dayOfWeek, startTime, endTime, tutorName } = rows[0];
-  const sessionTime = `${dayOfWeek}, ${startTime} - ${endTime}`;
-
- // courseTitle is stored on the booking ; fetch separately for accuracy
- const bookingRow = await db
- .select({ courseId: bookings.courseId })
- .from(bookings)
- .where(eq(bookings.id, bookingId))
- .limit(1);
-
- const courseTitle = bookingRow[0]?.courseId ?? "mata kuliah";
- const payload = tutorReminderPayload(tutorName, sessionTime, courseTitle);
- return sendToUser(studentId, payload);
-}
-
-/**
- * Sends a payment success notification to a user.
- *
- * @param userId - Target user.
- * @param planName - Subscription plan (e.g. "Essential").
- * @param expiresAt - ISO date string when the plan expires.
- */
-export async function sendPaymentSuccess(
- userId: string,
- planName: string,
- expiresAt: string
-): Promise<SendResult> {
- const payload = paymentSuccessPayload(planName, expiresAt);
- return sendToUser(userId, payload);
-}
-
-/**
  * Sends an admin-composed broadcast message.
  *
  * @param title - Notification title.
@@ -337,33 +274,9 @@ export async function sendAdminBroadcast(
  const payload = adminBroadcastPayload(title, body, link);
 
  if (target === "all") {
- return sendBroadcast(payload);
+  return sendBroadcast(payload);
  }
 
  return sendToMany(target, payload);
 }
 
-/**
- * Notifies all students enrolled in the Tutorial PKA campaign course of an
- * admin-scheduled Google Meet review session announcement.
- *
- * @param courseId - Tutorial PKA course id (see lib/pka-config.ts PKA_COURSE_ID).
- * @param title - Admin-supplied announcement title.
- * @param body - Admin-supplied announcement message.
- * @param link - Deep link back into the campaign (defaults to /courses/tutorial-pka).
- */
-export async function sendPkaAnnouncement(
- courseId: string,
- title: string,
- body: string,
- link: string = "/courses/tutorial-pka"
-): Promise<SendResult> {
- const enrolled = await db
- .select({ userId: enrollments.userId })
- .from(enrollments)
- .where(eq(enrollments.courseId, courseId));
-
- const userIds = enrolled.map((e) => e.userId);
- const payload = pkaAnnouncementPayload(title, body, link);
- return sendToMany(userIds, payload);
-}

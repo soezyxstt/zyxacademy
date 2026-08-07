@@ -25,10 +25,10 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminNotificationsPage() {
- const [history, courseList] = await Promise.all([
- getNotificationHistoryAction(1, 50),
- getCoursesForTargetingAction(),
- ]);
+  const [history, courseList] = await Promise.all([
+  getNotificationHistoryAction(1, 10),
+  getCoursesForTargetingAction(),
+  ]);
 
  return (
  <div className="space-y-8">
@@ -91,7 +91,7 @@ export default async function AdminNotificationsPage() {
  Riwayat Notifikasi
  </h2>
  </div>
- <NotificationHistoryTable history={history} />
+  <NotificationHistoryTable history={history.rows} total={history.total} pageSize={10} />
  </div>
  </div>
  );

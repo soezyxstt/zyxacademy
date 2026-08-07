@@ -950,10 +950,13 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `userId`
 * `title`
 * `body`
-* `type`: Categorization category ('quiz_published', 'flashcard_reminder', 'tutor_reminder', 'payment_success', 'admin_broadcast').
+* `type`: Categorization category ('quiz_published', 'flashcard_reminder', 'tutor_reminder', 'payment_success', 'admin_broadcast', 'announcement').
 * `read`: Toggle indicator showing if notification has been read.
-* `readAt`: Timestamp when the user read the notification.
 * `metadata`: Dynamic data attributes dictionary payload (JSON).
+* `attempted`: FCM token send attempts for this user's devices.
+* `succeeded`: Successful FCM deliveries for this user.
+* `failedCount`: Failed FCM deliveries for this user.
+* `sentAt`: Timestamp of the push attempt; null when the user had no registered device.
 * `createdAt`
 
 ---

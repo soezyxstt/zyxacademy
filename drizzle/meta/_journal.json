@@ -442,6 +442,13 @@
       "when": 1786032199463,
       "tag": "0062_big_grey_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1786078383281,
+      "tag": "0063_wet_bug",
+      "breakpoints": true
     }
   ]
 }

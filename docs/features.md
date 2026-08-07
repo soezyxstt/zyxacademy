@@ -204,6 +204,13 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - All public form file response uploads and admin form builder question attachments are saved under a structured R2 storage key hierarchy: `forms/[slugified-judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`.
 - Path key resolution is handled deterministically via `lib/forms/storage-utils.ts` (`buildFormStorageKey`) and `/api/forms/upload`.
 
+### Push Notifications & In-App Inbox
+
+- Users get an in-app notification bell (unread badge, list, mark-as-read) in the marketing navbar and the app sidebar, backed by `GET /api/notifications/history` and `PATCH /api/notifications/read`.
+- FCM push triggers: quiz published (via `saveQuizTemplateAction` and `PATCH /api/quiz/templates/[id]` on a draft-to-published transition), PKA announcements and schedule updates, and admin broadcasts.
+- Every notification row persists FCM delivery stats (`attempted`, `succeeded`, `failedCount`, `sentAt`); the admin history table shows a delivery status (Terkirim / Sebagian / Gagal / Tanpa perangkat) alongside the read state.
+- The browser permission flow only prompts authenticated users, "Nanti Saja" defers for 7 days instead of denying forever, and foreground FCM messages surface as toasts and refresh the inbox.
+
 ## Money & Quota Rules
 
 - AI quota spent only on: tutoring, mistake feedback, content generation

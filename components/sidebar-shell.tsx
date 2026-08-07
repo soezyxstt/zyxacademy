@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOut } from "@/lib/auth-client";
 import { useSwipe } from "@/hooks/use-swipe";
 import {
@@ -306,6 +307,8 @@ export function SidebarShell({
             </Link>
           )}
           {isCollapsed && <div className="flex-1" />}
+
+          <NotificationBell variant="sidebar" />
 
           <SidebarTooltip label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"} collapsed={isCollapsed}>
             <button
