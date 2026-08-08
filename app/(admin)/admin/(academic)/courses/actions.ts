@@ -7,7 +7,7 @@ import { assertAdmin } from "@/lib/uploadthing-admin";
 import { eq, asc, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
-import { joinKey, slugifySegment, userFileLeaf } from "@/lib/storage/keys";
+import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
 
 export async function getCourses() {
   await assertAdmin();
@@ -260,47 +260,65 @@ export async function getUploadedMaterials(courseId?: string) {
   }
 }
 
-export async function uploadCourseMaterial(
+export async function saveCourseMaterial(
   courseId: string,
   title: string,
   type: "materi_kelas" | "contoh_soal",
   chapterIds: string[],
-  fileData: { bufferBase64: string; name: string; type: string }
+  fileKey: string
 ) {
   await assertAdmin();
 
-  if (!courseId || !title || !type || !chapterIds || chapterIds.length === 0 || !fileData) {
+  const cleanCourseId = typeof courseId === "string" ? courseId.trim() : "";
+  const cleanTitle = typeof title === "string" ? title.trim() : "";
+  const cleanFileKey = typeof fileKey === "string" ? fileKey.trim() : "";
+  const courseMaterialsPrefix = joinKey(
+    "courses",
+    slugifySegment(cleanCourseId),
+    "materials"
+  );
+
+  if (
+    !cleanCourseId ||
+    !cleanTitle ||
+    !["materi_kelas", "contoh_soal"].includes(type) ||
+    !Array.isArray(chapterIds) ||
+    chapterIds.length === 0 ||
+    chapterIds.some((chapterId) => typeof chapterId !== "string" || !chapterId.trim()) ||
+    !cleanFileKey
+  ) {
     return { success: false, error: "Semua field wajib diisi" };
   }
 
+  if (
+    !isSafeKey(cleanFileKey) ||
+    !cleanFileKey.startsWith(`${courseMaterialsPrefix}/`) ||
+    !cleanFileKey.toLowerCase().endsWith(".pdf")
+  ) {
+    return { success: false, error: "Key file PDF tidak valid untuk mata kuliah ini" };
+  }
+
   try {
-    const fileBuffer = Buffer.from(fileData.bufferBase64, "base64");
-    const r2Key = joinKey(
-      "courses",
-      slugifySegment(courseId),
-      "materials",
-      userFileLeaf(fileData.name)
-    );
-    
-    const uploadRes = await storage.upload(fileBuffer, r2Key, fileData.type);
-    
     const materialId = randomUUID();
     
     await db.insert(courseMaterials).values({
       id: materialId,
-      courseId,
-      title: title.trim(),
+      courseId: cleanCourseId,
+      title: cleanTitle,
       type,
-      fileUrl: uploadRes.key,
+      fileUrl: cleanFileKey,
       chapterIds,
     });
 
     revalidatePath("/admin/courses");
-    revalidatePath(`/courses/${courseId}/material`);
+    revalidatePath(`/courses/${cleanCourseId}/material`);
     return { success: true };
   } catch (err: any) {
-    console.error("Failed to upload course material:", err);
-    return { success: false, error: err.message || "Gagal mengunggah materi" };
+    console.error("Failed to save course material:", err);
+    await storage.delete(cleanFileKey).catch((cleanupError) => {
+      console.error("Failed to clean up uploaded course material:", cleanupError);
+    });
+    return { success: false, error: err.message || "Gagal menyimpan materi" };
   }
 }
 
