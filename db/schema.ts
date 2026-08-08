@@ -4611,6 +4611,9 @@ export const exportSpreadsheets = sqliteTable(
     spreadsheetUrl: text("spreadsheet_url").notNull(),
     driveFolderId: text("drive_folder_id").notNull(),
     folderPath: text("folder_path").notNull(),
+    lastHeaderCount: integer("last_header_count").notNull().default(0),
+    lastRowCount: integer("last_row_count").notNull().default(0),
+    lastWrittenFingerprint: text("last_written_fingerprint"),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
       .defaultNow()

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Search,
   Download,
@@ -40,6 +40,7 @@ import {
 import { MathText } from "@/components/course/math-text";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { toast } from "@/components/ui/toast";
+import { useSpreadsheetExport } from "@/components/admin/spreadsheet-export";
 
 export interface StudentAttemptItem {
   id: string;
@@ -156,8 +157,6 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
     });
   }, [attempts, statusFilter, searchQuery]);
 
-  const [exportingSheets, setExportingSheets] = useState(false);
-
   // Trigger CSV Download via API
   const handleExportCsv = (type: "matrix" | "summary") => {
     const url = `/api/admin/quiz-insights/${templateId}/attempts?export=csv&exportType=${type}&includeInProgress=${includeInProgress}`;
@@ -166,67 +165,60 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
     setExportDialogOpen(false);
   };
 
-  const handleExportGoogleSheets = async (type: "matrix" | "summary") => {
-    setExportingSheets(true);
-    try {
-      let headersRow: string[] = [];
-      let rowsMatrix: (string | number)[][] = [];
+  const attemptedExportTypeRef = useRef<"matrix" | "summary">("matrix");
+  const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
+    onSuccess: ({ spreadsheetUrl }) => {
+      window.open(spreadsheetUrl, "_blank");
+      toast.success("Google Spreadsheet berhasil dibuat!");
+      setExportDialogOpen(false);
+    },
+    onError: (message) => {
+      toast.error(message);
+      handleExportCsv(attemptedExportTypeRef.current);
+    },
+  });
 
-      if (type === "summary") {
-        headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Status", "Skor (%)", "Durasi (detik)", "Mulai", "Selesai"];
-        rowsMatrix = filteredAttempts.map((att) => [
-          att.id,
-          att.studentName,
-          att.studentEmail,
-          att.status,
-          att.score ?? 0,
-          att.durationSeconds ?? 0,
-          att.startedAt ? new Date(att.startedAt).toLocaleString("id-ID") : "-",
-          att.submittedAt ? new Date(att.submittedAt).toLocaleString("id-ID") : "-",
-        ]);
-      } else {
-        // Matrix export
-        const allQuestions = questionsList;
-        const qHeaders = allQuestions.map((q: any, idx: number) => `Q${idx + 1}: ${(q.prompt || q.content || "").slice(0, 30)}`);
-        headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Skor (%)", ...qHeaders];
+  const handleExportGoogleSheets = (type: "matrix" | "summary") => {
+    let headersRow: string[] = [];
+    let rowsMatrix: (string | number)[][] = [];
 
-        rowsMatrix = filteredAttempts.map((att) => {
-          const itemAnswers = allQuestions.map((q: any) => {
-            const userChoice = att.answersSnapshot[q.id];
-            if (userChoice === undefined || userChoice === null) return "TIDAK DIJAWAB";
-            return String(userChoice);
-          });
-          return [att.id, att.studentName, att.studentEmail, att.score ?? 0, ...itemAnswers];
+    if (type === "summary") {
+      headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Status", "Skor (%)", "Durasi (detik)", "Mulai", "Selesai"];
+      rowsMatrix = filteredAttempts.map((att) => [
+        att.id,
+        att.studentName,
+        att.studentEmail,
+        att.status,
+        att.score ?? 0,
+        att.durationSeconds ?? 0,
+        att.startedAt ? new Date(att.startedAt).toLocaleString("id-ID") : "-",
+        att.submittedAt ? new Date(att.submittedAt).toLocaleString("id-ID") : "-",
+      ]);
+    } else {
+      // Matrix export
+      const allQuestions = questionsList;
+      const qHeaders = allQuestions.map((q: any, idx: number) => `Q${idx + 1}: ${(q.prompt || q.content || "").slice(0, 30)}`);
+      headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Skor (%)", ...qHeaders];
+
+      rowsMatrix = filteredAttempts.map((att) => {
+        const itemAnswers = allQuestions.map((q: any) => {
+          const userChoice = att.answersSnapshot[q.id];
+          if (userChoice === undefined || userChoice === null) return "TIDAK DIJAWAB";
+          return String(userChoice);
         });
-      }
-
-      const res = await fetch("/api/admin/export-spreadsheet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityType: "quiz",
-          entityId: `${templateId}:${type}`,
-          folderSubpath: "quizzes/" + quizTitle,
-          title: `${quizTitle} (${type === "matrix" ? "Matrix" : "Summary"})`,
-          headers: headersRow,
-          rows: rowsMatrix,
-        }),
+        return [att.id, att.studentName, att.studentEmail, att.score ?? 0, ...itemAnswers];
       });
-
-      const data = await res.json();
-      if (data.success && data.spreadsheetUrl) {
-        window.open(data.spreadsheetUrl, "_blank");
-        toast.success("Google Spreadsheet berhasil dibuat!");
-        setExportDialogOpen(false);
-      } else {
-        toast.error(data.error || "Gagal membuat Google Spreadsheet. Mengalihkan ke CSV.");
-        handleExportCsv(type);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan koneksi Google Sheets API.");
-    } finally {
-      setExportingSheets(false);
     }
+
+    attemptedExportTypeRef.current = type;
+    runExport({
+      entityType: "quiz",
+      entityId: `${templateId}:${type}`,
+      folderSubpath: "quizzes/" + quizTitle,
+      title: `${quizTitle} (${type === "matrix" ? "Matrix" : "Summary"})`,
+      headers: headersRow,
+      rows: rowsMatrix,
+    });
   };
 
   const formatDuration = (secs: number) => {
@@ -651,6 +643,8 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {confirmDialog}
     </div>
   );
 }

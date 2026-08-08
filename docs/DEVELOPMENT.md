@@ -190,6 +190,7 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_ADAPTIVE_QUIZ` | Adaptive quiz difficulty |
 | `FEATURE_PKA` | Tutorial PKA campaign |
 | `FEATURE_PERAN_V2` | Indonesian domain identity and multi-role authorization |
+| `FEATURE_DRIVE_EDITOR_SYNC` | Auto-grant editor access to all active admin emails on every exported Google Spreadsheet and its Drive folder |
 | `FEATURE_AI_CONTRACT_V2` | Versioned prompt contracts, policy composition, bounded repair, and provenance |
 | `FEATURE_ASSESSMENT_ASSISTANCE_POLICY` | Deterministic assessment assistance policy for AI tutor and mistake feedback |
 | `FEATURE_TUTOR_PIPELINE_V2` | V2 tutor cache isolation and query action routing |
@@ -205,6 +206,14 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 - **Auth**: Better-Auth (credentials + Google OAuth). Canonical access roles: `admin`, `tutor`, `murid`; `user.role` remains a legacy compatibility projection during expand.
 - **AI calls**: All Gemini traffic routes through Cloudflare AI Gateway when `CF_AI_GATEWAY_URL` is set.
 - **Cost rule**: AI quota is spent only on tutoring, mistake feedback, and content generation. Streaks, recommendations, study paths, reflections are deterministic SQL + logic.
+
+## Google Spreadsheet Export Workflow
+
+Exports route through `lib/google-sheets.ts` and `POST /api/admin/export-spreadsheet`. The spreadsheet is updated in place; the app owns only the data block at A1 (header + data rows) and writes it with an explicit `GridRange`, so admin edits in the reserved manual zone (columns right of the data, rows below it) are never overwritten.
+
+Before an overwrite the current grid is read and diffed against `export_spreadsheets.last_written_fingerprint` plus the stored row/column counts. Detected manual edits inside the owned block, growing rows over manual cells, or growing headers over manual columns return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes. Client callers use `useSpreadsheetExport` (`components/admin/spreadsheet-export.tsx`) to show a confirm dialog and re-send with `confirmOverwrite: true`. New spreadsheets store the baseline so later re-exports can warn precisely; legacy sheets without metadata infer the previous block from the current grid on the first re-export.
+
+Set `FEATURE_DRIVE_EDITOR_SYNC=1` to grant every active admin email `writer` access on each exported spreadsheet (and its folder on creation).
 
 ## Type Checking & Linting
 

@@ -149,8 +149,10 @@ export const env = createEnv({
  FEATURE_ADMIN_TUTOR_WORKFLOW_V1: z.string().optional(),
  /** Murid Idea-centered read model with Tutorial PKA compatibility adapters. "1" enables it. */
  FEATURE_MURID_IDEA_WORKFLOW_V1: z.string().optional(),
- /** Idea evidence and mastery contracts. "1" enables the additive mastery tables. */
- FEATURE_PEMAHAMAN_IDE_V1: z.string().optional(),
+  /** Idea evidence and mastery contracts. "1" enables the additive mastery tables. */
+  FEATURE_PEMAHAMAN_IDE_V1: z.string().optional(),
+  /** Auto-grant editor access on every exported Google Spreadsheet and its Drive folder to all active admin emails. "1" enables. */
+  FEATURE_DRIVE_EDITOR_SYNC: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
@@ -267,7 +269,8 @@ export const env = createEnv({
  FEATURE_ZYRA_IDEA_RUNTIME_V1: process.env.FEATURE_ZYRA_IDEA_RUNTIME_V1,
  FEATURE_ADMIN_TUTOR_WORKFLOW_V1: process.env.FEATURE_ADMIN_TUTOR_WORKFLOW_V1,
  FEATURE_MURID_IDEA_WORKFLOW_V1: process.env.FEATURE_MURID_IDEA_WORKFLOW_V1,
- FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
+  FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
+  FEATURE_DRIVE_EDITOR_SYNC: process.env.FEATURE_DRIVE_EDITOR_SYNC,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,

@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { entityType, entityId, folderSubpath } = body;
+    const { entityType, entityId, folderSubpath, confirmOverwrite } = body;
     const title = (body.title || "Data").trim();
     const headersList = Array.isArray(body.headers) ? body.headers : [];
     const rowsMatrix = Array.isArray(body.rows) ? body.rows : [];
@@ -35,7 +35,18 @@ export async function POST(req: Request) {
       headers: headersList,
       rows: rowsMatrix,
       folderSubpath,
+      confirmOverwrite: confirmOverwrite === true,
     });
+
+    if (result.needsConfirmation) {
+      return NextResponse.json({
+        success: false,
+        needsConfirmation: true,
+        conflicts: result.conflicts ?? [],
+        spreadsheetId: result.spreadsheetId,
+        spreadsheetUrl: result.spreadsheetUrl,
+      });
+    }
 
     return NextResponse.json({
       success: true,

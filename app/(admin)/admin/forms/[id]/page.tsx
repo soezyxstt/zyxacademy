@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { MathText } from "@/components/course/math-text";
+import { useSpreadsheetExport } from "@/components/admin/spreadsheet-export";
 
 interface NativeFormDetails {
   id: string;
@@ -218,7 +219,13 @@ export default function DetailedFormAnalyticsPage({
 
   const [formSettings, setFormSettings] = useState<any>({});
   const [savingSettings, setSavingSettings] = useState(false);
-  const [exportingSheets, setExportingSheets] = useState(false);
+  const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
+    onSuccess: ({ spreadsheetUrl }) => {
+      window.open(spreadsheetUrl, "_blank");
+      toast.success("Google Spreadsheet berhasil dibuat!");
+    },
+    onError: (message) => toast.error(message),
+  });
 
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
@@ -311,47 +318,28 @@ export default function DetailedFormAnalyticsPage({
     toast.success("File CSV berhasil diunduh.");
   };
 
-  const handleExportGoogleSheets = async () => {
+  const handleExportGoogleSheets = () => {
     if (!form || responses.length === 0) return;
-    setExportingSheets(true);
 
-    try {
-      const allQuestionTitles = (form.questions || []).map((q: any, i: number) => q.title || `Soal #${i + 1}`);
-      const headersRow = ["Response ID", "Submitted At", "Responder Email", ...allQuestionTitles];
+    const allQuestionTitles = (form.questions || []).map((q: any, i: number) => q.title || `Soal #${i + 1}`);
+    const headersRow = ["Response ID", "Submitted At", "Responder Email", ...allQuestionTitles];
 
-      const rowsMatrix = responses.map((r) => {
-        const answerCols = (form.questions || []).map((q: any, i: number) => {
-          const val = r.answers[i] ?? r.answers[q.title] ?? "";
-          return formatAnswerForText(val);
-        });
-        return [r.id, r.submittedAt, r.responderEmail || "Anonim", ...answerCols];
+    const rowsMatrix = responses.map((r) => {
+      const answerCols = (form.questions || []).map((q: any, i: number) => {
+        const val = r.answers[i] ?? r.answers[q.title] ?? "";
+        return formatAnswerForText(val);
       });
+      return [r.id, r.submittedAt, r.responderEmail || "Anonim", ...answerCols];
+    });
 
-      const res = await fetch("/api/admin/export-spreadsheet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entityType: "form",
-          entityId: form.id,
-          folderSubpath: "forms/" + form.title,
-          title: `${form.title} Responses`,
-          headers: headersRow,
-          rows: rowsMatrix,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && data.spreadsheetUrl) {
-        window.open(data.spreadsheetUrl, "_blank");
-        toast.success("Google Spreadsheet berhasil dibuat!");
-      } else {
-        toast.error(data.error || "Gagal membuat Google Spreadsheet. Silakan gunakan ekspor CSV.");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan saat mengekspor ke Google Spreadsheet.");
-    } finally {
-      setExportingSheets(false);
-    }
+    runExport({
+      entityType: "form",
+      entityId: form.id,
+      folderSubpath: "forms/" + form.title,
+      title: `${form.title} Responses`,
+      headers: headersRow,
+      rows: rowsMatrix,
+    });
   };
 
   const filteredResponses = responses.filter((r) => {
@@ -1088,6 +1076,8 @@ export default function DetailedFormAnalyticsPage({
           </AdminTabsContent>
         </AdminTabs>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

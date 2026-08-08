@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { normalizeDate } from "@/lib/date-utils";
 import { toast } from "@/components/ui/toast";
+import { useSpreadsheetExport } from "@/components/admin/spreadsheet-export";
 import type { PkaRegistrationRow } from "../actions";
 
 
@@ -96,9 +97,6 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState<PkaRegistrationRow | null>(null);
 
-  const optedIn = registrations.filter((r) => r.receiveAnnouncements).length;
-  const facultyCount = new Set(registrations.map((r) => r.faculty.trim().toLowerCase())).size;
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return registrations;
@@ -109,8 +107,6 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
         .includes(q),
     );
   }, [query, registrations]);
-
-  const [exportingSheets, setExportingSheets] = useState(false);
 
   const handleExport = () => {
     const csv = toCsv(filtered);
@@ -123,51 +119,47 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
     URL.revokeObjectURL(url);
   };
 
-  const handleExportGoogleSheets = async () => {
-    setExportingSheets(true);
-    try {
-      const headersRow = [
-        "Nama Lengkap",
-        "Fakultas",
-        "Email Siswa",
-        "Instagram",
-        "Waktu Pendaftaran",
-        "Notifikasi Pengumuman",
-        "Link Bukti",
-      ];
-      const rowsMatrix = filtered.map((r) => [
-        r.fullName,
-        r.faculty,
-        r.email,
-        `@${r.instagramUsername}`,
-        r.createdAt ? formatDate(r.createdAt) : "-",
-        r.receiveAnnouncements ? "Ya" : "Tidak",
-        r.proofUrl,
-      ]);
+  const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
+    onSuccess: ({ spreadsheetUrl }) => {
+      window.open(spreadsheetUrl, "_blank");
+      toast.success("Google Spreadsheet berhasil dibuat!");
+    },
+    onError: (message) => {
+      toast.error(message);
+      handleExport();
+    },
+  });
 
-      const res = await fetch("/api/admin/export-spreadsheet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "Pendaftar Tutorial PKA",
-          headers: headersRow,
-          rows: rowsMatrix,
-        }),
-      });
+  const optedIn = registrations.filter((r) => r.receiveAnnouncements).length;
+  const facultyCount = new Set(registrations.map((r) => r.faculty.trim().toLowerCase())).size;
 
-      const data = await res.json();
-      if (data.success && data.spreadsheetUrl) {
-        window.open(data.spreadsheetUrl, "_blank");
-        toast.success("Google Spreadsheet berhasil dibuat!");
-      } else {
-        toast.error(data.error || "Gagal membuat Google Spreadsheet. Menggunakan ekspor CSV.");
-        handleExport();
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Terjadi kesalahan saat mengekspor ke Google Spreadsheet.");
-    } finally {
-      setExportingSheets(false);
-    }
+  const handleExportGoogleSheets = () => {
+    const headersRow = [
+      "Nama Lengkap",
+      "Fakultas",
+      "Email Siswa",
+      "Instagram",
+      "Waktu Pendaftaran",
+      "Notifikasi Pengumuman",
+      "Link Bukti",
+    ];
+    const rowsMatrix = filtered.map((r) => [
+      r.fullName,
+      r.faculty,
+      r.email,
+      `@${r.instagramUsername}`,
+      r.createdAt ? formatDate(r.createdAt) : "-",
+      r.receiveAnnouncements ? "Ya" : "Tidak",
+      r.proofUrl,
+    ]);
+
+    runExport({
+      entityType: "pka",
+      entityId: "tutorial-pka",
+      title: "Pendaftar Tutorial PKA",
+      headers: headersRow,
+      rows: rowsMatrix,
+    });
   };
 
   if (registrations.length === 0) {
@@ -334,6 +326,8 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
           )}
         </DialogContent>
       </Dialog>
+
+      {confirmDialog}
     </div>
   );
 }

@@ -1124,3 +1124,21 @@ The V2 runtime adds stable option IDs inside the existing JSON snapshots when `F
 The compatibility submit bridge is flag-gated by the complete canonical rollout set. It uses deterministic IDs compatible with the legacy backfill, writes no rows when any question mapping is missing or stale, and leaves legacy attempt and answer snapshots authoritative. Holdout and unreviewed content never contributes to `bukti_ide_jawaban`.
 
 
+## 22. Google Spreadsheet Export
+
+### export_spreadsheets
+Tracks the single in-place Google Spreadsheet per entity instance (form, quiz, pka, system).
+
+* `id`: Primary key (`{entityType}_{entityId}`).
+* `entityType`: `'form' | 'quiz' | 'pka' | 'system'`.
+* `entityId`: Entity instance id.
+* `spreadsheetId`: Google Sheets file id.
+* `spreadsheetUrl`: Edit URL.
+* `driveFolderId`: Google Drive folder under `Zyx Export/{domain}`.
+* `folderPath`: Canonical folder path joined by `/`.
+* `lastHeaderCount`: Number of columns in the last owned data block written by the app (conflict baseline).
+* `lastRowCount`: Number of rows (header + data) in the last owned data block written by the app (conflict baseline).
+* `lastWrittenFingerprint`: SHA-256 of the last owned data block written by the app; used to detect manual edits before overwrite.
+* `createdAt` / `updatedAt`: Timestamps.
+
+The app owns only the data block at A1 (header + data rows). Cells right of the block and rows below it are the reserved manual zone and are never overwritten. Before an overwrite, the current grid is diffed against `lastWrittenFingerprint` and the stored row/column counts; conflicts return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes.
