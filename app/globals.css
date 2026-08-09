@@ -319,6 +319,7 @@
   body[data-scroll-locked] {
     padding-right: 0 !important;
     margin-right: 0 !important;
+    overflow: clip !important;
   }
 
   /* Prevent sidebar from losing scrollbar, pointer events, and active states */
