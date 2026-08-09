@@ -76,6 +76,21 @@ export async function POST(req: Request) {
     const questions = Array.isArray(body.questions) ? body.questions : [];
     const settings = body.settings || { acceptingResponses: true };
 
+    if (settings.openAt && settings.closeAt) {
+      const openDate = new Date(settings.openAt);
+      const closeDate = new Date(settings.closeAt);
+      if (
+        !isNaN(openDate.getTime()) &&
+        !isNaN(closeDate.getTime()) &&
+        openDate >= closeDate
+      ) {
+        return NextResponse.json(
+          { error: "Jadwal buka harus lebih awal dari jadwal tutup." },
+          { status: 400 }
+        );
+      }
+    }
+
     let slug = (body.slug || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
     if (!slug) {
       slug = generateShortSlug();

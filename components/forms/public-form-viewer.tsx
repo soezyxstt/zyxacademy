@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import {
   CheckCircle2,
   AlertCircle,
@@ -36,6 +37,7 @@ interface QuestionItem {
   type: string;
   required?: boolean;
   options?: string[];
+  otherOption?: { enabled: boolean; label: string };
   scaleLow?: number;
   scaleHigh?: number;
   scaleLowLabel?: string;
@@ -43,6 +45,8 @@ interface QuestionItem {
   gridRows?: string[];
   gridColumns?: string[];
 }
+
+const OTHER_OPTION_MARKER = "\uE000__other__";
 
 interface FormPayload {
   id: string;
@@ -53,6 +57,8 @@ interface FormPayload {
   questions: QuestionItem[];
   settings?: {
     customSuccessMessage?: string;
+    collectEmail?: "none" | "input" | "verified";
+    requireLogin?: boolean;
   };
 }
 
@@ -67,11 +73,19 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   const [answers, setAnswers] = useState<Record<number, any>>({});
   const [uploadingQIdx, setUploadingQIdx] = useState<number | null>(null);
 
+  // Email collection state
+  const [responderEmail, setResponderEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  // "Lainnya" (other option) free text state
+  const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
+
   // Lightbox Image Dialog State
   const [zoomImageUri, setZoomImageUri] = useState<{ url: string; title: string } | null>(null);
 
   const [isClosed, setIsClosed] = useState(false);
   const [closedReason, setClosedReason] = useState<string | null>(null);
+  const [loginRequired, setLoginRequired] = useState(false);
 
   const fetchForm = useCallback(async () => {
     setLoading(true);
@@ -104,10 +118,11 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   const sections = useMemo(() => {
     if (!form || !form.questions || form.questions.length === 0) return [];
 
-    const result: { title?: string; description?: string; questionIndices: number[] }[] = [];
+    const result: { title?: string; description?: string; imageUrl?: string; questionIndices: number[] }[] = [];
     let currentSec = {
       title: form.title,
       description: form.description,
+      imageUrl: undefined as string | undefined,
       questionIndices: [] as number[],
     };
 
@@ -119,6 +134,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
         currentSec = {
           title: q.title || `Bagian ${result.length + 1}`,
           description: q.description,
+          imageUrl: q.imageUrl,
           questionIndices: [],
         };
       } else {
@@ -133,6 +149,22 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     return result;
   }, [form]);
 
+  const questionNumbers = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!form?.questions) return map;
+    let n = 0;
+    form.questions.forEach((q: any, idx: number) => {
+      if (q.type === "SECTION") return;
+      n += 1;
+      map.set(idx, n);
+    });
+    return map;
+  }, [form]);
+
+  const collectEmail = form?.settings?.collectEmail || "none";
+
+  const otherLabelFor = (qIdx: number) => form?.questions?.[qIdx]?.otherOption?.label || "Lainnya";
+
   const handleNextStep = () => {
     if (!form) return;
     const activeSec = sections[currentStep];
@@ -142,13 +174,16 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       const q = form.questions[qIdx];
       if (q && q.required) {
         const userAns = answers[qIdx];
+        const isOtherEmpty =
+          userAns === OTHER_OPTION_MARKER && !(otherTexts[qIdx] && otherTexts[qIdx].trim().length > 0);
         if (
           userAns === undefined ||
           userAns === null ||
           userAns === "" ||
-          (Array.isArray(userAns) && userAns.length === 0)
+          (Array.isArray(userAns) && userAns.length === 0) ||
+          isOtherEmpty
         ) {
-          toast.error(`Harap isi pertanyaan wajib: "${q.title || `Pertanyaan #${qIdx + 1}`}"`);
+          toast.error(`Harap isi pertanyaan wajib: "${q.title || `Pertanyaan #${questionNumbers.get(qIdx) || qIdx + 1}`}"`);
           return;
         }
       }
@@ -228,16 +263,44 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     e.preventDefault();
     if (!form) return;
 
+    const trimmedEmail = responderEmail.trim();
+    if (collectEmail === "input") {
+      if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        setEmailError("Alamat email wajib diisi dengan format yang benar.");
+        setErrorMsg("Alamat email wajib diisi dengan format yang benar.");
+        return;
+      }
+      setEmailError(null);
+    }
+
+    const finalAnswers: Record<number, any> = {};
+    for (const [key, val] of Object.entries(answers)) {
+      const idx = Number(key);
+      if (val === OTHER_OPTION_MARKER) {
+        finalAnswers[idx] = otherTexts[idx]?.trim() || otherLabelFor(idx);
+      } else if (Array.isArray(val) && val.includes(OTHER_OPTION_MARKER)) {
+        finalAnswers[idx] = val.map((item) =>
+          item === OTHER_OPTION_MARKER ? otherTexts[idx]?.trim() || otherLabelFor(idx) : item
+        );
+      } else {
+        finalAnswers[idx] = val;
+      }
+    }
+
     setSubmitting(true);
     setErrorMsg(null);
+    setLoginRequired(false);
     try {
       const res = await fetch(`/api/forms/${idOrSlug}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({ answers: finalAnswers, responderEmail: trimmedEmail || undefined }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.status === 401) {
+        setLoginRequired(true);
+        setErrorMsg(data.error || "Anda harus login ke akun Zyx untuk mengisi formulir ini.");
+      } else if (data.success) {
         setSubmittedMessage(data.message || "Jawaban Anda telah berhasil disimpan.");
       } else {
         setErrorMsg(data.error || "Gagal mengirim formulir.");
@@ -254,6 +317,23 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       <div className="flex h-64 items-center justify-center">
         <RefreshCw className="size-8 animate-spin text-brand-primary" />
       </div>
+    );
+  }
+
+  if (loginRequired) {
+    return (
+      <Reveal className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="rounded-2xl border border-status-error/30 bg-card p-8 shadow-sm space-y-4">
+          <AlertCircle className="size-12 text-status-error mx-auto" />
+          <h1 className="font-heading text-h5 font-bold text-foreground">Login Diperlukan</h1>
+          <p className="text-body-sm text-muted-foreground">
+            {errorMsg || "Anda harus masuk ke akun Zyx terlebih dahulu untuk mengisi formulir ini."}
+          </p>
+          <Button asChild size="lg" className="mt-2 font-semibold">
+            <Link href="/login">Masuk ke Akun Zyx</Link>
+          </Button>
+        </div>
+      </Reveal>
     );
   }
 
@@ -296,6 +376,10 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
             onClick={() => {
               setSubmittedMessage(null);
               setAnswers({});
+              setOtherTexts({});
+              setResponderEmail("");
+              setEmailError(null);
+              setCurrentStep(0);
             }}
             variant="outline"
             className="mt-4"
@@ -332,6 +416,31 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
           </p>
         )}
 
+        {/* Section Header Image */}
+        {sections[currentStep]?.imageUrl && (
+          <div className="relative inline-block rounded-xl border border-border bg-muted/20 p-2 group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={sections[currentStep].imageUrl}
+              alt={sections[currentStep].title || "Gambar Bagian"}
+              className="max-h-56 rounded-lg object-contain cursor-pointer"
+              onClick={() =>
+                setZoomImageUri({ url: sections[currentStep].imageUrl!, title: sections[currentStep].title || "Gambar Bagian" })
+              }
+            />
+            <button
+              type="button"
+              onClick={() =>
+                setZoomImageUri({ url: sections[currentStep].imageUrl!, title: sections[currentStep].title || "Gambar Bagian" })
+              }
+              className="absolute bottom-4 right-4 inline-flex items-center gap-1 rounded-lg bg-black/75 px-2.5 py-1 text-body-2xs font-semibold text-white backdrop-blur-xs opacity-90 hover:opacity-100 transition-opacity cursor-pointer"
+            >
+              <ZoomIn className="size-3.5" />
+              Perbesar Gambar
+            </button>
+          </div>
+        )}
+
         {/* Progress Bar for multi-section forms */}
         {sections.length > 1 && (
           <div className="pt-2 space-y-1">
@@ -347,6 +456,33 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
       {/* Form Submission Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
+        {collectEmail === "input" && (
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-2">
+            <label htmlFor="responder-email" className="block text-body-sm font-semibold text-foreground">
+              Alamat Email Anda <span className="text-status-error font-bold">*</span>
+            </label>
+            <input
+              id="responder-email"
+              type="email"
+              required
+              value={responderEmail}
+              onChange={(e) => {
+                setResponderEmail(e.target.value);
+                if (emailError) setEmailError(null);
+              }}
+              placeholder="nama@email.com"
+              className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <p className="text-body-xs text-muted-foreground">Email hanya digunakan untuk identifikasi responden formulir ini.</p>
+            {emailError && (
+              <p className="flex items-center gap-1.5 text-body-xs font-semibold text-status-error">
+                <AlertCircle className="size-3.5 shrink-0" />
+                {emailError}
+              </p>
+            )}
+          </div>
+        )}
+
         {(sections[currentStep]?.questionIndices || []).map((qIdx: number) => {
           const q = form.questions[qIdx];
           if (!q) return null;
@@ -360,7 +496,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
               {/* Title & Required */}
               <div className="space-y-1">
                 <h3 className="font-heading text-h6 font-semibold text-foreground flex items-center gap-1.5">
-                  <span><MathText as="span">{`${qIdx + 1}. ${q.title}`}</MathText></span>
+                  <span><MathText as="span">{`${questionNumbers.get(qIdx) || qIdx + 1}. ${q.title}`}</MathText></span>
                   {q.required && <span className="text-status-error font-bold">*</span>}
                 </h3>
                 {q.description && (
@@ -431,6 +567,32 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                         <span className="text-foreground group-hover:text-brand-primary transition-colors">{opt}</span>
                       </label>
                     ))}
+                    {q.otherOption?.enabled && (
+                      <div className="space-y-2 pt-1">
+                        <label className="flex items-center gap-3 cursor-pointer group text-body-sm">
+                          <input
+                            type="radio"
+                            name={`q_${qIdx}`}
+                            required={q.required && !answerVal}
+                            checked={answerVal === OTHER_OPTION_MARKER}
+                            onChange={() => handleAnswerChange(qIdx, OTHER_OPTION_MARKER)}
+                            className="size-4.5 text-brand-primary focus:ring-ring"
+                          />
+                          <span className="text-foreground group-hover:text-brand-primary transition-colors">
+                            {q.otherOption.label || "Lainnya"}
+                          </span>
+                        </label>
+                        {answerVal === OTHER_OPTION_MARKER && (
+                          <input
+                            type="text"
+                            value={otherTexts[qIdx] || ""}
+                            onChange={(e) => setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }))}
+                            placeholder="Tulis jawaban Anda"
+                            className="w-full sm:w-2/3 rounded-xl border border-input bg-background px-4 py-2.5 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -451,23 +613,69 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                         </label>
                       );
                     })}
+                    {q.otherOption?.enabled && (
+                      <div className="space-y-2 pt-1">
+                        <label className="flex items-center gap-3 cursor-pointer group text-body-sm">
+                          <input
+                            type="checkbox"
+                            checked={Array.isArray(answerVal) && answerVal.includes(OTHER_OPTION_MARKER)}
+                            onChange={() => {
+                              const currentList: string[] = Array.isArray(answerVal) ? answerVal : [];
+                              const updated = currentList.includes(OTHER_OPTION_MARKER)
+                                ? currentList.filter((item) => item !== OTHER_OPTION_MARKER)
+                                : [...currentList, OTHER_OPTION_MARKER];
+                              handleAnswerChange(qIdx, updated);
+                            }}
+                            className="size-4.5 rounded border-input text-brand-primary focus:ring-ring"
+                          />
+                          <span className="text-foreground group-hover:text-brand-primary transition-colors">
+                            {q.otherOption.label || "Lainnya"}
+                          </span>
+                        </label>
+                        {Array.isArray(answerVal) && answerVal.includes(OTHER_OPTION_MARKER) && (
+                          <input
+                            type="text"
+                            value={otherTexts[qIdx] || ""}
+                            onChange={(e) => setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }))}
+                            placeholder="Tulis jawaban Anda"
+                            className="w-full sm:w-2/3 rounded-xl border border-input bg-background px-4 py-2.5 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* 5. DROP_DOWN */}
                 {q.type === "DROP_DOWN" && (
-                  <Select value={answerVal || ""} onValueChange={(val) => handleAnswerChange(qIdx, val)}>
-                    <SelectTrigger className="w-full sm:w-2/3 h-11 text-body-sm font-medium">
-                      <SelectValue placeholder="Pilih satu opsi..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(q.options || []).map((opt, oIdx) => (
-                        <SelectItem key={oIdx} value={opt}>
-                          {opt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-2">
+                    <Select value={answerVal || ""} onValueChange={(val) => handleAnswerChange(qIdx, val)}>
+                      <SelectTrigger className="w-full sm:w-2/3 h-11 text-body-sm font-medium">
+                        <SelectValue placeholder="Pilih satu opsi..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(q.options || []).map((opt, oIdx) => (
+                          <SelectItem key={oIdx} value={opt}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                        {q.otherOption?.enabled && (
+                          <SelectItem value={OTHER_OPTION_MARKER}>
+                            {q.otherOption.label || "Lainnya"}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {answerVal === OTHER_OPTION_MARKER && (
+                      <input
+                        type="text"
+                        value={otherTexts[qIdx] || ""}
+                        onChange={(e) => setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }))}
+                        placeholder="Tulis jawaban Anda"
+                        className="w-full sm:w-2/3 rounded-xl border border-input bg-background px-4 py-2.5 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                    )}
+                  </div>
                 )}
 
                 {/* 6. FILE_UPLOAD */}

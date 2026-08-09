@@ -4,7 +4,9 @@ import {
   DeleteObjectCommand, 
   HeadObjectCommand, 
   CopyObjectCommand,
-  GetObjectCommand
+  GetObjectCommand,
+  ListObjectsV2Command,
+  type _Object
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { StorageProvider } from "./index";
@@ -157,5 +159,29 @@ export class R2Provider implements StorageProvider {
       });
       return getSignedUrl(this.s3, command, { expiresIn });
     }
+  }
+
+  async list(prefix: string): Promise<{ key: string; size: number; lastModified: Date }[]> {
+    const objects: _Object[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const command = new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      });
+      const response = await this.s3.send(command);
+      objects.push(...(response.Contents || []));
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    return objects
+      .filter((obj) => obj.Key && !obj.Key.endsWith("/"))
+      .map((obj) => ({
+        key: obj.Key as string,
+        size: obj.Size || 0,
+        lastModified: obj.LastModified || new Date(0),
+      }));
   }
 }

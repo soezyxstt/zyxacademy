@@ -3,7 +3,12 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { hasPeran } from "@/lib/auth/authorization";
-import { getCompleteMeetingAnalytics } from "@/lib/google-meet";
+import {
+  getCompleteMeetingAnalytics,
+  listMeetingRecordings,
+  listMeetingTranscripts,
+} from "@/lib/google-meet";
+import { grantAdminEditorAccessToDriveItems } from "@/lib/google-drive-permissions";
 
 export async function GET(
   _req: Request,
@@ -22,7 +27,34 @@ export async function GET(
       return NextResponse.json({ error: "Conference record ID is required" }, { status: 400 });
     }
 
-    const analytics = await getCompleteMeetingAnalytics(id);
+    const [analytics, recordingsRes, transcriptsRes] = await Promise.all([
+      getCompleteMeetingAnalytics(id),
+      listMeetingRecordings(id),
+      listMeetingTranscripts(id),
+    ]);
+
+    const driveIds: string[] = [];
+    for (const rec of recordingsRes.recordings ?? []) {
+      if (rec.driveDestination?.file) driveIds.push(rec.driveDestination.file);
+      if (rec.driveDestination?.exportUri) driveIds.push(rec.driveDestination.exportUri);
+    }
+    for (const tr of transcriptsRes.transcripts ?? []) {
+      if (tr.docsDestination?.document) driveIds.push(tr.docsDestination.document);
+      if (tr.docsDestination?.exportUri) driveIds.push(tr.docsDestination.exportUri);
+    }
+    for (const rec of analytics.recordings ?? []) {
+      if (rec.driveExportUri) driveIds.push(rec.driveExportUri);
+    }
+    for (const tr of analytics.transcripts ?? []) {
+      if (tr.docsExportUri) driveIds.push(tr.docsExportUri);
+    }
+
+    if (driveIds.length > 0) {
+      void grantAdminEditorAccessToDriveItems(driveIds).catch((err) => {
+        console.warn("Failed to grant Drive editor access for meeting records:", err);
+      });
+    }
+
     return NextResponse.json({ success: true, analytics });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Failed to fetch meeting analytics" }, { status: 500 });

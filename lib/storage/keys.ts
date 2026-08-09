@@ -89,3 +89,34 @@ export function buildFormStorageKey(params: {
     userFileLeaf(params.filename)
   );
 }
+
+/**
+ * Media Library leaf name. Unlike user-upload leaves, the Media Library is a
+ * managed workspace where the human-visible filename IS the object name, so the
+ * leaf keeps the original base name (no timestamp/hash prefix) and only the
+ * extension is lowercased. Renames are explicit copy+delete operations.
+ */
+export function mediaLeaf(filename: string): string {
+  return sanitizeFilename(filename);
+}
+
+/**
+ * Media Library object key: `media/{children_folder...}/{leaf}`.
+ * `folderPath` is an optional nested folder path, e.g. "logos" or "kelas/tpb-2026".
+ */
+export function buildMediaKey(params: {
+  folderPath?: string | null;
+  filename: string;
+}): string {
+  const folder = (params.folderPath || "")
+    .split("/")
+    .map((seg) => slugifySegment(seg, ""))
+    .filter(Boolean)
+    .join("/");
+  return joinKey("media", folder, mediaLeaf(params.filename));
+}
+
+/** Returns true when a key lives under the `media/` domain. */
+export function isMediaKey(key: string): boolean {
+  return key === "media" || key.startsWith("media/");
+}

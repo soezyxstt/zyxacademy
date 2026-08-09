@@ -211,6 +211,31 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Every notification row persists FCM delivery stats (`attempted`, `succeeded`, `failedCount`, `sentAt`); the admin history table shows a delivery status (Terkirim / Sebagian / Gagal / Tanpa perangkat) alongside the read state.
 - The browser permission flow only prompts authenticated users, "Nanti Saja" defers for 7 days instead of denying forever, and foreground FCM messages surface as toasts and refresh the inbox.
 
+### Meet Studio Improvements
+- Meet sessions get stable short links at `/meet/[slug]` for easy sharing; slug is auto-generated and unique.
+- The creator is set as the meeting host; admins can pick co-hosts and invited emails via a role/course filtered picker with additive bulk selects.
+- Host, co-host, and invited emails are persisted on `google_meet_sessions` and applied through the Google Calendar/Meet API.
+- When `FEATURE_DRIVE_EDITOR_SYNC=1`, active admin emails are granted Drive editor access through `lib/google-drive-permissions.ts`.
+
+### Form Studio Fixes & Presets
+- Spreadsheet export is scoped to a structured Drive folder (`forms/{slug}`, title `form-{slug}-responses`) and excludes SECTION rows from the data export.
+- "Lainnya" (other) options use a stable sentinel (`\uE000__other__`) so open answers survive round trips; SECTION counts are excluded everywhere via a continuous `questionNumberMap`.
+- The builder auto-scrolls, resets after a successful publish, and uses shadcn Switch toggles for settings (collect email, show progress, etc.).
+- `collectEmail` works end to end; schedule start/end validation uses `formatDatetimeLocal` round trips.
+- Reusable presets (question blueprints + settings) can be saved and re-applied from `/admin/forms` via `/api/admin/form-presets` and `components/forms/form-presets.tsx`, gated by `FEATURE_FORM_PRESETS=1`.
+- Settings panels fill the container width; the matrix question table was removed; terminology and section header images with zoom were fixed.
+
+### Media Library
+- Admins can upload, organize, preview, and manage shared media in R2 under `media/{children_folder...}/{filename}` via `/admin/media` (`components/admin/media-library.tsx`).
+- Virtual folder tree with `.keep` markers; move, copy, rename, replace, delete, and download operations, including recursive folder ops and bulk ops.
+- Built-in document viewer for image, video, audio, PDF, markdown, and text (`components/admin/document-viewer.tsx`).
+- Gated by `FEATURE_MEDIA_LIBRARY=1`; uploads use `buildMediaKey` from `lib/storage/keys.ts` and `StorageProvider.list()` from `lib/storage/index.ts`.
+
+### Tautan (Important Links)
+- Admins manage a curated links library at `/admin/tautan` (`components/admin/links-manager.tsx`) backed by `lib/links.ts` and `/api/admin/links/*`.
+- A public Linktree-style page at `/tautan` renders only active links grouped by category.
+- Gated by `FEATURE_LINK_LIBRARY=1`; stored in the `important_links` table with title, URL, description, icon, category, color, and sort order.
+
 ## Money & Quota Rules
 
 - AI quota spent only on: tutoring, mistake feedback, content generation

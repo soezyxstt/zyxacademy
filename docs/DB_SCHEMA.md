@@ -1142,3 +1142,43 @@ Tracks the single in-place Google Spreadsheet per entity instance (form, quiz, p
 * `createdAt` / `updatedAt`: Timestamps.
 
 The app owns only the data block at A1 (header + data rows). Cells right of the block and rows below it are the reserved manual zone and are never overwritten. Before an overwrite, the current grid is diffed against `lastWrittenFingerprint` and the stored row/column counts; conflicts return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes.
+
+## 23. Meet, Form Presets & Important Links
+
+### google_meet_sessions (new columns)
+Extension columns on the PKA Google Meet review session table (migration 0065).
+
+* `slug`: Unique stable short-link slug used by the public `/meet/[slug]` route. Indexed (`idx_meet_slug`, plus a unique index).
+* `hostEmail`: Google email set as the meeting host (defaults to the creator).
+* `coHostEmails`: JSON array of co-host Google emails.
+* `invitedEmails`: JSON array of invited participant Google emails.
+
+### custom_form_presets
+Reusable Form Studio presets (question blueprints + settings) that admins can save and re-apply. Gated by `FEATURE_FORM_PRESETS=1`.
+
+* `id`: Primary key.
+* `name`: Preset name.
+* `description`: Optional description.
+* `category`: `'survey' | 'quiz' | 'feedback' | 'registration'`.
+* `questions`: JSON array of question blueprints.
+* `settings`: JSON settings payload.
+* `createdById`: Creator user reference (set null on delete).
+* `createdAt` / `updatedAt`: Timestamps.
+* Index: `idx_custom_form_presets_category`.
+
+### important_links
+Curated important links library (Tautan) managed by admins. Gated by `FEATURE_LINK_LIBRARY=1`.
+
+* `id`: Primary key.
+* `title`: Link title.
+* `url`: Target URL.
+* `description`: Optional description.
+* `icon`: Optional icon name.
+* `category`: Optional grouping key for the public page.
+* `color`: Optional accent color.
+* `sortOrder`: Deterministic ordering on the public page.
+* `isActive`: Whether the link shows on the public `/tautan` page.
+* `createdById`: Creator user reference (set null on delete).
+* `deletedAt`: Soft-delete timestamp.
+* `createdAt` / `updatedAt`: Timestamps.
+* Indexes: `idx_important_links_category`, `idx_important_links_active`.

@@ -4418,6 +4418,10 @@ export const googleMeetSessions = sqliteTable(
     meetingCode: text("meeting_code").notNull(),
     accessType: text("access_type").$type<"OPEN" | "TRUSTED" | "RESTRICTED">().default("OPEN").notNull(),
     createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    slug: text("slug").unique(),
+    hostEmail: text("host_email"),
+    coHostEmails: text("co_host_emails", { mode: "json" }).$type<string[]>(),
+    invitedEmails: text("invited_emails", { mode: "json" }).$type<string[]>(),
     deletedAt: integer("deleted_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
@@ -4428,6 +4432,7 @@ export const googleMeetSessions = sqliteTable(
   (table) => [
     index("idx_meet_space_name").on(table.spaceName),
     index("idx_meet_code").on(table.meetingCode),
+    index("idx_meet_slug").on(table.slug),
   ]
 );
 
@@ -4550,6 +4555,69 @@ export const customFormResponsesRelations = relations(customFormResponses, ({ on
   }),
   responderUser: one(user, {
     fields: [customFormResponses.responderUserId],
+    references: [user.id],
+  }),
+}));
+
+/** Reusable Form Studio presets (question blueprints + settings) that admins can save and re-apply. */
+export const customFormPresets = sqliteTable(
+  "custom_form_presets",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    category: text("category").$type<"survey" | "quiz" | "feedback" | "registration">().default("survey").notNull(),
+    questions: text("questions", { mode: "json" }).$type<any[]>().notNull(),
+    settings: text("settings", { mode: "json" }).$type<Record<string, any>>(),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_custom_form_presets_category").on(table.category),
+  ]
+);
+
+export const customFormPresetsRelations = relations(customFormPresets, ({ one }) => ({
+  creator: one(user, {
+    fields: [customFormPresets.createdById],
+    references: [user.id],
+  }),
+}));
+
+/** Curated important links library (Tautan) managed by admins for quick access. */
+export const importantLinks = sqliteTable(
+  "important_links",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    url: text("url").notNull(),
+    description: text("description"),
+    icon: text("icon"),
+    category: text("category"),
+    color: text("color"),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_important_links_category").on(table.category),
+    index("idx_important_links_active").on(table.isActive),
+  ]
+);
+
+export const importantLinksRelations = relations(importantLinks, ({ one }) => ({
+  creator: one(user, {
+    fields: [importantLinks.createdById],
     references: [user.id],
   }),
 }));

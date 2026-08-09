@@ -153,6 +153,12 @@ export const env = createEnv({
   FEATURE_PEMAHAMAN_IDE_V1: z.string().optional(),
   /** Auto-grant editor access on every exported Google Spreadsheet and its Drive folder to all active admin emails. "1" enables. */
   FEATURE_DRIVE_EDITOR_SYNC: z.string().optional(),
+  /** Admin Media Library: upload, organize, preview and manage shared media files in R2 under `media/`. "1" enables. */
+  FEATURE_MEDIA_LIBRARY: z.string().optional(),
+  /** Admin Tautan (important links) library. "1" enables. */
+  FEATURE_LINK_LIBRARY: z.string().optional(),
+  /** Reusable Form Studio presets (questions + settings). "1" enables. */
+  FEATURE_FORM_PRESETS: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
@@ -271,6 +277,9 @@ export const env = createEnv({
  FEATURE_MURID_IDEA_WORKFLOW_V1: process.env.FEATURE_MURID_IDEA_WORKFLOW_V1,
   FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
   FEATURE_DRIVE_EDITOR_SYNC: process.env.FEATURE_DRIVE_EDITOR_SYNC,
+  FEATURE_MEDIA_LIBRARY: process.env.FEATURE_MEDIA_LIBRARY,
+  FEATURE_LINK_LIBRARY: process.env.FEATURE_LINK_LIBRARY,
+  FEATURE_FORM_PRESETS: process.env.FEATURE_FORM_PRESETS,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,

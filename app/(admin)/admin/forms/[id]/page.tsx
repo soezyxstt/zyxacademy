@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, use, useMemo } from "react";
 import Link from "next/link";
 import {
   RefreshCw,
   AlertCircle,
   ExternalLink,
   Download,
-  Search,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -17,7 +16,8 @@ import {
   HelpCircle as QuestionIcon,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { formatIsoDate } from "@/lib/date-utils";
+import { formatIsoDate, formatDatetimeLocal } from "@/lib/date-utils";
+import { slugifySegment } from "@/lib/storage/keys";
 import {
   Select,
   SelectContent,
@@ -215,7 +215,6 @@ export default function DetailedFormAnalyticsPage({
   const [responseTab, setResponseTab] = useState<"summary" | "question" | "individual" | "settings">("summary");
   const [selectedQIndex, setSelectedQIndex] = useState<number>(0);
   const [individualIndex, setIndividualIndex] = useState<number>(0);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const [formSettings, setFormSettings] = useState<any>({});
   const [savingSettings, setSavingSettings] = useState(false);
@@ -262,7 +261,42 @@ export default function DetailedFormAnalyticsPage({
     fetchAnalytics();
   }, [fetchAnalytics]);
 
+  const questionNumberMap = useMemo(() => {
+    const map = new Map<number, number>();
+    (form?.questions || []).forEach((q: any, idx: number) => {
+      if (q.type === "SECTION") return;
+      const n = (map.size) + 1;
+      map.set(idx, n);
+    });
+    return map;
+  }, [form]);
+
+  const visibleQuestions = useMemo(() => {
+    return (form?.questions || [])
+      .map((q: any, idx: number) => ({ qIdx: idx, q }))
+      .filter((x) => x.q.type !== "SECTION");
+  }, [form]);
+
+  const exportQuestions = visibleQuestions.map(({ qIdx, q }) => {
+    const num = questionNumberMap.get(qIdx) || qIdx + 1;
+    return {
+      qIdx,
+      q,
+      header: `${num}. ${q.title || `Soal #${num}`}`,
+    };
+  });
+
+  const safeFormSlug = form ? slugifySegment(form.slug || form.title, "form") : "form";
+
   const handleSaveSettings = async () => {
+    if (
+      formSettings.openAt &&
+      formSettings.closeAt &&
+      new Date(formSettings.openAt).getTime() >= new Date(formSettings.closeAt).getTime()
+    ) {
+      toast.error("Jadwal buka harus lebih awal dari jadwal tutup.");
+      return;
+    }
     setSavingSettings(true);
     try {
       const res = await fetch(`/api/admin/custom-forms/${formId}`, {
@@ -290,12 +324,11 @@ export default function DetailedFormAnalyticsPage({
   const handleExportCSV = () => {
     if (!form || responses.length === 0) return;
 
-    const allQuestionTitles = (form.questions || []).map((q: any, i: number) => q.title || `Soal #${i + 1}`);
-    const headersRow = ["Response ID", "Submitted At", "Responder Email", ...allQuestionTitles];
+    const headersRow = ["Response ID", "Submitted At", "Responder Email", ...exportQuestions.map((x) => x.header)];
 
     const rows = responses.map((r) => {
-      const answerCols = (form.questions || []).map((q: any, i: number) => {
-        const val = r.answers[i] ?? r.answers[q.title] ?? "";
+      const answerCols = exportQuestions.map(({ qIdx, q }) => {
+        const val = r.answers[qIdx] ?? r.answers[q.title] ?? "";
         const formatted = formatAnswerForText(val);
         return `"${formatted.replace(/"/g, '""')}"`;
       });
@@ -311,7 +344,7 @@ export default function DetailedFormAnalyticsPage({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `zyx_form_${form.slug}_responses.csv`);
+    link.setAttribute("download", `zyx_form_${safeFormSlug}_responses.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -321,12 +354,11 @@ export default function DetailedFormAnalyticsPage({
   const handleExportGoogleSheets = () => {
     if (!form || responses.length === 0) return;
 
-    const allQuestionTitles = (form.questions || []).map((q: any, i: number) => q.title || `Soal #${i + 1}`);
-    const headersRow = ["Response ID", "Submitted At", "Responder Email", ...allQuestionTitles];
+    const headersRow = ["Response ID", "Submitted At", "Responder Email", ...exportQuestions.map((x) => x.header)];
 
     const rowsMatrix = responses.map((r) => {
-      const answerCols = (form.questions || []).map((q: any, i: number) => {
-        const val = r.answers[i] ?? r.answers[q.title] ?? "";
+      const answerCols = exportQuestions.map(({ qIdx, q }) => {
+        const val = r.answers[qIdx] ?? r.answers[q.title] ?? "";
         return formatAnswerForText(val);
       });
       return [r.id, r.submittedAt, r.responderEmail || "Anonim", ...answerCols];
@@ -335,22 +367,12 @@ export default function DetailedFormAnalyticsPage({
     runExport({
       entityType: "form",
       entityId: form.id,
-      folderSubpath: "forms/" + form.title,
-      title: `${form.title} Responses`,
+      folderSubpath: ["forms", safeFormSlug].join("/"),
+      title: `form-${safeFormSlug}-responses`,
       headers: headersRow,
       rows: rowsMatrix,
     });
   };
-
-  const filteredResponses = responses.filter((r) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    if ((r.responderEmail || "").toLowerCase().includes(q)) return true;
-    for (const val of Object.values(r.answers || {})) {
-      if (String(val).toLowerCase().includes(q)) return true;
-    }
-    return false;
-  });
 
   return (
     <div className="space-y-8">
@@ -474,7 +496,9 @@ export default function DetailedFormAnalyticsPage({
           {/* TAB 1: SUMMARY */}
           <AdminTabsContent value="summary" className="space-y-6">
             {(form.questions || []).map((q: any, qIdx: number) => {
-              const questionTitle = q.title || `Pertanyaan #${qIdx + 1}`;
+              if (q.type === "SECTION") return null;
+              const num = questionNumberMap.get(qIdx) || qIdx + 1;
+              const questionTitle = q.title || `Pertanyaan #${num}`;
               const allAnswers = responses
                 .map((r) => r.answers[qIdx] ?? r.answers[questionTitle])
                 .filter((a) => a !== undefined && a !== null && a !== "");
@@ -514,7 +538,7 @@ export default function DetailedFormAnalyticsPage({
                   <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
                     <div>
                       <CardTitle className="text-h6 font-heading">
-                        {qIdx + 1}. {questionTitle}
+                        {num}. {questionTitle}
                       </CardTitle>
                       <CardDescription className="text-body-xs font-medium mt-1">
                         {allAnswers.length} responses
@@ -627,69 +651,6 @@ export default function DetailedFormAnalyticsPage({
                 </Card>
               );
             })}
-
-            {/* Spreadsheet Matrix Section */}
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <CardTitle className="text-h5 font-heading">
-                    Spreadsheet Jawaban Responden
-                  </CardTitle>
-                  <CardDescription className="text-body-xs">
-                    Tabel matriks terstruktur seluruh pengisian jawaban.
-                  </CardDescription>
-                </div>
-
-                <div className="relative w-full sm:w-72">
-                  <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Cari email / kata kunci..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-9 text-body-xs"
-                  />
-                </div>
-              </CardHeader>
-
-              <CardContent className="p-0">
-                <div className="overflow-x-auto border-t border-border">
-                  <table className="w-full text-left text-body-xs">
-                    <thead className="border-b border-border bg-muted/60 text-muted-foreground font-semibold">
-                      <tr>
-                        <th className="px-4 py-3 whitespace-nowrap">Timestamp</th>
-                        <th className="px-4 py-3 whitespace-nowrap">Responden</th>
-                        {(form.questions || []).map((q: any, i: number) => (
-                          <th key={i} className="px-4 py-3 min-w-[180px]">
-                            {q.title || `Soal #${i + 1}`}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {filteredResponses.map((row) => (
-                        <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap font-mono text-body-2xs">
-                            {formatIsoDate(new Date(row.submittedAt))}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
-                            {row.responderEmail || "Anonim"}
-                          </td>
-                          {(form.questions || []).map((q: any, i: number) => {
-                            const val = row.answers[i] ?? row.answers[q.title] ?? "-";
-                            return (
-                              <td key={i} className="px-4 py-3 text-foreground font-medium max-w-xs truncate">
-                                <RenderFormattedAnswer val={val} />
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
           </AdminTabsContent>
 
           {/* TAB 2: QUESTION */}
@@ -698,7 +659,7 @@ export default function DetailedFormAnalyticsPage({
               <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex-1 space-y-1.5">
                   <Label className="text-body-2xs font-bold text-primary uppercase tracking-wider">
-                    Pertanyaan {selectedQIndex + 1} dari {(form.questions || []).length}
+                    Pertanyaan {selectedQIndex + 1} dari {visibleQuestions.length}
                   </Label>
                   <Select
                     value={selectedQIndex.toString()}
@@ -708,9 +669,9 @@ export default function DetailedFormAnalyticsPage({
                       <SelectValue placeholder="Pilih Pertanyaan" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(form.questions || []).map((q: any, i: number) => (
+                      {visibleQuestions.map(({ qIdx, q }, i) => (
                         <SelectItem key={i} value={i.toString()}>
-                          {i + 1}. {q.title || `Soal #${i + 1}`}
+                          {qIdx + 1}. {q.title || `Soal #${qIdx + 1}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -729,8 +690,8 @@ export default function DetailedFormAnalyticsPage({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={selectedQIndex === (form.questions || []).length - 1}
-                    onClick={() => setSelectedQIndex((prev) => Math.min((form.questions || []).length - 1, prev + 1))}
+                    disabled={selectedQIndex === visibleQuestions.length - 1}
+                    onClick={() => setSelectedQIndex((prev) => Math.min(visibleQuestions.length - 1, prev + 1))}
                   >
                     Next Soal <ChevronRight className="size-4" />
                   </Button>
@@ -739,21 +700,23 @@ export default function DetailedFormAnalyticsPage({
             </Card>
 
             {(() => {
-              const targetQ = (form.questions || [])[selectedQIndex];
-              if (!targetQ) return null;
-              const qTitle = targetQ.title || `Soal #${selectedQIndex + 1}`;
+              const target = visibleQuestions[selectedQIndex];
+              if (!target) return null;
+              const targetQ = target.q;
+              const qIdx = target.qIdx;
+              const qTitle = targetQ.title || `Soal #${qIdx + 1}`;
 
               const responsesForQ = responses.map((r) => ({
                 responderEmail: r.responderEmail || "Anonim",
                 submittedAt: r.submittedAt,
-                answer: r.answers[selectedQIndex] ?? r.answers[qTitle],
+                answer: r.answers[qIdx] ?? r.answers[qTitle],
               })).filter((x) => x.answer !== undefined && x.answer !== null && x.answer !== "");
 
               return (
                 <Card className="shadow-sm">
                   <CardHeader className="border-b border-border pb-3">
                     <CardTitle className="text-h5 font-heading">
-                      {selectedQIndex + 1}. {qTitle}
+                      {qIdx + 1}. {qTitle}
                     </CardTitle>
                     <CardDescription className="text-body-xs font-semibold">
                       {responsesForQ.length} responses tercatat
@@ -824,7 +787,7 @@ export default function DetailedFormAnalyticsPage({
 
                   return (
                     <div className="space-y-4">
-                      {(form.questions || []).map((q: any, qIdx: number) => {
+                      {visibleQuestions.map(({ qIdx, q }) => {
                         const qTitle = q.title || `Soal #${qIdx + 1}`;
                         const userAns = currentResp.answers[qIdx] ?? currentResp.answers[qTitle];
 
@@ -872,7 +835,7 @@ export default function DetailedFormAnalyticsPage({
                   size="marketing"
                   className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                 >
-                  {savingSettings ? "Menyimpan..." : "Simpan Perubahan Settings"}
+                  {savingSettings ? "Menyimpan..." : "Simpan Perubahan Pengaturan"}
                 </Button>
               </CardHeader>
             </Card>
@@ -888,7 +851,7 @@ export default function DetailedFormAnalyticsPage({
                 <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4 gap-4">
                   <div className="space-y-0.5">
                     <Label htmlFor="accepting-responses" className="text-body-sm font-semibold cursor-pointer">
-                      Menerima Tanggapan (Accepting Responses)
+                      Menerima Tanggapan
                     </Label>
                     <p className="text-body-xs text-muted-foreground">
                       Aktifkan untuk mengizinkan responden mengisi formulir ini.
@@ -898,18 +861,19 @@ export default function DetailedFormAnalyticsPage({
                     id="accepting-responses"
                     checked={formSettings.acceptingResponses ?? true}
                     onCheckedChange={(checked) => setFormSettings({ ...formSettings, acceptingResponses: checked })}
+                    className="data-[state=checked]:bg-brand-primary"
                   />
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="open-at" className="text-body-sm font-semibold">
-                      Jadwal Otomatis Buka (openAt)
+                      Jadwal Buka
                     </Label>
                     <Input
                       id="open-at"
                       type="datetime-local"
-                      value={formSettings.openAt || ""}
+                      value={formatDatetimeLocal(formSettings.openAt || "")}
                       onChange={(e) => setFormSettings({ ...formSettings, openAt: e.target.value })}
                       className="text-body-sm"
                     />
@@ -918,12 +882,12 @@ export default function DetailedFormAnalyticsPage({
 
                   <div className="space-y-1.5">
                     <Label htmlFor="close-at" className="text-body-sm font-semibold">
-                      Jadwal Otomatis Tutup (closeAt)
+                      Jadwal Tutup
                     </Label>
                     <Input
                       id="close-at"
                       type="datetime-local"
-                      value={formSettings.closeAt || ""}
+                      value={formatDatetimeLocal(formSettings.closeAt || "")}
                       onChange={(e) => setFormSettings({ ...formSettings, closeAt: e.target.value })}
                       className="text-body-sm"
                     />
@@ -933,7 +897,7 @@ export default function DetailedFormAnalyticsPage({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="closed-message" className="text-body-sm font-semibold">
-                    Pesan Saat Formulir Ditutup (Closed Message)
+                    Pesan Saat Formulir Ditutup
                   </Label>
                   <Textarea
                     id="closed-message"
@@ -959,7 +923,7 @@ export default function DetailedFormAnalyticsPage({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className="text-body-sm font-semibold">
-                      Collect email addresses
+                      Kumpulkan alamat email
                     </Label>
                     <Select
                       value={formSettings.collectEmail || "none"}
@@ -969,16 +933,16 @@ export default function DetailedFormAnalyticsPage({
                         <SelectValue placeholder="Pilih Pengumpulan Email" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Do not collect (Tidak dikumpulkan)</SelectItem>
-                        <SelectItem value="input">Responder input (Diisi manual)</SelectItem>
-                        <SelectItem value="verified">Verified (Verifikasi Akun Zyx)</SelectItem>
+                        <SelectItem value="none">Tidak dikumpulkan</SelectItem>
+                        <SelectItem value="input">Diisi manual</SelectItem>
+                        <SelectItem value="verified">Verifikasi akun Zyx</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-1.5">
                     <Label className="text-body-sm font-semibold">
-                      Send responders a copy of their response
+                      Kirim salinan respons ke responden
                     </Label>
                     <Select
                       value={formSettings.sendResponseCopy || "off"}
@@ -988,9 +952,9 @@ export default function DetailedFormAnalyticsPage({
                         <SelectValue placeholder="Kirim Salinan Respon" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="off">Off (Mati)</SelectItem>
-                        <SelectItem value="requested">When requested (Saat diminta)</SelectItem>
-                        <SelectItem value="always">Always (Selalu dikirim)</SelectItem>
+                        <SelectItem value="off">Mati</SelectItem>
+                        <SelectItem value="requested">Saat diminta</SelectItem>
+                        <SelectItem value="always">Selalu dikirim</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -999,7 +963,7 @@ export default function DetailedFormAnalyticsPage({
                 <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4 gap-4">
                   <div className="space-y-0.5">
                     <Label htmlFor="allow-editing" className="text-body-sm font-semibold cursor-pointer">
-                      Allow response editing
+                      Izinkan ubah respons
                     </Label>
                     <p className="text-body-xs text-muted-foreground">
                       Respon dapat diubah kembali oleh responden setelah dikirimkan.
@@ -1009,13 +973,14 @@ export default function DetailedFormAnalyticsPage({
                     id="allow-editing"
                     checked={formSettings.allowResponseEditing ?? false}
                     onCheckedChange={(checked) => setFormSettings({ ...formSettings, allowResponseEditing: checked })}
+                    className="data-[state=checked]:bg-brand-primary"
                   />
                 </div>
 
                 <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4 gap-4">
                   <div className="space-y-0.5">
                     <Label htmlFor="limit-one" className="text-body-sm font-semibold cursor-pointer">
-                      Limit to 1 response (Requires Sign in)
+                      Batasi 1 respons per responden
                     </Label>
                     <p className="text-body-xs text-muted-foreground">
                       Membatasi responden hanya boleh mengisi 1 kali pengisian.
@@ -1025,6 +990,7 @@ export default function DetailedFormAnalyticsPage({
                     id="limit-one"
                     checked={formSettings.limitToOneResponse ?? false}
                     onCheckedChange={(checked) => setFormSettings({ ...formSettings, limitToOneResponse: checked })}
+                    className="data-[state=checked]:bg-brand-primary"
                   />
                 </div>
               </CardContent>
@@ -1040,7 +1006,7 @@ export default function DetailedFormAnalyticsPage({
               <CardContent className="space-y-5">
                 <div className="space-y-1.5">
                   <Label className="text-body-sm font-semibold">
-                    Total size limit for all uploaded files
+                    Batas total ukuran semua file
                   </Label>
                   <Select
                     value={formSettings.maxFileSizeLimit || "1GB"}
@@ -1059,7 +1025,7 @@ export default function DetailedFormAnalyticsPage({
 
                 <div className="space-y-1.5">
                   <Label htmlFor="custom-success" className="text-body-sm font-semibold">
-                    Pesan Konfirmasi Setelah Submit (Presentation)
+                    Pesan konfirmasi setelah submit
                   </Label>
                   <Input
                     id="custom-success"

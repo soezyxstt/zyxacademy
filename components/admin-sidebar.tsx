@@ -41,6 +41,7 @@ import {
   LineChart,
   Lock,
   Globe,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -100,6 +101,8 @@ function AdminSidebarInner() {
   const opsActive =
     isPrefix("/admin/meet") ||
     isPrefix("/admin/forms") ||
+    isPrefix("/admin/media") ||
+    isPrefix("/admin/tautan") ||
     isPrefix("/admin/ops");
 
   const topSection = (c: boolean) => {
@@ -224,8 +227,10 @@ function AdminSidebarInner() {
         </NavCollapsible>
 
         <NavCollapsible icon={Settings} label="Sistem & Ops" collapsed={c} active={opsActive}>
-          <NavItem href="/admin/meet" icon={Video} label="Sesi & Temu (Meet)" active={isPrefix("/admin/meet")} collapsed={c} isChild />
+          <NavItem href="/admin/meet" icon={Video} label="Meet" active={isPrefix("/admin/meet")} collapsed={c} isChild />
           <NavItem href="/admin/forms" icon={FilePen} label="Form Studio" active={isPrefix("/admin/forms")} collapsed={c} isChild />
+          <NavItem href="/admin/media" icon={ImageIcon} label="Media" active={isPrefix("/admin/media")} collapsed={c} isChild />
+          <NavItem href="/admin/tautan" icon={LinkIcon} label="Tautan" active={isPrefix("/admin/tautan")} collapsed={c} isChild />
           <NavItem href="/admin/ops" icon={Gauge} label="Monitor Ops" active={isExact("/admin/ops")} collapsed={c} isChild />
           <NavItem href="/admin/ops/flags" icon={Flag} label="Feature Flags" active={isPrefix("/admin/ops/flags")} collapsed={c} isChild />
           <NavItem href="/admin/ops/analytics" icon={LineChart} label="Analitik AI" active={isPrefix("/admin/ops/analytics")} collapsed={c} isChild />

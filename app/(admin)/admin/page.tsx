@@ -39,6 +39,8 @@ import {
   ShieldCheck,
   Video,
   FileText,
+  Image,
+  Link as LinkIcon,
 } from "lucide-react";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -312,13 +314,33 @@ export default async function AdminHomePage() {
       name: "Sistem & Operasional",
       items: [
         {
-          title: "Studio Sesi & Temu (Meet)",
+          title: "Meet",
           description:
             "Buat dan akhiri ruang meeting Pro, lihat status live, serta pantau log kehadiran peserta, rekaman, dan transkrip.",
           icon: Video,
           iconColor: "text-brand-primary",
           href: "/admin/meet",
           label: "Buka studio temu",
+          stat: null,
+        },
+        {
+          title: "Media",
+          description:
+            "Unggah, rapikan, dan kelola file penting seperti logo dan aset lain di pustaka media bersama.",
+          icon: Image,
+          iconColor: "text-tertiary-1",
+          href: "/admin/media",
+          label: "Buka pustaka media",
+          stat: null,
+        },
+        {
+          title: "Tautan",
+          description:
+            "Simpan dan atur tautan penting yang sering digunakan tim Zyx dalam satu tempat.",
+          icon: LinkIcon,
+          iconColor: "text-status-success",
+          href: "/admin/tautan",
+          label: "Buka daftar tautan",
           stat: null,
         },
         {

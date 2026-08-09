@@ -603,6 +603,10 @@ app/
 │   ├── ai/              ; AI generation: materials, questions, quizzes, diktats, distractors, jobs, keys, analytics
 │   ├── courses/         ; Course CRUD
 │   ├── files/           ; UploadThing drive explorer
+│   ├── meet/            ; Meet Studio (sessions, hosts, co-hosts, invited emails)
+│   ├── forms/           ; Form Studio & Visualizer (builder, presets, spreadsheet export)
+│   ├── media/           ; Media Library (R2 shared media browser, upload, preview)
+│   ├── tautan/          ; Tautan (important links manager)
 │   └── tokens/          ; Enrollment token management
 ├── api/
 │   ├── uploadthing/     ; UploadThing route handler

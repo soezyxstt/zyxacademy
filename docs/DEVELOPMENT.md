@@ -191,6 +191,9 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_PKA` | Tutorial PKA campaign |
 | `FEATURE_PERAN_V2` | Indonesian domain identity and multi-role authorization |
 | `FEATURE_DRIVE_EDITOR_SYNC` | Auto-grant editor access to all active admin emails on every exported Google Spreadsheet and its Drive folder |
+| `FEATURE_MEDIA_LIBRARY` | Admin Media Library: R2-based shared media upload, organize, preview |
+| `FEATURE_LINK_LIBRARY` | Admin Tautan library and public `/tautan` links page |
+| `FEATURE_FORM_PRESETS` | Reusable Form Studio presets (questions + settings) |
 | `FEATURE_AI_CONTRACT_V2` | Versioned prompt contracts, policy composition, bounded repair, and provenance |
 | `FEATURE_ASSESSMENT_ASSISTANCE_POLICY` | Deterministic assessment assistance policy for AI tutor and mistake feedback |
 | `FEATURE_TUTOR_PIPELINE_V2` | V2 tutor cache isolation and query action routing |

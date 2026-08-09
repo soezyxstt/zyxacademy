@@ -123,4 +123,32 @@ export class WranglerR2Provider implements StorageProvider {
     await this.copy(key, newName);
     await this.delete(key);
   }
+
+  async list(prefix: string): Promise<{ key: string; size: number; lastModified: Date }[]> {
+    let json = "";
+    await this.withTempFile(".list.json", async (filePath) => {
+      await this.run([
+        "r2",
+        "object",
+        "list",
+        `${this.bucket}/${prefix}`,
+        "--remote",
+        "--json",
+        `--output`,
+        filePath,
+      ]);
+      json = await readFile(/* turbopackIgnore: true */ filePath, "utf8");
+    });
+
+    type ListedObject = { key?: string; size?: number; uploaded?: string };
+    const parsed = (JSON.parse(json || "[]") as ListedObject[]).filter(
+      (obj) => obj.key && !obj.key.endsWith("/")
+    );
+
+    return parsed.map((obj) => ({
+      key: obj.key as string,
+      size: obj.size || 0,
+      lastModified: obj.uploaded ? new Date(obj.uploaded) : new Date(0),
+    }));
+  }
 }

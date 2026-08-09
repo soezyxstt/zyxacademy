@@ -128,8 +128,10 @@ export async function POST(
       );
     }
 
-    // Check Login Requirement
-    if (settings.requireLogin && !session?.user) {
+    const collectEmail = settings.collectEmail || "none";
+
+    // Check Login Requirement (requireLogin or verified email collection)
+    if ((settings.requireLogin || collectEmail === "verified") && !session?.user) {
       return NextResponse.json(
         { error: "Anda harus login ke akun Zyx untuk mengisi formulir ini." },
         { status: 401 }
@@ -159,12 +161,23 @@ export async function POST(
 
     const body = await req.json().catch(() => ({}));
     const answers = body.answers || {};
-    const responderEmail = (body.responderEmail || session?.user?.email || "").trim();
+    const submittedEmail = typeof body.responderEmail === "string" ? body.responderEmail.trim() : "";
+    const responderEmail = submittedEmail || session?.user?.email || "";
 
-    // Validate required questions
+    if (collectEmail === "input") {
+      if (!responderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(responderEmail)) {
+        return NextResponse.json(
+          { error: "Alamat email wajib diisi dengan format yang benar." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate required questions (SECTION items are not answerable questions)
     const questions = form.questions as any[];
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
+      if (q.type === "SECTION") continue;
       if (q.required) {
         const val = answers[i] ?? answers[q.title];
         if (val === undefined || val === null || val === "" || (Array.isArray(val) && val.length === 0)) {

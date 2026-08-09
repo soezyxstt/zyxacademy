@@ -19,6 +19,7 @@ export interface GoogleFormInfo {
 export interface Option {
   value: string;
   isCustom?: boolean;
+  isOther?: boolean;
 }
 
 export interface ChoiceQuestion {
@@ -139,6 +140,7 @@ export interface CreateCustomQuestionInput {
   type: QuestionType;
   required?: boolean;
   options?: string[]; // For RADIO, CHECKBOX, DROP_DOWN
+  otherOption?: { enabled: boolean; label: string }; // "Lainnya" option for choice questions
   scaleLow?: number; // Default: 1
   scaleHigh?: number; // Default: 5
   scaleLowLabel?: string;
@@ -318,9 +320,13 @@ export async function createCustomGoogleForm(
       };
 
       if (q.type === "RADIO" || q.type === "CHECKBOX" || q.type === "DROP_DOWN") {
+        const mappedOptions: Option[] = (q.options || ["Pilihan 1", "Pilihan 2"]).map((opt) => ({ value: opt }));
+        if (q.otherOption?.enabled) {
+          mappedOptions.push({ value: q.otherOption.label || "Lainnya", isOther: true });
+        }
         questionObj.choiceQuestion = {
           type: q.type,
-          options: (q.options || ["Pilihan 1", "Pilihan 2"]).map((opt) => ({ value: opt })),
+          options: mappedOptions,
         };
       } else if (q.type === "TEXT") {
         questionObj.textQuestion = { paragraph: false };
