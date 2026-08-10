@@ -3,7 +3,6 @@ import Link from "next/link";
 import { db } from "@/db";
 import {
   courses,
-  driveItem,
   enrollmentTokens,
   groupMembers,
   aiMaterialInstances,
@@ -21,7 +20,6 @@ import {
 import { sql, eq, gte, ne } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import {
-  FolderOpen,
   KeyRound,
   BookText,
   Zap,
@@ -60,7 +58,6 @@ export default async function AdminHomePage() {
 
   const [
     courseCountRes,
-    fileStatsRes,
     tokenStatsRes,
     materialStatsRes,
     diktatCountRes,
@@ -72,14 +69,6 @@ export default async function AdminHomePage() {
     blogCountRes,
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(courses),
-
-    db
-      .select({
-        count: sql<number>`count(*)`,
-        totalSize: sql<number>`coalesce(sum(${driveItem.sizeBytes}), 0)`,
-      })
-      .from(driveItem)
-      .where(eq(driveItem.kind, "file")),
 
     Promise.all([
       db.select({ count: sql<number>`count(*)` }).from(enrollmentTokens),
@@ -130,10 +119,6 @@ export default async function AdminHomePage() {
   const totalCourses = courseCountRes[0]?.count ?? 0;
   const courseStat = `${totalCourses} mata kuliah aktif`;
 
-  const totalFiles = fileStatsRes[0]?.count ?? 0;
-  const totalFileSizeMB = ((fileStatsRes[0]?.totalSize ?? 0) / (1024 * 1024)).toFixed(1);
-  const fileStat = `${totalFiles} file (${totalFileSizeMB} MB)`;
-
   const [tokensCountRes, tokensList, membersList] = tokenStatsRes;
   const totalTokens = tokensCountRes[0]?.count ?? 0;
   const tokenGroupIds = new Set(tokensList.map((t) => t.groupId));
@@ -176,6 +161,51 @@ export default async function AdminHomePage() {
   const blogStat = `${totalArticles} artikel`;
 
   const categories = [
+    {
+      name: "Media & Alat",
+      items: [
+        {
+          title: "Meet",
+          description:
+            "Buat dan akhiri ruang meeting Pro, lihat status live, serta pantau log kehadiran peserta, rekaman, dan transkrip.",
+          icon: Video,
+          iconColor: "text-brand-primary",
+          href: "/admin/meet",
+          label: "Buka studio temu",
+          stat: null,
+        },
+        {
+          title: "Form Studio & Visualizer",
+          description:
+            "Rancang survei, kuis, dan pendaftaran mandiri dengan 12 tipe soal, short link, dan visualisasi data real-time.",
+          icon: FileText,
+          iconColor: "text-brand-secondary",
+          href: "/admin/forms",
+          label: "Buka Form Studio",
+          stat: null,
+        },
+        {
+          title: "Media",
+          description:
+            "Unggah, rapikan, dan kelola file penting seperti logo dan aset lain di pustaka media bersama, plus browser read-only seluruh storage R2.",
+          icon: Image,
+          iconColor: "text-tertiary-1",
+          href: "/admin/media",
+          label: "Buka pustaka media",
+          stat: null,
+        },
+        {
+          title: "Tautan",
+          description:
+            "Simpan dan atur tautan penting yang sering digunakan tim Zyx dalam satu tempat.",
+          icon: LinkIcon,
+          iconColor: "text-status-success",
+          href: "/admin/tautan",
+          label: "Buka daftar tautan",
+          stat: null,
+        },
+      ],
+    },
     {
       name: "Konten & Publikasi",
       items: [
@@ -227,16 +257,6 @@ export default async function AdminHomePage() {
           href: "/admin/authoring-context",
           label: "Buat context pack",
           stat: null,
-        },
-        {
-          title: "File Storage",
-          description:
-            "Kelola file dan folder media pembelajaran dengan struktur bergaya Google Drive.",
-          icon: FolderOpen,
-          iconColor: "text-brand-primary",
-          href: "/admin/files",
-          label: "Buka pengelola file",
-          stat: fileStat,
         },
         {
           title: "Materi",
@@ -313,46 +333,6 @@ export default async function AdminHomePage() {
     {
       name: "Sistem & Operasional",
       items: [
-        {
-          title: "Meet",
-          description:
-            "Buat dan akhiri ruang meeting Pro, lihat status live, serta pantau log kehadiran peserta, rekaman, dan transkrip.",
-          icon: Video,
-          iconColor: "text-brand-primary",
-          href: "/admin/meet",
-          label: "Buka studio temu",
-          stat: null,
-        },
-        {
-          title: "Media",
-          description:
-            "Unggah, rapikan, dan kelola file penting seperti logo dan aset lain di pustaka media bersama.",
-          icon: Image,
-          iconColor: "text-tertiary-1",
-          href: "/admin/media",
-          label: "Buka pustaka media",
-          stat: null,
-        },
-        {
-          title: "Tautan",
-          description:
-            "Simpan dan atur tautan penting yang sering digunakan tim Zyx dalam satu tempat.",
-          icon: LinkIcon,
-          iconColor: "text-status-success",
-          href: "/admin/tautan",
-          label: "Buka daftar tautan",
-          stat: null,
-        },
-        {
-          title: "Form Studio & Visualizer",
-          description:
-            "Rancang survei, kuis, dan pendaftaran mandiri dengan 12 tipe soal, short link, dan visualisasi data real-time.",
-          icon: FileText,
-          iconColor: "text-brand-secondary",
-          href: "/admin/forms",
-          label: "Buka Form Studio",
-          stat: null,
-        },
         {
           title: "Push Notification",
           description:

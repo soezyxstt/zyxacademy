@@ -8,7 +8,7 @@ import { pageTitle } from "@/lib/site";
 import { assertAdmin } from "@/lib/uploadthing-admin";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { MediaLibrary } from "@/components/admin/media-library";
+import { MediaManager } from "@/components/admin/media-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -49,10 +49,10 @@ export default async function AdminMediaPage() {
       <AdminPageHeader
         icon={Images}
         title="Media"
-        description="Unggah, atur, dan pratinjau file media dalam satu tempat."
+        description="Kelola pustaka media, atau jelajahi seluruh storage R2 secara read-only dan salin item ke media."
         backHref="/admin"
       />
-      <MediaLibrary />
+      <MediaManager />
     </div>
   );
 }

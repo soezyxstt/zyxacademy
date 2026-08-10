@@ -134,6 +134,21 @@ export function parentFolderPath(path: string): string {
   return parts.slice(0, -1).join("/");
 }
 
+export function storageFolderPathOfKey(key: string): string {
+  const parts = key.split("/").filter(Boolean);
+  return parts.slice(0, -1).join("/");
+}
+
+export const STORAGE_DOMAIN_LABELS: Record<string, string> = {
+  courses: "Course materials",
+  blog: "Blog media",
+  pka: "PKA follow proofs",
+  forms: "Form uploads",
+  overhaul: "Bundle & authoring artifacts",
+  uploads: "Generic uploads",
+  legacy: "Legacy drive files",
+};
+
 export function baseFolderName(path: string): string {
   const parts = path.split("/").filter(Boolean);
   return parts[parts.length - 1] || "";

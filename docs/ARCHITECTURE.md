@@ -396,7 +396,7 @@ The compatibility submit route keeps the legacy quiz as the source of the user-v
 #### Admin Drive
 | Table | Purpose |
 |---|---|
-| `drive_item` | Legacy read-only file pointers (folder\|file, uploadthingKey, ufsUrl, mimeType, sizeBytes); the admin drive is now a read-only browser over R2 domain prefixes and no longer accepts uploads or folder writes |
+| `drive_item` | Legacy read-only file pointers (folder\|file, uploadthingKey, ufsUrl, mimeType, sizeBytes); no longer surfaced in the admin UI. R2 browsing moved to the admin Media page "Storage R2" tab |
 
 #### Push Notifications
 | Table | Purpose |
@@ -411,7 +411,7 @@ The compatibility submit route keeps the legacy quiz as the source of the user-v
 ```
 Upload PDF via direct R2 (structured object keys)
   │
-  ├──→ Admin Drive (/admin/files) ; read-only browser over domain prefixes
+  ├──→ Admin Media (/admin/media) ; "Storage R2" tab is a read-only browser over domain prefixes
   │
   ├──→ Create Master Teaching Document (MTD)
   │    ├── Select type: "learning" or "assessment"
@@ -763,7 +763,7 @@ FEATURE_REFLECTION_EMAIL, FEATURE_ADAPTIVE_QUIZ, FEATURE_PKA
 Upload PDF/Markdown
    │
    ├──→ R2 via structured object keys (lib/storage/keys.ts)
-   │    └──→ Admin Drive (/admin/files) ; read-only browser over domain prefixes
+   │    └──→ Admin Media (/admin/media) ; "Storage R2" tab = read-only browser over domain prefixes
    │
    └──→ Create MTD (type: "learning" | "assessment")
          │

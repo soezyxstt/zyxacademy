@@ -54,7 +54,7 @@ const studentRoutes = [
 const adminRoutes = [
   { path: "/admin", name: "25_admin_home" },
   { path: "/admin/courses", name: "26_admin_courses" },
-  { path: "/admin/files", name: "27_admin_files" },
+  { path: "/admin/media", name: "27_admin_media" },
   { path: "/admin/tokens", name: "28_admin_tokens" },
   { path: "/admin/ai", name: "29_admin_ai" },
   { path: "/admin/ops", name: "30_admin_ops" },

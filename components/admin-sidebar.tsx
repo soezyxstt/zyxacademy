@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
-  FolderOpen,
   BookText,
   KeyRound,
   Archive,
@@ -98,12 +97,7 @@ function AdminSidebarInner() {
   const penggunaActive =
     isPrefix("/admin/tokens") || isPrefix("/admin/notifications");
 
-  const opsActive =
-    isPrefix("/admin/meet") ||
-    isPrefix("/admin/forms") ||
-    isPrefix("/admin/media") ||
-    isPrefix("/admin/tautan") ||
-    isPrefix("/admin/ops");
+  const opsActive = isPrefix("/admin/ops");
 
   const topSection = (c: boolean) => {
     if (!session?.user) return null;
@@ -189,7 +183,12 @@ function AdminSidebarInner() {
         <NavGroup label="Utama" collapsed={c} />
         <NavItem href="/admin" icon={LayoutDashboard} label="Panel Admin" active={isExact("/admin")} collapsed={c} />
         <NavItem href="/admin/blog" icon={Newspaper} label="Kelola Blog" active={isPrefix("/admin/blog")} collapsed={c} />
-        <NavItem href="/admin/files" icon={FolderOpen} label="File Storage" active={isPrefix("/admin/files")} collapsed={c} />
+
+        <NavGroup label="Media & Alat" collapsed={c} />
+        <NavItem href="/admin/meet" icon={Video} label="Meet" active={isPrefix("/admin/meet")} collapsed={c} />
+        <NavItem href="/admin/forms" icon={FilePen} label="Form Studio" active={isPrefix("/admin/forms")} collapsed={c} />
+        <NavItem href="/admin/media" icon={ImageIcon} label="Media" active={isPrefix("/admin/media")} collapsed={c} />
+        <NavItem href="/admin/tautan" icon={LinkIcon} label="Tautan" active={isPrefix("/admin/tautan")} collapsed={c} />
 
         <NavCollapsible icon={BookOpen} label="Akademik" collapsed={c} active={akademikActive}>
           <NavItem href="/admin/courses" icon={GraduationCap} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} isChild />
@@ -227,10 +226,6 @@ function AdminSidebarInner() {
         </NavCollapsible>
 
         <NavCollapsible icon={Settings} label="Sistem & Ops" collapsed={c} active={opsActive}>
-          <NavItem href="/admin/meet" icon={Video} label="Meet" active={isPrefix("/admin/meet")} collapsed={c} isChild />
-          <NavItem href="/admin/forms" icon={FilePen} label="Form Studio" active={isPrefix("/admin/forms")} collapsed={c} isChild />
-          <NavItem href="/admin/media" icon={ImageIcon} label="Media" active={isPrefix("/admin/media")} collapsed={c} isChild />
-          <NavItem href="/admin/tautan" icon={LinkIcon} label="Tautan" active={isPrefix("/admin/tautan")} collapsed={c} isChild />
           <NavItem href="/admin/ops" icon={Gauge} label="Monitor Ops" active={isExact("/admin/ops")} collapsed={c} isChild />
           <NavItem href="/admin/ops/flags" icon={Flag} label="Feature Flags" active={isPrefix("/admin/ops/flags")} collapsed={c} isChild />
           <NavItem href="/admin/ops/analytics" icon={LineChart} label="Analitik AI" active={isPrefix("/admin/ops/analytics")} collapsed={c} isChild />
