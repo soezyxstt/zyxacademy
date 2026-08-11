@@ -88,8 +88,11 @@ export async function recordGenerationTrace(data: GenerationTraceData): Promise<
       latencyMs: data.latencyMs,
       cacheResult: data.cacheResult || 'none',
     });
-  } catch (err: any) {
-    console.warn(`[Provenance] Failed to write generation trace: ${err?.message || err}`);
+  } catch {
+    console.warn(JSON.stringify({
+      event: "ai_generation_trace_write_failed",
+      code: "TRACE_PERSISTENCE_FAILED",
+    }));
   }
 
   return traceId;

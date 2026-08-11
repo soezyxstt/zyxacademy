@@ -12,6 +12,7 @@
 - **Depends on**: Plans 001, 003, 005, and Idea-centered Overhaul Plan 012
 - **Category**: performance, privacy
 - **Planned at**: commit `03b68ba0`, 2026-08-02
+- **Status**: DONE
 
 ## Why this matters
 
@@ -142,13 +143,15 @@ Pass when forbidden false reuse is zero, reusable precision is at least 98 perce
 
 ## Done criteria
 
-- [ ] Exact cache shares across four provider keys only when safe.
-- [ ] Semantic cache uses a separate 768 index and calibrated thresholds.
-- [ ] Shared payloads contain no learner-specific data.
-- [ ] Cache hits consume zero provider allowance.
-- [ ] KV write budget and single-flight gates pass.
-- [ ] Targeted tests, eval, lint, typecheck, staging smoke, and diff check pass.
-- [ ] Plan 006 evidence validates.
+- [x] Exact cache shares across four provider keys only when safe.
+- [x] Semantic cache uses a separate 768 index and calibrated thresholds.
+- [x] Shared payloads contain no learner-specific data.
+- [x] Cache hits consume zero provider allowance.
+- [x] KV write budget and single-flight gates pass.
+- [x] Targeted tests, eval, lint, typecheck, staging smoke, and diff check pass.
+- [x] Plan 006 evidence validates.
+
+Evidence: `artifacts/zyra-ai/20260807-plan006-preflight/plan-001-preflight.json`, `artifacts/zyra-ai/20260807-plan006-semantic-calibration/plan-006-semantic-calibration.json`, and `artifacts/zyra-ai/20260807-plan006-cache-smoke-v10/plan-006-cache-smoke.json`.
 
 ## STOP conditions
 

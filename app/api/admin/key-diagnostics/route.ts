@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { geminiKeyPool } from "@/lib/gemini-keys";
-import { RPD_LIMITS } from "@/lib/ai-router";
+import { MODEL_REGISTRY } from "@/lib/ai/provider/model-registry";
 import { db } from "@/db";
 import { aiUsageEvents } from "@/db/schema";
 import { and, gte, eq, sql } from "drizzle-orm";
@@ -41,7 +41,7 @@ export async function GET() {
 
     return NextResponse.json({
       checkedAt: new Date().toISOString(),
-      rpdLimits: RPD_LIMITS,
+      rpdLimits: Object.fromEntries(Object.values(MODEL_REGISTRY).map((entry) => [entry.id, entry.limits.perProjectRpd])),
       geminiKeys: diagnostics,
       usageByModel,
       totalRequestsToday: totalTodayDb[0]?.count ?? 0,

@@ -26,7 +26,7 @@ Read-only inventory on 2026-08-02 found:
 - Vectorize indexes `zyx-edu` and `zyx-vectors-staging` exist at 1024 dimensions with cosine distance.
 - `workers/vector-api/wrangler.toml` currently binds staging to `zyx-vectors-staging`.
 - No Zyra control-plane Worker, Zyra quota Durable Object, Analytics Engine binding, private Zyra attachment bucket, 768-dimension canonical v2 index, or 768-dimension Zyra semantic-cache index is declared in the repository.
-- `.env.staging` contains the staging KV namespace ID and Vectorize Worker settings, but does not currently declare the full AI Gateway and control-plane variable set required by this program.
+- `.env.staging` contains the staging KV namespace ID, Vectorize Worker settings, and the reviewed Plan 005 provider-router configuration. Other optional application services remain outside the bounded provider-router smoke scope.
 
 The existing 1024-dimension Vectorize indexes are rollback-only inputs. Overhaul Plan 012 creates `zyx-vectors-staging-v2` at exactly 768 dimensions and rebuilds it from Turso with the fixed `canonical-content-v2` Gemini Embedding 2 profile. This program creates `zyx-zyra-cache-staging`, also at 768 dimensions, for semantic cache only. The two 768 indexes remain separate because their task instructions, vector IDs, metadata, authorization, and lifecycle differ. Cloudflare index dimensions are immutable, and vectors from different embedding profiles must never be compared or mixed.
 
@@ -81,13 +81,13 @@ Only one executor may edit `db/schema.ts`, `lib/env.ts`, `package.json`, shared 
 
 | Plan | Title | Priority | Depends on | May run during overhaul | Status |
 |---|---|---|---|---|---|
-| [001](001-cloudflare-control-plane-foundation.md) | Provision the staging Zyra control plane | P0 | Overhaul 002 | 003 through 011, staging mutations serialized | TODO |
-| [002](002-model-registry-and-provider-adapters.md) | Establish verified model registry and adapters | P0 | Overhaul 005 | 006 through 011, must finish before Overhaul 013 | TODO |
-| [003](003-distributed-quota-coordinator.md) | Implement distributed project and model quota leases | P0 | 001, 002 contracts | 003 through 011, new Worker files only | TODO |
-| [004](004-role-allowances-and-usage-ledger.md) | Enforce murid, tutor, and admin allowances | P0 | 003, Overhaul 005 | Only when no other schema writer runs | TODO |
-| [005](005-health-aware-model-routing.md) | Integrate health-aware four-project routing | P0 | 002, 003, 004 | Must finish before Overhaul 013 | TODO |
-| [006](006-multilayer-semantic-cache.md) | Build privacy-safe exact and semantic cache | P1 | 001, 003, 005, Overhaul 012 | After Overhaul 012, before or serialized with 013 | TODO |
-| [007](007-pedagogical-zyra-harness.md) | Build the pedagogical Zyra harness | P0 | 005, 006, Overhaul 013 | After Overhaul 013 only | TODO |
+| [001](001-cloudflare-control-plane-foundation.md) | Provision the staging Zyra control plane | P0 | Overhaul 002 | 003 through 011, staging mutations serialized | DONE |
+| [002](002-model-registry-and-provider-adapters.md) | Establish verified model registry and adapters | P0 | Overhaul 005 | 006 through 011, must finish before Overhaul 013 | PARTIAL |
+| [003](003-distributed-quota-coordinator.md) | Implement distributed project and model quota leases | P0 | 001, 002 contracts | 003 through 011, new Worker files only | DONE |
+| [004](004-role-allowances-and-usage-ledger.md) | Enforce murid, tutor, and admin allowances | P0 | 003, Overhaul 005 | Only when no other schema writer runs | DONE |
+| [005](005-health-aware-model-routing.md) | Integrate health-aware four-project routing | P0 | 002, 003, 004 | Must finish before Overhaul 013 | DONE |
+| [006](006-multilayer-semantic-cache.md) | Build privacy-safe exact and semantic cache | P1 | 001, 003, 005, Overhaul 012 | After Overhaul 012, before or serialized with 013 | DONE |
+| [007](007-pedagogical-zyra-harness.md) | Build the pedagogical Zyra harness | P0 | 005, 006, Overhaul 013 | After Overhaul 013 only | IN PROGRESS |
 | [008](008-evidence-based-personalization.md) | Personalize from learner evidence | P1 | 004, 007, Overhaul 011 | Parallel with 009 if shared files are serialized | TODO |
 | [009](009-interactive-learning-canvas.md) | Deliver typed interactive learning visuals | P1 | 007 | Parallel with 008 | TODO |
 | [010](010-multimodal-image-questions.md) | Add private image questions to Zyra | P0 | 001, 002, 004, 005, 007, 009, Overhaul 013 and 015 | After Overhaul 015 only | TODO |
@@ -97,6 +97,20 @@ Only one executor may edit `db/schema.ts`, `lib/env.ts`, `package.json`, shared 
 | [014](014-staging-evaluation-and-rollout.md) | Prove the complete system in staging | P0 gate | 001 through 013, Overhaul 016 | After all predecessors | TODO |
 
 Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`, or `REJECTED`. A blocked row must include the exact failed gate and evidence path.
+
+Plan 001 evidence: `artifacts/zyra-ai/20260805-plan001-final/plan-001-result.json`.
+
+Plan 002 evidence: local registry, adapter, embedding-profile, lint, typecheck, and mock gates pass. Real staging artifact: `artifacts/zyra-ai/20260805-plan002-real/plan-002-model-probe.json`; 40 masked requests produced 39 passes and one transient 504 for quarantined `gemini-3-flash-preview`. The approved one-request retry also returned the same transient 504: `artifacts/zyra-ai/20260805-plan002-retry-preview/plan-002-model-probe.json`. The 3.5 Flash-Lite release gate remains `insufficient_sample`, so Plan 002 is partial.
+
+Plan 003 evidence: `artifacts/zyra-ai/20260807-plan003-local-harness-fix/plan-003-result.json` and `artifacts/zyra-ai/20260807-plan003-final/plan-003-result.json`. The Durable Object quota ledger, clock, privacy, transition, and fairness tests pass, the Worker Wrangler dry-run passes, and the staging Worker was deployed and verified with health 200, unauthorized diagnostics 401 JSON, authenticated diagnostics 200 JSON, and remote synthetic concurrency smoke with 60 accepted reservations, 40 expected quota rejections, 60 committed transitions, fairness spread 0, and zero synthetic provider calls. No secret or authenticated URL was written to evidence.
+
+Plan 004 completed: the focused allowance suite, root typecheck, additive `0059_tricky_tag.sql` staging migration, staging-backed application canary, legacy preservation check, and strict reconciliation all pass. The canary recorded accepted and rejected requests, cache hit zero-provider accounting, idempotent commit and refund, authenticated current-user summary, and zero provider calls. The feature flag was enabled only in the canary process and is off afterward. Evidence: `artifacts/staging-overhaul/20260807-plan004-allowance/plan-004-result.json` and `artifacts/staging-overhaul/20260807-plan004-app-canary-v3/plan-004-application-canary.json`.
+
+Plan 005 completed: the server-only control-plane client, application/provider lease lifecycle, deterministic route classification, project fallback, AI Gateway metadata, quarantine protection, focused contracts, lint, and root typecheck pass. The paced staging smoke completed 40 of 40 provider requests successfully across four project slots, used only `gemini-3.1-flash-lite`, recorded zero quarantined traffic, and reconciled 40 committed application leases with zero active control-plane leases. A prior unpaced run recorded seven application per-minute allowance rejections and no provider failure; the paced rerun is the accepted gate evidence. Evidence: `artifacts/zyra-ai/20260807-plan005-provider-router-paced-v1/plan-005-provider-router.json` and the prior diagnostic `artifacts/zyra-ai/20260807-plan005-provider-router-real-v2/plan-005-provider-router.json`.
+
+Plan 006 completed: exact cache identity, privacy-safe shared scaffolds, AI Gateway key sharing, Durable Object single-flight, the 900-write budget, semantic profile isolation, version invalidation, and rollback are implemented. The local focused suite passed 17 tests, the 200-pair semantic calibration passed with zero false reuse and 100 percent precision, and the staging smoke produced 1 leader plus 49 followers, 1 strict semantic match, zero cache provider units, zero real provider calls, and a 10-write observed budget claim within the 900-write ceiling. The staging Worker was verified at deployment version `plan-006`; the separate `zyx-zyra-cache-staging` resource has the required metadata indexes. Evidence: `artifacts/zyra-ai/20260807-plan006-preflight/plan-001-preflight.json`, `artifacts/zyra-ai/20260807-plan006-semantic-calibration/plan-006-semantic-calibration.json`, and `artifacts/zyra-ai/20260807-plan006-cache-smoke-v10/plan-006-cache-smoke.json`.
+
+Plan 007 is partial and local-ready: the deterministic state machine, typed response contract, citation and assessment validators, safe composition, one-call prompt contract, tutor integration, masked canonical failure boundary, bounded staging shadow runner, local review page, strict human evidence validator, and zero-provider startup diagnostics are implemented. Focused tests pass with 50 tests and 174 assertions. The 40-case machine evaluation passes with 100 percent state and checkpoint compliance, zero active-assessment leaks, zero unsupported claims, zero invalid citations, zero pipeline-language leaks, and zero provider calls. The fixture smoke validates 40 of 40 cases. Canonical and tutor runtime imports now use a scoped Zyra env contract instead of full application env validation. The dedicated identity is configured, and startup diagnostics pass all 11 stages with zero provider calls, database writes, trace writes, and learner side effects. One controlled remote retry and maintainer review remain pending. Evidence: `artifacts/zyra-ai/20260807-plan007-pedagogy-eval/plan-007-pedagogy-eval.json`, `artifacts/staging-overhaul/20260808-plan007-local-shadow-v2/plan-007-pedagogy-shadow.json`, and `artifacts/staging-overhaul/20260808-plan007-startup-diagnostics-v3/plan-007-pedagogy-startup-diagnostics.json`.
 
 ## Parallel orchestration
 

@@ -19,7 +19,7 @@ import {
   type AttemptState,
   type MatchState,
 } from "@/lib/assessment-assistance-policy";
-import { env } from "@/lib/env";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { vectorStore } from "@/lib/vector-store";
 import {
   CANONICAL_VECTOR_PROFILE,
@@ -49,6 +49,7 @@ export const CANONICAL_RUNTIME_REASON_CODES = [
   "CAPABILITY_REQUIRED",
   "ACTIVE_ATTEMPT_ANSWER_DENIED",
   "UNRESOLVED_COURSE_SCOPE",
+  "CANONICAL_RUNTIME_UNAVAILABLE",
 ] as const;
 
 export type CanonicalRuntimeReasonCode = (typeof CANONICAL_RUNTIME_REASON_CODES)[number];
@@ -102,6 +103,30 @@ export interface CanonicalRuntimeSource extends TutorSource {
 export interface CanonicalHydrationResult {
   sources: CanonicalRuntimeSource[];
   rejected: CanonicalRejectedCandidate[];
+  failure?: {
+    reasonCode: "CANONICAL_RUNTIME_UNAVAILABLE";
+    operation: "rehydrate" | "retrieve";
+  };
+}
+
+export async function runCanonicalRuntimeFailClosed(
+  operation: "rehydrate" | "retrieve",
+  action: () => Promise<CanonicalHydrationResult>,
+): Promise<CanonicalHydrationResult> {
+  try {
+    return await action();
+  } catch {
+    console.error(JSON.stringify({
+      event: "zyra_canonical_runtime_failed_closed",
+      code: "CANONICAL_RUNTIME_UNAVAILABLE",
+      operation,
+    }));
+    return {
+      sources: [],
+      rejected: [],
+      failure: { reasonCode: "CANONICAL_RUNTIME_UNAVAILABLE", operation },
+    };
+  }
 }
 
 const NAMESPACE_BY_ENTITY: Record<CanonicalEntityType, CanonicalNamespace> = {
@@ -530,79 +555,84 @@ export async function rehydrateCanonicalSourceIds(
   request: CanonicalRuntimeRequest,
   ids: readonly string[],
 ): Promise<CanonicalHydrationResult> {
-  const canonicalCourseId = await resolveCanonicalCourseId(request.courseId);
-  if (!canonicalCourseId) return { sources: [], rejected: [] };
-  const scopedRequest: CanonicalRuntimeRequest = {
-    ...request,
-    courseId: canonicalCourseId,
-    isEnrolled: await resolveCanonicalEnrollment(request.studentId, canonicalCourseId, request.isEnrolled),
-  };
-  const candidates: CanonicalRuntimeCandidate[] = [];
-  const rejected: CanonicalRejectedCandidate[] = [];
-  for (const id of ids) {
-    try {
-      const parsed = parseVersionedVectorId(id);
-      const status: CanonicalStatus = parsed.entityType === "source_material" || parsed.entityType === "question_reference"
-        ? "active"
-        : "published";
-      candidates.push({
-        id,
-        score: 1,
-        metadata: {
-          namespace: NAMESPACE_BY_ENTITY[parsed.entityType],
-          entityType: parsed.entityType,
-          entityId: parsed.entityId,
-          version: parsed.version,
-          status,
-          accessClass: parsed.entityType === "solution" ? "restricted_solution" : parsed.entityType === "question_reference" ? "public" : "enrolled",
-          language: "id",
-          profileId: CANONICAL_VECTOR_PROFILE.id,
-          courseId: canonicalCourseId,
-        },
-      });
-    } catch {
-      reject(rejected, id, "INVALID_VECTOR_ID");
+  return runCanonicalRuntimeFailClosed("rehydrate", async () => {
+    const canonicalCourseId = await resolveCanonicalCourseId(request.courseId);
+    if (!canonicalCourseId) return { sources: [], rejected: [] };
+    const scopedRequest: CanonicalRuntimeRequest = {
+      ...request,
+      courseId: canonicalCourseId,
+      isEnrolled: await resolveCanonicalEnrollment(request.studentId, canonicalCourseId, request.isEnrolled),
+    };
+    const candidates: CanonicalRuntimeCandidate[] = [];
+    const rejected: CanonicalRejectedCandidate[] = [];
+    for (const id of ids) {
+      try {
+        const parsed = parseVersionedVectorId(id);
+        const status: CanonicalStatus = parsed.entityType === "source_material" || parsed.entityType === "question_reference"
+          ? "active"
+          : "published";
+        candidates.push({
+          id,
+          score: 1,
+          metadata: {
+            namespace: NAMESPACE_BY_ENTITY[parsed.entityType],
+            entityType: parsed.entityType,
+            entityId: parsed.entityId,
+            version: parsed.version,
+            status,
+            accessClass: parsed.entityType === "solution" ? "restricted_solution" : parsed.entityType === "question_reference" ? "public" : "enrolled",
+            language: "id",
+            profileId: CANONICAL_VECTOR_PROFILE.id,
+            courseId: canonicalCourseId,
+          },
+        });
+      } catch {
+        reject(rejected, id, "INVALID_VECTOR_ID");
+      }
     }
-  }
-  const records = await loadCanonicalRecords(candidates, canonicalCourseId);
-  const hydrated = hydrateCanonicalCandidates(candidates, records, scopedRequest);
-  return { sources: hydrated.sources, rejected: [...rejected, ...hydrated.rejected] };
+    const records = await loadCanonicalRecords(candidates, canonicalCourseId);
+    const hydrated = hydrateCanonicalCandidates(candidates, records, scopedRequest);
+    return { sources: hydrated.sources, rejected: [...rejected, ...hydrated.rejected] };
+  });
 }
 
 export async function retrieveCanonicalEvidence(
   request: CanonicalRuntimeRequest,
   question: string,
 ): Promise<CanonicalHydrationResult> {
-  if (env.FEATURE_ZYRA_IDEA_RUNTIME_V1 !== "1" || env.FEATURE_VECTORIZE_ONLY_V1 !== "1") {
+  if (
+    zyraRuntimeEnv.FEATURE_ZYRA_IDEA_RUNTIME_V1 !== "1"
+    || zyraRuntimeEnv.FEATURE_VECTORIZE_ONLY_V1 !== "1"
+  ) {
     return { sources: [], rejected: [] };
   }
 
-  const canonicalCourseId = await resolveCanonicalCourseId(request.courseId);
-  if (!canonicalCourseId) return { sources: [], rejected: [] };
-  const scopedRequest: CanonicalRuntimeRequest = {
-    ...request,
-    courseId: canonicalCourseId,
-    isEnrolled: await resolveCanonicalEnrollment(request.studentId, canonicalCourseId, request.isEnrolled),
-  };
+  return runCanonicalRuntimeFailClosed("retrieve", async () => {
+    const canonicalCourseId = await resolveCanonicalCourseId(request.courseId);
+    if (!canonicalCourseId) return { sources: [], rejected: [] };
+    const scopedRequest: CanonicalRuntimeRequest = {
+      ...request,
+      courseId: canonicalCourseId,
+      isEnrolled: await resolveCanonicalEnrollment(request.studentId, canonicalCourseId, request.isEnrolled),
+    };
 
-  const policy = evaluateAssessmentAssistancePolicy({
-    activityKind: scopedRequest.activityKind ?? "study",
-    attemptState: scopedRequest.attemptState ?? "none",
-    answerReleaseState: scopedRequest.answerReleaseState ?? "hidden",
-    matchState: scopedRequest.matchState ?? "none",
-  });
-  const namespaces: CanonicalNamespace[] = [
-    "canonical_ideas",
-    "published_articles",
-    "source_materials",
-    "published_questions",
-    "itb_question_references",
-  ];
-  if (request.capability === "read:published_solutions" && policy.allowDirectAnswerReveal) {
-    namespaces.push("published_solutions");
-  }
+    const policy = evaluateAssessmentAssistancePolicy({
+      activityKind: scopedRequest.activityKind ?? "study",
+      attemptState: scopedRequest.attemptState ?? "none",
+      answerReleaseState: scopedRequest.answerReleaseState ?? "hidden",
+      matchState: scopedRequest.matchState ?? "none",
+    });
+    const namespaces: CanonicalNamespace[] = [
+      "canonical_ideas",
+      "published_articles",
+      "source_materials",
+      "published_questions",
+      "itb_question_references",
+    ];
+    if (request.capability === "read:published_solutions" && policy.allowDirectAnswerReveal) {
+      namespaces.push("published_solutions");
+    }
 
-  try {
     const matchGroups = await Promise.all(namespaces.map(async (namespace) => {
       const matches = await vectorStore.query(`${canonicalCourseId}_${namespace}`, question, {
         topK: 6,
@@ -613,10 +643,7 @@ export async function retrieveCanonicalEvidence(
     const candidates = matchGroups.flat();
     const records = await loadCanonicalRecords(candidates, canonicalCourseId);
     return hydrateCanonicalCandidates(candidates, records, scopedRequest);
-  } catch (error) {
-    console.error("[zyra-canonical-runtime] retrieval failed closed:", error);
-    return { sources: [], rejected: [] };
-  }
+  });
 }
 
 export function canonicalVectorIdFor(entityType: CanonicalEntityType, entityId: string, version: number): string {

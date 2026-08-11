@@ -190,6 +190,25 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Enrollment, status, version, content hash, active-assessment, restricted-solution capability, and source attribution checks fail closed.
 - Shared cache payloads remain student-free and active attempts never receive answer-bearing content.
 
+### Zyra Allowance Ledger V2
+
+- `FEATURE_ZYRA_ALLOWANCE_V2` enables role-aware application leases for murid, tutor, and admin requests.
+- Provider-backed turns and total interactions are counted separately; cache hits and deterministic actions spend zero provider units.
+
+### Zyra Semantic Cache V1
+
+- `FEATURE_ZYRA_SEMANTIC_CACHE_V1` enables a profile-free exact and semantic cache for reusable teaching scaffolds.
+- Cache identity is scoped to canonical evidence, policy, language, route, assessment mode, and embedding profile; learner-specific data is excluded.
+- Personalization is applied after cache retrieval, while cache hits consume zero provider units.
+
+### Zyra Pedagogy V3
+
+- `FEATURE_ZYRA_PEDAGOGY_V3` enables the server-owned teaching state machine and typed response contract.
+- Zyra selects one teaching move, validates canonical citations and assessment safety, and asks at most one checkpoint question.
+- Invalid model output becomes a safe clarification or evidence-grounded composition. Active attempts remain capped at the approved hint boundary.
+- Reservations are idempotent and fail closed before provider dispatch. Terminal transitions preserve legacy usage history and repair derived compatibility events idempotently.
+- The authenticated allowance summary is scoped to the current session actor and includes Jakarta reset timing without exposing global capacity or another user's usage.
+
 ### Admin, Tutor, and Murid Workflows
 
 - `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` enables the guarded `alur_konten` lifecycle from upload through tutor review, admin approval, publication, supersession, or withdrawal. Every mutation carries an actor, course, version, request, reason, and snapshot hash in `audit_mutasi`.

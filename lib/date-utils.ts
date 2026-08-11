@@ -48,6 +48,39 @@ export function todayUtc(): string {
   return format(new Date(), "yyyy-MM-dd");
 }
 
+const JAKARTA_TIME_ZONE = "Asia/Jakarta";
+
+function jakartaDateParts(date: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: JAKARTA_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+  };
+}
+
+/** Returns the application calendar day in Asia/Jakarta. */
+export function jakartaDay(date: Date = new Date()): string {
+  const parts = jakartaDateParts(date);
+  return `${parts.year.toString().padStart(4, "0")}-${parts.month.toString().padStart(2, "0")}-${parts.day.toString().padStart(2, "0")}`;
+}
+
+/** Returns the UTC instant at the start of the supplied Asia/Jakarta day. */
+export function startOfJakartaDayUtc(date: Date = new Date()): Date {
+  return new Date(`${jakartaDay(date)}T00:00:00.000+07:00`);
+}
+
+/** Returns the next Asia/Jakarta daily reset instant as a UTC Date. */
+export function nextJakartaReset(date: Date = new Date()): Date {
+  return new Date(startOfJakartaDayUtc(date).getTime() + 24 * 60 * 60 * 1000);
+}
+
 /** Returns yesterday's date as a `yyyy-MM-dd` string in UTC. */
 export function yesterdayUtc(): string {
   return format(subDays(new Date(), 1), "yyyy-MM-dd");

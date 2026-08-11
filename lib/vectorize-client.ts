@@ -3,7 +3,7 @@
  * Application code never imports Cloudflare or provider-native types.
  */
 
-import { env } from "@/lib/env";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   assertCanonicalDelete,
   assertCanonicalGet,
@@ -32,8 +32,8 @@ export interface CanonicalVectorClientOptions {
 const CANONICAL_GET_BATCH_SIZE = 20;
 
 function canonicalClientDefaults(options: CanonicalVectorClientOptions) {
-  const baseUrl = options.baseUrl ?? process.env.VECTORIZE_WORKER_URL ?? env.VECTORIZE_WORKER_URL;
-  const sharedSecret = options.sharedSecret ?? process.env.VECTORIZE_SHARED_SECRET ?? env.VECTORIZE_SHARED_SECRET;
+  const baseUrl = options.baseUrl ?? zyraRuntimeEnv.VECTORIZE_WORKER_URL;
+  const sharedSecret = options.sharedSecret ?? zyraRuntimeEnv.VECTORIZE_SHARED_SECRET;
   if (!baseUrl || !sharedSecret) {
     throw new Error("VECTORIZE_WORKER_URL and VECTORIZE_SHARED_SECRET must be set for canonical-content-v2");
   }

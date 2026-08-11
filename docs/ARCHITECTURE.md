@@ -804,3 +804,47 @@ All derived assets (website_materials, flashcard_sets, diktats, ai_question_bank
    - `sourceMtdVersion` tracks which MTD version was used for each asset
 
 This dual approach prevents unnecessary regeneration (e.g., fixing a typo in a paragraph does not invalidate flashcards derived from the same KOs).
+
+## 12. Zyra Control Plane Foundation
+
+The Zyra AI program owns a separate staging control plane. Plan 001 provisions the `zyx-zyra-control-staging` Worker with the SQLite-backed `ZyraQuotaCoordinator` Durable Object export, the existing `zyx-staging` KV namespace, a private R2 attachment bucket, a dedicated semantic-cache Vectorize index, and an Analytics Engine binding.
+
+The Zyra semantic cache is `zyx-zyra-cache-staging` at exactly 768 dimensions with cosine distance. It is not the canonical `zyx-vectors-staging-v2` index and must never use either preserved 1024-dimensional rollback index. Learner attachments use the private `zyx-zyra-private-staging` bucket under `zyx-attachments/` with a seven-day lifecycle policy and no public domain.
+
+Only `/health` is unauthenticated. Every other control-plane route requires the bearer secret `ZYRA_CONTROL_PLANE_TOKEN`. Health responses contain resource aliases and binding booleans only; they never expose credentials, namespace IDs, or learner data. Plan 001 has no database migration and does not change the existing realtime or canonical Vectorize Workers.
+
+### Zyra model registry and provider adapters
+
+Plan 002 keeps Gemini model identity, project-level limits, deadlines, capabilities, health gates, and embedding profiles in `lib/ai/provider/model-registry.ts`. Runtime calls cross one of two family-specific boundaries: the legacy `models.generateContent` adapter for stable generation models, or the installed SDK `interactions.create` adapter for the 3.5 and 3.6 routes. The adapters sanitize ordered text and inline image parts, enforce capability and byte limits, attach request deadlines, remove deprecated thinking configuration, and return typed retry classifications.
+
+The canonical `canonical-content-v2` profile and the separate `zyra-semantic-cache-v1` profile both use Gemini Embedding 2 at exactly 768 dimensions, but use different task instruction versions and index aliases. Neither profile can access the other index, and Embedding 001 is legacy provenance only. Preserved 1024-dimensional vectors remain rollback-only. `FEATURE_AI_PROVIDER_REGISTRY_V1` is off by default so existing route order remains compatible until a later routing plan enables the new policy.
+
+### Zyra distributed quota coordinator
+
+Plan 003 keeps the four project aliases and model limits in the Plan 002 registry contract, then generates the Worker-facing serializable model contract from it. A single SQLite-backed `ZyraQuotaCoordinator` Durable Object owns daily project-model counters, minute buckets, lease transitions, circuit state, health samples, idempotency, and privacy-safe transition telemetry. The lease lifecycle is `reserved`, `dispatched`, then exactly one terminal result: `committed`, `refunded`, `expired_refunded`, or `expired_committed`.
+
+Reservation and counter updates occur in one Durable Object SQLite transaction. A reserved lease is the only state that can be refunded; a dispatched lease is conservatively committed when it expires because the provider may have received the request. Project selection filters quarantine, circuit, RPM, and effective per-project daily ceilings, then uses deterministic utilization and least-recent-use ordering. Stored records contain no prompt, answer, API key, raw project number, or raw user ID. Only a SHA-256 user hash and bounded telemetry dimensions are persisted.
+
+### Zyra application allowance ledger
+
+Plan 004 adds `ai_allowance_leases` as an additive application-side lease ledger. It resolves the active compatibility role from `pengguna` and `pengguna_peran`, reserves before provider dispatch, and transitions through `reserved`, `dispatched`, `committed`, or `refunded`. Provider units and interaction units are tracked separately so cache hits and deterministic actions count toward abuse protection without spending a provider turn.
+
+The ledger is enabled only by `FEATURE_ZYRA_ALLOWANCE_V2`. Existing `ai_usage_events` and `ai_generation_traces` remain readable and are not backfilled. Committed leases write a derived compatibility event using the lease ID as the idempotency key; the staging reconciliation script repairs a missing derived event without changing the authoritative lease. The authenticated allowance route returns only the current session actor's summary and never enumerates users.
+
+### Zyra privacy-safe semantic cache
+
+Plan 006 adds a profile-free cache above provider dispatch. The exact identity includes canonical course and Idea versions, evidence, policy, schema, language, route, assessment mode, visual capability, and embedding profile; learner identity, mastery, history, offsets, and API aliases are excluded. The application passes the same safe identity to AI Gateway, while a Durable Object single-flight gate ensures one provider reservation for simultaneous identical misses.
+
+Validated shared scaffolds are stored in the staging Worker KV binding and may be indexed only in the separate `zyx-zyra-cache-staging` 768-dimensional cosine index under `zyra-semantic-cache-v1`. Vector metadata contains no response text or learner fields. Semantic candidates are filtered by server-owned scope and revalidated against the exact metadata and hydrated KV payload before reuse. Personalization is composed after the shared scaffold, and the daily KV write policy stops at 900 writes while reads continue.
+
+### Zyra pedagogical harness
+
+Plan 007 makes teaching behavior application-owned. A deterministic planner selects one state from orientation, diagnosis, explanation, bounded hint sequence, teach-back, check, or clarification using the request mode, evidence sufficiency, assessment policy, learner response shape, and prior hint level. The model receives only the selected state and hydrated evidence. Its typed response separates observed facts from diagnosis hypotheses, requires canonical citations for substantive claims, allows at most one checkpoint, and records the next allowed action and assessment reason code.
+
+Active assessment policy is enforced before prompt composition and again during response validation. Invalid shape, citation, visual claim, unsupported diagnosis, pipeline-language, or answer-safety output becomes a typed rejection followed by deterministic safe composition. The prompt contract uses one total model attempt and disables the existing personalized second call while `FEATURE_ZYRA_PEDAGOGY_V3` is enabled. Shared cache payloads remain profile-free and canonical retrieval remains the source of truth.
+
+Staging shadow mode is an explicit internal execution mode, not a public feature flag. It requires `ZYX_ENVIRONMENT=staging` and an exact match with `STAGING_ZYRA_PEDAGOGY_USER_ID`. The legacy and candidate generations run beside one another with one attempt each; only the legacy answer is returned. Learner summary and learning-event writes are suppressed, while comparison metadata stores only hashes, stable outcomes, state, hint level, violation codes, counts, and an opaque trace ID. Synthetic review output is available only to the local staging runner and is not added to the application response.
+
+The runner renders a self-contained local HTML review page. Candidate and baseline output are escaped before insertion, no external resources are loaded, and the browser hashes the human reviewer identity before producing a submission. The strict validator requires the submitted case set to exactly match the generated draft and writes a final aggregate-only artifact. Raw answers and raw reviewer identity are excluded from the final release-gate result.
+
+Canonical hydration and retrieval now wrap course lookup, enrollment lookup, vector query, and database hydration in one fail-closed boundary. Database and provider details are never logged. A failure returns the stable `CANONICAL_RUNTIME_UNAVAILABLE` reason and an empty evidence result, preventing a raw `DrizzleQueryError` from becoming a non-JSON application failure.

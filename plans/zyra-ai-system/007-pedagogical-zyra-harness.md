@@ -12,6 +12,7 @@
 - **Depends on**: Plans 005, 006, and Idea-centered Overhaul Plan 013
 - **Category**: product, correctness
 - **Planned at**: commit `03b68ba0`, 2026-08-02
+- **Status**: IN PROGRESS
 
 ## Why this matters
 
@@ -150,6 +151,9 @@ bun test tests/contracts/zyra-pedagogy-state.test.ts tests/contracts/zyra-teachi
 bun scripts/eval-zyra-pedagogy.ts
 bun run typecheck
 bun --env-file=.env.staging scripts/staging/smoke-zyra-pedagogy.ts --run-id <runId> --course tutorial-pka --max-provider-requests 40
+bun --env-file=.env.staging scripts/staging/smoke-zyra-pedagogy.ts --run-id <runId> --course tutorial-pka --max-provider-requests 40 --startup-diagnostics-only
+bun --env-file=.env.staging scripts/staging/smoke-zyra-pedagogy.ts --run-id <runId> --course tutorial-pka --max-provider-requests 40 --remote-shadow
+bun scripts/staging/validate-zyra-pedagogy-review.ts --run-id <runId> --submission-file <downloaded-review.json>
 git diff --check
 ```
 
@@ -162,6 +166,10 @@ git diff --check
 - [ ] Human rubric evidence exists for the approved golden subset.
 - [ ] Existing canonical retrieval and chat history remain operational.
 - [ ] Targeted tests, eval, lint, typecheck, staging smoke, and diff check pass.
+
+## Current execution result
+
+Local implementation and machine gates are green. The focused suite passes 50 tests with 174 assertions, and the 40-case evaluation passes with zero active-assessment leaks, unsupported claims, invalid citations, and pipeline-language leaks. The staging fixture smoke validates 40 of 40 cases without provider calls. A bounded remote runner enforces an exact staging murid identity, current legacy and canonical enrollment, one-attempt legacy and candidate generation, legacy-only visibility, suppressed learner side effects, masked comparison traces, and a maximum of five cases under a provider cap of 40. It also generates a self-contained maintainer review page and a strict validator that rejects case-set drift, insufficient scores, missing low-score notes, raw answer retention, and non-human reviewer metadata. Canonical and tutor runtime flags now use a scoped Zyra env contract, so importing those runtimes does not validate unrelated UploadThing or Resend credentials. The zero-provider startup diagnostic passes all 11 stages, including the scoped runtime env contract and both runtime imports, with zero database writes, trace writes, and learner side effects. One controlled remote shadow retry and maintainer human review remain pending. Evidence: `artifacts/zyra-ai/20260807-plan007-pedagogy-eval/plan-007-pedagogy-eval.json`, `artifacts/staging-overhaul/20260808-plan007-local-shadow-v2/plan-007-pedagogy-shadow.json`, and `artifacts/staging-overhaul/20260808-plan007-startup-diagnostics-v3/plan-007-pedagogy-startup-diagnostics.json`.
 
 ## STOP conditions
 

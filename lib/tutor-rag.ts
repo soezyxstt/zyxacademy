@@ -12,11 +12,11 @@
  * set only, and anything outside that set is dropped.
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { db } from "@/db";
 import {
- aiUsageEvents,
- aiMaterialInstanceChunks,
+  aiUsageEvents,
+  aiMaterialInstanceChunks,
  aiMaterialInstanceSections,
  knowledgeObjects,
  aiQuestionBank,
@@ -38,7 +38,7 @@ import {
 import { recordLearningEvent } from "@/lib/learning-events";
 import { USE_CASES } from "@/lib/ai-router";
 import { UsageBudgetService } from "@/lib/usage-budget-service";
-import { env } from "@/lib/env";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   evaluateAssessmentAssistancePolicy,
   validateTutorOutput,
@@ -53,7 +53,17 @@ import {
   computeEvidenceVersion,
   assertNoStudentTextInSharedCache,
   SHARED_TUTOR_TTL_SECONDS,
+  TUTOR_POLICY_VERSION,
+  TUTOR_PROMPT_VERSION,
+  TUTOR_SCHEMA_VERSION,
 } from "@/lib/tutor/cache-contract";
+import {
+  buildSharedScaffoldMetadata,
+  buildZyraCacheIdentity,
+  type SharedScaffold,
+} from "@/lib/ai/cache/contracts";
+import { ZyraRemoteCache } from "@/lib/ai/cache/remote-client";
+import { CacheFlightError } from "@/lib/ai/cache/single-flight";
 import { classifyQueryAction, type QueryActionClassification as _QueryActionClassification } from "@/lib/tutor/query-action";
 import {
   SourceEnvelope,
@@ -73,6 +83,19 @@ import {
   rehydrateCanonicalSourceIds,
   retrieveCanonicalEvidence,
 } from "@/lib/zyra/canonical-runtime";
+import {
+  buildPedagogyContext,
+  runPedagogicalTurn,
+  teachingResponseToTutorAnswer,
+  PedagogyShadowGuardError,
+  recordPedagogyShadowComparison,
+  resolvePedagogyExecutionMode,
+  type PedagogyContext,
+  type PedagogyEvidenceInput,
+  type PedagogyExecutionMode,
+  type PedagogyShadowComparison,
+} from "@/lib/zyra/pedagogy";
+import type { HintLevel, LearnerResponseShape } from "@/lib/zyra/pedagogy/contracts";
 
 const SIMILARITY_FLOOR = 0.5;
 const _CACHE_CONFIDENCE_FLOOR = 0.6;
@@ -101,6 +124,48 @@ export interface TutorRagAnswer {
  coverageState?: EvidenceCoverageState;
 }
 
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function tutorAnswerToSharedScaffold(answer: TutorRagAnswer, identity: ReturnType<typeof buildZyraCacheIdentity>): SharedScaffold {
+  const claims = answer.sources.map((source) => ({
+    ideaId: source.id,
+    ideaVersion: 1,
+    claimHash: sha256(`${source.id}:${source.label}`),
+  }));
+  return {
+    explanation: answer.answer,
+    claims,
+    sourceRefs: answer.sources,
+    teachingMove: "grounded_explanation",
+    examples: [],
+    validation: {
+      status: answer.grounded ? "grounded" : "abstain",
+      evidenceVersion: identity.evidenceVersion,
+      claimCount: claims.length,
+    },
+    cacheMetadata: buildSharedScaffoldMetadata(identity),
+  };
+}
+
+function sharedScaffoldToTutorAnswer(scaffold: SharedScaffold): TutorRagAnswer {
+  const sources: TutorSource[] = (scaffold.sourceRefs ?? []).map((source) => ({
+    type: source.type as TutorSourceType,
+    id: source.id,
+    label: source.label,
+    href: source.href,
+  }));
+  return {
+    answer: scaffold.explanation,
+    sources,
+    matchedConcepts: scaffold.claims.map((claim) => claim.ideaId),
+    confidence: scaffold.validation.status === "grounded" ? 1 : 0,
+    grounded: scaffold.validation.status === "grounded",
+    coverageState: scaffold.validation.status === "grounded" ? "full" : "none",
+  };
+}
+
 export interface TutorAddendum {
  conceptName: string;
  message: string;
@@ -113,8 +178,10 @@ export interface TutorRagResult extends TutorRagAnswer {
  cached: boolean;
  addendum: TutorAddendum | null;
  /** Tier 3 guidance, present only for weak concepts within budget. */
- personalized: string | null;
- budgetExhausted: boolean;
+  personalized: string | null;
+  budgetExhausted: boolean;
+  /** Privacy-safe staging comparison metadata. Candidate text is never exposed here. */
+  pedagogyShadow?: PedagogyShadowComparison;
 }
 
 export interface ChapterSummary {
@@ -161,16 +228,27 @@ export function normalizeQuestion(question: string): string {
 }
 
 async function logCacheHit(userId: string, feature: string): Promise<void> {
- try {
- await db.insert(aiUsageEvents).values({
- id: randomUUID(),
- userId,
- feature,
- model: "kv-cache",
- tokens: 0,
- requestType: "cache:hit",
- });
- } catch {
+  if (UsageBudgetService.isAllowanceEnabled()) {
+    await UsageBudgetService.recordCacheHit({
+      userId,
+      idempotencyKey: `cache:${feature}:${randomUUID()}`,
+      feature,
+      model: "kv-cache",
+    });
+    return;
+  }
+
+  try {
+  // Legacy observability remains unchanged while the allowance flag is off.
+  await db.insert(aiUsageEvents).values({
+    id: randomUUID(),
+    userId,
+    feature,
+    model: "kv-cache",
+    tokens: 0,
+    requestType: "cache:hit",
+  });
+  } catch {
  // observability only, never block the answer
  }
 }
@@ -274,6 +352,7 @@ const PersonalSchema = z.object({ guidance: z.string() });
 
 interface RetrievedSource extends TutorSource {
  content: string;
+ version?: number;
 }
 
 /**
@@ -293,7 +372,7 @@ async function retrieve(
     matchState: MatchState;
   }
 ): Promise<RetrievedSource[]> {
- if (env.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
+ if (zyraRuntimeEnv.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
   const result = await retrieveCanonicalEvidence({
    studentId: runtime?.studentId,
    courseId,
@@ -310,6 +389,7 @@ async function retrieve(
    label: source.label,
    href: source.href,
    content: source.content,
+   version: source.version,
   }));
  }
 
@@ -530,13 +610,41 @@ export interface AskTutorParams {
   answerReleaseState?: AnswerReleaseState;
   matchState?: MatchState;
   protectedAnswers?: ProtectedItemPayload;
+  pedagogyAction?: PedagogyContext["action"];
+  previousHintLevel?: HintLevel;
+  learnerResponseShape?: LearnerResponseShape;
+  misconceptionUncertain?: boolean;
+  pedagogyMode?: PedagogyExecutionMode;
+  pedagogyShadowRunId?: string;
+  pedagogyShadowCaseId?: string;
+  suppressLearnerSideEffects?: boolean;
+  pedagogyShadowObserver?: (output: {
+    baselineAnswer: string;
+    candidateAnswer: string;
+  }) => void | Promise<void>;
 }
 
 export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResult> {
   const { studentId, courseId, question, sessionId, protectedAnswers } = params;
   const chapterId = params.chapterId ?? null;
+  const pedagogyMode = resolvePedagogyExecutionMode({
+    requestedMode: params.pedagogyMode,
+    featureEnabled: zyraRuntimeEnv.FEATURE_ZYRA_PEDAGOGY_V3 === "1",
+    environment: zyraRuntimeEnv.ZYX_ENVIRONMENT,
+    configuredShadowUserId: zyraRuntimeEnv.STAGING_ZYRA_PEDAGOGY_USER_ID,
+    userId: studentId,
+  });
+  if (pedagogyMode === "shadow" && (!params.pedagogyShadowRunId || !params.pedagogyShadowCaseId)) {
+    throw new PedagogyShadowGuardError("PEDAGOGY_SHADOW_CONTEXT_REQUIRED");
+  }
+  if (params.suppressLearnerSideEffects && pedagogyMode !== "shadow") {
+    throw new PedagogyShadowGuardError("PEDAGOGY_SIDE_EFFECT_SUPPRESSION_SHADOW_ONLY");
+  }
+  if (params.pedagogyShadowObserver && pedagogyMode !== "shadow") {
+    throw new PedagogyShadowGuardError("PEDAGOGY_SHADOW_OBSERVER_SHADOW_ONLY");
+  }
 
-  const usePolicy = env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY === "1";
+  const usePolicy = zyraRuntimeEnv.FEATURE_ASSESSMENT_ASSISTANCE_POLICY === "1";
   const activityKind = params.activityKind ?? (params.attemptState && params.attemptState !== "none" ? "quiz" : "study");
   const attemptState = params.attemptState ?? "none";
   const answerReleaseState = params.answerReleaseState ?? (attemptState === "completed" ? "released" : "hidden");
@@ -562,7 +670,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   // Classify query action deterministically or via AI action classifier
   const classification = await classifyQueryAction(
     { question, historyMessages: history.recentMessages },
-    { userId: studentId }
+    { userId: studentId, deterministicOnly: pedagogyMode !== "legacy" }
   );
 
   // 1. Action: Clarify
@@ -634,7 +742,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         }
       }
     }
-    if (env.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
+    if (zyraRuntimeEnv.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
       const rehydrated = await rehydrateCanonicalSourceIds({
         studentId,
         courseId,
@@ -684,13 +792,70 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     evidenceVersion,
   });
 
+  const remoteCacheEnabled = zyraRuntimeEnv.FEATURE_ZYRA_SEMANTIC_CACHE_V1 === "1"
+    && classification.action === "retrieve"
+    && retrieved.length > 0
+    && !attemptState;
+  const remoteCache = remoteCacheEnabled ? new ZyraRemoteCache() : null;
+  const evidenceHash = sha256(retrieved
+    .map((source) => `${source.id}:${source.content ?? ""}`)
+    .sort()
+    .join(";"));
+  const remoteIdentity = remoteCacheEnabled
+    ? buildZyraCacheIdentity({
+        courseId,
+        ideas: retrieved.slice(0, 64).map((source) => ({ ideaId: source.id, version: 1 })),
+        evidenceHash,
+        normalizedIntent: searchQuestion,
+        promptVersion: TUTOR_PROMPT_VERSION,
+        policyVersion: TUTOR_POLICY_VERSION,
+        responseSchemaVersion: TUTOR_SCHEMA_VERSION,
+        evidenceVersion: evidenceHash,
+        language: "id",
+        routeClass: "default",
+        visualCapabilityVersion: "visual-v1",
+        assessmentMode: "none",
+      })
+    : null;
+  const remoteCacheKey = remoteIdentity?.cacheKey;
+  let remoteFlightId: string | null = null;
+  let remoteCacheCandidate: TutorRagAnswer | null = null;
+  let remoteCacheGateClosed = false;
+
   let base: TutorRagAnswer | null = null;
+  let pedagogyFallback = false;
+  let pedagogyShadow: PedagogyShadowComparison | undefined;
 
   // Shared Tier 1 cache lookup: ONLY for direct 'retrieve' actions
   if (classification.action === "retrieve") {
-    base = await kvGet<TutorRagAnswer>(cacheKey);
+    if (remoteCache && remoteCacheKey) {
+      try {
+        let shared = await remoteCache.get(remoteCacheKey);
+        if (!shared) {
+          const flight = await remoteCache.acquire(remoteCacheKey, `tutor-${sha256(studentId).slice(0, 24)}`);
+          if (flight.status === "leader") {
+            remoteFlightId = flight.flightId;
+          } else if (flight.status === "completed") {
+            shared = await remoteCache.get(remoteCacheKey);
+          } else {
+            shared = await remoteCache.waitForResult(remoteCacheKey, 10_000);
+            if (!shared) remoteCacheGateClosed = true;
+          }
+        }
+        if (shared) {
+          base = sharedScaffoldToTutorAnswer(shared);
+          cached = true;
+        }
+      } catch (error) {
+        remoteCacheGateClosed = true;
+        if (!(error instanceof CacheFlightError)) {
+          console.error("zyra semantic cache request failed");
+        }
+      }
+    } else {
+      base = await kvGet<TutorRagAnswer>(cacheKey);
+    }
     if (base && typeof base.answer === "string") {
-      cached = true;
       let ansText = sanitizeAnswer(base.answer);
 
       if (policy) {
@@ -708,7 +873,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     }
   }
 
-  if (!base) {
+  if (!base && !remoteCacheGateClosed) {
     if (retrieved.length === 0) {
       const remaining = await UsageBudgetService.getRemainingPremium(studentId);
       const useCase = remaining > 0 ? USE_CASES.UNGROUNDED_TUTOR : USE_CASES.UNGROUNDED_TUTOR_GEMMA;
@@ -792,7 +957,8 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
           coverageState: "none",
         };
       } else {
-        const useEvidenceV2 = env.FEATURE_TUTOR_EVIDENCE_V2 === "1" || env.FEATURE_TUTOR_PIPELINE_V2 === "1";
+        const useEvidenceV2 = zyraRuntimeEnv.FEATURE_TUTOR_EVIDENCE_V2 === "1"
+          || zyraRuntimeEnv.FEATURE_TUTOR_PIPELINE_V2 === "1";
 
         const contextBlock = useEvidenceV2
           ? buildSanitizedContextBlock(sourceEnvelopes)
@@ -804,18 +970,132 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         const sanitizedQuestion = sanitizePromptInput(searchQuestion);
 
         // Tier 1 shared generation: ZERO student history in prompt
-        const result = await PromptExecutor.run({
-          userId: studentId,
-          prompt: tutorGroundedAnswer,
-          variables: {
+        let result: {
+          success: boolean;
+          data?: z.infer<typeof GroundedSchema>;
+          errors: string[];
+          violationCodes: string[];
+        };
+
+        if (pedagogyMode !== "legacy") {
+          const pedagogyAction = params.pedagogyAction
+            ?? (classification.action === "reuse_previous_evidence" ? "follow_up" : "new_topic");
+          const pedagogyContext = buildPedagogyContext({
+            courseId,
+            chapterId,
             question: sanitizedQuestion,
-            contextBlock,
-            sourceList,
-            conversationHistory: "",
-          },
-          schema: GroundedSchema,
-          useCase: USE_CASES.GROUNDED_RAG,
-        });
+            action: pedagogyAction,
+            activityKind,
+            attemptState,
+            answerReleaseState,
+            matchState,
+            allowDirectAnswerReveal: policy?.allowDirectAnswerReveal ?? attemptState === "none",
+            assessmentReasonCode: policy?.reasonCode ?? "ASSESSMENT_POLICY_DISABLED",
+            evidenceSufficiency: evidenceEval.state === "full" ? "sufficient" : evidenceEval.state === "partial" ? "limited" : "insufficient",
+            previousHintLevel: params.previousHintLevel,
+            learnerResponseShape: params.learnerResponseShape,
+            misconceptionUncertain: params.misconceptionUncertain ?? evidenceEval.state === "partial",
+            responseModifiers: classification.responseModifiers,
+          });
+          const pedagogyEvidence: PedagogyEvidenceInput[] = contextSources.map((source) => ({
+            id: source.id,
+            version: source.version ?? 1,
+            kind: source.type,
+            title: source.label,
+            content: source.content,
+            href: source.href,
+          }));
+          const runCandidate = () => runPedagogicalTurn({
+            userId: studentId,
+            learnerQuestion: sanitizedQuestion,
+            context: pedagogyContext,
+            evidence: pedagogyEvidence,
+            protectedAnswers,
+            generate: true,
+            cacheKey: pedagogyMode === "shadow" ? undefined : remoteCacheKey,
+            cacheTtlSeconds: pedagogyMode === "shadow" ? undefined : remoteCache ? SHARED_TUTOR_TTL_SECONDS : undefined,
+            idempotencyKey: pedagogyMode === "shadow"
+              ? `pedagogy-shadow:${params.pedagogyShadowRunId}:${params.pedagogyShadowCaseId}:candidate`
+              : undefined,
+          });
+
+          if (pedagogyMode === "shadow") {
+            const shadowStartedAt = Date.now();
+            const [baselineResult, candidateResult] = await Promise.all([
+              PromptExecutor.run({
+                userId: studentId,
+                prompt: tutorGroundedAnswer,
+                variables: {
+                  question: sanitizedQuestion,
+                  contextBlock,
+                  sourceList,
+                  conversationHistory: "",
+                },
+                schema: GroundedSchema,
+                useCase: USE_CASES.GROUNDED_RAG,
+                cachePolicy: "bypass",
+                maxAttempts: 1,
+                idempotencyKey: `pedagogy-shadow:${params.pedagogyShadowRunId}:${params.pedagogyShadowCaseId}:legacy`,
+              }),
+              runCandidate(),
+            ]);
+            result = baselineResult;
+            if (params.pedagogyShadowObserver) {
+              const candidateSources = pedagogyEvidence.map((source) => ({ ...source, version: source.version ?? 1 }));
+              const candidateAnswer = teachingResponseToTutorAnswer(candidateResult.response, candidateSources);
+              await params.pedagogyShadowObserver({
+                baselineAnswer: baselineResult.data?.answer ?? "",
+                candidateAnswer: candidateAnswer.answer,
+              });
+            }
+            pedagogyShadow = await recordPedagogyShadowComparison({
+              runId: params.pedagogyShadowRunId!,
+              caseId: params.pedagogyShadowCaseId!,
+              courseId,
+              baselineOutcome: baselineResult.outcome,
+              candidateOutcome: candidateResult.outcome,
+              selectedState: candidateResult.plan.state,
+              hintLevel: candidateResult.plan.hintLevel,
+              candidateUsedFallback: candidateResult.usedFallback,
+              candidateViolationCodes: candidateResult.violationCodes,
+              evidenceIds: pedagogyEvidence.map((source) => source.id),
+              latencyMs: Date.now() - shadowStartedAt,
+            });
+          } else {
+            const pedagogyResult = await runCandidate();
+            pedagogyFallback = pedagogyResult.usedFallback;
+            const pedagogySources = pedagogyEvidence.map((source) => ({ ...source, version: source.version ?? 1 }));
+            const legacy = teachingResponseToTutorAnswer(pedagogyResult.response, pedagogySources);
+            result = {
+              success: true,
+              data: {
+                covered: legacy.grounded,
+                answer: legacy.answer,
+                sourceIds: pedagogyResult.response.citations.map((citation) => citation.sourceId),
+                matchedConcepts: legacy.matchedConcepts,
+                confidence: legacy.confidence,
+              },
+              errors: [],
+              violationCodes: pedagogyResult.violationCodes,
+            };
+          }
+        } else {
+          result = await PromptExecutor.run({
+            userId: studentId,
+            prompt: tutorGroundedAnswer,
+            variables: {
+              question: sanitizedQuestion,
+              contextBlock,
+              sourceList,
+              conversationHistory: "",
+            },
+            schema: GroundedSchema,
+            useCase: USE_CASES.GROUNDED_RAG,
+            cachePolicy: remoteCache ? "public_scaffold" : undefined,
+            cacheKey: remoteCacheKey,
+            cacheTtlSeconds: remoteCache ? SHARED_TUTOR_TTL_SECONDS : undefined,
+          });
+        }
 
         if (result.success && result.data) {
           const d = result.data;
@@ -873,11 +1153,16 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             classification.action === "retrieve" &&
             base.grounded &&
             (base.coverageState === "full" || base.coverageState === "partial") &&
-            base.sources.length > 0;
+            base.sources.length > 0 &&
+            !pedagogyFallback;
 
           if (isEligibleToCache) {
             assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
-            await kvPut(cacheKey, base, SHARED_TUTOR_TTL_SECONDS);
+            if (remoteCache && remoteFlightId) {
+              remoteCacheCandidate = base;
+            } else if (!remoteCache) {
+              await kvPut(cacheKey, base, SHARED_TUTOR_TTL_SECONDS);
+            }
           }
         } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
           budgetExhausted = true;
@@ -886,6 +1171,20 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
           budgetExhausted = true;
         }
       }
+    }
+  }
+
+  if (remoteCache && remoteFlightId && remoteCacheKey && remoteIdentity) {
+    try {
+      if (remoteCacheCandidate) {
+        const scaffold = tutorAnswerToSharedScaffold(remoteCacheCandidate, remoteIdentity);
+        await remoteCache.put(remoteCacheKey, scaffold, SHARED_TUTOR_TTL_SECONDS);
+        await remoteCache.complete(remoteCacheKey, remoteFlightId, `zyra:entry:v1:${sha256(remoteCacheKey).slice(0, 32)}`);
+      } else {
+        await remoteCache.fail(remoteCacheKey, remoteFlightId);
+      }
+    } catch {
+      await remoteCache.fail(remoteCacheKey, remoteFlightId).catch(() => undefined);
     }
   }
 
@@ -908,7 +1207,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
 
  // Tier 3: personalized AI, only for weak concepts, charged, silent on exhaustion
   let personalized: string | null = null;
-  if (addendum) {
+  if (addendum && pedagogyMode === "legacy") {
    const remaining = await UsageBudgetService.getRemainingPremium(studentId);
    const useCase = remaining > 0 ? USE_CASES.WEAK_CONCEPT_GUIDANCE : USE_CASES.WEAK_CONCEPT_GUIDANCE_GEMMA;
    const result = await PromptExecutor.run({
@@ -942,17 +1241,19 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  }
 
  // Session memory + learning event (deterministic)
- if (base.matchedConcepts.length > 0) {
- await updateTutorSessionSummary(studentId, courseId, base.matchedConcepts);
- }
- await recordLearningEvent({
- studentId,
- courseId,
- eventType: "tutor_question",
- conceptName: base.matchedConcepts[0] ?? null,
- });
+  if (!params.suppressLearnerSideEffects) {
+    if (base.matchedConcepts.length > 0) {
+    await updateTutorSessionSummary(studentId, courseId, base.matchedConcepts);
+    }
+    await recordLearningEvent({
+    studentId,
+    courseId,
+    eventType: "tutor_question",
+    conceptName: base.matchedConcepts[0] ?? null,
+    });
+  }
 
- return { ...base, cached, addendum, personalized, budgetExhausted };
+  return { ...base, cached, addendum, personalized, budgetExhausted, pedagogyShadow };
 }
 
 // ─── Chapter summary (cache-first, profile-free by design) ───────────────────

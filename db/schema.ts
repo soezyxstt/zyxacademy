@@ -3309,6 +3309,50 @@ export const aiGenerationTraces = sqliteTable(
   ]
 );
 
+/**
+ * Zyra application allowance leases. This is additive and authoritative only
+ * while FEATURE_ZYRA_ALLOWANCE_V2 is enabled. Legacy AI usage remains intact.
+ */
+export const aiAllowanceLeases = sqliteTable(
+  "ai_allowance_leases",
+  {
+    id: text("id").primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => pengguna.id, { onDelete: "restrict" }),
+    peran: text("peran").$type<"admin" | "tutor" | "murid">().notNull(),
+    feature: text("feature").notNull(),
+    appDay: text("app_day").notNull(),
+    units: integer("units").default(1).notNull(),
+    interactionUnits: integer("interaction_units").default(1).notNull(),
+    premium: integer("premium", { mode: "boolean" }).default(false).notNull(),
+    status: text("status")
+      .$type<"reserved" | "dispatched" | "committed" | "refunded">()
+      .notNull(),
+    controlPlaneLeaseId: text("control_plane_lease_id"),
+    model: text("model"),
+    requestType: text("request_type").notNull(),
+    inputTokens: integer("input_tokens").default(0).notNull(),
+    outputTokens: integer("output_tokens").default(0).notNull(),
+    runId: text("run_id"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    dispatchedAt: integer("dispatched_at", { mode: "timestamp" }),
+    resolvedAt: integer("resolved_at", { mode: "timestamp" }),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("ai_allowance_leases_idempotency_idx").on(table.idempotencyKey),
+    index("ai_allowance_leases_user_day_idx").on(table.userId, table.appDay),
+    index("ai_allowance_leases_user_status_idx").on(table.userId, table.status),
+    index("ai_allowance_leases_control_plane_idx").on(table.controlPlaneLeaseId),
+    index("ai_allowance_leases_run_idx").on(table.runId),
+    check("ai_allowance_leases_units_check", sql`${table.units} >= 0`),
+    check("ai_allowance_leases_interaction_units_check", sql`${table.interactionUnits} > 0`),
+    check("ai_allowance_leases_status_check", sql`${table.status} IN ('reserved', 'dispatched', 'committed', 'refunded')`),
+  ]
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PUSH NOTIFICATIONS DOMAIN
 // ─────────────────────────────────────────────────────────────────────────────

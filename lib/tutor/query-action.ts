@@ -148,7 +148,7 @@ export function extractStyleModifiers(text: string): { cleanedText: string; modi
  */
 export async function classifyQueryAction(
   input: ClassifyQueryInput,
-  options?: { userId?: string }
+  options?: { userId?: string; deterministicOnly?: boolean }
 ): Promise<QueryActionClassification> {
   const rawQuestion = (input.question || "").trim();
   const history = input.historyMessages || [];
@@ -217,6 +217,16 @@ export async function classifyQueryAction(
   const historyText = history
     .map((m) => `${m.role === "student" ? "STUDENT" : "ZYRA"}: ${m.content}`)
     .join("\n");
+
+  if (options?.deterministicOnly) {
+    return {
+      action: "retrieve",
+      contentFocus: sanitizeTopicFocus(cleanedText || rawQuestion),
+      responseModifiers: modifiers,
+      topicContinuity: history.length > 0 ? "uncertain" : "changed",
+      reasonCodes: ["DETERMINISTIC_PEDAGOGY_ROUTE"],
+    };
+  }
 
   try {
     const result = await PromptExecutor.run({

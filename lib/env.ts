@@ -34,6 +34,14 @@ export const env = createEnv({
  GEMINI_API_KEY_3: z.string().optional(),
  /** Gemini API Key #4 for failover/load balancing */
  GEMINI_API_KEY_4: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 1. */
+ GEMINI_PROJECT_ALIAS_1: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 2. */
+ GEMINI_PROJECT_ALIAS_2: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 3. */
+ GEMINI_PROJECT_ALIAS_3: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 4. */
+ GEMINI_PROJECT_ALIAS_4: z.string().optional(),
  /** Inngest event key for sending events */
  INNGEST_EVENT_KEY: z.string().min(1),
  /** Inngest signing key for production request verification */
@@ -61,6 +69,10 @@ export const env = createEnv({
  CF_AI_GATEWAY_URL: z.string().url().optional(),
  /** Cloudflare AI Gateway token for Authorization header */
  CF_AI_GATEWAY_TOKEN: z.string().optional(),
+ /** Absolute origin of the staging Zyra control-plane Worker. */
+ ZYRA_CONTROL_PLANE_URL: z.string().url().optional(),
+ /** Server-only bearer token for the Zyra control-plane Worker. */
+ ZYRA_CONTROL_PLANE_TOKEN: z.string().optional(),
  /** Cloudflare account ID (used for KV REST API and Workers) */
  CF_ACCOUNT_ID: z.string().optional(),
  /** Cloudflare Workers KV namespace ID for zyx-ai-cache */
@@ -103,6 +115,8 @@ export const env = createEnv({
  FEATURE_PKA: z.string().optional(),
  /** P0 Versioned AI Prompt Contracts & Provenance. "1" enables. */
  FEATURE_AI_CONTRACT_V2: z.string().optional(),
+ /** P0 versioned Gemini model registry and provider adapters. "1" enables the registry route policy. */
+ FEATURE_AI_PROVIDER_REGISTRY_V1: z.string().optional(),
  /** Assessment assistance policy: deterministic gating for AI tutor and mistake feedback. "1" enables. */
  FEATURE_ASSESSMENT_ASSISTANCE_POLICY: z.string().optional(),
  /** P0 Knowledge object provenance and stable identity pipeline. "1" enables. */
@@ -143,8 +157,18 @@ export const env = createEnv({
  FEATURE_ADMIN_TUTOR_WORKFLOW_V1: z.string().optional(),
  /** Murid Idea-centered read model with Tutorial PKA compatibility adapters. "1" enables it. */
  FEATURE_MURID_IDEA_WORKFLOW_V1: z.string().optional(),
- /** Idea evidence and mastery contracts. "1" enables the additive mastery tables. */
- FEATURE_PEMAHAMAN_IDE_V1: z.string().optional(),
+  /** Idea evidence and mastery contracts. "1" enables the additive mastery tables. */
+  FEATURE_PEMAHAMAN_IDE_V1: z.string().optional(),
+ /** Zyra transactional role allowance and usage lease ledger. "1" enables it. */
+  FEATURE_ZYRA_ALLOWANCE_V2: z.string().optional(),
+   /** Health-aware four-project provider routing. "1" enables it. */
+   FEATURE_ZYRA_PROVIDER_ROUTER_V2: z.string().optional(),
+  /** Profile-free exact and semantic cache. "1" enables the semantic gate. */
+  FEATURE_ZYRA_SEMANTIC_CACHE_V1: z.string().optional(),
+   /** Deterministic pedagogical state machine and typed Zyra teaching response. "1" enables the harness. */
+   FEATURE_ZYRA_PEDAGOGY_V3: z.string().optional(),
+   /** Dedicated staging-only user allowed to execute hidden pedagogy shadow comparisons. */
+   STAGING_ZYRA_PEDAGOGY_USER_ID: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
@@ -202,6 +226,10 @@ export const env = createEnv({
  GEMINI_API_KEY_2: process.env.GEMINI_API_KEY_2,
  GEMINI_API_KEY_3: process.env.GEMINI_API_KEY_3,
  GEMINI_API_KEY_4: process.env.GEMINI_API_KEY_4,
+ GEMINI_PROJECT_ALIAS_1: process.env.GEMINI_PROJECT_ALIAS_1,
+ GEMINI_PROJECT_ALIAS_2: process.env.GEMINI_PROJECT_ALIAS_2,
+ GEMINI_PROJECT_ALIAS_3: process.env.GEMINI_PROJECT_ALIAS_3,
+ GEMINI_PROJECT_ALIAS_4: process.env.GEMINI_PROJECT_ALIAS_4,
  INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
  INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
  // R2
@@ -214,6 +242,8 @@ export const env = createEnv({
  // AI Gateway
  CF_AI_GATEWAY_URL: process.env.CF_AI_GATEWAY_URL,
  CF_AI_GATEWAY_TOKEN: process.env.CF_AI_GATEWAY_TOKEN,
+ ZYRA_CONTROL_PLANE_URL: process.env.ZYRA_CONTROL_PLANE_URL,
+ ZYRA_CONTROL_PLANE_TOKEN: process.env.ZYRA_CONTROL_PLANE_TOKEN,
  CF_API_TOKEN: process.env.CF_API_TOKEN,
  CF_KV_NAMESPACE_ID: process.env.CF_KV_NAMESPACE_ID,
  CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
@@ -238,6 +268,7 @@ export const env = createEnv({
  FEATURE_ADAPTIVE_QUIZ: process.env.FEATURE_ADAPTIVE_QUIZ,
  FEATURE_PKA: process.env.FEATURE_PKA,
  FEATURE_AI_CONTRACT_V2: process.env.FEATURE_AI_CONTRACT_V2,
+ FEATURE_AI_PROVIDER_REGISTRY_V1: process.env.FEATURE_AI_PROVIDER_REGISTRY_V1,
  FEATURE_ASSESSMENT_ASSISTANCE_POLICY: process.env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY,
  FEATURE_KO_PIPELINE_V2: process.env.FEATURE_KO_PIPELINE_V2,
  FEATURE_QUESTION_GENERATOR_V2: process.env.FEATURE_QUESTION_GENERATOR_V2,
@@ -258,7 +289,12 @@ export const env = createEnv({
  FEATURE_ZYRA_IDEA_RUNTIME_V1: process.env.FEATURE_ZYRA_IDEA_RUNTIME_V1,
  FEATURE_ADMIN_TUTOR_WORKFLOW_V1: process.env.FEATURE_ADMIN_TUTOR_WORKFLOW_V1,
  FEATURE_MURID_IDEA_WORKFLOW_V1: process.env.FEATURE_MURID_IDEA_WORKFLOW_V1,
- FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
+  FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
+   FEATURE_ZYRA_ALLOWANCE_V2: process.env.FEATURE_ZYRA_ALLOWANCE_V2,
+   FEATURE_ZYRA_PROVIDER_ROUTER_V2: process.env.FEATURE_ZYRA_PROVIDER_ROUTER_V2,
+  FEATURE_ZYRA_SEMANTIC_CACHE_V1: process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
+   FEATURE_ZYRA_PEDAGOGY_V3: process.env.FEATURE_ZYRA_PEDAGOGY_V3,
+   STAGING_ZYRA_PEDAGOGY_USER_ID: process.env.STAGING_ZYRA_PEDAGOGY_USER_ID,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,

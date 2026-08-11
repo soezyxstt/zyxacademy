@@ -3,7 +3,7 @@ import { vectorStore, VECTOR_NAMESPACES } from "@/lib/vector-store";
 import { db } from "@/db";
 import { knowledgeObjects } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
-import { env } from "@/lib/env";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { retrieveCanonicalEvidence } from "./canonical-runtime";
 
 export interface RetrievalMemoryInput {
@@ -19,7 +19,7 @@ export async function getRetrievalMemory(input: RetrievalMemoryInput): Promise<R
   const sources: TutorSource[] = [];
 
   try {
-    if (env.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
+    if (zyraRuntimeEnv.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
       const result = await retrieveCanonicalEvidence({
         studentId: input.studentId,
         courseId,
