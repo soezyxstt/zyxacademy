@@ -279,7 +279,9 @@ export async function askTutorRagAction(
   }
 
   let pageContext: TutorPageContext | null = null;
-  const reviewMatch = pagePath?.match(/^\/courses\/([^/]+)\/my-results\/([^/]+)(?:\/.*)?$/);
+  const reviewMatch = requestedAttachmentIds.length === 0
+    ? pagePath?.match(/^\/courses\/([^/]+)\/my-results\/([^/]+)(?:\/.*)?$/)
+    : null;
   if (reviewMatch?.[1] === courseId) {
     const attemptId = reviewMatch[2];
     const [reviewAttempt] = await db

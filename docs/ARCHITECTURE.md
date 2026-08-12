@@ -888,6 +888,8 @@ Plan 010 adds an authenticated attachment boundary. Browser files are checked by
 
 When the chat exchange is persisted, each attachment is linked to its authenticated student message through `zyra_message_attachments.message_id`. History hydration returns only bounded preview metadata, never bytes or object keys. The drawer builds a scoped private route URL for thumbnail and dialog preview reads. Provider errors and allowance rejection remain distinct terminal states in the tutor response.
 
+An image turn bypasses text-only Vectorize retrieval and page-context injection. Its sanitized attachments and current learner text are the primary problem statement for the visual provider, so semantically similar course questions cannot replace the uploaded exercise or introduce unrelated source links. Clipboard images enter the same private upload, authorization, sanitization, and dispatch path as file-picker images.
+
 ### Zyra murid experience
 
 Plan 011 composes the existing tutor drawer with an authenticated allowance summary, bounded selection-to-ask context, the Plan 010 attachment composer, local Learning Canvas controls, and an application-owned SVG pet. The pet state is derived from upload, request, response, quota, and error state. Public flags are independent, so text tutoring remains available when image input, pet, or selection actions are disabled.

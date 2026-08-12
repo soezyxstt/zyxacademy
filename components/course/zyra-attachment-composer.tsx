@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import {
   readyZyraAttachmentIds,
   selectZyraImageFiles,
+  zyraImageFilesFromClipboard,
   type PendingZyraImage,
 } from "@/lib/zyra/images/composer";
 import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
@@ -21,6 +22,10 @@ interface ZyraAttachmentComposerProps {
   onAttachmentsReadyChange?: (ready: boolean) => void;
 }
 
+export interface ZyraAttachmentComposerHandle {
+  addFiles: (files: readonly File[]) => void;
+}
+
 function setItemStatus(
   items: readonly PendingZyraImage[],
   key: string,
@@ -29,14 +34,14 @@ function setItemStatus(
   return items.map((item) => item.key === key ? { ...item, ...update } : item);
 }
 
-export function ZyraAttachmentComposer({
+export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHandle, ZyraAttachmentComposerProps>(function ZyraAttachmentComposer({
   courseId,
   sessionId,
   disabled = false,
   onAttachmentIdsChange,
   onAttachmentsChange,
   onAttachmentsReadyChange,
-}: ZyraAttachmentComposerProps) {
+}: ZyraAttachmentComposerProps, ref) {
   const [items, setItems] = React.useState<PendingZyraImage[]>([]);
   const [previews, setPreviews] = React.useState<Record<string, string>>({});
   const [composerError, setComposerError] = React.useState<string | null>(null);
@@ -109,6 +114,8 @@ export function ZyraAttachmentComposer({
     newItems.forEach((item) => { void uploadItem(item); });
   }, [items, uploadItem]);
 
+  React.useImperativeHandle(ref, () => ({ addFiles }), [addFiles]);
+
   const removeItem = async (item: PendingZyraImage) => {
     if (item.attachmentId) {
       const query = new URLSearchParams({ courseId, sessionId });
@@ -123,8 +130,11 @@ export function ZyraAttachmentComposer({
   };
 
   const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
-    const files = Array.from(event.clipboardData.files);
-    if (files.length > 0) addFiles(files);
+    const files = zyraImageFilesFromClipboard(event.clipboardData.items);
+    if (files.length > 0) {
+      event.preventDefault();
+      addFiles(files);
+    }
   };
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -197,9 +207,9 @@ export function ZyraAttachmentComposer({
           <Paperclip className="size-4" />
           Gambar
         </Button>
-        <span className="text-body-2xs text-muted-foreground">PNG, JPG, atau WebP, maksimal 4</span>
+        <span className="text-body-2xs text-muted-foreground">Unggah atau tempel gambar dengan Ctrl+V, maksimal 4</span>
       </div>
       {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-4 shrink-0" aria-hidden="true" />{composerError}</p>}
     </div>
   );
-}
+});

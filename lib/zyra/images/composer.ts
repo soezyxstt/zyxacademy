@@ -52,3 +52,13 @@ export function readyZyraAttachmentIds(items: readonly PendingZyraImage[]): stri
     .filter((item) => item.status === "ready" && item.attachmentId)
     .map((item) => item.attachmentId!);
 }
+
+export function zyraImageFilesFromClipboard(
+  items: ArrayLike<Pick<DataTransferItem, "kind" | "type" | "getAsFile">>,
+): File[] {
+  return Array.from(items).flatMap((item) => {
+    if (item.kind !== "file" || !item.type.startsWith("image/")) return [];
+    const file = item.getAsFile();
+    return file ? [file] : [];
+  });
+}

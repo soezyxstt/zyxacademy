@@ -42,7 +42,10 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
-import { ZyraAttachmentComposer } from "@/components/course/zyra-attachment-composer";
+import {
+ ZyraAttachmentComposer,
+ type ZyraAttachmentComposerHandle,
+} from "@/components/course/zyra-attachment-composer";
 import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
 import { ZyraPet } from "@/components/course/zyra-pet";
 import { ZyraMark } from "@/components/course/zyra-mark";
@@ -52,6 +55,7 @@ import { useSwipe } from "@/hooks/use-swipe";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
 import type { ZyraMessageAttachment } from "@/lib/zyra/images";
+import { zyraImageFilesFromClipboard } from "@/lib/zyra/images";
 import { ZyraMessageAttachments } from "@/components/course/zyra-message-attachments";
 
 // Fetch extra actions from custom action file
@@ -118,6 +122,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const [readyAttachments, setReadyAttachments] = React.useState<ZyraMessageAttachment[]>([]);
  const [attachmentComposerKey, setAttachmentComposerKey] = React.useState(0);
  const [attachmentsReady, setAttachmentsReady] = React.useState(true);
+ const attachmentComposerRef = React.useRef<ZyraAttachmentComposerHandle>(null);
  const petState = petStateForTutorEvent({
    isOpen,
    activeMode,
@@ -859,6 +864,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  {imageInputEnabled && sessionId && courseIdFromPath && (
    <ZyraAttachmentComposer
      key={attachmentComposerKey}
+     ref={attachmentComposerRef}
      courseId={courseIdFromPath}
      sessionId={sessionId}
      disabled={chatLoading}
@@ -872,6 +878,12 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  placeholder="Tanyakan follow-up..."
  value={inputVal}
  onChange={(e) => setInputVal(e.target.value)}
+ onPaste={(event) => {
+   const files = zyraImageFilesFromClipboard(event.clipboardData.items);
+   if (files.length === 0) return;
+   event.preventDefault();
+   attachmentComposerRef.current?.addFiles(files);
+ }}
  onKeyDown={(e) => {
  if (e.key === "Enter") void handleSend();
  }}

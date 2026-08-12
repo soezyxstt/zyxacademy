@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 process.env.MOCK_GEMINI = "true";
-import { composeUngroundedTeachingAnswer, normalizeQuestion } from "@/lib/tutor-rag";
+import { composeUngroundedTeachingAnswer, normalizeQuestion, shouldRetrieveTutorEvidence } from "@/lib/tutor-rag";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache, buildTutorCacheKey, computeEvidenceVersion } from "@/lib/tutor/cache-contract";
 import { classifyQueryAction, extractStyleModifiers } from "@/lib/tutor/query-action";
@@ -12,6 +12,11 @@ import { classifyEvidence } from "@/lib/tutor/evidence-coverage";
 import { sanitizePromptInput, formatSourceEnvelope, SourceEnvelope } from "@/lib/tutor/prompt-sanitizer";
 
 describe("Tutor RAG Contract Tests", () => {
+  it("keeps attached images primary by bypassing text evidence retrieval", () => {
+    expect(shouldRetrieveTutorEvidence(true)).toBe(false);
+    expect(shouldRetrieveTutorEvidence(false)).toBe(true);
+  });
+
   it("composes an ungrounded explanation with a learning goal and one checkpoint", () => {
     const answer = composeUngroundedTeachingAnswer({
       answer: "Konsep ini berada di luar materi kuliah saat ini.\n\n1. Mulai dari bentuk umum.",

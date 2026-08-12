@@ -344,6 +344,28 @@ IMAGE INPUT RULE: If images are attached, inspect them together with the questio
 }`,
 };
 
+const tutorImageAnswer: SystemPrompt<UngroundedVars> = {
+ version: "tutor_rag/image_answer/v1.0.0",
+ systemInstruction:
+ "You are Zyra, an Indonesian study assistant made by Zyx. One or more learner images are attached. Treat the attached images and the learner's current text as the primary problem statement. Inspect every image before answering. Never replace the image problem with a similar exercise from conversation history or course material. Do not invent links, citations, labels, numbers, or graph values. If an essential region is cropped, blurry, or too small to read, state exactly what cannot be read and ask for a clearer crop instead of solving a different problem. When the image is readable, answer the learner's requested problem directly with concise step-by-step reasoning. Distinguish visible facts from inference. If an active assessment safety policy applies, guide with concepts and steps without revealing protected answers. Return one JSON object matching the requested schema. Use Indonesian, no exclamation marks, and no long dash characters.",
+ userPrompt: (vars) => `CURRENT LEARNER REQUEST: ${vars.question}
+
+RECENT CONVERSATION FOR PRONOUN CONTINUITY ONLY:
+${vars.conversationHistory || "No previous history."}
+
+Inspect the attached image or images now. The current attachments override unrelated exercises in conversation history.
+
+Generate a single JSON object:
+{
+ "inScope": true,
+ "learningGoal": "[One short goal based only on the attached problem]",
+ "answer": "[Direct, concise solution or a precise request for a clearer image. Do not add source links.]",
+ "checkForUnderstanding": "[Exactly one short question about the solved concept]",
+ "matchedConcepts": ["[concepts actually visible in the image]"],
+ "confidence": [0.0 to 1.0]
+}`,
+};
+
 interface PersonalVars {
  question: string;
  baseAnswer: string;
@@ -397,6 +419,10 @@ export function composeUngroundedTeachingAnswer(input: z.input<typeof Ungrounded
   const checkpoint = data.checkForUnderstanding?.trim()
     || `Dengan kata-katamu sendiri, apa inti ${concept}?`;
   return `### Tujuan belajar\n${goal}\n\n${answer}\n\n### Cek pemahaman\n${checkpoint}`;
+}
+
+export function shouldRetrieveTutorEvidence(hasImages: boolean): boolean {
+  return !hasImages;
 }
 
 const PersonalSchema = z.object({ guidance: z.string() });
@@ -751,7 +777,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   );
 
   // 1. Action: Clarify
-  if (classification.action === "clarify") {
+  if (classification.action === "clarify" && !hasImages) {
     emitOperationalOutcome("CLARIFY");
     return {
       answer: "Mohon berikan pertanyaan yang lebih spesifik atau jelas mengenai materi kuliah agar aku bisa membantu.",
@@ -773,7 +799,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       .join("\n\n");
     const result = await PromptExecutor.run({
       userId: studentId,
-      prompt: tutorUngroundedAnswer,
+      prompt: hasImages ? tutorImageAnswer : tutorUngroundedAnswer,
       variables: { question, conversationHistory: historyText },
       schema: UngroundedSchema,
       useCase: USE_CASES.UNGROUNDED_TUTOR,
@@ -819,7 +845,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       .join("\n\n");
     const result = await PromptExecutor.run({
       userId: studentId,
-      prompt: tutorUngroundedAnswer,
+      prompt: hasImages ? tutorImageAnswer : tutorUngroundedAnswer,
       variables: { question: searchQuestion, conversationHistory: historyText },
       schema: UngroundedSchema,
       useCase,
@@ -863,7 +889,9 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   };
 
   let retrieved: RetrievedSource[] = [];
-  if (classification.action === "reuse_previous_evidence") {
+  if (!shouldRetrieveTutorEvidence(hasImages)) {
+    retrieved = [];
+  } else if (classification.action === "reuse_previous_evidence") {
     // Reuse sources attached to recent conversation history instead of issuing new vector search
     const historySources: RetrievedSource[] = [];
     for (const msg of history.recentMessages) {
@@ -917,7 +945,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     });
   }
 
-  if (pageContext) {
+  if (pageContext && !hasImages) {
     retrieved = [
       {
         type: "question",

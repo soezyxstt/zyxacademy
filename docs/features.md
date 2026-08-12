@@ -285,6 +285,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Large accepted images are rotated and resized to a maximum 2048 px dispatch edge before private storage, reducing multimodal latency and payload size without enlarging smaller screenshots.
 - Sent images remain visible as authenticated thumbnails on the learner message and in restored chat history. Selecting a thumbnail opens a larger private preview; expired or unauthorized objects remain unreadable.
 - Image and text are dispatched as one multimodal request. Provider failures are shown separately from genuine allowance exhaustion, and the allowance summary refreshes after a turn.
+- A learner can paste an image from the clipboard into the chat input as well as select a file. Image turns treat the current attachment as the primary problem statement and bypass text-only course retrieval, preventing an unrelated published question and its source link from replacing the image content.
 - `FEATURE_ZYRA_MURID_V3` adds the personal allowance summary and the integrated murid Zyra surface. `FEATURE_ZYRA_SELECTION_ASK_V1` sends only a bounded explicit lesson quote, and `FEATURE_ZYRA_PET_V1` shows accessible application-owned request states.
 - Learning Canvas exploration remains local after render and spends no provider allowance. Image and Canvas behavior are independently gated.
 
