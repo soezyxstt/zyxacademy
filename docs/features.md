@@ -200,6 +200,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 
 - `FEATURE_ZYRA_ALLOWANCE_V2` enables role-aware application leases for murid, tutor, and admin requests.
 - Provider-backed turns and total interactions are counted separately; cache hits and deterministic actions spend zero provider units.
+- Provider Router V2 owns the allowance lease when both flags are active, so a single learner request consumes exactly one provider turn. Visual requests use the same published daily provider allowance and are not stopped by a smaller hidden premium balance.
 
 ### Zyra Semantic Cache V1
 
@@ -230,7 +231,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Function expressions use a bounded allowlist parser. Controls, presets, reset, and invalid-expression fallback run locally and spend zero AI quota.
 - Every canvas includes canonical claim references, alt text, and a table or textual fallback. Shared specs contain no learner profile or interaction state.
 - The renderer uses semantic tokens and keyboard-operable native controls. Arbitrary model-generated JavaScript, HTML, SVG, or unrestricted Mermaid is rejected.
-- Function plots show their rendered formula, grid, axes, and zero crossings. Invalid expressions produce a visible recovery message. The legacy visual adapter accepts bounded common graph field variants and routes expressions through the same safe parser, so malformed model output cannot leave an unexplained empty chart.
+- Function and data plots use responsive Recharts surfaces with labeled axes, grid lines, tooltips, visible zero crossings, and local controls. Invalid expressions produce a visible recovery message. Legacy typed visuals and explicit graph requests are upgraded into Learning Canvas specs when possible, so a valid equation still renders when the model omits the newer `canvasSpec` field.
 - The murid drawer can be resized up to the viewport or expanded with a dedicated button. Each current Zyra answer offers short follow-up actions for an example, a comprehension check, or another representation.
 - Zyra entry points use one application-owned hexagonal `Z` mark across the sidebar, floating launcher, material selection, mistake feedback, and drawer fallback. The mark does not reuse the generic four-point sparkle associated with other AI products. Drawer sizing uses labeled `Perbesar` and `Kecilkan` controls on desktop.
 - When the pet capability is enabled, the course launcher becomes a draggable Zyra companion. A murid can place it within the viewport, click it to open chat, hide it, and restore it from a compact control. Position and visibility persist in browser storage.
@@ -281,6 +282,9 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 ### Zyra multimodal tutoring and murid experience
 
 - `FEATURE_ZYRA_IMAGE_INPUT_V1` provides authenticated JPEG, PNG, and WebP uploads for a tutoring turn. Files are sanitized server-side, stored privately for a bounded retention period, and excluded from shared response caches.
+- Large accepted images are rotated and resized to a maximum 2048 px dispatch edge before private storage, reducing multimodal latency and payload size without enlarging smaller screenshots.
+- Sent images remain visible as authenticated thumbnails on the learner message and in restored chat history. Selecting a thumbnail opens a larger private preview; expired or unauthorized objects remain unreadable.
+- Image and text are dispatched as one multimodal request. Provider failures are shown separately from genuine allowance exhaustion, and the allowance summary refreshes after a turn.
 - `FEATURE_ZYRA_MURID_V3` adds the personal allowance summary and the integrated murid Zyra surface. `FEATURE_ZYRA_SELECTION_ASK_V1` sends only a bounded explicit lesson quote, and `FEATURE_ZYRA_PET_V1` shows accessible application-owned request states.
 - Learning Canvas exploration remains local after render and spends no provider allowance. Image and Canvas behavior are independently gated.
 

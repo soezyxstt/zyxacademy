@@ -6,6 +6,7 @@ export const ZYRA_IMAGE_MAX_SOURCE_BYTES = 8 * 1024 * 1024;
 export const ZYRA_IMAGE_MAX_SANITIZED_BYTES = 8 * 1024 * 1024;
 export const ZYRA_IMAGE_MAX_REQUEST_BYTES = 16 * 1024 * 1024;
 export const ZYRA_IMAGE_MAX_LONGEST_EDGE = 4096;
+export const ZYRA_IMAGE_DISPATCH_LONGEST_EDGE = 2048;
 export const ZYRA_IMAGE_MAX_DECODED_PIXELS = 16_000_000;
 export const ZYRA_IMAGE_MAX_COUNT = 4;
 export const ZYRA_IMAGE_RETENTION_DAYS = 7;
@@ -48,6 +49,14 @@ export const ZyraImageResponseFieldsSchema = z.object({
   unreadableRegions: z.array(z.string().trim().min(1).max(200)).max(8).default([]),
 }).strict();
 export type ZyraImageResponseFields = z.infer<typeof ZyraImageResponseFieldsSchema>;
+
+export const ZyraMessageAttachmentSchema = z.object({
+  id: z.string().uuid(),
+  mimeType: ZyraImageMimeSchema,
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+}).strict();
+export type ZyraMessageAttachment = z.infer<typeof ZyraMessageAttachmentSchema>;
 
 export interface SanitizedZyraImage {
   bytes: Uint8Array;

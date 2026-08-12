@@ -32,4 +32,13 @@ describe("Zyra private image validation", () => {
     await expect(sanitizeZyraImage(new Uint8Array(8 * 1024 * 1024 + 1), "image/png"))
       .rejects.toBeInstanceOf(ZyraImageSanitizationError);
   });
+
+  test("reduces oversized accepted images before multimodal dispatch", async () => {
+    const source = new Uint8Array(await sharp({
+      create: { width: 3000, height: 1000, channels: 3, background: { r: 240, g: 240, b: 240 } },
+    }).jpeg().toBuffer());
+    const sanitized = await sanitizeZyraImage(source, "image/jpeg");
+    expect(sanitized.width).toBe(2048);
+    expect(sanitized.height).toBeLessThanOrEqual(683);
+  });
 });

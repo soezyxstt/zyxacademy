@@ -209,6 +209,7 @@ export interface TutorRagResult extends TutorRagAnswer {
   /** Learner-local presentation adaptation; never part of the shared scaffold. */
   adaptation?: ZyraAdaptationDecision | null;
   budgetExhausted: boolean;
+  failureCode?: "quota_exhausted" | "provider_unavailable";
   /** Privacy-safe staging comparison metadata. Candidate text is never exposed here. */
   pedagogyShadow?: PedagogyShadowComparison;
 }
@@ -290,13 +291,15 @@ interface GroundedVars {
 }
 
 const tutorGroundedAnswer: SystemPrompt<GroundedVars> = {
- version: "tutor_rag/grounded_answer/v1.7.0",
+ version: "tutor_rag/grounded_answer/v1.8.0",
  systemInstruction:
  "You are Zyra, a friendly and knowledgeable AI study assistant for Indonesian university students made by Zyx. Your tone is warm, casual, and relatable ; like a smart kakak tingkat (senior student) who genuinely wants to help. Use informal Indonesian (e.g. 'kamu', 'aku', 'yuk', 'nih', 'ya') but stay accurate and clear. You are in a continuous chat session. Use the provided conversation history to maintain context and continuity. When responding to follow-up questions, build upon the previous exchange. You have access to course material snippets that may or may not be relevant to the question. First decide if they address the question. If they do, answer ONLY from them and cite sources strictly by the ids in the source list. If they do not, set covered=false, give a brief general answer, and cite nothing. IMPORTANT Socratic Safety rules: If the sources include past exam questions ('past_exam') or practice questions ('practice_question'), you must NEVER provide the direct solution or final answer values. Instead, explain the underlying general concept and formulas, and use Socratic scaffolding to guide the student step-by-step. If they ask you to solve it directly, generate an analogous question with different values and explain that one instead. Never reveal internal pipeline details to the student ; do not use words like 'excerpt', 'retrieved', 'snippet', 'context', 'source list', or any RAG terminology. Refer to materials as 'materi kuliah' or 'bahan ajar'. Never invent citations. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Same language as the question. You can generate interactive visual diagrams, flowcharts, graphs, or charts to help students understand structures, processes, workflows, math functions, or statistics. To do this, output one of the following special markdown blocks:\n1. Flowchart or step-by-step diagram (uses ELK layout):\n:::flowchart {title=\"Title of Diagram\"}\nStep A --> Step B\nStep B -- Label --> Step C\n:::\nNote: Avoid spaces in node IDs if they are used as references, but you can write descriptive text for nodes. Use only valid '-->', '-- label -->', or '--> |label|' syntax.\n2. Function graph (plots equations):\n:::graph {title=\"Graph Title\"}\ndomain:\n  min: -10\n  max: 10\nfunctions:\n  - y = x^2 - 4\n  - y = sin(x)\n:::\n3. Data charts (bar, line, scatter, pie):\n:::chart {title=\"Chart Title\"}\nchartType: bar\nxLabel: X Axis Label\nyLabel: Y Axis Label\ndata:\n  - [Category A, 45]\n  - [Category B, 82]\n:::\nDo NOT use other styles of markdown block syntax for diagrams. These visual blocks will be automatically rendered as beautiful interactive visual widgets in the student's interface. Feel free to use them to explain complex concepts, algorithms, pathways, or mathematical behaviors. CRITICAL INSTRUCTION ON VISUAL SELECTION: If the student explicitly asks for a graph or plot (e.g. 'dengan grafik', 'gambarkan grafik', 'buat plot', 'kurva'), or if the explanation involves mathematical functions/equations/curves (such as limit existence, derivatives, or trigonometric behaviors), you MUST use the `:::graph` block to plot the relevant function equations. Do NOT use a flowchart when a graph or plot is requested. If the student asks for a flowchart, process flow, logical workflow, mind map, or step-by-step pipeline, you MUST use the `:::flowchart` block. For example, if asked 'jelaskan eksistensi limit dengan grafik', you must output a `:::graph` block plotting a relevant function (e.g. `y = (x^2 - 1)/(x - 1)` or similar piecewise/rational function) showing the limit behavior, not a flowchart diagram.",
  userPrompt: (vars) => `CONVERSATION HISTORY:
 ${vars.conversationHistory || "No previous history."}
 
 QUESTION: ${vars.question}
+
+IMAGE INPUT RULE: If images are attached, inspect them together with the question. Distinguish visible facts from inference, state uncertainty for blurry or cropped content, and never invent unreadable labels or values.
 
 COURSE MATERIAL EXCERPTS:
 ${vars.contextBlock}
@@ -320,13 +323,15 @@ interface UngroundedVars {
 }
 
 const tutorUngroundedAnswer: SystemPrompt<UngroundedVars> = {
- version: "tutor_rag/ungrounded_answer/v1.5.0",
+ version: "tutor_rag/ungrounded_answer/v1.6.0",
  systemInstruction:
  "You are Zyra, an Indonesian study assistant made by Zyx. Decide whether the request is within Zyx learning scope. In scope includes school and university subjects, mathematics, science, engineering, computing, academic language skills, course learning, exam preparation, study methods, and closely related educational questions. Casual follow-ups about the learning conversation are also in scope. Entertainment, shopping, gossip, and requests without a meaningful learning purpose are out of scope. For an out-of-scope request, set inScope=false and answer with one short redirection to a learning topic. For an in-scope request, set inScope=true. The student's question is not supported by their current course materials, but you may use your general model knowledge to teach it. Be explicit about the missing material boundary in one short sentence, then teach the general concept accurately. Do not claim that the answer came from Zyx course material and never fabricate citations. Do not open with a greeting, excitement, or filler. Organize the explanation into a clear learning goal, two to four small reasoning stages, one worked or analogous example when useful, and exactly one short check-for-understanding question. Do not pretend the learner has understood before they respond. Maintain context from previous messages if the question is a follow-up. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Same language as the question. You can generate interactive visual diagrams, flowcharts, graphs, or charts to help students understand structures, processes, workflows, math functions, or statistics. To do this, output one of the following special markdown blocks:\n1. Flowchart or step-by-step diagram (uses ELK layout):\n:::flowchart {title=\"Title of Diagram\"}\nStep A --> Step B\nStep B -- Label --> Step C\n:::\nNote: Avoid spaces in node IDs if they are used as references, but you can write descriptive text for nodes. Use only valid '-->', '-- label -->', or '--> |label|' syntax.\n2. Function graph (plots equations):\n:::graph {title=\"Graph Title\"}\ndomain:\n  min: -10\n  max: 10\nfunctions:\n  - y = x^2 - 4\n  - y = sin(x)\n:::\n3. Data charts (bar, line, scatter, pie):\n:::chart {title=\"Chart Title\"}\nchartType: bar\nxLabel: X Axis Label\nyLabel: Y Axis Label\ndata:\n  - [Category A, 45]\n  - [Category B, 82]\n:::\nDo NOT use other styles of markdown block syntax for diagrams. CRITICAL INSTRUCTION ON VISUAL SELECTION: If the student explicitly asks for a graph or plot, you MUST use the `:::graph` block with at least one valid function. Use a domain that makes the relevant behavior visible. Do NOT use a flowchart when a graph or plot is requested. If the student asks for a process flow or concept relationship, use the `:::flowchart` block.",
  userPrompt: (vars) => `CONVERSATION HISTORY:
 ${vars.conversationHistory || "No previous history."}
 
 QUESTION: ${vars.question}
+
+IMAGE INPUT RULE: If images are attached, inspect them together with the question. Distinguish visible facts from inference, state uncertainty for blurry or cropped content, and never invent unreadable labels or values.
 
  Generate a single JSON object:
  {
@@ -804,6 +809,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   const searchQuestion = classification.contentFocus || question;
   let cached = false;
   let budgetExhausted = false;
+  let terminalFailure: TutorRagResult["failureCode"] | undefined;
 
   const generateGeneralTeachingFallback = async (): Promise<TutorRagAnswer | null> => {
     const remaining = await UsageBudgetService.getRemainingPremium(studentId);
@@ -825,7 +831,12 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       if (!result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
         console.error("tutor general knowledge fallback failed:", result.errors[0]);
       }
-      budgetExhausted = true;
+      if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
+        budgetExhausted = true;
+        terminalFailure = "quota_exhausted";
+      } else {
+        terminalFailure = "provider_unavailable";
+      }
       return null;
     }
 
@@ -1157,7 +1168,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             result = baselineResult;
             if (params.pedagogyShadowObserver) {
               const candidateSources = pedagogyEvidence.map((source) => ({ ...source, version: source.version ?? 1 }));
-              const candidateAnswer = teachingResponseToTutorAnswer(candidateResult.response, candidateSources);
+              const candidateAnswer = teachingResponseToTutorAnswer(candidateResult.response, candidateSources, sanitizedQuestion);
               await params.pedagogyShadowObserver({
                 baselineAnswer: baselineResult.data?.answer ?? "",
                 candidateAnswer: candidateAnswer.answer,
@@ -1180,7 +1191,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             const pedagogyResult = await runCandidate();
             pedagogyFallback = pedagogyResult.usedFallback;
             const pedagogySources = pedagogyEvidence.map((source) => ({ ...source, version: source.version ?? 1 }));
-            const legacy = teachingResponseToTutorAnswer(pedagogyResult.response, pedagogySources);
+            const legacy = teachingResponseToTutorAnswer(pedagogyResult.response, pedagogySources, sanitizedQuestion);
             pedagogyCanvasSpec = legacy.canvasSpec ?? null;
             result = {
               success: true,
@@ -1284,9 +1295,10 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
           }
         } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
           budgetExhausted = true;
+          terminalFailure = "quota_exhausted";
         } else {
           console.error("tutor grounded generation failed:", result.errors[0]);
-          budgetExhausted = true;
+          terminalFailure = "provider_unavailable";
         }
       }
     }
@@ -1307,7 +1319,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   }
 
  if (!base) {
- emitOperationalOutcome("BUDGET_EXHAUSTED");
+ emitOperationalOutcome(terminalFailure === "quota_exhausted" ? "BUDGET_EXHAUSTED" : "PROVIDER_UNAVAILABLE");
  return {
  answer: "",
  sources: [],
@@ -1317,7 +1329,8 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  cached: false,
  addendum: null,
  personalized: null,
- budgetExhausted: true,
+ budgetExhausted,
+ failureCode: terminalFailure ?? "provider_unavailable",
  };
  }
 

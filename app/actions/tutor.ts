@@ -4,8 +4,8 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
-import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates } from "@/db/schema";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments } from "@/db/schema";
+import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
@@ -18,6 +18,7 @@ import {
   loadZyraImageParts,
   markZyraAttachmentsDispatched,
 } from "@/lib/zyra/images";
+import type { ZyraImageMime } from "@/lib/zyra/images";
 import {
   deserializeTutorMessageSources,
   isZyraCanvasFeatureEnabled,
@@ -340,7 +341,7 @@ export async function askTutorRagAction(
     pageContext,
   });
 
-  if (requestedAttachmentIds.length > 0) {
+  if (requestedAttachmentIds.length > 0 && result.answer) {
     await markZyraAttachmentsDispatched(requestedAttachmentIds, user.id);
   }
 
@@ -355,7 +356,7 @@ const CHAT_HISTORY_LIMIT = 100;
 
 export async function saveTutorMessagesAction(
   courseId: string,
-  messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown; canvasSpec?: unknown }>,
+  messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown; canvasSpec?: unknown; attachmentIds?: readonly string[] }>,
   sessionId?: string | null
 ) {
   const user = await requireCourseAccess(courseId);
@@ -364,8 +365,7 @@ export async function saveTutorMessagesAction(
 
   const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, "General Chat");
 
-  await db.insert(tutorChatMessages).values(
-    messages.map((m) => ({
+  const preparedRows = messages.map((m) => ({
       id: randomUUID(),
       studentId: user.id,
       courseId,
@@ -376,8 +376,30 @@ export async function saveTutorMessagesAction(
         m.sources,
         isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? m.canvasSpec : undefined,
       ),
-    }))
-  );
+      attachmentIds: m.role === "student" ? [...(m.attachmentIds ?? [])] : [],
+    }));
+
+  for (const row of preparedRows) assertZyraImageCount(row.attachmentIds.length);
+
+  await db.transaction(async (tx) => {
+    await tx.insert(tutorChatMessages).values(preparedRows.map(({ attachmentIds: _attachmentIds, ...row }) => row));
+    for (const row of preparedRows) {
+      if (row.attachmentIds.length === 0) continue;
+      for (const attachmentId of row.attachmentIds) {
+        const linked = await tx.update(zyraMessageAttachments)
+          .set({ messageId: row.id })
+          .where(and(
+            eq(zyraMessageAttachments.id, attachmentId),
+            eq(zyraMessageAttachments.studentId, user.id),
+            eq(zyraMessageAttachments.courseId, courseId),
+            eq(zyraMessageAttachments.sessionId, sid),
+            gt(zyraMessageAttachments.expiresAt, new Date()),
+            or(isNull(zyraMessageAttachments.messageId), eq(zyraMessageAttachments.messageId, row.id)),
+          ));
+        if (linked.rowsAffected !== 1) throw new Error("ZYRA_ATTACHMENT_LINK_FAILED");
+      }
+    }
+  });
 
   await db
     .update(chatSessions)
@@ -426,6 +448,34 @@ export async function loadTutorHistoryAction(
     .orderBy(asc(tutorChatMessages.createdAt))
     .limit(CHAT_HISTORY_LIMIT);
 
+  const messageIds = rows.map((row) => row.id);
+  const attachmentRows = messageIds.length > 0 && isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)
+    ? await db
+        .select({
+          id: zyraMessageAttachments.id,
+          messageId: zyraMessageAttachments.messageId,
+          mimeType: zyraMessageAttachments.mimeType,
+          width: zyraMessageAttachments.width,
+          height: zyraMessageAttachments.height,
+        })
+        .from(zyraMessageAttachments)
+        .where(and(
+          inArray(zyraMessageAttachments.messageId, messageIds),
+          eq(zyraMessageAttachments.studentId, user.id),
+          eq(zyraMessageAttachments.courseId, courseId),
+          eq(zyraMessageAttachments.sessionId, sid),
+          gt(zyraMessageAttachments.expiresAt, new Date()),
+          inArray(zyraMessageAttachments.status, ["uploaded", "attached", "dispatched"]),
+        ))
+    : [];
+  const attachmentsByMessage = new Map<string, typeof attachmentRows>();
+  for (const attachment of attachmentRows) {
+    if (!attachment.messageId) continue;
+    const current = attachmentsByMessage.get(attachment.messageId) ?? [];
+    current.push(attachment);
+    attachmentsByMessage.set(attachment.messageId, current);
+  }
+
   return {
     sessionId: sid,
     messages: rows.map((r) => {
@@ -436,6 +486,12 @@ export async function loadTutorHistoryAction(
         content: r.content,
         sources: decoded.sources.length > 0 ? decoded.sources : undefined,
         canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? decoded.canvasSpec : undefined,
+        attachments: attachmentsByMessage.get(r.id)?.map((attachment) => ({
+          id: attachment.id,
+          mimeType: attachment.mimeType as ZyraImageMime,
+          width: attachment.width,
+          height: attachment.height,
+        })) ?? [],
       };
     }),
   };

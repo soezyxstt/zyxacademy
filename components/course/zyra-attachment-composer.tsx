@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, Image as ImageIcon, Loader2, Paperclip, RotateCcw, X } from "lucide-react";
+import { AlertCircle, Image as ImageIcon, Paperclip, RotateCcw, X } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,12 +10,14 @@ import {
   selectZyraImageFiles,
   type PendingZyraImage,
 } from "@/lib/zyra/images/composer";
+import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 
 interface ZyraAttachmentComposerProps {
   courseId: string;
   sessionId: string;
   disabled?: boolean;
   onAttachmentIdsChange: (ids: string[]) => void;
+  onAttachmentsChange?: (attachments: ZyraMessageAttachment[]) => void;
   onAttachmentsReadyChange?: (ready: boolean) => void;
 }
 
@@ -32,10 +34,12 @@ export function ZyraAttachmentComposer({
   sessionId,
   disabled = false,
   onAttachmentIdsChange,
+  onAttachmentsChange,
   onAttachmentsReadyChange,
 }: ZyraAttachmentComposerProps) {
   const [items, setItems] = React.useState<PendingZyraImage[]>([]);
   const [previews, setPreviews] = React.useState<Record<string, string>>({});
+  const [composerError, setComposerError] = React.useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -46,8 +50,11 @@ export function ZyraAttachmentComposer({
 
   React.useEffect(() => {
     onAttachmentIdsChange(readyZyraAttachmentIds(items));
+    onAttachmentsChange?.(items.flatMap((item) => item.status === "ready" && item.attachmentId && item.width && item.height
+      ? [{ id: item.attachmentId, mimeType: item.mimeType, width: item.width, height: item.height }]
+      : []));
     onAttachmentsReadyChange?.(items.every((item) => item.status === "ready"));
-  }, [items, onAttachmentIdsChange, onAttachmentsReadyChange]);
+  }, [items, onAttachmentIdsChange, onAttachmentsChange, onAttachmentsReadyChange]);
 
   const uploadItem = React.useCallback(async (item: PendingZyraImage) => {
     const form = new FormData();
@@ -56,8 +63,9 @@ export function ZyraAttachmentComposer({
     form.set("file", item.file, item.name);
     try {
       const response = await fetch("/api/zyra/attachments", { method: "POST", body: form });
-      const payload = await response.json().catch(() => null) as { id?: string; error?: string } | null;
-      if (!response.ok || !payload?.id) {
+      const payload = await response.json().catch(() => null) as { id?: string; width?: number; height?: number; error?: string } | null;
+      if (!response.ok || !payload?.id || !payload.width || !payload.height) {
+        setComposerError("Gambar gagal diunggah. Periksa format dan ukuran file, lalu coba lagi.");
         setItems((current) => setItemStatus(current, item.key, {
           status: "failed",
           errorCode: payload?.error ?? "ATTACHMENT_UPLOAD_FAILED",
@@ -67,9 +75,13 @@ export function ZyraAttachmentComposer({
       setItems((current) => setItemStatus(current, item.key, {
         status: "ready",
         attachmentId: payload.id,
+        width: payload.width,
+        height: payload.height,
         errorCode: undefined,
       }));
+      setComposerError(null);
     } catch {
+      setComposerError("Koneksi terputus saat mengunggah gambar. Coba lagi.");
       setItems((current) => setItemStatus(current, item.key, {
         status: "failed",
         errorCode: "ATTACHMENT_UPLOAD_FAILED",
@@ -79,6 +91,18 @@ export function ZyraAttachmentComposer({
 
   const addFiles = React.useCallback((files: readonly File[]) => {
     const result = selectZyraImageFiles(items, files);
+    if (result.rejected.length > 0) {
+      const first = result.rejected[0];
+      setComposerError(first === "SOURCE_TOO_LARGE"
+        ? "Ukuran setiap gambar maksimal 8 MB."
+        : first === "IMAGE_COUNT_LIMIT"
+          ? "Maksimal 4 gambar untuk satu pertanyaan."
+          : first === "DUPLICATE_IMAGE"
+            ? "Gambar yang sama sudah dipilih."
+            : "Gunakan gambar berformat PNG, JPG, atau WebP.");
+    } else {
+      setComposerError(null);
+    }
     if (result.accepted.length === items.length) return;
     setItems(result.accepted);
     const newItems = result.accepted.filter((item) => !items.some((existing) => existing.key === item.key));
@@ -132,13 +156,13 @@ export function ZyraAttachmentComposer({
                 <ImageIcon className="size-8 p-1 text-muted-foreground" aria-hidden="true" />
               )}
               <span className="max-w-32 truncate text-body-2xs text-foreground">{item.name}</span>
-              {item.status === "uploading" && <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label="Mengunggah" />}
+              {item.status === "uploading" && <span className="size-4 animate-pulse rounded-md bg-muted-foreground/35" aria-label="Mengunggah" />}
               {item.status === "failed" && (
                 <Button type="button" variant="ghost" size="icon-xs" onClick={() => retryItem(item)} aria-label={`Coba lagi ${item.name}`}>
                   <RotateCcw className="size-3.5" />
                 </Button>
               )}
-              {item.status === "failed" && <AlertCircle className="size-4 text-status-error" aria-label="Gagal" />}
+              {item.status === "failed" && <span className="inline-flex items-center gap-1 text-body-2xs text-status-error"><AlertCircle className="size-4" aria-hidden="true" />Gagal</span>}
               <Button type="button" variant="ghost" size="icon-xs" onClick={() => void removeItem(item)} aria-label={`Hapus ${item.name}`}>
                 <X className="size-3.5" />
               </Button>
@@ -175,6 +199,7 @@ export function ZyraAttachmentComposer({
         </Button>
         <span className="text-body-2xs text-muted-foreground">PNG, JPG, atau WebP, maksimal 4</span>
       </div>
+      {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-4 shrink-0" aria-hidden="true" />{composerError}</p>}
     </div>
   );
 }

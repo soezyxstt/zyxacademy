@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import sharp from "sharp";
 import {
   ZyraImageMimeSchema,
+  ZYRA_IMAGE_DISPATCH_LONGEST_EDGE,
   ZYRA_IMAGE_MAX_DECODED_PIXELS,
   ZYRA_IMAGE_MAX_LONGEST_EDGE,
   ZYRA_IMAGE_MAX_SANITIZED_BYTES,
@@ -74,6 +75,12 @@ export async function sanitizeZyraImage(
 
     const output = await image
       .rotate()
+      .resize({
+        width: ZYRA_IMAGE_DISPATCH_LONGEST_EDGE,
+        height: ZYRA_IMAGE_DISPATCH_LONGEST_EDGE,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
       .toFormat(formatForMime(mimeType), mimeType === "image/jpeg"
         ? { quality: 86, chromaSubsampling: "4:4:4" }
         : mimeType === "image/webp"

@@ -19,8 +19,8 @@ import { normalizePeranCodes, type PeranCode } from "@/lib/auth/peran";
 type QueryExecutor = Pick<typeof db, "select" | "insert" | "update" | "delete">;
 
 export const ZYRA_ALLOWANCE_POLICY = {
-  murid: { providerPerDay: 20, totalInteractions: 60, perMinute: 8, premiumPerDay: 2 },
-  tutor: { providerPerDay: 50, totalInteractions: 150, perMinute: 12, premiumPerDay: 5 },
+  murid: { providerPerDay: 20, totalInteractions: 60, perMinute: 8, premiumPerDay: 20 },
+  tutor: { providerPerDay: 50, totalInteractions: 150, perMinute: 12, premiumPerDay: 50 },
   admin: { providerPerDay: null, totalInteractions: 300, perMinute: 20, premiumPerDay: null },
 } as const;
 

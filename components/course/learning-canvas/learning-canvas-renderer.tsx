@@ -5,6 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MathText } from "@/components/course/math-text";
 import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceDot,
+  ReferenceLine,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   evaluateFunctionPlot,
   resetCanvasValues,
   type ChemistryCanvas,
@@ -18,25 +31,6 @@ import {
 
 function valuesForSpec(spec: CanvasSpec): Record<string, number> {
   return resetCanvasValues(spec.variables);
-}
-
-function pathForPoints(
-  points: Array<{ x: number; y: number | null }>,
-  mapX: (value: number) => number,
-  mapY: (value: number) => number,
-): string {
-  let path = "";
-  let open = false;
-  for (const point of points) {
-    if (point.y === null) {
-      open = false;
-      continue;
-    }
-    const command = open ? "L" : "M";
-    path += `${command} ${mapX(point.x).toFixed(2)} ${mapY(point.y).toFixed(2)} `;
-    open = true;
-  }
-  return path.trim();
 }
 
 function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
@@ -55,11 +49,20 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
   const ySpan = Math.max(1, yMax - yMin);
   const plotYMin = yMin - ySpan * 0.1;
   const plotYMax = yMax + ySpan * 0.1;
-  const width = 720;
-  const height = 340;
-  const pad = { left: 48, right: 20, top: 20, bottom: 38 };
-  const mapX = (value: number) => pad.left + ((value - spec.domain.min) / (spec.domain.max - spec.domain.min)) * (width - pad.left - pad.right);
-  const mapY = (value: number) => pad.top + ((plotYMax - value) / (plotYMax - plotYMin)) * (height - pad.top - pad.bottom);
+  const chartData = evaluated[0]?.points.map((point, pointIndex) => ({
+    x: point.x,
+    ...Object.fromEntries(evaluated.map((series) => [series.id, series.points[pointIndex]?.y ?? null])),
+  })) ?? [];
+  const roots = evaluated.flatMap((series, seriesIndex) => series.points.slice(1).flatMap((point, pointIndex) => {
+    const previous = series.points[pointIndex];
+    if (!previous || previous.y === null || point.y === null || Math.sign(previous.y) === Math.sign(point.y) || previous.y === point.y) return [];
+    const ratio = Math.abs(previous.y) / (Math.abs(previous.y) + Math.abs(point.y));
+    return [{
+      id: `${series.id}-${pointIndex}`,
+      x: previous.x + (point.x - previous.x) * ratio,
+      color: seriesIndex % 2 === 0 ? "var(--color-primary)" : "var(--color-brand-secondary)",
+    }];
+  }));
 
   return (
     <div className="space-y-4">
@@ -122,41 +125,53 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
           </span>
         ))}
       </div>
-      <div className="overflow-x-auto rounded-lg border border-border bg-background">
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          role="img"
-          aria-label={spec.altText}
-          className="h-auto min-w-[560px] w-full"
-        >
-          <title>{spec.altText}</title>
-          <rect x={pad.left} y={pad.top} width={width - pad.left - pad.right} height={height - pad.top - pad.bottom} fill="var(--color-muted)" fillOpacity="0.18" />
-          {Array.from({ length: 9 }, (_, index) => index).map((index) => {
-            const x = pad.left + index * ((width - pad.left - pad.right) / 8);
-            const y = pad.top + index * ((height - pad.top - pad.bottom) / 8);
-            return <g key={index}><line x1={x} y1={pad.top} x2={x} y2={height - pad.bottom} stroke="var(--color-border)" strokeOpacity="0.45" /><line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="var(--color-border)" strokeOpacity="0.45" /></g>;
-          })}
-          {plotYMin <= 0 && plotYMax >= 0 && <line x1={pad.left} y1={mapY(0)} x2={width - pad.right} y2={mapY(0)} stroke="var(--color-foreground)" strokeOpacity="0.7" />}
-          {spec.domain.min <= 0 && spec.domain.max >= 0 && <line x1={mapX(0)} y1={pad.top} x2={mapX(0)} y2={height - pad.bottom} stroke="var(--color-foreground)" strokeOpacity="0.7" />}
-          {evaluated.map((series, index) => (
-            <path
-              key={series.id}
-              d={pathForPoints(series.points, mapX, mapY)}
-              fill="none"
-              stroke={index % 2 === 0 ? "var(--color-primary)" : "var(--color-secondary)"}
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+      <div className="h-[360px] w-full rounded-lg border border-border bg-background p-2" role="img" aria-label={spec.altText}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 16, right: 18, bottom: 18, left: 2 }}>
+            <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.55} strokeDasharray="4 4" />
+            <XAxis
+              type="number"
+              dataKey="x"
+              domain={[spec.domain.min, spec.domain.max]}
+              tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }}
+              tickLine={{ stroke: "var(--color-border)" }}
+              axisLine={{ stroke: "var(--color-foreground)", strokeOpacity: 0.65 }}
+              label={{ value: spec.domain.unit ? `x (${spec.domain.unit})` : "x", position: "insideBottomRight", offset: -8, fill: "var(--color-muted-foreground)" }}
             />
-          ))}
-          {evaluated.flatMap((series, seriesIndex) => series.points.slice(1).flatMap((point, pointIndex) => {
-            const previous = series.points[pointIndex];
-            if (!previous || previous.y === null || point.y === null || Math.sign(previous.y) === Math.sign(point.y) || previous.y === point.y) return [];
-            const ratio = Math.abs(previous.y) / (Math.abs(previous.y) + Math.abs(point.y));
-            const rootX = previous.x + (point.x - previous.x) * ratio;
-            return [<circle key={`root-${series.id}-${pointIndex}`} cx={mapX(rootX)} cy={mapY(0)} r="5" fill="var(--color-background)" stroke={seriesIndex % 2 === 0 ? "var(--color-primary)" : "var(--color-brand-secondary)"} strokeWidth="2" />];
-          }))}
-        </svg>
+            <YAxis
+              domain={[plotYMin, plotYMax]}
+              width={52}
+              tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }}
+              tickLine={{ stroke: "var(--color-border)" }}
+              axisLine={{ stroke: "var(--color-foreground)", strokeOpacity: 0.65 }}
+            />
+            <Tooltip
+              cursor={{ stroke: "var(--color-muted-foreground)", strokeDasharray: "3 3" }}
+              contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, color: "var(--color-popover-foreground)" }}
+              labelFormatter={(value) => `x = ${Number(value).toFixed(3)}`}
+              formatter={(value, name) => [typeof value === "number" ? Number(value).toFixed(4) : "Tidak terdefinisi", String(name)]}
+            />
+            {plotYMin <= 0 && plotYMax >= 0 && <ReferenceLine y={0} stroke="var(--color-foreground)" strokeOpacity={0.75} />}
+            {spec.domain.min <= 0 && spec.domain.max >= 0 && <ReferenceLine x={0} stroke="var(--color-foreground)" strokeOpacity={0.75} />}
+            {evaluated.map((series, index) => (
+              <Line
+                key={series.id}
+                type="linear"
+                dataKey={series.id}
+                name={series.label}
+                stroke={index % 2 === 0 ? "var(--color-primary)" : "var(--color-brand-secondary)"}
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 5 }}
+                connectNulls={false}
+                isAnimationActive={false}
+              />
+            ))}
+            {roots.map((root) => (
+              <ReferenceDot key={root.id} x={root.x} y={0} r={5} fill="var(--color-background)" stroke={root.color} strokeWidth={2} />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
       </div>
       <table className="w-full border-collapse text-body-sm">
         <caption className="sr-only">{spec.altText}</caption>
@@ -213,9 +228,6 @@ function FallbackTable({ spec }: { spec: CanvasSpec }) {
 }
 
 function DataPlot({ spec }: { spec: DataPlotCanvas }) {
-  const width = 720;
-  const height = 300;
-  const pad = { left: 48, right: 20, top: 20, bottom: 38 };
   const xValues = spec.points.map((point) => point.x);
   const yValues = spec.points.map((point) => point.y);
   const xMin = Math.min(...xValues);
@@ -224,19 +236,21 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
   const yMax = Math.max(...yValues);
   const xSpan = Math.max(1, xMax - xMin);
   const ySpan = Math.max(1, yMax - yMin);
-  const mapX = (value: number) => pad.left + ((value - xMin) / xSpan) * (width - pad.left - pad.right);
-  const mapY = (value: number) => pad.top + ((yMax - value) / ySpan) * (height - pad.top - pad.bottom);
+  const xDomain: [number, number] = [xMin - xSpan * 0.08, xMax + xSpan * 0.08];
+  const yDomain: [number, number] = [yMin - ySpan * 0.08, yMax + ySpan * 0.08];
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-lg border border-border bg-background">
-        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={spec.altText} className="h-auto min-w-[560px] w-full">
-          <title>{spec.altText}</title>
-          <rect x={pad.left} y={pad.top} width={width - pad.left - pad.right} height={height - pad.top - pad.bottom} fill="var(--color-muted)" fillOpacity="0.18" />
-          {spec.points.map((point, index) => (
-            <circle key={`${point.x}-${point.y}-${index}`} cx={mapX(point.x)} cy={mapY(point.y)} r="5" fill="var(--color-primary)" />
-          ))}
-        </svg>
+      <div className="h-[330px] w-full rounded-lg border border-border bg-background p-2" role="img" aria-label={spec.altText}>
+        <ResponsiveContainer width="100%" height="100%">
+          <ScatterChart margin={{ top: 16, right: 18, bottom: 24, left: 2 }}>
+            <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.55} strokeDasharray="4 4" />
+            <XAxis type="number" dataKey="x" domain={xDomain} name={spec.xLabel} unit={spec.xUnit ?? undefined} tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }} label={{ value: spec.xLabel, position: "insideBottom", offset: -12, fill: "var(--color-muted-foreground)" }} />
+            <YAxis type="number" dataKey="y" domain={yDomain} name={spec.yLabel} unit={spec.yUnit ?? undefined} width={54} tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }} label={{ value: spec.yLabel, angle: -90, position: "insideLeft", fill: "var(--color-muted-foreground)" }} />
+            <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8 }} />
+            <Scatter data={spec.points} fill="var(--color-primary)" line={{ stroke: "var(--color-primary)", strokeWidth: 2 }} />
+          </ScatterChart>
+        </ResponsiveContainer>
       </div>
       <table className="w-full border-collapse text-body-sm">
         <caption className="sr-only">{spec.altText}</caption>
@@ -261,6 +275,7 @@ function Derivation({ spec }: { spec: DerivationCanvas }) {
 }
 
 function Diagram({ spec }: { spec: DiagramCanvas }) {
+  const markerId = useId().replace(/:/g, "");
   const width = 720;
   const columns = spec.direction === "down" ? 1 : Math.min(4, Math.max(1, Math.ceil(Math.sqrt(spec.nodes.length))));
   const rows = Math.ceil(spec.nodes.length / columns);
@@ -278,11 +293,12 @@ function Diagram({ spec }: { spec: DiagramCanvas }) {
       <div className="overflow-x-auto rounded-lg border border-border bg-background">
         <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={spec.altText} className="h-auto min-w-[560px] w-full">
           <title>{spec.altText}</title>
+          <defs><marker id={`${markerId}-arrow`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-muted-foreground)" /></marker></defs>
           {spec.edges.map((edge, index) => {
             const source = positions.get(edge.source);
             const target = positions.get(edge.target);
             if (!source || !target) return null;
-            return <line key={`${edge.source}-${edge.target}-${index}`} x1={source.x} y1={source.y} x2={target.x} y2={target.y} stroke="var(--color-border)" strokeWidth="2" />;
+            return <g key={`${edge.source}-${edge.target}-${index}`}><line x1={source.x} y1={source.y} x2={target.x} y2={target.y} stroke="var(--color-muted-foreground)" strokeWidth="2" markerEnd={`url(#${markerId}-arrow)`} />{edge.label && <text x={(source.x + target.x) / 2} y={(source.y + target.y) / 2 - 6} textAnchor="middle" fill="var(--color-muted-foreground)" fontSize="11">{edge.label.slice(0, 28)}</text>}</g>;
           })}
           {spec.nodes.map((node) => {
             const position = positions.get(node.id);
@@ -334,7 +350,7 @@ function ChemistryReaction({ spec }: { spec: ChemistryCanvas }) {
 export function LearningCanvasRenderer({ spec }: { spec: CanvasSpec }) {
   const titleId = useId();
   return (
-    <section aria-labelledby={titleId} className="my-6 space-y-4 rounded-xl border border-border bg-card p-4 md:p-5">
+    <section aria-labelledby={titleId} className="my-6 w-full min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 md:p-5">
       <div>
         <h3 id={titleId} className="font-heading text-h5 text-foreground">{spec.title}</h3>
         <p className="mt-1 text-body-sm text-muted-foreground">{spec.purpose}</p>

@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
   canvasToLegacyVisualSpec,
   evaluateFunctionPlot,
+  functionPlotFromTutorText,
+  visualSpecToCanvasSpec,
   type FunctionPlotCanvas,
 } from "@/lib/zyra/canvas";
 
@@ -40,5 +42,31 @@ describe("Learning Canvas renderer contracts", () => {
     const legacy = canvasToLegacyVisualSpec(spec);
     expect(legacy?.type).toBe("graph");
     expect(legacy?.sourceClaimIds).toEqual(["claim-1"]);
+  });
+
+  test("recovers a requested graph from tutor text when structured canvas output is absent", () => {
+    const recovered = functionPlotFromTutorText({
+      learnerQuestion: "Tolong gambarkan grafik y = x^2 - 4",
+      answer: "Akar fungsi terlihat saat $y = x^2 - 4$ memotong sumbu x.",
+      claimRefs: ["claim-1"],
+    });
+    expect(recovered?.type).toBe("function_plot");
+    if (recovered?.type === "function_plot") {
+      expect(recovered.series[0]?.expression).toBe("x^2 - 4");
+      expect(evaluateFunctionPlot(recovered, {})[0]?.points.some((point) => point.y !== null)).toBe(true);
+    }
+  });
+
+  test("upgrades a legacy graph intent into a Learning Canvas spec", () => {
+    const upgraded = visualSpecToCanvasSpec({
+      type: "graph",
+      title: "Grafik kuadrat",
+      semanticLabels: ["f(x)"],
+      values: { function: "y = x^2 - 1", domainMin: -4, domainMax: 4 },
+      relationships: [],
+      sourceClaimIds: ["claim-1"],
+      altDescription: "Grafik fungsi kuadrat yang memotong sumbu x dua kali.",
+    });
+    expect(upgraded?.type).toBe("function_plot");
   });
 });

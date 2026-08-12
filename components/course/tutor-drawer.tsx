@@ -51,6 +51,8 @@ import { petStateForTutorEvent } from "@/lib/zyra/murid";
 import { useSwipe } from "@/hooks/use-swipe";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
+import type { ZyraMessageAttachment } from "@/lib/zyra/images";
+import { ZyraMessageAttachments } from "@/components/course/zyra-message-attachments";
 
 // Fetch extra actions from custom action file
 import { getFlashcardsForKOAction } from "@/app/actions/tutor-extra";
@@ -64,6 +66,7 @@ interface ChatMessage {
  content: string;
  sources?: Array<{ type: string; id: string; label: string; href: string }>;
  canvasSpec?: CanvasSpec | null;
+ attachments?: ZyraMessageAttachment[];
 }
 
 interface TutorContextType {
@@ -112,6 +115,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const [chatLoading, setChatLoading] = React.useState(false);
  const [sessionId, setSessionId] = React.useState<string | null>(null);
  const [attachmentIds, setAttachmentIds] = React.useState<string[]>([]);
+ const [readyAttachments, setReadyAttachments] = React.useState<ZyraMessageAttachment[]>([]);
  const [attachmentComposerKey, setAttachmentComposerKey] = React.useState(0);
  const [attachmentsReady, setAttachmentsReady] = React.useState(true);
  const petState = petStateForTutorEvent({
@@ -193,6 +197,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  setActiveAction("none");
  setIsOpen(true);
  setAttachmentIds([]);
+ setReadyAttachments([]);
  setAttachmentsReady(true);
  setAttachmentComposerKey((value) => value + 1);
 
@@ -456,6 +461,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const handleSend = async (suggestedQuestion?: string) => {
  const questionText = (suggestedQuestion ?? inputVal).trim();
  const requestedAttachmentIds = [...attachmentIds];
+ const requestedAttachments = [...readyAttachments];
  if (!questionText && requestedAttachmentIds.length === 0) return;
 
  const courseId = pathname?.startsWith("/courses/")
@@ -466,6 +472,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  id: `user-msg-${Date.now()}`,
  role: "student" as const,
  content: questionText || "Gambar terlampir",
+ attachments: requestedAttachments,
  };
 
  setInputVal("");
@@ -492,6 +499,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  let aiContent: string;
  if (res.budgetExhausted) {
  aiContent = "Zyra tidak dapat menjawab pertanyaan baru hari ini (batas harian tercapai). Silakan coba lagi besok, atau gunakan menu buku teks dan kartu hafalan untuk belajar mandiri.";
+ } else if (res.failureCode === "provider_unavailable") {
+ aiContent = "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang tidak tersedia. Permintaan ini bukan ditolak karena batas penggunaan. Coba kirim ulang beberapa saat lagi.";
  } else if (!res.answer) {
  aiContent = "Maaf, terjadi gangguan saat memproses jawaban. Silakan coba lagi dalam beberapa saat.";
  } else {
@@ -518,6 +527,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
  if (requestedAttachmentIds.length > 0) {
    setAttachmentIds([]);
+   setReadyAttachments([]);
    setAttachmentComposerKey((value) => value + 1);
  }
 
@@ -526,7 +536,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  // Persist the exchange to DB (fire-and-forget, never blocks UI)
  if (courseId) {
  saveTutorMessagesAction(courseId, [
- { role: studentMsg.role, content: studentMsg.content },
+ { role: studentMsg.role, content: studentMsg.content, attachmentIds: requestedAttachmentIds },
  { role: aiMsg!.role, content: aiMsg!.content, sources: aiMsg!.sources, canvasSpec: aiMsg!.canvasSpec },
  ], activeSid).catch(() => {});
  }
@@ -637,7 +647,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  )}
  </SheetHeader>
 
- {caps.muridExperience && activeMode === "chat" && <ZyraAllowanceSummary />}
+ {caps.muridExperience && activeMode === "chat" && <ZyraAllowanceSummary refreshKey={messages.length} />}
 
  {/* Body Content Desk */}
  <div className="flex-1 overflow-y-auto p-5 space-y-5 flex flex-col justify-start select-text">
@@ -683,13 +693,17 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  <div
  key={msg.id}
  className={cn(
- "w-fit max-w-[92%] rounded-2xl p-4 text-body-sm leading-relaxed text-left flex flex-col gap-2 xl:max-w-[56rem]",
+ "max-w-[92%] rounded-2xl p-4 text-body-sm leading-relaxed text-left flex flex-col gap-2 xl:max-w-[56rem]",
  isStudent
- ? "bg-primary text-white self-end rounded-tr-none"
- : "bg-muted text-foreground self-start rounded-tl-none border border-border/60"
+ ? "w-fit bg-primary text-white self-end rounded-tr-none"
+ : "w-full bg-muted text-foreground self-start rounded-tl-none border border-border/60"
  )}
  >
  <MarkdownRenderer content={msg.content} className={isStudent ? "text-primary-foreground" : ""} />
+
+ {isStudent && msg.attachments && msg.attachments.length > 0 && sessionId && courseIdFromPath && (
+   <ZyraMessageAttachments attachments={msg.attachments} courseId={courseIdFromPath} sessionId={sessionId} />
+ )}
 
  {caps.canvas && msg.canvasSpec && !isStudent && <LearningCanvasRenderer spec={msg.canvasSpec} />}
  
@@ -849,6 +863,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
      sessionId={sessionId}
      disabled={chatLoading}
      onAttachmentIdsChange={setAttachmentIds}
+     onAttachmentsChange={setReadyAttachments}
      onAttachmentsReadyChange={setAttachmentsReady}
    />
  )}

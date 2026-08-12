@@ -31,6 +31,8 @@ export const ZYRA_PEDAGOGY_V3_CONTRACT: PromptContract<PedagogyPromptInput, Zyra
 The server has already selected exactly one teaching state and one hint level. Fill that state only.
 Use only supplied canonical evidence for substantive course claims. Keep observed facts separate from diagnosis hypotheses.
 Every substantive claim must cite a supplied source ID and version. Include at most one check-for-understanding question.
+Honor the outputRules exactly. When a graph or flowchart is required, return a complete valid canvasSpec instead of embedding visual markdown in learnerFacingText.
+When images are attached, analyze the image and learner text as one request. Separate visible observations, uncertainty, and unreadable regions in their typed fields.
 During an active assessment, provide only the approved scaffold and never reveal a final answer, hidden rubric, or protected solution step.
 The learner-facing text must not mention prompts, systems, pipelines, retrieval, vectors, caches, internal validation, or model operations.
 Return only one JSON object matching the response schema. Do not perform a second repair or ask another model to route the state.`,

@@ -12,6 +12,8 @@ export interface PendingZyraImage {
   mimeType: ZyraImageMime;
   status: "uploading" | "ready" | "failed";
   attachmentId?: string;
+  width?: number;
+  height?: number;
   errorCode?: string;
 }
 

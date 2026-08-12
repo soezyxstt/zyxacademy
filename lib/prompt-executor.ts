@@ -8,7 +8,8 @@ import { composePolicies, POLICY_JSON_STRICT } from "./ai/policies";
 import { runSemanticValidators, SemanticViolation } from "./ai/validation";
 import { hashSanitizedInput, hashEvidence, recordGenerationTrace } from "./ai/provenance";
 import type { ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
-import type { ProviderRouteRequest } from "@/lib/ai-router";
+import { providerRouterV2Enabled, type ProviderRouteRequest } from "@/lib/ai-router";
+import { RequestLifecycleError } from "@/lib/ai/request-lifecycle";
 
 export interface SystemPrompt<TVars> {
   version: string;
@@ -23,6 +24,10 @@ export type ExecutionOutcome =
   | 'quota_exceeded'
   | 'provider_failure'
   | 'invalid_contract';
+
+export function promptExecutorOwnsAllowance(allowanceEnabled: boolean, providerRouterEnabled: boolean): boolean {
+  return allowanceEnabled && !providerRouterEnabled;
+}
 
 export interface PromptExecutionResult<TOutput> {
   success: boolean;
@@ -151,8 +156,9 @@ export class PromptExecutor {
 
     // 4. Reserve the authoritative application allowance when enabled.
     const allowanceEnabled = UsageBudgetService.isAllowanceEnabled();
+    const ownsAllowance = promptExecutorOwnsAllowance(allowanceEnabled, providerRouterV2Enabled());
     let allowanceLeaseId: string | undefined;
-    if (allowanceEnabled) {
+    if (ownsAllowance) {
       const reservation = await UsageBudgetService.reserve({
         userId,
         idempotencyKey: options?.idempotencyKey ?? `prompt:${randomUUID()}`,
@@ -195,7 +201,7 @@ export class PromptExecutor {
         };
       }
       allowanceLeaseId = reservation.lease.id;
-    } else {
+    } else if (!allowanceEnabled) {
       const canUse = await UsageBudgetService.canUseFeature(userId, options?.quotaLimit ?? 30);
       if (!canUse) {
       const quotaError = "DAILY_QUOTA_EXCEEDED: You have exhausted your daily limit of AI operations. Please try again tomorrow.";
@@ -300,6 +306,8 @@ export class PromptExecutor {
       if (allowanceLeaseId) {
         await UsageBudgetService.commit(allowanceLeaseId, { model: "unknown" });
       }
+      const lifecycleQuotaFailure = err instanceof RequestLifecycleError && err.code === "ALLOWANCE_REJECTED";
+      const lifecycleReason = lifecycleQuotaFailure ? err.reason ?? "UNKNOWN" : null;
       const providerError = `Gemini generation failed: ${err?.message || err}`;
       const traceId = await recordGenerationTrace({
         userId,
@@ -316,16 +324,18 @@ export class PromptExecutor {
         inputTokens: 0,
         outputTokens: 0,
         retryCount: 0,
-        terminalOutcome: "provider_failure",
-        violationCodes: ["PROVIDER_ERROR"],
+        terminalOutcome: lifecycleQuotaFailure ? "quota_exceeded" : "provider_failure",
+        violationCodes: [lifecycleQuotaFailure ? `ALLOWANCE_${lifecycleReason}` : "PROVIDER_ERROR"],
         latencyMs: Date.now() - t0,
       });
 
       return {
         success: false,
-        outcome: "provider_failure",
-        errors: [providerError],
-        violationCodes: ["PROVIDER_ERROR"],
+        outcome: lifecycleQuotaFailure ? "quota_exceeded" : "provider_failure",
+        errors: [lifecycleQuotaFailure
+          ? "DAILY_QUOTA_EXCEEDED: You have exhausted your current AI allowance."
+          : providerError],
+        violationCodes: [lifecycleQuotaFailure ? `ALLOWANCE_${lifecycleReason}` : "PROVIDER_ERROR"],
         retryCount: 0,
         traceId,
       };

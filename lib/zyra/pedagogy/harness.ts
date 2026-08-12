@@ -72,6 +72,7 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
     plan,
     params.learnerQuestion,
     params.evidence,
+    { hasImages: Boolean(params.imageParts?.length) },
   );
   const parsedInput = PedagogyPromptInputSchema.parse(promptInput);
   const allowedSources = sourceMap(parsedInput.evidence);

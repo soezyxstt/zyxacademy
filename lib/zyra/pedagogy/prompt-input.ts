@@ -42,6 +42,7 @@ export function buildPedagogyPromptInput(
   plan: TeachingPlan,
   learnerQuestion: string,
   evidence: readonly PedagogyEvidenceInput[],
+  options?: { hasImages?: boolean },
 ): PedagogyPromptInput {
   assertProfileFreePedagogyContext(context);
   const safeEvidence: PedagogySource[] = evidence
@@ -75,6 +76,20 @@ export function buildPedagogyPromptInput(
       "Never reveal a final answer, protected solution, or hidden rubric during an active assessment.",
       "Do not mention system, prompt, pipeline, retrieval, vector, cache, or internal validation details to the learner.",
       "Write learner-facing text in concise Indonesian without exclamation marks or long dash characters.",
+      "Use canvasSpec, not markdown visual blocks, for every visual that the application should render.",
+      ...(context.responseModifiers.includes("graph") ? [
+        "The learner explicitly requested a graph. canvasSpec is required and must use type function_plot with at least one valid series.",
+        "Function expressions in canvasSpec must use plain bounded syntax such as x^2, sin(x), sqrt(x), or (x^2-1)/(x-1). Do not include y =, f(x) =, LaTeX delimiters, or LaTeX commands.",
+        "Use only supplied evidence IDs in canvasSpec.claimRefs and include a useful table fallback.",
+      ] : []),
+      ...(context.responseModifiers.includes("flowchart") ? [
+        "The learner explicitly requested a flowchart. canvasSpec is required and must use type flowchart with valid node and edge identifiers.",
+      ] : []),
+      ...(options?.hasImages ? [
+        "Inspect every attached image together with the learner text before answering.",
+        "Record only directly visible facts in imageObservations. Put uncertain readings in uncertainties and illegible areas in unreadableRegions.",
+        "Never claim that a small, blurry, cropped, or occluded label is readable.",
+      ] : []),
     ],
   };
 

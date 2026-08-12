@@ -842,6 +842,8 @@ Plan 004 adds `ai_allowance_leases` as an additive application-side lease ledger
 
 The ledger is enabled only by `FEATURE_ZYRA_ALLOWANCE_V2`. Existing `ai_usage_events` and `ai_generation_traces` remain readable and are not backfilled. Committed leases write a derived compatibility event using the lease ID as the idempotency key; the staging reconciliation script repairs a missing derived event without changing the authoritative lease. The authenticated allowance route returns only the current session actor's summary and never enumerates users.
 
+Allowance ownership is exclusive. `PromptExecutor` owns the lease on the legacy provider path, while Request Lifecycle owns it when Provider Router V2 is active. The same request must never reserve at both layers. Multimodal routing remains a premium model classification, but murid and tutor premium ceilings match their published provider-turn ceilings so image support has no smaller hidden daily balance.
+
 ### Zyra privacy-safe semantic cache
 
 Plan 006 adds a profile-free cache above provider dispatch. The exact identity includes canonical course and Idea versions, evidence, policy, schema, language, route, assessment mode, visual capability, and embedding profile; learner identity, mastery, history, offsets, and API aliases are excluded. The application passes the same safe identity to AI Gateway, while a Durable Object single-flight gate ensures one provider reservation for simultaneous identical misses.
@@ -868,7 +870,7 @@ Personalization is composed after shared-cache retrieval. The Tier 1 scaffold is
 
 Plan 009 adds `lib/zyra/canvas` as the application-owned visual protocol. A canvas spec is a discriminated, versioned object with a bounded visual type, purpose, learner-safe alt text, canonical claim references, controls, and an accessible fallback table or explanation. Function expressions are parsed into an allowlisted AST supporting only numeric constants, declared variables, arithmetic, and bounded approved functions. No model-provided JavaScript, HTML, SVG markup, or unrestricted diagram language is executed.
 
-`LearningCanvasRenderer` keeps control values and editable expressions in local component state. Sampling, reset, invalid-expression handling, and table fallback use local computation and make no provider or network call. The compatibility adapter can map validated flowcharts, plots, and diagrams to the existing visual contract, while shared-cache bytes remain immutable and profile-free. `FEATURE_ZYRA_LEARNING_CANVAS_V1` is disabled by default.
+`LearningCanvasRenderer` keeps control values and editable expressions in local component state. Function and data plots render through responsive Recharts surfaces with labeled axes, tooltips, reference axes, zero crossings, and semantic theme tokens. Sampling, reset, invalid-expression handling, and table fallback use local computation and make no provider or network call. Bidirectional compatibility upgrades older typed visual intents into Canvas specs, and an explicit graph request can recover a bounded function plot from a valid equation in the learner question, answer, or canonical evidence. Shared-cache bytes remain immutable and profile-free. `FEATURE_ZYRA_LEARNING_CANVAS_V1` is disabled by default.
 
 Legacy graph blocks remain readable for historical and ungrounded responses, but their expressions are normalized and evaluated by the bounded Learning Canvas expression AST. The compatibility parser accepts plural and singular function fields plus inline or expanded domains. A failed expression renders an explicit learner-facing error instead of an empty plot.
 
@@ -882,7 +884,9 @@ Canonical hydration and retrieval now wrap course lookup, enrollment lookup, vec
 
 ### Zyra private multimodal path
 
-Plan 010 adds an authenticated attachment boundary. Browser files are checked by declared type and bounded source size, decoded with `sharp`, re-encoded without source metadata, and stored under an opaque date-scoped key. The database record binds owner, course, session, expiry, sanitizer version, dimensions, and sanitized hash. Private reads recheck the full scope immediately before dispatch. Image turns pass ordered text and inline image parts to a visual-capable registry route, bypass shared exact and semantic caches, and use one bounded attempt. Expiry blocks reads before storage lifecycle timing, while the sweeper converges storage and row state without exposing a public URL.
+Plan 010 adds an authenticated attachment boundary. Browser files are checked by declared type and bounded source size, decoded with `sharp`, rotated, resized to a maximum 2048 px dispatch edge without enlargement, re-encoded without source metadata, and stored under an opaque date-scoped key. The database record binds owner, course, session, expiry, sanitizer version, dimensions, and sanitized hash. Private reads recheck the full scope immediately before dispatch. Image turns pass ordered text and inline image parts to a visual-capable registry route, bypass shared exact and semantic caches, and use one bounded attempt. Expiry blocks reads before storage lifecycle timing, while the sweeper converges storage and row state without exposing a public URL.
+
+When the chat exchange is persisted, each attachment is linked to its authenticated student message through `zyra_message_attachments.message_id`. History hydration returns only bounded preview metadata, never bytes or object keys. The drawer builds a scoped private route URL for thumbnail and dialog preview reads. Provider errors and allowance rejection remain distinct terminal states in the tutor response.
 
 ### Zyra murid experience
 
