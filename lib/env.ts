@@ -173,6 +173,24 @@ export const env = createEnv({
   FEATURE_ZYRA_SEMANTIC_CACHE_V1: z.string().optional(),
    /** Deterministic pedagogical state machine and typed Zyra teaching response. "1" enables the harness. */
    FEATURE_ZYRA_PEDAGOGY_V3: z.string().optional(),
+   /** Evidence-based learner presentation adaptation. "1" enables the profile controls. */
+   FEATURE_ZYRA_PERSONALIZATION_V1: z.string().optional(),
+   /** Typed local Learning Canvas visuals and safe expression evaluation. "1" enables the canvas. */
+   FEATURE_ZYRA_LEARNING_CANVAS_V1: z.string().optional(),
+   /** Authenticated private learner image input for Zyra. "1" enables the multimodal path. */
+   FEATURE_ZYRA_IMAGE_INPUT_V1: z.string().optional(),
+   /** Integrated murid Zyra experience. "1" enables the additive UI surfaces. */
+   FEATURE_ZYRA_MURID_V3: z.string().optional(),
+   /** Selection-to-ask context handoff. "1" enables the additive selection action. */
+   FEATURE_ZYRA_SELECTION_ASK_V1: z.string().optional(),
+   /** Application-owned Zyra pet state indicator. "1" enables the additive pet. */
+   FEATURE_ZYRA_PET_V1: z.string().optional(),
+   /** Tutor proposal copilot. "1" enables read-only proposal workflows. */
+   FEATURE_ZYRA_TUTOR_COPILOT_V1: z.string().optional(),
+   /** Admin proposal copilot. "1" enables read-only proposal workflows. */
+   FEATURE_ZYRA_ADMIN_COPILOT_V1: z.string().optional(),
+   /** Privacy-safe Zyra operations surfaces. "1" enables the additive monitor. */
+   FEATURE_ZYRA_AI_OPS_V1: z.string().optional(),
    /** Dedicated staging-only user allowed to execute hidden pedagogy shadow comparisons. */
    STAGING_ZYRA_PEDAGOGY_USER_ID: z.string().optional(),
   /** Auto-grant editor access on every exported Google Spreadsheet and its Drive folder to all active admin emails. "1" enables. */
@@ -216,6 +234,11 @@ export const env = createEnv({
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   /** PostHog API Host URL (default: https://us.i.posthog.com) */
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional().default("https://us.i.posthog.com"),
+  NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_ZYRA_PET_V1: z.enum(["0", "1"]).optional(),
   },
  runtimeEnv: {
  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
@@ -226,6 +249,11 @@ export const env = createEnv({
  NEXT_PUBLIC_BRAND_TIKTOK: process.env.NEXT_PUBLIC_BRAND_TIKTOK,
  NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
  NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+ NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1,
+ NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1,
+ NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3: process.env.NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3,
+ NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1,
+ NEXT_PUBLIC_FEATURE_ZYRA_PET_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_PET_V1,
  DATABASE_URL: process.env.DATABASE_URL,
  TURSO_CONNECTION_URL: process.env.TURSO_CONNECTION_URL,
  TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN,
@@ -309,8 +337,17 @@ export const env = createEnv({
   FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
    FEATURE_ZYRA_ALLOWANCE_V2: process.env.FEATURE_ZYRA_ALLOWANCE_V2,
    FEATURE_ZYRA_PROVIDER_ROUTER_V2: process.env.FEATURE_ZYRA_PROVIDER_ROUTER_V2,
-  FEATURE_ZYRA_SEMANTIC_CACHE_V1: process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
+   FEATURE_ZYRA_SEMANTIC_CACHE_V1: process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
    FEATURE_ZYRA_PEDAGOGY_V3: process.env.FEATURE_ZYRA_PEDAGOGY_V3,
+   FEATURE_ZYRA_PERSONALIZATION_V1: process.env.FEATURE_ZYRA_PERSONALIZATION_V1,
+   FEATURE_ZYRA_LEARNING_CANVAS_V1: process.env.FEATURE_ZYRA_LEARNING_CANVAS_V1,
+   FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.FEATURE_ZYRA_IMAGE_INPUT_V1,
+   FEATURE_ZYRA_MURID_V3: process.env.FEATURE_ZYRA_MURID_V3,
+   FEATURE_ZYRA_SELECTION_ASK_V1: process.env.FEATURE_ZYRA_SELECTION_ASK_V1,
+   FEATURE_ZYRA_PET_V1: process.env.FEATURE_ZYRA_PET_V1,
+   FEATURE_ZYRA_TUTOR_COPILOT_V1: process.env.FEATURE_ZYRA_TUTOR_COPILOT_V1,
+   FEATURE_ZYRA_ADMIN_COPILOT_V1: process.env.FEATURE_ZYRA_ADMIN_COPILOT_V1,
+   FEATURE_ZYRA_AI_OPS_V1: process.env.FEATURE_ZYRA_AI_OPS_V1,
    STAGING_ZYRA_PEDAGOGY_USER_ID: process.env.STAGING_ZYRA_PEDAGOGY_USER_ID,
   FEATURE_DRIVE_EDITOR_SYNC: process.env.FEATURE_DRIVE_EDITOR_SYNC,
   FEATURE_MEDIA_LIBRARY: process.env.FEATURE_MEDIA_LIBRARY,

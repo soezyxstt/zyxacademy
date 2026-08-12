@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { formatIsoDateUtc } from "@/lib/date-utils";
 
 const LEAF_HASH_BYTES = 4;
 
@@ -10,6 +11,11 @@ export function isSafeKey(key: string): boolean {
 
 export function assertSafeKey(key: string): void {
   if (!isSafeKey(key)) throw new Error(INVALID_OBJECT_KEY);
+}
+
+export function assertSafeObjectKey(key: string): string {
+  assertSafeKey(key);
+  return key;
 }
 
 export function slugifySegment(input?: string | null, fallback = "untitled"): string {
@@ -51,6 +57,15 @@ export function joinKey(...segments: string[]): string {
   const key = segments.filter(Boolean).join("/");
   assertSafeKey(key);
   return key;
+}
+
+export function buildZyraAttachmentKey(input: {
+  attachmentId: string;
+  extension: "jpg" | "png" | "webp";
+  createdAt?: Date;
+}): string {
+  const day = formatIsoDateUtc(input.createdAt ?? new Date());
+  return assertSafeObjectKey(`zyx-attachments/${day}/${input.attachmentId}.${input.extension}`);
 }
 
 export function leafFilename(key: string): string {

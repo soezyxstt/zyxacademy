@@ -11,6 +11,7 @@
 - **Risk**: HIGH
 - **Depends on**: Plans 004 and 007, Idea-centered Overhaul Plan 011
 - **Category**: product, privacy, migration
+- **Status**: IN PROGRESS, local implementation and contract gates pass; staging reconciliation is pending
 - **Planned at**: commit `03b68ba0`, 2026-08-02
 
 ## Why this matters

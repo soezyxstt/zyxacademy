@@ -11,7 +11,10 @@
 - **Risk**: MED
 - **Depends on**: Plans 004, 007, 008, 009, 010 and Idea-centered Overhaul Plan 015
 - **Category**: product, frontend, accessibility
+- **Status**: IN PROGRESS, local journeys and zero-provider smoke pass; staging tester review remains pending
 - **Planned at**: commit `03b68ba0`, 2026-08-02
+
+Local evidence: `artifacts/staging-overhaul/20260812-plan011-audit/plan-011-murid.json`. The feature flags remain off. The allowance summary, bounded selection-to-ask, attachment path, Canvas local interaction, and pet states are wired to real application state in the local implementation.
 
 ## Why this matters
 

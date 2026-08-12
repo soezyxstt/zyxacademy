@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
 import { getLayoutedGraph, LayoutDiagnostics } from "@/lib/visual-layout-service";
+import { compileSafeExpression } from "@/lib/zyra/canvas";
 import * as math from "mathjs";
 import ReactFlow, { Edge, Node } from "reactflow";
 import "reactflow/dist/style.css";
@@ -376,6 +377,13 @@ function AlertCallout({
 
 function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) {
   const [formula, setFormula] = useState(initialFormula || "x^2 - 2");
+  const compiledFormula = React.useMemo(() => {
+    try {
+      return compileSafeExpression(formula, { variables: ["x"] });
+    } catch {
+      return null;
+    }
+  }, [formula]);
   
   const padL = 46;
   const padR = 18;
@@ -394,31 +402,6 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
   const mapX = (x: number) => padL + ((x - xMin) / (xMax - xMin)) * plotW;
   const mapY = (y: number) => padT + ((yMax - y) / (yMax - yMin)) * plotH;
 
-  const evalFormula = (xVal: number) => {
-    let expr = formula
-      .toLowerCase()
-      .replace(/\^/g, "**")
-      .replace(/sin/g, "Math.sin")
-      .replace(/cos/g, "Math.cos")
-      .replace(/tan/g, "Math.tan")
-      .replace(/sqrt/g, "Math.sqrt")
-      .replace(/exp/g, "Math.exp")
-      .replace(/log/g, "Math.log")
-      .replace(/pi/g, "Math.PI")
-      .replace(/e/g, "Math.E");
-
-    // Allow only safe characters
-    const sanitized = expr.replace(/[^0-9x+\-*/().\sMath.sincostanqrexplgPIE]/g, "");
-
-    try {
-      const fn = new Function("x", `return ${sanitized};`);
-      const val = fn(xVal);
-      return isNaN(val) ? 0 : val;
-    } catch {
-      return NaN;
-    }
-  };
-
   const graphPath = React.useMemo(() => {
     const steps = 200;
     let path = "";
@@ -426,7 +409,12 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
 
     for (let i = 0; i <= steps; i++) {
       const xVal = xMin + (i / steps) * (xMax - xMin);
-      const yVal = evalFormula(xVal);
+      let yVal = Number.NaN;
+      try {
+        yVal = compiledFormula?.evaluate({ x: xVal }) ?? Number.NaN;
+      } catch {
+        yVal = Number.NaN;
+      }
 
       if (isNaN(yVal)) continue;
 
@@ -442,7 +430,7 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
     }
     return path;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formula]);
+  }, [compiledFormula]);
 
   const xTicks = React.useMemo(() => {
     const ticks = [];

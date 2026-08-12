@@ -12,6 +12,9 @@ import { buildPedagogyPromptInput, type PedagogyEvidenceInput } from "./prompt-i
 import { selectTeachingPlan, type TeachingPlan } from "./state-machine";
 import { createTeachingResponseValidator, validateTeachingResponse } from "./validators";
 import { ZYRA_PEDAGOGY_V3_CONTRACT } from "@/prompts/zyra/pedagogy-v3";
+import type { ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
+import { isZyraCanvasFeatureEnabled } from "@/lib/zyra/canvas";
 
 export interface RunPedagogicalTurnParams {
   userId: string;
@@ -23,6 +26,7 @@ export interface RunPedagogicalTurnParams {
   cacheKey?: string;
   cacheTtlSeconds?: number;
   idempotencyKey?: string;
+  imageParts?: readonly ProviderInputPart[];
 }
 
 export interface PedagogicalTurnResult {
@@ -36,6 +40,11 @@ export interface PedagogicalTurnResult {
 
 function sourceMap(sources: readonly PedagogySource[]): ReadonlyMap<string, number> {
   return new Map(sources.map((source) => [source.id, source.version]));
+}
+
+function applyFeatureGates(response: ZyraTeachingResponse): ZyraTeachingResponse {
+  if (isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1)) return response;
+  return response.canvasSpec ? { ...response, canvasSpec: null } : response;
 }
 
 function safeFallback(
@@ -93,17 +102,21 @@ export async function runPedagogicalTurn(params: RunPedagogicalTurnParams): Prom
       evidenceIds: parsedInput.evidence.map((source) => source.id),
       evidenceVersions: parsedInput.evidence.map((source) => source.version),
     },
-    cachePolicy: params.context.activeAssessment ? "active_assessment" : "public_scaffold",
-    cacheKey: params.cacheKey,
-    cacheTtlSeconds: params.cacheTtlSeconds,
+    cachePolicy: params.imageParts?.length
+      ? "bypass"
+      : params.context.activeAssessment ? "active_assessment" : "public_scaffold",
+    cacheKey: params.imageParts?.length ? undefined : params.cacheKey,
+    cacheTtlSeconds: params.imageParts?.length ? undefined : params.cacheTtlSeconds,
     idempotencyKey: params.idempotencyKey,
+    providerParts: params.imageParts,
+    maxAttempts: params.imageParts?.length ? 1 : undefined,
   });
 
   if (result.success && result.data) {
     const validated = validateTeachingResponse(result.data, params.context, plan, allowedSources, params.protectedAnswers);
     if (validated.valid && validated.response) {
       return {
-        response: validated.response,
+        response: applyFeatureGates(validated.response),
         plan,
         providerCalls: 1,
         usedFallback: false,

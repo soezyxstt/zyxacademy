@@ -55,6 +55,7 @@ import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
+import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -677,7 +678,8 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
     return done ? 100 : 0;
   }, [material.kind, articleProgress, done]);
 
-  const { openExplain } = useTutor();
+  const { openExplain, openChatWithQuestion } = useTutor();
+  const selectionAskEnabled = isZyraSelectionAskEnabled();
   const [selectedText, setSelectedText] = useState("");
   const [selectionCoords, setSelectionCoords] = useState<{ top: number; left: number } | null>(null);
   const popoverActiveRef = useRef(false);
@@ -698,6 +700,13 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
 
   const runTutorExplain = (query: string) => {
     dismissPopover();
+    if (selectionAskEnabled) {
+      const selection = normalizeZyraSelection(query);
+      if (selection.length >= 3) {
+        openChatWithQuestion(`Kutipan dari materi ${material.title}: "${selection}"\n\nJelaskan bagian ini secara bertahap.`);
+        return;
+      }
+    }
     toast.promise(
       (async () => {
         const { findKoForMaterialSectionAction } = await import("@/app/actions/tutor");

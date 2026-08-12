@@ -854,8 +854,42 @@ Plan 007 makes teaching behavior application-owned. A deterministic planner sele
 
 Active assessment policy is enforced before prompt composition and again during response validation. Invalid shape, citation, visual claim, unsupported diagnosis, pipeline-language, or answer-safety output becomes a typed rejection followed by deterministic safe composition. The prompt contract uses one total model attempt and disables the existing personalized second call while `FEATURE_ZYRA_PEDAGOGY_V3` is enabled. Shared cache payloads remain profile-free and canonical retrieval remains the source of truth.
 
+### Zyra evidence-based personalization
+
+Plan 008 adds additive `zyra_learning_events`, `zyra_learner_profiles`, and `zyra_learner_preferences` tables. Events use a strict allowlist of bounded event kinds, outcomes, latency buckets, hint levels, representations, weights, and optional opaque evidence references. Raw chat, assessment answers, and sensitive traits are not ingested into the profile. Events expire, queries are scoped by murid and course, and a learner reset moves the profile watermark forward without deleting historical evidence.
+
+The aggregator is deterministic. It requires at least three recent events for inference, keeps uncertain fields as `unknown`, records evidence count, confidence, expiry, and reason codes, and stores inferred fields separately from explicit presentation preferences. Explicit preferences can select pace, representation, explanation length, or checkpoint type, but cannot change canonical content, grades, mastery, or assessment policy. The feature flag is `FEATURE_ZYRA_PERSONALIZATION_V1`, disabled unless explicitly enabled.
+
+Personalization is composed after shared-cache retrieval. The Tier 1 scaffold is asserted profile-free before caching, while the adaptation decision remains in the current learner response only. A failure to load or aggregate the profile falls back to the grounded base answer, so personalization cannot make the tutor less safe or less evidence-grounded.
+
+### Zyra typed Learning Canvas
+
+Plan 009 adds `lib/zyra/canvas` as the application-owned visual protocol. A canvas spec is a discriminated, versioned object with a bounded visual type, purpose, learner-safe alt text, canonical claim references, controls, and an accessible fallback table or explanation. Function expressions are parsed into an allowlisted AST supporting only numeric constants, declared variables, arithmetic, and bounded approved functions. No model-provided JavaScript, HTML, SVG markup, or unrestricted diagram language is executed.
+
+`LearningCanvasRenderer` keeps control values and editable expressions in local component state. Sampling, reset, invalid-expression handling, and table fallback use local computation and make no provider or network call. The compatibility adapter can map validated flowcharts, plots, and diagrams to the existing visual contract, while shared-cache bytes remain immutable and profile-free. `FEATURE_ZYRA_LEARNING_CANVAS_V1` is disabled by default.
+
 Staging shadow mode is an explicit internal execution mode, not a public feature flag. It requires `ZYX_ENVIRONMENT=staging` and an exact match with `STAGING_ZYRA_PEDAGOGY_USER_ID`. The legacy and candidate generations run beside one another with one attempt each; only the legacy answer is returned. Learner summary and learning-event writes are suppressed, while comparison metadata stores only hashes, stable outcomes, state, hint level, violation codes, counts, and an opaque trace ID. Synthetic review output is available only to the local staging runner and is not added to the application response.
 
 The runner renders a self-contained local HTML review page. Candidate and baseline output are escaped before insertion, no external resources are loaded, and the browser hashes the human reviewer identity before producing a submission. The strict validator requires the submitted case set to exactly match the generated draft and writes a final aggregate-only artifact. Raw answers and raw reviewer identity are excluded from the final release-gate result.
 
 Canonical hydration and retrieval now wrap course lookup, enrollment lookup, vector query, and database hydration in one fail-closed boundary. Database and provider details are never logged. A failure returns the stable `CANONICAL_RUNTIME_UNAVAILABLE` reason and an empty evidence result, preventing a raw `DrizzleQueryError` from becoming a non-JSON application failure.
+
+### Zyra private multimodal path
+
+Plan 010 adds an authenticated attachment boundary. Browser files are checked by declared type and bounded source size, decoded with `sharp`, re-encoded without source metadata, and stored under an opaque date-scoped key. The database record binds owner, course, session, expiry, sanitizer version, dimensions, and sanitized hash. Private reads recheck the full scope immediately before dispatch. Image turns pass ordered text and inline image parts to a visual-capable registry route, bypass shared exact and semantic caches, and use one bounded attempt. Expiry blocks reads before storage lifecycle timing, while the sweeper converges storage and row state without exposing a public URL.
+
+### Zyra murid experience
+
+Plan 011 composes the existing tutor drawer with an authenticated allowance summary, bounded selection-to-ask context, the Plan 010 attachment composer, local Learning Canvas controls, and an application-owned SVG pet. The pet state is derived from upload, request, response, quota, and error state. Public flags are independent, so text tutoring remains available when image input, pet, or selection actions are disabled.
+
+### Proposal-first copilots
+
+Plan 012 separates deterministic facts, labeled interpretation, and typed operations. Tutor and admin surfaces can create and review scoped proposals, but no model output is executed as SQL, a command, a URL, or arbitrary JSON. A proposal records evidence references, preconditions, learner impact, reversibility, expiry, diff hash, validator result, and lifecycle events. The current apply boundary fails closed until the approved mutation service is integrated.
+
+### Zyra operational truth
+
+Plan 013 stores fixed-column operational events and derives admin metrics from the allowance ledger, attachment records, generation traces, and versioned model limits. It uses the Asia/Jakarta calendar boundary, exposes deduplicated alert codes with rollback flags and versioned runbook references, and distinguishes configured limits, Zyx-recorded usage, active reservations, cache activity, and external provider usage that is unknown. Murid and tutor views remain actor-scoped. Raw prompts, responses, image data, object keys, and raw identity do not enter the telemetry table.
+
+### Release verification boundary
+
+Plan 014 is a masked verifier that inventories predecessor artifacts, feature flags, staging fingerprints, worktree state, and the approved request cap. Synthetic-only execution writes a blocked result when any release gate is absent. It does not deploy, migrate, enable flags, call a provider, or authorize production.

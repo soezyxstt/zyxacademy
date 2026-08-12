@@ -15,7 +15,7 @@
  * - For UTC date strings in DB columns (streaks, recommendations), use `todayUtc()`.
  */
 
-import { format, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
+import { addDays, format, subDays, subWeeks, startOfDay as fnsStartOfDay, startOfWeek as fnsStartOfWeek } from "date-fns";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * SQLite integer → Date adapter
@@ -153,6 +153,11 @@ export function startOfDayUtc(date: Date = new Date()): Date {
 /** Returns a Date that is `n` days before the given date (or today). */
 export function daysAgo(n: number, from: Date = new Date()): Date {
   return subDays(from, n);
+}
+
+/** Returns a Date that is `n` days after the given date (or today). */
+export function daysFrom(n: number, from: Date = new Date()): Date {
+  return addDays(from, n);
 }
 
 /** Returns a Date that is `n` weeks before the given date (or today). */

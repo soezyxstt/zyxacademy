@@ -11,6 +11,7 @@
 - **Risk**: MED
 - **Depends on**: Plan 007
 - **Category**: product, frontend
+- **Status**: IN PROGRESS, local contracts and synthetic smoke pass; staging review is pending
 - **Planned at**: commit `03b68ba0`, 2026-08-02
 
 ## Why this matters
@@ -116,7 +117,7 @@ Create at least five fixtures each for mathematics, physics, and chemistry plus 
 
 ```powershell
 bun run lint
-bun test tests/contracts/learning-canvas-schema.test.ts tests/contracts/learning-canvas-expression.test.ts tests/contracts/learning-canvas-renderer.test.tsx tests/contracts/learning-canvas-accessibility.test.tsx
+bun test tests/contracts/learning-canvas-schema.test.ts tests/contracts/learning-canvas-expression.test.ts tests/contracts/learning-canvas-renderer.test.ts tests/contracts/learning-canvas-accessibility.test.tsx
 bun scripts/eval-zyra-canvas.ts
 bun run typecheck
 bun --env-file=.env.staging scripts/staging/smoke-zyra-canvas.ts --run-id <runId> --course tutorial-pka

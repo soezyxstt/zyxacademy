@@ -11,7 +11,10 @@
 - **Risk**: MED
 - **Depends on**: Plans 003, 004, 005, 006, 010 and Idea-centered Overhaul Plan 014
 - **Category**: operations, reliability, security
+- **Status**: IN PROGRESS, privacy-safe contracts, aggregation, alerts, evaluation, and zero-provider smoke pass; live telemetry parity and admin review remain pending
 - **Planned at**: commit `03b68ba0`, 2026-08-02
+
+Local evidence: `artifacts/staging-overhaul/20260812-plan013-audit/plan-013-operations.json`. External provider usage is displayed as unknown unless an authoritative source exists. The operations flag remains off.
 
 ## Why this matters
 

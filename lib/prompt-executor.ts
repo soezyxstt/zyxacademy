@@ -7,6 +7,8 @@ import { PromptContract } from "./ai/contracts";
 import { composePolicies, POLICY_JSON_STRICT } from "./ai/policies";
 import { runSemanticValidators, SemanticViolation } from "./ai/validation";
 import { hashSanitizedInput, hashEvidence, recordGenerationTrace } from "./ai/provenance";
+import type { ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
+import type { ProviderRouteRequest } from "@/lib/ai-router";
 
 export interface SystemPrompt<TVars> {
   version: string;
@@ -47,6 +49,9 @@ export interface RunParams<TVars, TOutput> {
   cacheKey?: string;
   cacheTtlSeconds?: number;
   maxAttempts?: number;
+  /** Optional sanitized image parts. They bypass all shared response caches. */
+  providerParts?: readonly ProviderInputPart[];
+  providerRoute?: ProviderRouteRequest;
 }
 
 export class PromptExecutor {
@@ -97,6 +102,8 @@ export class PromptExecutor {
       cachePolicy: params.cachePolicy,
       cacheKey: params.cacheKey,
       cacheTtlSeconds: params.cacheTtlSeconds,
+      providerParts: params.providerParts,
+      providerRoute: params.providerRoute,
     });
   }
 
@@ -117,6 +124,8 @@ export class PromptExecutor {
       cachePolicy?: "public_scaffold" | "personalized" | "active_assessment" | "bypass";
       cacheKey?: string;
       cacheTtlSeconds?: number;
+      providerParts?: readonly ProviderInputPart[];
+      providerRoute?: ProviderRouteRequest;
     }
   ): Promise<PromptExecutionResult<TOutput>> {
     const t0 = Date.now();
@@ -262,16 +271,25 @@ export class PromptExecutor {
           };
         }
       }
+      const providerContents = options?.providerParts && options.providerParts.length > 0
+        ? [
+            { text: userInstruction },
+            ...options.providerParts.map((part) => part.type === "image"
+              ? { inlineData: { mimeType: part.mimeType, data: part.data } }
+              : { text: part.text }),
+          ]
+        : userInstruction;
       const result = await generateContentWithFallback({
-        contents: userInstruction,
+        contents: providerContents,
         config: modelConfig,
         useCase: contract.useCase,
         userId,
         requestId: options?.idempotencyKey,
         feature: contract.stageId,
-        cachePolicy: options?.cachePolicy,
-        cacheKey: options?.cacheKey,
-        cacheTtlSeconds: options?.cacheTtlSeconds,
+        route: options?.providerRoute ?? (options?.providerParts?.length ? { multimodal: true, visualMode: true } : undefined),
+        cachePolicy: options?.providerParts?.length ? "bypass" : options?.cachePolicy,
+        cacheKey: options?.providerParts?.length ? undefined : options?.cacheKey,
+        cacheTtlSeconds: options?.providerParts?.length ? undefined : options?.cacheTtlSeconds,
       });
 
       modelUsedName = result.modelUsed;

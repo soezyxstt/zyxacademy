@@ -152,6 +152,14 @@ Keep `FEATURE_AUTHORING_CONTEXT_V1` absent or `0` until the local contract suite
 
 The artifact must use the private R2 staging bucket and must not use a public URL. The authenticated Wrangler adapter is limited to the staging test process when normal R2 credentials are unavailable; production runtime keeps the standard R2 provider. Rollback disables the flag and deletes only an explicitly named test object by exact key.
 
+## Zyra Plans 008 through 014 staging boundary
+
+Plans 008 through 013 are additive local implementations in this checkpoint. Local SQLite has migration `0067_zyra_continuation.sql`; it was not applied to production or to remote staging by this continuation. Their feature flags remain absent or `0`.
+
+Plan 010 requires the dedicated private attachment bucket and the normal R2 or staging Wrangler private adapter. Do not set `STORAGE_PROVIDER_MODE=uploadthing` for the multimodal path. Image source bytes are never sent directly from the browser to a provider and no public object URL is issued.
+
+Plan 014 must be run with the staging environment file and an approved cap. The synthetic verifier is safe to run while local work is dirty, but it must report `BLOCKED`. A live provider matrix requires explicit operator approval after Plan 007 remote shadow and maintainer review, predecessor artifacts, backup and identity checks, and final diff review all pass. No Plan 008 through 014 command authorizes production deployment.
+
 ## Zyra control-plane staging foundation
 
 Plan 001 is staging-only. Run the guarded preflight before the first remote step:
@@ -218,7 +226,7 @@ Plan 007 keeps `FEATURE_ZYRA_PEDAGOGY_V3` disabled by default. When enabled for 
 
 Plan 007 remote shadow is staging-only and opt-in. Configure the non-secret `STAGING_ZYRA_PEDAGOGY_USER_ID` only in the ignored `.env.staging` file, then invoke the smoke script with `--remote-shadow`. The runner verifies staging resource fingerprints, exact active murid identity, current legacy and canonical enrollment, and published canonical question evidence before any model call. A 40-request cap permits at most five cases under the current seven-call upper bound per case. The runner never changes the public feature flag, never saves duplicate chat messages, and never writes learner summary or learning-event state.
 
-Before a remote retry, use `--startup-diagnostics-only`. This mode performs Turso SELECT checks and local module imports only; provider calls, Vectorize queries, control-plane leases, trace writes, and learner writes remain zero. Canonical and tutor imports use the scoped Zyra runtime env contract and do not require unrelated UploadThing or Resend credentials. The current diagnostic passes all 11 stages, including identity, active session, Tutorial PKA enrollment, canonical evidence, runtime env validation, and both runtime imports. Evidence: `artifacts/staging-overhaul/20260808-plan007-startup-diagnostics-v3/plan-007-pedagogy-startup-diagnostics.json`.
+Before a remote retry, use `--startup-diagnostics-only`. This mode performs Turso SELECT checks and local module imports only; provider calls, Vectorize queries, control-plane leases, trace writes, and learner writes remain zero. Canonical and tutor imports use the scoped Zyra runtime env contract and do not require unrelated UploadThing or Resend credentials. The latest diagnostic reached the database but stopped at `session_context` with `PEDAGOGY_STARTUP_ACTIVE_SESSION_MISSING`; it made zero provider calls and writes. The older all-stage artifact remains historical evidence: `artifacts/staging-overhaul/20260808-plan007-startup-diagnostics-v3/plan-007-pedagogy-startup-diagnostics.json`.
 
 After a passing shadow, open `plan-007-pedagogy-human-review.html` from the run artifact directory. The maintainer scores all five dimensions and downloads a JSON submission. Run `bun scripts/staging/validate-zyra-pedagogy-review.ts --run-id <runId> --submission-file <path>` to create `plan-007-result.json`. The release gate passes only when remote shadow evidence and the strict human rubric both pass.
 
@@ -229,6 +237,37 @@ bun --env-file=.env.staging scripts/staging/smoke-zyra-pedagogy.ts --run-id <run
 ```
 
 The fixture shadow validates 40 of 40 cases with zero provider calls. Remote shadow remains pending a dedicated staging identity and maintainer review; no production flag or resource is changed. Evidence: `artifacts/zyra-ai/20260807-plan007-pedagogy-eval/plan-007-pedagogy-eval.json` and `artifacts/staging-overhaul/20260807-plan007-pedagogy-shadow-v1/plan-007-pedagogy-shadow.json`.
+
+## Zyra evidence-based personalization
+
+Plan 008 uses additive migration `0067_zyra_continuation.sql` for bounded learning evidence, inferred profiles, explicit preferences, and the Plan 010 through 013 records. Keep `FEATURE_ZYRA_PERSONALIZATION_V1` absent or `0` until the Plan 008 staging gate is approved. The local synthetic smoke is privacy-safe and makes zero provider calls and zero database writes:
+
+```bash
+bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course tutorial-pka
+```
+
+The smoke does not deploy a Worker, enable a public flag, or mutate staging. A future remote gate must reconcile the additive migration, profile-free shared payloads, course ownership, expiry, reset, explicit preference override, and zero cross-course leakage. Plan 007 remote shadow and maintainer review remain separately pending at this checkpoint.
+
+## Zyra typed Learning Canvas
+
+Plan 009 is currently local-ready. Keep `FEATURE_ZYRA_LEARNING_CANVAS_V1` absent or `0` until the visual staging gate is approved. The local evaluation and synthetic staging smoke are:
+
+```bash
+bun run eval:zyra-canvas
+bun --env-file=.env.staging run staging:smoke-zyra-canvas -- --run-id <runId> --course tutorial-pka
+```
+
+The smoke validates one bounded synthetic spec, records masked resource fingerprints, and makes zero provider calls, database writes, trace writes, learner side effects, and control-triggered network requests. A future remote gate must review fixture coverage, claim validation, accessibility, local state isolation, and active-assessment safety. No production flag or deployment is changed here.
+
+## Zyra private images and operations
+
+Plan 010 keeps `FEATURE_ZYRA_IMAGE_INPUT_V1` absent or `0` until its staging gate is approved. Private attachment reads and deletes require the exact course and chat-session scope in addition to authenticated owner or admin authorization. The attachment composer supplies both scope values when deleting an unsent upload. The expiry sweeper is controlled and staging-only:
+
+```bash
+bun --env-file=.env.staging run staging:sweep-zyra-attachments -- --run-id <runId> --limit 100
+```
+
+Plan 013 keeps `FEATURE_ZYRA_AI_OPS_V1` absent or `0` until live telemetry parity and admin review pass. Its metrics use the Asia/Jakarta day boundary and return only bounded alert codes, rollback flags, and references to `docs/operations/zyra-ops-runbooks.md`. No production resource or provider balance is inferred by these checks.
 
 ```bash
 bun --env-file=.env.staging scripts/staging/manifest-ai-usage.ts --phase before --run-id <runId>

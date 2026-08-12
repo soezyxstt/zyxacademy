@@ -52,6 +52,8 @@ bun run dev                  # http://localhost:3000
 | `bun --env-file=.env.staging run vectorize:golden -- --run-id <runId> --course <courseId>` | Run canonical retrieval and restricted-solution capability checks |
 | `bun --env-file=.env.staging run staging:smoke-zyra -- --run-id <runId> --course <courseId> --suite canonical` | Run the approved-content Zyra smoke suite |
 | `bun --env-file=.env.staging run staging:scan-zyra-privacy -- --run-id <runId>` | Reconcile Zyra cache and active-attempt privacy artifacts |
+| `bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course <courseId>` | Run the zero-provider Plan 008 personalization contract smoke |
+| `bun --env-file=.env.staging run staging:smoke-zyra-canvas -- --run-id <runId> --course <courseId>` | Run the zero-provider Plan 009 Learning Canvas smoke |
 | `bun --env-file=.env.staging run staging:e2e-admin-tutor -- --run-id <runId> --course <courseId>` | Exercise the guarded admin and tutor workflow fixture |
 | `bun --env-file=.env.staging run staging:e2e-murid -- --run-id <runId> --course <courseId> --account dedicated` | Exercise the dedicated murid read-model smoke |
 | `bun --env-file=.env.staging run staging:full-rehearsal -- --run-id <runId> --plan-012-run-id <runId> --plan-013-run-id <runId> --plan-014-run-id <runId> --plan-015-run-id <runId> --with-rollback` | Rehearse canonical enable, full rollback, and re-enable after all predecessor result artifacts pass |
@@ -148,7 +150,79 @@ bun --env-file=.env.staging scripts/staging/smoke-zyra-pedagogy.ts --run-id <run
 bun scripts/staging/validate-zyra-pedagogy-review.ts --run-id <runId> --submission-file <downloaded-review.json>
 ```
 
-The harness feature flag is `FEATURE_ZYRA_PEDAGOGY_V3`; it is absent or `0` by default. Zyra and transitive tutor runtime flags are read through `lib/zyra/runtime-env.ts`, which validates only the runtime values used by the harness and does not require unrelated UploadThing or Resend credentials. Fixture mode and `--startup-diagnostics-only` make no provider calls. Startup diagnostics verify the staging guard, Plan 007 config, Turso connectivity, identity, active session presence, course mapping, current enrollment, canonical evidence, scoped runtime env contract, and canonical/tutor module imports in order. The artifact records only masked stage results and counts. Remote mode requires `STAGING_ZYRA_PEDAGOGY_USER_ID` in `.env.staging`, verifies that the exact identity is an active murid with current legacy and canonical enrollment, and requires the explicit `--remote-shadow` switch. It keeps the legacy answer visible, suppresses learner summary and event writes, stores privacy-safe comparison traces, and creates `plan-007-pedagogy-human-review.html` plus a JSON draft from synthetic inputs. The maintainer opens the HTML file locally, scores every dimension from 1 to 5, downloads the submission JSON, then runs the validator command above. The result artifact stores only score aggregates, reason codes, and a reviewer identity hash; it does not retain answers or raw reviewer identity. Every dimension requires an average of at least 4, no score may be below 3, and any score below 4 requires reviewer notes. The current implementation budgets at most seven provider calls per shadow case, so a cap of 40 permits five cases. It never prints secrets or authenticated URLs. Current machine evidence is `artifacts/zyra-ai/20260807-plan007-pedagogy-eval/plan-007-pedagogy-eval.json`. Current startup evidence is `artifacts/staging-overhaul/20260808-plan007-startup-diagnostics-v3/plan-007-pedagogy-startup-diagnostics.json`.
+The harness feature flag is `FEATURE_ZYRA_PEDAGOGY_V3`; it is absent or `0` by default. Zyra and transitive tutor runtime flags are read through `lib/zyra/runtime-env.ts`, which validates only the runtime values used by the harness and does not require unrelated UploadThing or Resend credentials. Fixture mode and `--startup-diagnostics-only` make no provider calls. Startup diagnostics verify the staging guard, Plan 007 config, Turso connectivity, identity, active session presence, course mapping, current enrollment, canonical evidence, scoped runtime env contract, and canonical/tutor module imports in order. The artifact records only masked stage results and counts. The latest zero-provider diagnostic reached Turso but stopped at `session_context` with `PEDAGOGY_STARTUP_ACTIVE_SESSION_MISSING`; it made zero provider calls and writes. Remote mode requires `STAGING_ZYRA_PEDAGOGY_USER_ID` in `.env.staging`, verifies that the exact identity is an active murid with current legacy and canonical enrollment, and requires the explicit `--remote-shadow` switch. It keeps the legacy answer visible, suppresses learner summary and event writes, stores privacy-safe comparison traces, and creates `plan-007-pedagogy-human-review.html` plus a JSON draft from synthetic inputs. The maintainer opens the HTML file locally, scores every dimension from 1 to 5, downloads the submission JSON, then runs the validator command above. The result artifact stores only score aggregates, reason codes, and a reviewer identity hash; it does not retain answers or raw reviewer identity. Every dimension requires an average of at least 4, no score may be below 3, and any score below 4 requires reviewer notes. The current implementation budgets at most seven provider calls per shadow case, so a cap of 40 permits five cases. It never prints secrets or authenticated URLs. Current machine evidence is `artifacts/zyra-ai/20260807-plan007-pedagogy-eval/plan-007-pedagogy-eval.json`. The older all-stage startup evidence remains historical: `artifacts/staging-overhaul/20260808-plan007-startup-diagnostics-v3/plan-007-pedagogy-startup-diagnostics.json`.
+
+Plan 008 local personalization checks are:
+
+```bash
+bun test tests/contracts/zyra-profile-evidence.test.ts tests/contracts/zyra-adaptation.test.ts tests/contracts/zyra-profile-privacy.test.ts tests/contracts/zyra-profile-auth.test.ts
+bun run lint
+bun run typecheck
+bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course tutorial-pka
+```
+
+`FEATURE_ZYRA_PERSONALIZATION_V1` is absent or `0` by default. The additive local migration is `0067_zyra_continuation.sql`. The synthetic smoke uses no provider calls, database writes, trace writes, or learner side effects. Profile inference uses bounded allowlisted event fields, keeps explicit preferences separate, expires evidence, supports reset, and composes only after the shared profile-free scaffold. Remote staging reconciliation remains a separate gate.
+
+Plan 009 local canvas checks are:
+
+```bash
+bun test tests/contracts/learning-canvas-schema.test.ts tests/contracts/learning-canvas-expression.test.ts tests/contracts/learning-canvas-renderer.test.ts tests/contracts/learning-canvas-accessibility.test.tsx
+bun run eval:zyra-canvas
+bun --env-file=.env.staging run staging:smoke-zyra-canvas -- --run-id <runId> --course tutorial-pka
+```
+
+`FEATURE_ZYRA_LEARNING_CANVAS_V1` is absent or `0` by default. Canvas specs are typed, claim-scoped, profile-free, and rendered through application-owned components. Expression controls are evaluated locally through an allowlisted AST. Invalid expressions produce fallback points and table or text fallbacks remain available. The browser mirror `NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1` must also be `1` before the drawer renders a canvas from a response or chat history. The smoke makes zero provider calls and zero writes.
+
+### Zyra Plans 010 through 014
+
+Plan 010 private image checks:
+
+```bash
+bun test tests/contracts/zyra-attachment-validation.test.ts tests/contracts/zyra-attachment-auth.test.ts tests/contracts/zyra-multimodal-adapter.test.ts tests/contracts/zyra-image-assessment.test.ts tests/contracts/zyra-image-cache-isolation.test.ts tests/contracts/zyra-image-composer.test.tsx
+bun run eval:zyra-images
+bun --env-file=.env.staging run staging:smoke-zyra-images -- --run-id <runId> --course tutorial-pka
+```
+
+`FEATURE_ZYRA_IMAGE_INPUT_V1` is absent or `0` by default. The server accepts only JPEG, PNG, and WebP, sanitizes them with bounded `sharp` decoding, writes only sanitized bytes to the private storage path, and rejects UploadThing for this feature. Image turns bypass shared caches. Expired rows are application-inaccessible and can be removed by `sweepExpiredZyraAttachments`. The local smoke makes zero provider calls and zero writes.
+
+The controlled staging cleanup command is `bun --env-file=.env.staging run staging:sweep-zyra-attachments -- --run-id <runId> --limit 100`. It deletes only expired private attachment objects and then marks their rows expired. Storage failures remain retryable and never make an unexpired row inaccessible.
+
+Plan 011 murid experience checks:
+
+```bash
+bun test tests/contracts/zyra-murid-client.test.ts tests/contracts/zyra-selection-ask.test.tsx tests/contracts/zyra-pet.test.tsx tests/contracts/zyra-usage-ui.test.tsx tests/contracts/zyra-drawer-journeys.test.tsx
+bun --env-file=.env.staging run staging:smoke-zyra-murid -- --run-id <runId> --course tutorial-pka --synthetic-user
+```
+
+The `FEATURE_ZYRA_MURID_V3`, `FEATURE_ZYRA_SELECTION_ASK_V1`, and `FEATURE_ZYRA_PET_V1` flags are off by default. Public mirrors use the corresponding `NEXT_PUBLIC_FEATURE_ZYRA_*` names. The allowance component reads only the authenticated user's summary, selection-to-ask sends a bounded quote, and the pet receives state from request, upload, response, quota, and error events.
+
+Plan 012 copilot checks:
+
+```bash
+bun test tests/contracts/zyra-proposal-schema.test.ts tests/contracts/zyra-proposal-lifecycle.test.ts tests/contracts/zyra-proposal-auth.test.ts tests/contracts/zyra-tutor-copilot.test.ts tests/contracts/zyra-admin-copilot.test.ts
+bun run eval:zyra-copilots
+bun --env-file=.env.staging run staging:smoke-zyra-copilots -- --run-id <runId> --course tutorial-pka --no-auto-apply
+```
+
+`FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are off by default. Proposals use typed operations, scope and precondition snapshots, expiry, and audit events. The currently registered operation is read-only; unregistered mutation operations are rejected before persistence. Applying a proposal is intentionally blocked until the accepted Overhaul mutation boundary is available.
+
+Plan 013 operations checks:
+
+```bash
+bun test tests/contracts/zyra-telemetry-schema.test.ts tests/contracts/zyra-ops-aggregation.test.ts tests/contracts/zyra-ops-auth.test.ts tests/contracts/zyra-ops-alerts.test.ts tests/contracts/zyra-usage-ui.test.tsx
+bun run eval:zyra-operations
+bun --env-file=.env.staging run staging:smoke-zyra-operations -- --run-id <runId> --synthetic-only
+```
+
+`FEATURE_ZYRA_AI_OPS_V1` is off by default. Operational events use fixed columns and never store prompts, responses, raw keys, filenames, object keys, image descriptions, or raw identity. Provider usage outside the Zyx ledger is shown as unknown. The admin metrics response uses the Asia/Jakarta day boundary and emits deduplicated alert codes with rollback flags and references in `docs/operations/zyra-ops-runbooks.md`.
+
+Plan 014 is a release verifier, not a deployment command:
+
+```bash
+bun --env-file=.env.staging run staging:run-zyra-release-gate -- --run-id <runId> --max-provider-requests 40 --synthetic-users-only
+```
+
+The verifier writes a masked result and returns `BLOCKED` until predecessor evidence, Plan 007 remote shadow and maintainer review, a clean reviewable worktree, and the separately approved live matrix are present. It never enables feature flags or performs a live provider run.
 
 ### Zyra control-plane worker
 
@@ -225,6 +299,8 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 * `FEATURE_ZYRA_ALLOWANCE_V2`: transactional role allowance leases and the current-user allowance summary route.
 * `FEATURE_ZYRA_PROVIDER_ROUTER_V2`: control-plane project leases, deterministic route classification, health-aware fallback, and single-dispatch Gemini requests.
 * `FEATURE_ZYRA_SEMANTIC_CACHE_V1`: privacy-safe exact and semantic teaching-scaffold cache.
+* `FEATURE_ZYRA_PERSONALIZATION_V1`: deterministic evidence-based learner adaptation after shared-cache retrieval.
+* `FEATURE_ZYRA_LEARNING_CANVAS_V1`: typed interactive visuals with safe local expression evaluation and accessible fallbacks.
 * `FEATURE_IDEA_BUNDLE_V2`: strict ZIP-based Idea import, review, and atomic publication.
 * `FEATURE_AUTHORING_CONTEXT_V1`: deterministic redacted Authoring Context Pack export.
 * `FEATURE_PRODUCT_BUNDLE_V2`: typed Product Bundle upload, preview, review, and atomic publication.
@@ -246,6 +322,8 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_IDEA_BUNDLE_V2` | Strict ZIP Idea Bundle upload, review, and publication |
 | `FEATURE_AUTHORING_CONTEXT_V1` | Deterministic redacted authoring context export |
 | `FEATURE_PRODUCT_BUNDLE_V2` | Typed product bundle workflow and atomic publication |
+| `FEATURE_ZYRA_PERSONALIZATION_V1` | Evidence-based learner presentation adaptation |
+| `FEATURE_ZYRA_LEARNING_CANVAS_V1` | Typed interactive Learning Canvas visuals |
 | `FEATURE_VECTORIZE_ONLY_V1` | Canonical 768-dimensional Vectorize-only indexing and retrieval |
 | `FEATURE_ZYRA_IDEA_RUNTIME_V1` | Course-scoped Zyra retrieval and approved-content hydration |
 | `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` | Admin and tutor content lifecycle with mutation audit |
@@ -269,6 +347,14 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_TUTOR_PIPELINE_V2` | V2 tutor cache isolation and query action routing |
 | `FEATURE_KO_PIPELINE_V2` | Staged KO extraction, deterministic chunking, cross-chunk reconciliation, and canonical review |
 | `FEATURE_QUESTION_GENERATOR_V2` | Question blueprint engine, application option shuffle, and machine-readable distractor provenance |
+| `FEATURE_ZYRA_IMAGE_INPUT_V1` | Private sanitized learner image input for multimodal tutoring |
+| `FEATURE_ZYRA_LEARNING_CANVAS_V1` | Typed interactive Learning Canvas visuals |
+| `FEATURE_ZYRA_MURID_V3` | Integrated murid Zyra experience and usage surface |
+| `FEATURE_ZYRA_SELECTION_ASK_V1` | Bounded lesson selection to ask flow |
+| `FEATURE_ZYRA_PET_V1` | Application-owned accessible Zyra pet states |
+| `FEATURE_ZYRA_TUTOR_COPILOT_V1` | Tutor proposal-first copilot |
+| `FEATURE_ZYRA_ADMIN_COPILOT_V1` | Admin proposal-first copilot |
+| `FEATURE_ZYRA_AI_OPS_V1` | Privacy-safe Zyra operations dashboard and telemetry |
 | `FEATURE_ANALYTICS` | Coaching analytics |
 | `FEATURE_LEADERBOARD` | Leaderboard |
 | `FEATURE_PUBLISHER` | Publisher features |
@@ -315,4 +401,3 @@ All AI contract test suites live in `tests/contracts/` and run without network c
 
 - **Contract Tests (`tests/contracts/`)**: Deterministic, zero network calls, unit-isolated, mock/fake adapters (`fakeAi`, `fakeCache`), validating system invariants and schema structures.
 - **Model Quality Evaluations**: Live model benchmarks evaluating accuracy, reasoning quality, or LLM output style requiring active API keys.
-

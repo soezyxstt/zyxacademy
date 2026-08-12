@@ -5,6 +5,7 @@ import type {
   ZyraTeachingResponse,
 } from "./contracts";
 import type { TeachingPlan } from "./state-machine";
+import type { CanvasSpec } from "@/lib/zyra/canvas";
 
 export interface LegacyTutorAnswer {
   answer: string;
@@ -13,6 +14,7 @@ export interface LegacyTutorAnswer {
   confidence: number;
   grounded: boolean;
   coverageState?: "full" | "partial" | "none" | "conflict" | "needs_review";
+  canvasSpec?: CanvasSpec | null;
 }
 
 function learnerSafeText(value: string): string {
@@ -70,6 +72,10 @@ export function composeSafeTeachingResponse(
       explanationBlocks: [{ kind: "goal", text: "Bahan ajar yang tersedia belum cukup untuk memastikan jawaban atas pertanyaan ini." }],
       citations: [],
       visualSpec: null,
+      canvasSpec: null,
+      imageObservations: [],
+      uncertainties: [],
+      unreadableRegions: [],
       checkForUnderstanding: null,
       nextAllowedAction: "request_clarification",
       assessmentSafety: { decision: "clarify", reasonCode },
@@ -110,6 +116,10 @@ export function composeSafeTeachingResponse(
     explanationBlocks: blocks,
     citations,
     visualSpec: null,
+    canvasSpec: null,
+    imageObservations: [],
+    uncertainties: [],
+    unreadableRegions: [],
     checkForUnderstanding: checkpoint,
     nextAllowedAction: plan.nextAllowedAction,
     assessmentSafety: safeAssessmentDecision(context),
@@ -138,6 +148,7 @@ export function teachingResponseToTutorAnswer(
     confidence: sources.length > 0 ? 0.85 : 0,
     grounded: sources.length > 0,
     coverageState: sources.length > 0 ? "full" : "none",
+    canvasSpec: response.canvasSpec ?? null,
   };
 }
 

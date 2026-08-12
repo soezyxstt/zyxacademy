@@ -11,6 +11,18 @@ import { exams } from "@/lib/student-course-fixtures";
 import { askTutorRag } from "@/lib/tutor-rag";
 import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
 import { isEnrolled } from "@/lib/course-utils";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
+import {
+  assertZyraImageCount,
+  isZyraImageFeatureEnabled,
+  loadZyraImageParts,
+  markZyraAttachmentsDispatched,
+} from "@/lib/zyra/images";
+import {
+  deserializeTutorMessageSources,
+  isZyraCanvasFeatureEnabled,
+  serializeTutorMessageSources,
+} from "@/lib/zyra/canvas";
 
 /** Thrown when a signed-in user tries to use Zyra for a course they are not enrolled in. */
 const NOT_ENROLLED = "NOT_ENROLLED";
@@ -211,12 +223,27 @@ export async function askTutorRagAction(
   courseId: string,
   chapterId: string | null,
   question: string,
-  sessionId?: string | null
+  sessionId?: string | null,
+  attachmentIds?: readonly string[],
 ) {
   const user = await requireCourseAccess(courseId);
 
   const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, question.slice(0, 100));
   const startTime = Date.now();
+  const requestedAttachmentIds = attachmentIds ?? [];
+  assertZyraImageCount(requestedAttachmentIds.length);
+  if (requestedAttachmentIds.length > 0 && !isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)) {
+    throw new Error("IMAGE_INPUT_DISABLED");
+  }
+  const imageParts = requestedAttachmentIds.length > 0
+    ? await loadZyraImageParts({
+        ids: requestedAttachmentIds,
+        studentId: user.id,
+        courseId,
+        sessionId: sid,
+        promptBytes: new TextEncoder().encode(question).byteLength,
+      })
+    : [];
 
   const activeAttempt = await db
     .select({ id: studentQuizAttempts.id, questionsSnapshot: studentQuizAttempts.questionsSnapshot })
@@ -258,7 +285,12 @@ export async function askTutorRagAction(
     attemptState: hasActiveAttempt ? "in_progress" : "none",
     activityKind: hasActiveAttempt ? "quiz" : "study",
     protectedAnswers,
+    imageParts,
   });
+
+  if (requestedAttachmentIds.length > 0) {
+    await markZyraAttachmentsDispatched(requestedAttachmentIds, user.id);
+  }
 
   return {
     ...result,
@@ -271,7 +303,7 @@ const CHAT_HISTORY_LIMIT = 100;
 
 export async function saveTutorMessagesAction(
   courseId: string,
-  messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown }>,
+  messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown; canvasSpec?: unknown }>,
   sessionId?: string | null
 ) {
   const user = await requireCourseAccess(courseId);
@@ -288,7 +320,10 @@ export async function saveTutorMessagesAction(
       sessionId: sid,
       role: m.role,
       content: m.content ?? "",
-      sources: m.sources ?? null,
+      sources: serializeTutorMessageSources(
+        m.sources,
+        isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? m.canvasSpec : undefined,
+      ),
     }))
   );
 
@@ -341,12 +376,16 @@ export async function loadTutorHistoryAction(
 
   return {
     sessionId: sid,
-    messages: rows.map((r) => ({
-      id: r.id,
-      role: r.role as "student" | "ai",
-      content: r.content,
-      sources: r.sources as Array<{ type: string; id: string; label: string; href: string }> | undefined,
-    })),
+    messages: rows.map((r) => {
+      const decoded = deserializeTutorMessageSources(r.sources);
+      return {
+        id: r.id,
+        role: r.role as "student" | "ai",
+        content: r.content,
+        sources: decoded.sources.length > 0 ? decoded.sources : undefined,
+        canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? decoded.canvasSpec : undefined,
+      };
+    }),
   };
 }
 

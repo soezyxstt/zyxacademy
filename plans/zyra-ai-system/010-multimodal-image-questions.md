@@ -11,7 +11,10 @@
 - **Risk**: HIGH
 - **Depends on**: Plans 001, 002, 004, 005, 007, 009; Idea-centered Overhaul Plans 013 and 015
 - **Category**: product, security, privacy, frontend
+- **Status**: IN PROGRESS, local implementation, focused tests, evaluation, and zero-provider smoke pass; live staging image matrix and human review remain pending
 - **Planned at**: commit `03b68ba0`, 2026-08-02
+
+Local evidence: `artifacts/staging-overhaul/20260812-plan010-audit/plan-010-images.json`. The feature flag remains off. The private attachment path now has bounded sanitization, owner and course scope checks, shared-cache bypass, application-level expiry, and an idempotent expiry sweeper. This is not a live provider or production approval.
 
 ## Why this matters
 

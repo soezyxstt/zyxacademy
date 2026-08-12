@@ -41,7 +41,13 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
+import { ZyraAttachmentComposer } from "@/components/course/zyra-attachment-composer";
+import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
+import { ZyraPet } from "@/components/course/zyra-pet";
+import { petStateForTutorEvent } from "@/lib/zyra/murid";
 import { useSwipe } from "@/hooks/use-swipe";
+import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
+import type { CanvasSpec } from "@/lib/zyra/canvas";
 
 // Fetch extra actions from custom action file
 import { getFlashcardsForKOAction } from "@/app/actions/tutor-extra";
@@ -54,6 +60,7 @@ interface ChatMessage {
  role: "student" | "ai";
  content: string;
  sources?: Array<{ type: string; id: string; label: string; href: string }>;
+ canvasSpec?: CanvasSpec | null;
 }
 
 interface TutorContextType {
@@ -61,6 +68,7 @@ interface TutorContextType {
  openMistake: (questionId: string, userAnswer: string) => void;
  openStudyPlan: () => void;
  openChat: () => void;
+ openChatWithQuestion: (question: string) => void;
  close: () => void;
  isOpen: boolean;
  activeMode: TutorMode;
@@ -82,6 +90,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const caps = getTutorCapabilities(courseIdFromPath);
  const [isOpen, setIsOpen] = React.useState(false);
  const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
+ const imageInputEnabled = caps.imageInput && activeMode === "chat";
  
  // States to hold variables and results
  const [koId, setKoId] = React.useState<string | null>(null);
@@ -99,6 +108,19 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const [inputVal, setInputVal] = React.useState("");
  const [chatLoading, setChatLoading] = React.useState(false);
  const [sessionId, setSessionId] = React.useState<string | null>(null);
+ const [attachmentIds, setAttachmentIds] = React.useState<string[]>([]);
+ const [attachmentComposerKey, setAttachmentComposerKey] = React.useState(0);
+ const [attachmentsReady, setAttachmentsReady] = React.useState(true);
+ const petState = petStateForTutorEvent({
+   isOpen,
+   activeMode,
+   loading,
+   chatLoading,
+   attachmentsReady,
+   hasAttachments: attachmentIds.length > 0 || !attachmentsReady,
+   hasError: errors.length > 0,
+   quotaExhausted: errors.some((error) => error.includes("DAILY_QUOTA_EXCEEDED")),
+ });
 
  // Ref for auto-scrolling
  const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -162,6 +184,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  setActiveMode("chat");
  setActiveAction("none");
  setIsOpen(true);
+ setAttachmentIds([]);
+ setAttachmentsReady(true);
+ setAttachmentComposerKey((value) => value + 1);
 
  const courseId = pathname?.startsWith("/courses/")
  ? pathname.split("/")[2]
@@ -198,6 +223,11 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  }]);
  }
  }, [pathname]);
+
+ const openChatWithQuestion = React.useCallback(async (question: string) => {
+   await openChat();
+   setInputVal(question);
+ }, [openChat]);
 
  const openExplain = React.useCallback((id: string, initialMode: "content" | "analogy" | "simplification" = "content") => {
  if (!caps.explain) {
@@ -345,7 +375,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  if (courseId) {
  saveTutorMessagesAction(
  courseId, 
- newMessages.map(m => ({ role: m.role, content: m.content, sources: m.sources })),
+ newMessages.map(m => ({ role: m.role, content: m.content, sources: m.sources, canvasSpec: m.canvasSpec })),
  sessionId
  ).then((res) => {
     if (res.sessionId && !sessionId) {
@@ -417,7 +447,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  // Handle sending arbitrary chat messages (Conversational Socratic AI Chat)
  const handleSend = async () => {
  const questionText = inputVal.trim();
- if (!questionText) return;
+ const requestedAttachmentIds = [...attachmentIds];
+ if (!questionText && requestedAttachmentIds.length === 0) return;
 
  const courseId = pathname?.startsWith("/courses/")
  ? pathname.split("/")[2]
@@ -426,18 +457,24 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const studentMsg = {
  id: `user-msg-${Date.now()}`,
  role: "student" as const,
- content: questionText,
+ content: questionText || "Gambar terlampir",
  };
 
  setInputVal("");
  setMessages((prev) => [...prev, studentMsg]);
  setChatLoading(true);
 
- let aiMsg: { id: string; role: "ai"; content: string; sources?: Array<{ type: string; id: string; label: string; href: string }> };
+ let aiMsg: { id: string; role: "ai"; content: string; sources?: Array<{ type: string; id: string; label: string; href: string }>; canvasSpec?: CanvasSpec | null };
  let activeSid = sessionId;
 
  try {
- const res = await askTutorRagAction(courseId ?? "unknown", null, questionText, sessionId);
+ const res = await askTutorRagAction(
+   courseId ?? "unknown",
+   null,
+   questionText || "Tolong jelaskan isi gambar ini sesuai materi kuliah.",
+   sessionId,
+   requestedAttachmentIds,
+ );
  if (res.sessionId && !sessionId) {
     setSessionId(res.sessionId);
     activeSid = res.sessionId;
@@ -457,6 +494,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  role: "ai",
  content: aiContent,
  sources: res.answer ? (res.sources || []) : [],
+ canvasSpec: res.answer ? (res.canvasSpec ?? null) : null,
  };
  } catch {
  aiMsg = {
@@ -469,19 +507,24 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  setChatLoading(false);
  }
 
+ if (requestedAttachmentIds.length > 0) {
+   setAttachmentIds([]);
+   setAttachmentComposerKey((value) => value + 1);
+ }
+
  setMessages((prev) => [...prev, aiMsg!]);
 
  // Persist the exchange to DB (fire-and-forget, never blocks UI)
  if (courseId) {
  saveTutorMessagesAction(courseId, [
  { role: studentMsg.role, content: studentMsg.content },
- { role: aiMsg!.role, content: aiMsg!.content, sources: aiMsg!.sources },
+ { role: aiMsg!.role, content: aiMsg!.content, sources: aiMsg!.sources, canvasSpec: aiMsg!.canvasSpec },
  ], activeSid).catch(() => {});
  }
  };
 
  return (
- <TutorContext.Provider value={{ openExplain, openMistake, openStudyPlan, openChat, close, isOpen, activeMode }}>
+ <TutorContext.Provider value={{ openExplain, openMistake, openStudyPlan, openChat, openChatWithQuestion, close, isOpen, activeMode }}>
  {children}
 
  {/* Global floating Zyra trigger ; available on every course surface
@@ -525,9 +568,11 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  
  {/* Header Panel */}
  <SheetHeader className="p-5 border-b border-border/80 flex flex-row items-center gap-3 bg-muted/20">
- <div className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
- <Sparkles className="size-5 animate-pulse" />
- </div>
+ {caps.pet ? <ZyraPet state={petState} /> : (
+   <div className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+   <Sparkles className="size-5 animate-pulse" />
+   </div>
+ )}
  <div className="space-y-0.5 text-left flex-1 min-w-0">
   <SheetTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
   <span>
@@ -563,6 +608,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  </Button>
  )}
  </SheetHeader>
+
+ {caps.muridExperience && activeMode === "chat" && <ZyraAllowanceSummary />}
 
  {/* Body Content Desk */}
  <div className="flex-1 overflow-y-auto p-5 space-y-5 flex flex-col justify-start select-text">
@@ -614,6 +661,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  )}
  >
  <MarkdownRenderer content={msg.content} className={isStudent ? "text-primary-foreground" : ""} />
+
+ {caps.canvas && msg.canvasSpec && !isStudent && <LearningCanvasRenderer spec={msg.canvasSpec} />}
  
  {/* Citations / Sources */}
  {!isStudent && msg.sources && msg.sources.length > 0 && (
@@ -755,7 +804,18 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
  {/* Chat Input Bar */}
  {messages.length > 0 && activeAction === "none" && (
- <div className="p-4 border-t border-border/80 bg-background flex gap-2 shrink-0 select-text">
+ <div className="space-y-2 p-4 border-t border-border/80 bg-background shrink-0 select-text">
+ {imageInputEnabled && sessionId && courseIdFromPath && (
+   <ZyraAttachmentComposer
+     key={attachmentComposerKey}
+     courseId={courseIdFromPath}
+     sessionId={sessionId}
+     disabled={chatLoading}
+     onAttachmentIdsChange={setAttachmentIds}
+     onAttachmentsReadyChange={setAttachmentsReady}
+   />
+ )}
+ <div className="flex gap-2">
  <Input
  placeholder="Tanyakan follow-up..."
  value={inputVal}
@@ -766,11 +826,12 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  />
  <Button
  onClick={handleSend}
- disabled={chatLoading || !inputVal.trim()}
+ disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)}
  className="rounded-xl bg-brand-primary hover:bg-brand-primary/95 text-white font-semibold"
  >
  Kirim
  </Button>
+ </div>
  </div>
  )}
 

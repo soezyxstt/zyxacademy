@@ -96,6 +96,21 @@ import {
   type PedagogyShadowComparison,
 } from "@/lib/zyra/pedagogy";
 import type { HintLevel, LearnerResponseShape } from "@/lib/zyra/pedagogy/contracts";
+import {
+  assertProfileFreeSharedPayload,
+  composePersonalizedAnswer,
+  getZyraAdaptation,
+  recordZyraLearningEvent,
+  type ZyraAdaptationDecision,
+} from "@/lib/zyra/personalization";
+import type { ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
+import { isZyraCanvasFeatureEnabled, type CanvasSpec } from "@/lib/zyra/canvas";
+import {
+  recordZyraOperationalEventSafe,
+  zyraLatencyBucket,
+  zyraOperationalFingerprint,
+  zyraSizeBucket,
+} from "@/lib/zyra/ops/telemetry";
 
 const SIMILARITY_FLOOR = 0.5;
 const _CACHE_CONFIDENCE_FLOOR = 0.6;
@@ -122,6 +137,7 @@ export interface TutorRagAnswer {
  confidence: number;
  grounded: boolean;
  coverageState?: EvidenceCoverageState;
+ canvasSpec?: CanvasSpec | null;
 }
 
 function sha256(value: string): string {
@@ -134,11 +150,12 @@ function tutorAnswerToSharedScaffold(answer: TutorRagAnswer, identity: ReturnTyp
     ideaVersion: 1,
     claimHash: sha256(`${source.id}:${source.label}`),
   }));
-  return {
+  const scaffold: SharedScaffold = {
     explanation: answer.answer,
     claims,
     sourceRefs: answer.sources,
     teachingMove: "grounded_explanation",
+    canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? answer.canvasSpec ?? undefined : undefined,
     examples: [],
     validation: {
       status: answer.grounded ? "grounded" : "abstain",
@@ -147,6 +164,8 @@ function tutorAnswerToSharedScaffold(answer: TutorRagAnswer, identity: ReturnTyp
     },
     cacheMetadata: buildSharedScaffoldMetadata(identity),
   };
+  assertProfileFreeSharedPayload(scaffold);
+  return scaffold;
 }
 
 function sharedScaffoldToTutorAnswer(scaffold: SharedScaffold): TutorRagAnswer {
@@ -163,6 +182,7 @@ function sharedScaffoldToTutorAnswer(scaffold: SharedScaffold): TutorRagAnswer {
     confidence: scaffold.validation.status === "grounded" ? 1 : 0,
     grounded: scaffold.validation.status === "grounded",
     coverageState: scaffold.validation.status === "grounded" ? "full" : "none",
+    canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? scaffold.canvasSpec ?? null : null,
   };
 }
 
@@ -175,10 +195,12 @@ export interface TutorAddendum {
 }
 
 export interface TutorRagResult extends TutorRagAnswer {
- cached: boolean;
- addendum: TutorAddendum | null;
- /** Tier 3 guidance, present only for weak concepts within budget. */
+  cached: boolean;
+  addendum: TutorAddendum | null;
+  /** Tier 3 guidance, present only for weak concepts within budget. */
   personalized: string | null;
+  /** Learner-local presentation adaptation; never part of the shared scaffold. */
+  adaptation?: ZyraAdaptationDecision | null;
   budgetExhausted: boolean;
   /** Privacy-safe staging comparison metadata. Candidate text is never exposed here. */
   pedagogyShadow?: PedagogyShadowComparison;
@@ -622,10 +644,31 @@ export interface AskTutorParams {
     baselineAnswer: string;
     candidateAnswer: string;
   }) => void | Promise<void>;
+  imageParts?: readonly Extract<ProviderInputPart, { type: "image" }>[];
 }
 
 export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResult> {
+  const requestStartedAt = Date.now();
   const { studentId, courseId, question, sessionId, protectedAnswers } = params;
+  const imageParts = params.imageParts ?? [];
+  const hasImages = imageParts.length > 0;
+  const emitOperationalOutcome = (resultCode: string, cached = false): void => {
+    void recordZyraOperationalEventSafe({
+      version: "zyra-ops-event-v1",
+      eventType: "learner_outcome",
+      actorRole: "murid",
+      routeClass: hasImages ? "tutor_image" : "tutor_text",
+      modelClass: hasImages ? "multimodal" : "text",
+      projectFingerprint: null,
+      courseFingerprint: zyraOperationalFingerprint(courseId),
+      resultCode,
+      latencyBucket: zyraLatencyBucket(Date.now() - requestStartedAt),
+      sizeBucket: hasImages ? zyraSizeBucket(null) : zyraSizeBucket(new TextEncoder().encode(question).byteLength),
+      cacheResult: hasImages ? "bypass" : cached ? "hit" : "miss",
+      attachmentCount: imageParts.length,
+      sanitizerVersion: hasImages ? "zyra-image-sanitizer-v1" : null,
+    });
+  };
   const chapterId = params.chapterId ?? null;
   const pedagogyMode = resolvePedagogyExecutionMode({
     requestedMode: params.pedagogyMode,
@@ -670,11 +713,12 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   // Classify query action deterministically or via AI action classifier
   const classification = await classifyQueryAction(
     { question, historyMessages: history.recentMessages },
-    { userId: studentId, deterministicOnly: pedagogyMode !== "legacy" }
+    { userId: studentId, deterministicOnly: pedagogyMode !== "legacy" || hasImages }
   );
 
   // 1. Action: Clarify
   if (classification.action === "clarify") {
+    emitOperationalOutcome("CLARIFY");
     return {
       answer: "Mohon berikan pertanyaan yang lebih spesifik atau jelas mengenai materi kuliah agar aku bisa membantu.",
       sources: [],
@@ -699,6 +743,8 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       variables: { question, conversationHistory: historyText },
       schema: UngroundedSchema,
       useCase: USE_CASES.UNGROUNDED_TUTOR,
+      providerParts: imageParts,
+      maxAttempts: hasImages ? 1 : undefined,
     });
     let ansText = result.success && result.data
       ? sanitizeAnswer(result.data.answer)
@@ -711,6 +757,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       }
     }
 
+    emitOperationalOutcome(result.success ? "CONVERSATION" : "CONVERSATION_FALLBACK");
     return {
       answer: ansText,
       sources: [],
@@ -792,7 +839,8 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     evidenceVersion,
   });
 
-  const remoteCacheEnabled = zyraRuntimeEnv.FEATURE_ZYRA_SEMANTIC_CACHE_V1 === "1"
+  const remoteCacheEnabled = !hasImages
+    && zyraRuntimeEnv.FEATURE_ZYRA_SEMANTIC_CACHE_V1 === "1"
     && classification.action === "retrieve"
     && retrieved.length > 0
     && !attemptState;
@@ -825,9 +873,10 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   let base: TutorRagAnswer | null = null;
   let pedagogyFallback = false;
   let pedagogyShadow: PedagogyShadowComparison | undefined;
+  let pedagogyCanvasSpec: CanvasSpec | null = null;
 
   // Shared Tier 1 cache lookup: ONLY for direct 'retrieve' actions
-  if (classification.action === "retrieve") {
+  if (classification.action === "retrieve" && !hasImages) {
     if (remoteCache && remoteCacheKey) {
       try {
         let shared = await remoteCache.get(remoteCacheKey);
@@ -865,7 +914,11 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         }
       }
 
-      base = { ...base, answer: ansText };
+      base = {
+        ...base,
+        answer: ansText,
+        canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? base.canvasSpec ?? null : null,
+      };
       assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
       await logCacheHit(studentId, "tutor_rag");
     } else {
@@ -883,6 +936,8 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         variables: { question: searchQuestion, conversationHistory: "" },
         schema: UngroundedSchema,
         useCase,
+        providerParts: imageParts,
+        maxAttempts: hasImages ? 1 : undefined,
       });
       if (result.success && result.data) {
         if (useCase === USE_CASES.UNGROUNDED_TUTOR) {
@@ -1017,6 +1072,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             idempotencyKey: pedagogyMode === "shadow"
               ? `pedagogy-shadow:${params.pedagogyShadowRunId}:${params.pedagogyShadowCaseId}:candidate`
               : undefined,
+            imageParts,
           });
 
           if (pedagogyMode === "shadow") {
@@ -1066,6 +1122,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             pedagogyFallback = pedagogyResult.usedFallback;
             const pedagogySources = pedagogyEvidence.map((source) => ({ ...source, version: source.version ?? 1 }));
             const legacy = teachingResponseToTutorAnswer(pedagogyResult.response, pedagogySources);
+            pedagogyCanvasSpec = legacy.canvasSpec ?? null;
             result = {
               success: true,
               data: {
@@ -1094,6 +1151,8 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             cachePolicy: remoteCache ? "public_scaffold" : undefined,
             cacheKey: remoteCacheKey,
             cacheTtlSeconds: remoteCache ? SHARED_TUTOR_TTL_SECONDS : undefined,
+            providerParts: imageParts,
+            maxAttempts: hasImages ? 1 : undefined,
           });
         }
 
@@ -1132,6 +1191,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
               confidence: d.confidence,
               grounded: true,
               coverageState: finalCoverageState,
+              canvasSpec: pedagogyCanvasSpec,
             };
           } else {
             let ansText = sanitizeAnswer(d.answer);
@@ -1146,6 +1206,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
               confidence: d.confidence,
               grounded: false,
               coverageState: finalCoverageState === "full" ? "none" : finalCoverageState,
+              canvasSpec: pedagogyCanvasSpec,
             };
           }
 
@@ -1189,6 +1250,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   }
 
  if (!base) {
+ emitOperationalOutcome("BUDGET_EXHAUSTED");
  return {
  answer: "",
  sources: [],
@@ -1202,12 +1264,36 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  };
  }
 
+ // Plan 008: learner-local adaptation runs after shared cache lookup and write.
+ let adaptation: ZyraAdaptationDecision | null = null;
+ let adaptedAnswer = base.answer;
+ if (zyraRuntimeEnv.FEATURE_ZYRA_PERSONALIZATION_V1 === "1") {
+   const readOnly = pedagogyMode === "shadow" || Boolean(params.suppressLearnerSideEffects);
+   try {
+     adaptation = await getZyraAdaptation({ studentId, courseId, readOnly });
+     adaptedAnswer = composePersonalizedAnswer(base.answer, adaptation);
+     if (!readOnly) {
+       await recordZyraLearningEvent(studentId, {
+         courseId,
+         eventKind: "tutor_question",
+         sourceType: "tutor",
+         outcome: "unknown",
+         representation: "text",
+       });
+     }
+   } catch {
+     // Personalization is additive. A profile failure must not remove grounded text tutoring.
+     adaptation = null;
+     adaptedAnswer = base.answer;
+   }
+ }
+
  // Tier 2: deterministic addendum, runs on hits AND misses
  const addendum = await buildAddendum(studentId, courseId, base, profile);
 
  // Tier 3: personalized AI, only for weak concepts, charged, silent on exhaustion
   let personalized: string | null = null;
-  if (addendum && pedagogyMode === "legacy") {
+  if (addendum && pedagogyMode === "legacy" && !hasImages) {
    const remaining = await UsageBudgetService.getRemainingPremium(studentId);
    const useCase = remaining > 0 ? USE_CASES.WEAK_CONCEPT_GUIDANCE : USE_CASES.WEAK_CONCEPT_GUIDANCE_GEMMA;
    const result = await PromptExecutor.run({
@@ -1253,7 +1339,17 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     });
   }
 
-  return { ...base, cached, addendum, personalized, budgetExhausted, pedagogyShadow };
+  emitOperationalOutcome(base.grounded ? "GROUNDED" : "ABSTAIN", cached);
+  return {
+    ...base,
+    answer: adaptedAnswer,
+    cached,
+    addendum,
+    personalized,
+    adaptation,
+    budgetExhausted,
+    pedagogyShadow,
+  };
 }
 
 // ─── Chapter summary (cache-first, profile-free by design) ───────────────────

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { CanvasSpecSchema } from "@/lib/zyra/canvas";
 
 export const ZYRA_CACHE_SCHEMA_VERSION = "zyra-cache-scaffold-v1" as const;
 export const ZYRA_CACHE_POLICY_VERSION = "zyra-cache-policy-v1" as const;
@@ -81,6 +82,7 @@ export const sharedScaffoldSchema = z.object({
   }).strict()).max(64).optional(),
   teachingMove: z.string().min(1).max(120),
   visualSpec: z.record(z.string(), z.unknown()).optional(),
+  canvasSpec: CanvasSpecSchema.nullable().optional(),
   examples: z.array(z.string().min(1).max(4_000)).max(12),
   validation: validationSchema,
   cacheMetadata: cacheMetadataSchema,

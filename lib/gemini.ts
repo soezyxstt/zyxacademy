@@ -17,7 +17,7 @@ import {
 } from "@/lib/ai/provider/provider-adapter";
 import { ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { geminiKeyPool } from "@/lib/gemini-keys";
-import { getModelChain, providerRouterV2Enabled, type ProviderRouteRequest } from "@/lib/ai-router";
+import { getModelChain, getProviderRoutePlan, providerRouterV2Enabled, type ProviderRouteRequest } from "@/lib/ai-router";
 import { RequestLifecycle } from "@/lib/ai/request-lifecycle";
 import { buildAiGatewayHeaders } from "@/lib/ai/gateway-metadata";
 
@@ -306,7 +306,10 @@ export async function generateContentWithFallback(
     };
   }
 
-  const modelPriority = getModelChain(params.useCase);
+  const modelPriority = params.route?.multimodal || params.route?.visualMode
+    ? getProviderRoutePlan(params.route).models.filter((model) => getModelEntry(model).input.image)
+    : getModelChain(params.useCase);
+  if (modelPriority.length === 0) throw new Error("No healthy multimodal model is available");
   let lastError: unknown = null;
 
   for (const model of modelPriority) {

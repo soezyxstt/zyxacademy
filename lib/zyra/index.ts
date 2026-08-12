@@ -27,6 +27,9 @@ export {
   MasteryAttributionSource,
 } from "./explainability";
 export * from "./analytics-queries";
+export * from "./personalization";
+export * from "./canvas";
+export * from "./murid";
 export type {
   ZyraContext,
   ConversationMemory,

@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
-import { parseFrontmatter } from "@/lib/assessment-extractor";
+import { parseFrontmatter } from "@/lib/assessment-frontmatter";
 
 interface Source {
   id: string;

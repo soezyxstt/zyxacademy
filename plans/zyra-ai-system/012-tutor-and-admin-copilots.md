@@ -11,7 +11,10 @@
 - **Risk**: HIGH
 - **Depends on**: Plan 007 and Idea-centered Overhaul Plan 014
 - **Category**: product, security, operations
+- **Status**: IN PROGRESS, proposal lifecycle, role boundaries, contracts, evaluation, and no-auto-apply smoke pass; mutation-boundary integration and staging review remain pending
 - **Planned at**: commit `03b68ba0`, 2026-08-02
+
+Local evidence: `artifacts/staging-overhaul/20260812-plan012-audit/plan-012-copilots.json`. The current persisted operation registry is read-only only; an unregistered mutation operation is rejected before persistence. Proposal `apply` is deliberately fail-closed with `MUTATION_BOUNDARY_REQUIRED`; no proposal is auto-applied and the public role flags remain off.
 
 ## Why this matters
 

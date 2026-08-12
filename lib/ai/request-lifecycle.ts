@@ -9,9 +9,16 @@ import { getModelEntry, type ModelId, type ModelRouteClass } from "@/lib/ai/prov
 import { ProviderAdapterError, type ProviderRetryClassification } from "@/lib/ai/provider/errors";
 import { getProviderRoutePlan, type ProviderRouteRequest } from "@/lib/ai-router";
 import type { ProviderGenerateRequest, ProviderGenerationResult } from "@/lib/ai/provider/provider-adapter";
+import {
+  recordZyraOperationalEventSafe,
+  zyraLatencyBucket,
+  zyraOperationalFingerprint,
+  zyraSizeBucket,
+} from "@/lib/zyra/ops/telemetry";
 
 export type RequestLifecycleInput = {
   readonly userId: string;
+  readonly courseId?: string;
   readonly feature: string;
   readonly idempotencyKey?: string;
   readonly parts: readonly ProviderGenerateRequest["parts"][number][];
@@ -115,6 +122,43 @@ function controlPlaneRouteClass(modelId: ModelId, requested: ModelRouteClass): M
   return requested;
 }
 
+function lifecycleRequestBytes(parts: readonly ProviderGenerateRequest["parts"][number][]): number {
+  return parts.reduce((total, part) => {
+    if (part.type === "text") return total + new TextEncoder().encode(part.text).byteLength;
+    return total + Math.ceil(part.data.length * 0.75);
+  }, 0);
+}
+
+function emitLifecycleEvent(input: {
+  eventType: "cache_result" | "provider_attempt";
+  actorRole: "admin" | "tutor" | "murid";
+  courseId?: string;
+  modelClass: string;
+  projectAlias?: string | null;
+  routeClass: string;
+  resultCode: string;
+  latencyMs?: number;
+  sizeBytes: number;
+  cacheResult: "none" | "hit" | "miss" | "bypass" | "error";
+  attachmentCount: number;
+}): void {
+  void recordZyraOperationalEventSafe({
+    version: "zyra-ops-event-v1",
+    eventType: input.eventType,
+    actorRole: input.actorRole,
+    routeClass: input.routeClass.replace(/[^a-z0-9_-]/gi, "_").toLowerCase().slice(0, 64) || "unknown",
+    modelClass: input.modelClass.replace(/[^a-z0-9._-]/gi, "_").slice(0, 96) || "unknown",
+    projectFingerprint: input.projectAlias ? zyraOperationalFingerprint(input.projectAlias) : null,
+    courseFingerprint: input.courseId ? zyraOperationalFingerprint(input.courseId) : null,
+    resultCode: input.resultCode.replace(/[^A-Z0-9_.:-]/gi, "_").toUpperCase().slice(0, 96) || "UNKNOWN",
+    latencyBucket: zyraLatencyBucket(input.latencyMs ?? -1),
+    sizeBucket: zyraSizeBucket(input.sizeBytes),
+    cacheResult: input.cacheResult,
+    attachmentCount: input.attachmentCount,
+    sanitizerVersion: input.attachmentCount > 0 ? "zyra-image-sanitizer-v1" : null,
+  });
+}
+
 export class RequestLifecycle {
   private readonly allowance: NonNullable<RequestLifecycleDependencies["allowance"]>;
   private readonly controlPlane: ControlPlaneClient;
@@ -132,7 +176,18 @@ export class RequestLifecycle {
     }
 
     const requestId = input.idempotencyKey ?? this.requestIdFactory();
-    const route = getProviderRoutePlan({ ...input.route, useCase: input.route?.useCase ?? input.useCase });
+    const requestedRoute = getProviderRoutePlan({ ...input.route, useCase: input.route?.useCase ?? input.useCase });
+    const hasImage = input.parts.some((part) => part.type === "image");
+    const route = hasImage
+      ? {
+          ...requestedRoute,
+          models: requestedRoute.models.filter((model) => getModelEntry(model).input.image),
+          premium: true,
+        }
+      : requestedRoute;
+    if (route.models.length === 0) {
+      throw new RequestLifecycleError("PROVIDER_CAPACITY_UNAVAILABLE", "no multimodal model is available");
+    }
     const cacheStatus = input.cacheStatus ?? "miss";
 
     if (input.cacheLookup) {
@@ -147,6 +202,17 @@ export class RequestLifecycle {
           runId: requestId,
         });
         if (!cacheAllowance.accepted) throw allowanceRejected(cacheAllowance);
+        emitLifecycleEvent({
+          eventType: "cache_result",
+          actorRole: cacheAllowance.lease.peran,
+          courseId: input.courseId,
+          modelClass: "cache",
+          routeClass: "cache",
+          resultCode: "CACHE_HIT",
+          sizeBytes: lifecycleRequestBytes(input.parts),
+          cacheResult: "hit",
+          attachmentCount: input.parts.filter((part) => part.type === "image").length,
+        });
         return {
           outcome: "cache_hit",
           requestId,
@@ -252,6 +318,19 @@ export class RequestLifecycle {
         outputTokens: 0,
         requestType: "provider:failed",
       }).catch(() => undefined);
+      emitLifecycleEvent({
+        eventType: "provider_attempt",
+        actorRole: applicationAllowance.lease.peran,
+        courseId: input.courseId,
+        modelClass: selectedModel,
+        projectAlias: controlPlaneLease.projectAlias,
+        routeClass: route.routeClass,
+        resultCode: safeOutcomeCode(error),
+        latencyMs,
+        sizeBytes: lifecycleRequestBytes(input.parts),
+        cacheResult: hasImage ? "bypass" : cacheStatus,
+        attachmentCount: input.parts.filter((part) => part.type === "image").length,
+      });
       throw new RequestLifecycleError("PROVIDER_REQUEST_FAILED", "provider request failed after dispatch", safeOutcomeCode(error), error);
     }
 
@@ -277,6 +356,20 @@ export class RequestLifecycle {
       if (error instanceof RequestLifecycleError) throw error;
       throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", "provider and application ledgers diverged", undefined, error);
     }
+
+    emitLifecycleEvent({
+      eventType: "provider_attempt",
+      actorRole: applicationAllowance.lease.peran,
+      courseId: input.courseId,
+      modelClass: selectedModel,
+      projectAlias: controlPlaneLease.projectAlias,
+      routeClass: route.routeClass,
+      resultCode: "PROVIDER_SUCCESS",
+      latencyMs,
+      sizeBytes: lifecycleRequestBytes(input.parts),
+      cacheResult: hasImage ? "bypass" : cacheStatus,
+      attachmentCount: input.parts.filter((part) => part.type === "image").length,
+    });
 
     return {
       outcome: "provider_success",

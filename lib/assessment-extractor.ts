@@ -24,6 +24,9 @@ import { repairJsonString, slugify } from "./ko-utils";
 import { normalizeConceptName, cosineSimilarity } from "./ko-extractor";
 import { generateCanonicalHash } from "./assessment-utils";
 import { ExtractionResult, ExtractedAssessmentObject } from "./questions/contracts";
+import { parseFrontmatter } from "./assessment-frontmatter";
+
+export { parseFrontmatter } from "./assessment-frontmatter";
 
 const AssessmentObjectExtractionSchema = z.object({
   questionType: z.string().min(1),
@@ -36,13 +39,6 @@ const AssessmentObjectExtractionSchema = z.object({
   answerMarkdown: z.string().optional().nullable(),
   options: z.array(z.string()).optional().nullable(),
 });
-
-interface Frontmatter {
-  category?: "tutorial" | "quiz" | "uts" | "uas" | "tryout";
-  year?: number;
-  semester?: number;
-  chapters?: string[];
-}
 
 /**
  * Adapter to align extracted difficulty to the blueprint scale while preserving raw label.
@@ -71,72 +67,6 @@ export function adaptExtractedPattern(raw: unknown): "direct_computation" | "gra
     return str as any;
   }
   return "other";
-}
-
-/**
- * Parses markdown frontmatter and splits it from raw content.
- */
-export function parseFrontmatter(markdown: string): { frontmatter: Frontmatter; content: string } {
-  const normalized = markdown.replace(/\r\n/g, "\n").trim();
-  const frontmatterRegex = /^---\n([\s\S]*?)\n---\n/;
-  const match = normalized.match(frontmatterRegex);
-
-  if (!match) {
-    return { frontmatter: {}, content: normalized };
-  }
-
-  const yamlText = match[1];
-  const content = normalized.replace(frontmatterRegex, "").trim();
-  const frontmatter: Frontmatter = {};
-
-  const lines = yamlText.split("\n");
-  let currentKey: keyof Frontmatter | null = null;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-
-    if (trimmed.startsWith("-") && currentKey === "chapters") {
-      const val = trimmed.slice(1).trim().replace(/^['"]|['"]$/g, "");
-      if (val) {
-        if (!frontmatter.chapters) frontmatter.chapters = [];
-        frontmatter.chapters.push(val);
-      }
-      continue;
-    }
-
-    const colonIndex = trimmed.indexOf(":");
-    if (colonIndex === -1) continue;
-
-    const key = trimmed.slice(0, colonIndex).trim() as keyof Frontmatter;
-    const value = trimmed.slice(colonIndex + 1).trim().replace(/^['"]|['"]$/g, "");
-
-    if (key === "category") {
-      const cat = value.toLowerCase();
-      if (["tutorial", "quiz", "uts", "uas", "tryout"].includes(cat)) {
-        frontmatter.category = cat as any;
-      }
-    } else if (key === "year") {
-      const yr = parseInt(value, 10);
-      if (!isNaN(yr)) frontmatter.year = yr;
-    } else if (key === "semester") {
-      const sem = parseInt(value, 10);
-      if (!isNaN(sem)) frontmatter.semester = sem;
-    } else if (key === "chapters") {
-      currentKey = "chapters";
-      if (value.startsWith("[") && value.endsWith("]")) {
-        frontmatter.chapters = value
-          .slice(1, -1)
-          .split(",")
-          .map((s) => s.trim().replace(/^['"]|['"]$/g, ""))
-          .filter(Boolean);
-      }
-    } else {
-      currentKey = null;
-    }
-  }
-
-  return { frontmatter, content };
 }
 
 /**

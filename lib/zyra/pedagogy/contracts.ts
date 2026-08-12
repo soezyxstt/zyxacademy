@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { VisualSpecSchema } from "@/lib/tutor/visual-contracts";
+import { CanvasSpecSchema } from "@/lib/zyra/canvas";
+import { ZyraImageResponseFieldsSchema } from "@/lib/zyra/images/contracts";
 
 export const PEDAGOGY_VERSION = "zyra-pedagogy-v3";
 export const PEDAGOGY_PROMPT_VERSION = "3.0.0";
@@ -144,6 +146,10 @@ export const ZyraTeachingResponseSchema = z.object({
   explanationBlocks: z.array(ExplanationBlockSchema).min(1).max(8),
   citations: z.array(CitationSchema).max(12),
   visualSpec: VisualSpecSchema.nullable().optional(),
+  canvasSpec: CanvasSpecSchema.nullable().optional(),
+  imageObservations: ZyraImageResponseFieldsSchema.shape.imageObservations,
+  uncertainties: ZyraImageResponseFieldsSchema.shape.uncertainties,
+  unreadableRegions: ZyraImageResponseFieldsSchema.shape.unreadableRegions,
   checkForUnderstanding: CheckForUnderstandingSchema.nullable(),
   nextAllowedAction: NextAllowedActionSchema,
   assessmentSafety: AssessmentSafetySchema,

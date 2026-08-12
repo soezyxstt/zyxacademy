@@ -470,6 +470,13 @@
       "when": 1786517280309,
       "tag": "0066_open_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1786518047214,
+      "tag": "0067_zyra_continuation",
+      "breakpoints": true
     }
   ]
 }

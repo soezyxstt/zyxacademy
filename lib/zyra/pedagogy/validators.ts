@@ -1,5 +1,6 @@
 import { validateTutorOutput, type ProtectedItemPayload } from "@/lib/assessment-assistance-policy";
 import { validateVisualSpec } from "@/lib/tutor/visual-contracts";
+import { validateCanvasSpec } from "@/lib/zyra/canvas";
 import type { SemanticValidator, SemanticViolation } from "@/lib/ai/validation";
 import {
   ZyraTeachingResponseSchema,
@@ -98,6 +99,12 @@ export function validateTeachingResponse(
     const visual = validateVisualSpec(value.visualSpec, [...allowedSources.keys()]);
     for (const reasonCode of visual.reasonCodes) {
       violations.push(violation("INVALID_VISUAL_CLAIM", "visualSpec", reasonCode));
+    }
+  }
+  if (value.canvasSpec) {
+    const canvas = validateCanvasSpec(value.canvasSpec, [...allowedSources.keys()]);
+    for (const reasonCode of canvas.reasonCodes) {
+      violations.push(violation("INVALID_CANVAS_SPEC", "canvasSpec", reasonCode));
     }
   }
   if (context.misconceptionUncertain && value.diagnosisHypotheses.some((hypothesis) => hypothesis.evidenceSufficiency === "sufficient")) {
