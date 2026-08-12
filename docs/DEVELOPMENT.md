@@ -374,7 +374,9 @@ Exports route through `lib/google-sheets.ts` and `POST /api/admin/export-spreads
 
 Before an overwrite the current grid is read and diffed against `export_spreadsheets.last_written_fingerprint` plus the stored row/column counts. Detected manual edits inside the owned block, growing rows over manual cells, or growing headers over manual columns return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes. Client callers use `useSpreadsheetExport` (`components/admin/spreadsheet-export.tsx`) to show a confirm dialog and re-send with `confirmOverwrite: true`. New spreadsheets store the baseline so later re-exports can warn precisely; legacy sheets without metadata infer the previous block from the current grid on the first re-export.
 
-Set `FEATURE_DRIVE_EDITOR_SYNC=1` to grant every active admin email `writer` access on each exported spreadsheet (and its folder on creation).
+Set `FEATURE_DRIVE_EDITOR_SYNC=1` to grant every active admin email `writer` access on exported spreadsheets, Google Forms, recording files, transcripts, and new export folders.
+
+Meet member provisioning uses `https://meet.googleapis.com/v2beta/spaces/{space}/members`. The Google Cloud project and OAuth principal must be enrolled in the Google Workspace Developer Preview Program, and the refresh token must include the Meet space settings scope. Without Preview access or the scope, space creation still succeeds but the admin UI reports each co-host or invitee grant that failed.
 
 ## Type Checking & Linting
 

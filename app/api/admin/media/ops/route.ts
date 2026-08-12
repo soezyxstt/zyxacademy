@@ -56,7 +56,9 @@ async function readPayload(req: Request): Promise<OpsPayload> {
 }
 
 function normalizeFolder(path?: string | null): string {
-  const cleaned = normalizeFolderPath(path);
+  const raw = (path || "").trim();
+  if (raw) assertSafeKey(raw);
+  const cleaned = normalizeFolderPath(raw);
   const slugged = cleaned
     .split("/")
     .map((seg) => slugifySegment(seg, ""))

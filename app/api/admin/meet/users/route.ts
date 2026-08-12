@@ -19,7 +19,7 @@ export async function GET() {
 
     const [userRows, roleRows, enrollmentRows, courseRows] = await Promise.all([
       db
-        .select({ id: user.id, name: user.name, email: user.email })
+        .select({ id: user.id, name: user.name, email: user.email, legacyRole: user.role })
         .from(user)
         .innerJoin(pengguna, eq(pengguna.id, user.id))
         .where(eq(pengguna.status, "active")),
@@ -48,13 +48,19 @@ export async function GET() {
       coursesByUser.set(row.userId, list);
     }
 
-    const users = userRows.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      roles: rolesByUser.get(u.id) ?? [],
-      courseIds: coursesByUser.get(u.id) ?? [],
-    }));
+    const users = userRows.map((u) => {
+      const roles = rolesByUser.get(u.id) ?? [];
+      const legacyRole =
+        u.legacyRole === "teacher" ? "tutor" : u.legacyRole === "student" ? "murid" : u.legacyRole;
+      if (legacyRole && !roles.includes(legacyRole)) roles.push(legacyRole);
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        roles,
+        courseIds: coursesByUser.get(u.id) ?? [],
+      };
+    });
 
     const courseList = courseRows.map((c) => ({
       id: c.id,

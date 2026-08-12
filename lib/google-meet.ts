@@ -16,6 +16,7 @@
 export interface GoogleMeetSpaceConfig {
   accessType?: "ACCESS_TYPE_UNSPECIFIED" | "OPEN" | "TRUSTED" | "RESTRICTED";
   entryPointAccess?: "ENTRY_POINT_ACCESS_UNSPECIFIED" | "ALL" | "CREATOR_APP_ONLY";
+  moderation?: "MODERATION_UNSPECIFIED" | "OFF" | "ON";
 }
 
 export interface GoogleMeetSpace {
@@ -31,6 +32,23 @@ export interface GoogleMeetSpace {
 export interface CreateSpaceOptions {
   accessType?: "OPEN" | "TRUSTED" | "RESTRICTED";
   entryPointAccess?: "ALL" | "CREATOR_APP_ONLY";
+  moderation?: "OFF" | "ON";
+}
+
+export type GoogleMeetMemberRole = "ROLE_UNSPECIFIED" | "COHOST";
+
+export interface GoogleMeetSpaceMember {
+  name?: string;
+  email: string;
+  role: GoogleMeetMemberRole;
+  user?: string;
+}
+
+export interface GoogleMeetMemberProvisionResult {
+  email: string;
+  role: GoogleMeetMemberRole;
+  success: boolean;
+  error?: string;
 }
 
 export interface ConferenceRecord {
@@ -255,10 +273,11 @@ export async function createGoogleMeetSpace(
   options?: CreateSpaceOptions
 ): Promise<GoogleMeetSpace> {
   const body: { config?: GoogleMeetSpaceConfig } = {};
-  if (options?.accessType || options?.entryPointAccess) {
+  if (options?.accessType || options?.entryPointAccess || options?.moderation) {
     body.config = {
       ...(options.accessType ? { accessType: options.accessType } : {}),
       ...(options.entryPointAccess ? { entryPointAccess: options.entryPointAccess } : {}),
+      ...(options.moderation ? { moderation: options.moderation } : {}),
     };
   }
 
@@ -275,6 +294,86 @@ export async function createGoogleMeetSpace(
     ...space,
     meetingCode,
   };
+}
+
+/** Adds a preconfigured member through the Meet v2beta member endpoint. */
+export async function createGoogleMeetSpaceMember(
+  spaceName: string,
+  email: string,
+  role: GoogleMeetMemberRole
+): Promise<GoogleMeetSpaceMember> {
+  const accessToken = await getGoogleMeetAccessToken();
+  return createGoogleMeetSpaceMemberWithToken(spaceName, email, role, accessToken);
+}
+
+async function createGoogleMeetSpaceMemberWithToken(
+  spaceName: string,
+  email: string,
+  role: GoogleMeetMemberRole,
+  accessToken: string
+): Promise<GoogleMeetSpaceMember> {
+  const formattedName = spaceName.startsWith("spaces/") ? spaceName : `spaces/${spaceName}`;
+  const res = await fetch(`https://meet.googleapis.com/v2beta/${formattedName}/members`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, role }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Google Meet member API error (${res.status}): ${errorText}`);
+  }
+
+  return (await res.json()) as GoogleMeetSpaceMember;
+}
+
+/** Adds members independently so one invalid account does not hide all results. */
+export async function provisionGoogleMeetSpaceMembers(
+  spaceName: string,
+  members: { email: string; role: GoogleMeetMemberRole }[]
+): Promise<GoogleMeetMemberProvisionResult[]> {
+  const uniqueMembers = new Map<string, GoogleMeetMemberRole>();
+  for (const member of members) {
+    const email = member.email.trim().toLowerCase();
+    if (!email) continue;
+    const currentRole = uniqueMembers.get(email);
+    if (!currentRole || member.role === "COHOST") {
+      uniqueMembers.set(email, member.role);
+    }
+  }
+
+  if (uniqueMembers.size === 0) return [];
+
+  const accessToken = await getGoogleMeetAccessToken();
+  const entries = [...uniqueMembers];
+  const results: GoogleMeetMemberProvisionResult[] = [];
+  const batchSize = 5;
+
+  for (let offset = 0; offset < entries.length; offset += batchSize) {
+    const batch = entries.slice(offset, offset + batchSize);
+    results.push(
+      ...(await Promise.all(
+        batch.map(async ([email, role]) => {
+          try {
+            await createGoogleMeetSpaceMemberWithToken(spaceName, email, role, accessToken);
+            return { email, role, success: true };
+          } catch (error) {
+            return {
+              email,
+              role,
+              success: false,
+              error: error instanceof Error ? error.message : "Unknown member provisioning error",
+            };
+          }
+        })
+      ))
+    );
+  }
+
+  return results;
 }
 
 /**

@@ -7,6 +7,7 @@ import { createCustomGoogleForm } from "@/lib/google-forms";
 import { db } from "@/db";
 import { googleForms } from "@/db/schema";
 import { isNull, desc } from "drizzle-orm";
+import { grantAdminEditorAccessToDriveItems } from "@/lib/google-drive-permissions";
 
 export async function GET() {
   try {
@@ -51,6 +52,10 @@ export async function POST(req: Request) {
     const questions = Array.isArray(body.questions) ? body.questions : [];
 
     const form = await createCustomGoogleForm(title, description, questions);
+
+    if (env.FEATURE_DRIVE_EDITOR_SYNC === "1" && form.formId) {
+      await grantAdminEditorAccessToDriveItems([form.formId]);
+    }
 
     const formRecordId = crypto.randomUUID();
     const formTitle = form?.info?.title || title;

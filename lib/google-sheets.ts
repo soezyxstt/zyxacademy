@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import { getGoogleFormsAccessToken } from "@/lib/google-forms";
 import { db } from "@/db";
 import { env } from "@/lib/env";
-import { exportSpreadsheets, customForms, quizTemplates, pengguna, penggunaPeran, peran, user } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { exportSpreadsheets, customForms, quizTemplates } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { getAllAdminEmails } from "@/lib/google-drive-permissions";
 
 type CellValue = string | number | boolean | null | undefined;
 
@@ -133,7 +134,8 @@ export async function ensureGoogleDriveFolderPath(segments: string[]): Promise<s
     if (!segment.trim()) continue;
 
     // Search for existing folder
-    const q = `mimeType='application/vnd.google-apps.folder' and name='${segment.replace(/'/g, "\'")}' and '${currentParentId}' in parents and trashed=false`;
+    const escapedSegment = segment.replace(/'/g, "\\'");
+    const q = `mimeType='application/vnd.google-apps.folder' and name='${escapedSegment}' and '${currentParentId}' in parents and trashed=false`;
     const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -179,7 +181,9 @@ export async function moveFileToDriveFolder(fileId: string, folderId: string) {
   const previousParents = fileData.parents ? fileData.parents.join(",") : "";
 
   // Move
-  const moveRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${folderId}&removeParents=${previousParents}`, {
+  const moveParams = new URLSearchParams({ addParents: folderId, supportsAllDrives: "true" });
+  if (previousParents) moveParams.set("removeParents", previousParents);
+  const moveRes = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?${moveParams}`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -188,15 +192,7 @@ export async function moveFileToDriveFolder(fileId: string, folderId: string) {
 }
 
 export async function getAdminEmails(): Promise<string[]> {
-  const rows = await db
-    .select({ email: user.email })
-    .from(penggunaPeran)
-    .innerJoin(pengguna, eq(penggunaPeran.penggunaId, pengguna.id))
-    .innerJoin(user, eq(pengguna.id, user.id))
-    .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
-    .where(and(eq(pengguna.status, "active"), eq(peran.code, "admin")));
-
-  return rows.map((r) => r.email).filter(Boolean);
+  return getAllAdminEmails();
 }
 
 export async function grantDriveEditorAccess(fileId: string, emails: string[]) {
@@ -226,9 +222,11 @@ export async function grantDriveEditorAccess(fileId: string, emails: string[]) {
       }
     );
     if (!createRes.ok) {
-      // 403 is returned when the user is already a collaborator; treat as success.
-      if (createRes.status === 403) continue;
-      throw new Error(`Drive permission create error for ${email}: ${await createRes.text()}`);
+      const errorText = await createRes.text();
+      const alreadyGranted =
+        createRes.status === 403 && /already|exist|collaborator/i.test(errorText);
+      if (alreadyGranted) continue;
+      throw new Error(`Drive permission create error for ${email}: ${errorText}`);
     }
   }
 }

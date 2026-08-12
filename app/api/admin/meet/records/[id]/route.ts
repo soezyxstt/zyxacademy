@@ -49,10 +49,8 @@ export async function GET(
       if (tr.docsExportUri) driveIds.push(tr.docsExportUri);
     }
 
-    if (driveIds.length > 0) {
-      void grantAdminEditorAccessToDriveItems(driveIds).catch((err) => {
-        console.warn("Failed to grant Drive editor access for meeting records:", err);
-      });
+    if (env.FEATURE_DRIVE_EDITOR_SYNC === "1" && driveIds.length > 0) {
+      await grantAdminEditorAccessToDriveItems(driveIds);
     }
 
     return NextResponse.json({ success: true, analytics });

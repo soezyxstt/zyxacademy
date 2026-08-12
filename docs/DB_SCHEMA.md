@@ -1158,10 +1158,10 @@ The app owns only the data block at A1 (header + data rows). Cells right of the 
 ### google_meet_sessions (new columns)
 Extension columns on the PKA Google Meet review session table (migration 0065).
 
-* `slug`: Unique stable short-link slug used by the public `/meet/[slug]` route. Indexed (`idx_meet_slug`, plus a unique index).
-* `hostEmail`: Google email set as the meeting host (defaults to the creator).
-* `coHostEmails`: JSON array of co-host Google emails.
-* `invitedEmails`: JSON array of invited participant Google emails.
+* `slug`: Unique stable short-link slug used by the shared public `/f/[slug]` resolver. Indexed (`idx_meet_slug`, plus a unique index). Application validation also prevents active Form and Meet records from sharing a slug.
+* `hostEmail`: Signed-in creator email after successful `COHOST` provisioning. The Google OAuth principal remains the organizer.
+* `coHostEmails`: JSON array of emails successfully provisioned with the Meet `COHOST` role.
+* `invitedEmails`: JSON array of emails successfully provisioned as Meet space members.
 
 ### custom_form_presets
 Reusable Form Studio presets (question blueprints + settings) that admins can save and re-apply. Gated by `FEATURE_FORM_PRESETS=1`.

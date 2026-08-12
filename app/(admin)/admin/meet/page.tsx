@@ -188,6 +188,9 @@ export default function AdminMeetPage() {
         setSlugEdited(false);
         setSelectedEmails([]);
         setShowAllCoHosts(false);
+        if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+          toast.warning(`${data.warnings.length} akun belum mendapat hak Meet. Periksa izin Developer Preview dan scope OAuth.`);
+        }
       } else {
         setErrorMsg(data.error || "Gagal membuat Google Meet space.");
       }
@@ -299,8 +302,11 @@ export default function AdminMeetPage() {
     courseFilter === "all" ? null : (meetCourses.find((c) => c.id === courseFilter) ?? null);
 
   const previewSlug = slug || slugifyTitle(title);
-  const createLink = origin ? `${origin}/meet/${previewSlug}` : "";
-  const activeZyxLink = origin && activeSpace?.slug ? `${origin}/meet/${activeSpace.slug}` : "";
+  const createLink = origin && previewSlug ? `${origin}/f/${previewSlug}` : "";
+  const activeZyxLink = origin && activeSpace?.slug ? `${origin}/f/${activeSpace.slug}` : "";
+  const hostMeetingUri = activeSpace?.hostEmail
+    ? `${activeSpace.meetingUri}${activeSpace.meetingUri.includes("?") ? "&" : "?"}authuser=${encodeURIComponent(activeSpace.hostEmail)}`
+    : activeSpace?.meetingUri;
 
   const formatTimeOnly = (isoStr?: string) => {
     if (!isoStr) return "-";
@@ -325,7 +331,7 @@ export default function AdminMeetPage() {
     <div className="space-y-8">
       <AdminPageHeader
         icon={Video}
-        title="Studio Meet"
+        title="Meet"
         description="Buat dan kelola sesi Google Meet dengan link Zyx ber-slug, atur akses dan undangan peserta, tetapkan host dan co-host admin, serta pantau log, rekaman, dan metrik kehadiran."
       />
 
@@ -369,7 +375,7 @@ export default function AdminMeetPage() {
               </label>
               <div className="flex items-center gap-2">
                 <span className="shrink-0 rounded-md bg-muted px-2 py-2 text-body-xs font-medium text-muted-foreground">
-                  /meet/
+                  /f/
                 </span>
                 <Input
                   type="text"
@@ -707,7 +713,7 @@ export default function AdminMeetPage() {
                     size="sm"
                     asChild
                   >
-                    <a href={activeSpace.meetingUri} target="_blank" rel="noreferrer">
+                    <a href={hostMeetingUri} target="_blank" rel="noreferrer">
                       <ExternalLink className="size-3.5" />
                       Buka sebagai Host
                     </a>

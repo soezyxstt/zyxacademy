@@ -123,7 +123,9 @@ export function buildMediaKey(params: {
   folderPath?: string | null;
   filename: string;
 }): string {
-  const folder = (params.folderPath || "")
+  const rawFolder = (params.folderPath || "").trim();
+  if (rawFolder) assertSafeKey(rawFolder);
+  const folder = rawFolder
     .split("/")
     .map((seg) => slugifySegment(seg, ""))
     .filter(Boolean)

@@ -86,6 +86,14 @@ interface StoredNativeForm {
   createdAt: string;
 }
 
+function settingsForSave<T extends { openAt?: string; closeAt?: string }>(settings: T): T {
+  return {
+    ...settings,
+    openAt: settings.openAt ? new Date(settings.openAt).toISOString() : "",
+    closeAt: settings.closeAt ? new Date(settings.closeAt).toISOString() : "",
+  };
+}
+
 export default function AdminFormsBuilder({
   presetsEnabled,
 }: {
@@ -421,7 +429,7 @@ export default function AdminFormsBuilder({
           category,
           slug: slug.trim() || undefined,
           questions,
-          settings,
+          settings: settingsForSave(settings),
         }),
       });
       const data = await res.json();

@@ -12,6 +12,9 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: RouteContext) {
   try {
+    if (env.FEATURE_LINK_LIBRARY !== "1") {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const { id } = await params;
 
     if (env.FEATURE_PERAN_V2 === "1") {
@@ -97,6 +100,9 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
 export async function DELETE(_req: Request, { params }: RouteContext) {
   try {
+    if (env.FEATURE_LINK_LIBRARY !== "1") {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const { id } = await params;
 
     if (env.FEATURE_PERAN_V2 === "1") {

@@ -175,7 +175,9 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       if (q && q.required) {
         const userAns = answers[qIdx];
         const isOtherEmpty =
-          userAns === OTHER_OPTION_MARKER && !(otherTexts[qIdx] && otherTexts[qIdx].trim().length > 0);
+          (userAns === OTHER_OPTION_MARKER ||
+            (Array.isArray(userAns) && userAns.includes(OTHER_OPTION_MARKER))) &&
+          !(otherTexts[qIdx] && otherTexts[qIdx].trim().length > 0);
         if (
           userAns === undefined ||
           userAns === null ||
@@ -263,6 +265,35 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     e.preventDefault();
     if (!form) return;
 
+    for (let qIdx = 0; qIdx < form.questions.length; qIdx += 1) {
+      const question = form.questions[qIdx];
+      if (question.type === "SECTION") continue;
+      const value = answers[qIdx];
+      const hasEmptyOther =
+        (value === OTHER_OPTION_MARKER ||
+          (Array.isArray(value) && value.includes(OTHER_OPTION_MARKER))) &&
+        !otherTexts[qIdx]?.trim();
+      const isEmpty =
+        value === undefined ||
+        value === null ||
+        value === "" ||
+        (Array.isArray(value) && value.length === 0);
+      if (hasEmptyOther || (question.required && isEmpty)) {
+        setCurrentStep(
+          Math.max(
+            0,
+            sections.findIndex((section) => section.questionIndices.includes(qIdx))
+          )
+        );
+        toast.error(
+          hasEmptyOther
+            ? `Jelaskan pilihan lainnya untuk: "${question.title || `Pertanyaan #${questionNumbers.get(qIdx) || qIdx + 1}`}"`
+            : `Harap isi pertanyaan wajib: "${question.title || `Pertanyaan #${questionNumbers.get(qIdx) || qIdx + 1}`}"`
+        );
+        return;
+      }
+    }
+
     const trimmedEmail = responderEmail.trim();
     if (collectEmail === "input") {
       if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
@@ -301,6 +332,11 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
         setLoginRequired(true);
         setErrorMsg(data.error || "Anda harus login ke akun Zyx untuk mengisi formulir ini.");
       } else if (data.success) {
+        setAnswers({});
+        setOtherTexts({});
+        setResponderEmail("");
+        setEmailError(null);
+        setCurrentStep(0);
         setSubmittedMessage(data.message || "Jawaban Anda telah berhasil disimpan.");
       } else {
         setErrorMsg(data.error || "Gagal mengirim formulir.");
@@ -375,11 +411,6 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
           <Button
             onClick={() => {
               setSubmittedMessage(null);
-              setAnswers({});
-              setOtherTexts({});
-              setResponderEmail("");
-              setEmailError(null);
-              setCurrentStep(0);
             }}
             variant="outline"
             className="mt-4"

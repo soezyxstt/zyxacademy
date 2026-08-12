@@ -688,6 +688,12 @@ lib/
 └── site.ts, site-search.ts, testimonials.ts, youtube.ts ; Static content
 ```
 
+### Admin collaboration libraries
+
+The shared `/f/[slug]` route preserves an existing active Form first, then resolves an active Meet session when no Form owns the slug. Both creation APIs check active records in `google_meet_sessions` and `custom_forms`, so a new slug cannot be assigned to both domains. Meet space creation enables moderation, provisions the signed-in creator and active admins as `COHOST` members, and provisions Restricted or Trusted invitees with `ROLE_UNSPECIFIED` through the Developer Preview v2beta member endpoint. The OAuth principal remains the meeting organizer.
+
+Media uses the application-owned `media/` R2 prefix with nested virtual folders represented by `.keep` objects. Other canonical R2 domains remain read-only in the Media storage browser and can only be copied into `media/`. Tautan is a separate relational catalog in `important_links`; the feature flag gates both admin APIs and the public `/tautan` route.
+
 ---
 
 ## 9. Production Deployment Architecture

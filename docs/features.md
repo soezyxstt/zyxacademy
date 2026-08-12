@@ -256,16 +256,17 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - The browser permission flow only prompts authenticated users, "Nanti Saja" defers for 7 days instead of denying forever, and foreground FCM messages surface as toasts and refresh the inbox.
 
 ### Meet Studio Improvements
-- Meet sessions get stable short links at `/meet/[slug]` for easy sharing; slug is auto-generated and unique.
-- The creator is set as the meeting host; admins can pick co-hosts and invited emails via a role/course filtered picker with additive bulk selects.
-- Host, co-host, and invited emails are persisted on `google_meet_sessions` and applied through the Google Calendar/Meet API.
-- When `FEATURE_DRIVE_EDITOR_SYNC=1`, active admin emails are granted Drive editor access through `lib/google-drive-permissions.ts`.
+- Meet sessions share the `/f/[slug]` resolver with Form Studio. Slugs default from the title, remain editable, and are checked against active Meet and Form records before creation.
+- Restricted and Trusted access use a role/course filtered picker with additive bulk selects. Selected users are created as Meet space members, so they can join without knocking according to the selected access mode.
+- The signed-in creator and every active admin are provisioned as `COHOST` members through the Developer Preview Meet `v2beta` member endpoint. The OAuth principal remains the meeting organizer; the creator receives host-management rights as a co-host.
+- Host, co-host, and invited emails are persisted on `google_meet_sessions`. Failed member grants are returned as visible warnings instead of being presented as successful assignments.
+- When `FEATURE_DRIVE_EDITOR_SYNC=1`, active admin emails are granted Drive editor access for exported spreadsheets, Forms files, recording files, transcripts, and new export folders through `lib/google-drive-permissions.ts`.
 
 ### Form Studio Fixes & Presets
 - Spreadsheet export is scoped to a structured Drive folder (`forms/{slug}`, title `form-{slug}-responses`) and excludes SECTION rows from the data export.
 - "Lainnya" (other) options use a stable sentinel (`\uE000__other__`) so open answers survive round trips; SECTION counts are excluded everywhere via a continuous `questionNumberMap`.
 - The builder auto-scrolls, resets after a successful publish, and uses shadcn Switch toggles for settings (collect email, show progress, etc.).
-- `collectEmail` works end to end; schedule start/end validation uses `formatDatetimeLocal` round trips.
+- `collectEmail` works end to end; schedule inputs are converted from browser-local values to absolute ISO instants before save, then use `formatDatetimeLocal` for editing.
 - Reusable presets (question blueprints + settings) can be saved and re-applied from `/admin/forms` via `/api/admin/form-presets` and `components/forms/form-presets.tsx`, gated by `FEATURE_FORM_PRESETS=1`.
 - Settings panels fill the container width; the matrix question table was removed; terminology and section header images with zoom were fixed.
 

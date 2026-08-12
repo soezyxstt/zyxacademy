@@ -4,9 +4,10 @@ import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { hasPeran } from "@/lib/auth/authorization";
 import { db } from "@/db";
-import { customForms, customFormResponses } from "@/db/schema";
-import { isNull, desc, eq, count } from "drizzle-orm";
+import { customForms, customFormResponses, googleMeetSessions } from "@/db/schema";
+import { and, isNull, desc, eq, count } from "drizzle-orm";
 import { createCustomGoogleForm } from "@/lib/google-forms";
+import { grantAdminEditorAccessToDriveItems } from "@/lib/google-drive-permissions";
 
 function generateShortSlug(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -97,14 +98,22 @@ export async function POST(req: Request) {
     }
 
     // Check slug collision
-    const existing = await db
-      .select({ id: customForms.id })
-      .from(customForms)
-      .where(eq(customForms.slug, slug))
-      .limit(1);
-
-    if (existing.length > 0) {
-      slug = `${slug}-${generateShortSlug().slice(0, 4)}`;
+    const slugBase = slug;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const [existingForm, existingMeet] = await Promise.all([
+        db
+          .select({ id: customForms.id })
+          .from(customForms)
+          .where(and(eq(customForms.slug, slug), isNull(customForms.deletedAt)))
+          .limit(1),
+        db
+          .select({ id: googleMeetSessions.id })
+          .from(googleMeetSessions)
+          .where(and(eq(googleMeetSessions.slug, slug), isNull(googleMeetSessions.deletedAt)))
+          .limit(1),
+      ]);
+      if (existingForm.length === 0 && existingMeet.length === 0) break;
+      slug = `${slugBase}-${generateShortSlug().slice(0, 4)}`;
     }
 
     // Optional Google Form Sync
@@ -116,6 +125,9 @@ export async function POST(req: Request) {
       if (gForm?.formId) {
         googleFormId = gForm.formId;
         googleResponderUri = gForm.responderUri;
+        if (env.FEATURE_DRIVE_EDITOR_SYNC === "1") {
+          await grantAdminEditorAccessToDriveItems([gForm.formId]);
+        }
       }
     } catch (gErr) {
       console.warn("Optional Google Form Sync Warning:", gErr);

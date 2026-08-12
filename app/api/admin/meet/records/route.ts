@@ -7,6 +7,7 @@ import { listConferenceRecords, getCompleteMeetingAnalytics } from "@/lib/google
 import { db } from "@/db";
 import { googleMeetSessions } from "@/db/schema";
 import { isNull } from "drizzle-orm";
+import { grantAdminEditorAccessToDriveItems } from "@/lib/google-drive-permissions";
 
 export async function GET(req: Request) {
   try {
@@ -35,6 +36,7 @@ export async function GET(req: Request) {
     const rawRecords = data.conferenceRecords || [];
 
     // Map records with title & analytics metrics
+    const driveItems = new Set<string>();
     const conferenceRecords = await Promise.all(
       rawRecords.map(async (rec) => {
         const confId = rec.name.replace(/^conferenceRecords\//, "");
@@ -48,6 +50,12 @@ export async function GET(req: Request) {
           const analytics = await getCompleteMeetingAnalytics(confId);
           participantCount = analytics.participantCount;
           peakConcurrentParticipants = analytics.peakConcurrentParticipants;
+          for (const recording of analytics.recordings) {
+            if (recording.driveExportUri) driveItems.add(recording.driveExportUri);
+          }
+          for (const transcript of analytics.transcripts) {
+            if (transcript.docsExportUri) driveItems.add(transcript.docsExportUri);
+          }
         } catch {
           // Fallback if detailed analytics call fails
         }
@@ -60,6 +68,10 @@ export async function GET(req: Request) {
         };
       })
     );
+
+    if (env.FEATURE_DRIVE_EDITOR_SYNC === "1" && driveItems.size > 0) {
+      await grantAdminEditorAccessToDriveItems([...driveItems]);
+    }
 
     return NextResponse.json({
       success: true,

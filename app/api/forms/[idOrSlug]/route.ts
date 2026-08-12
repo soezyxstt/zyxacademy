@@ -189,6 +189,18 @@ export async function POST(
       }
     }
 
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i];
+      if (question.type === "SECTION" || !question.otherOption?.enabled) continue;
+      const value = answers[i] ?? answers[question.title];
+      if (value === "\uE000__other__" || (Array.isArray(value) && value.includes("\uE000__other__"))) {
+        return NextResponse.json(
+          { error: `Pilihan lainnya pada pertanyaan "${question.title || `Soal #${i + 1}`}" wajib dijelaskan.` },
+          { status: 400 }
+        );
+      }
+    }
+
     const responseId = crypto.randomUUID();
     const [submission] = await db
       .insert(customFormResponses)

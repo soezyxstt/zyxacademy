@@ -128,6 +128,14 @@ function formatAnswerForText(val: any): string {
     .join(" | ");
 }
 
+function settingsForSave<T extends { openAt?: string; closeAt?: string }>(settings: T): T {
+  return {
+    ...settings,
+    openAt: settings.openAt ? new Date(settings.openAt).toISOString() : "",
+    closeAt: settings.closeAt ? new Date(settings.closeAt).toISOString() : "",
+  };
+}
+
 function RenderFormattedAnswer({ val }: { val: any }) {
   if (val === null || val === undefined || val === "") {
     return <span className="text-muted-foreground italic">-</span>;
@@ -190,13 +198,11 @@ function RenderFormattedAnswer({ val }: { val: any }) {
 }
 
 const PIE_COLORS = [
-  "#3b82f6",
-  "#ef4444",
-  "#f59e0b",
-  "#10b981",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
 ];
 
 export default function DetailedFormAnalyticsPage({
@@ -221,7 +227,7 @@ export default function DetailedFormAnalyticsPage({
   const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
     onSuccess: ({ spreadsheetUrl }) => {
       window.open(spreadsheetUrl, "_blank");
-      toast.success("Google Spreadsheet berhasil dibuat!");
+      toast.success("Google Spreadsheet berhasil dibuat.");
     },
     onError: (message) => toast.error(message),
   });
@@ -303,14 +309,14 @@ export default function DetailedFormAnalyticsPage({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          settings: formSettings,
+          settings: settingsForSave(formSettings),
         }),
       });
       const data = await res.json();
       if (data.success && data.form) {
         setForm(data.form);
         setFormSettings(data.form.settings || {});
-        toast.success("Pengaturan formulir berhasil diperbarui!");
+        toast.success("Pengaturan formulir berhasil diperbarui.");
       } else {
         toast.error(data.error || "Gagal menyimpan pengaturan formulir.");
       }
@@ -429,10 +435,10 @@ export default function DetailedFormAnalyticsPage({
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
               <div>
                 <CardTitle className="text-h3 font-heading">
-                  {responses.length} responses
+                  {responses.length} tanggapan
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Visualisasi & diagnosa pengisian responden secara real-time
+                  Visualisasi dan analisis tanggapan responden
                 </CardDescription>
               </div>
 
@@ -454,7 +460,7 @@ export default function DetailedFormAnalyticsPage({
                   size="sm"
                   onClick={handleExportCSV}
                   disabled={responses.length === 0}
-                  className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
+                  className="text-status-success hover:text-status-success"
                 >
                   <Download className="size-4" />
                   <span>Ekspor ke CSV</span>
@@ -475,19 +481,19 @@ export default function DetailedFormAnalyticsPage({
               <AdminTabsList className="w-full justify-center">
                 <AdminTabsTrigger value="summary" className="flex-1 py-2">
                   <PieIcon className="size-4 text-primary" />
-                  Summary (Ringkasan Total)
+                  Ringkasan
                 </AdminTabsTrigger>
                 <AdminTabsTrigger value="question" className="flex-1 py-2">
-                  <QuestionIcon className="size-4 text-orange-500" />
-                  Question (Per Soal)
+                  <QuestionIcon className="size-4 text-brand-secondary" />
+                  Per pertanyaan
                 </AdminTabsTrigger>
                 <AdminTabsTrigger value="individual" className="flex-1 py-2">
-                  <User className="size-4 text-teal-500" />
-                  Individual (Per Responden)
+                  <User className="size-4 text-tertiary-1" />
+                  Per responden
                 </AdminTabsTrigger>
                 <AdminTabsTrigger value="settings" className="flex-1 py-2">
-                  <SettingsIcon className="size-4 text-amber-500" />
-                  Settings (Pengaturan)
+                  <SettingsIcon className="size-4 text-status-warning" />
+                  Pengaturan
                 </AdminTabsTrigger>
               </AdminTabsList>
             </CardContent>
@@ -541,7 +547,7 @@ export default function DetailedFormAnalyticsPage({
                         {num}. {questionTitle}
                       </CardTitle>
                       <CardDescription className="text-body-xs font-medium mt-1">
-                        {allAnswers.length} responses
+                        {allAnswers.length} tanggapan
                       </CardDescription>
                     </div>
 
@@ -671,7 +677,7 @@ export default function DetailedFormAnalyticsPage({
                     <SelectContent>
                       {visibleQuestions.map(({ qIdx, q }, i) => (
                         <SelectItem key={i} value={i.toString()}>
-                          {qIdx + 1}. {q.title || `Soal #${qIdx + 1}`}
+                          {questionNumberMap.get(qIdx) || i + 1}. {q.title || `Soal #${questionNumberMap.get(qIdx) || i + 1}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -704,7 +710,8 @@ export default function DetailedFormAnalyticsPage({
               if (!target) return null;
               const targetQ = target.q;
               const qIdx = target.qIdx;
-              const qTitle = targetQ.title || `Soal #${qIdx + 1}`;
+              const questionNumber = questionNumberMap.get(qIdx) || selectedQIndex + 1;
+              const qTitle = targetQ.title || `Soal #${questionNumber}`;
 
               const responsesForQ = responses.map((r) => ({
                 responderEmail: r.responderEmail || "Anonim",
@@ -716,10 +723,10 @@ export default function DetailedFormAnalyticsPage({
                 <Card className="shadow-sm">
                   <CardHeader className="border-b border-border pb-3">
                     <CardTitle className="text-h5 font-heading">
-                      {qIdx + 1}. {qTitle}
+                      {questionNumber}. {qTitle}
                     </CardTitle>
                     <CardDescription className="text-body-xs font-semibold">
-                      {responsesForQ.length} responses tercatat
+                      {responsesForQ.length} tanggapan tercatat
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-6 space-y-3">
@@ -787,15 +794,16 @@ export default function DetailedFormAnalyticsPage({
 
                   return (
                     <div className="space-y-4">
-                      {visibleQuestions.map(({ qIdx, q }) => {
-                        const qTitle = q.title || `Soal #${qIdx + 1}`;
+                      {visibleQuestions.map(({ qIdx, q }, visibleIndex) => {
+                        const questionNumber = questionNumberMap.get(qIdx) || visibleIndex + 1;
+                        const qTitle = q.title || `Soal #${questionNumber}`;
                         const userAns = currentResp.answers[qIdx] ?? currentResp.answers[qTitle];
 
                         return (
                           <Card key={qIdx} className="shadow-sm">
                             <CardHeader className="pb-2">
                               <CardTitle className="text-h6 font-heading">
-                                <MathText as="span">{`${qIdx + 1}. ${qTitle}`}</MathText>
+                                <MathText as="span">{`${questionNumber}. ${qTitle}`}</MathText>
                               </CardTitle>
                               {q.description && (
                                 <CardDescription className="text-body-xs"><MathText as="span">{q.description}</MathText></CardDescription>

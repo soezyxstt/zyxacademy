@@ -71,7 +71,18 @@ export async function PATCH(
     if (body.description !== undefined) updateData.description = String(body.description).trim() || null;
     if (body.category !== undefined) updateData.category = body.category;
     if (body.questions !== undefined) updateData.questions = body.questions;
-    if (body.settings !== undefined) updateData.settings = body.settings;
+    if (body.settings !== undefined) {
+      const settings = body.settings as Record<string, unknown>;
+      const openAt = typeof settings.openAt === "string" && settings.openAt ? new Date(settings.openAt) : null;
+      const closeAt = typeof settings.closeAt === "string" && settings.closeAt ? new Date(settings.closeAt) : null;
+      if (openAt && closeAt && openAt.getTime() >= closeAt.getTime()) {
+        return NextResponse.json(
+          { error: "Jadwal buka harus lebih awal dari jadwal tutup." },
+          { status: 400 }
+        );
+      }
+      updateData.settings = settings;
+    }
 
     const [updated] = await db
       .update(customForms)

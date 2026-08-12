@@ -4,15 +4,24 @@ import { user, pengguna, peran, penggunaPeran } from "@/db/schema";
 import { getGoogleMeetAccessToken } from "@/lib/google-meet";
 
 export async function getAllAdminEmails(): Promise<string[]> {
-  const rows = await db
-    .select({ email: user.email })
-    .from(penggunaPeran)
-    .innerJoin(pengguna, eq(penggunaPeran.penggunaId, pengguna.id))
-    .innerJoin(user, eq(pengguna.id, user.id))
-    .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
-    .where(and(eq(pengguna.status, "active"), eq(peran.code, "admin")));
+  const [domainRows, legacyRows] = await Promise.all([
+    db
+      .select({ email: user.email })
+      .from(penggunaPeran)
+      .innerJoin(pengguna, eq(penggunaPeran.penggunaId, pengguna.id))
+      .innerJoin(user, eq(pengguna.id, user.id))
+      .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
+      .where(and(eq(pengguna.status, "active"), eq(peran.code, "admin"))),
+    db.select({ email: user.email }).from(user).where(eq(user.role, "admin")),
+  ]);
 
-  return [...new Set(rows.map((r) => r.email.trim().toLowerCase()).filter(Boolean))];
+  return [
+    ...new Set(
+      [...domainRows, ...legacyRows]
+        .map((row) => row.email.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
 }
 
 export function extractDriveFileId(input: string | null | undefined): string | null {

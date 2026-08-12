@@ -300,6 +300,7 @@ Keep this section concise. Detailed feature behavior belongs in `docs/features.m
 - Zyra canvas and multimodal UX repair is local-only: responsive Recharts plots, post-response deterministic graph recovery works with or without canonical RAG evidence, direct Interactions routing, gateway-compatible image fallback, response-based allowance accounting, distinct provider errors, and private attachment previews with history hydration are implemented. Focused contracts pass; staging visual and live image review remain pending.
 - Zyra AI Plan 014 remains blocked until predecessor human and live staging gates pass.
 - Public Zyra continuation flags remain disabled unless explicitly enabled for an approved rollout.
+- Meet, Form Studio, Media, and Tautan repairs are local-ready. Focused contracts, lint, and typecheck pass; live Google Meet member provisioning, Drive permission sync, spreadsheet export, and responsive visual review remain staging gates.
 
 ### Blockers
 
