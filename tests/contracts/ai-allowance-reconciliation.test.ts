@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { evaluateAllowance } from "@/lib/usage-budget-service";
 
 describe("Plan 004 allowance terminal semantics", () => {
-  it("keeps a dispatched timeout as a committed provider turn", () => {
+  it("keeps allowance evaluation independent from provider terminal handling", () => {
     const decision = evaluateAllowance("murid", { provider: 19, total: 59, premium: 1, minute: 7 }, { units: 1, premium: false });
     expect(decision.accepted).toBe(true);
     if (decision.accepted) {

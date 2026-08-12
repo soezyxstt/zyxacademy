@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { zyraRuntimeEnv } from '@/lib/zyra/runtime-env';
 import { getRpdLimit, getRpmLimit, getProjectAliases } from '@/lib/ai/provider/model-registry';
+import { ProviderAdapterError } from '@/lib/ai/provider/errors';
 import { todayUtc } from '@/lib/date-utils';
 
 export interface GeminiKey {
@@ -333,8 +334,20 @@ export class GeminiKeyPool {
 
     state.failures++;
 
-    const isRateLimit = error.message?.includes('429') || 
-                        error.message?.includes('quota') || 
+    const classification = error instanceof ProviderAdapterError
+      ? error.retryClassification
+      : 'unknown';
+    if (classification === 'invalid_request' || classification === 'quarantined') {
+      console.warn(
+        `[GeminiKeyPool] Key ${keyId} model ${modelId} request rejected without key cooldown classification=${classification}`,
+      );
+      this.syncKeyLevelState(keyId);
+      return;
+    }
+
+    const isRateLimit = classification === 'rate_limited' ||
+                        error.message?.includes('429') ||
+                        error.message?.includes('quota') ||
                         error.message?.includes('RESOURCE_EXHAUSTED') ||
                         String(error).includes('429');
 
@@ -374,7 +387,7 @@ export class GeminiKeyPool {
       } else {
         const cooldownMs = retryAfterMs > 0 ? retryAfterMs : Math.min(1000 * Math.pow(2, state.consecutiveFailures), 300000);
         state.cooldownUntil = now + cooldownMs;
-        console.warn(`[GeminiKeyPool] Key ${keyId} model ${modelId} temporary error cooldown for ${cooldownMs / 1000}s`);
+        console.warn(`[GeminiKeyPool] Key ${keyId} model ${modelId} cooldown for ${cooldownMs / 1000}s classification=${classification}`);
       }
     }
 

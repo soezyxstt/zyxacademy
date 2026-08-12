@@ -55,12 +55,22 @@ describe("Plan 002 Gemini provider adapters", () => {
     expect(result.retryClassification).toBe("none");
   });
 
-  it("rejects image input for text-only legacy models", async () => {
-    const client = { models: { generateContent: async () => ({ text: "unused" }) } } as unknown as GeminiGenerateClient;
-    await expect(createGeminiGenerateAdapter(client).generate({
+  it("supports image input on the stable generateContent fallback", async () => {
+    const requests: unknown[] = [];
+    const client = {
+      models: {
+        generateContent: async (request: unknown) => {
+          requests.push(request);
+          return { text: "image ready" };
+        },
+      },
+    } as unknown as GeminiGenerateClient;
+    const result = await createGeminiGenerateAdapter(client).generate({
       modelId: "gemini-2.5-flash",
       parts: [{ type: "image", mimeType: "image/png", data: "aA==" }],
-    })).rejects.toMatchObject({ code: "CAPABILITY_REJECTED" });
+    });
+    expect(result.text).toBe("image ready");
+    expect(requests).toHaveLength(1);
   });
 
   it("uses interactions and thinking_level without deprecated sampling fields", async () => {

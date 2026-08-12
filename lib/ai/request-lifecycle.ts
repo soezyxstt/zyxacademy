@@ -100,6 +100,11 @@ function safeOutcomeCode(error: unknown): string {
   return "PROVIDER_ERROR";
 }
 
+function providerFailureAllowsFallback(error: unknown): boolean {
+  if (!(error instanceof ProviderAdapterError)) return true;
+  return !["invalid_request", "quarantined"].includes(error.retryClassification);
+}
+
 function assertTransition(result: ControlPlaneTransitionResult, expected: string): void {
   if (result.status === "rejected") {
     throw new RequestLifecycleError("LIFECYCLE_RECONCILIATION_FAILURE", `${expected} transition was rejected`, result.code);
@@ -237,10 +242,16 @@ export class RequestLifecycle {
     });
     if (!applicationAllowance.accepted) throw allowanceRejected(applicationAllowance);
 
-    let controlPlaneLease: Extract<ControlPlaneReserveResult, { status: "reserved" | "idempotent" }>['lease'] | null = null;
+    let applicationDispatched = applicationAllowance.lease.status === "dispatched";
+    let providerResult: ProviderGenerationResult | null = null;
     let selectedModel: ModelId | null = null;
-    try {
-      for (const model of route.models) {
+    let selectedProjectAlias: string | null = null;
+    let selectedControlPlaneLeaseId: string | null = null;
+    let lastProviderError: unknown = null;
+
+    for (const model of route.models) {
+      let controlPlaneLease: Extract<ControlPlaneReserveResult, { status: "reserved" | "idempotent" }>['lease'] | null = null;
+      try {
         const reservation = await this.controlPlane.reserve({
           idempotencyKey: `${requestId}:${model}`,
           userId: input.userId,
@@ -250,94 +261,105 @@ export class RequestLifecycle {
           modelId: model,
           cacheStatus,
         });
-        if (reservation.status === "reserved" || reservation.status === "idempotent") {
-          controlPlaneLease = reservation.lease;
-          selectedModel = model;
-          break;
+        if (reservation.status !== "reserved" && reservation.status !== "idempotent") continue;
+        controlPlaneLease = reservation.lease;
+
+        const attached = await this.allowance.attachControlPlaneLease(
+          applicationAllowance.lease.id,
+          controlPlaneLease.leaseId,
+        );
+        if (!attached) {
+          await this.controlPlane.refund(controlPlaneLease.leaseId, "APPLICATION_LEASE_ATTACH_FAILED");
+          throw new RequestLifecycleError(
+            "LIFECYCLE_PRE_DISPATCH_FAILURE",
+            "application and provider leases could not be linked",
+          );
         }
+
+        assertTransition(await this.controlPlane.dispatch(controlPlaneLease.leaseId), "control-plane dispatch");
+        if (!applicationDispatched) {
+          const applicationDispatch = await this.allowance.markDispatched(applicationAllowance.lease.id);
+          if (!applicationDispatch || applicationDispatch.status !== "dispatched") {
+            throw new RequestLifecycleError(
+              "LIFECYCLE_PRE_DISPATCH_FAILURE",
+              "application allowance dispatch was rejected",
+            );
+          }
+          applicationDispatched = true;
+        }
+      } catch (error) {
+        if (controlPlaneLease) {
+          await this.controlPlane.refund(controlPlaneLease.leaseId, "DISPATCH_FAILED_BEFORE_PROVIDER").catch(() => undefined);
+        }
+        await this.allowance.refund(applicationAllowance.lease.id).catch(() => undefined);
+        if (error instanceof RequestLifecycleError) throw error;
+        throw new RequestLifecycleError("LIFECYCLE_PRE_DISPATCH_FAILURE", "lease dispatch failed", undefined, error);
       }
-    } catch (error) {
-      await this.allowance.refund(applicationAllowance.lease.id);
-      throw error;
-    }
 
-    if (!controlPlaneLease || !selectedModel) {
-      await this.allowance.refund(applicationAllowance.lease.id);
-      throw new RequestLifecycleError("PROVIDER_CAPACITY_UNAVAILABLE", "no project-model capacity was available");
-    }
-
-    const attached = await this.allowance.attachControlPlaneLease(applicationAllowance.lease.id, controlPlaneLease.leaseId);
-    if (!attached) {
-      await this.controlPlane.refund(controlPlaneLease.leaseId, "APPLICATION_LEASE_ATTACH_FAILED");
-      await this.allowance.refund(applicationAllowance.lease.id);
-      throw new RequestLifecycleError("LIFECYCLE_PRE_DISPATCH_FAILURE", "application and provider leases could not be linked");
-    }
-
-    try {
-      assertTransition(await this.controlPlane.dispatch(controlPlaneLease.leaseId), "control-plane dispatch");
-      const applicationDispatch = await this.allowance.markDispatched(applicationAllowance.lease.id);
-      if (!applicationDispatch || applicationDispatch.status !== "dispatched") {
-        throw new RequestLifecycleError("LIFECYCLE_PRE_DISPATCH_FAILURE", "application allowance dispatch was rejected");
+      const startedAt = Date.now();
+      try {
+        providerResult = await this.dependencies.invokeProvider({
+          requestId: `${requestId}:${model}`,
+          userCohort: hashUserCohort(input.userId),
+          feature: input.feature,
+          routeClass: route.routeClass,
+          modelId: model,
+          projectAlias: controlPlaneLease.projectAlias,
+          parts: input.parts,
+          config: input.config,
+          cachePolicy: input.cachePolicy,
+          cacheKey: input.cacheKey,
+          cacheTtlSeconds: input.cacheTtlSeconds,
+        });
+        selectedModel = model;
+        selectedProjectAlias = controlPlaneLease.projectAlias;
+        selectedControlPlaneLeaseId = controlPlaneLease.leaseId;
+        break;
+      } catch (error) {
+        lastProviderError = error;
+        const classification = error instanceof ProviderAdapterError ? error.retryClassification : "unknown";
+        const latencyMs = Date.now() - startedAt;
+        await this.controlPlane.commit({
+          leaseId: controlPlaneLease.leaseId,
+          providerAttemptId: `${requestId}:${model}`,
+          outcomeCode: safeOutcomeCode(error),
+          outcomeClass: outcomeClass(classification),
+          latencyMs,
+        }).catch(() => undefined);
+        emitLifecycleEvent({
+          eventType: "provider_attempt",
+          actorRole: applicationAllowance.lease.peran,
+          courseId: input.courseId,
+          modelClass: model,
+          projectAlias: controlPlaneLease.projectAlias,
+          routeClass: route.routeClass,
+          resultCode: safeOutcomeCode(error),
+          latencyMs,
+          sizeBytes: lifecycleRequestBytes(input.parts),
+          cacheResult: hasImage ? "bypass" : cacheStatus,
+          attachmentCount: input.parts.filter((part) => part.type === "image").length,
+        });
+        if (!providerFailureAllowsFallback(error)) break;
       }
-    } catch (error) {
-      await this.controlPlane.refund(controlPlaneLease.leaseId, "DISPATCH_FAILED_BEFORE_PROVIDER").catch(() => undefined);
+    }
+
+    if (!providerResult || !selectedModel || !selectedProjectAlias || !selectedControlPlaneLeaseId) {
       await this.allowance.refund(applicationAllowance.lease.id).catch(() => undefined);
-      if (error instanceof RequestLifecycleError) throw error;
-      throw new RequestLifecycleError("LIFECYCLE_PRE_DISPATCH_FAILURE", "lease dispatch failed", undefined, error);
-    }
-
-    const startedAt = Date.now();
-    let providerResult: ProviderGenerationResult;
-    try {
-      providerResult = await this.dependencies.invokeProvider({
-        requestId,
-        userCohort: hashUserCohort(input.userId),
-        feature: input.feature,
-        routeClass: route.routeClass,
-        modelId: selectedModel,
-        projectAlias: controlPlaneLease.projectAlias,
-        parts: input.parts,
-        config: input.config,
-        cachePolicy: input.cachePolicy,
-        cacheKey: input.cacheKey,
-        cacheTtlSeconds: input.cacheTtlSeconds,
-      });
-    } catch (error) {
-      const classification = error instanceof ProviderAdapterError ? error.retryClassification : "unknown";
-      const latencyMs = Date.now() - startedAt;
-      await this.controlPlane.commit({
-        leaseId: controlPlaneLease.leaseId,
-        providerAttemptId: requestId,
-        outcomeCode: safeOutcomeCode(error),
-        outcomeClass: outcomeClass(classification),
-        latencyMs,
-      }).catch(() => undefined);
-      await this.allowance.commit(applicationAllowance.lease.id, {
-        model: selectedModel,
-        inputTokens: 0,
-        outputTokens: 0,
-        requestType: "provider:failed",
-      }).catch(() => undefined);
-      emitLifecycleEvent({
-        eventType: "provider_attempt",
-        actorRole: applicationAllowance.lease.peran,
-        courseId: input.courseId,
-        modelClass: selectedModel,
-        projectAlias: controlPlaneLease.projectAlias,
-        routeClass: route.routeClass,
-        resultCode: safeOutcomeCode(error),
-        latencyMs,
-        sizeBytes: lifecycleRequestBytes(input.parts),
-        cacheResult: hasImage ? "bypass" : cacheStatus,
-        attachmentCount: input.parts.filter((part) => part.type === "image").length,
-      });
-      throw new RequestLifecycleError("PROVIDER_REQUEST_FAILED", "provider request failed after dispatch", safeOutcomeCode(error), error);
+      if (lastProviderError) {
+        throw new RequestLifecycleError(
+          "PROVIDER_REQUEST_FAILED",
+          "all compatible provider attempts failed",
+          safeOutcomeCode(lastProviderError),
+          lastProviderError,
+        );
+      }
+      throw new RequestLifecycleError("PROVIDER_CAPACITY_UNAVAILABLE", "no project-model capacity was available");
     }
 
     const latencyMs = providerResult.latencyMs;
     try {
       assertTransition(await this.controlPlane.commit({
-        leaseId: controlPlaneLease.leaseId,
+        leaseId: selectedControlPlaneLeaseId,
         providerAttemptId: providerResult.providerRequestId ?? requestId,
         outcomeCode: "PROVIDER_SUCCESS",
         outcomeClass: "success",
@@ -362,7 +384,7 @@ export class RequestLifecycle {
       actorRole: applicationAllowance.lease.peran,
       courseId: input.courseId,
       modelClass: selectedModel,
-      projectAlias: controlPlaneLease.projectAlias,
+      projectAlias: selectedProjectAlias,
       routeClass: route.routeClass,
       resultCode: "PROVIDER_SUCCESS",
       latencyMs,
@@ -375,7 +397,7 @@ export class RequestLifecycle {
       outcome: "provider_success",
       requestId,
       modelId: selectedModel,
-      projectAlias: controlPlaneLease.projectAlias,
+      projectAlias: selectedProjectAlias,
       routeClass: route.routeClass,
       result: providerResult,
     };

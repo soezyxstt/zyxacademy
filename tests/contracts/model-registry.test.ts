@@ -5,6 +5,7 @@ import {
   getProjectAliases,
   getRpdLimit,
   MODEL_REGISTRY,
+  modelSupportsAiGateway,
   normalizeModelId,
   type ModelId,
 } from "@/lib/ai/provider/model-registry";
@@ -57,5 +58,11 @@ describe("Plan 002 model registry", () => {
       GEMINI_PROJECT_ALIAS_1: "project-a",
       GEMINI_PROJECT_ALIAS_2: "project-a",
     })).toThrow("GEMINI_PROJECT_ALIASES_MUST_BE_DISTINCT");
+  });
+
+  it("keeps Interactions direct and the visual fallback gateway-compatible", () => {
+    expect(modelSupportsAiGateway("gemini-3.6-flash")).toBe(false);
+    expect(modelSupportsAiGateway("gemini-2.5-flash")).toBe(true);
+    expect(getModelEntry("gemini-2.5-flash").input.image).toBe(true);
   });
 });

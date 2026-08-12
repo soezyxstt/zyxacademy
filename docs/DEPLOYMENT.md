@@ -158,6 +158,8 @@ Plans 008 through 013 are additive local implementations in this checkpoint. Loc
 
 Plan 010 requires the dedicated private attachment bucket and the normal R2 or staging Wrangler private adapter. Do not set `STORAGE_PROVIDER_MODE=uploadthing` for the multimodal path. Image source bytes are never sent directly from the browser to a provider and no public object URL is issued.
 
+Gemini Interactions requests bypass `CF_AI_GATEWAY_URL` and use the direct Google endpoint. GenerateContent requests, including the `gemini-2.5-flash` multimodal fallback, continue through Cloudflare AI Gateway. Vercel logs expose only privacy-safe provider code, HTTP status, retry classification, model, endpoint family, transport, and request ID.
+
 Plan 014 must be run with the staging environment file and an approved cap. The synthetic verifier is safe to run while local work is dirty, but it must report `BLOCKED`. A live provider matrix requires explicit operator approval after Plan 007 remote shadow and maintainer review, predecessor artifacts, backup and identity checks, and final diff review all pass. No Plan 008 through 014 command authorizes production deployment.
 
 ## Zyra control-plane staging foundation

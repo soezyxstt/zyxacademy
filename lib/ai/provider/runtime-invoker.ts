@@ -3,7 +3,7 @@ import { buildAiGatewayHeaders } from "@/lib/ai/gateway-metadata";
 import { classifyProviderError, ProviderAdapterError } from "@/lib/ai/provider/errors";
 import { createGeminiGenerateAdapter } from "@/lib/ai/provider/gemini-generate-adapter";
 import { createGeminiInteractionsAdapter } from "@/lib/ai/provider/gemini-interactions-adapter";
-import { getModelEntry, getProjectAliases } from "@/lib/ai/provider/model-registry";
+import { getModelEntry, getProjectAliases, modelSupportsAiGateway } from "@/lib/ai/provider/model-registry";
 import type { ProviderGenerationResult, ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
 import type { RequestLifecycleDependencies } from "@/lib/ai/request-lifecycle";
 
@@ -72,7 +72,7 @@ export function createProviderInvokerFromEnvironment(
     }
 
     const entry = getModelEntry(input.modelId);
-    const viaGateway = Boolean(gatewayUrl && gatewayToken);
+    const viaGateway = Boolean(gatewayUrl && gatewayToken && modelSupportsAiGateway(input.modelId));
     const gatewayHeaders = viaGateway
       ? {
           "cf-aig-authorization": `Bearer ${gatewayToken}`,
@@ -94,7 +94,7 @@ export function createProviderInvokerFromEnvironment(
       const client = new GoogleGenAI({
         apiKey: slot.apiKey,
         httpOptions: {
-          ...(gatewayUrl ? { baseUrl: gatewayUrl } : {}),
+          ...(viaGateway && gatewayUrl ? { baseUrl: gatewayUrl } : {}),
           ...(gatewayHeaders ? { headers: gatewayHeaders } : {}),
           timeout: entry.deadlineMs,
         },
@@ -107,7 +107,11 @@ export function createProviderInvokerFromEnvironment(
         parts: input.parts as readonly ProviderInputPart[],
         config: input.config,
       });
-      return { ...result, providerRequestId: result.providerRequestId ?? input.requestId };
+      return {
+        ...result,
+        providerRequestId: result.providerRequestId ?? input.requestId,
+        viaGateway,
+      };
     } catch (error) {
       throw classifyProviderError(error, input.modelId);
     }

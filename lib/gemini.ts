@@ -10,6 +10,7 @@ import {
 import {
   EMBEDDING_PROFILES,
   getModelEntry,
+  modelSupportsAiGateway,
 } from "@/lib/ai/provider/model-registry";
 import {
   type ProviderInputPart,
@@ -26,11 +27,14 @@ interface ClientPriority {
   viaGateway: boolean;
 }
 
-function getClientsPriority(key: typeof geminiKeyPool["keys"][0]): ClientPriority[] {
+function getClientsPriority(
+  key: typeof geminiKeyPool["keys"][0],
+  allowGateway = true,
+): ClientPriority[] {
   const gatewayUrl = zyraRuntimeEnv.CF_AI_GATEWAY_URL;
   const list: ClientPriority[] = [];
 
-  if (gatewayUrl && key.clientGateway) {
+  if (allowGateway && gatewayUrl && key.clientGateway) {
     list.push({ client: key.clientGateway, viaGateway: true });
   }
 
@@ -168,7 +172,9 @@ async function invokeProviderThroughControlPlane(input: {
   }
 
   const entry = getModelEntry(input.modelId);
-  const viaGateway = Boolean(zyraRuntimeEnv.CF_AI_GATEWAY_URL);
+  const viaGateway = Boolean(
+    zyraRuntimeEnv.CF_AI_GATEWAY_URL && modelSupportsAiGateway(input.modelId),
+  );
   const client = geminiKeyPool.createRequestClient(input.projectAlias, {
     viaGateway,
     timeoutMs: entry.deadlineMs,
@@ -207,23 +213,39 @@ async function invokeProviderThroughControlPlane(input: {
     });
     geminiKeyPool.markSuccess(key.id, input.modelId);
     logAiRequest({
-      operation: "generateContent",
+      operation: entry.family === "interactions" ? "interactions" : "generateContent",
       model: input.modelId,
       viaGateway,
       latencyMs: Date.now() - startedAt,
       success: true,
     });
-    return { ...result, providerRequestId: result.providerRequestId ?? input.requestId };
+    return {
+      ...result,
+      providerRequestId: result.providerRequestId ?? input.requestId,
+      viaGateway,
+    };
   } catch (error) {
     geminiKeyPool.markFailure(key.id, input.modelId, error instanceof Error ? error : new Error("Gemini request failed"));
+    const typedError = error instanceof ProviderAdapterError
+      ? error
+      : new ProviderAdapterError({
+          code: "PROVIDER_ERROR",
+          message: "Gemini provider request failed",
+          retryClassification: "unknown",
+          modelId: input.modelId,
+          cause: error,
+        });
     logAiRequest({
-      operation: "generateContent",
+      operation: entry.family === "interactions" ? "interactions" : "generateContent",
       model: input.modelId,
       viaGateway,
       latencyMs: Date.now() - startedAt,
       success: false,
-      error: error instanceof Error ? error.message : "Gemini request failed",
+      error: `${typedError.code}:${typedError.httpStatus ?? "none"}:${typedError.retryClassification}`,
     });
+    console.warn(
+      `[ZyraProvider] request failed code=${typedError.code} status=${typedError.httpStatus ?? "none"} classification=${typedError.retryClassification} model=${input.modelId} family=${entry.family} transport=${viaGateway ? "gateway" : "direct"} request=${input.requestId}`,
+    );
     throw error;
   }
 }
@@ -297,7 +319,7 @@ export async function generateContentWithFallback(
     return {
       response,
       modelUsed: result.modelId,
-      viaGateway: Boolean(zyraRuntimeEnv.CF_AI_GATEWAY_URL),
+      viaGateway: result.result.viaGateway ?? false,
       promptTokenCount: result.result.usage?.promptTokens,
       candidatesTokenCount: result.result.usage?.outputTokens,
       projectAlias: result.projectAlias,
@@ -319,7 +341,7 @@ export async function generateContentWithFallback(
       const key = geminiKeyPool.getBestKey(model);
       if (!key) break;
 
-      const clients = getClientsPriority(key);
+      const clients = getClientsPriority(key, modelSupportsAiGateway(model));
       for (const { client, viaGateway } of clients) {
         const clientLabel = viaGateway ? "gateway" : "direct";
         const startedAt = Date.now();

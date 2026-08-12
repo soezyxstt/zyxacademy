@@ -155,7 +155,7 @@ const REGISTRY = {
     thinking: { kind: "none" },
     outputFloor: 512,
     routeClasses: ["stable-fallback"],
-    input: TEXT_INPUT,
+    input: VISUAL_INPUT,
     healthGate: STANDARD_HEALTH_GATE,
   },
   [MODEL_IDS.stableFlashLite]: {
@@ -293,9 +293,17 @@ export type EmbeddingProfile = (typeof EMBEDDING_PROFILES)[EmbeddingProfileId];
 export const ROUTE_POLICY = {
   default: [MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.stableFlashLite],
   premiumPedagogy: [MODEL_IDS.premiumPedagogy, MODEL_IDS.default, MODEL_IDS.stableFlash],
-  premiumVisual: [MODEL_IDS.premiumVisual, MODEL_IDS.default, MODEL_IDS.stableFlash],
+  premiumVisual: [MODEL_IDS.premiumVisual, MODEL_IDS.stableFlash],
   emergency: [MODEL_IDS.emergencyText],
 } as const;
+
+/**
+ * Cloudflare's Google AI Studio gateway supports the generateContent family.
+ * Gemini Interactions uses a different endpoint and must use the direct client.
+ */
+export function modelSupportsAiGateway(modelId: string): boolean {
+  return getModelEntry(modelId).family !== "interactions";
+}
 
 export function normalizeModelId(modelId: string): ModelId {
   const normalized = modelId.startsWith("models/") ? modelId.slice("models/".length) : modelId;

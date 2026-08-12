@@ -129,7 +129,7 @@ describe("Plan 005 request lifecycle", () => {
     expect(fixture.events).toEqual(["allowance.cache"]);
   });
 
-  it("commits a dispatched provider failure instead of double-sending", async () => {
+  it("tries bounded fallbacks and refunds a request that produces no answer", async () => {
     const fixture = dependencies({
       invokeProvider: async () => {
         fixture.events.push("provider:failure");
@@ -149,7 +149,44 @@ describe("Plan 005 request lifecycle", () => {
       parts: [{ type: "text", text: "Failure" }],
     })).rejects.toMatchObject({ code: "PROVIDER_REQUEST_FAILED", reason: "PROVIDER_TRANSIENT" });
     expect(fixture.events).toContain("cp.commit");
-    expect(fixture.events).toContain("allowance.commit");
+    expect(fixture.events).toContain("allowance.refund");
+    expect(fixture.events).not.toContain("allowance.commit");
     expect(fixture.events).not.toContain("cp.refund");
+  });
+
+  it("falls back from Interactions to generateContent with one allowance", async () => {
+    const fixture = dependencies({
+      invokeProvider: async ({ modelId }) => {
+        fixture.events.push(`provider:${modelId}`);
+        if (modelId === "gemini-3.6-flash") {
+          throw new ProviderAdapterError({
+            code: "PROVIDER_AUTHENTICATION",
+            message: "masked",
+            retryClassification: "authentication",
+            modelId,
+            httpStatus: 403,
+          });
+        }
+        return result(modelId);
+      },
+    });
+    const lifecycle = new RequestLifecycle(fixture.dependencies);
+
+    const output = await lifecycle.execute({
+      userId: "user-1",
+      feature: "plan005-visual-fallback",
+      idempotencyKey: "request-visual-fallback",
+      route: { multimodal: true },
+      parts: [
+        { type: "text", text: "Explain" },
+        { type: "image", mimeType: "image/png", data: "aA==" },
+      ],
+    });
+
+    expect(output.modelId).toBe("gemini-2.5-flash");
+    expect(fixture.events.filter((event) => event === "allowance.reserve")).toHaveLength(1);
+    expect(fixture.events.filter((event) => event === "allowance.commit")).toHaveLength(1);
+    expect(fixture.events).toContain("provider:gemini-3.6-flash");
+    expect(fixture.events).toContain("provider:gemini-2.5-flash");
   });
 });

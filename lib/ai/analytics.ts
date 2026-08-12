@@ -13,7 +13,7 @@ export interface AiRequestLog {
  /** ISO timestamp of when the request was made */
  timestamp: string;
  /** Type of AI operation performed */
- operation: 'generateContent' | 'embed';
+ operation: 'generateContent' | 'interactions' | 'embed';
  /** Model name used (e.g. 'gemini-3.5-flash', 'gemini-embedding-2') */
  model: string;
  /** Whether the request was routed through Cloudflare AI Gateway */

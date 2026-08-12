@@ -358,15 +358,6 @@ async function transitionLease(
     return { leaseId, status: "dispatched", changed: true };
   }
 
-  if (nextStatus === "refunded" && existing.status === "dispatched") {
-    await db
-      .update(aiAllowanceLeases)
-      .set({ status: "committed", resolvedAt: now })
-      .where(and(eq(aiAllowanceLeases.id, leaseId), eq(aiAllowanceLeases.status, "dispatched")));
-    await writeCompatibilityEvent(leaseId);
-    return { leaseId, status: "committed", changed: true };
-  }
-
   if (existing.status === "committed" || existing.status === "refunded") {
     return { leaseId, status: existing.status, changed: false };
   }

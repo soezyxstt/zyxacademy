@@ -42,6 +42,7 @@ export interface ProviderGenerationResult {
   readonly finishReason: string;
   readonly latencyMs: number;
   readonly providerRequestId?: string;
+  readonly viaGateway?: boolean;
   readonly usage?: ProviderUsage;
   readonly retryClassification: ProviderRetryClassification;
   readonly rawResponse?: unknown;
