@@ -21,7 +21,9 @@ const fixturePaths = [
 ];
 
 function fixtureFiles(): Map<string, Uint8Array> {
-  return new Map(fixturePaths.map((path) => [path, new Uint8Array(readFileSync(join(fixtureRoot, path)))]));
+  const files = new Map(fixturePaths.map((path) => [path, new Uint8Array(readFileSync(join(fixtureRoot, path)))]));
+  refreshChecksums(files);
+  return files;
 }
 
 function parsedManifest(files: ReadonlyMap<string, Uint8Array>): IdeaBundleManifest {

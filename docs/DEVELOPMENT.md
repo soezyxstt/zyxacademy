@@ -70,6 +70,7 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `BETTER_AUTH_SECRET` ; 32+ char high-entropy secret (`openssl rand -base64 32`)
 - `BETTER_AUTH_URL` ; app origin for OAuth callbacks
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` ; Google OAuth
+- `GOOGLE_REFRESH_TOKEN` ; Unified Google OAuth refresh token for Meet, Forms, Sheets, Drive (fallbacks: `GOOGLE_MEET_REFRESH_TOKEN`, `GOOGLE_FORMS_REFRESH_TOKEN`)
 - `UPLOADTHING_TOKEN` ; UploadThing API token
 - `GEMINI_API_KEY` ; Google Gemini API key (4-key rotation supported)
 - `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` ; Inngest job queue
@@ -171,7 +172,7 @@ The staging smoke uses synthetic leases only and does not call Gemini. The Worke
 
 `FEATURE_ASESMEN_IDE_V1`: stable option IDs, chapter-scoped assessment metadata, deterministic blueprint selection, and Plan 010 evidence and benchmark contracts. Absent or `0` keeps the legacy quiz path visible and authoritative.
 
-`FEATURE_PEMAHAMAN_IDE_V1`: append-only per-Idea evidence writers, deterministic mastery and confidence, compatibility reads, and flashcard recommendation priorities. Absent or `0` keeps the additive learning loop invisible. It never enables an AI call.
+`FEATURE_PEMAHAMAN_IDE_V1`: append-only per-Idea evidence writers, deterministic mastery and confidence, compatibility reads, and flashcard recommendation priorities with suppression for mastery scores of 80 or higher. Absent or `0` keeps the additive learning loop invisible. It never enables an AI call.
 
 Plan 010 local checks:
 
@@ -196,6 +197,17 @@ bun --env-file=.env.staging run staging:recompute-idea-mastery -- --run-id <runI
 bun --env-file=.env.staging run staging:recompute-idea-mastery -- --run-id <runId> --course tutorial-pka --mode incremental --expect-noop
 git diff --check
 ```
+
+Plan 017 branch-local checks are intentionally read-only with respect to remote resources. Do not run database migrations, Vectorize backfills, R2 cleanup, deployment, or staging rehearsal from this branch without separate approval. The local contract gate is:
+
+```bash
+bun test tests/contracts/product-bundle-v2.test.ts tests/contracts/material-pipeline.test.ts tests/contracts/flashcard-generator.test.ts tests/contracts/vector-outbox.test.ts tests/contracts/vectorize-contract.test.ts tests/contracts/assessment-domain.test.ts tests/contracts/idea-evidence.test.ts tests/contracts/idea-mastery-domain.test.ts tests/contracts/mastery-idempotency.test.ts tests/contracts/live-idea-evidence.test.ts
+bun run lint
+bun run typecheck
+git diff --check
+```
+
+The live compatibility bridge uses the existing `FEATURE_ARSITEKTUR_IDE_V1`, `FEATURE_DUAL_WRITE_IDE`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` flags together. Keep any missing flag at `0` to preserve the legacy-only path.
 
 ## Feature Flags
 
@@ -248,6 +260,10 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_ADAPTIVE_QUIZ` | Adaptive quiz difficulty |
 | `FEATURE_PKA` | Tutorial PKA campaign |
 | `FEATURE_PERAN_V2` | Indonesian domain identity and multi-role authorization |
+| `FEATURE_DRIVE_EDITOR_SYNC` | Auto-grant editor access to all active admin emails on every exported Google Spreadsheet and its Drive folder |
+| `FEATURE_MEDIA_LIBRARY` | Admin Media Library: R2-based shared media upload, organize, preview |
+| `FEATURE_LINK_LIBRARY` | Admin Tautan library and public `/tautan` links page |
+| `FEATURE_FORM_PRESETS` | Reusable Form Studio presets (questions + settings) |
 | `FEATURE_AI_CONTRACT_V2` | Versioned prompt contracts, policy composition, bounded repair, and provenance |
 | `FEATURE_ASSESSMENT_ASSISTANCE_POLICY` | Deterministic assessment assistance policy for AI tutor and mistake feedback |
 | `FEATURE_TUTOR_PIPELINE_V2` | V2 tutor cache isolation and query action routing |
@@ -263,6 +279,14 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 - **Auth**: Better-Auth (credentials + Google OAuth). Canonical access roles: `admin`, `tutor`, `murid`; `user.role` remains a legacy compatibility projection during expand.
 - **AI calls**: All Gemini traffic routes through Cloudflare AI Gateway when `CF_AI_GATEWAY_URL` is set.
 - **Cost rule**: AI quota is spent only on tutoring, mistake feedback, and content generation. Streaks, recommendations, study paths, reflections are deterministic SQL + logic.
+
+## Google Spreadsheet Export Workflow
+
+Exports route through `lib/google-sheets.ts` and `POST /api/admin/export-spreadsheet`. The spreadsheet is updated in place; the app owns only the data block at A1 (header + data rows) and writes it with an explicit `GridRange`, so admin edits in the reserved manual zone (columns right of the data, rows below it) are never overwritten.
+
+Before an overwrite the current grid is read and diffed against `export_spreadsheets.last_written_fingerprint` plus the stored row/column counts. Detected manual edits inside the owned block, growing rows over manual cells, or growing headers over manual columns return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes. Client callers use `useSpreadsheetExport` (`components/admin/spreadsheet-export.tsx`) to show a confirm dialog and re-send with `confirmOverwrite: true`. New spreadsheets store the baseline so later re-exports can warn precisely; legacy sheets without metadata infer the previous block from the current grid on the first re-export.
+
+Set `FEATURE_DRIVE_EDITOR_SYNC=1` to grant every active admin email `writer` access on each exported spreadsheet (and its folder on creation).
 
 ## Type Checking & Linting
 

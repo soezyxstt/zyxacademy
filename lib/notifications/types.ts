@@ -43,16 +43,3 @@ export interface SendResult {
   /** Any non-token-specific errors. */
   errors: string[];
 }
-
-// ─── Notification record (mirrors DB row) ─────────────────────────────────────
-
-export interface NotificationRecord {
-  id: string;
-  userId: string;
-  title: string;
-  body: string;
-  type: NotificationType;
-  read: boolean;
-  metadata: Record<string, unknown>;
-  createdAt: Date;
-}

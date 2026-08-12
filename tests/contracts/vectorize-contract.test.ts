@@ -3,6 +3,7 @@ import worker from "../../workers/vector-api/index";
 import { FakeCanonicalVectorProvider } from "@/lib/vectorize/fake-adapter";
 import { createCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/embedding";
 import { createCanonicalVectorClient } from "@/lib/vectorize-client";
+import { loadCanonicalManifest } from "../../scripts/vectorize-manifest";
 import {
   assertCanonicalDimensions,
   assertCanonicalDelete,
@@ -217,6 +218,40 @@ describe("Plan 012A Vectorize foundation contracts", () => {
     expect(payload.vectorId).toBe("v2:article:article-1:3");
     expect(JSON.stringify(payload).toLowerCase()).not.toContain("pinecone");
     expect(payload).not.toHaveProperty("indexName");
+  });
+
+  it("excludes holdout references before building the runtime manifest", async () => {
+    const client = {
+      async execute(query: string) {
+        if (query.includes("FROM soal_itb_referensi")) {
+          return {
+            rows: [
+              {
+                id: "reference-allowed",
+                source_label: "Allowed reference",
+                authoring_visibility: "allowed",
+                content_snapshot: JSON.stringify({ prompt: "Allowed" }),
+                version: 1,
+              },
+              {
+                id: "reference-holdout",
+                source_label: "Holdout reference",
+                authoring_visibility: "holdout",
+                content_snapshot: JSON.stringify({ prompt: "HOLDOUT_CANARY" }),
+                version: 1,
+              },
+            ],
+          };
+        }
+        return { rows: [] };
+      },
+    } as never;
+
+    const manifest = await loadCanonicalManifest(client, "mat-i");
+    const references = manifest.filter((item) => item.namespace === "itb_question_references");
+    expect(references.map((item) => item.entityId)).toEqual(["reference-allowed"]);
+    expect(JSON.stringify(manifest)).not.toContain("HOLDOUT_CANARY");
+    expect(references[0]).toMatchObject({ accessClass: "public", status: "active" });
   });
 
   it("enforces strict v2 Worker requests and selects the v2 binding", async () => {

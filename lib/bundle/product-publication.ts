@@ -23,6 +23,7 @@ import {
   setFlashcard,
   soal,
   soalIde,
+  soalItbReferensi,
   soalRelasiIde,
   sumberMateri,
   potonganSumber,
@@ -31,11 +32,21 @@ import {
   vectorSyncQueue,
 } from "@/db/schema";
 import { serializeDeterministically } from "@/lib/bundle/idea-bundle-v2";
+import { canonicalNamespaceForProductType } from "@/lib/vectorize/outbox";
+import type { CanonicalEntityType, CanonicalNamespace } from "@/lib/vectorize/contracts";
 import { parseStagedProductBundle, getProductBundleImport } from "./product-staging";
 import type { ProductDependency, ProductEntity } from "./product-validator";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type FailureStage = ProductEntity["productType"] | "outbox";
+type CanonicalProductVectorSpec = {
+  namespace: CanonicalNamespace;
+  entityType: CanonicalEntityType;
+  entityId: string;
+  version: number;
+  title: string;
+  text: string;
+};
 
 function enabled(): void {
   if (process.env.FEATURE_PRODUCT_BUNDLE_V2 !== "1") throw new Error("PRODUCT_BUNDLE_V2_DISABLED");
@@ -128,6 +139,43 @@ async function verifyDependencies(tx: Tx, dependencies: readonly ProductDependen
   }
 }
 
+function canonicalProductVectorSpec(product: ProductEntity): CanonicalProductVectorSpec | null {
+  const namespace = canonicalNamespaceForProductType(product.productType);
+  if (!namespace) return null;
+
+  switch (product.productType) {
+    case "article":
+      return {
+        namespace,
+        entityType: "article",
+        entityId: targetId(product),
+        version: product.version,
+        title: product.title,
+        text: [...product.blocks].sort((left, right) => left.orderIndex - right.orderIndex).map((block) => block.content).join("\n\n"),
+      };
+    case "question":
+      return {
+        namespace,
+        entityType: "question",
+        entityId: targetId(product),
+        version: product.version,
+        title: "Published question",
+        text: `${product.prompt}\n\nOptions: ${serializeDeterministically(product.options)}`,
+      };
+    case "solution":
+      return {
+        namespace,
+        entityType: "solution",
+        entityId: targetId(product),
+        version: product.version,
+        title: "Published solution",
+        text: product.content,
+      };
+    default:
+      return null;
+  }
+}
+
 async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productType: "article" }>, course: { targetId: string }, now: Date): Promise<void> {
   const articleId = targetId(product);
   const chapterId = await resolveChapter(tx, product.chapterId, course.targetId);
@@ -161,7 +209,30 @@ async function insertQuestion(tx: Tx, product: Extract<ProductEntity, { productT
     if (existing.version !== values.version || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
   } else await tx.insert(soal).values(values);
   for (const link of product.ideaLinks) await tx.insert(soalIde).values({ id: id("soal-ide", `${questionId}:${link.id}`), soalId: questionId, ideId: link.id, weight: link.weight, role: link.role === "required" ? "required" : link.role === "primary" ? "primary" : "supporting" }).onConflictDoNothing();
-  for (const relationType of product.relationTypes) await tx.insert(soalRelasiIde).values({ id: id("soal-relasi", `${questionId}:${relationType}`), soalId: questionId, ideId: product.ideaLinks[0].id, relationType, rationale: null, status: "active" }).onConflictDoNothing();
+  const relations = product.ideaRelations.length > 0
+    ? product.ideaRelations
+    : product.relationTypes.map((relationType) => ({ ideaId: product.ideaLinks[0].id, relationType, rationale: undefined }));
+  for (const relation of relations) {
+    await tx.insert(soalRelasiIde).values({
+      id: id("soal-relasi", `${questionId}:${relation.ideaId}:${relation.relationType}`),
+      soalId: questionId,
+      ideId: relation.ideaId,
+      relationType: relation.relationType,
+      rationale: relation.rationale ?? null,
+      status: "active",
+    }).onConflictDoNothing();
+  }
+  for (const curation of product.itbCuration) {
+    const [reference] = await tx
+      .select({ id: soalItbReferensi.id, soalId: soalItbReferensi.soalId, authoringVisibility: soalItbReferensi.authoringVisibility })
+      .from(soalItbReferensi)
+      .where(eq(soalItbReferensi.id, curation.referenceId))
+      .limit(1);
+    if (!reference) throw new Error(`PRODUCT_ITB_REFERENCE_MISSING:${curation.referenceId}`);
+    if (reference.authoringVisibility !== "allowed") throw new Error(`PRODUCT_ITB_REFERENCE_NOT_ALLOWED:${curation.referenceId}`);
+    if (reference.soalId && reference.soalId !== questionId) throw new Error(`PRODUCT_ITB_REFERENCE_ALREADY_LINKED:${curation.referenceId}`);
+    await tx.update(soalItbReferensi).set({ soalId: questionId }).where(eq(soalItbReferensi.id, curation.referenceId));
+  }
 }
 
 async function insertFlashcardSet(tx: Tx, product: Extract<ProductEntity, { productType: "flashcard_set" }>, course: { targetId: string }, now: Date): Promise<void> {
@@ -222,6 +293,19 @@ export async function publishProductBundle(input: { importId: string; publishedB
       await requireIdentity(tx, product.creatorId, "PRODUCT_BUNDLE_CREATOR_NOT_FOUND");
       if (product.curatorId) await requireIdentity(tx, product.curatorId, "PRODUCT_BUNDLE_CURATOR_NOT_FOUND");
       await verifyTraceability(tx, product);
+      if (product.productType === "diktat" && product.sourceArticleId && product.sourceArticleVersion !== undefined && product.sourceArticleHash) {
+        const lineageDependency = bundle.dependencies.find((dependency) =>
+          dependency.upstreamEntityType === "product" &&
+          dependency.upstreamEntityId === product.sourceArticleId &&
+          dependency.upstreamVersion === product.sourceArticleVersion &&
+          dependency.upstreamHash === product.sourceArticleHash &&
+          dependency.downstreamEntityType === "diktat" &&
+          dependency.downstreamEntityId === product.id &&
+          dependency.downstreamVersion === product.version &&
+          dependency.downstreamHash === product.generationHash,
+        );
+        if (!lineageDependency) throw new Error(`PRODUCT_DIKTAT_LINEAGE_DEPENDENCY_MISSING:${product.id}`);
+      }
     }
     await verifyDependencies(tx, bundle.dependencies, bundle.products);
     const setProducts = bundle.products.filter((product): product is Extract<ProductEntity, { productType: "flashcard_set" }> => product.productType === "flashcard_set");
@@ -249,7 +333,30 @@ export async function publishProductBundle(input: { importId: string; publishedB
     for (const dependency of bundle.dependencies) {
       await tx.insert(ketergantunganProduk).values({ id: dependency.id, upstreamEntityType: dependency.upstreamEntityType, upstreamEntityId: dependency.upstreamEntityId, upstreamVersion: dependency.upstreamVersion, upstreamHash: dependency.upstreamHash, downstreamEntityType: dependency.downstreamEntityType, downstreamEntityId: dependency.downstreamEntityId, downstreamVersion: dependency.downstreamVersion, downstreamHash: dependency.downstreamHash, freshness: dependency.freshness, reason: null, createdAt: now, updatedAt: now }).onConflictDoNothing();
     }
-    const vectorJobs = bundle.products.map((product) => ({ id: id("vector-product", `${product.id}:${product.version}`), courseId: course.legacyId, koId: null, action: "upsert" as const, namespace: "product", payload: { entityType: product.productType, entityId: product.id, version: product.version, generationHash: product.generationHash } }));
+    const vectorJobs = bundle.products.flatMap((product) => {
+      const spec = canonicalProductVectorSpec(product);
+      if (!spec) return [];
+      return [{
+        id: id("vector-product", `${product.id}:${product.version}`),
+        courseId: course.legacyId,
+        koId: null,
+        action: "upsert" as const,
+        namespace: spec.namespace,
+        payload: {
+          entityType: spec.entityType,
+          entityId: spec.entityId,
+          version: spec.version,
+          text: spec.text,
+          title: spec.title,
+          metadata: {
+            entityId: spec.entityId,
+            version: spec.version,
+            status: "published",
+            ...(product.chapterId ? { chapterId: product.chapterId } : {}),
+          },
+        },
+      }];
+    });
     maybeFail(input.testFailureAfter, "outbox");
     for (const job of vectorJobs) await tx.insert(vectorSyncQueue).values(job).onConflictDoNothing();
     const publicationId = id("publikasi-product", input.importId);
@@ -257,7 +364,8 @@ export async function publishProductBundle(input: { importId: string; publishedB
     await tx.insert(publikasiBundle).values({ id: publicationId, imporBundleId: input.importId, approvedReviewId: review.id, version: 1, publicationHash, status: "published", publishedBy: input.publishedBy, publishedAt: now, createdAt: now });
     await tx.update(itemImporBundle).set({ status: "published" }).where(eq(itemImporBundle.imporBundleId, input.importId));
     await tx.update(imporBundle).set({ status: "published", updatedAt: now }).where(eq(imporBundle.id, input.importId));
-    await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "approved" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: vectorJobs.length, publicationHash }, correlationId: input.importId });
+    const itbCuration = bundle.products.flatMap((product) => product.productType === "question" ? product.itbCuration.map((curation) => ({ questionId: product.id, referenceId: curation.referenceId, dimensions: curation.dimensions })) : []);
+    await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "approved" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: vectorJobs.length, publicationHash, itbCuration }, correlationId: input.importId });
     return { publicationId, importId: input.importId, published: true, productCount: bundle.products.length, vectorJobCount: vectorJobs.length };
   });
 }

@@ -65,6 +65,10 @@ function contentHash(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
 }
 
+function isRuntimeIndexableReference(row: Row): boolean {
+  return stringValue(row, "authoring_visibility") !== "holdout";
+}
+
 function entry(input: {
   namespace: CanonicalNamespace;
   entityType: CanonicalEntityType;
@@ -183,6 +187,7 @@ export async function loadCanonicalManifest(client: LibsqlClient, courseId?: str
     "SELECT id, source_label, authoring_visibility, content_snapshot, version FROM soal_itb_referensi ORDER BY id",
   );
   for (const row of rows(references)) {
+    if (!isRuntimeIndexableReference(row)) continue;
     const content = stableStringify(jsonValue(row.content_snapshot));
     result.push(entry({
       namespace: "itb_question_references",

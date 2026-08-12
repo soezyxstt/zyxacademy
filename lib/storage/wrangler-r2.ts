@@ -2,20 +2,20 @@ import { execFile } from "node:child_process";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import type { StorageProvider } from "./index";
+import { assertSafeKey, INVALID_OBJECT_KEY } from "./keys";
 
 const execFileAsync = promisify(execFile);
 
 function objectPath(bucket: string, key: string): string {
-  if (!key || key.startsWith("/") || key.includes("\\") || key.includes("..")) {
-    throw new Error("WRANGLER_R2_INVALID_OBJECT_KEY");
-  }
+  assertSafeKey(key);
   return `${bucket}/${key}`;
 }
 
 function temporaryRoot(): string {
-  return process.env.STAGING_BUNDLE_WRANGLER_TMP || (process.platform === "win32" ? "C:\\tmp\\zyx-staging-r2" : "/tmp/zyx-staging-r2");
+  return process.env.STAGING_BUNDLE_WRANGLER_TMP || join(/* turbopackIgnore: true */ tmpdir(), "zyx-staging-r2");
 }
 
 async function asBytes(file: File | Buffer | Uint8Array): Promise<Uint8Array> {
@@ -48,12 +48,12 @@ export class WranglerR2Provider implements StorageProvider {
 
   private async withTempFile<T>(suffix: string, action: (filePath: string) => Promise<T>): Promise<T> {
     const root = temporaryRoot();
-    await mkdir(root, { recursive: true });
-    const filePath = join(root, `${randomUUID()}${suffix}`);
+    await mkdir(/* turbopackIgnore: true */ root, { recursive: true });
+    const filePath = join(/* turbopackIgnore: true */ root, `${randomUUID()}${suffix}`);
     try {
       return await action(filePath);
     } finally {
-      await unlink(filePath).catch(() => undefined);
+      await unlink(/* turbopackIgnore: true */ filePath).catch(() => undefined);
     }
   }
 
@@ -64,10 +64,12 @@ export class WranglerR2Provider implements StorageProvider {
     options?: any
   ): Promise<{ url: string; key: string; size: number }> {
     const bytes = await asBytes(file);
-    const key = options?.key || `${randomUUID()}-${filename.replace(/\s+/g, "_")}`;
+    const key = options?.key;
+    if (!key) throw new Error(INVALID_OBJECT_KEY);
+    assertSafeKey(key);
     const target = objectPath(this.bucket, key);
     await this.withTempFile(".upload", async (filePath) => {
-      await writeFile(filePath, bytes);
+      await writeFile(/* turbopackIgnore: true */ filePath, bytes);
       await this.run([
         "r2",
         "object",
@@ -104,7 +106,7 @@ export class WranglerR2Provider implements StorageProvider {
   async download(key: string): Promise<Uint8Array> {
     return this.withTempFile(".download", async (filePath) => {
       await this.run(["r2", "object", "get", objectPath(this.bucket, key), "--file", filePath, "--remote"]);
-      return new Uint8Array(await readFile(filePath));
+      return new Uint8Array(await readFile(/* turbopackIgnore: true */ filePath));
     });
   }
 
@@ -120,5 +122,33 @@ export class WranglerR2Provider implements StorageProvider {
   async rename(key: string, newName: string): Promise<void> {
     await this.copy(key, newName);
     await this.delete(key);
+  }
+
+  async list(prefix: string): Promise<{ key: string; size: number; lastModified: Date }[]> {
+    let json = "";
+    await this.withTempFile(".list.json", async (filePath) => {
+      await this.run([
+        "r2",
+        "object",
+        "list",
+        `${this.bucket}/${prefix}`,
+        "--remote",
+        "--json",
+        `--output`,
+        filePath,
+      ]);
+      json = await readFile(/* turbopackIgnore: true */ filePath, "utf8");
+    });
+
+    type ListedObject = { key?: string; size?: number; uploaded?: string };
+    const parsed = (JSON.parse(json || "[]") as ListedObject[]).filter(
+      (obj) => obj.key && !obj.key.endsWith("/")
+    );
+
+    return parsed.map((obj) => ({
+      key: obj.key as string,
+      size: obj.size || 0,
+      lastModified: obj.uploaded ? new Date(obj.uploaded) : new Date(0),
+    }));
   }
 }

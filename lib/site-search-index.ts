@@ -132,16 +132,8 @@ const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
  keywords: "dashboard administrator",
  content: "Ringkasan administrasi pengguna konten",
  },
- {
- title: "Drive berkas",
- subtitle: "Admin",
- href: "/admin/files",
- group: "Halaman",
- keywords: "upload file folder penyimpanan",
- content: "Manajemen berkas dan folder admin",
- },
- {
- title: "Token aktivasi",
+  {
+  title: "Token aktivasi",
  subtitle: "Admin",
  href: "/admin/tokens",
  group: "Halaman",

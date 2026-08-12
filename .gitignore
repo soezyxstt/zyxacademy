@@ -53,6 +53,8 @@ drizzle/backups/
 *.log
 /artifacts/staging-overhaul/
 /artifacts/zyra-ai/
+/artifacts
+pka_scores.csv
 
 .agents
 

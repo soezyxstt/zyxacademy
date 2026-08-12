@@ -50,6 +50,7 @@ Execute sequentially. A plan is a predecessor gate, not optional reading.
 | [014](014-admin-and-tutor-operational-workflow.md) | Admin and tutor operational workflow | P1 | L | 009, 010, 013 | DONE | Admin and tutor can complete the new content lifecycle end to end |
 | [015](015-murid-workflow-and-tutorial-pka-parity.md) | Murid workflow and Tutorial PKA parity | P0 | L | 014 | DONE | Existing Tutorial PKA history and all core murid journeys remain operational |
 | [016](016-staging-cutover-pinecone-removal-and-legacy-contract.md) | Staging cutover, Pinecone removal, and legacy contract | P0 | L | 015 | DONE | Two clean rehearsals, rollback pass, zero active legacy write callers, and safe staging decommission state |
+| [017](017-audit-rework.md) | Minimal audit rework for Idea-centered authoring and learning loop | P0 | S | 016 | IN PROGRESS | Local contract, lint, typecheck, and diff gates pass without schema or remote writes |
 
 Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`, or `REJECTED`. `BLOCKED` and `REJECTED` require a one-line reason.
 
@@ -96,6 +97,7 @@ flowchart TD
     P014["014 admin and tutor workflow"]
     P015["015 murid and PKA parity"]
     P016["016 staging cutover"]
+    P017["017 audit rework"]
 
     P001 --> P002 --> P003 --> P004 --> P005
     P005 --> P006 --> P007 --> P008
@@ -112,6 +114,7 @@ flowchart TD
     P010 --> P014
     P013 --> P014
     P014 --> P015 --> P016
+    P016 --> P017
 ```
 
 Wave ownership is one writer per schema or documentation hotspot. Plan 001 through 005 and Plan 015 through 016 are serial. Plans 009 and 010 may develop in parallel after Plan 008. Plan 012 foundation may develop after Plan 005, but its final rebuild waits for Plan 011. Only the root executor may mutate staging resources or confirm final cutover.
@@ -135,3 +138,7 @@ Wave ownership is one writer per schema or documentation hotspot. Plan 001 throu
 Each plan must create `artifacts/staging-overhaul/<runId>/plan-NNN-result.json` through a script, not by manually typing evidence. The result must contain the source commit, migration run ID, masked resource fingerprints, commands and exit codes, row counts, reconciliation hashes, feature flag state, rollback result, and operator timestamp. The artifact directory must be ignored by Git.
 
 No plan may mark itself complete from prose alone. Update this index status only after the evidence file exists and all plan-specific gates pass.
+
+## Branch-local follow-up
+
+The isolated branch `codex/rework-audit` contains [Plan 017](017-audit-rework.md), a minimal rework of the audit findings. It is intentionally separate from the completed Plans 001 through 016 program and forbids remote database writes during the first implementation phase.

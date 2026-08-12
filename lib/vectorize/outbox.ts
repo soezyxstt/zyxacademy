@@ -31,6 +31,22 @@ const namespaceMap: Record<string, CanonicalNamespace> = {
   published_solutions: "published_solutions",
 };
 
+const entityNamespaceMap: Partial<Record<string, CanonicalNamespace>> = {
+  idea: "canonical_ideas",
+  source_chunk: "source_materials",
+  source_material: "source_materials",
+  article: "published_articles",
+  question_reference: "itb_question_references",
+  question: "published_questions",
+  solution: "published_solutions",
+};
+
+const productNamespaceMap: Partial<Record<string, CanonicalNamespace>> = {
+  article: "published_articles",
+  question: "published_questions",
+  solution: "published_solutions",
+};
+
 const entityTypeMap: Record<CanonicalNamespace, CanonicalEntityType> = {
   canonical_ideas: "idea",
   published_articles: "article",
@@ -49,11 +65,42 @@ function statusValue(value: unknown): CanonicalStatus {
   return "active";
 }
 
+export function canonicalNamespaceForProductType(productType: string): CanonicalNamespace | null {
+  return productNamespaceMap[productType] ?? null;
+}
+
+function payloadEntityType(payload: Payload, metadata: Payload): string {
+  return String(metadata.entityType ?? payload.entityType ?? "").trim();
+}
+
+function resolveNamespace(rowNamespace: string, payload: Payload, metadata: Payload): CanonicalNamespace {
+  if (rowNamespace === "idea" || rowNamespace === "product") {
+    const entityType = payloadEntityType(payload, metadata);
+    const namespace = entityNamespaceMap[entityType];
+    if (namespace) return namespace;
+    if (rowNamespace === "idea" && !entityType) return "canonical_ideas";
+    throw new Error(`unsupported canonical outbox entity type ${entityType || "unknown"} for namespace ${rowNamespace}`);
+  }
+
+  const namespace = namespaceMap[rowNamespace];
+  if (!namespace) throw new Error(`unknown canonical outbox namespace ${rowNamespace}`);
+  return namespace;
+}
+
+function textValue(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (value === null || value === undefined) return "";
+  try {
+    return JSON.stringify(value).trim();
+  } catch {
+    return "";
+  }
+}
+
 export function canonicalOutboxPayload(row: CanonicalOutboxRow): ProviderNeutralVectorOutbox {
   const payload = objectValue(row.payload);
   const rawMetadata = objectValue(payload.metadata);
-  const namespace = namespaceMap[row.namespace];
-  if (!namespace) throw new Error(`unknown canonical outbox namespace ${row.namespace}`);
+  const namespace = resolveNamespace(row.namespace, payload, rawMetadata);
   const entityType = entityTypeMap[namespace];
   const entityId = String(rawMetadata.entityId ?? payload.entityId ?? payload.id ?? row.koId ?? row.id);
   const versionValue = Number(rawMetadata.version ?? payload.version ?? 1);
@@ -63,7 +110,12 @@ export function canonicalOutboxPayload(row: CanonicalOutboxRow): ProviderNeutral
     return createProviderNeutralVectorOutboxDelete({ entityType, entityId, version });
   }
 
-  const content = String(payload.text ?? payload.content ?? payload.canonicalStatement ?? rawMetadata.content ?? "").trim();
+  const referenceVisibility = rawMetadata.authoringVisibility ?? rawMetadata.visibility ?? payload.authoringVisibility ?? payload.visibility;
+  if (namespace === "itb_question_references" && referenceVisibility === "holdout") {
+    throw new Error(`CANONICAL_HOLDOUT_REFERENCE_BLOCKED:${row.id}`);
+  }
+
+  const content = textValue(payload.text ?? payload.content ?? payload.canonicalStatement ?? payload.contentMarkdown ?? rawMetadata.content);
   if (!content) throw new Error(`canonical outbox ${row.id} has no content`);
   return createProviderNeutralVectorOutboxUpsert({
     entityType,
@@ -73,7 +125,7 @@ export function canonicalOutboxPayload(row: CanonicalOutboxRow): ProviderNeutral
     metadata: {
       namespace,
       status: statusValue(rawMetadata.status ?? payload.status),
-      accessClass: namespace === "published_solutions" ? "restricted_solution" : "enrolled",
+      accessClass: namespace === "published_solutions" ? "restricted_solution" : namespace === "itb_question_references" ? "public" : "enrolled",
       language: String(rawMetadata.language ?? "id"),
       courseId: row.courseId,
       ...(typeof rawMetadata.chapterId === "string" && rawMetadata.chapterId ? { chapterId: rawMetadata.chapterId } : {}),

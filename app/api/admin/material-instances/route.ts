@@ -22,6 +22,7 @@ import { parseMaterialIntoSections } from '@/lib/ingestion-parser';
 import { extractKnowledgeObjectsForChapter } from '@/lib/ko-extractor';
 import { validateCanonicalMarkdown } from '@/lib/canonical-validator';
 import { storage } from '@/lib/storage';
+import { joinKey, slugifySegment, userFileLeaf } from '@/lib/storage/keys';
 import { parseFrontmatter } from '@/lib/assessment-extractor';
 
 const BodySchema = z.object({
@@ -69,9 +70,8 @@ export async function POST(req: NextRequest) {
 
   // Upload pasted/uploaded canonical markdown to R2
   const markdownBuffer = Buffer.from(rawText, 'utf-8');
-  const safeTitle = title.toLowerCase().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
-  const filename = `${safeTitle || 'canonical'}.md`;
-  const storageKey = `materials/markdown/${randomUUID()}-${filename}`;
+  const filename = `${slugifySegment(title) || 'canonical'}.md`;
+  const storageKey = joinKey("courses", slugifySegment(courseId), "canonical", userFileLeaf(filename));
 
   const { key: canonicalMarkdownKey } = await storage.upload(
     markdownBuffer,

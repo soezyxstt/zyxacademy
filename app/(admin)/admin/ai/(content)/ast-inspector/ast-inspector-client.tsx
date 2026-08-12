@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "@/components/ui/toast";
 import { 
   Terminal, 
   FileCode, 
@@ -19,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTRenderer } from "@/components/course/markdown-renderer";
+import { MathText } from "@/components/course/math-text";
 import { CompilerResult, ASTBlock } from "@/lib/ast-validator";
 
 // Demos
@@ -151,7 +153,7 @@ export function ASTInspectorClient() {
           });
         }
       } catch (err: any) {
-        alert("Gagal mengimpor file: " + err.message);
+        toast.error("Gagal mengimpor file: " + err.message);
       }
     };
     reader.readAsText(file);
@@ -347,7 +349,7 @@ export function ASTInspectorClient() {
                                 {block.type}
                               </span>
                               <span className="text-body-sm font-semibold text-foreground truncate max-w-md">
-                                {getBlockSummary(block)}
+                                <MathText as="span">{getBlockSummary(block)}</MathText>
                               </span>
                             </div>
                             <span className="text-xs text-muted-foreground">
@@ -451,7 +453,7 @@ export function ASTInspectorClient() {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(JSON.stringify(result.ast, null, 2));
-                          alert("AST JSON berhasil disalin!");
+                          toast.success("AST JSON berhasil disalin!");
                         }}
                         className="px-2 py-1.2 rounded bg-card hover:bg-muted border border-border text-[10px] font-semibold"
                       >

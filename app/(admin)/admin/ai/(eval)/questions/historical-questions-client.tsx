@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
+import { DifficultyBadge } from "@/components/admin/status-badges";
+import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
   Select,
@@ -11,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { MathText } from "@/components/course/math-text";
 import { Eye, EyeOff } from "lucide-react";
 
 interface HistoricalQuestion {
@@ -122,10 +124,10 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
       </div>
 
       {/* Table Content */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <AdminTable>
         <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-muted/50 border-b border-border">
+          <AdminTableHead>
             <tr>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Soal</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Mata Kuliah</th>
@@ -133,7 +135,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
               <th className="px-4 py-3 text-left font-medium text-muted-foreground text-body-sm">Kesulitan</th>
               <th className="px-4 py-3 w-12 text-center font-medium text-muted-foreground text-body-sm">Detail</th>
             </tr>
-          </thead>
+          </AdminTableHead>
           <tbody>
             {filteredQuestions.length === 0 ? (
               <tr>
@@ -158,7 +160,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
                             <MarkdownRenderer content={q.questionMarkdown} className="space-y-3" />
                           </div>
                         ) : (
-                          <span className="line-clamp-2">{textExcerpt}</span>
+                          <MathText className="line-clamp-2 block" as="div">{textExcerpt}</MathText>
                         )}
                       </td>
                       <td className="text-body-sm text-muted-foreground whitespace-nowrap px-4 py-3 align-middle">
@@ -173,18 +175,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
                         </div>
                       </td>
                       <td className="px-4 py-3 align-middle">
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] tracking-wide uppercase ${
-                            q.difficulty === 3
-                              ? "border-status-error/30 text-status-error bg-status-error/5"
-                              : q.difficulty === 2
-                              ? "border-status-warning/30 text-status-warning bg-status-warning/5"
-                              : "border-status-success/30 text-status-success bg-status-success/5"
-                          }`}
-                        >
-                          {q.difficulty === 3 ? "Hard" : q.difficulty === 2 ? "Medium" : "Easy"}
-                        </Badge>
+                        <DifficultyBadge difficulty={q.difficulty} />
                       </td>
                       <td className="text-center px-4 py-3 align-middle">
                         <button
@@ -217,7 +208,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
           </tbody>
         </table>
         </div>
-      </div>
+      </AdminTable>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Search,
   Download,
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
@@ -39,6 +40,7 @@ import {
 import { MathText } from "@/components/course/math-text";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { toast } from "@/components/ui/toast";
+import { useSpreadsheetExport } from "@/components/admin/spreadsheet-export";
 
 export interface StudentAttemptItem {
   id: string;
@@ -163,6 +165,62 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
     setExportDialogOpen(false);
   };
 
+  const attemptedExportTypeRef = useRef<"matrix" | "summary">("matrix");
+  const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
+    onSuccess: ({ spreadsheetUrl }) => {
+      window.open(spreadsheetUrl, "_blank");
+      toast.success("Google Spreadsheet berhasil dibuat!");
+      setExportDialogOpen(false);
+    },
+    onError: (message) => {
+      toast.error(message);
+      handleExportCsv(attemptedExportTypeRef.current);
+    },
+  });
+
+  const handleExportGoogleSheets = (type: "matrix" | "summary") => {
+    let headersRow: string[] = [];
+    let rowsMatrix: (string | number)[][] = [];
+
+    if (type === "summary") {
+      headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Status", "Skor (%)", "Durasi (detik)", "Mulai", "Selesai"];
+      rowsMatrix = filteredAttempts.map((att) => [
+        att.id,
+        att.studentName,
+        att.studentEmail,
+        att.status,
+        att.score ?? 0,
+        att.durationSeconds ?? 0,
+        att.startedAt ? new Date(att.startedAt).toLocaleString("id-ID") : "-",
+        att.submittedAt ? new Date(att.submittedAt).toLocaleString("id-ID") : "-",
+      ]);
+    } else {
+      // Matrix export
+      const allQuestions = questionsList;
+      const qHeaders = allQuestions.map((q: any, idx: number) => `Q${idx + 1}: ${(q.prompt || q.content || "").slice(0, 30)}`);
+      headersRow = ["Attempt ID", "Nama Siswa", "Email Siswa", "Skor (%)", ...qHeaders];
+
+      rowsMatrix = filteredAttempts.map((att) => {
+        const itemAnswers = allQuestions.map((q: any) => {
+          const userChoice = att.answersSnapshot[q.id];
+          if (userChoice === undefined || userChoice === null) return "TIDAK DIJAWAB";
+          return String(userChoice);
+        });
+        return [att.id, att.studentName, att.studentEmail, att.score ?? 0, ...itemAnswers];
+      });
+    }
+
+    attemptedExportTypeRef.current = type;
+    runExport({
+      entityType: "quiz",
+      entityId: `${templateId}:${type}`,
+      folderSubpath: "quizzes/" + quizTitle,
+      title: `${quizTitle} (${type === "matrix" ? "Matrix" : "Summary"})`,
+      headers: headersRow,
+      rows: rowsMatrix,
+    });
+  };
+
   const formatDuration = (secs: number) => {
     if (!secs) return "0s";
     const mins = Math.floor(secs / 60);
@@ -223,11 +281,10 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
               </div>
 
               <label className="flex items-center gap-2 text-body-sm text-muted-foreground cursor-pointer select-none">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={includeInProgress}
-                  onChange={(e) => setIncludeInProgress(e.target.checked)}
-                  className="rounded border-border text-brand-primary focus:ring-brand-primary"
+                  onCheckedChange={(checked) => setIncludeInProgress(Boolean(checked))}
+                  className="rounded-sm border-border text-brand-primary data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
                 />
                 Sertakan In-Progress
               </label>
@@ -558,13 +615,23 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
               onClick={() => setExportDialogOpen(false)}
               className="rounded-lg"
             >
               Batal
+            </Button>
+            <Button
+              onClick={() => handleExportGoogleSheets(exportType)}
+              disabled={exportingSheets}
+              variant="outline"
+              className="border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 rounded-lg gap-2"
+            >
+              <RefreshCw className={`size-4 ${exportingSheets ? "animate-spin" : "hidden"}`} />
+              <FileSpreadsheet className="size-4" />
+              {exportingSheets ? "Mengekspor..." : "Export Google Sheets"}
             </Button>
             <Button
               onClick={() => handleExportCsv(exportType)}
@@ -576,6 +643,8 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {confirmDialog}
     </div>
   );
 }

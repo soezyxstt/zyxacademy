@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import {
   saveQuizTemplateAction,
@@ -564,7 +565,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                              q.questionType === "multiple_choices" ? "Multi Select" : "Single Choice"}
                           </Badge>
                         </div>
-                        <p className="text-body-base font-medium text-foreground leading-relaxed pt-1">{q.prompt}</p>
+                        <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-1" as="p">{q.prompt}</MathText>
                       </div>
                       
                       <div className="flex gap-1.5">
@@ -591,7 +592,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                               }`}>
                                 {String.fromCharCode(65 + i)}
                               </span>
-                              <span className="truncate">{opt}</span>
+                              <span className="truncate">
+                                <MathText className="leading-normal" as="span">{opt}</MathText>
+                              </span>
                             </div>
                           );
                         })}
@@ -831,7 +834,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         />
                         <div className="flex-1 text-left min-w-0">
                           <div className="text-xs font-semibold text-foreground line-clamp-2">
-                            {q.prompt}
+                            <MathText as="div">{q.prompt}</MathText>
                           </div>
                           <div className="flex gap-1.5 items-center mt-1.5 text-[10px] text-muted-foreground">
                             <span className="uppercase font-mono font-bold bg-muted px-1 rounded">
@@ -1099,9 +1102,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
                     </div>
 
-                    <p className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed">
+                    <MathText className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed" as="p">
                       {q.prompt}
-                    </p>
+                    </MathText>
 
                     <div className="grid gap-2">
                       {q.options.map((opt: string, optIdx: number) => {
@@ -1126,7 +1129,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             >
                               {String.fromCharCode(65 + optIdx)}
                             </span>
-                            <span className="leading-normal">{opt}</span>
+                            <MathText className="leading-normal" as="span">{opt}</MathText>
                             {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
                           </div>
                         );
@@ -1138,9 +1141,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
                           Pembahasan Jawaban:
                         </span>
-                        <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        <MathText className="text-muted-foreground leading-relaxed whitespace-pre-wrap" as="p">
                           {q.explanation}
-                        </p>
+                        </MathText>
                       </div>
                     )}
                   </div>

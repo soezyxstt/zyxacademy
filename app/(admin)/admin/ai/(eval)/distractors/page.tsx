@@ -4,6 +4,9 @@ import { db } from "@/db";
 import { aiQuestionBank, courses, questionOptionStats } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { MathText } from "@/components/course/math-text";
+import { Target } from "lucide-react";
 
 export const metadata: Metadata = {
   title: pageTitle("Analitik Distraktor"),
@@ -50,13 +53,12 @@ export default async function DistractorAnalyticsPage() {
     .sort((a, b) => b.agg.total - a.agg.total);
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6 text-left">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Analitik Distraktor</h1>
-        <p className="mt-1 text-body-sm text-muted-foreground">
-          Analisis miskonsepsi siswa berdasarkan pilihan ganda yang salah.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={Target}
+        title="Analitik Distraktor"
+        description="Analisis miskonsepsi siswa berdasarkan pilihan ganda yang salah."
+      />
       {ordered.length === 0 ? (
         <p className="text-body-sm text-muted-foreground">
           Belum ada data. Statistik terisi setelah siswa mengerjakan kuis dengan fitur ini aktif.
@@ -72,7 +74,7 @@ export default async function DistractorAnalyticsPage() {
             return (
               <div key={id} className="space-y-3 border-b border-border pb-6">
                 <div className="flex items-start justify-between gap-4">
-                  <h2 className="text-body-md font-semibold text-foreground">{q.prompt}</h2>
+                  <MathText className="text-body-md font-semibold text-foreground block" as="div">{q.prompt}</MathText>
                   <span className="shrink-0 text-body-sm text-muted-foreground">
                     {agg.total} jawaban
                   </span>
@@ -87,9 +89,9 @@ export default async function DistractorAnalyticsPage() {
                     return (
                       <div key={idx} className="space-y-1">
                         <div className="flex items-center justify-between gap-3 text-body-sm">
-                          <span className={isCorrect ? "font-semibold text-status-success" : "text-foreground"}>
+                          <MathText className={isCorrect ? "font-semibold text-status-success" : "text-foreground"} as="span">
                             {opt}
-                          </span>
+                          </MathText>
                           <span className="shrink-0 tabular-nums text-muted-foreground">{pct}%</span>
                         </div>
                         <div className="h-1.5 rounded-md bg-muted">

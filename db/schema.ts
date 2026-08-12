@@ -892,6 +892,8 @@ export const quizTemplates = sqliteTable(
     closeAt: integer("close_at", { mode: "timestamp" }),
     manualStatus: text("manual_status").$type<"open" | "closed" | "scheduled">().default("scheduled").notNull(),
     showDiscussion: integer("show_discussion", { mode: "boolean" }).default(false).notNull(),
+    spreadsheetId: text("spreadsheet_id"),
+    spreadsheetUrl: text("spreadsheet_url"),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
       .defaultNow()
@@ -3409,11 +3411,17 @@ export const notifications = sqliteTable(
  | "announcement"
  >()
  .notNull(),
- /** Whether the user has read/dismissed this notification. */
- read: integer("read", { mode: "boolean" }).default(false).notNull(),
- /** Arbitrary JSON payload (e.g. quizId, courseId, bookingId). */
- metadata: text("metadata", { mode: "json" }).$defaultFn(() => ({})).notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  /** Whether the user has read/dismissed this notification. */
+  read: integer("read", { mode: "boolean" }).default(false).notNull(),
+  /** Arbitrary JSON payload (e.g. quizId, courseId, bookingId). */
+  metadata: text("metadata", { mode: "json" }).$defaultFn(() => ({})).notNull(),
+  /** FCM delivery stats for the push attempt to this user's devices. */
+  attempted: integer("attempted").default(0).notNull(),
+  succeeded: integer("succeeded").default(0).notNull(),
+  failedCount: integer("failed_count").default(0).notNull(),
+  /** When the push attempt happened; null when the user had no registered device. */
+  sentAt: integer("sent_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  },
  (table) => [
  index("idx_notifications_user_read").on(table.userId, table.read),
@@ -4443,8 +4451,220 @@ export const shortLinkRelations = relations(shortLink, ({ one }) => ({
   }),
 }));
 
+/** Master Google Meet session persistence table for titles & space metadata. */
+export const googleMeetSessions = sqliteTable(
+  "google_meet_sessions",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    spaceName: text("space_name").notNull().unique(),
+    meetingUri: text("meeting_uri").notNull(),
+    meetingCode: text("meeting_code").notNull(),
+    accessType: text("access_type").$type<"OPEN" | "TRUSTED" | "RESTRICTED">().default("OPEN").notNull(),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    slug: text("slug").unique(),
+    hostEmail: text("host_email"),
+    coHostEmails: text("co_host_emails", { mode: "json" }).$type<string[]>(),
+    invitedEmails: text("invited_emails", { mode: "json" }).$type<string[]>(),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_meet_space_name").on(table.spaceName),
+    index("idx_meet_code").on(table.meetingCode),
+    index("idx_meet_slug").on(table.slug),
+  ]
+);
+
+export const googleMeetSessionsRelations = relations(googleMeetSessions, ({ one }) => ({
+  creator: one(user, {
+    fields: [googleMeetSessions.createdById],
+    references: [user.id],
+  }),
+}));
+
 // ─── Analytics ────────────────────────────────────────────────────────────
 // Synchronization of GA4 popular pages cache
+
+/** Master Google Forms table for custom form builder & response analytics. */
+export const googleForms = sqliteTable(
+  "google_forms",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id").notNull().unique(),
+    title: text("title").notNull(),
+    description: text("description"),
+    responderUri: text("responder_uri").notNull(),
+    editUri: text("edit_uri"),
+    category: text("category").$type<"survey" | "quiz" | "feedback" | "registration">().default("survey").notNull(),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_forms_form_id").on(table.formId),
+    index("idx_forms_category").on(table.category),
+  ]
+);
+
+export const googleFormsRelations = relations(googleForms, ({ one }) => ({
+  creator: one(user, {
+    fields: [googleForms.createdById],
+    references: [user.id],
+  }),
+}));
+
+/** Native Zyx Custom Forms table supporting 12 question types, short links, and native uploads. */
+export const customForms = sqliteTable(
+  "custom_forms",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    description: text("description"),
+    category: text("category").$type<"survey" | "quiz" | "feedback" | "registration">().default("survey").notNull(),
+    questions: text("questions", { mode: "json" }).$type<any[]>().notNull(),
+    settings: text("settings", { mode: "json" }).$type<{
+      acceptingResponses?: boolean;
+      closedMessage?: string;
+      openAt?: string;
+      closeAt?: string;
+      collectEmail?: "none" | "input" | "verified";
+      limitToOneResponse?: boolean;
+      requireLogin?: boolean;
+      allowResponseEditing?: boolean;
+      sendResponseCopy?: "off" | "requested" | "always";
+      maxFileSizeLimit?: "1GB" | "10GB" | "100GB";
+      shuffleQuestions?: boolean;
+      customSuccessMessage?: string;
+    }>(),
+    googleFormId: text("google_form_id"),
+    googleResponderUri: text("google_responder_uri"),
+    spreadsheetId: text("spreadsheet_id"),
+    spreadsheetUrl: text("spreadsheet_url"),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_custom_forms_slug").on(table.slug),
+    index("idx_custom_forms_category").on(table.category),
+  ]
+);
+
+export const customFormsRelations = relations(customForms, ({ one, many }) => ({
+  creator: one(user, {
+    fields: [customForms.createdById],
+    references: [user.id],
+  }),
+  responses: many(customFormResponses),
+}));
+
+/** Native Zyx Custom Form Responses table storing submissions & file attachments. */
+export const customFormResponses = sqliteTable(
+  "custom_form_responses",
+  {
+    id: text("id").primaryKey(),
+    formId: text("form_id")
+      .notNull()
+      .references(() => customForms.id, { onDelete: "cascade" }),
+    responderUserId: text("responder_user_id").references(() => user.id, { onDelete: "set null" }),
+    responderEmail: text("responder_email"),
+    answers: text("answers", { mode: "json" }).$type<Record<string, any>>().notNull(),
+    submittedAt: integer("submitted_at", { mode: "timestamp" }).defaultNow().notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_custom_form_responses_form_id").on(table.formId),
+    index("idx_custom_form_responses_user_id").on(table.responderUserId),
+  ]
+);
+
+export const customFormResponsesRelations = relations(customFormResponses, ({ one }) => ({
+  form: one(customForms, {
+    fields: [customFormResponses.formId],
+    references: [customForms.id],
+  }),
+  responderUser: one(user, {
+    fields: [customFormResponses.responderUserId],
+    references: [user.id],
+  }),
+}));
+
+/** Reusable Form Studio presets (question blueprints + settings) that admins can save and re-apply. */
+export const customFormPresets = sqliteTable(
+  "custom_form_presets",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    category: text("category").$type<"survey" | "quiz" | "feedback" | "registration">().default("survey").notNull(),
+    questions: text("questions", { mode: "json" }).$type<any[]>().notNull(),
+    settings: text("settings", { mode: "json" }).$type<Record<string, any>>(),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_custom_form_presets_category").on(table.category),
+  ]
+);
+
+export const customFormPresetsRelations = relations(customFormPresets, ({ one }) => ({
+  creator: one(user, {
+    fields: [customFormPresets.createdById],
+    references: [user.id],
+  }),
+}));
+
+/** Curated important links library (Tautan) managed by admins for quick access. */
+export const importantLinks = sqliteTable(
+  "important_links",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    url: text("url").notNull(),
+    description: text("description"),
+    icon: text("icon"),
+    category: text("category"),
+    color: text("color"),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+    createdById: text("created_by_id").references(() => user.id, { onDelete: "set null" }),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_important_links_category").on(table.category),
+    index("idx_important_links_active").on(table.isActive),
+  ]
+);
+
+export const importantLinksRelations = relations(importantLinks, ({ one }) => ({
+  creator: one(user, {
+    fields: [importantLinks.createdById],
+    references: [user.id],
+  }),
+}));
 
 export const pageAnalytics = sqliteTable("page_analytics", {
   id: text("id").primaryKey(), // The path of the page, e.g., "/courses"
@@ -4492,3 +4712,27 @@ export const blogArticlesRelations = relations(blogArticles, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const exportSpreadsheets = sqliteTable(
+  "export_spreadsheets",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").$type<"form" | "quiz" | "pka" | "system">().notNull(),
+    entityId: text("entity_id").notNull(),
+    spreadsheetId: text("spreadsheet_id").notNull(),
+    spreadsheetUrl: text("spreadsheet_url").notNull(),
+    driveFolderId: text("drive_folder_id").notNull(),
+    folderPath: text("folder_path").notNull(),
+    lastHeaderCount: integer("last_header_count").notNull().default(0),
+    lastRowCount: integer("last_row_count").notNull().default(0),
+    lastWrittenFingerprint: text("last_written_fingerprint"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("export_spreadsheets_entity_idx").on(table.entityType, table.entityId),
+  ]
+);

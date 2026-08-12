@@ -217,9 +217,9 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  Kekuatan Anda
  </span>
  <ul className="mt-2 space-y-1 text-body-base">
- {strongAreas && strongAreas.length > 0 ? (
- strongAreas.map((area, idx) => <li key={idx}>{area}</li>)
- ) : (
+  {strongAreas && strongAreas.length > 0 ? (
+  strongAreas.map((area, idx) => <li key={idx}><MathText as="span">{area}</MathText></li>)
+  ) : (
  <li className="text-muted-foreground text-body-sm">Belum ada konsep yang dikuasai sepenuhnya.</li>
  )}
  </ul>
@@ -232,8 +232,8 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  {weakAreas && weakAreas.length > 0 ? (
  weakAreas.map((area, idx) => (
  <li key={idx} className="flex items-center gap-1.5">
- <TrendingDown className="size-3.5 text-status-error" />
- <span>{area}</span>
+  <TrendingDown className="size-3.5 text-status-error" />
+  <MathText as="span">{area}</MathText>
  </li>
  ))
  ) : (
@@ -355,14 +355,14 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
 
  {/* Answers */}
  <div className="mt-4 space-y-1 pl-4 border-l-2 border-muted text-body-sm">
- <p>
- <span className="text-muted-foreground">Jawaban Anda: </span>
- <span className="font-medium">{submittedLabel || "-"}</span>
- </p>
- <p>
- <span className="text-muted-foreground">Jawaban Benar: </span>
- <span className="text-status-success font-semibold">{correctLabel}</span>
- </p>
+  <p>
+  <span className="text-muted-foreground">Jawaban Anda: </span>
+  <MathText className="font-medium" as="span">{submittedLabel || "-"}</MathText>
+  </p>
+  <p>
+  <span className="text-muted-foreground">Jawaban Benar: </span>
+  <MathText className="text-status-success font-semibold" as="span">{correctLabel}</MathText>
+  </p>
  </div>
 
  {/* Mistake feedback */}
@@ -388,24 +388,24 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
 
  {openFeedback[idx] && (
  <div className="animate-in fade-in duration-200 pl-4 border-l-2 border-brand-primary/30 space-y-3">
- {fbItem.payload.misconceptionName && (
- <h6 className="text-body-sm font-semibold text-foreground">
- Miskonsep: {fbItem.payload.misconceptionName}
- </h6>
- )}
- <p className="text-body-base text-muted-foreground">
- {fbItem.payload.whyWrong}
- </p>
- {fbItem.payload.correctApproach && fbItem.payload.correctApproach.length > 0 && (
- <div className="space-y-1">
- <span className="text-body-sm font-semibold text-foreground">Langkah Penyelesaian:</span>
- <ol className="list-decimal pl-4 space-y-1 text-body-sm text-muted-foreground">
- {fbItem.payload.correctApproach.map((stepMsg, sIdx) => (
- <li key={sIdx}>{stepMsg}</li>
- ))}
- </ol>
- </div>
- )}
+  {fbItem.payload.misconceptionName && (
+  <h6 className="text-body-sm font-semibold text-foreground">
+  Miskonsep: <MathText as="span">{fbItem.payload.misconceptionName}</MathText>
+  </h6>
+  )}
+  <p className="text-body-base text-muted-foreground">
+  <MathText as="span">{fbItem.payload.whyWrong}</MathText>
+  </p>
+  {fbItem.payload.correctApproach && fbItem.payload.correctApproach.length > 0 && (
+  <div className="space-y-1">
+  <span className="text-body-sm font-semibold text-foreground">Langkah Penyelesaian:</span>
+  <ol className="list-decimal pl-4 space-y-1 text-body-sm text-muted-foreground">
+  {fbItem.payload.correctApproach.map((stepMsg, sIdx) => (
+  <li key={sIdx}><MathText as="span">{stepMsg}</MathText></li>
+  ))}
+  </ol>
+  </div>
+  )}
  <div className="flex flex-wrap items-center gap-3 pt-2">
  <MistakeFeedbackButton
  questionId={q.id}

@@ -1,6 +1,8 @@
-import { and, asc, eq, lte, or, isNull } from "drizzle-orm";
+import { and, asc, eq, lte, lt, or, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { flashcards, flashcardIde, rekomendasiFlashcard, studentFlashcardProgress, pemahamanIde } from "@/db/schema";
+
+export const FLASHCARD_SUPPRESSION_MASTERY_SCORE = 80;
 
 export type IdeaRecommendationCandidate = {
   flashcardId: string;
@@ -28,6 +30,7 @@ export function rankIdeaRecommendations(
   now: Date = new Date(),
 ): IdeaRecommendation[] {
   return candidates
+    .filter((candidate) => candidate.masteryScore < FLASHCARD_SUPPRESSION_MASTERY_SCORE)
     .map((candidate) => {
       const dueUrgency = candidate.dueAt.getTime() <= now.getTime() ? 30 : 0;
       const priority = Math.max(0, 100 - candidate.masteryScore) + Math.max(0, 70 - candidate.confidence) * 0.4 + dueUrgency;
@@ -83,6 +86,7 @@ export async function refreshIdeaRecommendations(penggunaId: string, limit = 20)
     .where(
       and(
         eq(flashcards.status, "active"),
+        lt(pemahamanIde.skor, FLASHCARD_SUPPRESSION_MASTERY_SCORE),
         or(isNull(studentFlashcardProgress.id), lte(studentFlashcardProgress.dueDate, new Date())),
       ),
     )

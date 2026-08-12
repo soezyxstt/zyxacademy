@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Instance {
   id: string;
@@ -237,6 +238,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
     setPdfFileName(file.name);
     const fd = new FormData();
     fd.append("file", file);
+    fd.append("courseId", form.courseId);
 
     try {
       const res = await fetch("/api/admin/upload-pdf", { method: "POST", body: fd });
@@ -808,19 +810,21 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                 {/* Course Selector */}
                 <div>
                   <label className="text-body-sm font-semibold text-foreground mb-1 block">Kursus</label>
-                  <select
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-body-sm focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/50"
+                  <Select
                     value={form.courseId}
-                    onChange={(e) => handleCourseChange(e.target.value)}
-                    required
+                    onValueChange={handleCourseChange}
                   >
-                    <option value="">Pilih kursus...</option>
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Pilih kursus..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Chapter Selector (Learning only) */}

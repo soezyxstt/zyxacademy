@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/db';
-import { studentQuizAttempts, aiQuestionBank, quizTemplates, knowledgeObjects, attemptFeedback } from '@/db/schema';
+import { studentQuizAttempts, aiQuestionBank, quizTemplates, knowledgeObjects, attemptFeedback, soal, soalIde, ide, itemAsesmen, jawabanMurid, buktiIdeJawaban } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, inArray, sql } from 'drizzle-orm';
@@ -21,8 +21,73 @@ import { normalizeDate } from '@/lib/date-utils';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { gradeStableOptionAnswer } from '@/lib/asesmen/attempt';
+import {
+  buildLegacyGradingPolicySnapshot,
+  buildLegacyRenderedQuestionSnapshot,
+  buildLegacyResponseSnapshot,
+  deriveLegacyAnswerEvidence,
+  isCanonicalIdeaEvidenceEnabled,
+  legacyAnswerEvidenceId,
+  legacyAnswerId,
+  legacyItemId,
+  mapLegacyQuizSnapshotToCanonicalIdeas,
+  type CanonicalQuestionForLegacyEvidence,
+  type LegacyQuizQuestionSnapshot,
+} from '@/lib/asesmen/live-idea-evidence';
+import { requestIdeaMasteryRecompute } from '@/lib/pemahaman/evidence';
 
 type Context = { params: Promise<{ id: string }> };
+
+async function loadCanonicalQuestionsForEvidence(questionIds: readonly string[]): Promise<CanonicalQuestionForLegacyEvidence[]> {
+  if (questionIds.length === 0) return [];
+  const [questionRows, linkRows] = await Promise.all([
+    db
+      .select({
+        id: soal.id,
+        status: soal.status,
+        version: soal.version,
+        questionType: soal.questionType,
+        generationHash: soal.generationHash,
+      })
+      .from(soal)
+      .where(inArray(soal.id, [...new Set(questionIds)])),
+    db
+      .select({
+        questionId: soalIde.soalId,
+        ideaId: soalIde.ideId,
+        weight: soalIde.weight,
+        role: soalIde.role,
+        ideaStatus: ide.status,
+        ideaVersion: ide.version,
+      })
+      .from(soalIde)
+      .innerJoin(ide, eq(soalIde.ideId, ide.id))
+      .where(inArray(soalIde.soalId, [...new Set(questionIds)])),
+  ]);
+  const linksByQuestion = new Map<string, CanonicalQuestionForLegacyEvidence['ideaLinks'][number][]>();
+  const orderedLinkRows = [...linkRows].sort(
+    (left, right) => left.questionId.localeCompare(right.questionId) || left.ideaId.localeCompare(right.ideaId),
+  );
+  for (const row of orderedLinkRows) {
+    const links = linksByQuestion.get(row.questionId) ?? [];
+    links.push({
+      ideaId: row.ideaId,
+      weight: row.weight,
+      role: row.role,
+      ideaStatus: row.ideaStatus,
+      ideaVersion: row.ideaVersion,
+    });
+    linksByQuestion.set(row.questionId, links);
+  }
+  return questionRows.map((row) => ({
+    id: row.id,
+    status: row.status,
+    version: row.version,
+    questionType: row.questionType,
+    generationHash: row.generationHash,
+    ideaLinks: linksByQuestion.get(row.id) ?? [],
+  }));
+}
 
 export async function GET(_req: NextRequest, { params }: Context) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -117,13 +182,7 @@ export async function POST(req: NextRequest, { params }: Context) {
  }
 
   const { answers, durationSeconds } = parsed.data;
-  const snapshot = attempt.questionsSnapshot as Array<{
-    id: string;
-    question_type?: string;
-    correct_indices?: number[];
-    acceptable_answers?: string[];
-    stable_option_ids?: string[];
-  }>;
+  const snapshot = attempt.questionsSnapshot as LegacyQuizQuestionSnapshot[];
 
   function checkAnswerCorrectness(q: any, submitted: any): boolean {
     const qType = q.question_type || q.questionType;
@@ -222,9 +281,25 @@ export async function POST(req: NextRequest, { params }: Context) {
  .where(eq(quizTemplates.id, attempt.templateId))
  .limit(1);
 
- const courseId = template?.courseId || "calc-1";
+  const courseId = template?.courseId || "calc-1";
 
- // Build recommended next steps
+  const canonicalEvidenceEnabled = isCanonicalIdeaEvidenceEnabled(env);
+  let canonicalEvidencePlan: ReturnType<typeof mapLegacyQuizSnapshotToCanonicalIdeas> | null = null;
+  if (canonicalEvidenceEnabled) {
+    try {
+      const canonicalQuestions = await loadCanonicalQuestionsForEvidence(snapshot.map((question) => question.id));
+      canonicalEvidencePlan = mapLegacyQuizSnapshotToCanonicalIdeas({ questions: snapshot, canonicalQuestions });
+      if (canonicalEvidencePlan.status === "blocked") {
+        console.warn("Canonical Idea evidence skipped for legacy quiz attempt", { attemptId: id, issues: canonicalEvidencePlan.issues });
+      }
+    } catch (error) {
+      console.error("Canonical Idea evidence lookup failed; preserving legacy quiz submission", error);
+    }
+  }
+
+  const canonicalEvidenceIdeaIds = new Set<string>();
+
+  // Build recommended next steps
  const nextSteps = weakAreas.length > 0
  ? await buildPlanForConcepts(attempt.studentId, courseId, weakAreas)
  : [];
@@ -258,7 +333,74 @@ export async function POST(req: NextRequest, { params }: Context) {
       startedAt: normalizeDate(attempt.startedAt),
       submittedAt: now,
     }, attempt.studentId);
+
+    if (canonicalEvidencePlan?.status === "mapped") {
+      const questionById = new Map(snapshot.map((question) => [question.id, question]));
+      for (const mapping of canonicalEvidencePlan.mappings) {
+        const question = questionById.get(mapping.questionId);
+        if (!question) continue;
+        const itemId = legacyItemId(attempt.templateId, question.id);
+        const answerId = legacyAnswerId(id, question.id);
+        const submitted = answers[question.id];
+        const isCorrect = checkAnswerCorrectness(question, submitted);
+        const derived = deriveLegacyAnswerEvidence({ question, mapping, isCorrect });
+        const questionType = mapping.questionType;
+        const isFreeResponse = questionType === "short_answer" || questionType === "essay";
+
+        await tx.insert(itemAsesmen).values({
+          id: itemId,
+          asesmenId: attempt.templateId,
+          soalId: mapping.questionId,
+          orderIndex: snapshot.findIndex((candidate) => candidate.id === question.id),
+          renderedQuestionSnapshot: buildLegacyRenderedQuestionSnapshot(question),
+          optionOrderSnapshot: question.stable_option_ids ?? [],
+          gradingPolicySnapshot: buildLegacyGradingPolicySnapshot(question, mapping),
+          contentVersion: mapping.questionVersion,
+          generationHash: mapping.generationHash,
+        }).onConflictDoNothing();
+
+        await tx.insert(jawabanMurid).values({
+          id: answerId,
+          percobaanAsesmenId: id,
+          itemAsesmenId: itemId,
+          renderedQuestionSnapshot: buildLegacyRenderedQuestionSnapshot(question),
+          optionOrderSnapshot: question.stable_option_ids ?? [],
+          responseSnapshot: buildLegacyResponseSnapshot(question, submitted),
+          gradingPolicySnapshot: buildLegacyGradingPolicySnapshot(question, mapping),
+          contentVersion: mapping.questionVersion,
+          score: isFreeResponse ? null : isCorrect ? 1 : 0,
+          status: isFreeResponse ? "needs_review" : isCorrect ? "correct" : "incorrect",
+          answeredAt: now,
+        }).onConflictDoNothing();
+
+        if (derived.status !== "derived") continue;
+        for (const contribution of derived.contributions) {
+          canonicalEvidenceIdeaIds.add(contribution.ideaId);
+          await tx.insert(buktiIdeJawaban).values({
+            id: legacyAnswerEvidenceId(answerId, contribution.ideaId),
+            jawabanMuridId: answerId,
+            ideId: contribution.ideaId,
+            scoreContribution: contribution.scoreContribution,
+            weight: contribution.weight,
+            confidence: contribution.confidence,
+            evidenceSource: contribution.evidenceSource,
+            rubricVersion: contribution.rubricVersion,
+            derivationStatus: contribution.derivationStatus,
+            ambiguous: contribution.ambiguous,
+            affectsMastery: contribution.affectsMastery,
+          }).onConflictDoNothing();
+        }
+      }
+    }
   });
+
+  if (canonicalEvidenceIdeaIds.size > 0) {
+    await Promise.all([...canonicalEvidenceIdeaIds].map((ideaId) => requestIdeaMasteryRecompute({
+      penggunaId: attempt.studentId,
+      ideId: ideaId,
+      evidenceId: `${id}:${ideaId}`,
+    })));
+  }
 
   if (template) {
     const events = snapshot.map((q) => {

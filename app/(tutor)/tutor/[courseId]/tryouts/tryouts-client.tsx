@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import {
   saveTryoutAction,
@@ -298,7 +299,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
                           {q.type.replace("_", " ")}
                         </Badge>
                       </div>
-                      <p className="text-body-base font-medium text-foreground leading-relaxed pt-1">{content.prompt}</p>
+                      <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-1" as="p">{content.prompt}</MathText>
                     </div>
 
                     <div className="flex gap-1">
@@ -327,7 +328,9 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
                             }`}>
                               {String.fromCharCode(65 + i)}
                             </span>
-                            <span>{opt}</span>
+                            <span>
+                              <MathText className="leading-normal" as="span">{opt}</MathText>
+                            </span>
                           </div>
                         );
                       })}

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Send, History, Megaphone, CheckCircle2, XCircle, Users, Pin, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminTable } from "@/components/admin/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -224,7 +225,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
             <p className="text-body-sm text-muted-foreground">Belum ada pengumuman yang dikirim.</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          <AdminTable>
             <div className="hidden md:grid grid-cols-[1fr_120px_100px_120px_100px] gap-4 border-b border-border bg-muted/30 px-5 py-3">
               <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Pengumuman</span>
               <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
@@ -316,7 +317,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
                 </li>
               ))}
             </ul>
-          </div>
+          </AdminTable>
         )}
       </section>
     </div>

@@ -45,7 +45,7 @@ Unknown manifest fields fail closed. The bundle checksum is deterministic over t
 2. An identical `bundleId` and checksum returns the existing import without new rows. A reused `bundleId` with a different checksum is blocked as `IDEA_BUNDLE_CONFLICT`.
 3. A tutor may review an import only when assigned to its course. An admin may approve or reject. Review decisions are immutable and audited.
 4. Only an admin can publish an approved import. Publication resolves legacy course and chapter identities, writes all source, chunk, Idea, provenance, and relation rows in one Turso transaction, and records `publikasi_bundle` plus mutation audits.
-5. Vector work is inserted into `vector_sync_queue` as deterministic, conflict-safe outbox jobs for embedding-eligible source chunks and published Ideas. No partial publication is visible after a transaction failure.
+5. Vector work is inserted into `vector_sync_queue` as deterministic, conflict-safe outbox jobs for embedding-eligible source chunks and published Ideas. Source chunks use `source_materials` and Ideas use `canonical_ideas`; each job carries the content needed to build the canonical provider-neutral payload. No partial publication is visible after a transaction failure.
 
 The admin panel is available at `/admin/bundles/idea` while the feature flag is enabled. Disabling the flag hides the V2 panel and leaves the legacy importer available for rollback. Published evidence is never deleted as a rollback mechanism.
 

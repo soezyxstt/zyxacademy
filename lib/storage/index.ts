@@ -24,6 +24,12 @@ export interface StorageProvider {
   ): Promise<string>;
 
   rename?(key: string, newName: string): Promise<void>;
+
+  /**
+   * Lists objects under a key prefix (used by the Media Library browser).
+   * Folders are derived from key segments; only leaf objects are returned.
+   */
+  list?(prefix: string): Promise<{ key: string; size: number; lastModified: Date }[]>;
 }
 
 // Dynamically select the provider based on the environment flag

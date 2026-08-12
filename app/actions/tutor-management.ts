@@ -11,6 +11,7 @@ import {
   questions,
   submissions,
   tutorCourses,
+  courses,
 } from "@/db/schema";
 import { eq, and, inArray, asc, or, sql, notInArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
@@ -18,6 +19,7 @@ import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
+import { sendQuizPublished } from "@/lib/notifications/send";
 
 // Helper to verify tutor role and course access
 export async function verifyTutorAccess(courseId: string) {
@@ -187,7 +189,19 @@ export async function saveQuizTemplateAction(
   const openDate = data.openAt ? new Date(data.openAt) : null;
   const closeDate = data.closeAt ? new Date(data.closeAt) : null;
 
+  // Notify enrolled students only when a quiz transitions to published.
+  let shouldNotify = false;
+  let existingStatus: "draft" | "published" | null = null;
+
   if (templateId) {
+    const existing = await db
+      .select({ status: quizTemplates.status })
+      .from(quizTemplates)
+      .where(eq(quizTemplates.id, templateId))
+      .limit(1);
+    existingStatus = existing[0]?.status ?? null;
+    shouldNotify = data.status === "published" && existingStatus !== "published";
+
     await db
       .update(quizTemplates)
       .set({
@@ -206,6 +220,7 @@ export async function saveQuizTemplateAction(
       })
       .where(eq(quizTemplates.id, templateId));
   } else {
+    shouldNotify = data.status === "published";
     await db.insert(quizTemplates).values({
       id: targetId,
       courseId,
@@ -221,6 +236,20 @@ export async function saveQuizTemplateAction(
       status: data.status ?? "draft",
       showDiscussion: data.showDiscussion ?? false,
     });
+  }
+
+  if (shouldNotify) {
+    const courseRow = await db
+      .select({ title: courses.title })
+      .from(courses)
+      .where(eq(courses.id, courseId))
+      .limit(1);
+    await sendQuizPublished(
+      data.title,
+      courseId,
+      courseRow[0]?.title ?? "mata kuliah",
+      `/courses/${courseId}/quiz`
+    );
   }
 
   revalidatePath(`/tutor/${courseId}/quizzes`);

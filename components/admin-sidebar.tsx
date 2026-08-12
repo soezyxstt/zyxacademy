@@ -6,9 +6,8 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
-  FolderOpen,
-  KeyRound,
   BookText,
+  KeyRound,
   Archive,
   Zap,
   ListChecks,
@@ -17,17 +16,33 @@ import {
   Bell,
   Activity,
   BarChart3,
-  Users,
   Megaphone,
-  Calendar,
+  CalendarDays,
   Link as LinkIcon,
   Newspaper,
   Flag,
   Layers,
   Package,
   ShieldCheck,
+  Video,
+  FileText,
+  BookOpen,
+  NotebookPen,
+  Library,
+  Target,
+  UserCheck,
+  UserCog,
+  BrainCircuit,
+  FileStack,
+  FilePen,
+  Settings,
+  Gauge,
+  LineChart,
+  Lock,
+  Globe,
+  Image as ImageIcon,
 } from "lucide-react";
-import { useSession, signOut } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { SidebarShell, NavItem, NavGroup, NavCollapsible } from "@/components/sidebar-shell";
 
@@ -49,13 +64,40 @@ function AdminSidebarInner() {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [profileOpen]);
 
-  const handleLogout = async () => {
-    await signOut();
-    window.location.href = "/";
-  };
-
   const isExact = (path: string) => pathname === path;
   const isPrefix = (path: string) => pathname === path || pathname.startsWith(path + "/");
+
+  const pkaQuizActive =
+    pathname === "/admin/ai/quizzes" && searchParams?.get("courseId") === "tutorial-pka";
+  const pkaMaterialActive =
+    pathname === "/admin/ai/materials" && searchParams?.get("courseId") === "tutorial-pka";
+
+  const akademikActive =
+    isPrefix("/admin/courses") ||
+    isPrefix("/admin/bundles/idea") ||
+    isPrefix("/admin/bundles/product") ||
+    isPrefix("/admin/authoring-context");
+
+  const pkaActive =
+    isPrefix("/admin/tutorial-pka") || pkaQuizActive || pkaMaterialActive;
+
+  const evaluasiActive =
+    isPrefix("/admin/ai/questions") ||
+    (isPrefix("/admin/ai/quizzes") && !pkaQuizActive) ||
+    isPrefix("/admin/ai/quiz-insights") ||
+    isPrefix("/admin/ai/jobs") ||
+    isPrefix("/admin/ai/distractors");
+
+  const kontenActive =
+    (isPrefix("/admin/ai/materials") && !pkaMaterialActive) ||
+    isPrefix("/admin/ai/assessments") ||
+    isPrefix("/admin/ai/diktats") ||
+    isPrefix("/admin/ai/ast-inspector");
+
+  const penggunaActive =
+    isPrefix("/admin/tokens") || isPrefix("/admin/notifications");
+
+  const opsActive = isPrefix("/admin/ops");
 
   const topSection = (c: boolean) => {
     if (!session?.user) return null;
@@ -122,37 +164,9 @@ function AdminSidebarInner() {
             >
               Beranda Siswa
             </Link>
-            <div className="my-1 border-t border-border" />
-            <button
-              type="button"
-              onClick={() => {
-                setProfileOpen(false);
-                handleLogout();
-              }}
-              className="flex w-full items-center rounded-lg px-2.5 py-2 text-body-sm text-status-error hover:bg-status-error/10 transition-colors cursor-pointer text-left font-medium"
-            >
-              Keluar
-            </button>
           </div>
         )}
       </div>
-    );
-  };
-
-  const bottomSection = (c: boolean) => {
-    return (
-      <nav className={cn(
-        "flex flex-col gap-1 pb-4 font-sans text-left",
-        c ? "px-1 items-center" : "px-3"
-      )}>
-        <NavItem
-          href="/dashboard"
-          icon={GraduationCap}
-          label="Beranda Siswa"
-          className="text-tertiary-1 hover:bg-tertiary-1/10 hover:text-tertiary-1 font-semibold"
-          collapsed={c}
-        />
-      </nav>
     );
   };
 
@@ -169,51 +183,56 @@ function AdminSidebarInner() {
         <NavGroup label="Utama" collapsed={c} />
         <NavItem href="/admin" icon={LayoutDashboard} label="Panel Admin" active={isExact("/admin")} collapsed={c} />
         <NavItem href="/admin/blog" icon={Newspaper} label="Kelola Blog" active={isPrefix("/admin/blog")} collapsed={c} />
-        <NavItem href="/admin/files" icon={FolderOpen} label="File Storage" active={isPrefix("/admin/files")} collapsed={c} />
 
-        <NavGroup label="Akademik" collapsed={c} />
-        <NavItem href="/admin/courses" icon={BookText} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} />
-        <NavItem href="/admin/bundles/idea" icon={Layers} label="Idea Bundle V2" active={isPrefix("/admin/bundles/idea")} collapsed={c} />
-        <NavItem href="/admin/bundles/product" icon={Package} label="Product Bundle V2" active={isPrefix("/admin/bundles/product")} collapsed={c} />
-        <NavItem href="/admin/authoring-context" icon={ShieldCheck} label="Authoring Context" active={isPrefix("/admin/authoring-context")} collapsed={c} />
-        
-        <NavCollapsible 
-          icon={GraduationCap} 
-          label="Tutorial PKA" 
-          collapsed={c} 
-          active={isPrefix("/admin/tutorial-pka") || (pathname.startsWith("/admin/ai/quizzes") && searchParams?.get("courseId") === "tutorial-pka") || (pathname.startsWith("/admin/ai/materials") && searchParams?.get("courseId") === "tutorial-pka")}
-        >
-          <NavItem href="/admin/tutorial-pka/registrations" icon={Users} label="Pendaftar" active={isPrefix("/admin/tutorial-pka/registrations")} collapsed={c} isChild />
-          <NavItem href="/admin/tutorial-pka/announcements" icon={Megaphone} label="Pengumuman" active={isPrefix("/admin/tutorial-pka/announcements")} collapsed={c} isChild />
-          <NavItem href="/admin/tutorial-pka/schedules" icon={Calendar} label="Jadwal Live" active={isPrefix("/admin/tutorial-pka/schedules")} collapsed={c} isChild />
-          <NavItem href="/admin/ai/quizzes?courseId=tutorial-pka" icon={ListChecks} label="Template Kuis" active={pathname === "/admin/ai/quizzes" && searchParams?.get("courseId") === "tutorial-pka"} collapsed={c} isChild />
-          <NavItem href="/admin/ai/materials?courseId=tutorial-pka" icon={BookText} label="Materi & Flashcard" active={pathname === "/admin/ai/materials" && searchParams?.get("courseId") === "tutorial-pka"} collapsed={c} isChild />
+        <NavGroup label="Media & Alat" collapsed={c} />
+        <NavItem href="/admin/meet" icon={Video} label="Meet" active={isPrefix("/admin/meet")} collapsed={c} />
+        <NavItem href="/admin/forms" icon={FilePen} label="Form Studio" active={isPrefix("/admin/forms")} collapsed={c} />
+        <NavItem href="/admin/media" icon={ImageIcon} label="Media" active={isPrefix("/admin/media")} collapsed={c} />
+        <NavItem href="/admin/tautan" icon={LinkIcon} label="Tautan" active={isPrefix("/admin/tautan")} collapsed={c} />
+
+        <NavCollapsible icon={BookOpen} label="Akademik" collapsed={c} active={akademikActive}>
+          <NavItem href="/admin/courses" icon={GraduationCap} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} isChild />
+          <NavItem href="/admin/bundles/idea" icon={Layers} label="Idea Bundle V2" active={isPrefix("/admin/bundles/idea")} collapsed={c} isChild />
+          <NavItem href="/admin/bundles/product" icon={Package} label="Product Bundle V2" active={isPrefix("/admin/bundles/product")} collapsed={c} isChild />
+          <NavItem href="/admin/authoring-context" icon={ShieldCheck} label="Authoring Context" active={isPrefix("/admin/authoring-context")} collapsed={c} isChild />
         </NavCollapsible>
 
-        <NavGroup label="Evaluasi & Kuis" collapsed={c} />
-        <NavItem href="/admin/ai/questions" icon={ClipboardList} label="Bank Soal" active={isPrefix("/admin/ai/questions")} collapsed={c} />
-        <NavItem href="/admin/ai/quizzes" icon={ListChecks} label="Template Kuis" active={isPrefix("/admin/ai/quizzes")} collapsed={c} />
-        <NavItem href="/admin/ai/quiz-insights" icon={BarChart3} label="Analisis & Insight Kuis" active={isPrefix("/admin/ai/quiz-insights")} collapsed={c} />
-        <NavItem href="/admin/ai/jobs" icon={Zap} label="Generasi Soal" active={isPrefix("/admin/ai/jobs")} collapsed={c} />
-        <NavItem href="/admin/ai/distractors" icon={BarChart3} label="Analitik Distraktor" active={isPrefix("/admin/ai/distractors")} collapsed={c} />
+        <NavCollapsible icon={GraduationCap} label="Tutorial PKA" collapsed={c} active={pkaActive}>
+          <NavItem href="/admin/tutorial-pka/registrations" icon={UserCheck} label="Pendaftar" active={isPrefix("/admin/tutorial-pka/registrations")} collapsed={c} isChild />
+          <NavItem href="/admin/tutorial-pka/announcements" icon={Megaphone} label="Pengumuman" active={isPrefix("/admin/tutorial-pka/announcements")} collapsed={c} isChild />
+          <NavItem href="/admin/tutorial-pka/schedules" icon={CalendarDays} label="Jadwal Live" active={isPrefix("/admin/tutorial-pka/schedules")} collapsed={c} isChild />
+          <NavItem href="/admin/ai/quizzes?courseId=tutorial-pka" icon={ListChecks} label="Template Kuis PKA" active={pkaQuizActive} collapsed={c} isChild />
+          <NavItem href="/admin/ai/materials?courseId=tutorial-pka" icon={FileText} label="Materi PKA" active={pkaMaterialActive} collapsed={c} isChild />
+        </NavCollapsible>
 
+        <NavCollapsible icon={ClipboardList} label="Evaluasi & Kuis" collapsed={c} active={evaluasiActive}>
+          <NavItem href="/admin/ai/questions" icon={Library} label="Bank Soal" active={isPrefix("/admin/ai/questions")} collapsed={c} isChild />
+          <NavItem href="/admin/ai/quizzes" icon={NotebookPen} label="Template Kuis" active={isPrefix("/admin/ai/quizzes") && !pkaQuizActive} collapsed={c} isChild />
+          <NavItem href="/admin/ai/quiz-insights" icon={BarChart3} label="Analisis & Insight Kuis" active={isPrefix("/admin/ai/quiz-insights")} collapsed={c} isChild />
+          <NavItem href="/admin/ai/jobs" icon={Zap} label="Generasi Soal" active={isPrefix("/admin/ai/jobs")} collapsed={c} isChild />
+          <NavItem href="/admin/ai/distractors" icon={Target} label="Analitik Distraktor" active={isPrefix("/admin/ai/distractors")} collapsed={c} isChild />
+        </NavCollapsible>
 
-        <NavGroup label="AI & Konten" collapsed={c} />
-        <NavItem href="/admin/ai/materials" icon={BookText} label="Materi AI" active={isPrefix("/admin/ai/materials")} collapsed={c} />
-        <NavItem href="/admin/ai/assessments" icon={Archive} label="Asesmen Historis" active={isPrefix("/admin/ai/assessments")} collapsed={c} />
-        <NavItem href="/admin/ai/diktats" icon={FolderOpen} label="Kompilasi Diktat" active={isPrefix("/admin/ai/diktats")} collapsed={c} />
-        <NavItem href="/admin/ai/ast-inspector" icon={Activity} label="AST Inspector" active={isPrefix("/admin/ai/ast-inspector")} collapsed={c} />
+        <NavCollapsible icon={BrainCircuit} label="AI & Konten" collapsed={c} active={kontenActive}>
+          <NavItem href="/admin/ai/materials" icon={BookText} label="Materi AI" active={isPrefix("/admin/ai/materials") && !pkaMaterialActive} collapsed={c} isChild />
+          <NavItem href="/admin/ai/assessments" icon={Archive} label="Asesmen Historis" active={isPrefix("/admin/ai/assessments")} collapsed={c} isChild />
+          <NavItem href="/admin/ai/diktats" icon={FileStack} label="Kompilasi Diktat" active={isPrefix("/admin/ai/diktats")} collapsed={c} isChild />
+          <NavItem href="/admin/ai/ast-inspector" icon={Activity} label="AST Inspector" active={isPrefix("/admin/ai/ast-inspector")} collapsed={c} isChild />
+        </NavCollapsible>
 
-        <NavGroup label="Pengguna & Akses" collapsed={c} />
-        <NavItem href="/admin/tokens" icon={KeyRound} label="Token Aktivasi" active={isPrefix("/admin/tokens")} collapsed={c} />
-        <NavItem href="/admin/notifications" icon={Bell} label="Push Notification" active={isPrefix("/admin/notifications")} collapsed={c} />
+        <NavCollapsible icon={UserCog} label="Pengguna & Akses" collapsed={c} active={penggunaActive}>
+          <NavItem href="/admin/tokens" icon={KeyRound} label="Token Aktivasi" active={isPrefix("/admin/tokens")} collapsed={c} isChild />
+          <NavItem href="/admin/notifications" icon={Bell} label="Push Notification" active={isPrefix("/admin/notifications")} collapsed={c} isChild />
+        </NavCollapsible>
 
-        <NavGroup label="Sistem & Ops" collapsed={c} />
-        <NavItem href="/admin/ops" icon={Activity} label="Monitor Ops" active={isExact("/admin/ops")} collapsed={c} />
-        <NavItem href="/admin/ops/flags" icon={Flag} label="Feature Flags" active={isPrefix("/admin/ops/flags")} collapsed={c} />
-        <NavItem href="/admin/ops/analytics" icon={BarChart3} label="Analitik AI" active={isPrefix("/admin/ops/analytics")} collapsed={c} />
-        <NavItem href="/admin/ops/keys" icon={KeyRound} label="API Keys" active={isPrefix("/admin/ops/keys")} collapsed={c} />
-        <NavItem href="/admin/ops/short-links" icon={LinkIcon} label="Short Links" active={isPrefix("/admin/ops/short-links")} collapsed={c} />
+        <NavCollapsible icon={Settings} label="Sistem & Ops" collapsed={c} active={opsActive}>
+          <NavItem href="/admin/ops" icon={Gauge} label="Monitor Ops" active={isExact("/admin/ops")} collapsed={c} isChild />
+          <NavItem href="/admin/ops/flags" icon={Flag} label="Feature Flags" active={isPrefix("/admin/ops/flags")} collapsed={c} isChild />
+          <NavItem href="/admin/ops/analytics" icon={LineChart} label="Analitik AI" active={isPrefix("/admin/ops/analytics")} collapsed={c} isChild />
+          <NavItem href="/admin/ops/keys" icon={Lock} label="API Keys" active={isPrefix("/admin/ops/keys")} collapsed={c} isChild />
+          <NavItem href="/admin/ops/short-links" icon={LinkIcon} label="Short Links" active={isPrefix("/admin/ops/short-links")} collapsed={c} isChild />
+          <NavItem href="/admin/ops/web-analytics" icon={Globe} label="Web Analytics" active={isPrefix("/admin/ops/web-analytics")} collapsed={c} isChild />
+        </NavCollapsible>
 
         <div className="flex-1" />
       </nav>
@@ -227,7 +246,6 @@ function AdminSidebarInner() {
       logoLabel="Panel Admin Zyx Academy"
       nav={navContent}
       topSection={topSection}
-      bottomSection={bottomSection}
     />
   );
 }

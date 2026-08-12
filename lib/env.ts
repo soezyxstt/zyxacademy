@@ -20,6 +20,12 @@ export const env = createEnv({
  BETTER_AUTH_SECRET: z.string().min(1),
  GOOGLE_CLIENT_ID: z.string(),
  GOOGLE_CLIENT_SECRET: z.string(),
+ /** Primary Google OAuth Refresh Token for Google Workspace REST APIs (Meet, Forms, Sheets, Drive) */
+ GOOGLE_REFRESH_TOKEN: z.string().optional(),
+ /** Google OAuth Refresh Token for Master Pro Account (Meet REST API) */
+ GOOGLE_MEET_REFRESH_TOKEN: z.string().optional(),
+ /** Dedicated Google OAuth Refresh Token for Google Forms REST API (optional fallback to GOOGLE_REFRESH_TOKEN / GOOGLE_MEET_REFRESH_TOKEN) */
+ GOOGLE_FORMS_REFRESH_TOKEN: z.string().optional(),
  /** From https://uploadthing.com/dashboard ; replaces direct S3/Tigris uploads. */
  UPLOADTHING_TOKEN: z.string().min(1),
  /** Resend API Key for sending transactional emails. */
@@ -169,6 +175,14 @@ export const env = createEnv({
    FEATURE_ZYRA_PEDAGOGY_V3: z.string().optional(),
    /** Dedicated staging-only user allowed to execute hidden pedagogy shadow comparisons. */
    STAGING_ZYRA_PEDAGOGY_USER_ID: z.string().optional(),
+  /** Auto-grant editor access on every exported Google Spreadsheet and its Drive folder to all active admin emails. "1" enables. */
+  FEATURE_DRIVE_EDITOR_SYNC: z.string().optional(),
+  /** Admin Media Library: upload, organize, preview and manage shared media files in R2 under `media/`. "1" enables. */
+  FEATURE_MEDIA_LIBRARY: z.string().optional(),
+  /** Admin Tautan (important links) library. "1" enables. */
+  FEATURE_LINK_LIBRARY: z.string().optional(),
+  /** Reusable Form Studio presets (questions + settings). "1" enables. */
+  FEATURE_FORM_PRESETS: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
@@ -219,6 +233,9 @@ export const env = createEnv({
  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+ GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN,
+ GOOGLE_MEET_REFRESH_TOKEN: process.env.GOOGLE_MEET_REFRESH_TOKEN,
+ GOOGLE_FORMS_REFRESH_TOKEN: process.env.GOOGLE_FORMS_REFRESH_TOKEN,
  UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
  RESEND_API_KEY: process.env.RESEND_API_KEY,
  WHATSAPP_ADMIN_NUMBER: process.env.WHATSAPP_ADMIN_NUMBER,
@@ -295,6 +312,10 @@ export const env = createEnv({
   FEATURE_ZYRA_SEMANTIC_CACHE_V1: process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
    FEATURE_ZYRA_PEDAGOGY_V3: process.env.FEATURE_ZYRA_PEDAGOGY_V3,
    STAGING_ZYRA_PEDAGOGY_USER_ID: process.env.STAGING_ZYRA_PEDAGOGY_USER_ID,
+  FEATURE_DRIVE_EDITOR_SYNC: process.env.FEATURE_DRIVE_EDITOR_SYNC,
+  FEATURE_MEDIA_LIBRARY: process.env.FEATURE_MEDIA_LIBRARY,
+  FEATURE_LINK_LIBRARY: process.env.FEATURE_LINK_LIBRARY,
+  FEATURE_FORM_PRESETS: process.env.FEATURE_FORM_PRESETS,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,

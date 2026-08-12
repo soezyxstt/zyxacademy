@@ -157,6 +157,12 @@ Use the **`photo-*`** classes on `<img>` or `next/image` for consistent crop, ra
 2. **Color**: **`foreground` / `muted-foreground` / `primary` / `border`** before raw brand or `gray-*`.
 3. **Images**: Pick **`photo-hero` | `photo-card` | `photo-banner` | `photo-thumb` | `photo-inline`** by layout role.
 4. **Dark mode**: Test with **`.dark`**; rely on semantic tokens so components stay consistent.
+5. **Standard Reusable Components**: Always use standard Shadcn components from `@/components/ui/` (`Card`, `Tabs`, `Input`, `Select`, `Switch`, `Label`, `Button`, `Badge`, `Textarea`, etc.) instead of hardcoded/ad-hoc styled containers or raw unstyled inputs/checkboxes. If a Shadcn primitive is missing in `@/components/ui/`, create it as a reusable component there.
+6. **Form & Layout Hierarchy**:
+   - Field labels (`Label`) should be visually primary: `text-body-sm font-semibold text-foreground`.
+   - Field descriptions and helper text must be distinctly smaller than labels and input content: `text-body-xs text-muted-foreground`.
+   - Settings panels and main tab views must fill the container width (`w-full`) without arbitrary max-width constraints (e.g. `max-w-3xl`) unless explicitly needed for narrow dialogs.
+   - Component portals (e.g. `Select`, `Dialog`, `Popover`) must not hide or close navigation sidebars or mess up page layout.
 
 ---
 
@@ -205,6 +211,44 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 6. **SQLite `strftime` in raw SQL** is acceptable for server-side queries (e.g. `strftime('%Y-%m-%d', datetime(col, 'unixepoch'))`), but prefer Drizzle's typed query builder when possible.
 7. **UTC vs local**: Use UTC functions (`todayUtc`, `startOfDayUtc`, `formatIsoDateUtc`) for DB text columns and server-side logic. Use local functions (`formatIsoDate`, `formatDatetimeLocal`, `startOfDay`) for UI display and form inputs.
 8. **Hydration safety**: Client components rendering dates must use the `FormattedDate` component (`components/ui/formatted-date.tsx`) or implement the same UTC-on-server / local-on-client pattern to avoid hydration mismatches.
+
+---
+
+## R2 Object Key Convention
+
+Every file uploaded to Cloudflare R2 MUST live under a structured, folder-style object key. Flat UUID keys, `{uuid}-{filename}` defaults, and ad hoc inline key building are forbidden.
+
+### Rules
+
+1. **One helper**: build every key through `lib/storage/keys.ts`. That file is the only place that sanitizes names and joins segments. Never re-implement `safeName` / `slugify` regexes inside a route, action, or component.
+2. **Key shape**: `{domain}/{entity-slug}/{subfolder...}/{leaf}`.
+   - `domain`: fixed lowercase top-level folder (`courses`, `blog`, `forms`, `pka`, `overhaul`, `uploads`).
+   - `entity-slug`: kebab-case slug of the owning record (course id, form title, user id, run id).
+   - `leaf` for user files: `{timestamp}-{short-hash}-{sanitized-original-filename}` so a re-upload of the same name never overwrites the previous object and the real filename stays visible.
+   - `leaf` for generated artifacts (diktat PDF, bundle ZIP): a stable name; versioning comes from run id or checksum and the old object is deleted on replace.
+3. **Preserve the real filename**: the leaf always ends with the sanitized original filename and its extension (e.g. `1719000000000-a1b2c3d4-materi-kelas.pdf`), never a bare UUID.
+4. **Reject unsafe keys**: any key containing `..`, a leading `/`, or `\` is invalid and the provider must throw (`INVALID_OBJECT_KEY`).
+5. **Provider enforcement**: `R2Provider.upload()` must require `options.key` and throw when it is missing. It must never fall back to a generated `${uuid}-${filename}` key.
+6. **Proxy filename**: `app/api/storage/file/[...key]/route.ts` must derive the download `Content-Disposition` filename with `leafFilename(key)` (last path segment minus the `{timestamp}-{hash}-` prefix), never a UUID-strip regex.
+
+### Canonical prefixes
+
+| Domain | Key pattern | Where |
+|--------|-------------|-------|
+| Course material PDF | `courses/{course-slug}/materials/{leaf}.pdf` | `uploadCourseMaterial` (`app/(admin)/admin/(academic)/courses/actions.ts`); `/api/admin/upload-pdf` when the client sends a `courseId` |
+| Generic admin PDF (no course context) | `uploads/{yyyy}/{mm}/{leaf}.pdf` | `/api/admin/upload-pdf` fallback when no `courseId` |
+| Course canonical markdown | `courses/{course-slug}/canonical/{leaf}.md` | `/api/admin/material-instances` |
+| Diktat PDF | `courses/{course-slug}/diktats/{title-slug}.pdf` | `lib/diktat-actions.ts` |
+| Blog media | `blog/{timestamp}-{hash}-{filename}` | `/api/blog/upload` |
+| Forms | `forms/{form-slug}/question-{n}/{leaf}` | `/api/forms/upload` (already correct; move its helpers into `lib/storage/keys.ts`) |
+| PKA follow proof | `pka/{userId}/proofs/{leaf}` | `registerPkaAction` (`app/(student)/courses/tutorial-pka/daftar/actions.ts`) |
+| Idea bundle | `overhaul/idea-bundles/{runId}/{bundleId}-{checksum16}.zip` | `lib/bundle/staging.ts` (already correct) |
+| Product bundle | `overhaul/product-bundles/{runId}/{bundleId}-{checksum16}.zip` | `lib/bundle/product-staging.ts` (already correct) |
+| Authoring pack | `overhaul/{runId}/authoring-context/{packId}.zip` | `lib/authoring/export.ts` (already correct) |
+
+When a new upload flow is added, reuse a domain above or add a new row to this table, and always route the key through `lib/storage/keys.ts`. Existing legacy keys stay readable in place; only new objects are written under the new convention.
+
+The admin Media page (`/admin/media`) hosts a read-only browser over these domain prefixes in its "Storage R2" tab (folder tree, list, and copy-to-media only); it accepts no uploads to those domains and owns no key prefix. Do not add a `drive/` write path.
 
 ---
 
@@ -265,6 +309,18 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - **Plan 009 Article and Diktat Quality Compiler completed**: Added typed article blocks, prerequisite ordering and cycle rejection, deterministic Product Bundle article compilation, approved-article-only diktat compression, stable quality-gate reason codes, traceable admin previews, and read-only staging preview scripts. Staging evidence records 100 percent article and diktat quality, deterministic output, and zero writes; the requested `tutorial-pka` identity used an explicit read-only fallback to canonical course `mat-i` because no published canonical Idea rows were available under the PKA identity.
 - **Plan 010 Question and Assessment Integrity completed**: Added deterministic multi-Idea assessment blueprints, per-Idea evidence rubrics, stable option-ID grading, benchmark and holdout boundaries, active-attempt redaction, and staging lifecycle plus leak-scan evidence. The requested `tutorial-pka` identity used an explicit run-scoped fallback to canonical course `mat-i`; no cross-course fixture data was mixed.
 - **Plan 011 Per-Idea Mastery and Learning Loop completed**: Added deterministic per-Idea score and confidence calculation, append-only evidence identity, replay metadata, change history, compatibility reads, deterministic recommendations, versioned Inngest recompute events, and guarded staging shadow/full/incremental replay scripts. The staging run used an explicit `tutorial-pka` to `mat-i` canonical fallback and did not modify legacy mastery rows.
+- **Plan 017 policy gate slice completed**: Product Bundle questions now require ITB curation and HOT cognitive levels for multi-Idea questions, while canonical flashcard recommendations suppress Idea mastery scores of 80 or higher. No schema migration was added.
+- **Structured Form Upload Storage System completed**: Form image and file uploads (public form responder uploads & admin form builder question attachments) now use a structured folder key hierarchy (`forms/[judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`) handled via `lib/forms/storage-utils.ts`, `app/api/forms/upload/route.ts`, `components/forms/public-form-viewer.tsx`, and verified via `tests/contracts/form-storage.test.ts` (4/4 tests passing, 0 lint errors).
+- **R2 Object Key Convention completed**: All upload flows now build keys through the single helper `lib/storage/keys.ts` (`{domain}/{entity-slug}/{subfolder...}/{leaf}` with `{timestamp}-{shorthash8}-{sanitized-filename}` leaves). `R2Provider.upload()` and `WranglerR2Provider.upload()` now require `options.key` and reject unsafe keys with `INVALID_OBJECT_KEY`. Call sites migrated to conforming prefixes (`courses/{slug}/materials|canonical|diktats`, `blog/{leaf}`, `pka/{userId}/proofs`, `uploads/{yyyy}/{mm}` fallback for `/api/admin/upload-pdf`). The admin Media page (`/admin/media`) became a read-only browser over domain prefixes in its "Storage R2" tab: `/api/admin/media/storage` lists non-`media/` objects and supports copy-to-media, `/api/storage/upload` and `driveUploader` removed, `drive_item` write actions deleted, the proxy route now uses `leafFilename(key)`. Verified via `tests/contracts/storage-keys.test.ts` + `tests/contracts/form-storage.test.ts` (15/15 passing), `bun run lint` (0 errors), and `bun run typecheck` (0 errors).
+- **Admin UI shared component library completed**: Added reusable `components/admin/` components (`stat-card.tsx`, `status-badges.tsx`, `section-title.tsx`, `confirm-dialog.tsx`, `state-panels.tsx`, `option-letter.tsx`, `table.tsx`) and migrated duplicated markup across admin pages: delete-confirmation dialogs (quizzes, diktats, questions, assessments), KPI stat cards (quiz-insights list/detail, ops analytics), difficulty/status/course badges (quizzes, materials detail, assessments detail, historical questions, jobs, questions bank, diktats), section titles (meet detail, diktats, jobs), empty states (quiz-insights, jobs), table/list card wrappers (historical questions, assessments, tutorial-pka tabs, notifications history). Rules documented in AGENTS.md. Verified with `bun run lint` (0 errors), `bun run typecheck` (0 errors), and all 226 contract tests passing.
+- **Push notification overhaul completed**: Added a user-facing notification inbox (`components/notifications/notification-bell.tsx`) with unread badge, popover list, per-item mark-read and mark-all-read, mounted in the marketing navbar and the app sidebar shell; wired `sendQuizPublished` into both quiz publish paths (`saveQuizTemplateAction` and `PATCH /api/quiz/templates/[id]`, draft-to-published only); added FCM delivery stats columns (`attempted`, `succeeded`, `failedCount`, `sentAt`) to `notifications` via migration `0063_wet_bug.sql` and persisted them from `sendToUser`; added `unreadCount` to `GET /api/notifications/history`; fixed `PushPermissionInit` (auth-gated, "Nanti Saja" defers 7 days instead of denying forever, honest copy, foreground toast via `onForegroundMessage` in the bell); rebuilt the admin history table with recipient name, body, delivery status (Terkirim/Sebagian/Gagal/Tanpa perangkat), and pagination; removed dead `lib/notifications/jobs.ts` and unused senders/templates; fixed docs drift. Verified with `bun run lint` (0 errors), `bun run typecheck` (0 errors), and 224/226 contract tests passing (2 pre-existing Plan 006 Idea Bundle failures, unchanged on the clean tree).
+- **Owned-block spreadsheet export & Drive editor grants completed**: Reworked `lib/google-sheets.ts` so the app owns only the data block at A1 (explicit `GridRange` write with stale-tail cleanup) via `gridFingerprint`/`detectConflicts`/`readSheetGrid`/`writeOwnedBlock`, and `syncGoogleSpreadsheet` reads the live grid before any overwrite. Manual edits in the owned block, growing rows over manual cells, or growing columns over manual headers return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes; the client confirms via `useSpreadsheetExport` (`components/admin/spreadsheet-export.tsx`) before re-sending with `confirmOverwrite: true`. Baseline stored as `last_header_count`, `last_row_count`, `last_written_fingerprint` in `export_spreadsheets` (migration `0064_fancy_nekra.sql`); legacy sheets infer the previous block from the live grid on first re-export. All three callers migrated (PKA, form, quiz attempts; PKA missing `entityType`/`entityId` bug fixed). `FEATURE_DRIVE_EDITOR_SYNC=1` grants every active admin email `writer` on exported spreadsheets and folders via `grantDriveEditorAccess`. Verified with `bun run lint` (0 errors, 1 pre-existing warning), `bun run typecheck` (0 errors), and 235/237 contract tests passing (2 pre-existing Plan 006 Idea Bundle failures, unchanged on the clean tree).
+- **Meet Studio improvements completed**: Added stable public short links at `/meet/[slug]` (unique slug + `idx_meet_slug`), creator-as-host, role/course filtered email picker with additive bulk selects for co-hosts and invited emails, host/co-host/invited email persistence on `google_meet_sessions` (migration `0065_demonic_nemesis.sql`), Drive admin editor access via `lib/google-drive-permissions.ts`, and the admin Meet tab renamed to "Meet". Nav/sidebar and admin homepage updated.
+- **Form Studio fixes & presets completed**: Spreadsheet export now targets a structured Drive folder (`forms/{slug}`, title `form-{slug}-responses`) and excludes SECTION rows; "Lainnya" uses a stable sentinel (`\uE000__other__`); SECTION counts excluded everywhere via continuous `questionNumberMap`; autoscroll, post-publish builder reset, shadcn Switch toggles, end-to-end `collectEmail`, schedule validation with `formatDatetimeLocal` round trips; reusable presets behind `FEATURE_FORM_PRESETS=1` (`/api/admin/form-presets` + `components/forms/form-presets.tsx`); settings fill width; matrix table removed; section header images with zoom. The builder page was refactored into `components/forms/admin-forms-builder.tsx` with a thin `app/(admin)/admin/forms/page.tsx` wrapper.
+- **Media Library completed**: R2-based shared media browser at `/admin/media` (`components/admin/media-library.tsx` + `components/admin/document-viewer.tsx`) with virtual folders (`.keep` markers), move/copy/rename/replace/delete/download (recursive folder and bulk ops), and a document viewer for image/video/audio/PDF/markdown/text. Backed by `lib/media.ts`, `/api/admin/media/*`, `StorageProvider.list()` on both R2 providers, and `buildMediaKey`/`mediaLeaf` in `lib/storage/keys.ts`. Gated by `FEATURE_MEDIA_LIBRARY=1`.
+- **Tautan (important links) completed**: Admin manager at `/admin/tautan` (`components/admin/links-manager.tsx`), `lib/links.ts`, `/api/admin/links/*`, and a public Linktree-style page at `/tautan` rendering only active links grouped by category, backed by the `important_links` table (migration `0065_demonic_nemesis.sql`). Gated by `FEATURE_LINK_LIBRARY=1`.
+- **Sticky sidebar during modal scroll-lock fixed**: `react-remove-scroll-bar` injects `body[data-scroll-locked] { overflow: hidden !important }` on modal open. Because `app/layout.tsx` puts `overflow-x-clip` on `<html>`/`<body>`, the hidden overflow no longer propagates to the viewport, so `body` becomes a real scroll container and `position: sticky` sidebars scroll away with the page. The lock rule now uses `overflow: clip !important` (in `app/globals.css`), which still clips and removes the scrollbar but never creates a scroll container, so sticky keeps working. Verified empirically with a puppeteer reproduction (sticky `top=-600` broken under `hidden`, stays `0` under `clip`) plus `bun run lint` (0 errors, 1 pre-existing warning) and `bun run typecheck` (0 errors).
+- **Media unified with read-only Storage R2 browser, File Storage page removed, sidebar restructured**: The admin Media page now has two tabs via `components/admin/media-manager.tsx` (`AdminTabs`): "Media" (existing `MediaLibrary`) and "Storage R2" (new read-only browser, `components/admin/storage-browser.tsx`). The storage tab lists every non-`media/` R2 object through `GET /api/admin/media/storage` (reusing `buildFolderTree`, `storageFolderPathOfKey`, `STORAGE_DOMAIN_LABELS` in `lib/media.ts`) and only allows copy into the media domain via `POST /api/admin/media/storage` (file and recursive folder copy, conflict-safe). The legacy `/admin/files` page and `components/admin/drive-explorer.tsx` were deleted (redundant), the dashboard File Storage card and its `driveItem` stats query were removed, and the sidebar gained a top-level "Media & Alat" group (Meet, Form Studio, Media, Tautan) replacing the File Storage position while "Sistem & Ops" keeps the ops items. Docs (`AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/DATABASE.md`), site search index, and screenshot script updated. Verified with `bun run lint` (0 errors, 1 pre-existing warning), `bun run typecheck` (0 errors), and storage contract tests 15/15 passing.
 
 ### Verified
 - SQLite/Turso schema setup and connection verified.
@@ -303,10 +359,15 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 - Plan 010 Question and Assessment Integrity verified with clean lint, typecheck, diff check, 31 focused tests and 110 assertions, a passed staging create, publish, start, answer, submit, and summary lifecycle, and zero findings from the independent leak scan. Evidence: `artifacts/staging-overhaul/20260803-plan010-assessment-v4/plan-010-result.json` and `plan-010-leak-scan.json`.
 - Plan 011 Per-Idea Mastery and Learning Loop verified with clean lint, typecheck, 16 focused contract and migration tests, a passed staging shadow with zero writes, a passed full replay, and a passed incremental no-op replay with identical hashes. Evidence: `artifacts/staging-overhaul/20260803-plan011-shadow-v2/plan-011-shadow.json` and `artifacts/staging-overhaul/20260803-plan011-recompute-v2/plan-011-result.json`.
 - Zyra AI Plan 001 staging control plane verified with generated Wrangler types, authenticated dry-run, 5 Bun contract tests, additive 768-dimensional semantic-cache index, private R2 bucket with seven-day lifecycle, secret binding presence, SQLite Durable Object reconciliation, safe health output, and unauthorized-route smoke. Evidence: `artifacts/zyra-ai/20260805-plan001-final/plan-001-result.json`.
+- Plan 017 policy gate slice verified with 12 focused contract tests, clean lint, typecheck, and diff check. The full branch-local Plan 017 remains in progress because the local material compiler rehearsal still lacks a canonical fixture.
+- Owned-block spreadsheet export & Drive editor grants verified deterministically via `bun test tests/contracts/google-sheets.test.ts` (11/11 tests passing with 0 network calls, GRANT-001..003, FINGERPRINT-001, CONFLICT-001..005, WRITE-001..002), `bun run lint` (0 errors, 1 pre-existing warning), `bun run typecheck` (0 errors), and the full contract suite at 235/237 passing (2 pre-existing Plan 006 Idea Bundle failures).
+- Meet Studio, Form Studio, Media Library, and Tautan verified with `bun run lint` (0 errors, 1 pre-existing warning), `bun run typecheck` (0 errors), migration `0065_demonic_nemesis.sql` generated and applied with a matching snapshot and journal entry, and the shared storage/env/sidebar plumbing consistent across all four feature areas.
 
 ### Current Focus
 Plans 001 through 016 have passed their recorded local and staging gates, including the authorized 313-vector canonical backfill, golden retrieval, Zyra privacy checks, admin and tutor workflow, murid parity, two full Plan 016 rehearsals, rollback, re-enable, final Vectorize reconcile, and the legacy-caller inventory. Staging never provisioned Pinecone; the final decommission evidence records the deterministic not-provisioned state, while the Pinecone values in `.env.local` and `.env.prod` remain outside staging scope.
  Zyra AI Plans 005 and 006 are completed through their bounded staging gates. Plan 007 is partial and blocks Plan 008 because remote shadow evidence and maintainer golden-subset review are pending; its scoped runtime env and startup diagnostics are green. Plan 002 remains partial only because its quarantined preview-model release gate has insufficient sample evidence; that inherited quarantine does not block the accepted Plan 005 default-route gate or Plan 006 cache gate. No production deployment occurred.
+
+Branch-local Plan 017 (`codex/rework-audit`) is an isolated follow-up for the audited Idea, Product Bundle, canonical Vectorize, and live per-Idea evidence gaps. It is local-gate only, preserves the legacy path behind existing flags, forbids schema and remote resource writes, and must not be treated as a staging or production rollout until separately rehearsed.
 
 ### Blockers
 - None for the requested staging overhaul. Production deployment and deletion remain out of scope, and the preserved 1024-dimensional Vectorize indexes remain untouched.
@@ -341,6 +402,34 @@ Plans 001 through 016 have passed their recorded local and staging gates, includ
 | Scroll entrance | `Reveal` (handles reduced motion + admin bypass) | `components/ui/reveal` |
 | Icons | lucide-react, default `size-4`, section icons `size-5` | `lucide-react` |
 | Math | `MathText` | `components/course/math-text` |
+
+### Admin UI shared components (use these, do not re-implement)
+
+All admin pages live under `app/(admin)/admin/` and must compose the shared components in `components/admin/` instead of re-declaring the same markup per page. A lint/typecheck clean does not excuse duplication; if a pattern below fits, use the component.
+
+| Component | Import | Replaces |
+|---|---|---|
+| `AdminPageHeader` | `components/admin/page-header` | Manual page `<h1>` + description + icon blocks. Every standalone admin page uses it; do not hand-roll a page header. |
+| `AdminTabs` / `AdminTabsList` / `AdminTabsTrigger` / `AdminTabsContent` | `components/admin/tabs` | Raw `Tabs` wiring for admin tab views (settings panels, detail pages). |
+| `AdminStatCard` | `components/admin/stat-card` | Local `Stat`/`StatCard` KPI cards. `size` = `sm` (p-4, `text-h5`) or `md` (p-5, `text-h4`); `tone` colors the value + icon (default/brand/brand-secondary/info/success/warning/error); `iconClassName` overrides the icon color when the value stays foreground. |
+| `AdminSectionTitle` | `components/admin/section-title` | Repeated heading markup: `font-heading text-h5/h6/lg ... flex items-center gap-2` with icon + optional micro-label/description. `size` = `h5`/`h6`/`lg`; `border` adds `border-b border-border pb-3`; `right` slots an action; `as` picks the heading level (default `h3`). |
+| `AdminConfirmDialog` | `components/admin/confirm-dialog` | All destructive confirmation dialogs. Prefer over hand-rolled `Dialog` + "Batal"/destructive footer. `destructive={false}` yields a default confirm button; `loading` disables submit. |
+| `StatusBadge` | `components/admin/status-badges` | Raw status ternaries. `tone` = muted/info/success/warning/error/brand. Prefer tone-mapped dictionaries (`statusTone`) over per-file `statusColors` class maps. |
+| `DifficultyBadge` | `components/admin/status-badges` | Easy/Medium/Hard ternaries (string or numeric 3/2/1 input). Maps easy→success, medium→warning, hard→error; `prefix="Kesulitan"` for labeled variants. |
+| `CourseBadge` | `components/admin/status-badges` | The brand-primary course pill `text-xs font-bold uppercase tracking-wider bg-brand-primary/8 ...`. |
+| `AdminEmptyState` | `components/admin/state-panels` | Empty states. `compact` = single centered line `text-body-sm text-muted-foreground`; full = icon + title + description + optional `action`. |
+| `AdminErrorState` | `components/admin/state-panels` | `TriangleAlert` + message + optional Retry button. |
+| `AdminOptionLetter` | `components/admin/option-letter` | Question option letter badges; `isCorrect` renders the filled emerald variant. Never write `String.fromCharCode(65 + i)` for option badges. |
+| `AdminTable` / `AdminTableHead` | `components/admin/table` | The card table wrapper `overflow-hidden rounded-xl border border-border bg-card shadow-sm` and `thead` `bg-muted/50 border-b border-border`. Works for `<table>` and grid-based list surfaces. |
+
+Rules:
+- **Difficulty = semantic status tones, never the raw emerald/amber/rose palette.** `easy`→success, `medium`→warning, `hard`→error.
+- **Status badges are uppercase** (`uppercase tracking-wide`, `text-[10px] font-semibold`); display keys come from the API value, not invented labels.
+- **Table/list card wrappers use `AdminTable`.** A new table surface must not re-type `overflow-hidden rounded-xl border border-border bg-card shadow-sm`.
+- **Dialog edit shells** may keep the base `Dialog` family from `components/ui/dialog` (they vary too much to share), but **destructive confirmations must use `AdminConfirmDialog`**.
+- **Section headings** within a page use `AdminSectionTitle`, not ad hoc `h2`/`h3` blocks; the only exception is a card header that needs bespoke chrome (e.g. `flags-client.tsx`).
+- **KPI grids** are `AdminStatCard` inside a `grid`; never build a local stat-card component per page.
+- Keep dialog/form shells in `components/ui/*` and `radix-ui`; do not introduce a second component library.
 
 ### Layout
 
@@ -401,3 +490,12 @@ Every standalone page gets `<PageOrnaments variant="..." />` as first child insi
   3. Master Teaching Document chapter content generation.
 - **Zero-AI Features**: Recommendations, Streaks, Study Paths, Cohort Analytics, and reflections are computed deterministically with SQL + logic. Do NOT call Gemini.
 - **Write-Limit Guards**: Cloudflare Workers KV write limits must be guarded. Daily write counter under `meta:writes:{yyyy-mm-dd}` must stop writing when it approaches 900.
+
+## Google Spreadsheet Export & Drive Structuring
+1. Never recreate a Google Spreadsheet if one already exists for the entity instance. Update content in-place.
+2. Maintain structured folder placement under `Zyx Export/{domain}/...` on Google Drive.
+3. Route all exports through `lib/google-sheets.ts` / `/api/admin/export-spreadsheet`.
+4. **Owned-block writes**: the app owns only the data block (header row + data rows starting at cell A1). Writes use an explicit `GridRange`; cells right of the data block and rows below it are a reserved manual zone and must never be touched by the app.
+5. **Conflict confirmation**: before overwriting an existing spreadsheet, `syncGoogleSpreadsheet` reads the current grid and compares it with the stored `last_written_fingerprint`. Manual edits inside the owned block, manual rows overlapped by a growing data set, and manual columns overlapped by growing headers return `needsConfirmation` with typed conflict codes (`block_modified`, `manual_rows`, `manual_columns`). The client re-sends with `confirmOverwrite: true` only after the admin confirms via `useSpreadsheetExport` (`components/admin/spreadsheet-export.tsx`).
+6. **Conflict baseline**: `export_spreadsheets.last_header_count`, `last_row_count`, and `last_written_fingerprint` are the baseline. Legacy spreadsheets without metadata infer the previous block from the current grid on first re-export.
+7. **Admin editor grants**: when `FEATURE_DRIVE_EDITOR_SYNC=1`, every active admin email is granted `writer` on the spreadsheet (and its folder on creation) via `grantDriveEditorAccess`.

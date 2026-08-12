@@ -330,7 +330,9 @@ Ambiguous evidence is stored with explicit status and the schema check prevents 
 
 Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. A matching bundle ID and checksum is idempotent; a different checksum is a conflict. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
 
-Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Product item types are recorded in the inventory, while canonical article, diktat, question, solution, flashcard, and assessment blueprint rows are inserted only after traceability and dependency checks pass. Versions greater than one use versioned product IDs so prior rows remain queryable. No schema migration was required for this workflow.
+Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Product item types are recorded in the inventory, while canonical article, diktat, question, solution, flashcard, and assessment blueprint rows are inserted only after traceability and dependency checks pass. Question products require ITB curation, and multi-Idea questions require a HOT cognitive level before publication. Versions greater than one use versioned product IDs so prior rows remain queryable. No schema migration was required for this workflow.
+
+The branch-local Plan 017 audit rework continues to use these existing tables. Product Bundle curation dimensions are retained in the publication audit snapshot, while the existing `soal_itb_referensi.soal_id` links an allowed ITB reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes; no new lineage column or migration is added. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
 
 ### Plan 005 migration tables
 * `legacy_backfill_exceptions`: Zero-loss preservation ledger for a legacy row that has no exact additive representation. It stores `runId`, source table and ID, reason code, preservation path, source checksum, details, and `blocksCutover`.
@@ -948,10 +950,13 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `userId`
 * `title`
 * `body`
-* `type`: Categorization category ('quiz_published', 'flashcard_reminder', 'tutor_reminder', 'payment_success', 'admin_broadcast').
+* `type`: Categorization category ('quiz_published', 'flashcard_reminder', 'tutor_reminder', 'payment_success', 'admin_broadcast', 'announcement').
 * `read`: Toggle indicator showing if notification has been read.
-* `readAt`: Timestamp when the user read the notification.
 * `metadata`: Dynamic data attributes dictionary payload (JSON).
+* `attempted`: FCM token send attempts for this user's devices.
+* `succeeded`: Successful FCM deliveries for this user.
+* `failedCount`: Failed FCM deliveries for this user.
+* `sentAt`: Timestamp of the push attempt; null when the user had no registered device.
 * `createdAt`
 
 ---
@@ -1116,4 +1121,64 @@ Plan 010 reuses the additive assessment tables without changing legacy quiz snap
 
 The V2 runtime adds stable option IDs inside the existing JSON snapshots when `FEATURE_ASESMEN_IDE_V1=1`; this is an additive compatibility field and does not rewrite historical `questions_snapshot`, `answers_snapshot`, or `mastery_before` values.
 
+The compatibility submit bridge is flag-gated by the complete canonical rollout set. It uses deterministic IDs compatible with the legacy backfill, writes no rows when any question mapping is missing or stale, and leaves legacy attempt and answer snapshots authoritative. Holdout and unreviewed content never contributes to `bukti_ide_jawaban`.
 
+
+## 22. Google Spreadsheet Export
+
+### export_spreadsheets
+Tracks the single in-place Google Spreadsheet per entity instance (form, quiz, pka, system).
+
+* `id`: Primary key (`{entityType}_{entityId}`).
+* `entityType`: `'form' | 'quiz' | 'pka' | 'system'`.
+* `entityId`: Entity instance id.
+* `spreadsheetId`: Google Sheets file id.
+* `spreadsheetUrl`: Edit URL.
+* `driveFolderId`: Google Drive folder under `Zyx Export/{domain}`.
+* `folderPath`: Canonical folder path joined by `/`.
+* `lastHeaderCount`: Number of columns in the last owned data block written by the app (conflict baseline).
+* `lastRowCount`: Number of rows (header + data) in the last owned data block written by the app (conflict baseline).
+* `lastWrittenFingerprint`: SHA-256 of the last owned data block written by the app; used to detect manual edits before overwrite.
+* `createdAt` / `updatedAt`: Timestamps.
+
+The app owns only the data block at A1 (header + data rows). Cells right of the block and rows below it are the reserved manual zone and are never overwritten. Before an overwrite, the current grid is diffed against `lastWrittenFingerprint` and the stored row/column counts; conflicts return `needsConfirmation` with `block_modified`, `manual_rows`, or `manual_columns` codes.
+
+## 23. Meet, Form Presets & Important Links
+
+### google_meet_sessions (new columns)
+Extension columns on the PKA Google Meet review session table (migration 0065).
+
+* `slug`: Unique stable short-link slug used by the public `/meet/[slug]` route. Indexed (`idx_meet_slug`, plus a unique index).
+* `hostEmail`: Google email set as the meeting host (defaults to the creator).
+* `coHostEmails`: JSON array of co-host Google emails.
+* `invitedEmails`: JSON array of invited participant Google emails.
+
+### custom_form_presets
+Reusable Form Studio presets (question blueprints + settings) that admins can save and re-apply. Gated by `FEATURE_FORM_PRESETS=1`.
+
+* `id`: Primary key.
+* `name`: Preset name.
+* `description`: Optional description.
+* `category`: `'survey' | 'quiz' | 'feedback' | 'registration'`.
+* `questions`: JSON array of question blueprints.
+* `settings`: JSON settings payload.
+* `createdById`: Creator user reference (set null on delete).
+* `createdAt` / `updatedAt`: Timestamps.
+* Index: `idx_custom_form_presets_category`.
+
+### important_links
+Curated important links library (Tautan) managed by admins. Gated by `FEATURE_LINK_LIBRARY=1`.
+
+* `id`: Primary key.
+* `title`: Link title.
+* `url`: Target URL.
+* `description`: Optional description.
+* `icon`: Optional icon name.
+* `category`: Optional grouping key for the public page.
+* `color`: Optional accent color.
+* `sortOrder`: Deterministic ordering on the public page.
+* `isActive`: Whether the link shows on the public `/tautan` page.
+* `createdById`: Creator user reference (set null on delete).
+* `deletedAt`: Soft-delete timestamp.
+* `createdAt` / `updatedAt`: Timestamps.
+* Indexes: `idx_important_links_category`, `idx_important_links_active`.

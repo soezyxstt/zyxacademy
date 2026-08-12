@@ -135,7 +135,7 @@ Plan 005 backfills the supported legacy shapes into these targets without deleti
 
 Plan 011 computes mastery from verified, attributable evidence only. The pure engine applies evidence contribution, weight where available, confidence, evidence source policy, and recency to the score. Confidence is calculated independently from effective count, source diversity, recency, and agreement. Every stored state records `algorithmVersion` and `inputWatermark`; every changed state appends a `perubahan_pemahaman` row with the complete evidence ID list and reason code. Full and incremental replays use the same engine and are idempotent.
 
-Legacy concept mastery remains a compatibility fallback only when no Idea state exists and an explicit concept mapping is supplied. It is labelled `concept-level baseline` and is never copied to an Idea. Flashcard scheduling remains SM-2 based; per-Idea mastery changes recommendation priority and reason codes only. `mastery/idea-recompute.requested.v1` is the versioned deterministic event boundary and does not call Gemini.
+Legacy concept mastery remains a compatibility fallback only when no Idea state exists and an explicit concept mapping is supplied. It is labelled `concept-level baseline` and is never copied to an Idea. Flashcard scheduling remains SM-2 based; per-Idea mastery changes recommendation priority and reason codes, and canonical recommendations suppress cards at score 80 or higher. `mastery/idea-recompute.requested.v1` is the versioned deterministic event boundary and does not call Gemini.
 
 ### Legacy Backfill and Compatibility Boundary
 
@@ -197,7 +197,7 @@ The exporter does not call an external model and never includes user, credential
 
 Product Bundle V2 extends the additive product tables with a strict import lifecycle. `lib/bundle/product-validator.ts` validates the manifest and typed entity files without database writes. `lib/bundle/product-staging.ts` stores the immutable ZIP and inventory in `impor_bundle` and `item_impor_bundle`. `lib/bundle/product-preview.ts` exposes only staged product content and its Idea and source references.
 
-Publication in `lib/bundle/product-publication.ts` is a single transaction. It verifies published Idea versions and semantic hashes, active source versions and excerpts, creator and curator identities, dependency freshness, and typed product references before inserting article, diktat, question, solution, flashcard, blueprint, dependency, publication, audit, and vector outbox rows. Version greater than one uses a versioned physical target ID so the prior published row is not overwritten.
+Publication in `lib/bundle/product-publication.ts` is a single transaction. It verifies published Idea versions and semantic hashes, active source versions and excerpts, creator and curator identities, dependency freshness, and typed product references before inserting article, diktat, question, solution, flashcard, blueprint, dependency, publication, audit, and canonical vector outbox rows. Product validation also enforces one-Idea flashcards, normalized Idea weights, complete multi-Idea relations, allowed ITB curation references, and explicit Article to Diktat dependencies when lineage is declared. Version greater than one uses a versioned physical target ID so the prior published row is not overwritten.
 
 ```mermaid
 flowchart LR
@@ -212,7 +212,7 @@ flowchart LR
     T --> A[Publication and mutation audit]
 ```
 
-`FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source.
+`FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
 
 ### Article and Diktat Quality Compiler
 
@@ -254,6 +254,10 @@ flowchart LR
 Quiz scope is exactly one chapter. Tryout scope contains one or more chapters. Every dimension is rounded independently with the largest-remainder method, and the selected item count equals the requested count. Stable option IDs are stored in the V2 attempt snapshot; the server may accept legacy numeric input but resolves it to stable IDs before grading.
 
 The active-attempt serializer is an explicit allowlist. It can expose prompt, options, safe metadata, and stable option IDs, but never answer keys, explanations, grading rubrics, evidence mappings, or holdout content. Objective evidence uses a deterministic rubric. Free-response evidence is blocked until a tutor rubric or grading result is reviewed.
+
+### Legacy quiz to Idea evidence bridge
+
+The compatibility submit route keeps the legacy quiz as the source of the user-visible grade. When the four canonical rollout flags are enabled, it performs an exact lookup of every snapshot question against published `soal` rows and published `soal_ide` links. Only a complete, unambiguous mapping writes `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` rows. Multi-Idea answers create one weighted evidence row per Idea. Free-response answers remain `needs_review` and do not affect mastery. Stable IDs mirror the legacy backfill identity rules, and repeated submission writes are conflict-safe.
 
 ### Tutor & Booking
 | Table | Purpose |
@@ -392,22 +396,22 @@ The active-attempt serializer is an explicit allowlist. It can expose prompt, op
 #### Admin Drive
 | Table | Purpose |
 |---|---|
-| `drive_item` | Folder tree + file pointers (folder\|file, uploadthingKey, ufsUrl, mimeType, sizeBytes) |
+| `drive_item` | Legacy read-only file pointers (folder\|file, uploadthingKey, ufsUrl, mimeType, sizeBytes); no longer surfaced in the admin UI. R2 browsing moved to the admin Media page "Storage R2" tab |
 
 #### Push Notifications
 | Table | Purpose |
 |---|---|
 | `user_push_tokens` | FCM device tokens per user |
-| `notifications` | In-app notification log (quiz_published, flashcard_reminder, tutor_reminder, etc.) |
+| `notifications` | In-app notification log (quiz_published, flashcard_reminder, tutor_reminder, etc.) with persisted FCM delivery stats (`attempted`, `succeeded`, `failedCount`, `sentAt`) |
 
 ---
 
 ## 4. Upload & Ingestion Pipeline (vNext)
 
 ```
-Upload PDF via UploadThing or direct R2
+Upload PDF via direct R2 (structured object keys)
   │
-  ├──→ Admin Drive (/admin/files) ; Google-Drive-style folder tree
+  ├──→ Admin Media (/admin/media) ; "Storage R2" tab is a read-only browser over domain prefixes
   │
   ├──→ Create Master Teaching Document (MTD)
   │    ├── Select type: "learning" or "assessment"
@@ -515,7 +519,7 @@ Any canonical Idea, article, question, solution, or source update → vector_syn
       ├── Fetch pending queue items per namespace, retrying failed rows
       ├── Embed with Gemini Embedding 2 through canonical-content-v2 at 768 dimensions
       ├── Upsert to the authenticated `/v2/*` Vectorize worker contract
-      ├── Namespace per course: canonical_ideas, published_articles, source_materials, published_questions, or itb_question_references
+      ├── Canonical namespaces: canonical_ideas, published_articles, source_materials, itb_question_references, published_questions, or published_solutions
       ├── Preserve provider-neutral metadata, version, access class, and content hash
       └── Mark queue completion only after the canonical mutation succeeds
 ```
@@ -599,6 +603,10 @@ app/
 │   ├── ai/              ; AI generation: materials, questions, quizzes, diktats, distractors, jobs, keys, analytics
 │   ├── courses/         ; Course CRUD
 │   ├── files/           ; UploadThing drive explorer
+│   ├── meet/            ; Meet Studio (sessions, hosts, co-hosts, invited emails)
+│   ├── forms/           ; Form Studio & Visualizer (builder, presets, spreadsheet export)
+│   ├── media/           ; Media Library (R2 shared media browser, upload, preview)
+│   ├── tautan/          ; Tautan (important links manager)
 │   └── tokens/          ; Enrollment token management
 ├── api/
 │   ├── uploadthing/     ; UploadThing route handler
@@ -674,7 +682,9 @@ lib/
 │   ├── pubic-app-url.ts         ; Public URL helper
 │   └── whatsapp-admin.ts        ; WhatsApp admin notifications
 ├── notifications/
-│   └── jobs.ts                  ; Push notification job logic
+│   ├── send.ts                 ; Server-side FCM delivery layer (multicast, prune, persist)
+│   ├── templates.ts            ; Pure payload builders per event type
+│   └── types.ts                ; Shared notification payload/result types
 └── site.ts, site-search.ts, testimonials.ts, youtube.ts ; Static content
 ```
 
@@ -752,7 +762,8 @@ FEATURE_REFLECTION_EMAIL, FEATURE_ADAPTIVE_QUIZ, FEATURE_PKA
 ```
 Upload PDF/Markdown
    │
-   ├──→ Admin Drive (drive_item table)
+   ├──→ R2 via structured object keys (lib/storage/keys.ts)
+   │    └──→ Admin Media (/admin/media) ; "Storage R2" tab = read-only browser over domain prefixes
    │
    └──→ Create MTD (type: "learning" | "assessment")
          │

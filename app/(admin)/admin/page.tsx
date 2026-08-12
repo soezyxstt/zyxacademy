@@ -3,7 +3,6 @@ import Link from "next/link";
 import { db } from "@/db";
 import {
   courses,
-  driveItem,
   enrollmentTokens,
   groupMembers,
   aiMaterialInstances,
@@ -21,7 +20,6 @@ import {
 import { sql, eq, gte, ne } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import {
-  FolderOpen,
   KeyRound,
   BookText,
   Zap,
@@ -37,9 +35,14 @@ import {
   Layers,
   Package,
   ShieldCheck,
+  Video,
+  FileText,
+  Image,
+  Link as LinkIcon,
 } from "lucide-react";
-import { Reveal } from "@/components/ui/reveal";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { LayoutDashboard } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +58,6 @@ export default async function AdminHomePage() {
 
   const [
     courseCountRes,
-    fileStatsRes,
     tokenStatsRes,
     materialStatsRes,
     diktatCountRes,
@@ -67,14 +69,6 @@ export default async function AdminHomePage() {
     blogCountRes,
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(courses),
-
-    db
-      .select({
-        count: sql<number>`count(*)`,
-        totalSize: sql<number>`coalesce(sum(${driveItem.sizeBytes}), 0)`,
-      })
-      .from(driveItem)
-      .where(eq(driveItem.kind, "file")),
 
     Promise.all([
       db.select({ count: sql<number>`count(*)` }).from(enrollmentTokens),
@@ -125,10 +119,6 @@ export default async function AdminHomePage() {
   const totalCourses = courseCountRes[0]?.count ?? 0;
   const courseStat = `${totalCourses} mata kuliah aktif`;
 
-  const totalFiles = fileStatsRes[0]?.count ?? 0;
-  const totalFileSizeMB = ((fileStatsRes[0]?.totalSize ?? 0) / (1024 * 1024)).toFixed(1);
-  const fileStat = `${totalFiles} file (${totalFileSizeMB} MB)`;
-
   const [tokensCountRes, tokensList, membersList] = tokenStatsRes;
   const totalTokens = tokensCountRes[0]?.count ?? 0;
   const tokenGroupIds = new Set(tokensList.map((t) => t.groupId));
@@ -171,6 +161,51 @@ export default async function AdminHomePage() {
   const blogStat = `${totalArticles} artikel`;
 
   const categories = [
+    {
+      name: "Media & Alat",
+      items: [
+        {
+          title: "Meet",
+          description:
+            "Buat dan akhiri ruang meeting Pro, lihat status live, serta pantau log kehadiran peserta, rekaman, dan transkrip.",
+          icon: Video,
+          iconColor: "text-brand-primary",
+          href: "/admin/meet",
+          label: "Buka studio temu",
+          stat: null,
+        },
+        {
+          title: "Form Studio & Visualizer",
+          description:
+            "Rancang survei, kuis, dan pendaftaran mandiri dengan 12 tipe soal, short link, dan visualisasi data real-time.",
+          icon: FileText,
+          iconColor: "text-brand-secondary",
+          href: "/admin/forms",
+          label: "Buka Form Studio",
+          stat: null,
+        },
+        {
+          title: "Media",
+          description:
+            "Unggah, rapikan, dan kelola file penting seperti logo dan aset lain di pustaka media bersama, plus browser read-only seluruh storage R2.",
+          icon: Image,
+          iconColor: "text-tertiary-1",
+          href: "/admin/media",
+          label: "Buka pustaka media",
+          stat: null,
+        },
+        {
+          title: "Tautan",
+          description:
+            "Simpan dan atur tautan penting yang sering digunakan tim Zyx dalam satu tempat.",
+          icon: LinkIcon,
+          iconColor: "text-status-success",
+          href: "/admin/tautan",
+          label: "Buka daftar tautan",
+          stat: null,
+        },
+      ],
+    },
     {
       name: "Konten & Publikasi",
       items: [
@@ -222,16 +257,6 @@ export default async function AdminHomePage() {
           href: "/admin/authoring-context",
           label: "Buat context pack",
           stat: null,
-        },
-        {
-          title: "File Storage",
-          description:
-            "Kelola file dan folder media pembelajaran dengan struktur bergaya Google Drive.",
-          icon: FolderOpen,
-          iconColor: "text-brand-primary",
-          href: "/admin/files",
-          label: "Buka pengelola file",
-          stat: fileStat,
         },
         {
           title: "Materi",
@@ -363,21 +388,16 @@ export default async function AdminHomePage() {
   ];
 
   return (
-    <Reveal className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-h4 font-bold text-foreground">
-            Admin Panel
-          </h1>
-          <p className="mt-2 text-body-md text-muted-foreground">
-            Statistik operasional langsung dan pengaturan situs Zyx Academy.
-          </p>
-        </div>
-        <RefreshAnalyticsButton />
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={LayoutDashboard}
+        title="Admin Panel"
+        description="Statistik operasional langsung dan pengaturan situs Zyx Academy."
+        actions={<RefreshAnalyticsButton />}
+      />
 
       {failedJobs > 0 && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-status-error/20 bg-status-error/5 p-4 text-body-sm text-status-error">
+        <div className="flex items-start gap-3 rounded-xl border border-status-error/20 bg-status-error/5 p-4 text-body-sm text-status-error">
           <Zap className="size-5 shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Perhatian: Generasi Soal Gagal</p>
@@ -389,7 +409,7 @@ export default async function AdminHomePage() {
         </div>
       )}
 
-      <div className="mt-8 space-y-10">
+      <div className="space-y-8">
         {categories.map((category) => (
           <section key={category.name} className="space-y-3">
             <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
@@ -439,6 +459,6 @@ export default async function AdminHomePage() {
           </section>
         ))}
       </div>
-    </Reveal>
+    </div>
   );
 }

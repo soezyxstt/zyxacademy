@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { FakeCanonicalVectorProvider } from "@/lib/vectorize/fake-adapter";
-import { canonicalOutboxPayload } from "@/lib/vectorize/outbox";
+import { canonicalNamespaceForProductType, canonicalOutboxPayload } from "@/lib/vectorize/outbox";
 import {
   assertProviderNeutralVectorOutbox,
   CANONICAL_VECTOR_PROFILE,
@@ -103,5 +103,81 @@ describe("Plan 012 provider-neutral vector outbox", () => {
         pineconeNamespace: "forbidden",
       },
     } as never)).toThrow("METADATA_NOT_ALLOWED");
+  });
+
+  it("routes generic Idea and Product publication rows to canonical namespaces", () => {
+    const cases = [
+      { namespace: "idea", entityType: "idea", expectedNamespace: "canonical_ideas", expectedEntityType: "idea" },
+      { namespace: "idea", entityType: "source_chunk", expectedNamespace: "source_materials", expectedEntityType: "source_material" },
+      { namespace: "product", entityType: "article", expectedNamespace: "published_articles", expectedEntityType: "article" },
+      { namespace: "product", entityType: "question", expectedNamespace: "published_questions", expectedEntityType: "question" },
+      { namespace: "product", entityType: "solution", expectedNamespace: "published_solutions", expectedEntityType: "solution" },
+    ] as const;
+
+    for (const testCase of cases) {
+      const payload = canonicalOutboxPayload({
+        id: `queue-${testCase.entityType}`,
+        action: "upsert",
+        namespace: testCase.namespace,
+        courseId: "mat-i",
+        payload: {
+          entityType: testCase.entityType,
+          entityId: `${testCase.entityType}-1`,
+          version: 1,
+          text: `content for ${testCase.entityType}`,
+          metadata: { entityId: `${testCase.entityType}-1`, version: 1, status: "published" },
+        },
+      });
+
+      expect(payload).toMatchObject({
+        operation: "upsert",
+        entityType: testCase.expectedEntityType,
+        metadata: { namespace: testCase.expectedNamespace },
+      });
+    }
+  });
+
+  it("allows only canonical RAG product types to request vector jobs", () => {
+    expect(canonicalNamespaceForProductType("article")).toBe("published_articles");
+    expect(canonicalNamespaceForProductType("question")).toBe("published_questions");
+    expect(canonicalNamespaceForProductType("solution")).toBe("published_solutions");
+    expect(canonicalNamespaceForProductType("diktat")).toBeNull();
+    expect(canonicalNamespaceForProductType("flashcard_set")).toBeNull();
+    expect(canonicalNamespaceForProductType("flashcard")).toBeNull();
+    expect(canonicalNamespaceForProductType("assessment_blueprint")).toBeNull();
+  });
+
+  it("preserves allowed reference retrieval and blocks holdout upserts", () => {
+    const allowed = canonicalOutboxPayload({
+      id: "queue-reference-allowed",
+      action: "upsert",
+      namespace: "past_exams",
+      courseId: "mat-i",
+      payload: {
+        entityType: "question_reference",
+        entityId: "reference-allowed",
+        version: 1,
+        text: "Allowed reference",
+        metadata: { visibility: "allowed" },
+      },
+    });
+    expect(allowed).toMatchObject({
+      entityType: "question_reference",
+      metadata: { namespace: "itb_question_references", accessClass: "public" },
+    });
+
+    expect(() => canonicalOutboxPayload({
+      id: "queue-reference-holdout",
+      action: "upsert",
+      namespace: "past_exams",
+      courseId: "mat-i",
+      payload: {
+        entityType: "question_reference",
+        entityId: "reference-holdout",
+        version: 1,
+        text: "HOLDOUT_CANARY",
+        metadata: { visibility: "holdout" },
+      },
+    })).toThrow("CANONICAL_HOLDOUT_REFERENCE_BLOCKED");
   });
 });

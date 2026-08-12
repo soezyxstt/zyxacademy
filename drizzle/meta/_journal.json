@@ -418,8 +418,57 @@
     {
       "idx": 59,
       "version": "6",
-      "when": 1786069614444,
-      "tag": "0059_tricky_tag",
+      "when": 1785928220934,
+      "tag": "0059_furry_electro",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1785933009599,
+      "tag": "0060_striped_jane_foster",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1785954353413,
+      "tag": "0061_boring_talkback",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1786032199463,
+      "tag": "0062_big_grey_gargoyle",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1786078383281,
+      "tag": "0063_wet_bug",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1786090996587,
+      "tag": "0064_fancy_nekra",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1786250898908,
+      "tag": "0065_demonic_nemesis",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "6",
+      "when": 1786517280309,
+      "tag": "0066_open_guardian",
       "breakpoints": true
     }
   ]

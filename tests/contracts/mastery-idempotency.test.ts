@@ -75,4 +75,17 @@ describe("Plan 011 mastery idempotency and replay", () => {
     expect(ranked[0]?.reason).toContain("low_mastery");
     expect(ranked[0]?.reason).toContain("low_confidence");
   });
+
+  it("suppresses flashcards at or above the high-mastery threshold", () => {
+    const ranked = rankIdeaRecommendations(
+      [
+        { flashcardId: "card-just-below", ideaId: "ide-just-below", dueAt: now, masteryScore: 79, confidence: 80 },
+        { flashcardId: "card-mastered", ideaId: "ide-mastered", dueAt: now, masteryScore: 80, confidence: 80 },
+        { flashcardId: "card-very-mastered", ideaId: "ide-very-mastered", dueAt: now, masteryScore: 95, confidence: 95 },
+      ],
+      now,
+    );
+
+    expect(ranked.map((item) => item.flashcardId)).toEqual(["card-just-below"]);
+  });
 });

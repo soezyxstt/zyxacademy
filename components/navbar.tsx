@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { Logo } from "@/components/logo";
 import { NavProfileOrSignIn } from "@/components/nav-profile-or-sign-in";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useCommandMenu } from "@/components/command-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -113,6 +114,8 @@ export function Navbar() {
   </button>
 
   <ThemeToggle />
+
+  <NotificationBell variant="navbar" />
 
   <NavProfileOrSignIn variant="toolbar" callbackURL="/dashboard" />
 

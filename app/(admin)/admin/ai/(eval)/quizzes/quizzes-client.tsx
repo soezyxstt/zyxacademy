@@ -2,10 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Clock, Award, ShieldAlert, BookOpen, Loader2, Calendar, Eye, Check } from "lucide-react";
+import { Plus, Trash2, Clock, Award, BookOpen, Loader2, Calendar, Eye, Check } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { CourseBadge, DifficultyBadge } from "@/components/admin/status-badges";
+import { AdminOptionLetter } from "@/components/admin/option-letter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getQuizTemplatePreviewAction } from "@/app/actions/tutor-management";
@@ -448,9 +453,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  
  <div>
   <div className="flex items-center justify-between gap-2 flex-wrap">
-  <span className="text-xs font-bold text-brand-primary uppercase tracking-wider bg-brand-primary/8 px-2 py-0.5 rounded-md border border-brand-primary/10">
-  {courseMap[template.courseId] ?? template.courseId}
-  </span>
+  <CourseBadge>{courseMap[template.courseId] ?? template.courseId}</CourseBadge>
   <div className="flex gap-1.5 flex-wrap items-center">
     <span className="inline-flex rounded-md bg-muted/80 border border-border/40 px-2 py-0.5 text-body-xs font-semibold text-muted-foreground capitalize">
     {template.category === "weekly" ? "Mingguan" : template.category === "chapter" ? "Evaluasi Bab" : template.category === "premium" ? "Premium" : template.category === "simulation" ? "Simulasi" : "Harian"} · {template.visibility === "free" ? "Gratis" : "Premium"}
@@ -872,15 +875,15 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                 <span>Easy</span>
                 <span>{easyCount} Soal</span>
               </div>
-              <input
-                type="range"
-                min="0"
+              <Slider
+                value={[Number(easy) || 0]}
+                min={0}
                 max={qCount}
-                value={easy}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setEasy(String(val));
-                  const remaining = qCount - val;
+                step={1}
+                onValueChange={([val]) => {
+                  const value = Number(val);
+                  setEasy(String(value));
+                  const remaining = qCount - value;
                   const currentMed = Number(medium) || 0;
                   const currentHard = Number(hard) || 0;
                   const totalOther = currentMed + currentHard;
@@ -894,7 +897,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                     setHard(String(remaining - newMed));
                   }
                 }}
-                className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                className="w-full"
               />
             </div>
 
@@ -904,15 +907,15 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                 <span>Medium</span>
                 <span>{mediumCount} Soal</span>
               </div>
-              <input
-                type="range"
-                min="0"
+              <Slider
+                value={[Number(medium) || 0]}
+                min={0}
                 max={qCount}
-                value={medium}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setMedium(String(val));
-                  const remaining = qCount - val;
+                step={1}
+                onValueChange={([val]) => {
+                  const value = Number(val);
+                  setMedium(String(value));
+                  const remaining = qCount - value;
                   const currentEasy = Number(easy) || 0;
                   const currentHard = Number(hard) || 0;
                   const totalOther = currentEasy + currentHard;
@@ -926,7 +929,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                     setHard(String(remaining - newEasy));
                   }
                 }}
-                className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-amber-500"
+                className="w-full"
               />
             </div>
 
@@ -936,15 +939,15 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                 <span>Hard</span>
                 <span>{hardCount} Soal</span>
               </div>
-              <input
-                type="range"
-                min="0"
+              <Slider
+                value={[Number(hard) || 0]}
+                min={0}
                 max={qCount}
-                value={hard}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setHard(String(val));
-                  const remaining = qCount - val;
+                step={1}
+                onValueChange={([val]) => {
+                  const value = Number(val);
+                  setHard(String(value));
+                  const remaining = qCount - value;
                   const currentEasy = Number(easy) || 0;
                   const currentMed = Number(medium) || 0;
                   const totalOther = currentEasy + currentMed;
@@ -958,7 +961,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                     setMedium(String(remaining - newEasy));
                   }
                 }}
-                className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-rose-500"
+                className="w-full"
               />
             </div>
           </div>
@@ -1001,17 +1004,16 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                 key={q.id}
                 className="flex items-start gap-2.5 py-2 cursor-pointer hover:bg-muted/30 px-1.5 rounded transition-colors"
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={isChecked}
-                  onChange={(e) => {
-                    if (e.target.checked) {
+                  onCheckedChange={(checked) => {
+                    if (checked) {
                       setSelectedQIds((prev) => [...prev, q.id]);
                     } else {
                       setSelectedQIds((prev) => prev.filter((id) => id !== q.id));
                     }
                   }}
-                  className="mt-1 cursor-pointer shrink-0"
+                  className="mt-1 shrink-0"
                 />
                 <div className="flex-1 text-left min-w-0">
                   <MathText className="text-xs font-semibold text-foreground line-clamp-2" as="div">
@@ -1050,27 +1052,14 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
  </Dialog>
 
  {/* DELETE TEMPLATE DIALOG */}
- <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
- <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg text-left">
- <DialogHeader>
- <DialogTitle className="flex items-center gap-2 text-status-error font-heading text-h6 font-bold">
- <ShieldAlert className="size-5 shrink-0" />
- Hapus Template Kuis
- </DialogTitle>
- <DialogDescription className="text-body-sm text-muted-foreground mt-2">
- Tindakan ini akan menghapus template kuis &ldquo;{deletingTemplate?.title}&rdquo; secara permanen dari database. Siswa tidak akan dapat mengakses kuis ini lagi.
- </DialogDescription>
- </DialogHeader>
- <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
- <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setDeleteOpen(false)}>
- Batal
- </Button>
- <Button variant="destructive" className="rounded-lg cursor-pointer font-bold px-6 shadow-sm" onClick={handleDeleteConfirm}>
- Ya, Hapus Permanen
- </Button>
- </DialogFooter>
-  </DialogContent>
-  </Dialog>
+ <AdminConfirmDialog
+  open={deleteOpen}
+  onOpenChange={setDeleteOpen}
+  title="Hapus Template Kuis"
+  description={`Tindakan ini akan menghapus template kuis "${deletingTemplate?.title}" secara permanen dari database. Siswa tidak akan dapat mengakses kuis ini lagi.`}
+  confirmLabel="Ya, Hapus Permanen"
+  onConfirm={handleDeleteConfirm}
+ />
 
       {/* PREVIEW QUIZ DIALOG */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
@@ -1103,16 +1092,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                     <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
                       <span className="text-body-sm font-bold text-foreground">Soal {idx + 1}</span>
                       <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "capitalize text-[10px] px-2 py-0.5 rounded border font-medium",
-                          q.difficulty === "easy"
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                            : q.difficulty === "medium"
-                              ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
-                              : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
-                        )}>
-                          {q.difficulty}
-                        </span>
+                        <DifficultyBadge difficulty={q.difficulty} />
                         <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
                           {q.questionType === "multiple_choice" ? "Single Choice" : "Multi Choice"}
                         </span>
@@ -1136,16 +1116,7 @@ export function QuizzesCurationClient({ initialTemplates, courses, courseMap, pr
                                 : "bg-background/50 border-border text-foreground/80"
                             )}
                           >
-                            <span
-                              className={cn(
-                                "flex size-6 items-center justify-center rounded border text-body-xs font-bold shrink-0",
-                                isCorrect
-                                  ? "bg-emerald-500 border-emerald-600 text-white shadow-xs"
-                                  : "bg-muted border-border text-muted-foreground"
-                              )}
-                            >
-                              {String.fromCharCode(65 + optIdx)}
-                            </span>
+                            <AdminOptionLetter index={optIdx} isCorrect={isCorrect} />
                             <MathText className="leading-normal" as="span">{opt}</MathText>
                             {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
                           </div>
