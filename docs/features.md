@@ -124,6 +124,8 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Tier 1 Shared KV Cache isolation ensuring zero student identity, user ID, or conversation history is stored in shared cache payloads
 - Versioned prompt contracts, policy contracts, and evidence version digests in cache keys
 - Weak-concept addendum when student struggles
+- Empty or irrelevant course retrieval falls back to the model's general knowledge for learning requests within the Zyx scope. The response clearly states that it is not grounded in the current course material, provides no source badge, and keeps active assessment protections.
+- Requests outside the Zyx learning scope receive a short redirection instead of an unrestricted general chat response.
 - Capped at 30 AI requests per day per student
 
 ### Question Generation & Bank Soal Management
@@ -212,6 +214,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Invalid model output becomes a safe clarification or evidence-grounded composition. Active attempts remain capped at the approved hint boundary.
 - Reservations are idempotent and fail closed before provider dispatch. Terminal transitions preserve legacy usage history and repair derived compatibility events idempotently.
 - The authenticated allowance summary is scoped to the current session actor and includes Jakarta reset timing without exposing global capacity or another user's usage.
+- Questions outside the current course evidence use a bounded general-teaching fallback. It states the course boundary, presents one learning goal and staged explanation, and ends with exactly one check-for-understanding prompt instead of reverting to an unstructured chat response.
 
 ### Zyra Personalization V1
 
@@ -227,6 +230,11 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Function expressions use a bounded allowlist parser. Controls, presets, reset, and invalid-expression fallback run locally and spend zero AI quota.
 - Every canvas includes canonical claim references, alt text, and a table or textual fallback. Shared specs contain no learner profile or interaction state.
 - The renderer uses semantic tokens and keyboard-operable native controls. Arbitrary model-generated JavaScript, HTML, SVG, or unrestricted Mermaid is rejected.
+- Function plots show their rendered formula, grid, axes, and zero crossings. Invalid expressions produce a visible recovery message. The legacy visual adapter accepts bounded common graph field variants and routes expressions through the same safe parser, so malformed model output cannot leave an unexplained empty chart.
+- The murid drawer can be resized up to the viewport or expanded with a dedicated button. Each current Zyra answer offers short follow-up actions for an example, a comprehension check, or another representation.
+- Zyra entry points use one application-owned hexagonal `Z` mark across the sidebar, floating launcher, material selection, mistake feedback, and drawer fallback. The mark does not reuse the generic four-point sparkle associated with other AI products. Drawer sizing uses labeled `Perbesar` and `Kecilkan` controls on desktop.
+- When the pet capability is enabled, the course launcher becomes a draggable Zyra companion. A murid can place it within the viewport, click it to open chat, hide it, and restore it from a compact control. Position and visibility persist in browser storage.
+- On a verified quiz-review route, Zyra receives a bounded page context containing the quiz title and question prompts. This supports requests such as summarizing the current quiz without exposing learner answers or caching attempt-specific context.
 
 ### Admin, Tutor, and Murid Workflows
 

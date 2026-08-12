@@ -12,12 +12,12 @@ import {
  Layers,
  ListChecks,
  BookOpen,
- Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
+import { ZyraMark } from "@/components/course/zyra-mark";
 
 interface QuestionSnapshot {
  id: string;
@@ -376,7 +376,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  onClick={() => toggleFeedback(idx)}
  className="text-body-sm font-medium flex items-center gap-2 text-brand-primary hover:bg-transparent hover:text-brand-primary/80 p-0 h-auto"
  >
- <Sparkles className="size-4 animate-pulse" />
+ <ZyraMark className="size-4" />
  <span className="font-heading font-bold uppercase tracking-wider text-body-xs">Analisis Kesalahan oleh Zyra</span>
  <ChevronDown
  className={cn(
@@ -424,7 +424,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  ) : isFeedbackPending ? (
  <div className="flex items-center gap-2 text-body-sm text-brand-primary mt-2 font-medium">
  <Loader2 className="animate-spin size-3.5" />
- <Sparkles className="size-3.5 animate-pulse" />
+ <ZyraMark className="size-3.5" />
  <span>Zyra sedang menganalisis kesalahan...</span>
  </div>
  ) : isFeedbackTimeout ? (

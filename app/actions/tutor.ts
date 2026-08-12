@@ -8,7 +8,7 @@ import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, stud
 import { eq, and, asc, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
-import { askTutorRag } from "@/lib/tutor-rag";
+import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
 import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
 import { isEnrolled } from "@/lib/course-utils";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
@@ -225,6 +225,7 @@ export async function askTutorRagAction(
   question: string,
   sessionId?: string | null,
   attachmentIds?: readonly string[],
+  pagePath?: string | null,
 ) {
   const user = await requireCourseAccess(courseId);
 
@@ -276,6 +277,56 @@ export async function askTutorRagAction(
     };
   }
 
+  let pageContext: TutorPageContext | null = null;
+  const reviewMatch = pagePath?.match(/^\/courses\/([^/]+)\/my-results\/([^/]+)(?:\/.*)?$/);
+  if (reviewMatch?.[1] === courseId) {
+    const attemptId = reviewMatch[2];
+    const [reviewAttempt] = await db
+      .select({
+        id: studentQuizAttempts.id,
+        title: quizTemplates.title,
+        questionsSnapshot: studentQuizAttempts.questionsSnapshot,
+        strongAreas: studentQuizAttempts.strongAreas,
+        weakAreas: studentQuizAttempts.weakAreas,
+      })
+      .from(studentQuizAttempts)
+      .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
+      .where(and(
+        eq(studentQuizAttempts.id, attemptId),
+        eq(studentQuizAttempts.studentId, user.id),
+        eq(quizTemplates.courseId, courseId),
+      ))
+      .limit(1);
+
+    if (reviewAttempt) {
+      const questions = Array.isArray(reviewAttempt.questionsSnapshot)
+        ? reviewAttempt.questionsSnapshot
+            .slice(0, 30)
+            .map((item, index) => {
+              const questionItem = item as Record<string, unknown>;
+              const prompt = [questionItem.prompt, questionItem.questionText, questionItem.text]
+                .find((value): value is string => typeof value === "string" && value.trim().length > 0);
+              return prompt ? `${index + 1}. ${prompt.trim().slice(0, 800)}` : null;
+            })
+            .filter((value): value is string => value !== null)
+        : [];
+      const strongAreas = Array.isArray(reviewAttempt.strongAreas) ? reviewAttempt.strongAreas : [];
+      const weakAreas = Array.isArray(reviewAttempt.weakAreas) ? reviewAttempt.weakAreas : [];
+      pageContext = {
+        id: `quiz-review-${reviewAttempt.id}`,
+        label: `Pembahasan ${reviewAttempt.title}`,
+        href: `/courses/${courseId}/my-results/${reviewAttempt.id}`,
+        content: [
+          "Konteks halaman saat ini adalah pembahasan kuis yang telah dikerjakan murid.",
+          `Judul kuis: ${reviewAttempt.title}`,
+          questions.length > 0 ? `Daftar soal:\n${questions.join("\n")}` : "Daftar soal tidak tersedia.",
+          strongAreas.length > 0 ? `Area kuat: ${strongAreas.join(", ")}` : "",
+          weakAreas.length > 0 ? `Area yang perlu dipelajari: ${weakAreas.join(", ")}` : "",
+        ].filter(Boolean).join("\n\n"),
+      };
+    }
+  }
+
   const result = await askTutorRag({
     studentId: user.id,
     courseId,
@@ -286,6 +337,7 @@ export async function askTutorRagAction(
     activityKind: hasActiveAttempt ? "quiz" : "study",
     protectedAnswers,
     imageParts,
+    pageContext,
   });
 
   if (requestedAttachmentIds.length > 0) {

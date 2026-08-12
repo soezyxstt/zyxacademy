@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MathText } from "@/components/course/math-text";
 import {
   evaluateFunctionPlot,
   resetCanvasValues,
@@ -48,6 +49,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
     [expressions, spec, values],
   );
   const yValues = evaluated.flatMap((series) => series.points.flatMap((point) => point.y ?? []));
+  const invalidSeries = evaluated.filter((series) => series.points.every((point) => point.y === null));
   const yMin = yValues.length > 0 ? Math.min(...yValues) : -1;
   const yMax = yValues.length > 0 ? Math.max(...yValues) : 1;
   const ySpan = Math.max(1, yMax - yMin);
@@ -104,7 +106,20 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
               }))}
               className="font-mono"
             />
+            {invalidSeries.some((item) => item.id === series.id) && (
+              <span role="alert" className="block text-body-xs font-normal text-status-error">
+                Rumus belum dapat dibaca. Gunakan angka, variabel yang tersedia, dan operasi matematika dasar.
+              </span>
+            )}
           </label>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-3 text-body-sm text-muted-foreground" aria-label="Rumus yang diplot">
+        {spec.series.map((series, index) => (
+          <span key={series.id} className="inline-flex items-center gap-2">
+            <span className="size-2 rounded-full" style={{ backgroundColor: index % 2 === 0 ? "var(--color-primary)" : "var(--color-brand-secondary)" }} />
+            <MathText>{`$${series.label} = ${expressions[series.id] ?? series.expression}$`}</MathText>
+          </span>
         ))}
       </div>
       <div className="overflow-x-auto rounded-lg border border-border bg-background">
@@ -114,9 +129,15 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
           aria-label={spec.altText}
           className="h-auto min-w-[560px] w-full"
         >
+          <title>{spec.altText}</title>
           <rect x={pad.left} y={pad.top} width={width - pad.left - pad.right} height={height - pad.top - pad.bottom} fill="var(--color-muted)" fillOpacity="0.18" />
-          <line x1={pad.left} y1={mapY(0)} x2={width - pad.right} y2={mapY(0)} stroke="var(--color-border)" />
-          <line x1={mapX(0)} y1={pad.top} x2={mapX(0)} y2={height - pad.bottom} stroke="var(--color-border)" />
+          {Array.from({ length: 9 }, (_, index) => index).map((index) => {
+            const x = pad.left + index * ((width - pad.left - pad.right) / 8);
+            const y = pad.top + index * ((height - pad.top - pad.bottom) / 8);
+            return <g key={index}><line x1={x} y1={pad.top} x2={x} y2={height - pad.bottom} stroke="var(--color-border)" strokeOpacity="0.45" /><line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="var(--color-border)" strokeOpacity="0.45" /></g>;
+          })}
+          {plotYMin <= 0 && plotYMax >= 0 && <line x1={pad.left} y1={mapY(0)} x2={width - pad.right} y2={mapY(0)} stroke="var(--color-foreground)" strokeOpacity="0.7" />}
+          {spec.domain.min <= 0 && spec.domain.max >= 0 && <line x1={mapX(0)} y1={pad.top} x2={mapX(0)} y2={height - pad.bottom} stroke="var(--color-foreground)" strokeOpacity="0.7" />}
           {evaluated.map((series, index) => (
             <path
               key={series.id}
@@ -128,6 +149,13 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
               strokeLinejoin="round"
             />
           ))}
+          {evaluated.flatMap((series, seriesIndex) => series.points.slice(1).flatMap((point, pointIndex) => {
+            const previous = series.points[pointIndex];
+            if (!previous || previous.y === null || point.y === null || Math.sign(previous.y) === Math.sign(point.y) || previous.y === point.y) return [];
+            const ratio = Math.abs(previous.y) / (Math.abs(previous.y) + Math.abs(point.y));
+            const rootX = previous.x + (point.x - previous.x) * ratio;
+            return [<circle key={`root-${series.id}-${pointIndex}`} cx={mapX(rootX)} cy={mapY(0)} r="5" fill="var(--color-background)" stroke={seriesIndex % 2 === 0 ? "var(--color-primary)" : "var(--color-brand-secondary)"} strokeWidth="2" />];
+          }))}
         </svg>
       </div>
       <table className="w-full border-collapse text-body-sm">
@@ -225,7 +253,7 @@ function Derivation({ spec }: { spec: DerivationCanvas }) {
       {spec.steps.map((step, index) => (
         <li key={step.id} className="grid gap-1 rounded-lg border border-border bg-background p-3 md:grid-cols-[2rem_1fr]">
           <span className="font-semibold text-muted-foreground">{index + 1}.</span>
-          <div className="space-y-1"><p className="font-semibold text-foreground">{step.label}</p><p className="font-mono text-body-sm text-foreground">{step.expression}</p><p className="text-body-sm text-muted-foreground">{step.explanation}</p></div>
+          <div className="space-y-1"><p className="font-semibold text-foreground">{step.label}</p><MathText as="div" className="overflow-x-auto text-body-sm text-foreground">{`$$${step.expression}$$`}</MathText><p className="text-body-sm text-muted-foreground">{step.explanation}</p></div>
         </li>
       ))}
     </ol>

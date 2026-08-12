@@ -21,7 +21,6 @@ import {
   Target,
   History,
   Flame,
-  Sparkles,
   Search,
   BarChart3,
 } from "lucide-react";
@@ -30,6 +29,7 @@ import { useTutor } from "@/components/course/tutor-drawer";
 import { useSession } from "@/lib/auth-client";
 import { getStudentEnrollments, getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
+import { ZyraMark } from "@/components/course/zyra-mark";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { SidebarTooltip } from "@/components/sidebar-shell";
@@ -216,7 +216,7 @@ export function StudentSidebar({
                 c && "justify-center size-10 px-0 mx-auto"
               )}
             >
-              <Sparkles className="size-5 shrink-0" />
+              <ZyraMark className="size-5" />
               {!c && <span>Tanya Zyra</span>}
             </button>
           </SidebarTooltip>

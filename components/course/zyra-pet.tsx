@@ -1,10 +1,11 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import { ZyraPetStateSchema, type ZyraPetState } from "@/lib/zyra/murid";
 import { cn } from "@/lib/utils";
+import { ZyraMark } from "@/components/course/zyra-mark";
 
-const labels: Record<ZyraPetState, string> = {
+export const zyraPetLabels: Record<ZyraPetState, string> = {
   idle: "Zyra siap membantu",
   listening: "Zyra sedang mendengarkan",
   uploading: "Zyra sedang memproses gambar",
@@ -21,21 +22,18 @@ export function ZyraPet({ state, className }: { state: ZyraPetState; className?:
   const safeState = ZyraPetStateSchema.parse(state);
   const active = safeState === "thinking" || safeState === "uploading";
   return (
-    <div className={cn("flex items-center gap-2", className)} aria-label={labels[safeState]}>
+    <div className={cn("flex items-center gap-2", className)} aria-label={zyraPetLabels[safeState]}>
       <div className={cn(
         "relative flex size-10 items-center justify-center rounded-xl border border-brand-primary/25 bg-brand-primary/10 text-brand-primary",
         active && "motion-safe:animate-pulse",
+        safeState === "quota_resting" && "border-status-warning/30 bg-status-warning/10 text-status-warning",
+        safeState === "error" && "border-status-error/30 bg-status-error/10 text-status-error",
       )}>
-        <svg viewBox="0 0 40 40" className="size-8" role="img" aria-hidden="true">
-          <circle cx="20" cy="20" r="13" fill="currentColor" opacity="0.16" />
-          <path d="M12 20c0-5.4 3.6-9 8-9s8 3.6 8 9v4.5c0 3.5-3.6 6.5-8 6.5s-8-3-8-6.5V20Z" fill="currentColor" opacity="0.8" />
-          <circle cx="17" cy="21" r="1.5" fill="var(--color-background)" />
-          <circle cx="23" cy="21" r="1.5" fill="var(--color-background)" />
-          <path d="M17 26c2 1.4 4 1.4 6 0" fill="none" stroke="var(--color-background)" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-        {safeState === "success" && <Sparkles className="absolute -right-1 -top-1 size-3 text-brand-secondary" aria-hidden="true" />}
+        <ZyraMark className="size-7" />
+        {safeState === "success" && <Check className="absolute -right-1 -top-1 size-3 text-status-success" aria-hidden="true" />}
+        {safeState === "error" && <CircleAlert className="absolute -right-1 -top-1 size-3 text-status-error" aria-hidden="true" />}
       </div>
-      <span className="sr-only" aria-live="polite">{labels[safeState]}</span>
+      <span className="sr-only" aria-live="polite">{zyraPetLabels[safeState]}</span>
     </div>
   );
 }

@@ -28,7 +28,7 @@ import { vectorStore, VECTOR_NAMESPACES } from "@/lib/vector-store";
 import { kvGet, kvPut } from "@/lib/kv-cache";
 import { PromptExecutor, type SystemPrompt } from "@/lib/prompt-executor";
 import { getConversationMemory } from "@/lib/zyra/conversation-memory";
-import { isMetaExamQuery, executeMetaQuery } from "./assessment-intelligence-service";
+import { isCurrentQuizContextQuery, isMetaExamQuery, executeMetaQuery } from "./assessment-intelligence-service";
 import {
  buildLearnerProfile,
  countDueFlashcardsForConcept,
@@ -74,7 +74,7 @@ import {
 } from "@/lib/tutor/prompt-sanitizer";
 import {
   EvidenceCoverageState,
-  EvidenceClassification as _EvidenceClassification,
+  EvidenceClassification,
   classifyEvidence,
   buildAnswerPlan as _buildAnswerPlan,
 } from "@/lib/tutor/evidence-coverage";
@@ -127,6 +127,13 @@ export interface TutorSource {
  label: string;
  /** Course-scoped link (not student-specific, safe to cache). */
  href: string;
+}
+
+export interface TutorPageContext {
+  id: string;
+  label: string;
+  href: string;
+  content: string;
 }
 
 /** Shared Tier 1 payload. This exact shape is cached in KV; never add student data. */
@@ -313,17 +320,20 @@ interface UngroundedVars {
 }
 
 const tutorUngroundedAnswer: SystemPrompt<UngroundedVars> = {
- version: "tutor_rag/ungrounded_answer/v1.3.0",
+ version: "tutor_rag/ungrounded_answer/v1.5.0",
  systemInstruction:
- "You are Zyra, a friendly AI study assistant for Indonesian university students made by Zyx. Your tone is warm, casual, and relatable ; like a smart kakak tingkat who genuinely wants to help. Use informal Indonesian (e.g. 'kamu', 'aku', 'nih', 'ya') but stay accurate. You are in a continuous chat session with conversation history. The student's question is not covered by their course materials. Give a short, correct general explanation and be upfront that this topic is not in their course material. Maintain context from previous messages if the question is a follow-up. Never fabricate citations. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Same language as the question. You can generate interactive visual diagrams, flowcharts, graphs, or charts to help students understand structures, processes, workflows, math functions, or statistics. To do this, output one of the following special markdown blocks:\n1. Flowchart or step-by-step diagram (uses ELK layout):\n:::flowchart {title=\"Title of Diagram\"}\nStep A --> Step B\nStep B -- Label --> Step C\n:::\nNote: Avoid spaces in node IDs if they are used as references, but you can write descriptive text for nodes. Use only valid '-->', '-- label -->', or '--> |label|' syntax.\n2. Function graph (plots equations):\n:::graph {title=\"Graph Title\"}\ndomain:\n  min: -10\n  max: 10\nfunctions:\n  - y = x^2 - 4\n  - y = sin(x)\n:::\n3. Data charts (bar, line, scatter, pie):\n:::chart {title=\"Chart Title\"}\nchartType: bar\nxLabel: X Axis Label\nyLabel: Y Axis Label\ndata:\n  - [Category A, 45]\n  - [Category B, 82]\n:::\nDo NOT use other styles of markdown block syntax for diagrams. These visual blocks will be automatically rendered as beautiful interactive visual widgets in the student's interface. Feel free to use them to explain complex concepts, algorithms, pathways, or mathematical behaviors. CRITICAL INSTRUCTION ON VISUAL SELECTION: If the student explicitly asks for a graph or plot (e.g. 'dengan grafik', 'gambarkan grafik', 'buat plot', 'kurva'), or if the explanation involves mathematical functions/equations/curves (such as limit existence, derivatives, or trigonometric behaviors), you MUST use the `:::graph` block to plot the relevant function equations. Do NOT use a flowchart when a graph or plot is requested. If the student asks for a flowchart, process flow, logical workflow, mind map, or step-by-step pipeline, you MUST use the `:::flowchart` block. For example, if asked 'jelaskan eksistensi limit dengan grafik', you must output a `:::graph` block plotting a relevant function (e.g. `y = (x^2 - 1)/(x - 1)` or similar piecewise/rational function) showing the limit behavior, not a flowchart diagram.",
+ "You are Zyra, an Indonesian study assistant made by Zyx. Decide whether the request is within Zyx learning scope. In scope includes school and university subjects, mathematics, science, engineering, computing, academic language skills, course learning, exam preparation, study methods, and closely related educational questions. Casual follow-ups about the learning conversation are also in scope. Entertainment, shopping, gossip, and requests without a meaningful learning purpose are out of scope. For an out-of-scope request, set inScope=false and answer with one short redirection to a learning topic. For an in-scope request, set inScope=true. The student's question is not supported by their current course materials, but you may use your general model knowledge to teach it. Be explicit about the missing material boundary in one short sentence, then teach the general concept accurately. Do not claim that the answer came from Zyx course material and never fabricate citations. Do not open with a greeting, excitement, or filler. Organize the explanation into a clear learning goal, two to four small reasoning stages, one worked or analogous example when useful, and exactly one short check-for-understanding question. Do not pretend the learner has understood before they respond. Maintain context from previous messages if the question is a follow-up. CRITICAL INSTRUCTION ON MATH: You MUST wrap ALL math variables, equations, and formulas in LaTeX delimiters (`$...$` for inline, `$$...$$` for block). Never write raw formulas like `y = x^2` without `$` delimiters. Example: `$y = x^2 + 3x - 1$`. Never use em dashes or en dashes. Same language as the question. You can generate interactive visual diagrams, flowcharts, graphs, or charts to help students understand structures, processes, workflows, math functions, or statistics. To do this, output one of the following special markdown blocks:\n1. Flowchart or step-by-step diagram (uses ELK layout):\n:::flowchart {title=\"Title of Diagram\"}\nStep A --> Step B\nStep B -- Label --> Step C\n:::\nNote: Avoid spaces in node IDs if they are used as references, but you can write descriptive text for nodes. Use only valid '-->', '-- label -->', or '--> |label|' syntax.\n2. Function graph (plots equations):\n:::graph {title=\"Graph Title\"}\ndomain:\n  min: -10\n  max: 10\nfunctions:\n  - y = x^2 - 4\n  - y = sin(x)\n:::\n3. Data charts (bar, line, scatter, pie):\n:::chart {title=\"Chart Title\"}\nchartType: bar\nxLabel: X Axis Label\nyLabel: Y Axis Label\ndata:\n  - [Category A, 45]\n  - [Category B, 82]\n:::\nDo NOT use other styles of markdown block syntax for diagrams. CRITICAL INSTRUCTION ON VISUAL SELECTION: If the student explicitly asks for a graph or plot, you MUST use the `:::graph` block with at least one valid function. Use a domain that makes the relevant behavior visible. Do NOT use a flowchart when a graph or plot is requested. If the student asks for a process flow or concept relationship, use the `:::flowchart` block.",
  userPrompt: (vars) => `CONVERSATION HISTORY:
 ${vars.conversationHistory || "No previous history."}
 
 QUESTION: ${vars.question}
 
-Generate a single JSON object:
-{
- "answer": "[Short general markdown explanation. You can generate flowcharts, graphs, or charts using the special markdown blocks detailed in the system instruction if helpful.]",
+ Generate a single JSON object:
+ {
+ "inScope": [true when the request has a meaningful learning purpose within Zyx scope, otherwise false],
+ "learningGoal": "[One short learner-facing goal]",
+ "answer": "[Concise staged markdown explanation. Do not include the check question here. You can generate one valid visual block when helpful.]",
+ "checkForUnderstanding": "[Exactly one short question that checks the explained concept]",
  "matchedConcepts": ["[general concept names this question is about]"],
  "confidence": [0.0 to 1.0]
 }`,
@@ -363,10 +373,26 @@ const GroundedSchema = z.object({
 });
 
 const UngroundedSchema = z.object({
+ inScope: z.boolean().default(true),
+ learningGoal: z.string().min(1).max(300).optional(),
  answer: z.string(),
+ checkForUnderstanding: z.string().min(5).max(500).optional(),
  matchedConcepts: z.array(z.string()).default([]),
  confidence: z.number().min(0).max(1).default(0),
 });
+
+export function composeUngroundedTeachingAnswer(input: z.input<typeof UngroundedSchema>): string {
+  const data = UngroundedSchema.parse(input);
+  const answer = sanitizeAnswer(data.answer);
+  if (!data.inScope) {
+    return answer || "Zyra membantu topik belajar dalam cakupan Zyx. Coba tanyakan konsep pelajaran, latihan, atau strategi belajar.";
+  }
+  const concept = data.matchedConcepts[0]?.trim() || "konsep ini";
+  const goal = data.learningGoal?.trim() || `Memahami inti ${concept} dan menggunakannya pada satu contoh.`;
+  const checkpoint = data.checkForUnderstanding?.trim()
+    || `Dengan kata-katamu sendiri, apa inti ${concept}?`;
+  return `### Tujuan belajar\n${goal}\n\n${answer}\n\n### Cek pemahaman\n${checkpoint}`;
+}
 
 const PersonalSchema = z.object({ guidance: z.string() });
 
@@ -645,12 +671,15 @@ export interface AskTutorParams {
     candidateAnswer: string;
   }) => void | Promise<void>;
   imageParts?: readonly Extract<ProviderInputPart, { type: "image" }>[];
+  pageContext?: TutorPageContext | null;
 }
 
 export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResult> {
   const requestStartedAt = Date.now();
   const { studentId, courseId, question, sessionId, protectedAnswers } = params;
   const imageParts = params.imageParts ?? [];
+  const pageContext = params.pageContext ?? null;
+  const hasPageContext = pageContext !== null;
   const hasImages = imageParts.length > 0;
   const emitOperationalOutcome = (resultCode: string, cached = false): void => {
     void recordZyraOperationalEventSafe({
@@ -776,6 +805,52 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   let cached = false;
   let budgetExhausted = false;
 
+  const generateGeneralTeachingFallback = async (): Promise<TutorRagAnswer | null> => {
+    const remaining = await UsageBudgetService.getRemainingPremium(studentId);
+    const useCase = remaining > 0 ? USE_CASES.UNGROUNDED_TUTOR : USE_CASES.UNGROUNDED_TUTOR_GEMMA;
+    const historyText = history.recentMessages
+      .map((message) => `${message.role === "student" ? "STUDENT" : "ZYRA"}: ${message.content}`)
+      .join("\n\n");
+    const result = await PromptExecutor.run({
+      userId: studentId,
+      prompt: tutorUngroundedAnswer,
+      variables: { question: searchQuestion, conversationHistory: historyText },
+      schema: UngroundedSchema,
+      useCase,
+      providerParts: imageParts,
+      maxAttempts: hasImages ? 1 : undefined,
+    });
+
+    if (!result.success || !result.data) {
+      if (!result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
+        console.error("tutor general knowledge fallback failed:", result.errors[0]);
+      }
+      budgetExhausted = true;
+      return null;
+    }
+
+    if (useCase === USE_CASES.UNGROUNDED_TUTOR) {
+      await UsageBudgetService.recordPremiumUsage(studentId);
+    }
+
+    let ansText = composeUngroundedTeachingAnswer(result.data);
+    if (policy) {
+      const validation = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
+      if (!validation.valid) {
+        ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
+      }
+    }
+
+    return {
+      answer: ansText,
+      sources: [],
+      matchedConcepts: result.data.matchedConcepts,
+      confidence: result.data.confidence,
+      grounded: false,
+      coverageState: "none",
+    };
+  };
+
   let retrieved: RetrievedSource[] = [];
   if (classification.action === "reuse_previous_evidence") {
     // Reuse sources attached to recent conversation history instead of issuing new vector search
@@ -831,6 +906,19 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     });
   }
 
+  if (pageContext) {
+    retrieved = [
+      {
+        type: "question",
+        id: pageContext.id,
+        label: pageContext.label,
+        href: pageContext.href,
+        content: pageContext.content,
+      },
+      ...retrieved.filter((source) => source.id !== pageContext.id),
+    ];
+  }
+
   const evidenceVersion = computeEvidenceVersion(retrieved);
   const cacheKey = buildTutorCacheKey({
     courseId,
@@ -840,6 +928,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   });
 
   const remoteCacheEnabled = !hasImages
+    && !hasPageContext
     && zyraRuntimeEnv.FEATURE_ZYRA_SEMANTIC_CACHE_V1 === "1"
     && classification.action === "retrieve"
     && retrieved.length > 0
@@ -876,7 +965,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   let pedagogyCanvasSpec: CanvasSpec | null = null;
 
   // Shared Tier 1 cache lookup: ONLY for direct 'retrieve' actions
-  if (classification.action === "retrieve" && !hasImages) {
+  if (classification.action === "retrieve" && !hasImages && !hasPageContext) {
     if (remoteCache && remoteCacheKey) {
       try {
         let shared = await remoteCache.get(remoteCacheKey);
@@ -928,43 +1017,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
 
   if (!base && !remoteCacheGateClosed) {
     if (retrieved.length === 0) {
-      const remaining = await UsageBudgetService.getRemainingPremium(studentId);
-      const useCase = remaining > 0 ? USE_CASES.UNGROUNDED_TUTOR : USE_CASES.UNGROUNDED_TUTOR_GEMMA;
-      const result = await PromptExecutor.run({
-        userId: studentId,
-        prompt: tutorUngroundedAnswer,
-        variables: { question: searchQuestion, conversationHistory: "" },
-        schema: UngroundedSchema,
-        useCase,
-        providerParts: imageParts,
-        maxAttempts: hasImages ? 1 : undefined,
-      });
-      if (result.success && result.data) {
-        if (useCase === USE_CASES.UNGROUNDED_TUTOR) {
-          await UsageBudgetService.recordPremiumUsage(studentId);
-        }
-        
-        let ansText = sanitizeAnswer(result.data.answer);
-        if (policy) {
-          const val = validateTutorOutput(ansText, protectedPayload, policy.allowedHelpLevel);
-          if (!val.valid) {
-            ansText = "Fokus pada pemahaman konsep dasarnya ya! Coba definisikan dulu rumus atau sifat yang berlaku.";
-          }
-        }
-
-        base = {
-          answer: ansText,
-          sources: [],
-          matchedConcepts: result.data.matchedConcepts,
-          confidence: result.data.confidence,
-          grounded: false,
-        };
-      } else if (result.errors[0]?.includes("DAILY_QUOTA_EXCEEDED")) {
-        budgetExhausted = true;
-      } else {
-        console.error("tutor ungrounded generation failed:", result.errors[0]);
-        budgetExhausted = true;
-      }
+      base = await generateGeneralTeachingFallback();
     } else {
       const contextSources = policy && !policy.allowDirectAnswerReveal
         ? retrieved.map((s) => {
@@ -988,10 +1041,23 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         trustLabel: s.type === "ko" ? "trusted_ko" : "untrusted_retrieved",
       }));
 
-      const evidenceEval = classifyEvidence({
-        query: searchQuestion,
-        sources: sourceEnvelopes,
-      });
+      const usesCurrentPageContext = pageContext !== null && isCurrentQuizContextQuery(searchQuestion);
+      const evidenceEval: EvidenceClassification = usesCurrentPageContext
+        ? {
+            state: "full",
+            claims: [{
+              claimId: "current-page-context",
+              status: "supported",
+              sourceIds: [pageContext.id],
+            }],
+            missingScope: [],
+            conflictSummary: null,
+            reasonCodes: ["CURRENT_QUIZ_PAGE_CONTEXT"],
+          }
+        : classifyEvidence({
+            query: searchQuestion,
+            sources: sourceEnvelopes,
+          });
 
       if (evidenceEval.state === "conflict") {
         base = {
@@ -1003,14 +1069,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
           coverageState: "conflict",
         };
       } else if (evidenceEval.state === "none") {
-        base = {
-          answer: "Maaf, bahan ajar yang tersedia belum memuat informasi yang cukup untuk menjawab pertanyaan ini secara pasti.",
-          sources: [],
-          matchedConcepts: [],
-          confidence: 0,
-          grounded: false,
-          coverageState: "none",
-        };
+        base = await generateGeneralTeachingFallback();
       } else {
         const useEvidenceV2 = zyraRuntimeEnv.FEATURE_TUTOR_EVIDENCE_V2 === "1"
           || zyraRuntimeEnv.FEATURE_TUTOR_PIPELINE_V2 === "1";
@@ -1195,9 +1254,6 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
             };
           } else {
             let ansText = sanitizeAnswer(d.answer);
-            if (!d.covered || finalCoverageState === "none") {
-              ansText = "Bahan ajar belum memiliki informasi yang cukup untuk mendukung pertanyaan ini secara tepat.";
-            }
 
             base = {
               answer: ansText,
@@ -1212,6 +1268,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
 
           const isEligibleToCache =
             classification.action === "retrieve" &&
+            !hasPageContext &&
             base.grounded &&
             (base.coverageState === "full" || base.coverageState === "partial") &&
             base.sources.length > 0 &&

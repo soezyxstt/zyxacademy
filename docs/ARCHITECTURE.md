@@ -854,6 +854,8 @@ Plan 007 makes teaching behavior application-owned. A deterministic planner sele
 
 Active assessment policy is enforced before prompt composition and again during response validation. Invalid shape, citation, visual claim, unsupported diagnosis, pipeline-language, or answer-safety output becomes a typed rejection followed by deterministic safe composition. The prompt contract uses one total model attempt and disables the existing personalized second call while `FEATURE_ZYRA_PEDAGOGY_V3` is enabled. Shared cache payloads remain profile-free and canonical retrieval remains the source of truth.
 
+The legacy tutor route distinguishes evidence grounding from learning scope. Empty retrieval and deterministic `none` coverage invoke one uncited general-knowledge teaching call for school, university, technical, academic-skill, exam-preparation, and study-method questions. The response states the course-material boundary and remains subject to assessment output validation. Out-of-scope requests receive a short learning redirection. If the grounded model itself rejects weak evidence, its uncited general explanation is retained instead of being replaced by a hard refusal, without adding a second provider call.
+
 ### Zyra evidence-based personalization
 
 Plan 008 adds additive `zyra_learning_events`, `zyra_learner_profiles`, and `zyra_learner_preferences` tables. Events use a strict allowlist of bounded event kinds, outcomes, latency buckets, hint levels, representations, weights, and optional opaque evidence references. Raw chat, assessment answers, and sensitive traits are not ingested into the profile. Events expire, queries are scoped by murid and course, and a learner reset moves the profile watermark forward without deleting historical evidence.
@@ -868,6 +870,10 @@ Plan 009 adds `lib/zyra/canvas` as the application-owned visual protocol. A canv
 
 `LearningCanvasRenderer` keeps control values and editable expressions in local component state. Sampling, reset, invalid-expression handling, and table fallback use local computation and make no provider or network call. The compatibility adapter can map validated flowcharts, plots, and diagrams to the existing visual contract, while shared-cache bytes remain immutable and profile-free. `FEATURE_ZYRA_LEARNING_CANVAS_V1` is disabled by default.
 
+Legacy graph blocks remain readable for historical and ungrounded responses, but their expressions are normalized and evaluated by the bounded Learning Canvas expression AST. The compatibility parser accepts plural and singular function fields plus inline or expanded domains. A failed expression renders an explicit learner-facing error instead of an empty plot.
+
+The course shell renders a draggable pet launcher when `FEATURE_ZYRA_PET_V1` is enabled. Its clamped viewport position and visibility preference are browser-local presentation state. They are not sent to the server or learner profile. Quiz-review page context is resolved server-side from the authenticated route, student, and course. Only a bounded title and prompt list enters the tutoring request, and any response using this attempt-specific context bypasses shared cache reads and writes.
+
 Staging shadow mode is an explicit internal execution mode, not a public feature flag. It requires `ZYX_ENVIRONMENT=staging` and an exact match with `STAGING_ZYRA_PEDAGOGY_USER_ID`. The legacy and candidate generations run beside one another with one attempt each; only the legacy answer is returned. Learner summary and learning-event writes are suppressed, while comparison metadata stores only hashes, stable outcomes, state, hint level, violation codes, counts, and an opaque trace ID. Synthetic review output is available only to the local staging runner and is not added to the application response.
 
 The runner renders a self-contained local HTML review page. Candidate and baseline output are escaped before insertion, no external resources are loaded, and the browser hashes the human reviewer identity before producing a submission. The strict validator requires the submitted case set to exactly match the generated draft and writes a final aggregate-only artifact. Raw answers and raw reviewer identity are excluded from the final release-gate result.
@@ -881,6 +887,8 @@ Plan 010 adds an authenticated attachment boundary. Browser files are checked by
 ### Zyra murid experience
 
 Plan 011 composes the existing tutor drawer with an authenticated allowance summary, bounded selection-to-ask context, the Plan 010 attachment composer, local Learning Canvas controls, and an application-owned SVG pet. The pet state is derived from upload, request, response, quota, and error state. Public flags are independent, so text tutoring remains available when image input, pet, or selection actions are disabled.
+
+The drawer exposes direct resize and viewport expansion controls. Grounded turns retain the Plan 007 typed pedagogy path. A no-evidence turn uses a separate bounded general-teaching contract with a learning goal and one checkpoint because it cannot claim canonical grounding.
 
 ### Proposal-first copilots
 

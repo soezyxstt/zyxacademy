@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
- Sparkles, 
  BookOpen, 
  Layers, 
   ClipboardList, 
@@ -25,6 +24,8 @@ import {
  ArrowRight,
  RefreshCw,
   FileQuestion,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import {
  explainConceptAction,
@@ -44,6 +45,8 @@ import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import { ZyraAttachmentComposer } from "@/components/course/zyra-attachment-composer";
 import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
 import { ZyraPet } from "@/components/course/zyra-pet";
+import { ZyraMark } from "@/components/course/zyra-mark";
+import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
 import { petStateForTutorEvent } from "@/lib/zyra/murid";
 import { useSwipe } from "@/hooks/use-swipe";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
@@ -128,10 +131,14 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
  // Resizable drawer state
  const MIN_WIDTH = 320;
- const MAX_WIDTH = 860;
- const DEFAULT_WIDTH = 560;
+ const DEFAULT_WIDTH = 640;
  const [drawerWidth, setDrawerWidth] = React.useState(DEFAULT_WIDTH);
+ const [drawerExpanded, setDrawerExpanded] = React.useState(false);
  const isResizing = React.useRef(false);
+
+ const toggleDrawerExpanded = React.useCallback(() => {
+ setDrawerExpanded((current) => !current);
+ }, []);
 
  const startResize = React.useCallback((e: React.MouseEvent) => {
  e.preventDefault();
@@ -142,7 +149,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const onMove = (ev: MouseEvent) => {
  if (!isResizing.current) return;
  const newWidth = window.innerWidth - ev.clientX;
- setDrawerWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)));
+ setDrawerExpanded(false);
+ setDrawerWidth(Math.min(window.innerWidth - 16, Math.max(MIN_WIDTH, newWidth)));
  };
  const onUp = () => {
  isResizing.current = false;
@@ -445,8 +453,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   };
 
  // Handle sending arbitrary chat messages (Conversational Socratic AI Chat)
- const handleSend = async () => {
- const questionText = inputVal.trim();
+ const handleSend = async (suggestedQuestion?: string) => {
+ const questionText = (suggestedQuestion ?? inputVal).trim();
  const requestedAttachmentIds = [...attachmentIds];
  if (!questionText && requestedAttachmentIds.length === 0) return;
 
@@ -474,6 +482,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
    questionText || "Tolong jelaskan isi gambar ini sesuai materi kuliah.",
    sessionId,
    requestedAttachmentIds,
+   pathname,
  );
  if (res.sessionId && !sessionId) {
     setSessionId(res.sessionId);
@@ -532,7 +541,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  {pathname?.startsWith("/courses/") &&
  !pathname.includes("/live/host") &&
  !pathname.endsWith("/daftar") &&
- !isOpen && (
+ !isOpen && (caps.pet ? (
+ <ZyraFloatingPet state={petState} onOpen={openChat} />
+ ) : (
  <button
  type="button"
  onClick={openChat}
@@ -540,19 +551,19 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  title="Tanya Zyra"
  className="group fixed bottom-6 right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-primary text-white shadow-lg shadow-brand-primary/30 transition-all hover:scale-105 hover:bg-brand-primary/95 active:scale-95 md:bottom-8 md:right-8"
  >
- <Sparkles className="size-6 transition-transform group-hover:rotate-12" />
+ <ZyraMark className="size-7 transition-transform duration-150 group-hover:scale-105" />
  <span className="pointer-events-none absolute right-full mr-3 hidden whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-body-xs font-semibold text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100 md:block">
  Tanya Zyra
  </span>
  </button>
- )}
+ ))}
 
  {/* modal={false} keeps the page scrollable; the modal scroll lock sets
  overflow:hidden on body which breaks the sticky course sidebar. */}
  <Sheet open={isOpen} onOpenChange={(open) => !open && close()} modal={false}>
  <SheetContent
  side="right"
- style={{ width: `min(${drawerWidth}px, 100vw)` }}
+ style={{ width: drawerExpanded ? "calc(100vw - 1rem)" : `min(${drawerWidth}px, calc(100vw - 1rem))` }}
  className="p-0 flex flex-col h-full bg-background border-l border-border select-none !max-w-none"
  onInteractOutside={(e) => e.preventDefault()}
  onOpenAutoFocus={(e) => e.preventDefault()}
@@ -560,17 +571,23 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  {/* Drag-to-resize handle */}
  <div
  onMouseDown={startResize}
+ onDoubleClick={toggleDrawerExpanded}
+ role="separator"
+ aria-label="Ubah lebar panel Zyra"
+ aria-orientation="vertical"
+ aria-valuemin={MIN_WIDTH}
+ aria-valuenow={drawerExpanded ? undefined : drawerWidth}
  className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize bg-transparent hover:bg-brand-primary/30 transition-colors z-50 group"
- title="Seret untuk mengubah ukuran"
+ title="Seret atau klik dua kali untuk mengubah ukuran"
  >
  <div className="absolute inset-y-0 left-0 w-px bg-border group-hover:bg-brand-primary/50 transition-colors" />
  </div>
  
  {/* Header Panel */}
- <SheetHeader className="p-5 border-b border-border/80 flex flex-row items-center gap-3 bg-muted/20">
+ <SheetHeader className="p-5 pr-14 border-b border-border/80 flex flex-row items-center gap-3 bg-muted/20">
  {caps.pet ? <ZyraPet state={petState} /> : (
    <div className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
-   <Sparkles className="size-5 animate-pulse" />
+   <ZyraMark className="size-6" />
    </div>
  )}
  <div className="space-y-0.5 text-left flex-1 min-w-0">
@@ -587,6 +604,17 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  Zyra · Asisten Belajar Zyx
  </SheetDescription>
  </div>
+ <Button
+ variant="ghost"
+ size="xs"
+ className="shrink-0 gap-1.5 text-muted-foreground"
+ onClick={toggleDrawerExpanded}
+ aria-label={drawerExpanded ? "Kembalikan ukuran panel Zyra" : "Perbesar panel Zyra"}
+ title={drawerExpanded ? "Kembalikan ukuran" : "Perbesar panel"}
+ >
+ {drawerExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+ <span className="hidden lg:inline">{drawerExpanded ? "Kecilkan" : "Perbesar"}</span>
+ </Button>
  {activeMode === "chat" && (
  <Button
  variant="ghost"
@@ -648,13 +676,14 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  {/* Message Stream */}
  {messages.length > 0 && (
  <div className="space-y-4 flex-1 flex flex-col justify-start">
- {messages.map((msg) => {
+ {messages.map((msg, messageIndex) => {
  const isStudent = msg.role === "student";
+ const isLatestAssistant = !isStudent && messageIndex === messages.length - 1;
  return (
  <div
  key={msg.id}
  className={cn(
- "max-w-[85%] rounded-2xl p-4 text-body-sm leading-relaxed text-left flex flex-col gap-2",
+ "w-fit max-w-[92%] rounded-2xl p-4 text-body-sm leading-relaxed text-left flex flex-col gap-2 xl:max-w-[56rem]",
  isStudent
  ? "bg-primary text-white self-end rounded-tr-none"
  : "bg-muted text-foreground self-start rounded-tl-none border border-border/60"
@@ -684,6 +713,14 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  </a>
  ))}
  </div>
+ </div>
+ )}
+
+ {isLatestAssistant && activeMode === "chat" && !chatLoading && (
+ <div className="mt-2 flex flex-wrap gap-2 border-t border-border/50 pt-3" aria-label="Lanjutkan proses belajar">
+ <Button type="button" variant="outline" size="xs" onClick={() => void handleSend("Berikan satu contoh serupa dan tuntun aku langkah demi langkah.")}>Coba contoh</Button>
+ <Button type="button" variant="outline" size="xs" onClick={() => void handleSend("Uji pemahamanku dengan satu pertanyaan singkat. Jangan berikan jawabannya dulu.")}>Uji pemahaman</Button>
+ <Button type="button" variant="outline" size="xs" onClick={() => void handleSend("Jelaskan lagi dengan cara yang lebih sederhana dan gunakan representasi lain jika membantu.")}>Cara lain</Button>
  </div>
  )}
  </div>
@@ -820,12 +857,14 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  placeholder="Tanyakan follow-up..."
  value={inputVal}
  onChange={(e) => setInputVal(e.target.value)}
- onKeyDown={(e) => e.key === "Enter" && handleSend()}
+ onKeyDown={(e) => {
+ if (e.key === "Enter") void handleSend();
+ }}
  disabled={chatLoading}
  className="rounded-xl focus-visible:ring-brand-primary"
  />
  <Button
- onClick={handleSend}
+ onClick={() => void handleSend()}
  disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)}
  className="rounded-xl bg-brand-primary hover:bg-brand-primary/95 text-white font-semibold"
  >

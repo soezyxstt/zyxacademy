@@ -53,6 +53,7 @@ import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
+import { ZyraMark } from "@/components/course/zyra-mark";
 import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
@@ -1185,7 +1186,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
               runTutorExplain(selectedText);
             }}
           >
-            <Sparkles className="size-3.5" />
+            <ZyraMark className="size-4" />
             Tanya Zyra
           </Button>
         )}

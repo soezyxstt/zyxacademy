@@ -213,7 +213,7 @@ class ExpressionParser {
       if (!this.declaredVariables.has(token.value)) fail("IDENTIFIER");
       return this.addNode({ kind: "variable", name: token.value }, depth);
     }
-    if (this.match("leftParen")) {
+    if (token.kind === "leftParen") {
       const node = this.parseAdditive(depth + 1);
       if (!this.match("rightParen")) fail("PAREN");
       return node;
@@ -281,4 +281,30 @@ export function compileSafeExpression(
       return result;
     },
   };
+}
+
+/**
+ * Adapts the bounded legacy graph notation into the Learning Canvas parser.
+ * This is compatibility normalization only. Evaluation still goes through the
+ * allowlisted expression AST and never through model-provided executable code.
+ */
+export function normalizeLegacyGraphExpression(value: string): string {
+  return value
+    .trim()
+    .replace(/^`|`$/g, "")
+    .replace(/^\$+|\$+$/g, "")
+    .replace(/^\\\(|\\\)$/g, "")
+    .replace(/^\s*(?:y|f\s*\(\s*x\s*\))\s*=\s*/i, "")
+    .replace(/[\u2212\u2013\u2014]/g, "-")
+    .replace(/[×·]/g, "*")
+    .replace(/²/g, "^2")
+    .replace(/³/g, "^3")
+    .replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, "(($1)/($2))")
+    .replace(/\\sqrt\s*\{([^{}]+)\}/g, "sqrt($1)")
+    .replace(/\\(?:cdot|times)/g, "*")
+    .replace(/\\(?:left|right)/g, "")
+    .replace(/[{}]/g, (character) => character === "{" ? "(" : ")")
+    .replace(/(\d|\))(?=[A-Za-z_(])/g, "$1*")
+    .replace(/([A-Za-z_)])(?=\d)/g, "$1*")
+    .trim();
 }

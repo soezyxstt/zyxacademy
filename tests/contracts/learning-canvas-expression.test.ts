@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { compileSafeExpression, parseSafeExpression } from "@/lib/zyra/canvas";
+import { compileSafeExpression, normalizeLegacyGraphExpression, parseSafeExpression } from "@/lib/zyra/canvas";
 
 describe("Learning Canvas safe expressions", () => {
   test("evaluates approved arithmetic and functions", () => {
@@ -27,5 +27,15 @@ describe("Learning Canvas safe expressions", () => {
     const expression = compileSafeExpression("a*x + b", { variables: ["x", "a", "b"] });
     expect(expression.evaluate({ x: 2, a: 3, b: 1 })).toBe(7);
     expect(expression.evaluate({ x: 2, a: 3, b: 1 })).toBe(7);
+  });
+
+  test("normalizes legacy graph notation before safe evaluation", () => {
+    const normalized = normalizeLegacyGraphExpression("$y = 2x² - 4$");
+    expect(normalized).toBe("2*x^2 - 4");
+    expect(compileSafeExpression(normalized, { variables: ["x"] }).evaluate({ x: 2 })).toBe(4);
+  });
+
+  test("supports grouped arithmetic in the safe parser", () => {
+    expect(compileSafeExpression("(x - 1) * (x + 1)", { variables: ["x"] }).evaluate({ x: 3 })).toBe(8);
   });
 });

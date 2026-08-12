@@ -26,6 +26,43 @@ function parseAttributes(attrStr: string): Record<string, string> {
   return attrs;
 }
 
+function parseYamlScalar(value: string): any {
+  const trimmed = value.trim();
+  if (trimmed.toLowerCase() === "true") return true;
+  if (trimmed.toLowerCase() === "false") return false;
+
+  const number = Number(trimmed);
+  if (!Number.isNaN(number)) return number;
+
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed
+        .slice(1, -1)
+        .split(",")
+        .map((item) => parseYamlScalar(item));
+    }
+  }
+
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return Object.fromEntries(
+        trimmed
+          .slice(1, -1)
+          .split(",")
+          .map((item) => item.split(/:(.*)/s).slice(0, 2))
+          .filter(([key, entry]) => key?.trim() && entry?.trim())
+          .map(([key, entry]) => [key.trim().replace(/^['"]|['"]$/g, ""), parseYamlScalar(entry)]),
+      );
+    }
+  }
+
+  return trimmed.replace(/^(['"])(.*)\1$/, "$2");
+}
+
 function parseYamlLike(lines: string[]): Record<string, any> {
   const result: Record<string, any> = {};
   let currentKey: string | null = null;
@@ -39,20 +76,7 @@ function parseYamlLike(lines: string[]): Record<string, any> {
     if (indent >= 2 && currentKey) {
       if (trimmed.startsWith("-")) {
         const val = trimmed.slice(1).trim();
-        let parsedVal: any = val;
-        if (val.startsWith("[") && val.endsWith("]")) {
-          try {
-            parsedVal = JSON.parse(val);
-          } catch {
-            parsedVal = val.slice(1, -1).split(",").map(x => {
-              const num = Number(x.trim());
-              return isNaN(num) ? x.trim() : num;
-            });
-          }
-        } else {
-          const num = Number(val);
-          parsedVal = isNaN(num) ? val : num;
-        }
+        const parsedVal = parseYamlScalar(val);
 
         if (!result[currentKey] || !Array.isArray(result[currentKey])) {
           result[currentKey] = [];
@@ -63,13 +87,7 @@ function parseYamlLike(lines: string[]): Record<string, any> {
         if (colonIdx !== -1) {
           const key = trimmed.slice(0, colonIdx).trim();
           const val = trimmed.slice(colonIdx + 1).trim();
-          let parsedVal: any = val;
-          if (val.toLowerCase() === "true") parsedVal = true;
-          else if (val.toLowerCase() === "false") parsedVal = false;
-          else {
-            const num = Number(val);
-            parsedVal = isNaN(num) ? val : num;
-          }
+          const parsedVal = parseYamlScalar(val);
 
           if (typeof result[currentKey] !== "object" || Array.isArray(result[currentKey])) {
             result[currentKey] = {};
@@ -89,14 +107,7 @@ function parseYamlLike(lines: string[]): Record<string, any> {
       if (val === "") {
         result[key] = {};
       } else {
-        let parsedVal: any = val;
-        if (val.toLowerCase() === "true") parsedVal = true;
-        else if (val.toLowerCase() === "false") parsedVal = false;
-        else {
-          const num = Number(val);
-          parsedVal = isNaN(num) ? val : num;
-        }
-        result[key] = parsedVal;
+        result[key] = parseYamlScalar(val);
       }
     }
   }
@@ -557,7 +568,12 @@ function parseBlockNode(
         };
       }
       
-      let functions = parsed.functions || (parsed.equation ? [parsed.equation] : []);
+      let functions = parsed.functions
+        || parsed.function
+        || parsed.equations
+        || parsed.formula
+        || (parsed.equation ? [parsed.equation] : []);
+      if (typeof functions === "string") functions = [functions];
       if ((!functions || functions.length === 0) && unparsedLines.length > 0) {
         functions = unparsedLines.map(l => l.trim());
       }
@@ -1518,4 +1534,3 @@ export async function compileMarkdownToAST(
   const result = compileMarkdown(markdown, chapterId, courseId);
   return result.ast;
 }
-

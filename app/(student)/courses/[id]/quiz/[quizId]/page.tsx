@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle, Sparkles } from "lucide-react";
+import { Lock, ChevronRight, Calendar, Award, Clock, AlertTriangle, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { QuizPlayer } from "@/components/course/quiz-player";
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { normalizeDate } from "@/lib/date-utils";
+import { ZyraMark } from "@/components/course/zyra-mark";
 
 type Props = {
   params: Promise<{ id: string; quizId: string }>;
@@ -426,7 +427,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
               {targetAttempt && (
                 <Button asChild size="sm" className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold shadow-xs">
                   <Link href={`/courses/${id}/quiz/${quizId}/summary/${targetAttempt.id}`}>
-                    <Sparkles className="mr-1.5 size-4" />
+                    <ZyraMark className="mr-1.5 size-4" />
                     Lihat Diagnosis & Rencana Belajar
                   </Link>
                 </Button>
@@ -615,7 +616,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                       {q.explanation && (
                         <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
                           <div className="flex items-center gap-2 text-brand-primary">
-                            <Sparkles className="size-4 animate-pulse" />
+                            <ZyraMark className="size-4" />
                             <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
                           </div>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">
@@ -719,7 +720,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                       {q.explanation && (
                         <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
                           <div className="flex items-center gap-2 text-brand-primary">
-                            <Sparkles className="size-4 animate-pulse" />
+                            <ZyraMark className="size-4" />
                             <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
                           </div>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">

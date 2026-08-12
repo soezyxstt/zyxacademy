@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 process.env.MOCK_GEMINI = "true";
-import { normalizeQuestion } from "@/lib/tutor-rag";
+import { composeUngroundedTeachingAnswer, normalizeQuestion } from "@/lib/tutor-rag";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache, buildTutorCacheKey, computeEvidenceVersion } from "@/lib/tutor/cache-contract";
 import { classifyQueryAction, extractStyleModifiers } from "@/lib/tutor/query-action";
@@ -12,6 +12,33 @@ import { classifyEvidence } from "@/lib/tutor/evidence-coverage";
 import { sanitizePromptInput, formatSourceEnvelope, SourceEnvelope } from "@/lib/tutor/prompt-sanitizer";
 
 describe("Tutor RAG Contract Tests", () => {
+  it("composes an ungrounded explanation with a learning goal and one checkpoint", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      answer: "Konsep ini berada di luar materi kuliah saat ini.\n\n1. Mulai dari bentuk umum.",
+      learningGoal: "Memahami bentuk umum persamaan kuadrat.",
+      checkForUnderstanding: "Apa peran diskriminan pada jumlah akar real?",
+      matchedConcepts: ["persamaan kuadrat"],
+      confidence: 0.8,
+    });
+
+    expect(answer).toContain("### Tujuan belajar");
+    expect(answer).toContain("### Cek pemahaman");
+    expect(answer.match(/Apa peran diskriminan/g)).toHaveLength(1);
+  });
+
+  it("redirects an out-of-scope request without adding a learning scaffold", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      inScope: false,
+      answer: "Zyra membantu topik belajar. Coba tanyakan materi atau strategi belajar.",
+      matchedConcepts: [],
+      confidence: 0,
+    });
+
+    expect(answer).toBe("Zyra membantu topik belajar. Coba tanyakan materi atau strategi belajar.");
+    expect(answer).not.toContain("### Tujuan belajar");
+    expect(answer).not.toContain("### Cek pemahaman");
+  });
+
   it("characterization: normalizeQuestion lowercases, strips punctuation, and trims questions deterministically", () => {
     expect(normalizeQuestion("   Apa  Definisi LIMIT?  ")).toBe("apa definisi limit");
     expect(normalizeQuestion("TURUNAN   fungsi!")).toBe("turunan fungsi");
@@ -422,4 +449,3 @@ describe("Tutor RAG Contract Tests", () => {
     expect(serialized).toContain(":::");
   });
 });
-

@@ -12,7 +12,7 @@ import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { AttemptReview } from "@/components/course/attempt-review";
 import { ReviewClient } from "./review-client";
-import { Sparkles } from "lucide-react";
+import { ZyraMark } from "@/components/course/zyra-mark";
 
 type Props = { params: Promise<{ id: string; submissionId: string }> };
 
@@ -71,7 +71,7 @@ export default async function SubmissionReviewPage({ params }: Props) {
 
             <Button asChild size="sm" className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold shadow-xs">
               <Link href={`/courses/${id}/my-results/${submissionId}/summary`}>
-                <Sparkles className="mr-1.5 size-4" />
+                <ZyraMark className="mr-1.5 size-4" />
                 Lihat Diagnosis & Rencana Belajar
               </Link>
             </Button>
