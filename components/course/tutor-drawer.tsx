@@ -54,8 +54,8 @@ import { petStateForTutorEvent } from "@/lib/zyra/murid";
 import { useSwipe } from "@/hooks/use-swipe";
 import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
-import type { ZyraMessageAttachment } from "@/lib/zyra/images";
-import { zyraImageFilesFromClipboard } from "@/lib/zyra/images";
+import { zyraImageFilesFromClipboard } from "@/lib/zyra/images/composer";
+import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 import { ZyraMessageAttachments } from "@/components/course/zyra-message-attachments";
 
 // Fetch extra actions from custom action file

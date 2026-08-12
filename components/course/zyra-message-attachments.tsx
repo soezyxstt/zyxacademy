@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { ZyraMessageAttachment } from "@/lib/zyra/images";
+import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
 
 interface ZyraMessageAttachmentsProps {
   attachments: readonly ZyraMessageAttachment[];
