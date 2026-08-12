@@ -1,58 +1,65 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "bun:test";
 import {
-  assertNoStudentTextInSharedCache,
-  buildTutorCacheKey,
-  computeEvidenceVersion,
-} from "@/lib/tutor/cache-contract";
+  assertProfileFreeSharedPayload,
+  buildSharedScaffoldMetadata,
+  buildSharedScaffoldHash,
+  validateSharedScaffold,
+} from "@/lib/ai/cache/contracts";
 
-describe("Plan 013 Zyra cache privacy", () => {
-  it("keeps shared cache keys independent of student identity and conversation history", () => {
-    const evidence = [{ id: "v2:idea:idea-1:2", content: "Konsep canonical" }];
-    const evidenceVersion = computeEvidenceVersion(evidence);
-    const first = buildTutorCacheKey({
-      courseId: "course-1",
-      chapterId: "chapter-1",
-      academicQuery: "Apa definisi konsep ini?",
-      evidenceVersion,
-    });
-    const second = buildTutorCacheKey({
-      courseId: "course-1",
-      chapterId: "chapter-1",
-      academicQuery: "apa definisi konsep ini?",
-      evidenceVersion,
-    });
+const identity = {
+  courseId: "mat-i",
+  ideas: [{ ideaId: "limit", version: 2 }],
+  evidenceHash: "b".repeat(64),
+  normalizedIntent: "apa itu limit",
+  promptVersion: "prompt-v1",
+  policyVersion: "policy-v1",
+  responseSchemaVersion: "schema-v1",
+  evidenceVersion: "evidence-v1",
+  language: "id",
+  routeClass: "default",
+  visualCapabilityVersion: "visual-v1",
+  assessmentMode: "none",
+} as const;
 
-    expect(first).toBe(second);
-    expect(first).not.toContain("student-1");
-    expect(first).not.toContain("session-1");
+function scaffold() {
+  return {
+    explanation: "Limit menggambarkan perilaku nilai fungsi saat input mendekati titik tertentu.",
+    claims: [{
+      ideaId: "limit",
+      ideaVersion: 2,
+      claimHash: createHash("sha256").update("limit claim").digest("hex"),
+    }],
+    teachingMove: "worked_example",
+    examples: ["Gunakan tabel nilai dari dua arah."],
+    validation: { status: "grounded", evidenceVersion: "evidence-v1", claimCount: 1 },
+    cacheMetadata: buildSharedScaffoldMetadata(identity),
+  };
+}
+
+describe("Plan 006 profile-free shared scaffold", () => {
+  it("accepts a typed scaffold and produces a stable hash", () => {
+    const parsed = validateSharedScaffold(scaffold());
+    expect(parsed.cacheMetadata.personalizationAllowed).toBe(false);
+    expect(buildSharedScaffoldHash(parsed)).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("accepts a profile-free canonical answer payload", () => {
-    const key = buildTutorCacheKey({
-      courseId: "course-1",
-      chapterId: null,
-      academicQuery: "jelaskan ide ini",
-      evidenceVersion: "canonical-v2-evidence",
-    });
-    const payload = {
-      answer: "Penjelasan dari Idea canonical.",
-      sources: [{ type: "ko", id: "v2:idea:idea-1:2", label: "Idea 1", href: "/courses/course-1/material" }],
-      matchedConcepts: ["Idea 1"],
-      confidence: 0.9,
-      grounded: true,
+  it("rejects learner identity, history, mastery, and assessment answer fields", () => {
+    for (const field of ["userId", "studentName", "learnerProfile", "masteryScore", "sessionHistory", "selectedAnswer"]) {
+      expect(() => assertProfileFreeSharedPayload({ [field]: "redacted-test-value" })).toThrow();
+    }
+    expect(() => assertProfileFreeSharedPayload({ explanation: "studentId: redacted-test-value" })).toThrow();
+  });
+
+  it("rejects personalization and assessment leakage at schema validation", () => {
+    const withPersonalization = {
+      ...scaffold(),
+      cacheMetadata: { ...scaffold().cacheMetadata, personalizationAllowed: true },
     };
-
-    expect(() => assertNoStudentTextInSharedCache(key, payload, ["student-1", "session-1"])).not.toThrow();
-  });
-
-  it("fails closed when a student identifier or history token enters shared cache", () => {
-    const key = buildTutorCacheKey({
-      courseId: "course-1",
-      chapterId: null,
-      academicQuery: "jelaskan konsep",
-    });
-
-    expect(() => assertNoStudentTextInSharedCache(key, { answer: "history-token-42" }, ["history-token-42"])).toThrow();
-    expect(() => assertNoStudentTextInSharedCache(key, { answer: "student-1" }, ["student-1"])).toThrow();
+    expect(() => validateSharedScaffold(withPersonalization)).toThrow();
+    expect(() => validateSharedScaffold({
+      ...scaffold(),
+      assessmentAnswer: "B",
+    })).toThrow();
   });
 });

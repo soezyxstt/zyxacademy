@@ -5,7 +5,7 @@ import { eq, inArray, and } from "drizzle-orm";
 import { kvGet, kvPut } from "@/lib/kv-cache";
 import { generateContentWithFallback } from "@/lib/gemini";
 import { USE_CASES } from "@/lib/ai-router";
-import { env } from "@/lib/env";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { randomUUID } from "node:crypto";
 import { validateTutorOutput } from "@/lib/assessment-assistance-policy";
 
@@ -134,7 +134,7 @@ export async function generateMistakeFeedback(attemptId: string): Promise<void> 
  const deterministic: Array<{ questionId: string; questionIndex: number; payload: FeedbackPayload }> = [];
  const misses: Array<{ id: string; correctIndices: number[]; submitted: number[]; index: number; cacheKey: string }> = [];
 
- const useDeterministic = env.FEATURE_MISCONCEPTION === "1";
+ const useDeterministic = zyraRuntimeEnv.FEATURE_MISCONCEPTION === "1";
 
  // Find selected misconception distractors so we can fetch their KO content in one query.
  const pendingForLLM: typeof wrongQuestions = [];

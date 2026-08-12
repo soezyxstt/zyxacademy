@@ -1,44 +1,45 @@
-import { GoogleGenAI } from '@google/genai';
-import { env } from '@/lib/env';
-import { logAiRequest } from '@/lib/ai/analytics';
-import { geminiKeyPool } from '@/lib/gemini-keys';
-import { getModelChain } from '@/lib/ai-router';
-
-// ---------------------------------------------------------------------------
-// Client handling ; one client per key, optionally via Cloudflare AI Gateway
-// ---------------------------------------------------------------------------
+import { GoogleGenAI } from "@google/genai";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
+import { logAiRequest } from "@/lib/ai/analytics";
+import {
+  createGeminiGenerateAdapter,
+} from "@/lib/ai/provider/gemini-generate-adapter";
+import {
+  createGeminiInteractionsAdapter,
+} from "@/lib/ai/provider/gemini-interactions-adapter";
+import {
+  EMBEDDING_PROFILES,
+  getModelEntry,
+} from "@/lib/ai/provider/model-registry";
+import {
+  type ProviderInputPart,
+  type ProviderGenerationResult,
+} from "@/lib/ai/provider/provider-adapter";
+import { ProviderAdapterError } from "@/lib/ai/provider/errors";
+import { geminiKeyPool } from "@/lib/gemini-keys";
+import { getModelChain, getProviderRoutePlan, providerRouterV2Enabled, type ProviderRouteRequest } from "@/lib/ai-router";
+import { RequestLifecycle } from "@/lib/ai/request-lifecycle";
+import { buildAiGatewayHeaders } from "@/lib/ai/gateway-metadata";
 
 interface ClientPriority {
- client: GoogleGenAI;
- viaGateway: boolean;
+  client: GoogleGenAI;
+  viaGateway: boolean;
 }
 
-/** Returns the client priority list for a given key.
- * If the AI gateway is configured, we try the gateway client first;
- * otherwise, we fall back to the direct client.
- */
-function getClientsPriority(key: typeof geminiKeyPool['keys'][0]): ClientPriority[] {
- const gatewayUrl = env.CF_AI_GATEWAY_URL;
- const list: ClientPriority[] = [];
- 
- // Try gateway first if available
- if (gatewayUrl && key.clientGateway) {
- list.push({ client: key.clientGateway, viaGateway: true });
- }
- 
- // Direct client ; always available
- list.push({ client: key.client, viaGateway: false });
- 
- return list;
+function getClientsPriority(key: typeof geminiKeyPool["keys"][0]): ClientPriority[] {
+  const gatewayUrl = zyraRuntimeEnv.CF_AI_GATEWAY_URL;
+  const list: ClientPriority[] = [];
+
+  if (gatewayUrl && key.clientGateway) {
+    list.push({ client: key.clientGateway, viaGateway: true });
+  }
+
+  list.push({ client: key.client, viaGateway: false });
+  return list;
 }
 
-// ---------------------------------------------------------------------------
-// Embedding
-// ---------------------------------------------------------------------------
+const EMBEDDING_PROFILE = EMBEDDING_PROFILES["canonical-content-v2"].id;
 
-const EMBEDDING_PROFILE = "canonical-content-v2";
-
-/** Generates the canonical 768-dimensional embedding for a single text string. */
 export async function embedText(text: string): Promise<number[]> {
   const { getCanonicalContentV2EmbeddingAdapter } = await import("@/lib/vectorize/runtime");
   const adapter = await getCanonicalContentV2EmbeddingAdapter();
@@ -46,46 +47,35 @@ export async function embedText(text: string): Promise<number[]> {
   return adapter.embedDocument("", text);
 }
 
-/** Batch version ; processes in chunks of 5 to avoid hammering the rate limit. */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
- const BATCH_SIZE = 5;
- const results: number[][] = [];
- for (let i = 0; i < texts.length; i += BATCH_SIZE) {
- const chunk = texts.slice(i, i + BATCH_SIZE);
- const batch = await Promise.all(chunk.map((t) => embedText(t)));
- results.push(...batch);
- }
- return results;
+  const batchSize = 5;
+  const results: number[][] = [];
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const chunk = texts.slice(i, i + batchSize);
+    const batch = await Promise.all(chunk.map((text) => embedText(text)));
+    results.push(...batch);
+  }
+  return results;
 }
 
-// ---------------------------------------------------------------------------
-// Retry helper ; exponential back‑off for transient server/network errors
-// ---------------------------------------------------------------------------
-/** Exponential backoff wrapper for Gemini API calls. Propagates 429s immediately so scheduler can route to other keys. */
 export async function withGeminiRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
- let attempt = 0;
- while (true) {
- try {
- return await fn();
- } catch (err: unknown) {
- attempt++;
- // Only retry transient server errors or network issues (502, 503, 504)
- const isTransient =
- err instanceof Error && 
- (err.message.includes('503') || err.message.includes('502') || err.message.includes('504'));
- 
- if (!isTransient || attempt >= maxRetries) throw err;
- const delay = Math.min(1000 * 2 ** attempt + Math.random() * 500, 10_000);
- await new Promise((r) => setTimeout(r, delay));
- }
- }
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (error: unknown) {
+      attempt++;
+      const isTransient =
+        error instanceof Error &&
+        (error.message.includes("503") || error.message.includes("502") || error.message.includes("504"));
+      if (!isTransient || attempt >= maxRetries) throw error;
+      const delay = Math.min(1000 * 2 ** attempt + Math.random() * 500, 10_000);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Content generation ; scheduler‑based selection across all keys and model priority list
-// ---------------------------------------------------------------------------
-
-export type GeminiContentRole = 'user' | 'model' | 'system';
+export type GeminiContentRole = "user" | "model" | "system";
 
 export interface GeminiContentPart {
   text?: string;
@@ -104,80 +94,278 @@ export interface GenerateContentParams {
   contents: string | GeminiContentBlock[] | GeminiContentPart[];
   config?: any;
   useCase?: string;
+  userId?: string;
+  requestId?: string;
+  feature?: string;
+  route?: ProviderRouteRequest;
+  cacheStatus?: "miss" | "bypass";
+  cachePolicy?: "public_scaffold" | "personalized" | "active_assessment" | "bypass";
+  cacheKey?: string;
+  cacheTtlSeconds?: number;
+}
+
+function toProviderParts(contents: GenerateContentParams["contents"]): ProviderInputPart[] {
+  if (typeof contents === "string") return [{ type: "text", text: contents }];
+
+  const parts: ProviderInputPart[] = [];
+  for (const block of contents) {
+    const blockParts: GeminiContentPart[] = "parts" in block ? block.parts : [block];
+    for (const part of blockParts) {
+      if (part.text !== undefined) parts.push({ type: "text", text: part.text });
+      if (part.inlineData) {
+        parts.push({
+          type: "image",
+          mimeType: part.inlineData.mimeType,
+          data: part.inlineData.data,
+        });
+      }
+    }
+  }
+  return parts;
+}
+
+function makeCompatibilityResponse(result: {
+  text: string;
+  rawResponse?: unknown;
+  usage?: { promptTokens?: number; outputTokens?: number; totalTokens?: number };
+}): any {
+  const raw = result.rawResponse && typeof result.rawResponse === "object"
+    ? result.rawResponse as Record<string, any>
+    : {};
+  return {
+    ...raw,
+    text: result.text,
+    usageMetadata: {
+      ...(raw.usageMetadata && typeof raw.usageMetadata === "object" ? raw.usageMetadata : {}),
+      promptTokenCount: result.usage?.promptTokens ?? 0,
+      candidatesTokenCount: result.usage?.outputTokens ?? 0,
+      totalTokenCount: result.usage?.totalTokens ?? 0,
+    },
+  };
+}
+
+async function invokeProviderThroughControlPlane(input: {
+  requestId: string;
+  userCohort: string;
+  feature: string;
+  routeClass: import("@/lib/ai/provider/model-registry").ModelRouteClass;
+  modelId: import("@/lib/ai/provider/model-registry").ModelId;
+  projectAlias: string;
+  parts: readonly ProviderInputPart[];
+  config?: Readonly<Record<string, unknown>>;
+  cachePolicy?: GenerateContentParams["cachePolicy"];
+  cacheKey?: string;
+  cacheTtlSeconds?: number;
+}): Promise<ProviderGenerationResult> {
+  const key = geminiKeyPool.getKeyByProjectAlias(input.projectAlias);
+  if (!key) {
+    throw new ProviderAdapterError({
+      code: "PROVIDER_ERROR",
+      message: "selected provider project is not configured",
+      retryClassification: "unknown",
+      modelId: input.modelId,
+    });
+  }
+
+  const entry = getModelEntry(input.modelId);
+  const viaGateway = Boolean(zyraRuntimeEnv.CF_AI_GATEWAY_URL);
+  const client = geminiKeyPool.createRequestClient(input.projectAlias, {
+    viaGateway,
+    timeoutMs: entry.deadlineMs,
+    headers: viaGateway
+      ? buildAiGatewayHeaders({
+          requestId: input.requestId,
+          userCohort: input.userCohort,
+          feature: input.feature,
+          routeClass: input.routeClass,
+          modelId: input.modelId,
+          cachePolicy: input.cachePolicy,
+          cacheKey: input.cacheKey,
+          cacheTtlSeconds: input.cacheTtlSeconds,
+          deadlineMs: entry.deadlineMs,
+        })
+      : undefined,
+  });
+  if (!client) {
+    throw new ProviderAdapterError({
+      code: "PROVIDER_ERROR",
+      message: "selected provider client is unavailable",
+      retryClassification: "unknown",
+      modelId: input.modelId,
+    });
+  }
+
+  const startedAt = Date.now();
+  try {
+    const adapter = entry.family === "interactions"
+      ? createGeminiInteractionsAdapter({ interactions: client.interactions })
+      : createGeminiGenerateAdapter({ models: client.models });
+    const result = await adapter.generate({
+      modelId: input.modelId,
+      parts: input.parts,
+      config: input.config,
+    });
+    geminiKeyPool.markSuccess(key.id, input.modelId);
+    logAiRequest({
+      operation: "generateContent",
+      model: input.modelId,
+      viaGateway,
+      latencyMs: Date.now() - startedAt,
+      success: true,
+    });
+    return { ...result, providerRequestId: result.providerRequestId ?? input.requestId };
+  } catch (error) {
+    geminiKeyPool.markFailure(key.id, input.modelId, error instanceof Error ? error : new Error("Gemini request failed"));
+    logAiRequest({
+      operation: "generateContent",
+      model: input.modelId,
+      viaGateway,
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      error: error instanceof Error ? error.message : "Gemini request failed",
+    });
+    throw error;
+  }
 }
 
 export async function generateContentWithFallback(
   params: GenerateContentParams,
-): Promise<{ response: any; modelUsed: string; viaGateway: boolean; promptTokenCount?: number; candidatesTokenCount?: number; }> {
-  // Mock mode ; unchanged from original implementation (kept for testing)
-  if (process.env.MOCK_GEMINI === 'true') {
-  const contentsStr = typeof params.contents === 'string' ? params.contents : JSON.stringify(params.contents);
-  let mockText = '';
-  if (contentsStr.includes('Please explain the following concept:')) {
-  mockText = JSON.stringify({ analogy: 'Imagine a car driving down the street at a steady pace...', simplification: 'Velocity is speed with a specific direction.', commonMisconception: 'Students often confuse velocity with speed, which does not have a direction.' });
-  } else if (contentsStr.includes('Review the student')) {
-  mockText = JSON.stringify({ detectedMisconception: 'The student incorrectly assumed that normal force is always equal to gravity, even on an inclined plane.', mathematicalError: 'Forgot to multiply by cos(theta) in the force balance equation.', socraticGuidance: '1. What direction does the normal force act relative to the surface?\n2. How does the weight component perpendicular to the surface change as the angle increases?' });
-  } else {
-  mockText = JSON.stringify({ knowledge_objects: [{ conceptName: 'Velocity definition', title: 'Definition of Velocity', content: 'Velocity defines the rate of change of position. Measured in meters per second ($m/s$).', type: 'definition', difficulty: 'easy', bloomLevel: 'remember', tags: ['velocity'], importance: 'high', metadata: {} }] });
-  }
-  return { response: { text: mockText }, modelUsed: 'mock-model', viaGateway: false };
+): Promise<{
+  response: any;
+  modelUsed: string;
+  viaGateway: boolean;
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  projectAlias?: string | null;
+  requestId?: string;
+  outcome?: "provider_success" | "cache_hit";
+}> {
+  if (process.env.MOCK_GEMINI === "true") {
+    const contentsString = typeof params.contents === "string" ? params.contents : JSON.stringify(params.contents);
+    let mockText = "";
+    if (contentsString.includes("Please explain the following concept:")) {
+      mockText = JSON.stringify({
+        analogy: "Imagine a car driving down the street at a steady pace...",
+        simplification: "Velocity is speed with a specific direction.",
+        commonMisconception: "Students often confuse velocity with speed, which does not have a direction.",
+      });
+    } else if (contentsString.includes("Review the student")) {
+      mockText = JSON.stringify({
+        detectedMisconception: "The student incorrectly assumed that normal force is always equal to gravity, even on an inclined plane.",
+        mathematicalError: "Forgot to multiply by cos(theta) in the force balance equation.",
+        socraticGuidance: "1. What direction does the normal force act relative to the surface?\n2. How does the weight component perpendicular to the surface change as the angle increases?",
+      });
+    } else {
+      mockText = JSON.stringify({
+        knowledge_objects: [{
+          conceptName: "Velocity definition",
+          title: "Definition of Velocity",
+          content: "Velocity defines the rate of change of position. Measured in meters per second ($m/s$).",
+          type: "definition",
+          difficulty: "easy",
+          bloomLevel: "remember",
+          tags: ["velocity"],
+          importance: "high",
+          metadata: {},
+        }],
+      });
+    }
+    return { response: { text: mockText }, modelUsed: "mock-model", viaGateway: false };
   }
 
-  const modelPriority = getModelChain(params.useCase);
-  let lastError: any = null;
+  if (providerRouterV2Enabled()) {
+    if (!params.userId) {
+      throw new Error("ZYRA_PROVIDER_ROUTER_USER_ID_REQUIRED");
+    }
+    const lifecycle = new RequestLifecycle({
+      invokeProvider: invokeProviderThroughControlPlane,
+    });
+    const result = await lifecycle.execute({
+      userId: params.userId,
+      idempotencyKey: params.requestId,
+      feature: params.feature ?? params.useCase ?? "zyra-provider-request",
+      parts: toProviderParts(params.contents),
+      config: params.config,
+      route: params.route,
+      useCase: params.useCase,
+      cacheStatus: params.cacheStatus,
+      cachePolicy: params.cachePolicy,
+      cacheKey: params.cacheKey,
+      cacheTtlSeconds: params.cacheTtlSeconds,
+    });
+    const response = makeCompatibilityResponse(result.result);
+    return {
+      response,
+      modelUsed: result.modelId,
+      viaGateway: Boolean(zyraRuntimeEnv.CF_AI_GATEWAY_URL),
+      promptTokenCount: result.result.usage?.promptTokens,
+      candidatesTokenCount: result.result.usage?.outputTokens,
+      projectAlias: result.projectAlias,
+      requestId: result.requestId,
+      outcome: result.outcome,
+    };
+  }
+
+  const modelPriority = params.route?.multimodal || params.route?.visualMode
+    ? getProviderRoutePlan(params.route).models.filter((model) => getModelEntry(model).input.image)
+    : getModelChain(params.useCase);
+  if (modelPriority.length === 0) throw new Error("No healthy multimodal model is available");
+  let lastError: unknown = null;
 
   for (const model of modelPriority) {
- const maxKeyAttempts = geminiKeyPool.getAllKeys().length;
- for (let attempt = 0; attempt < maxKeyAttempts; attempt++) {
- const key = geminiKeyPool.getBestKey(model);
- if (!key) {
- break; // No more keys available for this model, try next model
- }
+    const entry = getModelEntry(model);
+    const maxKeyAttempts = geminiKeyPool.getAllKeys().length;
+    for (let attempt = 0; attempt < maxKeyAttempts; attempt++) {
+      const key = geminiKeyPool.getBestKey(model);
+      if (!key) break;
 
- const clients = getClientsPriority(key);
- for (const { client, viaGateway } of clients) {
- const clientLabel = viaGateway ? 'gateway' : 'direct';
- const t0 = Date.now();
- try {
- const response = await withGeminiRetry(() =>
- client.models.generateContent({
- model,
- contents: params.contents,
- config: params.config,
- })
- );
- const promptTokenCount = response.usageMetadata?.promptTokenCount ?? 0;
- const candidatesTokenCount = response.usageMetadata?.candidatesTokenCount ?? 0;
- logAiRequest({
- operation: 'generateContent',
- model,
- viaGateway,
- latencyMs: Date.now() - t0,
- success: true,
- });
- geminiKeyPool.markSuccess(key.id, model);
- return { response, modelUsed: model, viaGateway, promptTokenCount, candidatesTokenCount };
- } catch (err: any) {
- lastError = err;
- geminiKeyPool.markFailure(key.id, model, err);
- logAiRequest({
- operation: 'generateContent',
- model,
- viaGateway,
- latencyMs: Date.now() - t0,
- success: false,
- error: err?.message,
- });
- console.warn(`Gemini model ${model} via ${clientLabel} (key ${key.id}) failed: ${err?.message || err}`);
- }
- }
- }
- }
+      const clients = getClientsPriority(key);
+      for (const { client, viaGateway } of clients) {
+        const clientLabel = viaGateway ? "gateway" : "direct";
+        const startedAt = Date.now();
+        try {
+          const adapter = entry.family === "interactions"
+            ? createGeminiInteractionsAdapter(client)
+            : createGeminiGenerateAdapter(client);
+          const result = await withGeminiRetry(() => adapter.generate({
+            modelId: model,
+            parts: toProviderParts(params.contents),
+            config: params.config,
+          }));
+          const response = makeCompatibilityResponse(result);
+          logAiRequest({
+            operation: "generateContent",
+            model,
+            viaGateway,
+            latencyMs: Date.now() - startedAt,
+            success: true,
+          });
+          geminiKeyPool.markSuccess(key.id, model);
+          return {
+            response,
+            modelUsed: model,
+            viaGateway,
+            promptTokenCount: result.usage?.promptTokens,
+            candidatesTokenCount: result.usage?.outputTokens,
+          };
+        } catch (error: unknown) {
+          lastError = error;
+          geminiKeyPool.markFailure(key.id, model, error instanceof Error ? error : new Error("Gemini request failed"));
+          logAiRequest({
+            operation: "generateContent",
+            model,
+            viaGateway,
+            latencyMs: Date.now() - startedAt,
+            success: false,
+            error: error instanceof Error ? error.message : "Gemini request failed",
+          });
+          console.warn(`Gemini model ${model} via ${clientLabel} (key ${key.id}) failed`);
+        }
+      }
+    }
+  }
 
- throw lastError || new Error('All Gemini models failed to generate content');
+  throw lastError instanceof Error ? lastError : new Error("All Gemini models failed to generate content");
 }
 
-// ---------------------------------------------------------------------------
-// Export the key pool for external usage (e.g., health monitoring)
-// ---------------------------------------------------------------------------
 export { geminiKeyPool };

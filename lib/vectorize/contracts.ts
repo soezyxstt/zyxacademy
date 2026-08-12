@@ -6,16 +6,9 @@
  * Worker boundary, and deterministic fake adapters.
  */
 
-export const CANONICAL_VECTOR_PROFILE = {
-  id: "canonical-content-v2",
-  model: "gemini-embedding-2",
-  dimensions: 768,
-  metric: "cosine",
-  normalization: "provider-normalized-mrl-v1",
-  taskInstructionVersion: "gemini-embedding-2-retrieval-prefix-v1",
-  contentSerializationVersion: "canonical-content-v2",
-  purpose: "canonical-content-retrieval",
-} as const;
+import { EMBEDDING_PROFILES } from "@/lib/ai/provider/model-registry";
+
+export const CANONICAL_VECTOR_PROFILE = EMBEDDING_PROFILES["canonical-content-v2"];
 
 export const CANONICAL_VECTOR_INDEX = "zyx-vectors-staging-v2" as const;
 export const CANONICAL_MAX_TOP_K = 50;

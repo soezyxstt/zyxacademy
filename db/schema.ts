@@ -3311,6 +3311,50 @@ export const aiGenerationTraces = sqliteTable(
   ]
 );
 
+/**
+ * Zyra application allowance leases. This is additive and authoritative only
+ * while FEATURE_ZYRA_ALLOWANCE_V2 is enabled. Legacy AI usage remains intact.
+ */
+export const aiAllowanceLeases = sqliteTable(
+  "ai_allowance_leases",
+  {
+    id: text("id").primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => pengguna.id, { onDelete: "restrict" }),
+    peran: text("peran").$type<"admin" | "tutor" | "murid">().notNull(),
+    feature: text("feature").notNull(),
+    appDay: text("app_day").notNull(),
+    units: integer("units").default(1).notNull(),
+    interactionUnits: integer("interaction_units").default(1).notNull(),
+    premium: integer("premium", { mode: "boolean" }).default(false).notNull(),
+    status: text("status")
+      .$type<"reserved" | "dispatched" | "committed" | "refunded">()
+      .notNull(),
+    controlPlaneLeaseId: text("control_plane_lease_id"),
+    model: text("model"),
+    requestType: text("request_type").notNull(),
+    inputTokens: integer("input_tokens").default(0).notNull(),
+    outputTokens: integer("output_tokens").default(0).notNull(),
+    runId: text("run_id"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    dispatchedAt: integer("dispatched_at", { mode: "timestamp" }),
+    resolvedAt: integer("resolved_at", { mode: "timestamp" }),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("ai_allowance_leases_idempotency_idx").on(table.idempotencyKey),
+    index("ai_allowance_leases_user_day_idx").on(table.userId, table.appDay),
+    index("ai_allowance_leases_user_status_idx").on(table.userId, table.status),
+    index("ai_allowance_leases_control_plane_idx").on(table.controlPlaneLeaseId),
+    index("ai_allowance_leases_run_idx").on(table.runId),
+    check("ai_allowance_leases_units_check", sql`${table.units} >= 0`),
+    check("ai_allowance_leases_interaction_units_check", sql`${table.interactionUnits} > 0`),
+    check("ai_allowance_leases_status_check", sql`${table.status} IN ('reserved', 'dispatched', 'committed', 'refunded')`),
+  ]
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PUSH NOTIFICATIONS DOMAIN
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3411,6 +3455,142 @@ export const learningEvents = sqliteTable(
  index("idx_le_student_course_created").on(table.studentId, table.courseId, table.createdAt),
  index("idx_le_student_concept").on(table.studentId, table.conceptName),
  ]
+);
+
+// Zyra personalization stores only bounded presentation evidence. It never
+// replaces mastery, grades, attempts, or assessment policy.
+export const zyraLearnerProfiles = sqliteTable(
+ "zyra_learner_profiles",
+ {
+  id: text("id").primaryKey(),
+  studentId: text("student_id")
+   .notNull()
+   .references(() => user.id, { onDelete: "cascade" }),
+  courseId: text("course_id")
+   .notNull()
+   .references(() => courses.id, { onDelete: "cascade" }),
+  profileVersion: text("profile_version").notNull().default("zyra-personalization-v1"),
+  inferredPace: text("inferred_pace")
+   .$type<"unknown" | "slow" | "standard" | "fast">()
+   .notNull()
+   .default("unknown"),
+  inferredRepresentation: text("inferred_representation")
+   .$type<"unknown" | "text" | "visual" | "stepwise" | "example" | "mixed">()
+   .notNull()
+   .default("unknown"),
+  supportIntensity: text("support_intensity")
+   .$type<"unknown" | "light" | "standard" | "high">()
+   .notNull()
+   .default("unknown"),
+  explanationLength: text("explanation_length")
+   .$type<"unknown" | "concise" | "standard" | "detailed">()
+   .notNull()
+   .default("unknown"),
+  checkpointType: text("checkpoint_type")
+   .$type<"unknown" | "free_text" | "teach_back" | "choice">()
+   .notNull()
+   .default("unknown"),
+  confidence: real("confidence").notNull().default(0),
+  evidenceCount: integer("evidence_count").notNull().default(0),
+  reasonCodes: text("reason_codes", { mode: "json" })
+   .$type<string[]>()
+   .$defaultFn(() => [])
+   .notNull(),
+  lastEvidenceAt: integer("last_evidence_at", { mode: "timestamp" }),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  resetAt: integer("reset_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => new Date())
+   .notNull(),
+ },
+ (table) => [
+  unique("uq_zyra_profile_student_course").on(table.studentId, table.courseId),
+  index("idx_zyra_profile_student_course").on(table.studentId, table.courseId),
+  index("idx_zyra_profile_expiry").on(table.expiresAt),
+ ],
+);
+
+export const zyraLearnerPreferences = sqliteTable(
+ "zyra_learner_preferences",
+ {
+  id: text("id").primaryKey(),
+  studentId: text("student_id")
+   .notNull()
+   .references(() => user.id, { onDelete: "cascade" }),
+  courseId: text("course_id")
+   .notNull()
+   .references(() => courses.id, { onDelete: "cascade" }),
+  pace: text("pace")
+   .$type<"slow" | "standard" | "fast">(),
+  representation: text("representation")
+   .$type<"text" | "visual" | "stepwise" | "example" | "mixed">(),
+  explanationLength: text("explanation_length")
+   .$type<"concise" | "standard" | "detailed">(),
+  checkpointType: text("checkpoint_type")
+   .$type<"free_text" | "teach_back" | "choice">(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => new Date())
+   .notNull(),
+ },
+ (table) => [
+  unique("uq_zyra_preferences_student_course").on(table.studentId, table.courseId),
+  index("idx_zyra_preferences_student_course").on(table.studentId, table.courseId),
+ ],
+);
+
+export const zyraLearningEvents = sqliteTable(
+ "zyra_learning_events",
+ {
+  id: text("id").primaryKey(),
+  studentId: text("student_id")
+   .notNull()
+   .references(() => user.id, { onDelete: "cascade" }),
+  courseId: text("course_id")
+   .notNull()
+   .references(() => courses.id, { onDelete: "cascade" }),
+  ideaId: text("idea_id").references(() => ide.id, { onDelete: "set null" }),
+  eventKind: text("event_kind")
+   .$type<
+    | "tutor_question"
+    | "hint_requested"
+    | "checkpoint_answered"
+    | "teach_back"
+    | "flashcard_review"
+    | "quiz_answer"
+    | "material_completed"
+   >()
+   .notNull(),
+  sourceType: text("source_type")
+   .$type<"tutor" | "flashcard" | "quiz" | "material" | "explicit">()
+   .notNull(),
+  evidenceRef: text("evidence_ref"),
+  outcome: text("outcome").$type<"success" | "failure" | "neutral" | "unknown">(),
+  correctness: real("correctness"),
+  responseLatencyBucket: text("response_latency_bucket")
+   .$type<"very_fast" | "fast" | "standard" | "slow" | "unknown">()
+   .notNull()
+   .default("unknown"),
+  hintLevel: text("hint_level")
+   .$type<"none" | "hint_1" | "hint_2" | "hint_3" | "hint_4" | "unknown">()
+   .notNull()
+   .default("unknown"),
+  representation: text("representation")
+   .$type<"text" | "visual" | "stepwise" | "example" | "mixed" | "unknown">()
+   .notNull()
+   .default("unknown"),
+  weight: real("weight").notNull().default(1),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+ },
+ (table) => [
+  index("idx_zyra_event_student_course_created").on(table.studentId, table.courseId, table.createdAt),
+  index("idx_zyra_event_student_course_kind").on(table.studentId, table.courseId, table.eventKind),
+  index("idx_zyra_event_idea").on(table.ideaId),
+ ],
 );
 
 // student_concept_mastery ; one row per (student, course, concept)
@@ -3591,6 +3771,128 @@ export const chatMessageSources = sqliteTable(
     index("idx_cms_message").on(table.messageId),
     index("idx_cms_source").on(table.sourceType, table.sourceId),
   ]
+);
+
+// Zyra Plan 010 ; sanitized private learner image attachments. Source bytes are never stored.
+export const zyraMessageAttachments = sqliteTable(
+  "zyra_message_attachments",
+  {
+    id: text("id").primaryKey(),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => chatSessions.id, { onDelete: "cascade" }),
+    messageId: text("message_id")
+      .references(() => tutorChatMessages.id, { onDelete: "set null" }),
+    objectKey: text("object_key").notNull().unique(),
+    mimeType: text("mime_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    sanitizedSha256: text("sanitized_sha256").notNull(),
+    sanitizerVersion: text("sanitizer_version").notNull(),
+    status: text("status", {
+      enum: ["uploaded", "attached", "dispatched", "deleted", "expired", "failed"],
+    }).notNull().default("uploaded"),
+    failureCode: text("failure_code"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    providerDispatchedAt: integer("provider_dispatched_at", { mode: "timestamp" }),
+  },
+  (table) => [
+    index("idx_zyra_attachment_owner_scope").on(table.studentId, table.courseId, table.sessionId),
+    index("idx_zyra_attachment_expiry").on(table.expiresAt, table.status),
+    index("idx_zyra_attachment_message").on(table.messageId),
+  ],
+);
+
+// Zyra Plan 012 ; proposal-only copilot records. Operations remain typed data,
+// never executable model text. Applying them requires a separate mutation boundary.
+export const zyraProposals = sqliteTable(
+  "zyra_proposals",
+  {
+    id: text("id").primaryKey(),
+    actorId: text("actor_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    role: text("role").$type<"tutor" | "admin">().notNull(),
+    proposalType: text("proposal_type").notNull(),
+    courseId: text("course_id").references(() => courses.id, { onDelete: "set null" }),
+    scope: text("scope", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    evidenceRefs: text("evidence_refs", { mode: "json" }).$type<string[]>().notNull(),
+    preconditionSnapshot: text("precondition_snapshot", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    operations: text("operations", { mode: "json" }).$type<unknown[]>().notNull(),
+    learnerImpact: text("learner_impact", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    reversibility: text("reversibility", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    warnings: text("warnings", { mode: "json" }).$type<string[]>().notNull(),
+    proposerTrace: text("proposer_trace", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    validatorResult: text("validator_result", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    status: text("status").$type<"draft" | "validated" | "reviewed" | "confirmed" | "applied" | "rejected" | "expired" | "failed">().notNull().default("draft"),
+    preconditionVersion: integer("precondition_version").notNull(),
+    diffHash: text("diff_hash").notNull(),
+    auditId: text("audit_id"),
+    failureCode: text("failure_code"),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+    confirmedAt: integer("confirmed_at", { mode: "timestamp" }),
+    appliedAt: integer("applied_at", { mode: "timestamp" }),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [
+    index("idx_zyra_proposal_actor_status").on(table.actorId, table.status, table.createdAt),
+    index("idx_zyra_proposal_course_status").on(table.courseId, table.status),
+    index("idx_zyra_proposal_expiry").on(table.expiresAt, table.status),
+  ],
+);
+
+export const zyraProposalEvents = sqliteTable(
+  "zyra_proposal_events",
+  {
+    id: text("id").primaryKey(),
+    proposalId: text("proposal_id").notNull().references(() => zyraProposals.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status").notNull(),
+    reasonCode: text("reason_code").notNull(),
+    diffHash: text("diff_hash").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_zyra_proposal_event_proposal").on(table.proposalId, table.createdAt),
+    index("idx_zyra_proposal_event_actor").on(table.actorId, table.createdAt),
+  ],
+);
+
+// Zyra Plan 013 ; fixed-column operational telemetry only. No prompts,
+// responses, object keys, full hashes, or identity-bearing metadata are stored.
+export const zyraOperationalEvents = sqliteTable(
+  "zyra_operational_events",
+  {
+    id: text("id").primaryKey(),
+    eventVersion: text("event_version").notNull(),
+    eventType: text("event_type").notNull(),
+    actorRole: text("actor_role").$type<"admin" | "tutor" | "murid" | "system" | "unknown">().notNull(),
+    routeClass: text("route_class").notNull(),
+    modelClass: text("model_class").notNull(),
+    projectFingerprint: text("project_fingerprint"),
+    courseFingerprint: text("course_fingerprint"),
+    resultCode: text("result_code").notNull(),
+    latencyBucket: text("latency_bucket").notNull(),
+    sizeBucket: text("size_bucket").notNull(),
+    cacheResult: text("cache_result").notNull(),
+    attachmentCount: integer("attachment_count").notNull().default(0),
+    sanitizerVersion: text("sanitizer_version"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_zyra_ops_event_type_created").on(table.eventType, table.createdAt),
+    index("idx_zyra_ops_route_created").on(table.routeClass, table.createdAt),
+  ],
 );
 
 // ─── P3A: Chat Sessions & Sources Relations ────────────────────────────────────

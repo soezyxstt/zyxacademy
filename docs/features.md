@@ -194,6 +194,40 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Enrollment, status, version, content hash, active-assessment, restricted-solution capability, and source attribution checks fail closed.
 - Shared cache payloads remain student-free and active attempts never receive answer-bearing content.
 
+### Zyra Allowance Ledger V2
+
+- `FEATURE_ZYRA_ALLOWANCE_V2` enables role-aware application leases for murid, tutor, and admin requests.
+- Provider-backed turns and total interactions are counted separately; cache hits and deterministic actions spend zero provider units.
+
+### Zyra Semantic Cache V1
+
+- `FEATURE_ZYRA_SEMANTIC_CACHE_V1` enables a profile-free exact and semantic cache for reusable teaching scaffolds.
+- Cache identity is scoped to canonical evidence, policy, language, route, assessment mode, and embedding profile; learner-specific data is excluded.
+- Personalization is applied after cache retrieval, while cache hits consume zero provider units.
+
+### Zyra Pedagogy V3
+
+- `FEATURE_ZYRA_PEDAGOGY_V3` enables the server-owned teaching state machine and typed response contract.
+- Zyra selects one teaching move, validates canonical citations and assessment safety, and asks at most one checkpoint question.
+- Invalid model output becomes a safe clarification or evidence-grounded composition. Active attempts remain capped at the approved hint boundary.
+- Reservations are idempotent and fail closed before provider dispatch. Terminal transitions preserve legacy usage history and repair derived compatibility events idempotently.
+- The authenticated allowance summary is scoped to the current session actor and includes Jakarta reset timing without exposing global capacity or another user's usage.
+
+### Zyra Personalization V1
+
+- `FEATURE_ZYRA_PERSONALIZATION_V1` enables deterministic adaptation from bounded learner evidence.
+- Recent evidence can select pacing, representation, support intensity, explanation length, and checkpoint type while leaving canonical truth, grades, mastery, and assessment policy unchanged.
+- Explicit learner preferences are stored separately from inferred fields. Learners can view, update, and reset their course-scoped adaptation through authenticated API routes.
+- Shared cache scaffolds remain profile-free. Personalization is composed only after cache retrieval and fails back to the grounded base answer on profile errors.
+- The Plan 008 surface is API-only; learner-facing controls are integrated by later Zyra experience plans.
+
+### Zyra Learning Canvas V1
+
+- `FEATURE_ZYRA_LEARNING_CANVAS_V1` enables typed application-owned visual specs for plots, derivations, tables, diagrams, vectors, and chemistry relationships.
+- Function expressions use a bounded allowlist parser. Controls, presets, reset, and invalid-expression fallback run locally and spend zero AI quota.
+- Every canvas includes canonical claim references, alt text, and a table or textual fallback. Shared specs contain no learner profile or interaction state.
+- The renderer uses semantic tokens and keyboard-operable native controls. Arbitrary model-generated JavaScript, HTML, SVG, or unrestricted Mermaid is rejected.
+
 ### Admin, Tutor, and Murid Workflows
 
 - `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` enables the guarded `alur_konten` lifecycle from upload through tutor review, admin approval, publication, supersession, or withdrawal. Every mutation carries an actor, course, version, request, reason, and snapshot hash in `audit_mutasi`.
@@ -236,10 +270,25 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - A public Linktree-style page at `/tautan` renders only active links grouped by category.
 - Gated by `FEATURE_LINK_LIBRARY=1`; stored in the `important_links` table with title, URL, description, icon, category, color, and sort order.
 
+### Zyra multimodal tutoring and murid experience
+
+- `FEATURE_ZYRA_IMAGE_INPUT_V1` provides authenticated JPEG, PNG, and WebP uploads for a tutoring turn. Files are sanitized server-side, stored privately for a bounded retention period, and excluded from shared response caches.
+- `FEATURE_ZYRA_MURID_V3` adds the personal allowance summary and the integrated murid Zyra surface. `FEATURE_ZYRA_SELECTION_ASK_V1` sends only a bounded explicit lesson quote, and `FEATURE_ZYRA_PET_V1` shows accessible application-owned request states.
+- Learning Canvas exploration remains local after render and spends no provider allowance. Image and Canvas behavior are independently gated.
+
+### Zyra tutor and admin copilots
+
+- `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` expose scoped proposal-first workflows. They show evidence, preconditions, impact, warnings, and lifecycle state before any future mutation integration.
+- Proposals never auto-apply. The current mutation call fails closed until the accepted mutation boundary is available.
+
+### Zyra operations
+
+- `FEATURE_ZYRA_AI_OPS_V1` exposes admin-only privacy-safe operational metrics. It separates Zyx-recorded usage from configured limits and marks external provider usage unknown when no authoritative balance exists.
+- Metrics use the Asia/Jakarta day boundary and expose deduplicated quota, provider, cache, image, assessment, telemetry, and proposal alerts. Each alert carries a rollback flag and a versioned runbook reference; no raw learner or provider payload is shown.
+
 ## Money & Quota Rules
 
 - AI quota spent only on: tutoring, mistake feedback, content generation
 - Streaks, recommendations, study paths, reflections ; all deterministic SQL
 - Students capped at 30 AI requests/day
 - KV writes capped at 900/day; reads unrestricted
-

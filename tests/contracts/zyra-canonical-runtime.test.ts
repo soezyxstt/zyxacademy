@@ -7,6 +7,7 @@ import {
 } from "@/lib/vectorize/contracts";
 import {
   hydrateCanonicalCandidates,
+  runCanonicalRuntimeFailClosed,
   type CanonicalHydrationRecord,
   type CanonicalRuntimeCandidate,
 } from "@/lib/zyra/canonical-runtime";
@@ -192,5 +193,33 @@ describe("Plan 013 Zyra canonical runtime", () => {
     expect(noCapability.rejected[0]?.reasonCode).toBe("CAPABILITY_REQUIRED");
     expect(activeAttempt.rejected[0]?.reasonCode).toBe("ACTIVE_ATTEMPT_ANSWER_DENIED");
     expect(released.sources[0]?.content).toBe(solution);
+  });
+});
+
+describe("canonical Zyra runtime failure boundary", () => {
+  it("returns a stable masked failure without logging database details", async () => {
+    const original = console.error;
+    const logs: string[] = [];
+    console.error = (...values: unknown[]) => {
+      logs.push(values.map(String).join(" "));
+    };
+
+    try {
+      const result = await runCanonicalRuntimeFailClosed("retrieve", async () => {
+        throw new Error("DrizzleQueryError secret-database-url");
+      });
+      expect(result.sources).toEqual([]);
+      expect(result.rejected).toEqual([]);
+      expect(result.failure).toEqual({
+        reasonCode: "CANONICAL_RUNTIME_UNAVAILABLE",
+        operation: "retrieve",
+      });
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toContain("CANONICAL_RUNTIME_UNAVAILABLE");
+      expect(logs[0]).not.toContain("DrizzleQueryError");
+      expect(logs[0]).not.toContain("secret-database-url");
+    } finally {
+      console.error = original;
+    }
   });
 });

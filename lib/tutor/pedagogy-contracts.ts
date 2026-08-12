@@ -71,3 +71,18 @@ export function validateMistakeAnalysisEvidence(analysis: MistakeAnalysis): bool
   }
   return true;
 }
+
+// Plan 007 keeps the existing pedagogy contracts compatible while exposing the
+// application-owned teaching state and typed response boundary.
+export {
+  HintLevelSchema,
+  TeachingMoveSchema,
+  TeachingStateSchema,
+  ZyraTeachingResponseSchema,
+} from "@/lib/zyra/pedagogy/contracts";
+export type {
+  HintLevel,
+  TeachingMove,
+  TeachingState,
+  ZyraTeachingResponse,
+} from "@/lib/zyra/pedagogy/contracts";

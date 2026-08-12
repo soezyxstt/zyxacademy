@@ -1,0 +1,59 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "zyx-zyra-control",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "send_metrics": false,
+  "env": {
+    "staging": {
+      "name": "zyx-zyra-control-staging",
+      "vars": {
+        "ZYX_ENVIRONMENT": "staging",
+        "ZYRA_DEPLOYMENT_VERSION": "plan-006",
+        "ZYRA_CACHE_INDEX_NAME": "zyx-zyra-cache-staging",
+        "ZYRA_PRIVATE_BUCKET_NAME": "zyx-zyra-private-staging",
+        "ZYRA_ANALYTICS_DATASET": "zyx_zyra_events_staging"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "ZYX_STAGING_KV",
+          "id": "e44404ea69ba431bb0c68046475e45cf"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ZYRA_PRIVATE_ATTACHMENTS",
+          "bucket_name": "zyx-zyra-private-staging"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "ZYRA_SEMANTIC_CACHE",
+          "index_name": "zyx-zyra-cache-staging"
+        }
+      ],
+      "analytics_engine_datasets": [
+        {
+          "binding": "ZYRA_ANALYTICS",
+          "dataset": "zyx_zyra_events_staging"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ZYRA_QUOTA_COORDINATOR",
+            "class_name": "ZyraQuotaCoordinator"
+          }
+        ]
+      },
+      "exports": {
+        "ZyraQuotaCoordinator": {
+          "type": "durable-object",
+          "state": "created",
+          "storage": "sqlite"
+        }
+      }
+    }
+  }
+}

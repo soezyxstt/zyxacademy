@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { generateContentWithFallback } from "@/lib/gemini";
 import { UsageBudgetService } from "@/lib/usage-budget-service";
 import { z } from "zod";
@@ -6,6 +7,8 @@ import { PromptContract } from "./ai/contracts";
 import { composePolicies, POLICY_JSON_STRICT } from "./ai/policies";
 import { runSemanticValidators, SemanticViolation } from "./ai/validation";
 import { hashSanitizedInput, hashEvidence, recordGenerationTrace } from "./ai/provenance";
+import type { ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
+import type { ProviderRouteRequest } from "@/lib/ai-router";
 
 export interface SystemPrompt<TVars> {
   version: string;
@@ -40,6 +43,15 @@ export interface RunParams<TVars, TOutput> {
   quotaLimit?: number;
   useCase?: string;
   evidenceContext?: Record<string, any>;
+  premium?: boolean;
+  idempotencyKey?: string;
+  cachePolicy?: "public_scaffold" | "personalized" | "active_assessment" | "bypass";
+  cacheKey?: string;
+  cacheTtlSeconds?: number;
+  maxAttempts?: number;
+  /** Optional sanitized image parts. They bypass all shared response caches. */
+  providerParts?: readonly ProviderInputPart[];
+  providerRoute?: ProviderRouteRequest;
 }
 
 export class PromptExecutor {
@@ -54,7 +66,9 @@ export class PromptExecutor {
     let contract: PromptContract<TVars, TOutput>;
 
     if (params.contract) {
-      contract = params.contract;
+      contract = params.maxAttempts === undefined
+        ? params.contract
+        : { ...params.contract, maxAttempts: params.maxAttempts };
     } else if (params.prompt) {
       const parts = params.prompt.version.split("/");
       contract = {
@@ -68,6 +82,7 @@ export class PromptExecutor {
         userPrompt: params.prompt.userPrompt,
         responseSchema: params.prompt.responseSchema,
         useCase: params.useCase,
+        maxAttempts: params.maxAttempts,
       };
     } else {
       return {
@@ -82,6 +97,13 @@ export class PromptExecutor {
     return await this.executeContract(params.userId, contract, params.variables, params.schema, {
       quotaLimit: params.quotaLimit,
       evidenceContext: params.evidenceContext,
+      premium: params.premium,
+      idempotencyKey: params.idempotencyKey,
+      cachePolicy: params.cachePolicy,
+      cacheKey: params.cacheKey,
+      cacheTtlSeconds: params.cacheTtlSeconds,
+      providerParts: params.providerParts,
+      providerRoute: params.providerRoute,
     });
   }
 
@@ -97,6 +119,13 @@ export class PromptExecutor {
     options?: {
       quotaLimit?: number;
       evidenceContext?: Record<string, any>;
+      premium?: boolean;
+      idempotencyKey?: string;
+      cachePolicy?: "public_scaffold" | "personalized" | "active_assessment" | "bypass";
+      cacheKey?: string;
+      cacheTtlSeconds?: number;
+      providerParts?: readonly ProviderInputPart[];
+      providerRoute?: ProviderRouteRequest;
     }
   ): Promise<PromptExecutionResult<TOutput>> {
     const t0 = Date.now();
@@ -120,9 +149,55 @@ export class PromptExecutor {
     const sanitizedInputHash = hashSanitizedInput(variables);
     const evidenceHash = hashEvidence(options?.evidenceContext);
 
-    // 4. Check Usage Quota Guardrail
-    const canUse = await UsageBudgetService.canUseFeature(userId, options?.quotaLimit ?? 30);
-    if (!canUse) {
+    // 4. Reserve the authoritative application allowance when enabled.
+    const allowanceEnabled = UsageBudgetService.isAllowanceEnabled();
+    let allowanceLeaseId: string | undefined;
+    if (allowanceEnabled) {
+      const reservation = await UsageBudgetService.reserve({
+        userId,
+        idempotencyKey: options?.idempotencyKey ?? `prompt:${randomUUID()}`,
+        feature: contract.stageId,
+        requestType: `${contract.stageId}:${contract.promptVersion}`,
+        premium: options?.premium ?? false,
+        mode: "provider",
+      });
+      if (!reservation.accepted) {
+        const allowanceViolation = `ALLOWANCE_${reservation.reason}`;
+        const quotaError = reservation.reason === "PERSISTENCE_FAILURE"
+          ? "ALLOWANCE_UNAVAILABLE: AI allowance persistence is unavailable."
+          : "DAILY_QUOTA_EXCEEDED: You have exhausted your current AI allowance.";
+        const traceId = await recordGenerationTrace({
+          userId,
+          useCase: contract.useCase,
+          stageId: contract.stageId,
+          promptVersion: contract.promptVersion,
+          policyVersion,
+          inputSchemaVersion: contract.inputSchemaVersion,
+          outputSchemaVersion: contract.outputSchemaVersion,
+          validatorVersion: contract.validatorVersion || "none",
+          sanitizedInputHash,
+          evidenceHash,
+          model: "none",
+          inputTokens: 0,
+          outputTokens: 0,
+          retryCount: 0,
+          terminalOutcome: "quota_exceeded",
+          violationCodes: [allowanceViolation],
+          latencyMs: Date.now() - t0,
+        });
+        return {
+          success: false,
+          outcome: "quota_exceeded",
+          errors: [quotaError],
+          violationCodes: [allowanceViolation],
+          retryCount: 0,
+          traceId,
+        };
+      }
+      allowanceLeaseId = reservation.lease.id;
+    } else {
+      const canUse = await UsageBudgetService.canUseFeature(userId, options?.quotaLimit ?? 30);
+      if (!canUse) {
       const quotaError = "DAILY_QUOTA_EXCEEDED: You have exhausted your daily limit of AI operations. Please try again tomorrow.";
       const traceId = await recordGenerationTrace({
         userId,
@@ -152,9 +227,22 @@ export class PromptExecutor {
         retryCount: 0,
         traceId,
       };
+      }
     }
 
-    const userInstruction = contract.userPrompt(variables);
+    let userInstruction: string;
+    try {
+      userInstruction = contract.userPrompt(variables);
+    } catch {
+      if (allowanceLeaseId) await UsageBudgetService.refund(allowanceLeaseId);
+      return {
+        success: false,
+        outcome: "invalid_contract",
+        errors: ["Prompt input preparation failed"],
+        violationCodes: ["PROMPT_INPUT_ERROR"],
+        retryCount: 0,
+      };
+    }
     const modelConfig: any = {
       systemInstruction,
       responseMimeType: "application/json",
@@ -170,10 +258,38 @@ export class PromptExecutor {
 
     // 5. Initial AI Router Execution
     try {
+      if (allowanceLeaseId) {
+        const dispatch = await UsageBudgetService.markDispatched(allowanceLeaseId);
+        if (!dispatch || dispatch.status !== "dispatched") {
+          await UsageBudgetService.refund(allowanceLeaseId);
+          return {
+            success: false,
+            outcome: "provider_failure",
+            errors: ["AI allowance dispatch could not be persisted"],
+            violationCodes: ["ALLOWANCE_DISPATCH_FAILURE"],
+            retryCount: 0,
+          };
+        }
+      }
+      const providerContents = options?.providerParts && options.providerParts.length > 0
+        ? [
+            { text: userInstruction },
+            ...options.providerParts.map((part) => part.type === "image"
+              ? { inlineData: { mimeType: part.mimeType, data: part.data } }
+              : { text: part.text }),
+          ]
+        : userInstruction;
       const result = await generateContentWithFallback({
-        contents: userInstruction,
+        contents: providerContents,
         config: modelConfig,
         useCase: contract.useCase,
+        userId,
+        requestId: options?.idempotencyKey,
+        feature: contract.stageId,
+        route: options?.providerRoute ?? (options?.providerParts?.length ? { multimodal: true, visualMode: true } : undefined),
+        cachePolicy: options?.providerParts?.length ? "bypass" : options?.cachePolicy,
+        cacheKey: options?.providerParts?.length ? undefined : options?.cacheKey,
+        cacheTtlSeconds: options?.providerParts?.length ? undefined : options?.cacheTtlSeconds,
       });
 
       modelUsedName = result.modelUsed;
@@ -181,6 +297,9 @@ export class PromptExecutor {
       inputTokens = result.promptTokenCount ?? 0;
       outputTokens = result.candidatesTokenCount ?? 0;
     } catch (err: any) {
+      if (allowanceLeaseId) {
+        await UsageBudgetService.commit(allowanceLeaseId, { model: "unknown" });
+      }
       const providerError = `Gemini generation failed: ${err?.message || err}`;
       const traceId = await recordGenerationTrace({
         userId,
@@ -213,6 +332,13 @@ export class PromptExecutor {
     }
 
     if (!rawText.trim()) {
+      if (allowanceLeaseId) {
+        await UsageBudgetService.commit(allowanceLeaseId, {
+          model: modelUsedName,
+          inputTokens,
+          outputTokens,
+        });
+      }
       const emptyError = "Gemini returned empty text response";
       const traceId = await recordGenerationTrace({
         userId,
@@ -293,15 +419,23 @@ export class PromptExecutor {
 
     // 7. Check if Initial Output is Valid
     if (errors.length === 0 && zodData !== undefined) {
-      await UsageBudgetService.recordUsage({
-        userId,
-        feature: contract.stageId,
-        model: modelUsedName,
-        tokens: inputTokens + outputTokens,
-        inputTokens,
-        outputTokens,
-        requestType: `${contract.stageId}:${contract.promptVersion}`,
-      });
+      if (allowanceLeaseId) {
+        await UsageBudgetService.commit(allowanceLeaseId, {
+          model: modelUsedName,
+          inputTokens,
+          outputTokens,
+        });
+      } else {
+        await UsageBudgetService.recordUsage({
+          userId,
+          feature: contract.stageId,
+          model: modelUsedName,
+          tokens: inputTokens + outputTokens,
+          inputTokens,
+          outputTokens,
+          requestType: `${contract.stageId}:${contract.promptVersion}`,
+        });
+      }
 
       const traceId = await recordGenerationTrace({
         userId,
@@ -336,6 +470,13 @@ export class PromptExecutor {
     // 8. Bounded Self-Repair Loop
     const maxRepairs = contract.maxAttempts !== undefined ? Math.max(0, contract.maxAttempts - 1) : 1;
     if (maxRepairs <= 0) {
+      if (allowanceLeaseId) {
+        await UsageBudgetService.commit(allowanceLeaseId, {
+          model: modelUsedName,
+          inputTokens,
+          outputTokens,
+        });
+      }
       const traceId = await recordGenerationTrace({
         userId,
         useCase: contract.useCase,
@@ -385,6 +526,7 @@ export class PromptExecutor {
       evidenceHash,
       t0,
       evidenceContext: options?.evidenceContext,
+      allowanceLeaseId,
     });
   }
 
@@ -410,9 +552,17 @@ export class PromptExecutor {
     evidenceHash?: string;
     t0: number;
     evidenceContext?: Record<string, any>;
+    allowanceLeaseId?: string;
   }): Promise<PromptExecutionResult<TOutput>> {
     const repairableFields = params.contract.repairableFields;
     if (repairableFields !== undefined && repairableFields.length === 0) {
+      if (params.allowanceLeaseId) {
+        await UsageBudgetService.commit(params.allowanceLeaseId, {
+          model: params.originalModel,
+          inputTokens: params.initialInputTokens,
+          outputTokens: params.initialOutputTokens,
+        });
+      }
       console.warn(`[PromptExecutor] Repair rejected for stage "${params.contract.stageId}": empty repairableFields allowlist`);
       return {
         success: false,
@@ -483,6 +633,14 @@ Instructions:
       const repairErr = `Gemini repair generation failed: ${err?.message || err}`;
       const cumulativeInputTokens = params.initialInputTokens + repairInputTokens;
       const cumulativeOutputTokens = params.initialOutputTokens + repairOutputTokens;
+      if (params.allowanceLeaseId) {
+        await UsageBudgetService.commit(params.allowanceLeaseId, {
+          model: repairModelUsed,
+          inputTokens: cumulativeInputTokens,
+          outputTokens: cumulativeOutputTokens,
+          requestType: `${params.contract.stageId}:${params.contract.promptVersion}:repaired`,
+        });
+      }
 
       const traceId = await recordGenerationTrace({
         userId: params.userId,
@@ -587,15 +745,24 @@ Instructions:
     }
 
     if (repairedData !== undefined && repairErrors.length === 0) {
-      await UsageBudgetService.recordUsage({
-        userId: params.userId,
-        feature: params.contract.stageId,
-        model: repairModelUsed,
-        tokens: cumulativeInputTokens + cumulativeOutputTokens,
-        inputTokens: cumulativeInputTokens,
-        outputTokens: cumulativeOutputTokens,
-        requestType: `${params.contract.stageId}:${params.contract.promptVersion}:repaired`,
-      });
+      if (params.allowanceLeaseId) {
+        await UsageBudgetService.commit(params.allowanceLeaseId, {
+          model: repairModelUsed,
+          inputTokens: cumulativeInputTokens,
+          outputTokens: cumulativeOutputTokens,
+          requestType: `${params.contract.stageId}:${params.contract.promptVersion}:repaired`,
+        });
+      } else {
+        await UsageBudgetService.recordUsage({
+          userId: params.userId,
+          feature: params.contract.stageId,
+          model: repairModelUsed,
+          tokens: cumulativeInputTokens + cumulativeOutputTokens,
+          inputTokens: cumulativeInputTokens,
+          outputTokens: cumulativeOutputTokens,
+          requestType: `${params.contract.stageId}:${params.contract.promptVersion}:repaired`,
+        });
+      }
 
       const traceId = await recordGenerationTrace({
         userId: params.userId,
@@ -629,6 +796,14 @@ Instructions:
 
     // Terminal rejection after repair attempt
     const finalViolationCodes = [...new Set([...params.initialViolationCodes, ...repairViolationCodes])];
+    if (params.allowanceLeaseId) {
+      await UsageBudgetService.commit(params.allowanceLeaseId, {
+        model: repairModelUsed,
+        inputTokens: cumulativeInputTokens,
+        outputTokens: cumulativeOutputTokens,
+        requestType: `${params.contract.stageId}:${params.contract.promptVersion}:repaired`,
+      });
+    }
     const traceId = await recordGenerationTrace({
       userId: params.userId,
       useCase: params.contract.useCase,

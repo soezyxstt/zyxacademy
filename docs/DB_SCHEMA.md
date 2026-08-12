@@ -321,6 +321,16 @@ Quiz and tryout cardinality is enforced by the assessment contract: a quiz has e
 * `pemahaman_ide`: Separate `skor` and `keyakinan` values, each bounded from 0 to 100, plus `algorithm_version` and `input_watermark` for deterministic replay.
 * `perubahan_pemahaman`, `rekomendasi_flashcard`: History-safe mastery transitions and due recommendations. Change rows retain `evidence_ids`, algorithm version, and watermark.
 
+### Zyra personalization tables
+
+AI Plan 008 adds three additive tables through migration `0067_zyra_continuation.sql`:
+
+* `zyra_learning_events`: course-scoped, bounded learner evidence with event kind, source type, outcome, latency bucket, hint level, representation, weight, and retention expiry. It may reference an Idea but never stores raw conversation content.
+* `zyra_learner_profiles`: one inferred adaptation profile per murid and course, including version, inferred presentation fields, confidence, evidence count, expiry, reset watermark, and reason codes.
+* `zyra_learner_preferences`: one explicit presentation preference record per murid and course, kept separate from inferred profile fields.
+
+The migration adds foreign keys and query indexes only. Existing attempt, learning-event, mastery, recommendation, and assessment tables are unchanged. Personalization reads are deterministic and do not replace the authoritative mastery or assessment systems.
+
 Ambiguous evidence is stored with explicit status and the schema check prevents it from being marked as mastery-affecting. Plan 011 recomputes only the additive per-Idea tables; no legacy mastery, learning-event, answer, or review row is rewritten.
 
 ### Bundle and audit tables
@@ -1182,3 +1192,23 @@ Curated important links library (Tautan) managed by admins. Gated by `FEATURE_LI
 * `deletedAt`: Soft-delete timestamp.
 * `createdAt` / `updatedAt`: Timestamps.
 * Indexes: `idx_important_links_category`, `idx_important_links_active`.
+
+## Zyra Plans 010 through 013 tables
+
+### `zyra_message_attachments`
+
+Stores sanitized private learner image metadata only. Each row is scoped to `student_id`, `course_id`, and `session_id`, and contains an opaque private object key, sanitized MIME, byte size, dimensions, sanitizer version, sanitized hash, status, expiry, deletion time, and provider dispatch time. Source bytes, original filenames, EXIF, GPS, public URLs, and prompt text are not stored.
+
+### `zyra_proposals`
+
+Stores tutor and admin proposal-first records. JSON columns contain only validated scope, evidence references, precondition snapshot, typed operations, learner impact, reversibility, warnings, proposer trace, and validator result. Status, precondition version, diff hash, audit link, expiry, review, confirmation, and application timestamps support fail-closed lifecycle handling.
+
+### `zyra_proposal_events`
+
+Append-only lifecycle events for proposal creation, review, confirmation, rejection, expiry, failure, and future application. Each event binds the proposal, actor, status transition, stable reason code, and diff hash.
+
+### `zyra_operational_events`
+
+Fixed-column privacy-safe operational events. Columns are version, event kind, route class, masked project slot, model, bounded latency and size buckets, result and reason codes, actor and course pseudohashes, feature version, and creation time. The table intentionally has no free-form payload column.
+
+Migration `0067_zyra_continuation.sql` also adds these Plan 010 through 013 records. Legacy chat, quiz, allowance, and analytics rows remain readable and are not backfilled by these plans.

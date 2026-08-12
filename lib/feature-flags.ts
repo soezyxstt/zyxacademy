@@ -247,6 +247,13 @@ export const KNOWN_FEATURE_FLAGS: FeatureFlagMeta[] = [
     description: "Retrieval Zyra yang fail-closed dan hanya memakai Idea canonical yang sudah dihidrasi.",
   },
   {
+    key: "FEATURE_ZYRA_PEDAGOGY_V3",
+    name: "Zyra Pedagogy V3",
+    category: "ai_v2_architecture",
+    categoryLabel: FEATURE_CATEGORIES.ai_v2_architecture,
+    description: "State machine pedagogi deterministik, response contract bertipe, dan checkpoint learner.",
+  },
+  {
     key: "FEATURE_ADMIN_TUTOR_WORKFLOW_V1",
     name: "Admin Tutor Workflow",
     category: "platform",
