@@ -95,11 +95,11 @@ Generate JSON matching:
 const STYLE_PATTERNS: Array<{ regex: RegExp; modifier: ResponseModifier }> = [
   { regex: /\b(sederhana|simpler|sederhanakan|persederhana)\b/i, modifier: "simpler" },
   { regex: /\b(analogi|perumpamaan|ibarat|analogy)\b/i, modifier: "analogy" },
-  { regex: /\b(lebih detail|penjelasan detail|detailkan|rincian|jelaskan lebih lanjut)\b/i, modifier: "more_detail" },
+  { regex: /\b(lebih detail|penjelasan detail|detailkan|rincian|jelaskan lebih lanjut|teori lengkap(?:nya)?)\b/i, modifier: "more_detail" },
   { regex: /\b(contoh|contoh soal|latihan|worked example)\b/i, modifier: "worked_example" },
   { regex: /\b(bahasa indonesia|pake indo|pakai indo)\b/i, modifier: "indonesian" },
   { regex: /\b(english|bahasa inggris)\b/i, modifier: "english" },
-  { regex: /\b(grafik|plot|kurva|graph)\b/i, modifier: "graph" },
+  { regex: /\b(grafik|plot|kurva|graph|visualisasi|unsur visual|representasi visual)\b/i, modifier: "graph" },
   { regex: /\b(flowchart|diagram|bagan|skema)\b/i, modifier: "flowchart" },
 ];
 
@@ -130,7 +130,7 @@ export function extractStyleModifiers(text: string): { cleanedText: string; modi
   }
 
   cleaned = cleaned
-    .replace(/\b(jelaskan|berikan|beri|tolong|coba|dong|ya|dan|dengan|pakai|secara|buatkan|lagi|bisa)\b/gi, "")
+    .replace(/\b(jelaskan|berikan|beri|tolong|coba|dong|ya|dan|dengan|pakai|secara|buatkan|lagi|bisa|bantu|saya|mengerti|lalu|dukung|jika)\b/gi, "")
     .replace(/[\p{P}\p{S}]/gu, "")
     .replace(/\s+/g, " ")
     .trim();

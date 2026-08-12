@@ -1417,12 +1417,12 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  // keeps learner-provided equations renderable even when Gemini omits an
  // otherwise optional canvasSpec or the request has no canonical RAG match.
  const recoveredCanvasSpec = isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1)
-   ? base.canvasSpec ?? functionPlotFromTutorText({
+   ? functionPlotFromTutorText({
        learnerQuestion: question,
        answer: adaptedAnswer,
        evidenceText: retrieved.map((source) => source.content),
        claimRefs: base.sources.map((source) => source.id),
-     })
+     }) ?? base.canvasSpec
    : null;
 
  // Tier 3: personalized AI, only for weak concepts, charged, silent on exhaustion

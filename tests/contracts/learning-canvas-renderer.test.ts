@@ -73,6 +73,23 @@ describe("Learning Canvas renderer contracts", () => {
     }
   });
 
+  test("builds an interactive quadratic visual for the learner's exact theory prompt", () => {
+    const recovered = functionPlotFromTutorText({
+      learnerQuestion: "bantu saya mengerti persamaan kuadrat, berikan teori lengkapnya, lalu dukung dengan unsur visual jika bisa",
+      answer: "Persamaan kuadrat memiliki bentuk umum ax^2 + bx + c = 0.",
+      claimRefs: [],
+    });
+
+    expect(recovered?.type).toBe("function_plot");
+    if (recovered?.type === "function_plot") {
+      expect(recovered.series[0]?.expression).toBe("a*x^2 + b*x + c");
+      expect(recovered.variables.map((variable) => variable.id)).toEqual(["a", "b", "c"]);
+      expect(recovered.controls).toHaveLength(3);
+      const points = evaluateFunctionPlot(recovered, { a: 1, b: 0, c: -4 })[0]?.points ?? [];
+      expect(points.some((point) => point.y === 0 && Math.abs(point.x) === 2)).toBe(true);
+    }
+  });
+
   test("trims prose after an equation emitted by the tutor", () => {
     const recovered = functionPlotFromTutorText({
       learnerQuestion: "Gambarkan grafik fungsi kuadrat",

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { compileSafeExpression, normalizeLegacyGraphExpression, parseSafeExpression } from "@/lib/zyra/canvas";
+import {
+  compileSafeExpression,
+  normalizeLegacyGraphExpression,
+  parseSafeExpression,
+  safeExpressionToLatex,
+} from "@/lib/zyra/canvas";
 
 describe("Learning Canvas safe expressions", () => {
   test("evaluates approved arithmetic and functions", () => {
@@ -55,5 +60,12 @@ describe("Learning Canvas safe expressions", () => {
 
   test("supports grouped arithmetic in the safe parser", () => {
     expect(compileSafeExpression("(x - 1) * (x + 1)", { variables: ["x"] }).evaluate({ x: 3 })).toBe(8);
+  });
+
+  test("formats evaluator syntax as readable mathematical notation", () => {
+    expect(safeExpressionToLatex("a*x^2 + b*x + c", ["x", "a", "b", "c"]))
+      .toBe("ax^{2} + bx + c");
+    expect(safeExpressionToLatex("(x^2 - 1)/(x - 1)", ["x"]))
+      .toBe("\\frac{x^{2} - 1}{x - 1}");
   });
 });

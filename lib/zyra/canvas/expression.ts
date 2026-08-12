@@ -283,6 +283,44 @@ export function compileSafeExpression(
   };
 }
 
+function expressionNodeToLatex(node: SafeExpressionNode, parentPrecedence = 0): string {
+  if (node.kind === "number") return String(node.value);
+  if (node.kind === "variable") return node.name;
+  if (node.kind === "call") {
+    const name = node.name === "sqrt" ? "sqrt" : node.name;
+    if (name === "sqrt") return `\\sqrt{${expressionNodeToLatex(node.args[0])}}`;
+    return `\\${name}\\left(${node.args.map((arg) => expressionNodeToLatex(arg)).join(", ")}\\right)`;
+  }
+  if (node.kind === "unary") {
+    const value = `${node.operator}${expressionNodeToLatex(node.argument, 4)}`;
+    return parentPrecedence > 4 ? `\\left(${value}\\right)` : value;
+  }
+  if (node.operator === "/") {
+    return `\\frac{${expressionNodeToLatex(node.left)}}{${expressionNodeToLatex(node.right)}}`;
+  }
+  if (node.operator === "^") {
+    const value = `${expressionNodeToLatex(node.left, 4)}^{${expressionNodeToLatex(node.right)}}`;
+    return parentPrecedence > 3 ? `\\left(${value}\\right)` : value;
+  }
+  const precedence = node.operator === "*" ? 2 : 1;
+  const separator = node.operator === "*" ? "" : ` ${node.operator} `;
+  const value = `${expressionNodeToLatex(node.left, precedence)}${separator}${expressionNodeToLatex(node.right, precedence + (node.operator === "-" ? 1 : 0))}`;
+  return parentPrecedence > precedence ? `\\left(${value}\\right)` : value;
+}
+
+/** Formats a validated evaluator expression as readable math notation. */
+export function safeExpressionToLatex(
+  expression: string,
+  variables: readonly string[],
+): string {
+  const normalized = normalizeLegacyGraphExpression(expression);
+  try {
+    return expressionNodeToLatex(parseSafeExpression(normalized, { variables }));
+  } catch {
+    return expression;
+  }
+}
+
 /**
  * Adapts the bounded legacy graph notation into the Learning Canvas parser.
  * This is compatibility normalization only. Evaluation still goes through the

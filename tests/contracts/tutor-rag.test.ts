@@ -205,6 +205,13 @@ describe("Tutor RAG Contract Tests", () => {
     // Graph request modifier extraction
     const graphMod = extractStyleModifiers("gambarkan grafik fungsi kuadrat");
     expect(graphMod.modifiers).toContain("graph");
+
+    const visualMod = extractStyleModifiers(
+      "bantu saya mengerti persamaan kuadrat, berikan teori lengkapnya, lalu dukung dengan unsur visual jika bisa",
+    );
+    expect(visualMod.modifiers).toContain("graph");
+    expect(visualMod.modifiers).toContain("more_detail");
+    expect(visualMod.cleanedText).toBe("persamaan kuadrat");
   });
 
   it("AI-TUTOR-DLG-002: Classifies query action into retrieve, reuse_previous_evidence, answer_from_conversation, or clarify", async () => {

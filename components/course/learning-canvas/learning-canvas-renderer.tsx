@@ -20,6 +20,7 @@ import {
 import {
   evaluateFunctionPlot,
   resetCanvasValues,
+  safeExpressionToLatex,
   type ChemistryCanvas,
   type CanvasSpec,
   type DataPlotCanvas,
@@ -121,7 +122,10 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
         {spec.series.map((series, index) => (
           <span key={series.id} className="inline-flex items-center gap-2">
             <span className="size-2 rounded-full" style={{ backgroundColor: index % 2 === 0 ? "var(--color-primary)" : "var(--color-brand-secondary)" }} />
-            <MathText>{`$${series.label} = ${expressions[series.id] ?? series.expression}$`}</MathText>
+            <MathText>{`$${series.label} = ${safeExpressionToLatex(
+              expressions[series.id] ?? series.expression,
+              ["x", ...spec.variables.map((variable) => variable.id)],
+            )}$`}</MathText>
           </span>
         ))}
       </div>
