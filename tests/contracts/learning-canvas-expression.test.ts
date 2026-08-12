@@ -35,6 +35,24 @@ describe("Learning Canvas safe expressions", () => {
     expect(compileSafeExpression(normalized, { variables: ["x"] }).evaluate({ x: 2 })).toBe(4);
   });
 
+  test("normalizes LaTeX functions and implicit products emitted by Zyra", () => {
+    const cases = [
+      { source: String.raw`$y = \sin(x)$`, normalized: "sin(x)", x: Math.PI / 2, y: 1 },
+      { source: String.raw`\(f(x)=2\cos(\pi x)\)`, normalized: "2*cos(pi*x)", x: 2, y: 2 },
+      { source: "$y=x(x-1)$", normalized: "x*(x-1)", x: 2, y: 2 },
+      { source: String.raw`\[y = \ln(x)\]`, normalized: "log(x)", x: Math.E, y: 1 },
+      { source: String.raw`$y=\sin^{2}(x)$`, normalized: "(sin(x))^2", x: Math.PI / 2, y: 1 },
+      { source: String.raw`$y=\left|x\right|$`, normalized: "abs(x)", x: -2, y: 2 },
+      { source: String.raw`$y=\frac{x^2-1}{x-1}, x \ne 1$`, normalized: "((x^2-1)/(x-1))", x: 2, y: 3 },
+    ];
+
+    for (const item of cases) {
+      const normalized = normalizeLegacyGraphExpression(item.source);
+      expect(normalized).toBe(item.normalized);
+      expect(compileSafeExpression(normalized, { variables: ["x"] }).evaluate({ x: item.x })).toBeCloseTo(item.y);
+    }
+  });
+
   test("supports grouped arithmetic in the safe parser", () => {
     expect(compileSafeExpression("(x - 1) * (x + 1)", { variables: ["x"] }).evaluate({ x: 3 })).toBe(8);
   });
