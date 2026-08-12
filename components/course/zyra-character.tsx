@@ -10,7 +10,7 @@ function ZyraEyes({ state }: { state: ZyraPetState }) {
   if (state === "success") {
     return (
       <g data-expression="happy">
-        <path d="M22 25.5c1.4-1.7 3.4-1.7 4.8 0M37.2 25.5c1.4-1.7 3.4-1.7 4.8 0" />
+        <path d="M22 27c1.5-1.8 3.7-1.8 5.2 0M36.8 27c1.5-1.8 3.7-1.8 5.2 0" />
       </g>
     );
   }
@@ -18,7 +18,7 @@ function ZyraEyes({ state }: { state: ZyraPetState }) {
   if (state === "quota_resting") {
     return (
       <g data-expression="resting">
-        <path d="M21.5 26h5.5M37 26h5.5" />
+        <path d="M21.5 27h5.5M37 27h5.5" />
       </g>
     );
   }
@@ -26,9 +26,9 @@ function ZyraEyes({ state }: { state: ZyraPetState }) {
   if (state === "confused") {
     return (
       <g data-expression="confused">
-        <circle cx="24" cy="25.5" r="2.2" fill="currentColor" stroke="none" />
-        <circle cx="40" cy="24.5" r="1.4" fill="currentColor" stroke="none" />
-        <path d="M20.5 20.5 26 19M37.5 19l5.5 1.5" />
+        <circle cx="24" cy="27" r="2.2" fill="currentColor" stroke="none" />
+        <circle cx="40" cy="26" r="1.4" fill="currentColor" stroke="none" />
+        <path d="M20.5 22 26 20.5M37.5 20.5 43 22" />
       </g>
     );
   }
@@ -36,9 +36,9 @@ function ZyraEyes({ state }: { state: ZyraPetState }) {
   if (state === "error") {
     return (
       <g data-expression="worried">
-        <circle cx="24" cy="26" r="1.8" fill="currentColor" stroke="none" />
-        <circle cx="40" cy="26" r="1.8" fill="currentColor" stroke="none" />
-        <path d="m20.5 21 5.5 1M38 22l5.5-1" />
+        <circle cx="24" cy="27" r="1.8" fill="currentColor" stroke="none" />
+        <circle cx="40" cy="27" r="1.8" fill="currentColor" stroke="none" />
+        <path d="m20.5 22 5.5 1M38 23l5.5-1" />
       </g>
     );
   }
@@ -46,20 +46,20 @@ function ZyraEyes({ state }: { state: ZyraPetState }) {
   const lookingUp = state === "thinking" || state === "uploading";
   return (
     <g data-expression={lookingUp ? "focused" : "attentive"}>
-      <circle cx="24" cy="25" r="2.4" fill="currentColor" stroke="none" />
-      <circle cx="40" cy="25" r="2.4" fill="currentColor" stroke="none" />
-      {lookingUp && <circle cx="24.7" cy="24.2" r="0.7" className="fill-card" stroke="none" />}
-      {lookingUp && <circle cx="40.7" cy="24.2" r="0.7" className="fill-card" stroke="none" />}
+      <circle cx="24" cy="27" r="2.4" fill="currentColor" stroke="none" />
+      <circle cx="40" cy="27" r="2.4" fill="currentColor" stroke="none" />
+      {lookingUp && <circle cx="24.7" cy="26.2" r="0.7" className="fill-card" stroke="none" />}
+      {lookingUp && <circle cx="40.7" cy="26.2" r="0.7" className="fill-card" stroke="none" />}
     </g>
   );
 }
 
 function ZyraMouth({ state }: { state: ZyraPetState }) {
-  if (state === "explaining") return <path data-mouth="speaking" d="M28 32.5c2.2 2.2 5.8 2.2 8 0M30 36h4" />;
-  if (state === "checking") return <path data-mouth="checking" d="M28 33h8M34.5 33l2 2" />;
-  if (state === "confused" || state === "error") return <path data-mouth="worried" d="M28.5 35c2-2 5-2 7 0" />;
-  if (state === "quota_resting") return <path data-mouth="resting" d="M29 33.5h6" />;
-  return <path data-mouth="smile" d="M28 32.5c2.2 3 5.8 3 8 0" />;
+  if (state === "explaining") return <path data-mouth="speaking" d="M29 34c1.8 2.4 4.2 2.4 6 0M30.5 37h3" />;
+  if (state === "checking") return <path data-mouth="checking" d="M28.5 34.5h7M34 34.5l2 2" />;
+  if (state === "confused" || state === "error") return <path data-mouth="worried" d="M28.5 37c2-2 5-2 7 0" />;
+  if (state === "quota_resting") return <path data-mouth="resting" d="M29 35h6" />;
+  return <path data-mouth="smile" d="M28.5 34c2 3 5 3 7 0" />;
 }
 
 function ZyraStateGlyph({ state }: { state: ZyraPetState }) {
@@ -87,7 +87,7 @@ function ZyraStateGlyph({ state }: { state: ZyraPetState }) {
   return null;
 }
 
-/** Application-owned Zyra character for expressive pet surfaces. */
+/** Application-owned fox-like Zyra companion for expressive pet surfaces. */
 export function ZyraCharacter({ state, className }: ZyraCharacterProps) {
   return (
     <svg
@@ -95,18 +95,27 @@ export function ZyraCharacter({ state, className }: ZyraCharacterProps) {
       fill="none"
       aria-hidden="true"
       data-zyra-character
+      data-creature="zyra-fox"
       data-state={state}
-      className={cn("size-12 shrink-0", className)}
+      className={cn("size-14 shrink-0", className)}
     >
       <g stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m18 17-7-5 2 10M46 17l7-5-2 10" className="fill-current opacity-20" />
-        <path d="M32 14v-4M32 10l-3-3m3 3 3-3" />
-        <rect x="14" y="15" width="36" height="28" rx="11" className="fill-card" />
-        <path d="M20 42v6c0 5 4 9 9 9h6c5 0 9-4 9-9v-6" className="fill-current opacity-15" />
-        <path d="M20 47 14 51M44 47l6 4M27 57v3M37 57v3" />
+        <path
+          data-tail
+          d="M44 47c8 3 15-1 14-8-.7-4.7-6-6.5-9.3-3.2 4.1.1 5.4 3.3 3.5 5.7-1.5 1.9-4.2 2.1-6.5 1.3"
+          className="fill-current opacity-20"
+        />
+        <path d="M21 39c-3 4-3 11-.5 15 2.2 3.5 6.1 5 11.5 5s9.3-1.5 11.5-5c2.5-4 2.5-11-.5-15" className="fill-current opacity-15" />
+        <path d="m17 20-3-11 10 6.5A21 21 0 0 1 32 14a21 21 0 0 1 8 1.5L50 9l-3 11c2 2.8 3 6 3 9.5C50 39 42 45 32 45s-18-6-18-15.5c0-3.5 1-6.7 3-9.5Z" className="fill-card" />
+        <path d="m17 17-1.1-5 5.1 3.3M47 17l1.1-5-5.1 3.3" className="fill-brand-secondary opacity-70" />
+        <path d="M28.5 31.5 32 33l3.5-1.5L32 35l-3.5-3.5Z" className="fill-current opacity-35" />
+        <circle cx="19.5" cy="33" r="1.5" className="fill-brand-secondary opacity-35" stroke="none" />
+        <circle cx="44.5" cy="33" r="1.5" className="fill-brand-secondary opacity-35" stroke="none" />
+        <path data-paws d="M24 56v4m16-4v4M20.5 60h7M36.5 60h7" />
+        <path d="m28.5 48 3.5-2 3.5 2-3.5 5-3.5-5Z" className="fill-brand-primary opacity-25" />
         <ZyraEyes state={state} />
         <ZyraMouth state={state} />
-        <path d="M18 30h-3M49 30h-3" opacity="0.45" />
+        <path d="M18 34h-4M46 34h4" opacity="0.45" />
         <ZyraStateGlyph state={state} />
       </g>
     </svg>

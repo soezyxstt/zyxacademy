@@ -63,7 +63,7 @@ const CanvasBaseSchema = z.object({
   purpose: z.string().trim().min(5).max(500),
   variables: z.array(CanvasVariableSchema).max(12).default([]),
   controls: z.array(CanvasControlSchema).max(8).default([]),
-  claimRefs: z.array(z.string().trim().min(1).max(160)).min(1).max(12),
+  claimRefs: z.array(z.string().trim().min(1).max(160)).max(12).default([]),
   altText: z.string().trim().min(5).max(500),
   fallback: CanvasFallbackSchema,
 }).strict();

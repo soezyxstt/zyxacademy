@@ -13,7 +13,25 @@ function candidateExpressions(text: string): string[] {
   for (const match of text.matchAll(/\$+([^$]+)\$+/g)) {
     if (match[1] && /(?:\by\b|\bf\s*\(\s*x\s*\))\s*=/.test(match[1])) candidates.push(match[1]);
   }
+  for (const match of text.matchAll(/\b(?:grafik|plot|kurva|graph)(?:\s+(?:fungsi|dari|untuk))*\s+([^$\n,;]+)/gi)) {
+    if (match[1]) candidates.push(match[1]);
+  }
   return candidates;
+}
+
+function recoverSafeExpression(value: string): string | null {
+  let candidate = normalizeLegacyGraphExpression(value);
+  while (candidate.length > 0) {
+    try {
+      compileSafeExpression(candidate, { variables: ["x"] });
+      return candidate;
+    } catch {
+      const shortened = candidate.replace(/\s+\S+\s*$/, "").trim();
+      if (shortened === candidate) return null;
+      candidate = shortened;
+    }
+  }
+  return null;
 }
 
 export function functionPlotFromTutorText(input: {
@@ -22,19 +40,12 @@ export function functionPlotFromTutorText(input: {
   evidenceText?: readonly string[];
   claimRefs: readonly string[];
 }): CanvasSpec | null {
-  if (!input.learnerQuestion || !GRAPH_INTENT.test(input.learnerQuestion) || input.claimRefs.length === 0) return null;
+  if (!input.learnerQuestion || !GRAPH_INTENT.test(input.learnerQuestion)) return null;
   const expressions = [...new Set(
     [input.learnerQuestion, input.answer, ...(input.evidenceText ?? [])]
       .flatMap(candidateExpressions)
-      .map(normalizeLegacyGraphExpression)
-      .filter((expression) => {
-        try {
-          compileSafeExpression(expression, { variables: ["x"] });
-          return true;
-        } catch {
-          return false;
-        }
-      }),
+      .map(recoverSafeExpression)
+      .filter((expression): expression is string => expression !== null),
   )].slice(0, 4);
   if (expressions.length === 0) return null;
 

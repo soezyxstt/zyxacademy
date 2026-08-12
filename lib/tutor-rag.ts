@@ -104,7 +104,11 @@ import {
   type ZyraAdaptationDecision,
 } from "@/lib/zyra/personalization";
 import type { ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
-import { isZyraCanvasFeatureEnabled, type CanvasSpec } from "@/lib/zyra/canvas";
+import {
+  functionPlotFromTutorText,
+  isZyraCanvasFeatureEnabled,
+  type CanvasSpec,
+} from "@/lib/zyra/canvas";
 import {
   recordZyraOperationalEventSafe,
   zyraLatencyBucket,
@@ -1409,6 +1413,18 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  // Tier 2: deterministic addendum, runs on hits AND misses
  const addendum = await buildAddendum(studentId, courseId, base, profile);
 
+ // Recover a requested function plot after cache and provider handling. This
+ // keeps learner-provided equations renderable even when Gemini omits an
+ // otherwise optional canvasSpec or the request has no canonical RAG match.
+ const recoveredCanvasSpec = isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1)
+   ? base.canvasSpec ?? functionPlotFromTutorText({
+       learnerQuestion: question,
+       answer: adaptedAnswer,
+       evidenceText: retrieved.map((source) => source.content),
+       claimRefs: base.sources.map((source) => source.id),
+     })
+   : null;
+
  // Tier 3: personalized AI, only for weak concepts, charged, silent on exhaustion
   let personalized: string | null = null;
   if (addendum && pedagogyMode === "legacy" && !hasImages) {
@@ -1461,6 +1477,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   return {
     ...base,
     answer: adaptedAnswer,
+    canvasSpec: recoveredCanvasSpec,
     cached,
     addendum,
     personalized,

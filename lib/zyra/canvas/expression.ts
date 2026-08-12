@@ -319,5 +319,6 @@ export function normalizeLegacyGraphExpression(value: string): string {
     .replace(/([A-Za-z_)])(?=\d)/g, "$1*")
     .replace(/\b([A-Za-z])\s*(?=\()/g, "$1*")
     .replace(/\b(pi|e|x)\s+(?=(?:pi|e|x)\b|\()/gi, "$1*")
+    .replace(/[.,:]+$/g, "")
     .trim();
 }

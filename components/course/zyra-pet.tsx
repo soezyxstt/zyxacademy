@@ -22,12 +22,12 @@ export function ZyraPet({ state, className }: { state: ZyraPetState; className?:
   return (
     <div className={cn("flex items-center gap-2", className)} aria-label={zyraPetLabels[safeState]}>
       <div className={cn(
-        "relative flex size-12 items-center justify-center text-brand-primary",
+        "relative flex size-14 items-center justify-center text-brand-primary",
         safeState === "quota_resting" && "text-status-warning",
         safeState === "error" && "text-status-error",
         safeState === "success" && "text-status-success",
       )}>
-        <ZyraCharacter state={safeState} />
+        <ZyraCharacter state={safeState} className="size-14" />
       </div>
       <span className="sr-only" aria-live="polite">{zyraPetLabels[safeState]}</span>
     </div>

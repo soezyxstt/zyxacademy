@@ -17,6 +17,22 @@ function unique(values: readonly string[]): string[] {
   return [...new Set(values)];
 }
 
+function normalizeCanvasInput(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  const record = input as Record<string, unknown>;
+  if (record.type !== "function_plot" || !Array.isArray(record.series)) return input;
+  return {
+    ...record,
+    series: record.series.map((series) => {
+      if (!series || typeof series !== "object" || Array.isArray(series)) return series;
+      const item = series as Record<string, unknown>;
+      return typeof item.expression === "string"
+        ? { ...item, expression: normalizeLegacyGraphExpression(item.expression) }
+        : series;
+    }),
+  };
+}
+
 function validateVariables(spec: CanvasSpec): string[] {
   const reasons: string[] = [];
   const variables = new Map<string, CanvasVariable>();
@@ -71,7 +87,7 @@ export function validateCanvasSpec(
   input: unknown,
   allowedClaimRefs?: readonly string[],
 ): CanvasValidationResult {
-  const parsed = CanvasSpecSchema.safeParse(input);
+  const parsed = CanvasSpecSchema.safeParse(normalizeCanvasInput(input));
   if (!parsed.success) {
     return { isValid: false, reasonCodes: ["INVALID_CANVAS_SCHEMA"] };
   }

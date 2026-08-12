@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 
 const POSITION_KEY = "zyx-zyra-pet-position-v1";
 const VISIBILITY_KEY = "zyx-zyra-pet-visible-v1";
-const PET_WIDTH = 176;
-const PET_HEIGHT = 72;
+const PET_WIDTH = 188;
+const PET_HEIGHT = 80;
 const EDGE_GAP = 16;
 
 type Point = { x: number; y: number };
@@ -148,7 +148,7 @@ export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen
         onPointerCancel={() => { dragRef.current = null; }}
         onClick={handleClick}
         className={cn(
-          "group flex h-[72px] w-full touch-none select-none items-center gap-2 rounded-2xl border border-brand-primary/25 bg-card p-3 pr-10 text-left shadow-lg transition-colors duration-150",
+          "group flex h-20 w-full touch-none select-none items-center gap-2.5 rounded-2xl border border-brand-primary/25 bg-card/95 p-2.5 pr-10 text-left shadow-lg transition-colors duration-150",
           "hover:border-brand-primary/50 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}
         aria-label="Seret untuk memindahkan Zyra, atau klik untuk membuka"

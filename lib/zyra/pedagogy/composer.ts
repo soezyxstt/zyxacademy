@@ -6,7 +6,11 @@ import type {
 } from "./contracts";
 import type { TeachingPlan } from "./state-machine";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
-import { functionPlotFromTutorText, visualSpecToCanvasSpec } from "@/lib/zyra/canvas";
+import {
+  functionPlotFromTutorText,
+  parseCanvasSpec,
+  visualSpecToCanvasSpec,
+} from "@/lib/zyra/canvas";
 
 export interface LegacyTutorAnswer {
   answer: string;
@@ -150,7 +154,7 @@ export function teachingResponseToTutorAnswer(
     confidence: sources.length > 0 ? 0.85 : 0,
     grounded: sources.length > 0,
     coverageState: sources.length > 0 ? "full" : "none",
-    canvasSpec: response.canvasSpec
+    canvasSpec: parseCanvasSpec(response.canvasSpec, evidence.map((source) => source.id))
       ?? visualSpecToCanvasSpec(response.visualSpec)
       ?? functionPlotFromTutorText({
         learnerQuestion,

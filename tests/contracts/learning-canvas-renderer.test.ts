@@ -3,6 +3,7 @@ import {
   canvasToLegacyVisualSpec,
   evaluateFunctionPlot,
   functionPlotFromTutorText,
+  parseCanvasSpec,
   visualSpecToCanvasSpec,
   type FunctionPlotCanvas,
 } from "@/lib/zyra/canvas";
@@ -54,6 +55,47 @@ describe("Learning Canvas renderer contracts", () => {
     if (recovered?.type === "function_plot") {
       expect(recovered.series[0]?.expression).toBe("x^2 - 4");
       expect(evaluateFunctionPlot(recovered, {})[0]?.points.some((point) => point.y !== null)).toBe(true);
+    }
+  });
+
+  test("recovers a learner-provided graph without canonical evidence", () => {
+    const recovered = functionPlotFromTutorText({
+      learnerQuestion: "Tolong buat grafik x^2 - 4.",
+      answer: "Fungsi tersebut membentuk parabola.",
+      claimRefs: [],
+    });
+
+    expect(recovered?.type).toBe("function_plot");
+    if (recovered?.type === "function_plot") {
+      expect(recovered.claimRefs).toEqual([]);
+      expect(recovered.series[0]?.expression).toBe("x^2 - 4");
+      expect(evaluateFunctionPlot(recovered, {})[0]?.points.some((point) => point.y !== null)).toBe(true);
+    }
+  });
+
+  test("trims prose after an equation emitted by the tutor", () => {
+    const recovered = functionPlotFromTutorText({
+      learnerQuestion: "Gambarkan grafik fungsi kuadrat",
+      answer: "Gunakan $y = x^2 - 2x - 3$ untuk melihat titik potongnya.",
+      claimRefs: ["claim-1"],
+    });
+
+    expect(recovered?.type).toBe("function_plot");
+    if (recovered?.type === "function_plot") {
+      expect(recovered.series[0]?.expression).toBe("x^2 - 2*x - 3");
+    }
+  });
+
+  test("normalizes common Gemini notation inside a structured canvas", () => {
+    const normalized = parseCanvasSpec({
+      ...spec,
+      series: [{ id: "f", label: "f(x)", expression: "y = 2x² - 4" }],
+    }, ["claim-1"]);
+
+    expect(normalized?.type).toBe("function_plot");
+    if (normalized?.type === "function_plot") {
+      expect(normalized.series[0]?.expression).toBe("2*x^2 - 4");
+      expect(evaluateFunctionPlot(normalized, {})[0]?.points.some((point) => point.y !== null)).toBe(true);
     }
   });
 

@@ -23,6 +23,9 @@ describe("Zyra pet state", () => {
     const error = renderToStaticMarkup(<ZyraCharacter state="error" />);
 
     expect(success).toContain("data-zyra-character=\"true\"");
+    expect(success).toContain("data-creature=\"zyra-fox\"");
+    expect(success).toContain("data-tail=\"true\"");
+    expect(success).toContain("data-paws=\"true\"");
     expect(success).toContain("data-state=\"success\"");
     expect(success).toContain("data-expression=\"happy\"");
     expect(success).toContain("data-glyph=\"success\"");
