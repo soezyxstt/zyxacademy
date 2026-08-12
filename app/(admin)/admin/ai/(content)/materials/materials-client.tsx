@@ -924,7 +924,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
 
                 <div className="grid gap-4 md:grid-cols-2">
                   {/* ── ZONE 1: PDF (Archival) ── */}
-                  <div className="border border-border rounded-xl p-4 bg-card/40 space-y-3">
+                  <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
                     <div className="flex items-center gap-2">
                       <div className="size-7 rounded-md bg-muted flex items-center justify-center shrink-0">
                         <FileText className="size-3.5 text-muted-foreground" />

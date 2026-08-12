@@ -230,7 +230,7 @@ export default async function AdminHomePage() {
           stat: courseStat,
         },
         {
-          title: "Idea Bundle V2",
+          title: "Idea Bundle",
           description:
             "Validasi, staging, review, dan publikasi bundle Idea berbasis ZIP dengan audit dan outbox.",
           icon: Layers,
@@ -240,7 +240,7 @@ export default async function AdminHomePage() {
           stat: null,
         },
         {
-          title: "Product Bundle V2",
+          title: "Product Bundle",
           description: "Validasi, preview, review, dan publikasi produk artikel, diktat, soal, solusi, flashcard, dan asesmen.",
           icon: Package,
           iconColor: "text-brand-secondary",

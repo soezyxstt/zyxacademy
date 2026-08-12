@@ -22,6 +22,7 @@ import { SearchBar } from "@/components/ui/search-bar";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminStatCard } from "@/components/admin/stat-card";
 import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminTable, AdminTableHead } from "@/components/admin/table";
 
 interface QuizInsightOverviewItem {
   type: "quiz_template";
@@ -152,7 +153,7 @@ export default function AdminQuizInsightsOverviewPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-card/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-xs">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <SearchBar
             placeholder="Cari berdasarkan judul kuis atau mata kuliah..."
@@ -195,7 +196,7 @@ export default function AdminQuizInsightsOverviewPage() {
       </div>
 
       {/* Quizzes Grid / Table */}
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+      <AdminTable>
         {loading ? (
           <div className="p-8 text-center text-body-sm text-muted-foreground space-y-3">
             <RefreshCw className="size-6 animate-spin mx-auto text-brand-primary" />
@@ -210,7 +211,7 @@ export default function AdminQuizInsightsOverviewPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-body-sm">
-              <thead className="bg-muted/50 border-b border-border text-muted-foreground font-medium text-body-xs">
+              <AdminTableHead className="text-body-xs font-medium text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3">Nama Kuis / Exam</th>
                   <th className="px-4 py-3">Mata Kuliah</th>
@@ -221,7 +222,7 @@ export default function AdminQuizInsightsOverviewPage() {
                   <th className="px-4 py-3">Status Insight AI</th>
                   <th className="px-4 py-3 text-right">Aksi</th>
                 </tr>
-              </thead>
+              </AdminTableHead>
               <tbody className="divide-y divide-border">
                 {filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-muted/30 transition-colors">
@@ -282,7 +283,7 @@ export default function AdminQuizInsightsOverviewPage() {
             </table>
           </div>
         )}
-      </div>
+      </AdminTable>
     </div>
   );
 }

@@ -29,7 +29,6 @@ export default async function AdminTautanPage() {
         icon={LinkIcon}
         title="Tautan"
         description="Simpan, urutkan, dan atur tautan penting yang ditampilkan di halaman publik /tautan."
-        backHref="/admin"
       />
       {env.FEATURE_LINK_LIBRARY === "1" ? (
         <LinksManager />

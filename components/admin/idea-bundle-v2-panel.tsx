@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Upload, X } from "lucide-react";
+import { Check, Layers, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminSectionTitle } from "@/components/admin/section-title";
+import { AdminTable } from "@/components/admin/table";
 
 type BundleRow = {
   id: string;
@@ -90,17 +93,16 @@ export function IdeaBundleV2Panel({ initialImports }: Props) {
 
   return (
     <div className="space-y-8">
-      <section className="space-y-3 border-b border-border pb-6">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Idea Bundle V2</h1>
-        <p className="text-body-md text-muted-foreground">
-          Unggah ZIP yang tervalidasi, tinjau metadata, lalu publikasikan ke domain Idea secara atomik.
-        </p>
-      </section>
+      <AdminPageHeader
+        icon={Layers}
+        title="Idea Bundle"
+        description="Unggah ZIP yang tervalidasi, tinjau metadata, lalu publikasikan ke domain Idea secara atomik."
+      />
 
       <section className="space-y-3">
-        <h2 className="font-heading text-h6 font-semibold text-foreground">Unggah bundle</h2>
+        <AdminSectionTitle as="h2" size="h6" title="Unggah bundle" />
         <form
-          className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center"
+          className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center"
           onSubmit={(event) => {
             event.preventDefault();
             void upload();
@@ -117,18 +119,21 @@ export function IdeaBundleV2Panel({ initialImports }: Props) {
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-4 border-b border-border pb-3">
-          <h2 className="font-heading text-h6 font-semibold text-foreground">Import yang sudah distaging</h2>
-          <span className="text-body-sm text-muted-foreground">{imports.length} bundle</span>
-        </div>
-        <div className="divide-y divide-border">
-          {imports.length === 0 && <p className="py-4 text-body-sm text-muted-foreground">Belum ada Idea Bundle.</p>}
+        <AdminSectionTitle
+          as="h2"
+          size="h6"
+          border
+          title="Import yang sudah distaging"
+          right={<span className="text-body-sm text-muted-foreground">{imports.length} bundle</span>}
+        />
+        <AdminTable className="divide-y divide-border">
+          {imports.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada Idea Bundle.</p>}
           {imports.map((item) => (
-            <div key={item.id} className="grid gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div key={item.id} className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
               <div className="min-w-0 space-y-1">
                 <p className="truncate font-semibold text-foreground">{item.bundleId}</p>
                 <p className="break-all font-mono text-body-sm text-muted-foreground">{item.checksum}</p>
-                <p className="text-body-sm text-muted-foreground">Course {item.courseId ?? "tidak tercatat"} · Status {item.status}</p>
+                <p className="text-body-sm text-muted-foreground">Course {item.courseId ?? "tidak tercatat"} ; Status {item.status}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {item.status === "validated" && (
@@ -151,7 +156,7 @@ export function IdeaBundleV2Panel({ initialImports }: Props) {
               </div>
             </div>
           ))}
-        </div>
+        </AdminTable>
       </section>
     </div>
   );

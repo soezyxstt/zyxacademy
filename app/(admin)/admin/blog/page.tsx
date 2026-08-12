@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ShareDialog } from "@/components/blog/share-widget";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminTable, AdminTableHead } from "@/components/admin/table";
 
 export default async function AdminBlogDashboard() {
   const articles = await db.query.blogArticles.findMany({
@@ -32,9 +33,9 @@ export default async function AdminBlogDashboard() {
         }
       />
 
-      <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+      <AdminTable>
         <table className="w-full text-left text-body-sm">
-          <thead className="bg-muted/50 border-b border-border/80">
+          <AdminTableHead>
             <tr>
               <th className="px-6 py-4 font-semibold text-foreground">Judul Artikel</th>
               <th className="px-6 py-4 font-semibold text-foreground">Kategori</th>
@@ -42,7 +43,7 @@ export default async function AdminBlogDashboard() {
               <th className="px-6 py-4 font-semibold text-foreground">Penulis</th>
               <th className="px-6 py-4 font-semibold text-foreground">Aksi</th>
             </tr>
-          </thead>
+          </AdminTableHead>
           <tbody className="divide-y divide-border/40">
             {articles.length === 0 ? (
               <tr>
@@ -102,7 +103,7 @@ export default async function AdminBlogDashboard() {
             )}
           </tbody>
         </table>
-      </div>
+      </AdminTable>
     </div>
   );
 }

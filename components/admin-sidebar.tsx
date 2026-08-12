@@ -8,13 +8,11 @@ import {
   LayoutDashboard,
   BookText,
   KeyRound,
-  Archive,
   Zap,
   ListChecks,
   ClipboardList,
   GraduationCap,
   Bell,
-  Activity,
   BarChart3,
   Megaphone,
   CalendarDays,
@@ -32,8 +30,6 @@ import {
   Target,
   UserCheck,
   UserCog,
-  BrainCircuit,
-  FileStack,
   FilePen,
   Settings,
   Gauge,
@@ -76,7 +72,8 @@ function AdminSidebarInner() {
     isPrefix("/admin/courses") ||
     isPrefix("/admin/bundles/idea") ||
     isPrefix("/admin/bundles/product") ||
-    isPrefix("/admin/authoring-context");
+    isPrefix("/admin/authoring-context") ||
+    (isPrefix("/admin/ai/materials") && !pkaMaterialActive);
 
   const pkaActive =
     isPrefix("/admin/tutorial-pka") || pkaQuizActive || pkaMaterialActive;
@@ -87,12 +84,6 @@ function AdminSidebarInner() {
     isPrefix("/admin/ai/quiz-insights") ||
     isPrefix("/admin/ai/jobs") ||
     isPrefix("/admin/ai/distractors");
-
-  const kontenActive =
-    (isPrefix("/admin/ai/materials") && !pkaMaterialActive) ||
-    isPrefix("/admin/ai/assessments") ||
-    isPrefix("/admin/ai/diktats") ||
-    isPrefix("/admin/ai/ast-inspector");
 
   const penggunaActive =
     isPrefix("/admin/tokens") || isPrefix("/admin/notifications");
@@ -192,9 +183,10 @@ function AdminSidebarInner() {
 
         <NavCollapsible icon={BookOpen} label="Akademik" collapsed={c} active={akademikActive}>
           <NavItem href="/admin/courses" icon={GraduationCap} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} isChild />
-          <NavItem href="/admin/bundles/idea" icon={Layers} label="Idea Bundle V2" active={isPrefix("/admin/bundles/idea")} collapsed={c} isChild />
-          <NavItem href="/admin/bundles/product" icon={Package} label="Product Bundle V2" active={isPrefix("/admin/bundles/product")} collapsed={c} isChild />
+          <NavItem href="/admin/bundles/idea" icon={Layers} label="Idea Bundle" active={isPrefix("/admin/bundles/idea")} collapsed={c} isChild />
+          <NavItem href="/admin/bundles/product" icon={Package} label="Product Bundle" active={isPrefix("/admin/bundles/product")} collapsed={c} isChild />
           <NavItem href="/admin/authoring-context" icon={ShieldCheck} label="Authoring Context" active={isPrefix("/admin/authoring-context")} collapsed={c} isChild />
+          <NavItem href="/admin/ai/materials" icon={BookText} label="Materi & RAG" active={isPrefix("/admin/ai/materials") && !pkaMaterialActive} collapsed={c} isChild />
         </NavCollapsible>
 
         <NavCollapsible icon={GraduationCap} label="Tutorial PKA" collapsed={c} active={pkaActive}>
@@ -211,13 +203,6 @@ function AdminSidebarInner() {
           <NavItem href="/admin/ai/quiz-insights" icon={BarChart3} label="Analisis & Insight Kuis" active={isPrefix("/admin/ai/quiz-insights")} collapsed={c} isChild />
           <NavItem href="/admin/ai/jobs" icon={Zap} label="Generasi Soal" active={isPrefix("/admin/ai/jobs")} collapsed={c} isChild />
           <NavItem href="/admin/ai/distractors" icon={Target} label="Analitik Distraktor" active={isPrefix("/admin/ai/distractors")} collapsed={c} isChild />
-        </NavCollapsible>
-
-        <NavCollapsible icon={BrainCircuit} label="AI & Konten" collapsed={c} active={kontenActive}>
-          <NavItem href="/admin/ai/materials" icon={BookText} label="Materi AI" active={isPrefix("/admin/ai/materials") && !pkaMaterialActive} collapsed={c} isChild />
-          <NavItem href="/admin/ai/assessments" icon={Archive} label="Asesmen Historis" active={isPrefix("/admin/ai/assessments")} collapsed={c} isChild />
-          <NavItem href="/admin/ai/diktats" icon={FileStack} label="Kompilasi Diktat" active={isPrefix("/admin/ai/diktats")} collapsed={c} isChild />
-          <NavItem href="/admin/ai/ast-inspector" icon={Activity} label="AST Inspector" active={isPrefix("/admin/ai/ast-inspector")} collapsed={c} isChild />
         </NavCollapsible>
 
         <NavCollapsible icon={UserCog} label="Pengguna & Akses" collapsed={c} active={penggunaActive}>

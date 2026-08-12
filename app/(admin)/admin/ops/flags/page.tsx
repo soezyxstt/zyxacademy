@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function FeatureFlagsPage() {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-8">
+    <div className="w-full space-y-8">
       <AdminPageHeader
         icon={Flag}
         title="Feature Flags"

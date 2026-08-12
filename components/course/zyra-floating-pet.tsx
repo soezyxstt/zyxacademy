@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Eye, EyeOff, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ZyraMark } from "@/components/course/zyra-mark";
+import { ZyraCharacter } from "@/components/course/zyra-character";
 import { ZyraPet, zyraPetLabels } from "@/components/course/zyra-pet";
 import type { ZyraPetState } from "@/lib/zyra/murid";
 import { cn } from "@/lib/utils";
@@ -127,7 +127,7 @@ export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen
         aria-label="Tampilkan pet Zyra"
         title="Tampilkan Zyra"
       >
-        <ZyraMark className="size-6" />
+        <ZyraCharacter state="idle" className="size-9" />
         <Eye className="absolute -right-1 -top-1 size-3.5 rounded-full bg-card" aria-hidden="true" />
       </Button>
     );

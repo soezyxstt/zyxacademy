@@ -161,7 +161,7 @@ bun run typecheck
 bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course tutorial-pka
 ```
 
-`FEATURE_ZYRA_PERSONALIZATION_V1` is absent or `0` by default. The additive local migration is `0067_zyra_continuation.sql`. The synthetic smoke uses no provider calls, database writes, trace writes, or learner side effects. Profile inference uses bounded allowlisted event fields, keeps explicit preferences separate, expires evidence, supports reset, and composes only after the shared profile-free scaffold. Remote staging reconciliation remains a separate gate.
+`FEATURE_ZYRA_PERSONALIZATION_V1` is absent or `0` by default. The additive migration is `0067_zyra_continuation.sql`; staging schema reconciliation completed on 2026-08-12. The synthetic smoke uses no provider calls, database writes, trace writes, or learner side effects. Profile inference uses bounded allowlisted event fields, keeps explicit preferences separate, expires evidence, supports reset, and composes only after the shared profile-free scaffold. Functional staging verification and rollout remain separate gates.
 
 Plan 009 local canvas checks are:
 

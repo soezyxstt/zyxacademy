@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MarkdownRenderer, VisualRenderer } from "@/components/course/markdown-renderer";
 import { DifficultyBadge } from "@/components/admin/status-badges";
+import { AdminPageHeader } from "@/components/admin/page-header";
 import { cn, cleanSummary } from "@/lib/utils";
 import { MathText } from "@/components/course/math-text";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { 
-  ArrowLeft,
   BookOpen,
   Layers,
   AlertTriangle,
@@ -1609,25 +1608,15 @@ export function MaterialDetailClient({
 
   return (
     <div className="space-y-6">
-      {/* Header breadcrumb & info bar */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1 text-left">
-          <Button variant="ghost" size="xs" className="text-muted-foreground -ml-2 mb-1 gap-1" asChild>
-            <Link href="/admin/ai/materials">
-              <ArrowLeft className="size-3.5" aria-hidden />
-              Kembali ke Materi
-            </Link>
-          </Button>
-          <h1 className="font-heading text-h4 font-bold text-foreground">
-            {activeChapterId 
-              ? `${chaptersList.find(c => c.id === activeChapterId)?.title || "Workspace Bab"}`
-              : cleanTitle}
-          </h1>
-          <p className="text-body-sm text-muted-foreground">
-            Materi Kelas: <span className="font-semibold text-foreground">{course.title}</span> · Sumber: <span className="font-mono text-xs uppercase px-1.5 py-0.5 bg-muted rounded-md border border-border">{instance.sourceType}</span>
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader
+        icon={BookOpen}
+        title={activeChapterId
+          ? chaptersList.find((chapter) => chapter.id === activeChapterId)?.title || "Workspace Bab"
+          : cleanTitle}
+        description={<>Materi kelas: <span className="font-semibold text-foreground">{course.title}</span> ; sumber: <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-xs uppercase">{instance.sourceType}</span></>}
+        backHref="/admin/ai/materials"
+        backLabel="Kembali ke materi"
+      />
 
       {activeChapterId ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

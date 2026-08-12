@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DifficultyBadge } from "@/components/admin/status-badges";
+import { AdminPageHeader } from "@/components/admin/page-header";
 import {
   Tabs,
   TabsContent,
@@ -22,7 +22,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft,
   RefreshCw,
   Trash2,
   Archive,
@@ -211,17 +210,14 @@ export function AssessmentDetailClient({
 
   return (
     <div className="space-y-6">
-      {/* Navigation Header */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/admin/ai/assessments"
-          className="flex items-center gap-2 text-body-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft size={16} />
-          Kembali ke Dasbor Asesmen
-        </Link>
-
-        <div className="flex items-center gap-3">
+      <AdminPageHeader
+        icon={Archive}
+        title={source.title}
+        description={<>Mata kuliah: <span className="font-semibold text-foreground">{course.title}</span></>}
+        backHref="/admin/ai/assessments"
+        backLabel="Kembali ke asesmen historis"
+        actions={
+          <>
           <Button
             variant="outline"
             size="sm"
@@ -254,25 +250,20 @@ export function AssessmentDetailClient({
             <Trash2 size={14} />
             Hapus Permanen
           </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Hero Metadata Panel */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <h1 className="font-heading text-h5 font-bold text-foreground">{source.title}</h1>
+            <div className="flex flex-wrap gap-2 pt-1">
               {source.deletedAt && (
-                <Badge variant="outline" className="border-status-error/30 text-status-error bg-status-error/5 uppercase text-[9px] tracking-wide">
+                <Badge variant="outline" className="border-status-error/30 bg-status-error/5 text-[9px] uppercase tracking-wide text-status-error">
                   Archived
                 </Badge>
               )}
-            </div>
-            <p className="text-body-sm text-muted-foreground">
-              Mata Kuliah: <span className="font-semibold text-foreground">{course.title}</span>
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
               <Badge variant="outline" className="uppercase text-[10px] tracking-wider font-semibold">
                 Kategori: {source.category}
               </Badge>

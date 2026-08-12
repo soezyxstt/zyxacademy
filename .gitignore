@@ -46,11 +46,16 @@ next-env.d.ts
 # local databases and backup logs
 dev.db
 *.db
+*.db.bak
 .claude/
 .next-dev.log
 drizzle-pg-backup/
 drizzle/backups/
 *.log
+/migration-report-*.json
+/scripts/runtime_*_debug.json
+/scripts/test-*-temp.ts
+/test_regex.js
 /artifacts/staging-overhaul/
 /artifacts/zyra-ai/
 /artifacts

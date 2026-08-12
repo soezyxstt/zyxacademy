@@ -71,14 +71,14 @@ Every mutation of a fixture invalidates two layers: the per-file checksum in `ma
 
 ---
 
-## 2. Idea Bundle V2
+## 2. Idea Bundle
 
 Panel: `/admin/bundles/idea`. API base: `/api/admin/bundles/idea`.
 
 ### 2.1 Happy path
 
 **IB-01 Panel renders.**
-Sign in as A1, open `/admin/bundles/idea`. Expect heading "Idea Bundle V2", a file input restricted to `.zip`, and an import list. With no prior imports the list reads "Belum ada Idea Bundle."
+Sign in as A1, open `/admin/bundles/idea`. Expect heading "Idea Bundle", a file input restricted to `.zip`, and an import list. With no prior imports the list reads "Belum ada Idea Bundle."
 
 **IB-02 Valid upload stages.**
 Select `idea-valid.zip`, submit "Validasi dan staging". Expect HTTP 201, a success line `Bundle bundle-idea-motion-v2 masuk staging.`, and a new list row showing bundle id, checksum, course, and `Status validated`. Confirm no canonical rows were written: `ide`, `sumber_materi`, and `chunk` counts are unchanged.
@@ -151,7 +151,7 @@ This is the single most important manual case; it proves no partial publication 
 
 ---
 
-## 3. Product Bundle V2
+## 3. Product Bundle
 
 Panel: `/admin/bundles/product`. API base: `/api/admin/bundles/product`.
 
@@ -160,7 +160,7 @@ Requires the fixture from 1.4. The valid fixture covers all seven product types:
 ### 3.1 Happy path
 
 **PB-01 Panel renders.**
-As A1, open `/admin/bundles/product`. Expect heading "Product Bundle V2" and, unlike the Idea panel, a "Preview" button on every row.
+As A1, open `/admin/bundles/product`. Expect heading "Product Bundle" and, unlike the Idea panel, a "Preview" button on every row.
 
 **PB-02 Valid upload stages.** Same expectations as IB-02, message "masuk staging", status `validated`.
 

@@ -1,144 +1,41 @@
-# Zyx Idea-Centered Learning System Overhaul
+# Zyx Idea-Centered Learning System
 
-Status program: complete, Plans 001 through 016 have passed their recorded local and staging gates. Staging never provisioned Pinecone, so Plan 016 records a deterministic not-provisioned decommission state and preserves production and local legacy configuration outside staging scope.
+## Program status
 
-Planning snapshot:
+Plans 001 through 016 are complete. Their detailed execution specifications were removed from the working tree after completion to keep active documentation focused. The full specifications and diffs remain available in Git history.
 
-- Repository: `D:\ZYX\zyx-web`
-- Branch inspected: `staging`
-- Source commit inspected: `03b68ba0e66ee90f41fe92886b15f81a7a36ec3c`
-- Planning date: 2026-08-02
-- Target environment: staging resources loaded only from `.env.staging`
-- Production deployment: out of scope
+The completed program delivered:
 
-The former Plans 001 through 015 were intentionally removed after execution. Do not restore or mix them with this series. These plans start a new program and must be executed from their recorded predecessor commit.
+- guarded staging migrations and deterministic reconciliation;
+- Indonesian role and identity compatibility;
+- the Source, Idea, Product, assessment, and mastery domains;
+- deterministic legacy backfill with preserved history;
+- Idea Bundle and Product Bundle authoring workflows;
+- protected authoring context packs and assessment integrity;
+- article, diktat, question, and mastery quality gates;
+- canonical 768-dimensional Vectorize indexing and retrieval;
+- Zyra canonical, admin, tutor, murid, and Tutorial PKA workflows;
+- a verified staging cutover with legacy rollback assets preserved.
 
-## Non-negotiable program invariants
+Detailed runtime behavior belongs in `docs/features.md`, architecture in `docs/ARCHITECTURE.md`, schema state in `docs/DB_SCHEMA.md`, and rollout gates in `docs/operations/production-readiness-checklist.md`. Generated staging evidence remains under ignored `artifacts/staging-overhaul/<runId>/` directories.
 
-1. Existing database records, immutable attempt snapshots, user identities, enrollments, Tutorial PKA progress, and historical analytics must remain queryable and operational.
-2. Use expand, backfill, verify, switch, then contract. An export is a recovery and reconciliation artifact, not the primary migration mechanism.
-3. Every remote command must load `.env.staging`, pass the staging identity guard, and refuse to run when a staging resource equals or resembles a production resource.
-4. Never print secrets or full authenticated URLs. Never use `db:sync-prod-to-staging` during this overhaul.
-5. Edit `db/schema.ts`, then run `bun run db:generate`; never hand-edit generated files under `drizzle/`.
-6. All new behavior remains invisible when its `FEATURE_*` flag is absent or `0`.
-7. Database and domain naming for access roles uses `admin`, `tutor`, and `murid`. Do not blindly replace message roles such as AI chat speakers.
-8. `ide` replaces `knowledge_objects` as the canonical learning atom. `concepts` remains the global cross-course concept registry.
-9. Turso remains the source of truth. Vectorize stores searchable representations and IDs only. Pinecone is removed only in Plan 016 after a verified Vectorize-only cutover.
-10. Each plan must pass lint, targeted tests, typecheck, its staging gates, and `git diff --check` before the next plan starts.
-11. Do not run `bun run build` unless a plan explicitly requires it or the change is breaking under `AGENTS.md`.
-12. Stop immediately on count loss, checksum mismatch, orphaned rows, unexpected production identity, non-idempotent re-run, or a failed rollback rehearsal.
+## Active plan
 
-## Execution order and status
+| Plan | Status | Scope | Exit gate |
+|---|---|---|---|
+| [017](017-audit-rework.md) | IN PROGRESS | Minimal audit rework for Idea-centered authoring and learning | Local contracts, lint, typecheck, and diff checks pass without schema or remote writes |
 
-Execute sequentially. A plan is a predecessor gate, not optional reading.
+Plan 017 is local-only until a separate staging review authorizes remote actions. References in the plan to its former feature branch are historical; current work is integrated on `staging`.
 
-| Plan | Title | Priority | Effort | Depends on | Status | Main exit gate |
-|---|---|---|---|---|---|---|
-| [001](001-staging-safety-and-migration-ledger.md) | Staging safety and migration ledger | P0 | M | None | DONE | Safe staging commands, complete inventory and export, rollback rehearsal |
-| [002](002-indonesian-identity-and-role-expansion.md) | Indonesian identity and role expansion | P0 | L | 001 | DONE | Every user has equivalent `admin`, `tutor`, or `murid` membership |
-| [003](003-source-and-idea-domain-expansion.md) | Source and Idea domain expansion | P0 | L | 002 | DONE | All target source, Idea, provenance, relation, and dependency tables exist |
-| [004](004-product-assessment-and-mastery-domain-expansion.md) | Product, assessment, and mastery domain expansion | P0 | L | 003 | DONE | Target product and learner tables exist with enforced invariants |
-| [005](005-deterministic-legacy-backfill-and-compatibility.md) | Deterministic legacy backfill and compatibility layer | P0 | L | 004 | DONE | 100 percent legacy mapping or an explicit zero-loss exception ledger |
-| [006](006-idea-bundle-v2-workflow.md) | Idea Bundle V2 workflow | P1 | L | 005 | DONE | ZIP import is validated, idempotent, reviewed, and atomically published |
-| [007](007-authoring-context-pack-and-protected-benchmarks.md) | Authoring Context Pack and protected benchmarks | P1 | M | 006 | DONE | Context export excludes holdout content and is reproducible |
-| [008](008-product-bundle-v2-workflow.md) | Product Bundle V2 workflow | P1 | L | 007 | DONE | Product import, preview, review, and publish are atomic and dependency-aware |
-| [009](009-article-and-diktat-quality-compiler.md) | Article and diktat quality compiler | P1 | L | 008 | DONE | Required pedagogic blocks and source coverage pass publication gates |
-| [010](010-question-and-assessment-integrity.md) | Question and assessment integrity | P0 | L | 008 | DONE | Multi-Idea evidence, blueprint, benchmark, and active-attempt gates pass |
-| [011](011-per-idea-mastery-and-learning-loop.md) | Per-Idea mastery and learning loop | P0 | L | 010 | DONE | Mastery and confidence are separate, reproducible, and history-safe |
-| [012](012-vectorize-only-indexing-and-retrieval.md) | Vectorize-only indexing and retrieval | P0 | L | 005, 011; internal foundation after 005 | DONE | DB and Vectorize manifests match exactly in staging; 012A contracts complete |
-| [013](013-zyra-canonical-runtime.md) | Zyra canonical runtime | P1 | L | 011, 012 | DONE | Responses hydrate approved DB content and assessment leaks are zero |
-| [014](014-admin-and-tutor-operational-workflow.md) | Admin and tutor operational workflow | P1 | L | 009, 010, 013 | DONE | Admin and tutor can complete the new content lifecycle end to end |
-| [015](015-murid-workflow-and-tutorial-pka-parity.md) | Murid workflow and Tutorial PKA parity | P0 | L | 014 | DONE | Existing Tutorial PKA history and all core murid journeys remain operational |
-| [016](016-staging-cutover-pinecone-removal-and-legacy-contract.md) | Staging cutover, Pinecone removal, and legacy contract | P0 | L | 015 | DONE | Two clean rehearsals, rollback pass, zero active legacy write callers, and safe staging decommission state |
-| [017](017-audit-rework.md) | Minimal audit rework for Idea-centered authoring and learning loop | P0 | S | 016 | IN PROGRESS | Local contract, lint, typecheck, and diff gates pass without schema or remote writes |
+## Permanent invariants
 
-Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`, or `REJECTED`. `BLOCKED` and `REJECTED` require a one-line reason.
-
-Plan 002 evidence: `artifacts/staging-overhaul/20260802-plan002-staging/plan-002-result.json` records passed staging parity, idempotent rerun, seed, and four-case auth smoke. `FEATURE_PERAN_V2` remains `0` in staging pending the next plan's integration gates.
-
-Plan 003 evidence: `artifacts/staging-overhaul/20260802-plan003-staging/plan-003-result.json` records 11 additive target tables, unchanged legacy row and key manifests, zero foreign-key violations, and `FEATURE_ARSITEKTUR_IDE_V1` absent or off.
-
-Plan 004 evidence: `artifacts/staging-overhaul/20260802-plan004-staging/plan-004-result.json` records 34 additive target tables, unchanged legacy row and key manifests, zero foreign-key violations, and all three Plan 004 feature flags absent or off.
-
-Plan 005 evidence: `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json` records 568 deterministic mappings, 3,175 zero-loss exception rows, zero blocking exceptions, zero foreign-key violations, zero uncovered rows, zero snapshot mismatches, zero Tutorial PKA mismatches, and an idempotent apply with `changedRows: 0`.
-
-Plan 006 evidence: `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json` records strict ZIP validation, idempotent retry, conflict rejection, rollback after injected failure, atomic publication, and the invalid fixture reason codes. Independent reconciliation is recorded in `plan-006-reconcile.json`.
-
-Plan 007 evidence: `artifacts/staging-overhaul/20260803-plan007-authoring-v1/plan-007-result.json` records deterministic pack and ZIP checksums, private R2 round trip, exact test-object deletion, and audit metadata. Independent content scan is recorded in `plan-007-scan.json`.
-
-Plan 008 evidence: `artifacts/staging-overhaul/20260803-plan008-product-v3/plan-008-result.json` records all seven product types, identical retry no-op, conflict rejection, seven-stage rollback matrix, stale dependency blocking, holdout rejection, atomic publication, and versioned re-import. Independent reconciliation is recorded in `plan-008-reconcile.json`.
-
-Plan 009 evidence: `artifacts/staging-overhaul/20260803-plan009-article-v1/plan-009-result.json` records 100 percent article and diktat quality, deterministic AST, Markdown, and generation hashes, and zero writes or changed rows. The staging database had no published canonical Idea rows under the requested `tutorial-pka` identity, so the read-only fixture records an explicit fallback to the available canonical course `mat-i`; no Tutorial PKA material was changed.
-
-Plan 010 evidence: `artifacts/staging-overhaul/20260803-plan010-assessment-v4/plan-010-result.json` records a passed create, publish, start, answer, submit, and summary lifecycle with 30 run-scoped IDs. The requested `tutorial-pka` identity used the explicit canonical fallback `mat-i` because it had no two published Ideas; the independent leak scan records zero findings in `plan-010-leak-scan.json`.
-
-Plan 011 evidence: `artifacts/staging-overhaul/20260803-plan011-recompute-v2/plan-011-result.json` records a passed full replay followed by an incremental `--expect-noop` replay with identical state hashes, zero duplicate evidence rows, zero legacy rows modified, and zero AI calls. Read-only shadow evidence is recorded in `artifacts/staging-overhaul/20260803-plan011-shadow-v2/plan-011-shadow.json`; the requested `tutorial-pka` identity used an explicit canonical fallback to `mat-i` because no published Ideas existed under that identity.
-
-## Serialized integration graph
-
-The numbered table preserves the program gates. Implementation lanes may run in parallel only when their write sets are disjoint. Integration, staging writes, migrations, shared files, feature flags, and evidence status remain serial.
-
-```mermaid
-flowchart TD
-    P001["001 staging safety"]
-    P002["002 identity and roles"]
-    P003["003 source and Idea domain"]
-    P004["004 product and assessment domain"]
-    P005["005 legacy backfill"]
-    P006["006 Idea Bundle"]
-    P007["007 Context Pack"]
-    P008["008 Product Bundle"]
-    P009["009 article and diktat"]
-    P010["010 question and assessment"]
-    P012A["012A Vectorize foundation"]
-    P011["011 Idea mastery"]
-    P012B["012B Vectorize rebuild"]
-    P013["013 Zyra runtime"]
-    P014["014 admin and tutor workflow"]
-    P015["015 murid and PKA parity"]
-    P016["016 staging cutover"]
-    P017["017 audit rework"]
-
-    P001 --> P002 --> P003 --> P004 --> P005
-    P005 --> P006 --> P007 --> P008
-    P005 --> P012A
-    P008 --> P009
-    P008 --> P010
-    P010 --> P011
-    P008 --> P012B
-    P012A --> P012B
-    P011 --> P012B
-    P011 --> P013
-    P012B --> P013
-    P009 --> P014
-    P010 --> P014
-    P013 --> P014
-    P014 --> P015 --> P016
-    P016 --> P017
-```
-
-Wave ownership is one writer per schema or documentation hotspot. Plan 001 through 005 and Plan 015 through 016 are serial. Plans 009 and 010 may develop in parallel after Plan 008. Plan 012 foundation may develop after Plan 005, but its final rebuild waits for Plan 011. Only the root executor may mutate staging resources or confirm final cutover.
-
-## Dependency notes
-
-- Plans 001 through 005 establish safety, additive schema, and deterministic preservation before any workflow switches.
-- Plans 006 through 010 build the authoring, product, and assessment chain on the preserved target domain.
-- Plans 011 through 013 require attributable evidence and exact Vectorize reconciliation before the new Zyra runtime is enabled.
-- Plans 014 and 015 switch human workflows only after domain and runtime gates pass.
-- Plan 016 is the only plan allowed to remove Pinecone code or stop legacy writes.
-
-## Findings considered and rejected
-
-- Broad product audit: intentionally rejected for this run because the user selected a focused system overhaul and asked to avoid expanding the scope.
-- Destructive export, rebuild, and import as the primary migration: rejected because additive migration with deterministic backfill gives stronger rollback and data-preservation guarantees.
-- Immediate legacy-table deletion: rejected because historical data must remain operational and staging soak evidence does not justify destructive contraction.
-
-## Shared completion evidence
-
-Each plan must create `artifacts/staging-overhaul/<runId>/plan-NNN-result.json` through a script, not by manually typing evidence. The result must contain the source commit, migration run ID, masked resource fingerprints, commands and exit codes, row counts, reconciliation hashes, feature flag state, rollback result, and operator timestamp. The artifact directory must be ignored by Git.
-
-No plan may mark itself complete from prose alone. Update this index status only after the evidence file exists and all plan-specific gates pass.
-
-## Branch-local follow-up
-
-The isolated branch `codex/rework-audit` contains [Plan 017](017-audit-rework.md), a minimal rework of the audit findings. It is intentionally separate from the completed Plans 001 through 016 program and forbids remote database writes during the first implementation phase.
+1. Preserve user identities, enrollments, attempts, progress, chats, analytics, and immutable snapshots.
+2. Use expand, migrate, verify, switch, then contract for database changes.
+3. Load `.env.staging` and pass the staging identity guard before every remote staging action.
+4. Never expose secrets, authenticated URLs, raw conversations, or raw user IDs in evidence.
+5. Edit `db/schema.ts`, generate migrations, and never hand-edit `drizzle/`.
+6. Keep every new user-visible feature behind its declared `FEATURE_*` flag. Missing or `0` means invisible.
+7. Turso remains the source of truth. Vectorize stores searchable representations and identifiers only.
+8. Preserve rollback assets until a separately authorized contraction.
+9. Run lint, targeted tests, typecheck, and `git diff --check` before integration.
+10. Do not run production migrations or deployments without explicit authorization.

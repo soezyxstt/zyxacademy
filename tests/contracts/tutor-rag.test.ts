@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 
 process.env.MOCK_GEMINI = "true";
-import { composeUngroundedTeachingAnswer, normalizeQuestion, shouldRetrieveTutorEvidence } from "@/lib/tutor-rag";
+import {
+  composeUngroundedTeachingAnswer,
+  normalizeQuestion,
+  shouldRetrieveTutorEvidence,
+} from "@/lib/tutor-rag";
+import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache, buildTutorCacheKey, computeEvidenceVersion } from "@/lib/tutor/cache-contract";
 import { classifyQueryAction, extractStyleModifiers } from "@/lib/tutor/query-action";
@@ -29,6 +34,42 @@ describe("Tutor RAG Contract Tests", () => {
     expect(answer).toContain("### Tujuan belajar");
     expect(answer).toContain("### Cek pemahaman");
     expect(answer.match(/Apa peran diskriminan/g)).toHaveLength(1);
+  });
+
+  it("repairs common raw tutor equations without changing valid LaTeX", () => {
+    const normalized = normalizeTutorMathMarkdown(
+      "Diketahui f'(x) = 6x^2 - 4x + 3. Hitung 3x^2 + 4x. Bentuk valid $g(x) = x^2$ tetap sama.",
+    );
+
+    expect(normalized).toContain("$f'(x) = 6x^2 - 4x + 3$");
+    expect(normalized).toContain("$3x^2 + 4x$");
+    expect(normalized).toContain("$g(x) = x^2$");
+    expect(normalized).not.toContain("$$g(x) = x^2$$");
+  });
+
+  it("normalizes math in the generated checkpoint", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      answer: "Gunakan aturan pangkat.",
+      learningGoal: "Mengintegralkan polinom.",
+      checkForUnderstanding: "Berapakah integral dari 3x^2 + 4x?",
+      matchedConcepts: ["integral"],
+      confidence: 0.8,
+    });
+
+    expect(answer).toContain("integral dari $3x^2 + 4x$?");
+  });
+
+  it("preserves LaTeX commands beginning with n", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      answer: "Gunakan $a \\neq b$ dan $$\\nabla f = 0$$.",
+      learningGoal: "Membaca notasi matematika.",
+      checkForUnderstanding: "Apa arti simbol $\\neq$?",
+      matchedConcepts: ["notasi"],
+      confidence: 0.8,
+    });
+
+    expect(answer).toContain("$a \\neq b$");
+    expect(answer).toContain("$$\\nabla f = 0$$");
   });
 
   it("redirects an out-of-scope request without adding a learning scaffold", () => {

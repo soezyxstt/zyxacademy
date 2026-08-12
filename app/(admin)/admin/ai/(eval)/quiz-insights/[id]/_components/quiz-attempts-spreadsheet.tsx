@@ -318,7 +318,7 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
       <Card className="border-border overflow-hidden">
         <div className="overflow-x-auto max-h-[600px] overflow-y-auto relative">
           <table className="w-full text-left border-collapse text-body-sm">
-            <thead className="bg-muted/80 backdrop-blur sticky top-0 z-20 border-b border-border shadow-sm">
+            <thead className="sticky top-0 z-20 border-b border-border bg-muted shadow-sm">
               <tr>
                 <th className="p-3 font-semibold text-foreground whitespace-nowrap min-w-[200px] sticky left-0 bg-muted z-30 border-r border-border">
                   Siswa

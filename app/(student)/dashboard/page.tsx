@@ -36,6 +36,7 @@ import { getOrUpdateStreak } from "@/lib/streak-service";
 import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
+import { DashboardPlanPreview } from "@/components/dashboard/plan-preview";
 
 
 export const metadata: Metadata = {
@@ -316,6 +317,7 @@ export default async function DashboardPage() {
               </p>
               <EnrollmentForm />
             </div>
+            <DashboardPlanPreview />
           </div>
         ) : (
           /* Active Student Dashboard Flow */

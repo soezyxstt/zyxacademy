@@ -11,6 +11,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 ### Student
 - Redeems enrollment tokens to access courses
 - Views personalized dashboard with progress, weak concepts, daily recommendations
+- When no class is active, can compare a compact Minimal, Essential, and Premium plan preview while retaining enrollment-code activation
 - Reads interactive course materials (markdown, PDFs, images, embedded video)
 - Takes daily/weekly quizzes and timed tryouts
 - Views dedicated AI-powered Quiz Learning Analytics & Diagnosis page (`/summary`) upon quiz completion (3-layer executive summary, deterministic concept mastery, AI error pattern detection, cognitive skill breakdown, time/speed insights, and personalized 3-step action plan)
@@ -71,7 +72,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
 8. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` until the later workflow canaries; current legacy records remain unchanged.
 
-### Idea Bundle V2 Workflow
+### Idea Bundle Workflow
 
 1. Admins upload strict ZIP bundles from `/admin/bundles/idea`; validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
 2. Valid uploads create an immutable import record and entity inventory without writing canonical source or Idea rows. Identical retries are no-ops and a different checksum for the same bundle ID is blocked.
@@ -87,7 +88,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 4. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata.
 5. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables the UI and API when absent or `0`.
 
-### Product Bundle V2 Workflow
+### Product Bundle Workflow
 
 1. Admins upload typed ZIP bundles from `/admin/bundles/product`; the server validates product schemas, checksums, Idea and source traceability, renderable blocks, assessment scope, atomic flashcards, and holdout markers.
 2. Valid uploads create immutable staged inventories. Identical retries write no rows, while a different checksum for the same bundle ID is rejected.
@@ -233,8 +234,8 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - The renderer uses semantic tokens and keyboard-operable native controls. Arbitrary model-generated JavaScript, HTML, SVG, or unrestricted Mermaid is rejected.
 - Function and data plots use responsive Recharts surfaces with labeled axes, grid lines, tooltips, visible zero crossings, and local controls. Invalid expressions produce a visible recovery message. Legacy typed visuals and explicit graph requests are upgraded into Learning Canvas specs when possible, so a valid equation still renders when the model omits the newer `canvasSpec` field.
 - The murid drawer can be resized up to the viewport or expanded with a dedicated button. Each current Zyra answer offers short follow-up actions for an example, a comprehension check, or another representation.
-- Zyra entry points use one application-owned hexagonal `Z` mark across the sidebar, floating launcher, material selection, mistake feedback, and drawer fallback. The mark does not reuse the generic four-point sparkle associated with other AI products. Drawer sizing uses labeled `Perbesar` and `Kecilkan` controls on desktop.
-- When the pet capability is enabled, the course launcher becomes a draggable Zyra companion. A murid can place it within the viewport, click it to open chat, hide it, and restore it from a compact control. Position and visibility persist in browser storage.
+- Static Zyra entry points use one application-owned hexagonal `Z` mark across the sidebar, material selection, mistake feedback, and drawer fallback. The mark does not reuse the generic four-point sparkle associated with other AI products. Drawer sizing uses labeled `Perbesar` and `Kecilkan` controls on desktop.
+- When the pet capability is enabled, the course launcher becomes a draggable Zyra character with a face, body, limbs, and state-specific expressions. Thinking, listening, uploading, explaining, checking, success, confusion, rest, and error are communicated through its eyes, mouth, status glyph, accessible label, and semantic color. A murid can place it within the viewport, click it to open chat, hide it, and restore it from a compact character control. Position and visibility persist in browser storage.
 - On a verified quiz-review route, Zyra receives a bounded page context containing the quiz title and question prompts. This supports requests such as summarizing the current quiz without exposing learner answers or caching attempt-specific context.
 
 ### Admin, Tutor, and Murid Workflows
@@ -285,6 +286,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Large accepted images are rotated and resized to a maximum 2048 px dispatch edge before private storage, reducing multimodal latency and payload size without enlarging smaller screenshots.
 - Sent images remain visible as authenticated thumbnails on the learner message and in restored chat history. Selecting a thumbnail opens a larger private preview; expired or unauthorized objects remain unreadable.
 - Image and text are dispatched as one multimodal request. Gemini Interactions calls use the direct Google endpoint, while the stable `gemini-2.5-flash` image fallback uses Cloudflare AI Gateway through `generateContent`. Retryable provider failures move through this bounded model chain. One successful learner turn spends one allowance; a terminal provider failure refunds it.
+- Mathematical tutoring uses equation-first Markdown with inline and display LaTeX. The tutor prompt prefers symbolic derivations over verbal operation lists, while a bounded presentation normalizer repairs common raw equations in new responses and restored chat history without changing valid LaTeX or code.
 - A learner can paste an image from the clipboard into the chat input as well as select a file. Image turns treat the current attachment as the primary problem statement and bypass text-only course retrieval, preventing an unrelated published question and its source link from replacing the image content.
 - `FEATURE_ZYRA_MURID_V3` adds the personal allowance summary and the integrated murid Zyra surface. `FEATURE_ZYRA_SELECTION_ASK_V1` sends only a bounded explicit lesson quote, and `FEATURE_ZYRA_PET_V1` shows accessible application-owned request states.
 - Learning Canvas exploration remains local after render and spends no provider allowance. Image and Canvas behavior are independently gated.

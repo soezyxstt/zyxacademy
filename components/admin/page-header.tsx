@@ -23,7 +23,7 @@ export function AdminPageHeader({
   className,
 }: AdminPageHeaderProps) {
   return (
-    <header className={cn("flex flex-col gap-5", className)}>
+    <header className={cn("flex w-full flex-col gap-5 text-left", className)}>
       {backHref && (
         <Link
           href={backHref}
@@ -40,7 +40,7 @@ export function AdminPageHeader({
               <Icon className="size-5" aria-hidden />
             </span>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 text-left">
             <h1 className="font-heading text-h4 font-bold tracking-tight text-foreground leading-tight">
               {title}
             </h1>

@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Download, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminSectionTitle } from "@/components/admin/section-title";
+import { AdminTable } from "@/components/admin/table";
 
 type ExportRow = {
   id: string;
@@ -53,17 +56,15 @@ export function AuthoringContextPanel({ initialExports }: { initialExports: Expo
 
   return (
     <div className="relative overflow-hidden space-y-8">
-      <section className="space-y-3 border-b border-border pb-6">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Authoring Context Pack</h1>
-        <p className="text-body-md text-muted-foreground">Ekspor Ideas terbit dan sumber yang aman untuk authoring eksternal tanpa holdout, data murid, atau rahasia.</p>
-      </section>
+      <AdminPageHeader
+        icon={ShieldCheck}
+        title="Authoring Context Pack"
+        description="Ekspor Ideas terbit dan sumber yang aman untuk authoring eksternal tanpa holdout, data murid, atau rahasia."
+      />
 
       <section className="space-y-4">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="size-5 text-status-success" />
-          <h2 className="font-heading text-h6 font-semibold text-foreground">Ekspor terproteksi</h2>
-        </div>
-        <div className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-3">
+        <AdminSectionTitle as="h2" size="h6" icon={ShieldCheck} title="Ekspor terproteksi" />
+        <div className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-3">
           <Input value={courseId} onChange={(event) => setCourseId(event.target.value)} placeholder="Course ID" aria-label="Course ID" />
           <Input value={snapshotId} onChange={(event) => setSnapshotId(event.target.value)} placeholder="Snapshot ID" aria-label="Snapshot ID" />
           <Input value={runId} onChange={(event) => setRunId(event.target.value)} placeholder="Run ID" aria-label="Run ID" />
@@ -77,17 +78,17 @@ export function AuthoringContextPanel({ initialExports }: { initialExports: Expo
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-heading text-h6 font-semibold text-foreground">Riwayat ekspor</h2>
-        <div className="divide-y divide-border">
-          {exports.length === 0 && <p className="py-4 text-body-sm text-muted-foreground">Belum ada pack.</p>}
+        <AdminSectionTitle as="h2" size="h6" border title="Riwayat ekspor" />
+        <AdminTable className="divide-y divide-border">
+          {exports.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada pack.</p>}
           {exports.map((item) => (
-            <div key={item.id} className="space-y-1 py-4">
+            <div key={item.id} className="space-y-1 px-4 py-4">
               <p className="font-semibold text-foreground">{item.packId}</p>
               <p className="break-all font-mono text-body-sm text-muted-foreground">{String(item.metadata?.artifactChecksum ?? "checksum tidak tersedia")}</p>
-              <p className="text-body-sm text-muted-foreground">{item.createdAt} · {item.action}</p>
+              <p className="text-body-sm text-muted-foreground">{item.createdAt} ; {item.action}</p>
             </div>
           ))}
-        </div>
+        </AdminTable>
       </section>
     </div>
   );

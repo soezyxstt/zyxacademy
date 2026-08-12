@@ -31,7 +31,6 @@ export default async function AdminMediaPage() {
           icon={Images}
           title="Media"
           description="Kelola file media untuk kebutuhan konten Zyx Academy."
-          backHref="/admin"
         />
         <div className="border-border rounded-xl border bg-card p-4 shadow-sm">
           <AdminEmptyState
@@ -50,7 +49,6 @@ export default async function AdminMediaPage() {
         icon={Images}
         title="Media"
         description="Kelola pustaka media, atau jelajahi seluruh storage R2 secara read-only dan salin item ke media."
-        backHref="/admin"
       />
       <MediaManager />
     </div>

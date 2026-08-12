@@ -41,6 +41,7 @@ import {
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import {
  ZyraAttachmentComposer,
@@ -704,7 +705,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  : "w-full bg-muted text-foreground self-start rounded-tl-none border border-border/60"
  )}
  >
- <MarkdownRenderer content={msg.content} className={isStudent ? "text-primary-foreground" : ""} />
+ <MarkdownRenderer content={normalizeTutorMathMarkdown(msg.content)} className={isStudent ? "text-primary-foreground" : ""} />
 
  {isStudent && msg.attachments && msg.attachments.length > 0 && sessionId && courseIdFromPath && (
    <ZyraMessageAttachments attachments={msg.attachments} courseId={courseIdFromPath} sessionId={sessionId} />

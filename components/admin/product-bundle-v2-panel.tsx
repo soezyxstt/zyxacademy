@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Eye, Upload, X } from "lucide-react";
+import { Check, Eye, Package, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MathText } from "@/components/course/math-text";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminSectionTitle } from "@/components/admin/section-title";
+import { AdminTable } from "@/components/admin/table";
 
 type BundleRow = {
   id: string;
@@ -112,14 +115,15 @@ export function ProductBundleV2Panel({ initialImports }: Props) {
 
   return (
     <div className="space-y-8">
-      <section className="space-y-3 border-b border-border pb-6">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Product Bundle V2</h1>
-        <p className="text-body-md text-muted-foreground">Unggah produk akademik bertipe, lihat preview dan traceability, lalu review dan publikasikan secara atomik.</p>
-      </section>
+      <AdminPageHeader
+        icon={Package}
+        title="Product Bundle"
+        description="Unggah produk akademik bertipe, lihat preview dan traceability, lalu review dan publikasikan secara atomik."
+      />
 
       <section className="space-y-3">
-        <h2 className="font-heading text-h6 font-semibold text-foreground">Unggah bundle</h2>
-        <form className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center" onSubmit={(event) => { event.preventDefault(); void upload(); }}>
+        <AdminSectionTitle as="h2" size="h6" title="Unggah bundle" />
+        <form className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center" onSubmit={(event) => { event.preventDefault(); void upload(); }}>
           <Input type="file" accept=".zip,application/zip" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
           <Button type="submit" disabled={!file || loading} isLoading={loading}><Upload className="size-4" />Validasi dan staging</Button>
         </form>
@@ -128,14 +132,17 @@ export function ProductBundleV2Panel({ initialImports }: Props) {
       </section>
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-4 border-b border-border pb-3">
-          <h2 className="font-heading text-h6 font-semibold text-foreground">Import product yang sudah distaging</h2>
-          <span className="text-body-sm text-muted-foreground">{imports.length} bundle</span>
-        </div>
-        <div className="divide-y divide-border">
-          {imports.length === 0 && <p className="py-4 text-body-sm text-muted-foreground">Belum ada Product Bundle.</p>}
+        <AdminSectionTitle
+          as="h2"
+          size="h6"
+          border
+          title="Import product yang sudah distaging"
+          right={<span className="text-body-sm text-muted-foreground">{imports.length} bundle</span>}
+        />
+        <AdminTable className="divide-y divide-border">
+          {imports.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada Product Bundle.</p>}
           {imports.map((item) => (
-            <div key={item.id} className="grid gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div key={item.id} className="grid gap-4 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
               <div className="min-w-0 space-y-1">
                 <p className="truncate font-semibold text-foreground">{item.bundleId}</p>
                 <p className="break-all font-mono text-body-sm text-muted-foreground">{item.checksum}</p>
@@ -151,13 +158,13 @@ export function ProductBundleV2Panel({ initialImports }: Props) {
               </div>
             </div>
           ))}
-        </div>
+        </AdminTable>
       </section>
 
       {selected && (
         <section className="space-y-4 border-t border-border pt-6">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="font-heading text-h6 font-semibold text-foreground">Preview dan traceability</h2>
+            <AdminSectionTitle as="h2" size="h6" title="Preview dan traceability" />
             <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(null)}>Tutup</Button>
           </div>
           {selected.blocked && <p className="text-body-sm text-status-warning">Publikasi tertahan karena dependency memerlukan review.</p>}

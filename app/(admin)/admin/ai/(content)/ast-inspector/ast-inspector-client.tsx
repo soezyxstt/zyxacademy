@@ -204,7 +204,7 @@ export function ASTInspectorClient() {
         {/* DUAL PANE */}
         <div className="flex flex-1 overflow-hidden">
           {/* LEFT PANE: EDITOR */}
-          <div className="w-1/2 flex flex-col border-r border-border bg-card/10">
+          <div className="flex w-1/2 flex-col border-r border-border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-muted/40 border-b border-border">
               <span className="text-xs font-mono font-semibold text-muted-foreground flex items-center gap-1.5">
                 <Terminal className="size-3.5" />
@@ -554,8 +554,8 @@ export function ASTInspectorClient() {
                             <span className="text-body-xs font-semibold text-muted-foreground">{item.label}</span>
                             <span className="text-body-sm font-bold text-brand-primary">{item.val}%</span>
                           </div>
-                          <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden mb-2">
-                            <div className="bg-brand-primary h-full rounded-full" style={{ width: `${item.val}%` }} />
+                          <div className="mb-2 h-1.5 w-full overflow-hidden rounded-md bg-muted">
+                            <div className="h-full rounded-md bg-brand-primary transition-[width] duration-500 ease-out" style={{ width: `${item.val}%` }} />
                           </div>
                           <p className="text-[11px] text-muted-foreground leading-normal">{item.desc}</p>
                         </div>

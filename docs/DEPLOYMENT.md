@@ -154,7 +154,7 @@ The artifact must use the private R2 staging bucket and must not use a public UR
 
 ## Zyra Plans 008 through 014 staging boundary
 
-Plans 008 through 013 are additive local implementations in this checkpoint. Local SQLite has migration `0067_zyra_continuation.sql`; it was not applied to production or to remote staging by this continuation. Their feature flags remain absent or `0`.
+Plans 008 through 013 are additive implementations in this checkpoint. Migration `0067_zyra_continuation.sql` was applied to remote staging on 2026-08-12 after encrypted export and disposable restore validation. Reconciliation recorded 164 tables, 7 additive tables, and zero foreign-key violations. It was not applied to production. Their feature flags remain absent or `0`.
 
 Plan 010 requires the dedicated private attachment bucket and the normal R2 or staging Wrangler private adapter. Do not set `STORAGE_PROVIDER_MODE=uploadthing` for the multimodal path. Image source bytes are never sent directly from the browser to a provider and no public object URL is issued.
 
@@ -248,7 +248,7 @@ Plan 008 uses additive migration `0067_zyra_continuation.sql` for bounded learni
 bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course tutorial-pka
 ```
 
-The smoke does not deploy a Worker, enable a public flag, or mutate staging. A future remote gate must reconcile the additive migration, profile-free shared payloads, course ownership, expiry, reset, explicit preference override, and zero cross-course leakage. Plan 007 remote shadow and maintainer review remain separately pending at this checkpoint.
+The smoke does not deploy a Worker, enable a public flag, or mutate staging. Schema reconciliation is complete. A future functional gate must verify profile-free shared payloads, course ownership, expiry, reset, explicit preference override, and zero cross-course leakage. Plan 007 remote shadow and maintainer review remain separately pending at this checkpoint.
 
 ## Zyra typed Learning Canvas
 

@@ -66,7 +66,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
   return (
     <div className="space-y-6">
       {/* Filters & Search Row */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-card/80 backdrop-blur-sm p-4 rounded-2xl border border-border/80 shadow-xs">
+      <div className="flex flex-col justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm lg:flex-row lg:items-center">
         <SearchBar
           placeholder="Cari konten soal atau judul ujian..."
           value={searchTerm}
