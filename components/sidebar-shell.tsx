@@ -294,9 +294,9 @@ export function SidebarShell({
         className={cn(
           "flex flex-col shrink-0 overflow-hidden",
           "border-r border-border bg-card",
-          "transition-transform duration-300 ease-in-out",
+          "transition-[transform,width] duration-300 ease-in-out",
           "fixed inset-y-0 left-0 z-50 shadow-xl w-[clamp(248px,80vw,300px)] -translate-x-full",
-          "md:fixed md:inset-y-0 md:left-0 md:translate-x-0 md:z-30 md:shadow-none",
+          "md:sticky md:top-0 md:self-start md:translate-x-0 md:z-30 md:shadow-none",
           isCollapsed ? "md:w-[64px]" : "md:w-[248px]"
         )}
       >
@@ -370,13 +370,6 @@ export function SidebarShell({
           </button>
         </SidebarTooltip>
       </aside>
-      <div
-        aria-hidden="true"
-        className={cn(
-          "hidden shrink-0 transition-[width] duration-300 md:block",
-          isCollapsed ? "w-[64px]" : "w-[248px]"
-        )}
-      />
     </>
   );
 }

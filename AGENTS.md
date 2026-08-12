@@ -290,7 +290,7 @@ Keep this section concise. Detailed feature behavior belongs in `docs/features.m
 
 ### Active work
 
-- The admin interface uses full-width left-aligned page headers, solid semantic card surfaces, fixed desktop sidebar positioning across dropdown portals, detail-only back navigation, streamlined bundle-centered navigation, and Idea Bundle and Product Bundle display names without version suffixes. The repair is local-only and still needs visual review at desktop, dark mode, and 380px mobile widths.
+- The admin interface uses full-width left-aligned page headers, solid semantic card surfaces, flow-reserved sticky desktop sidebar positioning, detail-only back navigation, streamlined bundle-centered navigation, and Idea Bundle and Product Bundle display names without version suffixes. The repair is local-only and still needs visual review at desktop, dark mode, and 380px mobile widths.
 - The student dashboard shows Minimal, Essential, and Premium package previews to students without an active enrollment while retaining token activation.
 - Plan 017 audit rework is in progress. It is local-only until a separate staging review authorizes remote actions.
 - Zyra AI Plans 001 and 003 through 006 have completed their recorded gates. Plan 002 remains partial because the quarantined preview model has insufficient successful samples.
