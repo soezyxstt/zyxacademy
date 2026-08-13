@@ -59,8 +59,8 @@ function ProgressBar({ current, max }: { current: number; max: number }) {
     pct >= 70 ? "bg-status-warning" :
     "bg-status-success";
   return (
-    <div className="h-2 w-full rounded-full bg-muted">
-      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+    <div className="h-1.5 w-full overflow-hidden rounded-md bg-muted">
+      <div className={`h-full rounded-md transition-[width] duration-500 ease-out ${color}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }

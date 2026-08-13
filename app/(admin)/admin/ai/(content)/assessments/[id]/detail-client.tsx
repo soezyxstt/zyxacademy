@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DifficultyBadge } from "@/components/admin/status-badges";
+import { AdminPageHeader } from "@/components/admin/page-header";
 import {
   Tabs,
   TabsContent,
@@ -21,7 +22,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft,
   RefreshCw,
   Trash2,
   Archive,
@@ -38,7 +38,8 @@ import {
   Hash,
 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
-import { parseFrontmatter } from "@/lib/assessment-extractor";
+import { MathText } from "@/components/course/math-text";
+import { parseFrontmatter } from "@/lib/assessment-frontmatter";
 
 interface Source {
   id: string;
@@ -209,17 +210,14 @@ export function AssessmentDetailClient({
 
   return (
     <div className="space-y-6">
-      {/* Navigation Header */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/admin/ai/assessments"
-          className="flex items-center gap-2 text-body-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft size={16} />
-          Kembali ke Dasbor Asesmen
-        </Link>
-
-        <div className="flex items-center gap-3">
+      <AdminPageHeader
+        icon={Archive}
+        title={source.title}
+        description={<>Mata kuliah: <span className="font-semibold text-foreground">{course.title}</span></>}
+        backHref="/admin/ai/assessments"
+        backLabel="Kembali ke asesmen historis"
+        actions={
+          <>
           <Button
             variant="outline"
             size="sm"
@@ -252,25 +250,20 @@ export function AssessmentDetailClient({
             <Trash2 size={14} />
             Hapus Permanen
           </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Hero Metadata Panel */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <h1 className="font-heading text-h5 font-bold text-foreground">{source.title}</h1>
+            <div className="flex flex-wrap gap-2 pt-1">
               {source.deletedAt && (
-                <Badge variant="outline" className="border-status-error/30 text-status-error bg-status-error/5 uppercase text-[9px] tracking-wide">
+                <Badge variant="outline" className="border-status-error/30 bg-status-error/5 text-[9px] uppercase tracking-wide text-status-error">
                   Archived
                 </Badge>
               )}
-            </div>
-            <p className="text-body-sm text-muted-foreground">
-              Mata Kuliah: <span className="font-semibold text-foreground">{course.title}</span>
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
               <Badge variant="outline" className="uppercase text-[10px] tracking-wider font-semibold">
                 Kategori: {source.category}
               </Badge>
@@ -409,18 +402,7 @@ export function AssessmentDetailClient({
                     <Badge variant="outline" className="text-[10px] tracking-wide uppercase">
                       Bloom: L{q.applicationLevel}
                     </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] tracking-wide uppercase ${
-                        q.difficulty === 3
-                          ? "border-status-error/30 text-status-error bg-status-error/5"
-                          : q.difficulty === 2
-                          ? "border-status-warning/30 text-status-warning bg-status-warning/5"
-                          : "border-status-success/30 text-status-success bg-status-success/5"
-                      }`}
-                    >
-                      Kesulitan: {q.difficulty === 3 ? "Hard" : q.difficulty === 2 ? "Medium" : "Easy"}
-                    </Badge>
+                    <DifficultyBadge difficulty={q.difficulty} prefix="Kesulitan" />
                   </div>
                 </div>
 
@@ -440,7 +422,7 @@ export function AssessmentDetailClient({
                         {q.options.map((opt, idx) => (
                           <div key={idx} className="bg-background/20 px-3 py-2 rounded border border-border/30 text-body-sm text-foreground flex gap-2">
                             <span className="font-semibold text-primary">{String.fromCharCode(65 + idx)}.</span>
-                            <span>{opt}</span>
+                            <MathText as="span">{opt}</MathText>
                           </div>
                         ))}
                       </div>

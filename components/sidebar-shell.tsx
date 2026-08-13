@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOut } from "@/lib/auth-client";
 import { useSwipe } from "@/hooks/use-swipe";
 import {
@@ -229,7 +230,8 @@ export function SidebarShell({
   useEffect(() => {
     if (!mobileOpen) return;
     const handleOutsideClick = (e: MouseEvent) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+      const isPortal = (e.target as HTMLElement)?.closest?.('[data-radix-portal], [role="listbox"], [role="dialog"], [role="combobox"]');
+      if (!isPortal && sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
         setMobileOpen(false);
       }
     };
@@ -255,6 +257,7 @@ export function SidebarShell({
 
   const handleLogout = async () => {
     await signOut();
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = "/";
   };
 
@@ -291,7 +294,7 @@ export function SidebarShell({
         className={cn(
           "flex flex-col shrink-0 overflow-hidden",
           "border-r border-border bg-card",
-          "transition-transform duration-300 ease-in-out",
+          "transition-[transform,width] duration-300 ease-in-out",
           "fixed inset-y-0 left-0 z-50 shadow-xl w-[clamp(248px,80vw,300px)] -translate-x-full",
           "md:sticky md:top-0 md:self-start md:translate-x-0 md:z-30 md:shadow-none",
           isCollapsed ? "md:w-[64px]" : "md:w-[248px]"
@@ -304,6 +307,8 @@ export function SidebarShell({
             </Link>
           )}
           {isCollapsed && <div className="flex-1" />}
+
+          <NotificationBell variant="sidebar" />
 
           <SidebarTooltip label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"} collapsed={isCollapsed}>
             <button

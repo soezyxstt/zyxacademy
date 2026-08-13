@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
+  allowedDevOrigins: ["http://localhost:3000", "http://127.0.0.1:3000", "127.0.0.1"],
   async redirects() {
     // Legacy Tutorial PKA microsite URLs; the campaign now lives at
     // /courses/tutorial-pka inside the regular student course shell.

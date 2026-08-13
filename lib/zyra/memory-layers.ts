@@ -55,11 +55,19 @@ export interface ChapterMasterySummary {
   confidence: number;
 }
 
+export interface IdeaMasterySummary {
+  ideaId: string;
+  score: number;
+  confidence: number;
+  evidenceCount: number;
+}
+
 export interface MasteryMemory {
   strongestConcepts: WeakConcept[];
   weakestConcepts: WeakConcept[];
   chapterMastery: ChapterMasterySummary[];
   overallMasteryScore: number;
+  ideaMastery?: IdeaMasterySummary[];
 }
 
 export interface RetrievalMemory {

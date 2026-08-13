@@ -1,14 +1,23 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MarkdownRenderer, VisualRenderer } from "@/components/course/markdown-renderer";
+import { DifficultyBadge } from "@/components/admin/status-badges";
+import { AdminPageHeader } from "@/components/admin/page-header";
 import { cn, cleanSummary } from "@/lib/utils";
 import { MathText } from "@/components/course/math-text";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
-  ArrowLeft,
   BookOpen,
   Layers,
   AlertTriangle,
@@ -1087,16 +1096,7 @@ export function MaterialDetailClient({
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-body-base font-bold text-foreground">{mu.concept.conceptName}</span>
-                          <span className={cn(
-                            "text-[10px] font-semibold px-2 py-0.5 rounded-md uppercase border",
-                            mu.difficulty === "easy"
-                              ? "bg-status-success/10 text-status-success border-status-success/20"
-                              : mu.difficulty === "medium"
-                                ? "bg-status-warning/10 text-status-warning border-status-warning/20"
-                                : "bg-status-error/10 text-status-error border-status-error/20"
-                          )}>
-                            {mu.difficulty}
-                          </span>
+                          <DifficultyBadge difficulty={mu.difficulty} />
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground border border-border uppercase">
                             Bloom: {mu.concept.bloomLevel}
                           </span>
@@ -1341,16 +1341,7 @@ export function MaterialDetailClient({
                         <td className="px-4 py-3 text-muted-foreground truncate max-w-[150px]" title={ko.conceptName}>{ko.conceptName}</td>
                         <td className="px-4 py-3 align-middle font-mono text-[10px] text-muted-foreground uppercase">{ko.type}</td>
                         <td className="px-4 py-3 align-middle">
-                          <span className={cn(
-                            "inline-block font-mono text-[9px] px-1.5 py-0.5 rounded border uppercase",
-                            ko.difficulty === "easy"
-                              ? "bg-status-success/10 text-status-success border-status-success/20"
-                              : ko.difficulty === "medium"
-                                ? "bg-status-warning/10 text-status-warning border-status-warning/20"
-                                : "bg-status-error/10 text-status-error border-status-error/20"
-                          )}>
-                            {ko.difficulty}
-                          </span>
+                          <DifficultyBadge difficulty={ko.difficulty} />
                         </td>
                         <td className="px-4 py-3 align-middle text-muted-foreground capitalize font-mono text-[10px]">{ko.bloomLevel}</td>
                         <td className="px-4 py-3 align-middle text-muted-foreground capitalize font-mono text-[10px]">{ko.importance}</td>
@@ -1617,25 +1608,15 @@ export function MaterialDetailClient({
 
   return (
     <div className="space-y-6">
-      {/* Header breadcrumb & info bar */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1 text-left">
-          <Button variant="ghost" size="xs" className="text-muted-foreground -ml-2 mb-1 gap-1" asChild>
-            <Link href="/admin/ai/materials">
-              <ArrowLeft className="size-3.5" aria-hidden />
-              Kembali ke Materi
-            </Link>
-          </Button>
-          <h1 className="font-heading text-h4 font-bold text-foreground">
-            {activeChapterId 
-              ? `${chaptersList.find(c => c.id === activeChapterId)?.title || "Workspace Bab"}`
-              : cleanTitle}
-          </h1>
-          <p className="text-body-sm text-muted-foreground">
-            Materi Kelas: <span className="font-semibold text-foreground">{course.title}</span> · Sumber: <span className="font-mono text-xs uppercase px-1.5 py-0.5 bg-muted rounded-md border border-border">{instance.sourceType}</span>
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader
+        icon={BookOpen}
+        title={activeChapterId
+          ? chaptersList.find((chapter) => chapter.id === activeChapterId)?.title || "Workspace Bab"
+          : cleanTitle}
+        description={<>Materi kelas: <span className="font-semibold text-foreground">{course.title}</span> ; sumber: <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-xs uppercase">{instance.sourceType}</span></>}
+        backHref="/admin/ai/materials"
+        backLabel="Kembali ke materi"
+      />
 
       {activeChapterId ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1801,15 +1782,7 @@ export function MaterialDetailClient({
                           {ko.type}
                         </span>
                       </div>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md uppercase border ${
-                        ko.difficulty === "easy"
-                          ? "bg-status-success/10 text-status-success border-status-success/20"
-                          : ko.difficulty === "medium"
-                            ? "bg-status-warning/10 text-status-warning border-status-warning/20"
-                            : "bg-status-error/10 text-status-error border-status-error/20"
-                      }`}>
-                        {ko.difficulty}
-                      </span>
+                      <DifficultyBadge difficulty={ko.difficulty} />
                     </div>
                   </div>
                 ))}
@@ -1836,9 +1809,9 @@ export function MaterialDetailClient({
                     <div className="space-y-3">
                       <div>
                         <label className="block text-xs font-semibold text-muted-foreground uppercase">Nama Konsep</label>
-                        <input
+                        <Input
                           type="text"
-                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                          className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                           value={koForm.conceptName}
                           onChange={e => setKOForm(prev => ({ ...prev, conceptName: e.target.value }))}
                         />
@@ -1846,9 +1819,9 @@ export function MaterialDetailClient({
 
                       <div>
                         <label className="block text-xs font-semibold text-muted-foreground uppercase">Judul Objek</label>
-                        <input
+                        <Input
                           type="text"
-                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                          className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                           value={koForm.title}
                           onChange={e => setKOForm(prev => ({ ...prev, title: e.target.value }))}
                         />
@@ -1857,72 +1830,88 @@ export function MaterialDetailClient({
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-semibold text-muted-foreground uppercase">Kategori</label>
-                          <select
-                            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                          <Select
                             value={koForm.type}
-                            onChange={e => setKOForm(prev => ({ ...prev, type: e.target.value as any }))}
+                            onValueChange={(val) => setKOForm(prev => ({ ...prev, type: val }))}
                           >
-                            <option value="definition">definition</option>
-                            <option value="formula">formula</option>
-                            <option value="example">example</option>
-                            <option value="misconception">misconception</option>
-                            <option value="exercise">exercise</option>
-                            <option value="summary">summary</option>
-                            <option value="objective">objective</option>
-                            <option value="concept_overview">concept_overview</option>
-                          </select>
+                            <SelectTrigger className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs">
+                              <SelectValue placeholder="Pilih kategori" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="definition">definition</SelectItem>
+                              <SelectItem value="formula">formula</SelectItem>
+                              <SelectItem value="example">example</SelectItem>
+                              <SelectItem value="misconception">misconception</SelectItem>
+                              <SelectItem value="exercise">exercise</SelectItem>
+                              <SelectItem value="summary">summary</SelectItem>
+                              <SelectItem value="objective">objective</SelectItem>
+                              <SelectItem value="concept_overview">concept_overview</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div>
                           <label className="block text-xs font-semibold text-muted-foreground uppercase">Kesulitan</label>
-                          <select
-                            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                          <Select
                             value={koForm.difficulty}
-                            onChange={e => setKOForm(prev => ({ ...prev, difficulty: e.target.value as any }))}
+                            onValueChange={(val) => setKOForm(prev => ({ ...prev, difficulty: val }))}
                           >
-                            <option value="easy">easy</option>
-                            <option value="medium">medium</option>
-                            <option value="hard">hard</option>
-                          </select>
+                            <SelectTrigger className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs">
+                              <SelectValue placeholder="Pilih kesulitan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="easy">easy</SelectItem>
+                              <SelectItem value="medium">medium</SelectItem>
+                              <SelectItem value="hard">hard</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-semibold text-muted-foreground uppercase">Taksonomi Bloom</label>
-                          <select
-                            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                          <Select
                             value={koForm.bloomLevel}
-                            onChange={e => setKOForm(prev => ({ ...prev, bloomLevel: e.target.value as any }))}
+                            onValueChange={(val) => setKOForm(prev => ({ ...prev, bloomLevel: val }))}
                           >
-                            <option value="remember">remember</option>
-                            <option value="understand">understand</option>
-                            <option value="apply">apply</option>
-                            <option value="analyze">analyze</option>
-                            <option value="evaluate">evaluate</option>
-                            <option value="create">create</option>
-                          </select>
+                            <SelectTrigger className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs">
+                              <SelectValue placeholder="Pilih level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="remember">remember</SelectItem>
+                              <SelectItem value="understand">understand</SelectItem>
+                              <SelectItem value="apply">apply</SelectItem>
+                              <SelectItem value="analyze">analyze</SelectItem>
+                              <SelectItem value="evaluate">evaluate</SelectItem>
+                              <SelectItem value="create">create</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div>
                           <label className="block text-xs font-semibold text-muted-foreground uppercase">Tingkat Penting</label>
-                          <select
-                            className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                          <Select
                             value={koForm.importance}
-                            onChange={e => setKOForm(prev => ({ ...prev, importance: e.target.value as any }))}
+                            onValueChange={(val) => setKOForm(prev => ({ ...prev, importance: val }))}
                           >
-                            <option value="high">high</option>
-                            <option value="medium">medium</option>
-                            <option value="low">low</option>
-                          </select>
+                            <SelectTrigger className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs">
+                              <SelectValue placeholder="Pilih tingkat" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="high">high</SelectItem>
+                              <SelectItem value="medium">medium</SelectItem>
+                              <SelectItem value="low">low</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
                       <div>
                         <label className="block text-xs font-semibold text-muted-foreground uppercase">Konten Penjelasan (Markdown / LaTeX)</label>
-                        <textarea
+                        <Textarea
                           rows={6}
-                          className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 font-mono text-xs text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                          className="mt-1 w-full rounded-md px-3 py-1.5 font-mono text-xs shadow-xs"
                           value={koForm.content}
                           onChange={e => setKOForm(prev => ({ ...prev, content: e.target.value }))}
                         />
@@ -1985,22 +1974,26 @@ export function MaterialDetailClient({
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase">Level Header</label>
-                    <select
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
-                      value={editingBlockData.level || 2}
-                      onChange={(e) => setEditingBlockData((prev: any) => ({ ...prev, level: parseInt(e.target.value, 10) }))}
+                    <Select
+                      value={String(editingBlockData.level || 2)}
+                      onValueChange={(val) => setEditingBlockData((prev: any) => ({ ...prev, level: parseInt(val, 10) }))}
                     >
-                      <option value={1}>Heading 1 (Sangat Besar)</option>
-                      <option value={2}>Heading 2 (Besar)</option>
-                      <option value={3}>Heading 3 (Sedang)</option>
-                      <option value={4}>Heading 4 (Kecil)</option>
-                    </select>
+                      <SelectTrigger className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs">
+                        <SelectValue placeholder="Pilih level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Heading 1 (Sangat Besar)</SelectItem>
+                        <SelectItem value="2">Heading 2 (Besar)</SelectItem>
+                        <SelectItem value="3">Heading 3 (Sedang)</SelectItem>
+                        <SelectItem value="4">Heading 4 (Kecil)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase">Konten Teks</label>
-                    <input
+                    <Input
                       type="text"
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                       value={editingBlockData.content || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({ ...prev, content: e.target.value }))}
                     />
@@ -2045,10 +2038,10 @@ export function MaterialDetailClient({
                       ))}
                     </div>
 
-                    <textarea
+                    <Textarea
                       id="block-textarea-content"
                       rows={6}
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground font-sans shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 w-full rounded-md px-3 py-1.5 text-body-sm font-sans shadow-xs"
                       value={editingBlockData.content || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({ ...prev, content: e.target.value }))}
                     />
@@ -2069,9 +2062,9 @@ export function MaterialDetailClient({
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase">Judul Konsep</label>
-                    <input
+                    <Input
                       type="text"
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                       value={editingBlockData.content?.title || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({
                         ...prev,
@@ -2115,10 +2108,10 @@ export function MaterialDetailClient({
                       ))}
                     </div>
 
-                    <textarea
+                    <Textarea
                       id="block-textarea-bodyMarkdown"
                       rows={6}
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground font-sans shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 w-full rounded-md px-3 py-1.5 text-body-sm font-sans shadow-xs"
                       value={editingBlockData.content?.bodyMarkdown || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({
                         ...prev,
@@ -2133,9 +2126,9 @@ export function MaterialDetailClient({
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase">Nama / Judul Rumus</label>
-                    <input
+                    <Input
                       type="text"
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                       value={editingBlockData.content?.title || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({
                         ...prev,
@@ -2179,10 +2172,10 @@ export function MaterialDetailClient({
                       ))}
                     </div>
 
-                    <textarea
+                    <Textarea
                       id="block-textarea-latex"
                       rows={3}
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 font-mono text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 w-full rounded-md px-3 py-1.5 font-mono text-body-sm shadow-xs"
                       value={editingBlockData.content?.latex || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({
                         ...prev,
@@ -2202,9 +2195,9 @@ export function MaterialDetailClient({
 
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase">Interpretasi / Penjelasan</label>
-                    <textarea
+                    <Textarea
                       rows={3}
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 w-full rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                       value={editingBlockData.content?.interpretation || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({
                         ...prev,
@@ -2239,10 +2232,10 @@ export function MaterialDetailClient({
                     <div className="space-y-2">
                       {(editingBlockData.content?.symbols || []).map((sym: any, sIdx: number) => (
                         <div key={sIdx} className="grid grid-cols-[100px_100px_1fr_40px] gap-2 items-center">
-                          <input
+                          <Input
                             type="text"
                             placeholder="Simbol (e.g. v)"
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                            className="h-8 rounded-md px-2 py-1 text-xs shadow-xs"
                             value={sym.symbol}
                             onChange={(e) => {
                               const newSyms = [...editingBlockData.content.symbols];
@@ -2253,10 +2246,10 @@ export function MaterialDetailClient({
                               }));
                             }}
                           />
-                          <input
+                          <Input
                             type="text"
                             placeholder="Satuan (e.g. m/s)"
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                            className="h-8 rounded-md px-2 py-1 text-xs shadow-xs"
                             value={sym.unit || ""}
                             onChange={(e) => {
                               const newSyms = [...editingBlockData.content.symbols];
@@ -2267,10 +2260,10 @@ export function MaterialDetailClient({
                               }));
                             }}
                           />
-                          <input
+                          <Input
                             type="text"
                             placeholder="Keterangan"
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                            className="h-8 rounded-md px-2 py-1 text-xs shadow-xs"
                             value={sym.definition}
                             onChange={(e) => {
                               const newSyms = [...editingBlockData.content.symbols];
@@ -2310,9 +2303,9 @@ export function MaterialDetailClient({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase">Pernyataan Soal</label>
-                    <textarea
+                    <Textarea
                       rows={4}
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 w-full rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                       value={editingBlockData.content?.problemStatement || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({
                         ...prev,
@@ -2412,9 +2405,9 @@ export function MaterialDetailClient({
                           <div className="grid gap-2 sm:grid-cols-2">
                             <div>
                               <label className="block text-[10px] font-semibold text-muted-foreground uppercase">Label Langkah</label>
-                              <input
+                              <Input
                                 type="text"
-                                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-xs"
+                                className="mt-1 h-8 w-full rounded-md px-3 py-1 text-xs shadow-xs"
                                 value={step.label}
                                 onChange={(e) => {
                                   const steps = [...editingBlockData.content.solutionSteps];
@@ -2428,9 +2421,9 @@ export function MaterialDetailClient({
                             </div>
                             <div>
                               <label className="block text-[10px] font-semibold text-muted-foreground uppercase">Penjelasan / Rumus</label>
-                              <textarea
+                              <Textarea
                                 rows={2}
-                                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-xs"
+                                className="mt-1 w-full rounded-md px-3 py-1 text-xs shadow-xs"
                                 value={step.explanationMarkdown}
                                 onChange={(e) => {
                                   const steps = [...editingBlockData.content.solutionSteps];
@@ -2457,9 +2450,9 @@ export function MaterialDetailClient({
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase">Kesalahpahaman Umum (Mitos)</label>
-                    <textarea
+                    <Textarea
                       rows={2}
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 w-full rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                       value={editingBlockData.content?.myth || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({
                         ...prev,
@@ -2470,9 +2463,9 @@ export function MaterialDetailClient({
 
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase">Koreksi Ilmiah</label>
-                    <textarea
+                    <Textarea
                       rows={3}
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 w-full rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                       value={editingBlockData.content?.correctionMarkdown || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({
                         ...prev,
@@ -2483,9 +2476,9 @@ export function MaterialDetailClient({
 
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase">Rasionalisasi Fisika (Opsional)</label>
-                    <textarea
+                    <Textarea
                       rows={3}
-                      className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                      className="mt-1 w-full rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                       value={editingBlockData.content?.physicalRationaleMarkdown || ""}
                       onChange={(e) => setEditingBlockData((prev: any) => ({
                         ...prev,
@@ -2501,18 +2494,18 @@ export function MaterialDetailClient({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Judul Diagram</label>
-                      <input
+                      <Input
                         type="text"
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs"
+                        className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                         value={editingBlockData.title || ""}
                         onChange={(e) => setEditingBlockData((prev: any) => ({ ...prev, title: e.target.value }))}
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Keterangan / Caption</label>
-                      <input
+                      <Input
                         type="text"
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs"
+                        className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                         value={editingBlockData.caption || ""}
                         onChange={(e) => setEditingBlockData((prev: any) => ({ ...prev, caption: e.target.value }))}
                       />
@@ -2546,10 +2539,10 @@ export function MaterialDetailClient({
                       {(editingBlockData.data?.nodes || []).map((node: any, nIdx: number) => (
                         <div key={node.id} className="grid grid-cols-[100px_1fr_80px_40px] gap-2 items-center">
                           <span className="font-mono text-[10px] text-muted-foreground truncate" title={node.id}>{node.id}</span>
-                          <input
+                          <Input
                             type="text"
                             placeholder="Label Node (e.g. Masukan)"
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                            className="h-8 rounded-md px-2 py-1 text-xs shadow-xs"
                             value={node.label}
                             onChange={(e) => {
                               const newNodes = [...editingBlockData.data.nodes];
@@ -2574,10 +2567,10 @@ export function MaterialDetailClient({
                               }));
                             }}
                           />
-                          <input
+                          <Input
                             type="number"
                             placeholder="Step #"
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                            className="h-8 rounded-md px-2 py-1 text-xs shadow-xs"
                             value={node.stepNumber !== undefined && node.stepNumber !== null ? node.stepNumber : ""}
                             onChange={(e) => {
                               const newNodes = [...editingBlockData.data.nodes];
@@ -2647,46 +2640,54 @@ export function MaterialDetailClient({
                     <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                       {(editingBlockData.data?.edges || []).map((edge: any, eIdx: number) => (
                         <div key={eIdx} className="grid grid-cols-[1fr_auto_1fr_120px_40px] gap-2 items-center">
-                          <select
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                          <Select
                             value={edge.source}
-                            onChange={(e) => {
+                            onValueChange={(val) => {
                               const newEdges = [...editingBlockData.data.edges];
-                              newEdges[eIdx].source = e.target.value;
+                              newEdges[eIdx].source = val;
                               setEditingBlockData((prev: any) => ({
                                 ...prev,
                                 data: { ...prev.data, edges: newEdges }
                               }));
                             }}
                           >
-                            {editingBlockData.data.nodes.map((n: any) => (
-                              <option key={n.id} value={n.id}>{n.label}</option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="h-8 rounded-md px-2 py-1 text-xs shadow-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {editingBlockData.data.nodes.map((n: any) => (
+                                <SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
                           <span className="text-muted-foreground text-xs font-semibold">--&gt;</span>
 
-                          <select
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                          <Select
                             value={edge.target}
-                            onChange={(e) => {
+                            onValueChange={(val) => {
                               const newEdges = [...editingBlockData.data.edges];
-                              newEdges[eIdx].target = e.target.value;
+                              newEdges[eIdx].target = val;
                               setEditingBlockData((prev: any) => ({
                                 ...prev,
                                 data: { ...prev.data, edges: newEdges }
                               }));
                             }}
                           >
-                            {editingBlockData.data.nodes.map((n: any) => (
-                              <option key={n.id} value={n.id}>{n.label}</option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="h-8 rounded-md px-2 py-1 text-xs shadow-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {editingBlockData.data.nodes.map((n: any) => (
+                                <SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
-                          <input
+                          <Input
                             type="text"
                             placeholder="Label (e.g. Ya)"
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                            className="h-8 rounded-md px-2 py-1 text-xs shadow-xs"
                             value={edge.label || ""}
                             onChange={(e) => {
                               const newEdges = [...editingBlockData.data.edges];
@@ -2742,37 +2743,41 @@ export function MaterialDetailClient({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Judul Grafik</label>
-                      <input
+                      <Input
                         type="text"
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs"
+                        className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                         value={editingBlockData.title || ""}
                         onChange={(e) => setEditingBlockData((prev: any) => ({ ...prev, title: e.target.value }))}
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Chart Type</label>
-                      <select
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs"
+                      <Select
                         value={editingBlockData.data?.chartType || "line"}
-                        onChange={(e) => setEditingBlockData((prev: any) => ({
+                        onValueChange={(val) => setEditingBlockData((prev: any) => ({
                           ...prev,
-                          data: { ...prev.data, chartType: e.target.value }
+                          data: { ...prev.data, chartType: val }
                         }))}
                       >
-                        <option value="line">Line Chart (Garis)</option>
-                        <option value="bar">Bar Chart (Batang)</option>
-                        <option value="scatter">Scatter Plot (Titik sebar)</option>
-                        <option value="pie">Pie Chart (Lingkaran)</option>
-                      </select>
+                        <SelectTrigger className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="line">Line Chart (Garis)</SelectItem>
+                          <SelectItem value="bar">Bar Chart (Batang)</SelectItem>
+                          <SelectItem value="scatter">Scatter Plot (Titik sebar)</SelectItem>
+                          <SelectItem value="pie">Pie Chart (Lingkaran)</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Label X-Axis</label>
-                      <input
+                      <Input
                         type="text"
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-xs"
+                        className="mt-1 h-9 rounded-md px-3 py-1 text-xs shadow-xs"
                         value={editingBlockData.data?.xLabel || ""}
                         onChange={(e) => setEditingBlockData((prev: any) => ({
                           ...prev,
@@ -2782,9 +2787,9 @@ export function MaterialDetailClient({
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Label Y-Axis</label>
-                      <input
+                      <Input
                         type="text"
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-xs"
+                        className="mt-1 h-9 rounded-md px-3 py-1 text-xs shadow-xs"
                         value={editingBlockData.data?.yLabel || ""}
                         onChange={(e) => setEditingBlockData((prev: any) => ({
                           ...prev,
@@ -2820,10 +2825,10 @@ export function MaterialDetailClient({
                     <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
                       {(editingBlockData.data?.data || []).map((pt: any, pIdx: number) => (
                         <div key={pIdx} className="grid grid-cols-[1fr_1fr_40px] gap-2 items-center">
-                          <input
+                          <Input
                             type="text"
                             placeholder="Nilai X (e.g. 2026 atau A)"
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                            className="h-8 rounded-md px-2 py-1 text-xs shadow-xs"
                             value={pt[0]}
                             onChange={(e) => {
                               const newData = [...editingBlockData.data.data];
@@ -2835,10 +2840,10 @@ export function MaterialDetailClient({
                               }));
                             }}
                           />
-                          <input
+                          <Input
                             type="number"
                             placeholder="Nilai Y"
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-xs"
+                            className="h-8 rounded-md px-2 py-1 text-xs shadow-xs"
                             value={pt[1]}
                             onChange={(e) => {
                               const newData = [...editingBlockData.data.data];
@@ -2892,18 +2897,18 @@ export function MaterialDetailClient({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Judul Grafik</label>
-                      <input
+                      <Input
                         type="text"
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm text-foreground shadow-xs"
+                        className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm shadow-xs"
                         value={editingBlockData.title || ""}
                         onChange={(e) => setEditingBlockData((prev: any) => ({ ...prev, title: e.target.value }))}
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Persamaan Fungsi (e.g. x^2 - 4)</label>
-                      <input
+                      <Input
                         type="text"
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1.5 text-body-sm font-mono text-foreground shadow-xs"
+                        className="mt-1 h-9 rounded-md px-3 py-1.5 text-body-sm font-mono shadow-xs"
                         value={editingBlockData.data?.functions?.[0] || ""}
                         onChange={(e) => setEditingBlockData((prev: any) => ({
                           ...prev,
@@ -2916,9 +2921,9 @@ export function MaterialDetailClient({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Domain Min X</label>
-                      <input
+                      <Input
                         type="number"
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-xs"
+                        className="mt-1 h-9 rounded-md px-3 py-1 text-xs shadow-xs"
                         value={editingBlockData.data?.domain?.min !== undefined ? editingBlockData.data.domain.min : -10}
                         onChange={(e) => setEditingBlockData((prev: any) => ({
                           ...prev,
@@ -2928,9 +2933,9 @@ export function MaterialDetailClient({
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-muted-foreground uppercase">Domain Max X</label>
-                      <input
+                      <Input
                         type="number"
-                        className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-xs"
+                        className="mt-1 h-9 rounded-md px-3 py-1 text-xs shadow-xs"
                         value={editingBlockData.data?.domain?.max !== undefined ? editingBlockData.data.domain.max : 10}
                         onChange={(e) => setEditingBlockData((prev: any) => ({
                           ...prev,

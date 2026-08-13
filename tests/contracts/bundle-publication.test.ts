@@ -1,0 +1,43 @@
+import { describe, expect, test } from "bun:test";
+import { previewProducts } from "@/lib/bundle/product-preview";
+import { productEntitySchema } from "@/lib/bundle/product-validator";
+
+describe("Plan 008 product preview boundary", () => {
+  test("renders source and Idea traceability for staged products", () => {
+    const product = productEntitySchema.parse({
+      id: "question-preview",
+      productType: "question",
+      courseId: "course-preview",
+      chapterId: "chapter-preview",
+      version: 1,
+      status: "draft",
+      ideaLinks: [{ id: "idea-preview", version: 1, semanticHash: "a".repeat(64), weight: 1, role: "primary" }],
+      sourceRefs: [{ sourceId: "source-preview", version: 1, checksum: "b".repeat(64), excerptIds: ["excerpt-preview"] }],
+      schemaVersion: "1.0",
+      sourceHash: "b".repeat(64),
+      generationHash: "a".repeat(64),
+      creatorId: "creator-preview",
+      questionType: "essay",
+      prompt: "Explain the method.",
+      options: [],
+      itbSource: { referenceId: "itb-preview", eventName: "UTS Matematika I ITB 2024" },
+      itbCuration: [{
+        referenceId: "itb-preview",
+        dimensions: {
+          difficulty: "similar",
+          format: "similar",
+          terminology: "similar",
+          reasoningPattern: "similar",
+        },
+        curatorNote: "Preview fixture is curated against an ITB reference.",
+      }],
+      difficulty: "medium",
+      cognitiveLevel: "analyze",
+      reasoningPattern: "derivation",
+    });
+    const [preview] = previewProducts([product]);
+    expect(preview.traceability.ideaIds).toEqual(["idea-preview"]);
+    expect(preview.traceability.sourceIds).toEqual(["source-preview"]);
+    expect(preview.sections.some((section) => section.label === "prompt")).toBe(true);
+  });
+});

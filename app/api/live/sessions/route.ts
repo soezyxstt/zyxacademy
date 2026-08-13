@@ -86,6 +86,9 @@ export async function POST(req: NextRequest) {
  prompt: string;
  options: string[];
  correctIndex: number;
+ origin: "zyx_original" | "itb_example";
+ sourceEventName: string | null;
+ sourceReferenceId: string | null;
  }> = [];
 
  if (questionIds.length > 0) {
@@ -99,7 +102,7 @@ export async function POST(req: NextRequest) {
  questionsSnapshot = rows.map((r) => {
  const opts = r.options as string[];
  const correct = (r.correctIndices as number[])[0] ?? 0;
- return { prompt: r.prompt, options: opts, correctIndex: correct };
+ return { prompt: r.prompt, options: opts, correctIndex: correct, origin: r.origin, sourceEventName: r.sourceEventName, sourceReferenceId: r.sourceReferenceId };
  });
  }
 

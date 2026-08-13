@@ -73,7 +73,7 @@ export async function buildZyraContext(
     getCourseMemory({ studentId, courseId }),
     getLearningMemory({ studentId, courseId, limit: 10 }),
     getMasteryMemory({ studentId, courseId }),
-    getRetrievalMemory({ courseId, chapterId: chapterId ?? null, question }),
+    getRetrievalMemory({ studentId, courseId, chapterId: chapterId ?? null, question }),
   ]);
 
   const budget = calculateBudget(question, retrievalMemory);

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, ne } from "drizzle-orm";
+import { asc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { driveItem } from "@/db/schema";
@@ -7,51 +7,6 @@ export type DriveKind = "folder" | "file";
 
 export function siblingScope(parentId: string | null) {
   return parentId === null ? isNull(driveItem.parentId) : eq(driveItem.parentId, parentId);
-}
-
-export async function nameTakenInFolder(parentId: string | null, name: string, excludeId?: string) {
-  const clauses = [siblingScope(parentId), eq(driveItem.name, name)];
-  if (excludeId) clauses.push(ne(driveItem.id, excludeId));
-  const [row] = await db
-    .select({ id: driveItem.id })
-    .from(driveItem)
-    .where(and(...clauses))
-    .limit(1);
-  return Boolean(row);
-}
-
-export async function nameAvailableInFolder(parentId: string | null, name: string, excludeId?: string) {
-  const taken = await nameTakenInFolder(parentId, name, excludeId);
-  return !taken;
-}
-
-export function bumpFilename(baseName: string, attempt: number) {
-  if (attempt === 0) return baseName;
-  const m = /^(.+?)(\.[^.]+)?$/.exec(baseName.trim());
-  if (!m) return `${baseName} (${attempt})`;
-  const stem = m[1];
-  const ext = m[2] ?? "";
-  return `${stem} (${attempt})${ext}`;
-}
-
-export async function uniquifyName(parentId: string | null, baseName: string) {
-  for (let i = 0; i < 50; i += 1) {
-    const cand = bumpFilename(baseName, i);
-    const free = await nameAvailableInFolder(parentId, cand);
-    if (free) return cand;
-  }
-  throw new Error("Could not find a unique name.");
-}
-
-/** Ensure `parentId` points at a folder row, or reject. */
-export async function assertFolderOrRoot(parentId: string | null) {
-  if (parentId === null) return true;
-  const [parent] = await db
-    .select({ kind: driveItem.kind })
-    .from(driveItem)
-    .where(and(eq(driveItem.id, parentId), eq(driveItem.kind, "folder")))
-    .limit(1);
-  return Boolean(parent);
 }
 
 export async function listChildren(parentId: string | null) {

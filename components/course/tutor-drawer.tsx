@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { 
- Sparkles, 
  BookOpen, 
  Layers, 
   ClipboardList, 
@@ -25,6 +24,8 @@ import {
  ArrowRight,
  RefreshCw,
   FileQuestion,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import {
  explainConceptAction,
@@ -40,8 +41,23 @@ import {
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
+import {
+ ZyraAttachmentComposer,
+ type ZyraAttachmentComposerHandle,
+} from "@/components/course/zyra-attachment-composer";
+import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
+import { ZyraPet } from "@/components/course/zyra-pet";
+import { ZyraMark } from "@/components/course/zyra-mark";
+import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
+import { petStateForTutorEvent } from "@/lib/zyra/murid";
 import { useSwipe } from "@/hooks/use-swipe";
+import { LearningCanvasRenderer } from "@/components/course/learning-canvas/learning-canvas-renderer";
+import type { CanvasSpec } from "@/lib/zyra/canvas";
+import { zyraImageFilesFromClipboard } from "@/lib/zyra/images/composer";
+import type { ZyraMessageAttachment } from "@/lib/zyra/images/contracts";
+import { ZyraMessageAttachments } from "@/components/course/zyra-message-attachments";
 
 // Fetch extra actions from custom action file
 import { getFlashcardsForKOAction } from "@/app/actions/tutor-extra";
@@ -54,6 +70,8 @@ interface ChatMessage {
  role: "student" | "ai";
  content: string;
  sources?: Array<{ type: string; id: string; label: string; href: string }>;
+ canvasSpec?: CanvasSpec | null;
+ attachments?: ZyraMessageAttachment[];
 }
 
 interface TutorContextType {
@@ -61,6 +79,7 @@ interface TutorContextType {
  openMistake: (questionId: string, userAnswer: string) => void;
  openStudyPlan: () => void;
  openChat: () => void;
+ openChatWithQuestion: (question: string) => void;
  close: () => void;
  isOpen: boolean;
  activeMode: TutorMode;
@@ -82,6 +101,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const caps = getTutorCapabilities(courseIdFromPath);
  const [isOpen, setIsOpen] = React.useState(false);
  const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
+ const imageInputEnabled = caps.imageInput && activeMode === "chat";
  
  // States to hold variables and results
  const [koId, setKoId] = React.useState<string | null>(null);
@@ -99,6 +119,21 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const [inputVal, setInputVal] = React.useState("");
  const [chatLoading, setChatLoading] = React.useState(false);
  const [sessionId, setSessionId] = React.useState<string | null>(null);
+ const [attachmentIds, setAttachmentIds] = React.useState<string[]>([]);
+ const [readyAttachments, setReadyAttachments] = React.useState<ZyraMessageAttachment[]>([]);
+ const [attachmentComposerKey, setAttachmentComposerKey] = React.useState(0);
+ const [attachmentsReady, setAttachmentsReady] = React.useState(true);
+ const attachmentComposerRef = React.useRef<ZyraAttachmentComposerHandle>(null);
+ const petState = petStateForTutorEvent({
+   isOpen,
+   activeMode,
+   loading,
+   chatLoading,
+   attachmentsReady,
+   hasAttachments: attachmentIds.length > 0 || !attachmentsReady,
+   hasError: errors.length > 0,
+   quotaExhausted: errors.some((error) => error.includes("DAILY_QUOTA_EXCEEDED")),
+ });
 
  // Ref for auto-scrolling
  const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -106,10 +141,14 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
  // Resizable drawer state
  const MIN_WIDTH = 320;
- const MAX_WIDTH = 860;
- const DEFAULT_WIDTH = 560;
+ const DEFAULT_WIDTH = 640;
  const [drawerWidth, setDrawerWidth] = React.useState(DEFAULT_WIDTH);
+ const [drawerExpanded, setDrawerExpanded] = React.useState(false);
  const isResizing = React.useRef(false);
+
+ const toggleDrawerExpanded = React.useCallback(() => {
+ setDrawerExpanded((current) => !current);
+ }, []);
 
  const startResize = React.useCallback((e: React.MouseEvent) => {
  e.preventDefault();
@@ -120,7 +159,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const onMove = (ev: MouseEvent) => {
  if (!isResizing.current) return;
  const newWidth = window.innerWidth - ev.clientX;
- setDrawerWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, newWidth)));
+ setDrawerExpanded(false);
+ setDrawerWidth(Math.min(window.innerWidth - 16, Math.max(MIN_WIDTH, newWidth)));
  };
  const onUp = () => {
  isResizing.current = false;
@@ -162,6 +202,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  setActiveMode("chat");
  setActiveAction("none");
  setIsOpen(true);
+ setAttachmentIds([]);
+ setReadyAttachments([]);
+ setAttachmentsReady(true);
+ setAttachmentComposerKey((value) => value + 1);
 
  const courseId = pathname?.startsWith("/courses/")
  ? pathname.split("/")[2]
@@ -198,6 +242,11 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  }]);
  }
  }, [pathname]);
+
+ const openChatWithQuestion = React.useCallback(async (question: string) => {
+   await openChat();
+   setInputVal(question);
+ }, [openChat]);
 
  const openExplain = React.useCallback((id: string, initialMode: "content" | "analogy" | "simplification" = "content") => {
  if (!caps.explain) {
@@ -345,7 +394,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  if (courseId) {
  saveTutorMessagesAction(
  courseId, 
- newMessages.map(m => ({ role: m.role, content: m.content, sources: m.sources })),
+ newMessages.map(m => ({ role: m.role, content: m.content, sources: m.sources, canvasSpec: m.canvasSpec })),
  sessionId
  ).then((res) => {
     if (res.sessionId && !sessionId) {
@@ -415,9 +464,11 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   };
 
  // Handle sending arbitrary chat messages (Conversational Socratic AI Chat)
- const handleSend = async () => {
- const questionText = inputVal.trim();
- if (!questionText) return;
+ const handleSend = async (suggestedQuestion?: string) => {
+ const questionText = (suggestedQuestion ?? inputVal).trim();
+ const requestedAttachmentIds = [...attachmentIds];
+ const requestedAttachments = [...readyAttachments];
+ if (!questionText && requestedAttachmentIds.length === 0) return;
 
  const courseId = pathname?.startsWith("/courses/")
  ? pathname.split("/")[2]
@@ -426,18 +477,26 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  const studentMsg = {
  id: `user-msg-${Date.now()}`,
  role: "student" as const,
- content: questionText,
+ content: questionText || "Gambar terlampir",
+ attachments: requestedAttachments,
  };
 
  setInputVal("");
  setMessages((prev) => [...prev, studentMsg]);
  setChatLoading(true);
 
- let aiMsg: { id: string; role: "ai"; content: string; sources?: Array<{ type: string; id: string; label: string; href: string }> };
+ let aiMsg: { id: string; role: "ai"; content: string; sources?: Array<{ type: string; id: string; label: string; href: string }>; canvasSpec?: CanvasSpec | null };
  let activeSid = sessionId;
 
  try {
- const res = await askTutorRagAction(courseId ?? "unknown", null, questionText, sessionId);
+ const res = await askTutorRagAction(
+   courseId ?? "unknown",
+   null,
+   questionText || "Tolong jelaskan isi gambar ini sesuai materi kuliah.",
+   sessionId,
+   requestedAttachmentIds,
+   pathname,
+ );
  if (res.sessionId && !sessionId) {
     setSessionId(res.sessionId);
     activeSid = res.sessionId;
@@ -446,6 +505,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  let aiContent: string;
  if (res.budgetExhausted) {
  aiContent = "Zyra tidak dapat menjawab pertanyaan baru hari ini (batas harian tercapai). Silakan coba lagi besok, atau gunakan menu buku teks dan kartu hafalan untuk belajar mandiri.";
+ } else if (res.failureCode === "provider_unavailable") {
+ aiContent = "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang tidak tersedia. Permintaan ini bukan ditolak karena batas penggunaan. Coba kirim ulang beberapa saat lagi.";
  } else if (!res.answer) {
  aiContent = "Maaf, terjadi gangguan saat memproses jawaban. Silakan coba lagi dalam beberapa saat.";
  } else {
@@ -457,6 +518,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  role: "ai",
  content: aiContent,
  sources: res.answer ? (res.sources || []) : [],
+ canvasSpec: res.answer ? (res.canvasSpec ?? null) : null,
  };
  } catch {
  aiMsg = {
@@ -469,19 +531,25 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  setChatLoading(false);
  }
 
+ if (requestedAttachmentIds.length > 0) {
+   setAttachmentIds([]);
+   setReadyAttachments([]);
+   setAttachmentComposerKey((value) => value + 1);
+ }
+
  setMessages((prev) => [...prev, aiMsg!]);
 
  // Persist the exchange to DB (fire-and-forget, never blocks UI)
  if (courseId) {
  saveTutorMessagesAction(courseId, [
- { role: studentMsg.role, content: studentMsg.content },
- { role: aiMsg!.role, content: aiMsg!.content, sources: aiMsg!.sources },
+ { role: studentMsg.role, content: studentMsg.content, attachmentIds: requestedAttachmentIds },
+ { role: aiMsg!.role, content: aiMsg!.content, sources: aiMsg!.sources, canvasSpec: aiMsg!.canvasSpec },
  ], activeSid).catch(() => {});
  }
  };
 
  return (
- <TutorContext.Provider value={{ openExplain, openMistake, openStudyPlan, openChat, close, isOpen, activeMode }}>
+ <TutorContext.Provider value={{ openExplain, openMistake, openStudyPlan, openChat, openChatWithQuestion, close, isOpen, activeMode }}>
  {children}
 
  {/* Global floating Zyra trigger ; available on every course surface
@@ -489,7 +557,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  {pathname?.startsWith("/courses/") &&
  !pathname.includes("/live/host") &&
  !pathname.endsWith("/daftar") &&
- !isOpen && (
+ !isOpen && (caps.pet ? (
+ <ZyraFloatingPet state={petState} onOpen={openChat} />
+ ) : (
  <button
  type="button"
  onClick={openChat}
@@ -497,19 +567,19 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  title="Tanya Zyra"
  className="group fixed bottom-6 right-6 z-40 flex size-14 items-center justify-center rounded-full bg-brand-primary text-white shadow-lg shadow-brand-primary/30 transition-all hover:scale-105 hover:bg-brand-primary/95 active:scale-95 md:bottom-8 md:right-8"
  >
- <Sparkles className="size-6 transition-transform group-hover:rotate-12" />
+ <ZyraMark className="size-7 transition-transform duration-150 group-hover:scale-105" />
  <span className="pointer-events-none absolute right-full mr-3 hidden whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-body-xs font-semibold text-background opacity-0 shadow-md transition-opacity group-hover:opacity-100 md:block">
  Tanya Zyra
  </span>
  </button>
- )}
+ ))}
 
  {/* modal={false} keeps the page scrollable; the modal scroll lock sets
  overflow:hidden on body which breaks the sticky course sidebar. */}
  <Sheet open={isOpen} onOpenChange={(open) => !open && close()} modal={false}>
  <SheetContent
  side="right"
- style={{ width: `min(${drawerWidth}px, 100vw)` }}
+ style={{ width: drawerExpanded ? "calc(100vw - 1rem)" : `min(${drawerWidth}px, calc(100vw - 1rem))` }}
  className="p-0 flex flex-col h-full bg-background border-l border-border select-none !max-w-none"
  onInteractOutside={(e) => e.preventDefault()}
  onOpenAutoFocus={(e) => e.preventDefault()}
@@ -517,17 +587,25 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  {/* Drag-to-resize handle */}
  <div
  onMouseDown={startResize}
+ onDoubleClick={toggleDrawerExpanded}
+ role="separator"
+ aria-label="Ubah lebar panel Zyra"
+ aria-orientation="vertical"
+ aria-valuemin={MIN_WIDTH}
+ aria-valuenow={drawerExpanded ? undefined : drawerWidth}
  className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize bg-transparent hover:bg-brand-primary/30 transition-colors z-50 group"
- title="Seret untuk mengubah ukuran"
+ title="Seret atau klik dua kali untuk mengubah ukuran"
  >
  <div className="absolute inset-y-0 left-0 w-px bg-border group-hover:bg-brand-primary/50 transition-colors" />
  </div>
  
  {/* Header Panel */}
- <SheetHeader className="p-5 border-b border-border/80 flex flex-row items-center gap-3 bg-muted/20">
- <div className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
- <Sparkles className="size-5 animate-pulse" />
- </div>
+ <SheetHeader className="p-5 pr-14 border-b border-border/80 flex flex-row items-center gap-3 bg-muted/20">
+ {caps.pet ? <ZyraPet state={petState} /> : (
+   <div className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+   <ZyraMark className="size-6" />
+   </div>
+ )}
  <div className="space-y-0.5 text-left flex-1 min-w-0">
   <SheetTitle className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
   <span>
@@ -542,6 +620,17 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  Zyra · Asisten Belajar Zyx
  </SheetDescription>
  </div>
+ <Button
+ variant="ghost"
+ size="xs"
+ className="shrink-0 gap-1.5 text-muted-foreground"
+ onClick={toggleDrawerExpanded}
+ aria-label={drawerExpanded ? "Kembalikan ukuran panel Zyra" : "Perbesar panel Zyra"}
+ title={drawerExpanded ? "Kembalikan ukuran" : "Perbesar panel"}
+ >
+ {drawerExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+ <span className="hidden lg:inline">{drawerExpanded ? "Kecilkan" : "Perbesar"}</span>
+ </Button>
  {activeMode === "chat" && (
  <Button
  variant="ghost"
@@ -563,6 +652,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  </Button>
  )}
  </SheetHeader>
+
+ {caps.muridExperience && activeMode === "chat" && <ZyraAllowanceSummary refreshKey={messages.length} />}
 
  {/* Body Content Desk */}
  <div className="flex-1 overflow-y-auto p-5 space-y-5 flex flex-col justify-start select-text">
@@ -601,19 +692,26 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  {/* Message Stream */}
  {messages.length > 0 && (
  <div className="space-y-4 flex-1 flex flex-col justify-start">
- {messages.map((msg) => {
+ {messages.map((msg, messageIndex) => {
  const isStudent = msg.role === "student";
+ const isLatestAssistant = !isStudent && messageIndex === messages.length - 1;
  return (
  <div
  key={msg.id}
  className={cn(
- "max-w-[85%] rounded-2xl p-4 text-body-sm leading-relaxed text-left flex flex-col gap-2",
+ "max-w-[92%] rounded-2xl p-4 text-body-sm leading-relaxed text-left flex flex-col gap-2 xl:max-w-[56rem]",
  isStudent
- ? "bg-primary text-white self-end rounded-tr-none"
- : "bg-muted text-foreground self-start rounded-tl-none border border-border/60"
+ ? "w-fit bg-primary text-white self-end rounded-tr-none"
+ : "w-full bg-muted text-foreground self-start rounded-tl-none border border-border/60"
  )}
  >
- <MarkdownRenderer content={msg.content} className={isStudent ? "text-primary-foreground" : ""} />
+ <MarkdownRenderer content={normalizeTutorMathMarkdown(msg.content)} className={isStudent ? "text-primary-foreground" : ""} />
+
+ {isStudent && msg.attachments && msg.attachments.length > 0 && sessionId && courseIdFromPath && (
+   <ZyraMessageAttachments attachments={msg.attachments} courseId={courseIdFromPath} sessionId={sessionId} />
+ )}
+
+ {caps.canvas && msg.canvasSpec && !isStudent && <LearningCanvasRenderer spec={msg.canvasSpec} />}
  
  {/* Citations / Sources */}
  {!isStudent && msg.sources && msg.sources.length > 0 && (
@@ -635,6 +733,14 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
  </a>
  ))}
  </div>
+ </div>
+ )}
+
+ {isLatestAssistant && activeMode === "chat" && !chatLoading && (
+ <div className="mt-2 flex flex-wrap gap-2 border-t border-border/50 pt-3" aria-label="Lanjutkan proses belajar">
+ <Button type="button" variant="outline" size="xs" onClick={() => void handleSend("Berikan satu contoh serupa dan tuntun aku langkah demi langkah.")}>Coba contoh</Button>
+ <Button type="button" variant="outline" size="xs" onClick={() => void handleSend("Uji pemahamanku dengan satu pertanyaan singkat. Jangan berikan jawabannya dulu.")}>Uji pemahaman</Button>
+ <Button type="button" variant="outline" size="xs" onClick={() => void handleSend("Jelaskan lagi dengan cara yang lebih sederhana dan gunakan representasi lain jika membantu.")}>Cara lain</Button>
  </div>
  )}
  </div>
@@ -755,22 +861,44 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
  {/* Chat Input Bar */}
  {messages.length > 0 && activeAction === "none" && (
- <div className="p-4 border-t border-border/80 bg-background flex gap-2 shrink-0 select-text">
+ <div className="space-y-2 p-4 border-t border-border/80 bg-background shrink-0 select-text">
+ {imageInputEnabled && sessionId && courseIdFromPath && (
+   <ZyraAttachmentComposer
+     key={attachmentComposerKey}
+     ref={attachmentComposerRef}
+     courseId={courseIdFromPath}
+     sessionId={sessionId}
+     disabled={chatLoading}
+     onAttachmentIdsChange={setAttachmentIds}
+     onAttachmentsChange={setReadyAttachments}
+     onAttachmentsReadyChange={setAttachmentsReady}
+   />
+ )}
+ <div className="flex gap-2">
  <Input
  placeholder="Tanyakan follow-up..."
  value={inputVal}
  onChange={(e) => setInputVal(e.target.value)}
- onKeyDown={(e) => e.key === "Enter" && handleSend()}
+ onPaste={(event) => {
+   const files = zyraImageFilesFromClipboard(event.clipboardData.items);
+   if (files.length === 0) return;
+   event.preventDefault();
+   attachmentComposerRef.current?.addFiles(files);
+ }}
+ onKeyDown={(e) => {
+ if (e.key === "Enter") void handleSend();
+ }}
  disabled={chatLoading}
  className="rounded-xl focus-visible:ring-brand-primary"
  />
  <Button
- onClick={handleSend}
- disabled={chatLoading || !inputVal.trim()}
+ onClick={() => void handleSend()}
+ disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)}
  className="rounded-xl bg-brand-primary hover:bg-brand-primary/95 text-white font-semibold"
  >
  Kirim
  </Button>
+ </div>
  </div>
  )}
 

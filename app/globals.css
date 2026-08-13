@@ -314,6 +314,20 @@
  display: flex !important;
  flex-direction: column !important;
  }
+
+  /* Prevent layout shift (main layout shrinkage) caused by Radix Scroll Lock */
+  body[data-scroll-locked] {
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+    overflow: clip !important;
+  }
+
+  /* Prevent sidebar from losing scrollbar, pointer events, and active states */
+  body[data-scroll-locked] aside,
+  body[data-scroll-locked] .sidebar-scroll,
+  body[data-scroll-locked] .sidebar-scroll-hidden {
+    pointer-events: auto !important;
+  }
 }
 
 @utility transform-style-3d {

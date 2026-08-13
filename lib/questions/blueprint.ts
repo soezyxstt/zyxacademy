@@ -9,7 +9,6 @@ import {
   AnswerCardinality,
   MisconceptionFamily,
 } from "./contracts";
-import { randomUUID } from "crypto";
 
 /**
  * Seeded Pseudo-Random Number Generator (Mulberry32)
@@ -73,12 +72,20 @@ export function generateSlotFromKO(
     mtdId?: string;
     sourceMtdVersion?: number;
     sourceSectionId?: string;
+    ideaIds?: string[];
+    requiredIdeaRelations?: string[];
+    applicationLevel?: number;
+    estimatedSteps?: number;
   },
   slotIndex: number = 0,
   context: "quiz" | "uts" | "uas" | "practice" | "tryout" | "tutorial" = "practice"
 ): BlueprintSlot {
   if (!ko.id) {
     throw new Error("STOP CONDITION: Blueprint slot creation requires a valid Knowledge Object ID.");
+  }
+
+  if (ko.difficulty?.toLowerCase().includes("idea_count")) {
+    throw new Error("STOP CONDITION: Difficulty cannot be derived from Idea count.");
   }
 
   let cognitiveProcess: CognitiveProcess = "understand";
@@ -148,9 +155,12 @@ export function generateSlotFromKO(
   ];
 
   const slot: BlueprintSlot = {
-    slotId: `slot-${slotIndex + 1}-${randomUUID().slice(0, 8)}`,
+    slotId: `slot-${slotIndex + 1}-${ko.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || "idea"}`,
     learningObjectiveId: ko.learningObjectiveId || `lo-${ko.id}`,
     knowledgeObjectId: ko.id,
+    ideaIds: ko.ideaIds?.length ? [...ko.ideaIds] : [ko.id],
+    requiredIdeaRelations: ko.requiredIdeaRelations ?? [],
+    ideaCount: ko.ideaIds?.length || 1,
     cognitiveProcess,
     difficultyTarget,
     difficultyBasis: `Derived from KO type '${koType}' and explicit metadata`,
@@ -165,6 +175,8 @@ export function generateSlotFromKO(
     },
     assessmentContext: context,
     releasePolicy: "immediate",
+    applicationLevel: ko.applicationLevel,
+    estimatedSteps: ko.estimatedSteps,
   };
 
   const validation = validateSlot(slot);
@@ -191,6 +203,10 @@ export function buildAssessmentBlueprint(input: {
     mtdId?: string;
     sourceMtdVersion?: number;
     sourceSectionId?: string;
+    ideaIds?: string[];
+    requiredIdeaRelations?: string[];
+    applicationLevel?: number;
+    estimatedSteps?: number;
   }>;
   requestedCount: number;
   seed?: number;
@@ -248,7 +264,7 @@ export function buildAssessmentBlueprint(input: {
   const maxAllowedPerKO = Math.ceil(requestedCount / Math.max(1, kos.length)) + 1;
 
   return {
-    blueprintId: `bp-${randomUUID()}`,
+    blueprintId: `bp-${courseId}-${chapterId ?? "all"}-${seed}-${requestedCount}`,
     version: "2.0",
     courseId,
     chapterId,

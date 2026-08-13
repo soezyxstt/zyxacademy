@@ -104,6 +104,8 @@ export function shuffleQuestionOptions(
   return {
     slotId: draft.slotId,
     knowledgeObjectId: draft.knowledgeObjectId,
+    ideaIds: draft.ideaIds,
+    requiredIdeaRelations: draft.requiredIdeaRelations,
     prompt: draft.prompt,
     options: displayOptions,
     correctIndices,
@@ -113,6 +115,28 @@ export function shuffleQuestionOptions(
     shuffleSeed: seed,
     bloomLevel: draft.bloomLevel,
     pattern: draft.pattern,
+    applicationLevel: draft.applicationLevel,
     estimatedSteps: draft.estimatedSteps,
   };
+}
+
+export function stableOptionIdsToIndices(
+  stableOptionIds: readonly string[],
+  selectedStableOptionIds: readonly string[],
+): number[] {
+  const indexById = new Map(stableOptionIds.map((id, index) => [id, index]));
+  const indices = selectedStableOptionIds.map((id) => indexById.get(id));
+  if (indices.some((index) => index === undefined)) {
+    throw new Error("Answer contains an unknown stable option ID");
+  }
+  return [...new Set(indices as number[])].sort((left, right) => left - right);
+}
+
+export function indicesToStableOptionIds(
+  stableOptionIds: readonly string[],
+  selectedIndices: readonly number[],
+): string[] {
+  const ids = selectedIndices.map((index) => stableOptionIds[index]);
+  if (ids.some((id) => !id)) throw new Error("Answer contains an invalid option index");
+  return [...new Set(ids)];
 }

@@ -1,192 +1,142 @@
-/**
- * Vector store abstraction (P3, standing decision 2).
- *
- * Pinecone is the default forever; this file is the permanent seam so the
- * conditional Vectorize migration (P8) never touches call-sites.
- *
- * VECTOR_STORE env controls which backend is used:
- * 'pinecone' (default) ; Pinecone reads and writes
- * 'dual' ; Pinecone reads, writes go to both (soak period)
- * 'vectorize' ; Vectorize reads, writes still mirror to both until
- * P8 cleanup removes the Pinecone write paths
- *
- * The course namespace holds two vector kinds:
- * - material chunks (metadata: chunk_id, section_id, chapter_name, …)
- * - knowledge objects (id = koId, metadata: chapterId, conceptId, type, …)
- */
-
-export { VECTOR_NAMESPACES } from '@/lib/namespaces';
-
+import { createHash } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { knowledgeObjects } from "@/db/schema";
+import { CANONICAL_NAMESPACE_BY_LEGACY } from "@/lib/namespaces";
 import {
- getNs,
- upsertChunkVector,
- deleteSectionVectors,
- type ChunkMetadata,
-} from '@/lib/pinecone';
-import { embedText, withGeminiRetry } from '@/lib/gemini';
-import {
- shouldReadFromVectorize,
- serializeVzMetadata,
- vectorizeUpsert,
- vectorizeQuery,
- vectorizeDelete,
-} from '@/lib/vectorize-client';
+  CANONICAL_NAMESPACES,
+  CANONICAL_VECTOR_PROFILE,
+  createVersionedVectorId,
+  type CanonicalMetadataFilter,
+  type CanonicalNamespace,
+} from "@/lib/vectorize/contracts";
+import { getCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/runtime";
+import { vectorizeCanonicalQuery } from "@/lib/vectorize-client";
+
+export { VECTOR_NAMESPACES } from "@/lib/namespaces";
+
+export function isCanonicalVectorizeOnlyEnabled(): boolean {
+  return process.env.FEATURE_VECTORIZE_ONLY_V1 === "1";
+}
+
+export function vectorStoreRoute(flagValue = process.env.FEATURE_VECTORIZE_ONLY_V1): "canonical-v2" | "legacy-rollback" {
+  return flagValue === "1" ? "canonical-v2" : "legacy-rollback";
+}
 
 export interface VectorStoreMatch {
- id: string;
- score: number;
- metadata: Record<string, unknown>;
+  id: string;
+  score: number;
+  metadata: Record<string, unknown>;
 }
 
 export interface VectorStoreQueryOptions {
- topK?: number;
- /** Pinecone metadata filter, e.g. { chapterId: "…" }. Provider-native shape. */
- filter?: Record<string, unknown>;
+  topK?: number;
+  filter?: Record<string, unknown>;
 }
 
 export interface VectorStore {
- query(
- courseId: string,
- queryText: string,
- options?: VectorStoreQueryOptions,
- ): Promise<VectorStoreMatch[]>;
- upsert(vectorId: string, text: string, metadata: ChunkMetadata): Promise<void>;
- delete(courseId: string, vectorIds: string[]): Promise<void>;
+  query(
+    courseNamespace: string,
+    queryText: string,
+    options?: VectorStoreQueryOptions,
+  ): Promise<VectorStoreMatch[]>;
 }
 
-// ---------------------------------------------------------------------------
-// PineconeStore ; default backend
-// ---------------------------------------------------------------------------
-
-export class PineconeStore implements VectorStore {
-  async query(
-  courseId: string,
-  queryText: string,
-  options: VectorStoreQueryOptions = {},
-  ): Promise<VectorStoreMatch[]> {
-    if (process.env.MOCK_GEMINI === 'true') {
-      try {
-        const { db } = await import('@/db');
-        const { knowledgeObjects } = await import('@/db/schema');
-        const { eq, and } = await import('drizzle-orm');
-        
-        const parsedCourseId = courseId.split('_')[0];
-        const kos = await db
-          .select()
-          .from(knowledgeObjects)
-          .where(
-            and(
-              eq(knowledgeObjects.courseId, parsedCourseId),
-              eq(knowledgeObjects.status, 'active')
-            )
-          )
-          .limit(options.topK ?? 10);
-          
-        return kos.map((ko, index) => ({
-          id: ko.id,
-          score: 0.95 - index * 0.05,
-          metadata: {
-            courseId: ko.courseId,
-            chapterId: ko.chapterId,
-            conceptId: ko.conceptId,
-            type: ko.type,
-            bloomLevel: ko.bloomLevel,
-            difficulty: ko.difficulty,
-            importance: ko.importance,
-            tags: ko.tags,
-          }
-        }));
-      } catch (err) {
-        console.error('[vector-store] Mock query failed:', err);
-        return [];
-      }
+function parseCourseAndNamespace(value: string): { courseId: string; namespace: CanonicalNamespace } {
+  for (const namespace of CANONICAL_NAMESPACES) {
+    const suffix = `_${namespace}`;
+    if (value.endsWith(suffix)) {
+      const courseId = value.slice(0, -suffix.length);
+      if (courseId) return { courseId, namespace };
     }
- try {
- const vector = await withGeminiRetry(() => embedText(queryText));
- const result = await getNs(courseId).query({
- vector,
- topK: options.topK ?? 10,
- includeMetadata: true,
- ...(options.filter ? { filter: options.filter } : {}),
- });
- return (result.matches ?? []).map((m) => ({
- id: m.id,
- score: m.score ?? 0,
- metadata: (m.metadata ?? {}) as Record<string, unknown>,
- }));
- } catch (err) {
- console.error('[vector-store] Pinecone query failed, degrading to ungrounded:', err);
- return [];
- }
- }
-
- async upsert(vectorId: string, text: string, metadata: ChunkMetadata): Promise<void> {
- await upsertChunkVector(vectorId, text, metadata);
- }
-
- async delete(courseId: string, vectorIds: string[]): Promise<void> {
- await deleteSectionVectors(courseId, vectorIds);
- }
+  }
+  for (const [legacyNamespace, canonicalNamespace] of Object.entries(CANONICAL_NAMESPACE_BY_LEGACY)) {
+    const suffix = `_${legacyNamespace}`;
+    if (value.endsWith(suffix)) {
+      const courseId = value.slice(0, -suffix.length);
+      if (courseId) return { courseId, namespace: canonicalNamespace };
+    }
+  }
+  throw new Error(`canonical Vectorize requires a known namespace, received ${value}`);
 }
 
-// ---------------------------------------------------------------------------
-// VectorizeStore ; P8 backend
-// ---------------------------------------------------------------------------
-
-export class VectorizeStore implements VectorStore {
- async query(
- courseId: string,
- queryText: string,
- options: VectorStoreQueryOptions = {},
- ): Promise<VectorStoreMatch[]> {
- try {
- const vector = await withGeminiRetry(() => embedText(queryText));
- const matches = await vectorizeQuery(
- vector,
- options.topK ?? 10,
- `course_${courseId}`,
- options.filter,
- );
- return matches.map((m) => ({
- id: m.id,
- score: m.score,
- metadata: (m.metadata ?? {}) as Record<string, unknown>,
- }));
- } catch (err) {
- console.error('[vector-store] Vectorize query failed, degrading to ungrounded:', err);
- return [];
- }
- }
-
- async upsert(vectorId: string, text: string, metadata: ChunkMetadata): Promise<void> {
- const values = await withGeminiRetry(() => embedText(text));
- await vectorizeUpsert([{
- id: vectorId,
- values,
- namespace: `course_${metadata.course_id}`,
- metadata: serializeVzMetadata(metadata as Record<string, unknown>),
- }]);
- }
-
- async delete(_courseId: string, vectorIds: string[]): Promise<void> {
- await vectorizeDelete(vectorIds);
- }
+function canonicalFilter(options: VectorStoreQueryOptions, courseId: string): CanonicalMetadataFilter {
+  const filter: CanonicalMetadataFilter = { courseId: { $eq: courseId } };
+  if (typeof options.filter?.chapterId === "string") {
+    filter.chapterId = { $eq: options.filter.chapterId };
+  }
+  if (typeof options.filter?.status === "string") {
+    filter.status = { $eq: options.filter.status };
+  }
+  return filter;
 }
 
-// ---------------------------------------------------------------------------
-// Singleton export ; selected by VECTOR_STORE env
-// ---------------------------------------------------------------------------
+export class CanonicalVectorizeStore implements VectorStore {
+  async query(
+    courseNamespace: string,
+    queryText: string,
+    options: VectorStoreQueryOptions = {},
+  ): Promise<VectorStoreMatch[]> {
+    const { courseId, namespace } = parseCourseAndNamespace(courseNamespace);
+    const adapter = await getCanonicalContentV2EmbeddingAdapter();
+    const vector = await adapter.embedQuery(queryText);
+    const result = await vectorizeCanonicalQuery({
+      profileId: CANONICAL_VECTOR_PROFILE.id,
+      vector,
+      topK: options.topK ?? 10,
+      namespace,
+      filter: canonicalFilter(options, courseId),
+    });
+    return result.matches.map((match) => ({
+      id: match.id,
+      score: match.score,
+      metadata: { ...match.metadata },
+    }));
+  }
+}
+
+/**
+ * Rollback compatibility is deliberately read-only. It serves deterministic
+ * local tests and historical fallback while the canonical provider is off;
+ * it never creates or updates vectors.
+ */
+class ReadOnlyCompatibilityStore implements VectorStore {
+  async query(
+    courseNamespace: string,
+    _queryText: string,
+    options: VectorStoreQueryOptions = {},
+  ): Promise<VectorStoreMatch[]> {
+    if (process.env.MOCK_GEMINI !== "true") return [];
+    const legacySuffix = Object.keys(CANONICAL_NAMESPACE_BY_LEGACY)
+      .find((suffix) => courseNamespace.endsWith(`_${suffix}`));
+    const courseId = legacySuffix
+      ? courseNamespace.slice(0, -(`_${legacySuffix}`).length)
+      : courseNamespace;
+    const rows = await db
+      .select()
+      .from(knowledgeObjects)
+      .where(and(eq(knowledgeObjects.courseId, courseId), eq(knowledgeObjects.status, "active")))
+      .limit(options.topK ?? 10);
+    return rows.map((row, index) => ({
+      id: row.id,
+      score: 0.95 - index * 0.05,
+      metadata: {
+        courseId: row.courseId,
+        chapterId: row.chapterId,
+        conceptId: row.conceptId,
+        entityType: "idea",
+        contentHash: createHash("sha256").update(row.content, "utf8").digest("hex"),
+        profileId: CANONICAL_VECTOR_PROFILE.id,
+        vectorId: createVersionedVectorId("idea", row.id, 1),
+      },
+    }));
+  }
+}
 
 function createVectorStore(): VectorStore {
- // Vectorize in production (better storage limits), Pinecone in dev/test.
- // VECTOR_STORE env overrides the default when needed (e.g. dual during migration).
- if (process.env.NODE_ENV === 'production') return new VectorizeStore();
- if (shouldReadFromVectorize()) return new VectorizeStore();
- return new PineconeStore();
+  return isCanonicalVectorizeOnlyEnabled()
+    ? new CanonicalVectorizeStore()
+    : new ReadOnlyCompatibilityStore();
 }
 
-/** All retrieval call-sites go through this singleton, never Pinecone directly. */
 export const vectorStore: VectorStore = createVectorStore();
-
-// Re-export ChunkMetadata so callers don't need to reach into lib/pinecone.
-export type { ChunkMetadata };

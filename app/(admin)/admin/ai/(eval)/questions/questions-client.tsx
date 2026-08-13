@@ -3,20 +3,29 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Square, ChevronDown, ChevronUp, Filter, Plus, Edit2, Trash2, AlertTriangle, Lock, Cpu, Upload } from "lucide-react";
+import { CheckSquare, Square, ChevronDown, ChevronUp, Filter, Plus, Edit2, Trash2, Lock, Cpu, Upload } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { DifficultyBadge, StatusBadge } from "@/components/admin/status-badges";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { MathText } from "@/components/course/math-text";
 
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
 type Difficulty = "easy" | "medium" | "hard";
+type QuestionOrigin = "zyx_original" | "itb_example";
 
 interface Question {
   id: string;
   courseId: string;
+  origin: QuestionOrigin;
+  sourceEventName: string | null;
+  sourceReferenceId: string | null;
   difficulty: Difficulty;
   questionType: string;
   tags: unknown;
@@ -44,19 +53,15 @@ interface Props {
   courseMap: Record<string, string>;
 }
 
-const statusColors: Record<ReviewStatus, string> = {
-  generated: "bg-muted text-muted-foreground",
-  reviewed: "bg-status-info/10 text-status-info border border-status-info/20",
-  published: "bg-status-success/10 text-status-success border border-status-success/20",
-  flagged: "bg-status-warning/10 text-status-warning border border-status-warning/20",
-  retired: "bg-muted/50 text-muted-foreground line-through",
+const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" | "error"> = {
+  generated: "muted",
+  reviewed: "info",
+  published: "success",
+  flagged: "warning",
+  retired: "error",
 };
 
-const difficultyColors: Record<Difficulty, string> = {
-  easy: "text-emerald-500 font-semibold",
-  medium: "text-amber-500 font-semibold",
-  hard: "text-rose-500 font-semibold",
-};
+const provenanceEnabled = process.env.NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1 === "1";
 
 export function QuestionBankClient({ questions, courses, courseMap }: Props) {
   const router = useRouter();
@@ -69,6 +74,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
   const [filterStatus, setFilterStatus] = useState<ReviewStatus | "all">("all");
   const [filterCourse, setFilterCourse] = useState("all");
+  const [filterOrigin, setFilterOrigin] = useState<QuestionOrigin | "all">("all");
   const [filterKOId, setFilterKOId] = useState("");
   const [filterBloom, setFilterBloom] = useState("all");
   const [filterBlueprint, setFilterBlueprint] = useState("all");
@@ -110,6 +116,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
     return localQuestions.filter((q) => {
       if (filterStatus !== "all" && q.reviewStatus !== filterStatus) return false;
       if (filterCourse !== "all" && q.courseId !== filterCourse) return false;
+      if (provenanceEnabled && filterOrigin !== "all" && q.origin !== filterOrigin) return false;
       if (filterKOId && (!q.knowledgeObjectId || !q.knowledgeObjectId.toLowerCase().includes(filterKOId.toLowerCase()))) return false;
       
       const tagsList = Array.isArray(q.tags) ? (q.tags as string[]) : [];
@@ -118,7 +125,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
       
       return true;
     });
-  }, [localQuestions, filterStatus, filterCourse, filterKOId, filterBloom, filterBlueprint]);
+  }, [localQuestions, filterStatus, filterCourse, filterOrigin, filterKOId, filterBloom, filterBlueprint]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -230,6 +237,9 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
       const createdQuestion: Question = {
         id: newQ.id,
         courseId: createCourseId,
+        origin: "zyx_original",
+        sourceEventName: null,
+        sourceReferenceId: null,
         difficulty: createDifficulty,
         questionType: createQuestionType,
         tags,
@@ -401,7 +411,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
           <span className="text-body-sm font-semibold">Filter Pencarian &amp; Curation Grid</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className={cn("grid grid-cols-1 gap-3 md:grid-cols-3", provenanceEnabled ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
           <Select value={filterStatus} onValueChange={(val) => setFilterStatus(val as any)}>
             <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
               <SelectValue placeholder="Status" />
@@ -430,6 +440,17 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
             </SelectContent>
           </Select>
 
+          {provenanceEnabled ? <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
+            <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectValue placeholder="Asal soal" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua asal</SelectItem>
+              <SelectItem value="zyx_original">Asli Zyx</SelectItem>
+              <SelectItem value="itb_example">Contoh ITB</SelectItem>
+            </SelectContent>
+          </Select> : null}
+
           <Select value={filterBloom} onValueChange={setFilterBloom}>
             <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
               <SelectValue placeholder="Tingkat Kognitif (Bloom)" />
@@ -457,12 +478,13 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
             </SelectContent>
           </Select>
 
-          <Input
-            type="text"
+          <SearchBar
+            size="sm"
             placeholder="Cari ID KO..."
-            className="h-9 border-border/80 bg-background/50 text-body-sm font-medium"
             value={filterKOId}
-            onChange={(e) => setFilterKOId(e.target.value)}
+            onSearch={setFilterKOId}
+            onClear={() => setFilterKOId("")}
+            containerClassName="sm:w-48"
           />
         </div>
 
@@ -616,29 +638,37 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                 <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi Pilihan (Isi Kelima Opsi & Pilih Opsi yang Benar)</label>
                   <div className="space-y-2.5">
-                    {createOptions.map((opt, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
-                        <input
-                          type="radio"
-                          name="correct-option-create"
-                          checked={createCorrectIndex === idx}
-                          onChange={() => setCreateCorrectIndex(idx)}
-                          className="size-4 text-brand-primary cursor-pointer focus:ring-brand-primary accent-brand-primary"
-                        />
-                        <span className="font-bold text-muted-foreground text-body-sm w-4 text-center">{String.fromCharCode(65 + idx)}</span>
-                        <Input
-                          type="text"
-                          value={opt}
-                          onChange={(e) => {
-                            const next = [...createOptions];
-                            next[idx] = e.target.value;
-                            setCreateOptions(next);
-                          }}
-                          placeholder={`Masukkan Opsi ${String.fromCharCode(65 + idx)}`}
-                          className="h-9 border-border/85 bg-background text-body-sm font-medium"
-                        />
-                      </div>
-                    ))}
+                    <RadioGroup
+                      value={String(createCorrectIndex)}
+                      onValueChange={(val) => setCreateCorrectIndex(Number(val))}
+                    >
+                      {createOptions.map((opt, idx) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <RadioGroupItem
+                            id={`create-correct-option-${idx}`}
+                            value={String(idx)}
+                            className="size-4 text-brand-primary cursor-pointer"
+                          />
+                          <label
+                            htmlFor={`create-correct-option-${idx}`}
+                            className="font-bold text-muted-foreground text-body-sm w-4 text-center cursor-pointer"
+                          >
+                            {String.fromCharCode(65 + idx)}
+                          </label>
+                          <Input
+                            type="text"
+                            value={opt}
+                            onChange={(e) => {
+                              const next = [...createOptions];
+                              next[idx] = e.target.value;
+                              setCreateOptions(next);
+                            }}
+                            placeholder={`Masukkan Opsi ${String.fromCharCode(65 + idx)}`}
+                            className="h-9 border-border/85 bg-background text-body-sm font-medium"
+                          />
+                        </div>
+                      ))}
+                    </RadioGroup>
                   </div>
                 </div>
               )}
@@ -753,29 +783,37 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                   <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
                     <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi Pilihan (Isi Kelima Opsi & Pilih Opsi yang Benar)</label>
                     <div className="space-y-2.5">
-                      {editOptions.map((opt, idx) => (
-                        <div key={idx} className="flex items-center gap-3">
-                          <input
-                            type="radio"
-                            name="correct-option-edit"
-                            checked={editCorrectIndex === idx}
-                            onChange={() => setEditCorrectIndex(idx)}
-                            className="size-4 text-brand-primary cursor-pointer focus:ring-brand-primary accent-brand-primary"
-                          />
-                          <span className="font-bold text-muted-foreground text-body-sm w-4 text-center">{String.fromCharCode(65 + idx)}</span>
-                          <Input
-                            type="text"
-                            value={opt}
-                            onChange={(e) => {
-                              const next = [...editOptions];
-                              next[idx] = e.target.value;
-                              setEditOptions(next);
-                            }}
-                            placeholder={`Opsi ${String.fromCharCode(65 + idx)}`}
-                            className="h-9 border-border/85 bg-background text-body-sm font-medium"
-                          />
-                        </div>
-                      ))}
+                      <RadioGroup
+                        value={String(editCorrectIndex)}
+                        onValueChange={(val) => setEditCorrectIndex(Number(val))}
+                      >
+                        {editOptions.map((opt, idx) => (
+                          <div key={idx} className="flex items-center gap-3">
+                            <RadioGroupItem
+                              id={`edit-correct-option-${idx}`}
+                              value={String(idx)}
+                              className="size-4 text-brand-primary cursor-pointer"
+                            />
+                            <label
+                              htmlFor={`edit-correct-option-${idx}`}
+                              className="font-bold text-muted-foreground text-body-sm w-4 text-center cursor-pointer"
+                            >
+                              {String.fromCharCode(65 + idx)}
+                            </label>
+                            <Input
+                              type="text"
+                              value={opt}
+                              onChange={(e) => {
+                                const next = [...editOptions];
+                                next[idx] = e.target.value;
+                                setEditOptions(next);
+                              }}
+                              placeholder={`Opsi ${String.fromCharCode(65 + idx)}`}
+                              className="h-9 border-border/85 bg-background text-body-sm font-medium"
+                            />
+                          </div>
+                        ))}
+                      </RadioGroup>
                     </div>
                   </div>
                 )}
@@ -835,23 +873,14 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
       </Dialog>
 
       {/* DELETE DIALOG */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-status-error font-heading text-h6 font-bold">
-              <AlertTriangle className="size-5 shrink-0" />
-              Hapus Soal
-            </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-2">
-              Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus soal ini dari Bank Soal?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-5 flex items-center justify-end gap-2.5">
-            <Button variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setDeleteOpen(false)}>Batal</Button>
-            <Button variant="destructive" className="rounded-lg cursor-pointer font-bold px-6 shadow-sm" onClick={handleDeleteConfirm}>Ya, Hapus</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AdminConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Hapus Soal"
+        description="Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus soal ini dari Bank Soal?"
+        confirmLabel="Ya, Hapus"
+        onConfirm={handleDeleteConfirm}
+      />
 
       {/* BULK UPLOAD DIALOG */}
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
@@ -982,11 +1011,16 @@ function QuestionRow({
 
         <div className="flex-1 min-w-0 text-left">
           <div className="flex items-center gap-2.5 flex-wrap text-body-xs font-semibold">
-            <span
-              className={cn("rounded-md px-2 py-0.5 uppercase tracking-wide border font-bold flex items-center gap-1", statusColors[question.reviewStatus])}
+            <StatusBadge
+              tone={statusTone[question.reviewStatus]}
+              className={question.reviewStatus === "retired" ? "line-through" : undefined}
             >
               {question.reviewStatus}
-            </span>
+            </StatusBadge>
+
+            {provenanceEnabled ? <StatusBadge tone={question.origin === "itb_example" ? "info" : "brand"}>
+              {question.origin === "itb_example" ? "Contoh ITB" : "Asli Zyx"}
+            </StatusBadge> : null}
 
             <span className="rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-2 py-0.5 text-xs font-semibold">
               {qTypeLabel}
@@ -999,9 +1033,7 @@ function QuestionRow({
               </span>
             )}
 
-            <span className={cn(difficultyColors[question.difficulty], "uppercase text-xs")}>
-              {question.difficulty}
-            </span>
+            <DifficultyBadge difficulty={question.difficulty} />
             <span className="text-muted-foreground font-medium bg-muted/40 px-1.5 py-0.5 rounded-md">
               {courseMap[question.courseId] ?? question.courseId}
             </span>
@@ -1011,14 +1043,18 @@ function QuestionRow({
             </span>
           </div>
 
+          {provenanceEnabled && question.origin === "itb_example" && question.sourceEventName ? (
+            <p className="mt-2 text-body-xs font-medium text-muted-foreground">Sumber: {question.sourceEventName}</p>
+          ) : null}
+
           {expanded ? (
             <div className="mt-3 border-l-2 border-brand-primary/40 pl-3">
               <MarkdownRenderer content={question.prompt} className="text-body-sm text-foreground font-medium space-y-3" />
             </div>
           ) : (
-            <p className="text-body-sm text-foreground mt-2 line-clamp-2 font-medium leading-relaxed font-sans">
+            <MathText className="text-body-sm text-foreground mt-2 line-clamp-2 font-medium leading-relaxed font-sans block" as="div">
               {question.prompt}
-            </p>
+            </MathText>
           )}
 
           {/* Tags list */}

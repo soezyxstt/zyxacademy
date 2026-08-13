@@ -17,7 +17,8 @@ import { Input } from "@/components/ui/input";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
 import { getLayoutedGraph, LayoutDiagnostics } from "@/lib/visual-layout-service";
-import * as math from "mathjs";
+import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyra/canvas";
+import { MathText } from "@/components/course/math-text";
 import ReactFlow, { Edge, Node } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -376,6 +377,13 @@ function AlertCallout({
 
 function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) {
   const [formula, setFormula] = useState(initialFormula || "x^2 - 2");
+  const compiledFormula = React.useMemo(() => {
+    try {
+      return compileSafeExpression(formula, { variables: ["x"] });
+    } catch {
+      return null;
+    }
+  }, [formula]);
   
   const padL = 46;
   const padR = 18;
@@ -394,31 +402,6 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
   const mapX = (x: number) => padL + ((x - xMin) / (xMax - xMin)) * plotW;
   const mapY = (y: number) => padT + ((yMax - y) / (yMax - yMin)) * plotH;
 
-  const evalFormula = (xVal: number) => {
-    let expr = formula
-      .toLowerCase()
-      .replace(/\^/g, "**")
-      .replace(/sin/g, "Math.sin")
-      .replace(/cos/g, "Math.cos")
-      .replace(/tan/g, "Math.tan")
-      .replace(/sqrt/g, "Math.sqrt")
-      .replace(/exp/g, "Math.exp")
-      .replace(/log/g, "Math.log")
-      .replace(/pi/g, "Math.PI")
-      .replace(/e/g, "Math.E");
-
-    // Allow only safe characters
-    const sanitized = expr.replace(/[^0-9x+\-*/().\sMath.sincostanqrexplgPIE]/g, "");
-
-    try {
-      const fn = new Function("x", `return ${sanitized};`);
-      const val = fn(xVal);
-      return isNaN(val) ? 0 : val;
-    } catch {
-      return NaN;
-    }
-  };
-
   const graphPath = React.useMemo(() => {
     const steps = 200;
     let path = "";
@@ -426,7 +409,12 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
 
     for (let i = 0; i <= steps; i++) {
       const xVal = xMin + (i / steps) * (xMax - xMin);
-      const yVal = evalFormula(xVal);
+      let yVal = Number.NaN;
+      try {
+        yVal = compiledFormula?.evaluate({ x: xVal }) ?? Number.NaN;
+      } catch {
+        yVal = Number.NaN;
+      }
 
       if (isNaN(yVal)) continue;
 
@@ -442,7 +430,7 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
     }
     return path;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formula]);
+  }, [compiledFormula]);
 
   const xTicks = React.useMemo(() => {
     const ticks = [];
@@ -799,12 +787,10 @@ function ChartRenderer({ data, title, caption }: { data: any; title?: string; ca
 }
 
 function GraphRenderer({ data, title, caption }: { data: any; title?: string; caption?: string }) {
-  let functions = data.functions || [];
-  if (typeof functions === "string") {
-    functions = [functions];
-  } else if (!Array.isArray(functions)) {
-    functions = [];
-  }
+  const rawFunctions = data.functions ?? data.function ?? data.equations ?? data.equation ?? data.formula ?? [];
+  const functions = (Array.isArray(rawFunctions) ? rawFunctions : [rawFunctions])
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .map(normalizeLegacyGraphExpression);
   const domain = data.domain || { min: -10, max: 10 };
   const samples = data.samples || 200;
 
@@ -818,27 +804,12 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
   const xMax = domain.max;
 
   let yVals: number[] = [];
-  const curves = functions.map((fnStr: string) => {
-    let code: any = null;
+  const curves = functions.map((expression: string) => {
+    let compiled: ReturnType<typeof compileSafeExpression> | null = null;
     try {
-      let cleanFn = fnStr.trim();
-      // Remove LaTeX delimiters if present
-      cleanFn = cleanFn.replace(/^\$+/, "").replace(/\$+$/, "").trim();
-      // Remove 'y =' prefix
-      cleanFn = cleanFn.replace(/^\s*y\s*=\s*/, "").trim();
-      
-      // Basic LaTeX to MathJS sanitization
-      cleanFn = cleanFn.replace(/\\frac\s*\{([^}]+)\}\s*\{([^}]+)\}/g, "($1/$2)");
-      cleanFn = cleanFn.replace(/\\cdot/g, "*");
-      cleanFn = cleanFn.replace(/\\times/g, "*");
-      cleanFn = cleanFn.replace(/\\left\(/g, "(");
-      cleanFn = cleanFn.replace(/\\right\)/g, ")");
-      cleanFn = cleanFn.replace(/\\/g, "");
-      cleanFn = cleanFn.replace(/[{}]/g, "");
-
-      code = math.compile(cleanFn);
+      compiled = compileSafeExpression(expression, { variables: ["x"] });
     } catch (err) {
-      console.error("MathJS compilation failed for:", fnStr, err);
+      console.error("Safe graph compilation failed for:", expression, err);
       return [];
     }
 
@@ -847,7 +818,7 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
     for (let i = 0; i < samples; i++) {
       const x = xMin + i * step;
       try {
-        const y = code.evaluate({ x });
+        const y = compiled.evaluate({ x });
         if (typeof y === "number" && !isNaN(y) && isFinite(y)) {
           points.push([x, y]);
           yVals.push(y);
@@ -857,6 +828,7 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
     }
     return points;
   });
+  const hasPlottableCurve = curves.some((curve: [number, number][]) => curve.length > 1);
 
   let yMin = -10;
   let yMax = 10;
@@ -920,13 +892,33 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
     setHoverPoint(null);
   };
 
-  const COLORS = ["#2563eb", "#dc2626", "#16a34a", "#ca8a04"];
+  const COLORS = [
+    "var(--color-brand-primary)",
+    "var(--color-brand-secondary)",
+    "var(--color-tertiary-1)",
+    "var(--color-status-warning)",
+  ];
   const originX = mapX(0);
   const originY = mapY(0);
+  const titleEquationIndex = title?.search(/\b(?:y|f\s*\(\s*x\s*\))\s*=/i) ?? -1;
+  const titlePrefix = titleEquationIndex >= 0 ? title?.slice(0, titleEquationIndex).trim() : title;
+  const titleExpression = titleEquationIndex >= 0 && title
+    ? normalizeLegacyGraphExpression(title.slice(titleEquationIndex))
+    : null;
 
   return (
     <div className="my-6 p-5 border border-border bg-card shadow-xs rounded-xl text-center relative select-none">
-      {title && <h4 className="font-heading text-body-base font-bold text-foreground mb-4">{renderRichText(title)}</h4>}
+      {title && <h4 className="font-heading text-body-base font-bold text-foreground mb-4">{titlePrefix}{titleExpression && <><span aria-hidden> </span><MathText>{`$y = ${titleExpression}$`}</MathText></>}</h4>}
+      {functions.length > 0 && (
+        <div className="mb-3 flex flex-wrap justify-center gap-3 text-body-sm text-muted-foreground">
+          {functions.map((expression: string, index: number) => (
+            <span key={`${expression}-${index}`} className="inline-flex items-center gap-2">
+              <span className="size-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+              <MathText>{`$y = ${expression}$`}</MathText>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="w-full max-w-[600px] mx-auto bg-card relative">
         <svg
           viewBox={`0 0 ${svgW} ${svgH}`}
@@ -962,6 +954,19 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
             />
           ))}
 
+          {curves.flatMap((curve: [number, number][], curveIndex: number) => curve.slice(1).flatMap((point, pointIndex) => {
+            const previous = curve[pointIndex];
+            if (!previous || Math.sign(previous[1]) === Math.sign(point[1]) || previous[1] === point[1]) return [];
+            const ratio = Math.abs(previous[1]) / (Math.abs(previous[1]) + Math.abs(point[1]));
+            const rootX = previous[0] + (point[0] - previous[0]) * ratio;
+            return [
+              <g key={`root-${curveIndex}-${pointIndex}`}>
+                <circle cx={mapX(rootX)} cy={originY} r="5" fill="var(--color-background)" stroke={COLORS[curveIndex % COLORS.length]} strokeWidth="2" />
+                <text x={mapX(rootX)} y={originY - 10} textAnchor="middle" fill="var(--color-muted-foreground)" fontSize="11">{rootX.toFixed(2)}</text>
+              </g>,
+            ];
+          }))}
+
           {hoverPoint && (
             <circle
               cx={mapX(hoverPoint.x)}
@@ -972,6 +977,12 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
             />
           )}
         </svg>
+
+        {!hasPlottableCurve && (
+          <div className="absolute inset-x-4 bottom-4 rounded-lg border border-status-warning/30 bg-background/95 p-3 text-left text-body-sm text-foreground shadow-sm">
+            Grafik tidak dapat dibaca. Periksa kembali rumus fungsi yang diberikan.
+          </div>
+        )}
 
         {hoverPoint && (
           <div

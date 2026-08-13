@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Flag, Timer, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 
 type QuizPlayerProps = {
   courseId: string;
@@ -21,6 +22,9 @@ type QuizPlayerProps = {
       prompt: string;
       options: string[];
       correctIndex?: number;
+      origin?: "zyx_original" | "itb_example";
+      sourceEventName?: string | null;
+      sourceReferenceId?: string | null;
     }>;
     settings?: {
       timeLimitMinutes?: number;
@@ -372,6 +376,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               Progress tersimpan otomatis
             </span>
           </div>
+          <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
         </div>
 
         {/* Navigation Action Buttons */}

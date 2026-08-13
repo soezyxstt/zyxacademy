@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Radio, Users, AlertTriangle } from "lucide-react";
 import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
+import { MathText } from "@/components/course/math-text";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { cn } from "@/lib/utils";
 
 interface Template {
@@ -233,9 +235,9 @@ export default function LiveHostPage() {
             </span>
           </div>
 
-          <p className="font-heading text-h5 font-semibold text-foreground">
+          <MathText className="font-heading text-h5 font-semibold text-foreground block" as="div">
             {currentQuestion.prompt}
-          </p>
+          </MathText>
 
           {/* Per-option count bars */}
           <div className="space-y-2.5">
@@ -248,7 +250,7 @@ export default function LiveHostPage() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-body-sm text-foreground">
                       <span className="mr-1.5 font-bold">{String.fromCharCode(65 + i)}.</span>
-                      {opt}
+                      <MathText as="span">{opt}</MathText>
                     </span>
                     <span className="shrink-0 text-body-xs text-muted-foreground tabular-nums">{count}</span>
                   </div>
@@ -262,6 +264,7 @@ export default function LiveHostPage() {
               );
             })}
           </div>
+          <QuestionSourceCitation origin={currentQuestion.origin} sourceEventName={currentQuestion.sourceEventName} />
         </div>
       )}
 

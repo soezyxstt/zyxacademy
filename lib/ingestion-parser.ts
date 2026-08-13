@@ -1,5 +1,5 @@
 /**
- * Splits raw material text into sections and overlapping chunks for Pinecone indexing.
+ * Splits raw material text into sections and overlapping chunks for canonical indexing.
  * Sections are delineated by Markdown headings (##, ###) or double newlines.
  * Chunks are 1000-2000 characters with a 15% sliding window overlap.
  */

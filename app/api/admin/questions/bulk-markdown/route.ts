@@ -22,7 +22,7 @@ export interface ExtractedQuestion {
   explanation: string;
 }
 
-export function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
+function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
   const normalized = markdown.replace(/\r\n/g, "\n").trim();
   const lines = normalized.split("\n");
   

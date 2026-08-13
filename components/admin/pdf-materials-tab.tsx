@@ -14,8 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { uploadCourseMaterial, deleteCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { saveCourseMaterial, deleteCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { Trash2, Plus, Loader2, FileText } from "lucide-react";
+
+const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
 
 type Course = {
   id: string;
@@ -90,49 +92,52 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
       return;
     }
 
+    if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
+      toast.error("Ukuran PDF maksimal 50 MB.");
+      return;
+    }
+
     setLoading(true);
     try {
       const file = selectedFile;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64 = (reader.result as string).split(",")[1];
-          const res = await uploadCourseMaterial(
-            form.courseId,
-            form.title,
-            form.type,
-            Array.from(selectedChapters),
-            {
-              bufferBase64: base64,
-              name: file.name,
-              type: file.type,
-            }
-          );
+      const uploadForm = new FormData();
+      uploadForm.append("file", file);
+      uploadForm.append("courseId", form.courseId);
 
-          if (res.success) {
-            toast.success("Materi PDF berhasil diunggah");
-            // Clear form
-            setForm((prev) => ({ ...prev, title: "" }));
-            setSelectedChapters(new Set());
-            setSelectedFile(null);
-            // Reset file input element
-            const fileInput = document.getElementById("pdf-file-input") as HTMLInputElement;
-            if (fileInput) fileInput.value = "";
-            router.refresh();
-          } else {
-            toast.error(res.error || "Gagal mengunggah materi");
-          }
-        } catch (uploadErr: any) {
-          console.error(uploadErr);
-          toast.error("Terjadi kesalahan saat memproses file");
-        } finally {
-          setLoading(false);
-        }
-      };
-      reader.readAsDataURL(file);
+      const uploadResponse = await fetch("/api/admin/upload-pdf", {
+        method: "POST",
+        body: uploadForm,
+      });
+      const uploadData = await uploadResponse.json().catch(() => null);
+
+      if (!uploadResponse.ok || typeof uploadData?.key !== "string") {
+        toast.error(uploadData?.error || "Gagal mengunggah PDF");
+        return;
+      }
+
+      const res = await saveCourseMaterial(
+        form.courseId,
+        form.title,
+        form.type,
+        Array.from(selectedChapters),
+        uploadData.key
+      );
+
+      if (res.success) {
+        toast.success("Materi PDF berhasil diunggah");
+        setForm((prev) => ({ ...prev, title: "" }));
+        setSelectedChapters(new Set());
+        setSelectedFile(null);
+        const fileInput = document.getElementById("pdf-file-input") as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
+        router.refresh();
+      } else {
+        toast.error(res.error || "Gagal menyimpan materi");
+      }
     } catch (err: any) {
       console.error(err);
       toast.error("Gagal mengunggah berkas");
+    } finally {
       setLoading(false);
     }
   };
@@ -287,6 +292,7 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
               disabled={loading}
               className="cursor-pointer file:rounded-md file:bg-muted file:border-0 file:px-3 file:py-1 file:text-body-xs file:font-semibold"
             />
+            <p className="text-body-xs text-muted-foreground">Format PDF, maksimal 50 MB.</p>
           </div>
 
           <Button

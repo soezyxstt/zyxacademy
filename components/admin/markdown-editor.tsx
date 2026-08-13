@@ -209,10 +209,9 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h1 className="text-h4 md:text-h3 font-heading">{formData.id ? "Sunting Artikel" : "Tulis Artikel Baru"}</h1>
-        <div className="flex gap-4">
+    <form onSubmit={handleSubmit} className="w-full space-y-8">
+      <div className="flex justify-end">
+        <div className="flex flex-wrap gap-3">
           <Button variant="outline" type="button" onClick={() => router.push("/admin/blog")}>
             Batal
           </Button>

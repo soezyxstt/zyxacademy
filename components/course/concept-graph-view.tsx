@@ -177,6 +177,7 @@ export function ConceptGraphView({
               conceptName={selected}
               onAskTutor={() => {
                 setSelected(null);
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination
                 window.location.href = `/courses/${courseId}/material`;
               }}
             />

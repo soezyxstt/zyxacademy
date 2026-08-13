@@ -157,6 +157,12 @@ Use the **`photo-*`** classes on `<img>` or `next/image` for consistent crop, ra
 2. **Color**: **`foreground` / `muted-foreground` / `primary` / `border`** before raw brand or `gray-*`.
 3. **Images**: Pick **`photo-hero` | `photo-card` | `photo-banner` | `photo-thumb` | `photo-inline`** by layout role.
 4. **Dark mode**: Test with **`.dark`**; rely on semantic tokens so components stay consistent.
+5. **Standard Reusable Components**: Always use standard Shadcn components from `@/components/ui/` (`Card`, `Tabs`, `Input`, `Select`, `Switch`, `Label`, `Button`, `Badge`, `Textarea`, etc.) instead of hardcoded/ad-hoc styled containers or raw unstyled inputs/checkboxes. If a Shadcn primitive is missing in `@/components/ui/`, create it as a reusable component there.
+6. **Form & Layout Hierarchy**:
+   - Field labels (`Label`) should be visually primary: `text-body-sm font-semibold text-foreground`.
+   - Field descriptions and helper text must be distinctly smaller than labels and input content: `text-body-xs text-muted-foreground`.
+   - Settings panels and main tab views must fill the container width (`w-full`) without arbitrary max-width constraints (e.g. `max-w-3xl`) unless explicitly needed for narrow dialogs.
+   - Component portals (e.g. `Select`, `Dialog`, `Popover`) must not hide or close navigation sidebars or mess up page layout.
 
 ---
 
@@ -208,6 +214,44 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 
 ---
 
+## R2 Object Key Convention
+
+Every file uploaded to Cloudflare R2 MUST live under a structured, folder-style object key. Flat UUID keys, `{uuid}-{filename}` defaults, and ad hoc inline key building are forbidden.
+
+### Rules
+
+1. **One helper**: build every key through `lib/storage/keys.ts`. That file is the only place that sanitizes names and joins segments. Never re-implement `safeName` / `slugify` regexes inside a route, action, or component.
+2. **Key shape**: `{domain}/{entity-slug}/{subfolder...}/{leaf}`.
+   - `domain`: fixed lowercase top-level folder (`courses`, `blog`, `forms`, `pka`, `overhaul`, `uploads`).
+   - `entity-slug`: kebab-case slug of the owning record (course id, form title, user id, run id).
+   - `leaf` for user files: `{timestamp}-{short-hash}-{sanitized-original-filename}` so a re-upload of the same name never overwrites the previous object and the real filename stays visible.
+   - `leaf` for generated artifacts (diktat PDF, bundle ZIP): a stable name; versioning comes from run id or checksum and the old object is deleted on replace.
+3. **Preserve the real filename**: the leaf always ends with the sanitized original filename and its extension (e.g. `1719000000000-a1b2c3d4-materi-kelas.pdf`), never a bare UUID.
+4. **Reject unsafe keys**: any key containing `..`, a leading `/`, or `\` is invalid and the provider must throw (`INVALID_OBJECT_KEY`).
+5. **Provider enforcement**: `R2Provider.upload()` must require `options.key` and throw when it is missing. It must never fall back to a generated `${uuid}-${filename}` key.
+6. **Proxy filename**: `app/api/storage/file/[...key]/route.ts` must derive the download `Content-Disposition` filename with `leafFilename(key)` (last path segment minus the `{timestamp}-{hash}-` prefix), never a UUID-strip regex.
+
+### Canonical prefixes
+
+| Domain | Key pattern | Where |
+|--------|-------------|-------|
+| Course material PDF | `courses/{course-slug}/materials/{leaf}.pdf` | `uploadCourseMaterial` (`app/(admin)/admin/(academic)/courses/actions.ts`); `/api/admin/upload-pdf` when the client sends a `courseId` |
+| Generic admin PDF (no course context) | `uploads/{yyyy}/{mm}/{leaf}.pdf` | `/api/admin/upload-pdf` fallback when no `courseId` |
+| Course canonical markdown | `courses/{course-slug}/canonical/{leaf}.md` | `/api/admin/material-instances` |
+| Diktat PDF | `courses/{course-slug}/diktats/{title-slug}.pdf` | `lib/diktat-actions.ts` |
+| Blog media | `blog/{timestamp}-{hash}-{filename}` | `/api/blog/upload` |
+| Forms | `forms/{form-slug}/question-{n}/{leaf}` | `/api/forms/upload` (already correct; move its helpers into `lib/storage/keys.ts`) |
+| PKA follow proof | `pka/{userId}/proofs/{leaf}` | `registerPkaAction` (`app/(student)/courses/tutorial-pka/daftar/actions.ts`) |
+| Idea bundle | `overhaul/idea-bundles/{runId}/{bundleId}-{checksum16}.zip` | `lib/bundle/staging.ts` (already correct) |
+| Product bundle | `overhaul/product-bundles/{runId}/{bundleId}-{checksum16}.zip` | `lib/bundle/product-staging.ts` (already correct) |
+| Authoring pack | `overhaul/{runId}/authoring-context/{packId}.zip` | `lib/authoring/export.ts` (already correct) |
+
+When a new upload flow is added, reuse a domain above or add a new row to this table, and always route the key through `lib/storage/keys.ts`. Existing legacy keys stay readable in place; only new objects are written under the new convention.
+
+The admin Media page (`/admin/media`) hosts a read-only browser over these domain prefixes in its "Storage R2" tab (folder tree, list, and copy-to-media only); it accepts no uploads to those domains and owns no key prefix. Do not add a `drive/` write path.
+
+---
+
 ## Execution Rules
 
 1. Before writing code, read `db/schema.ts` and `lib/env.ts` for current schema/env state.
@@ -233,64 +277,49 @@ Some tables store `yyyy-MM-dd` strings in `text()` columns (streaks, recommendat
 
 ## Current State
 
-### Completed
-- **SQLite migration completed**: Turso production configured, Local SQLite dev mode configured, DB queries routed successfully.
-- **R2 migration completed**: UploadThing provider mode switched to R2 by default, assets uploaded and validated.
-- **AI Gateway routing completed**: Gemini client configured to route all traffic through Cloudflare AI Gateway.
-- **Storage abstraction completed**: Reusable storage client (`lib/storage/index.ts`) abstracting R2 and UploadThing providers.
-- **vNext Content Architecture migration completed**: Canonical Markdown-First Knowledge System implemented, schemas updated, local SQLite and production Turso databases fully migrated, MTD backfill completed, validation, extraction, assessment indexing, and policy layers fully operational.
-- **Template-Based Simulation & Dual Leaderboard System completed**: Tutorial PKA simulation refactored to template-based quizzes under `simulation` category. Course leaderboards split into Kuis and Simulasi/Tryout.
-- **Dedicated Admin Quiz & Exam Analytics & Insight Page completed**: Added `/admin/ai/quiz-insights` portal with real-time quantitative item/distractor breakdown, concept accuracy tracking, and on-demand Gemini AI deep pedagogical diagnostics stored in `quiz_ai_insights`.
-- **Student Quiz Learning Analytics & Diagnosis System completed**: Inngest background queue (`quiz/analytics.requested`), deterministic facts calculator (`lib/student-quiz-analytics/calculator.ts`), two-tier Gemini AI diagnosis pipeline (`lib/student-quiz-analytics/ai-pipeline.ts`), and 3-Layer Student UI (`QuizAnalyticsView` & `/summary` routes) fully integrated across all course quizzes and PKA simulations.
-- **Automated AI Contract Test Foundation completed**: Deterministic test harness in `tests/contracts/`, fake adapters (`fakeAi`, `fakeCache`), zero-network guards, versioned fixtures in `tests/fixtures/ai/`, and test commands (`test:ai-contracts`) fully operational.
-- **Versioned Prompt Contracts, Policy Composition & Privacy-Safe Provenance completed**: `PromptExecutor` refactored into a typed boundary (`lib/prompt-executor.ts`), policy fragments (`lib/ai/policies.ts`), semantic validator contracts (`lib/ai/validation.ts`), versioned contracts (`lib/ai/contracts.ts`), bounded field-level repair engine, and privacy-safe generation trace schema (`ai_generation_traces` in `db/schema.ts`).
-- **Assessment Integrity & Help Policy Protection completed**: API endpoints GET `/api/quiz/attempts` & GET `/api/quiz/attempts/[id]` protected via `serializeStudentQuizAttempt` to strip `correct_indices`, stored explanations, and grading feedback during active attempts. Deterministic `AssessmentAssistancePolicy` (`lib/assessment-assistance-policy.ts`) implemented to gate AI tutor and mistake feedback with stable reason codes.
-- **Tutor Cache Isolation & Query Action Routing completed**: Shared Tier 1 KV cache isolated with student-free payloads (`lib/tutor/cache-contract.ts`), prompt version, policy version, and evidence version hashing. Query Action Router (`lib/tutor/query-action.ts`) classifies user follow-ups into `retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, or `clarify` with deterministic style modifier extraction.
-- **Knowledge Object Provenance & Stable Identity completed**: Source-grounded KO schema (`knowledge_object_sources`, `learning_objectives`), stable identity keys (`stableKey`), knowledgeKind and instructionalRole separation, semantic content hashing (`semanticHash`), and upsert/diff reconciliation engine (`lib/knowledge/identity.ts`) implemented behind `FEATURE_KO_PIPELINE_V2`.
-- **Staged KO Extraction & Canonical Review completed**: Multi-stage source-complete pipeline implemented (`lib/knowledge/chunker.ts`, `candidate-extractor.ts`, `candidate-reconciler.ts`, `canonicalizer.ts`, `extraction-run.ts`), removing silent 30k char truncation, preserving exact source offsets and math/tables, retaining all supporting spans across chunk merges, and routing high embedding similarity without exact title match to `needs_review`.
-- **Question Blueprint, Option Shuffle, and Distractor Provenance completed**: Deterministic multidimensional blueprint engine (`lib/questions/blueprint.ts`), application option shuffle with stable IDs (`lib/questions/option-shuffle.ts`), machine-readable distractor provenance engine (`lib/questions/distractor-provenance.ts`), typed assessment extractor adapter (`lib/assessment-extractor.ts`), database tables `question_generation_runs` and `distractor_provenance`, and flag `FEATURE_QUESTION_GENERATOR_V2` fully implemented.
-- **Tutor Pedagogy, Diagnosis & Visual Contracts completed**: Pedagogy contracts (`lib/tutor/pedagogy-contracts.ts`), visual spec contracts (`lib/tutor/visual-contracts.ts`), deterministic visual serializer (`lib/tutor/visual-serializer.ts`), and feature flag `FEATURE_TUTOR_PEDAGOGY_V2` fully implemented.
-- **Semantic Material Compiler completed**: Preflight KO validator, outline planner with typed KO exclusions (`lib/materials/compiler.ts`), non-destructive interactive layer (`lib/materials/interactive-layer.ts`), revision diff engine (`lib/materials/revision-diff.ts`), and feature flag `FEATURE_MATERIAL_COMPILER_V2` fully implemented.
-- **Independent Question Verification & Critic Loop completed**: Independent solver boundary (`lib/questions/independent-solver.ts`) and pedagogical critic verification engine (`lib/questions/pedagogical-critic.ts`) fully implemented.
-- **Atomic Active-Recall Flashcard Contract completed**: Flashcard V2 schema (`lib/flashcards/contracts.ts`), atomicity validator (`lib/flashcards/validator.ts`), and feature flag `FEATURE_FLASHCARD_GENERATOR_V2` fully implemented.
-- **Diktat Audit, Formula Registry & PDF QA completed**: Structured audit contracts (`lib/diktat/audit-contracts.ts`), formula registry (`lib/diktat/formula-registry.ts`), fail-closed publication gating, and feature flag `FEATURE_DIKTAT_QA_V2` fully implemented.
-- **Evidence-Calibrated Learner & Admin Analytics completed**: Multi-layer analytics contracts (`lib/student-quiz-analytics/contracts.ts`), deterministic evidence sufficiency calculator (`evaluateEvidenceSufficiency`), and feature flag `FEATURE_ANALYTICS_DIAGNOSIS_V2` fully implemented.
-- **Golden AI Evaluations & Rollout Closure completed**: Offline golden evaluation suite (`scripts/run-ai-evals.ts`), zero-tolerance invariant scorers (`lib/ai/evals/scorers.ts`), npm script `bun run eval:ai`, and full documentation synchronization across all 15 plans completed.
+Keep this section concise. Detailed feature behavior belongs in `docs/features.md`, architecture in `docs/ARCHITECTURE.md`, schema state in `docs/DB_SCHEMA.md`, environment setup in `docs/DEVELOPMENT.md`, deployment state in `docs/DEPLOYMENT.md`, and operational gates in `docs/operations/production-readiness-checklist.md`.
 
-### Verified
-- SQLite/Turso schema setup and connection verified.
-- R2 uploads and public CDN serving verified.
-- AI Gateway metrics proxying verified.
-- vNext architecture pipeline and verification tests (16/16 tests passing).
-- Production database schemas and MTD backfill verified successfully.
-- Admin Quiz Insights database migration (`quiz_ai_insights`) and API endpoints verified.
-- Student Quiz Analytics database migration (`student_quiz_analytics`), Inngest background queue, API endpoints, and 3-layer UI verified (`bun run lint` passing 0 errors).
-- AI Contract Test Suite verified deterministically (75 tests across 9 contract files passing with 0 network calls).
-- Versioned Prompt Contracts & Provenance verified deterministically via `bun test tests/contracts/prompt-executor.test.ts` (12/12 tests passing, bounded repair & privacy-safe hashing verified, `bun run lint` and `bun run typecheck` passing 0 errors).
-- Assessment Integrity & Help Policy verified deterministically via `bun test tests/contracts/assessment-redaction.test.ts tests/contracts/tutor-rag.test.ts` (13/13 tests passing with 0 network calls, answer redaction and policy gating verified).
-- Tutor Cache Isolation & Query Action Routing verified deterministically via `bun test tests/contracts/tutor-rag.test.ts` (13 passing tests across contract suite with 0 network calls, student data protection, style extraction, and action routing verified).
-- Knowledge Object Provenance & Stable Identity verified deterministically via `bun test tests/contracts/ko-pipeline.test.ts` (9/9 tests passing with 0 network calls, stable identity retention, semantic hashing, superseded status tracking, and contract validation verified).
-- Staged KO Extraction & Canonical Review verified deterministically via `bun test tests/contracts/ko-pipeline.test.ts` (11 passing tests across KO pipeline suite with 0 network calls, deterministic chunking > 30k chars, span preservation, and review gating verified).
-- Question Blueprint, Option Shuffle, and Distractor Provenance verified deterministically via `bun test tests/contracts/question-pipeline.test.ts` (14 passing tests across question pipeline suite with 0 network calls, slot KO requirement, seeded shuffle, distractor provenances, position leakage prevention, independent solver, and critic loop verified).
-- Wave 4 (Plans 006, 009, 011) verified deterministically via `bun test tests/contracts/tutor-rag.test.ts tests/contracts/material-pipeline.test.ts tests/contracts/question-pipeline.test.ts` (67 passing contract tests, 0 errors across lint & typecheck).
-- Wave 5 (Plans 013, 014, 012) verified deterministically via `bun test tests/contracts/flashcard-generator.test.ts tests/contracts/diktat.test.ts tests/contracts/analytics.test.ts` (75 passing contract tests across 9 files, 0 errors across lint & typecheck).
-- Wave 6 (Plan 015) verified deterministically via `bun run eval:ai` (3/3 golden evaluation zero-tolerance invariant suites passing 100%).
+### Stable platform
 
-### Current Focus
-All 15 Plans of the Zyx AI Reliability Remediation Roadmap are fully executed, verified, and merged into `main`. Ready for authorized production shadow deployment.
+- Turso is the remote database and local SQLite is the development database.
+- Staging migration `0067_zyra_continuation.sql` was applied on 2026-08-12 after encrypted export and disposable restore validation. Reconciliation recorded 164 tables, 7 additive tables, zero removed tables, and zero foreign-key violations.
+- Cloudflare R2 is the default storage provider. UploadThing remains only as a compatibility fallback.
+- Gemini traffic uses Cloudflare AI Gateway. Canonical retrieval uses the isolated 768-dimensional Cloudflare Vectorize profile.
+- The Idea-centered overhaul Plans 001 through 016 are complete. Their implementation history remains available in Git; the working tree keeps only the compact program index and active Plan 017.
+- Deterministic AI contracts, assessment redaction, cache isolation, content provenance, question verification, analytics, and golden evaluations are established and documented in `docs/`.
+
+### Active work
+
+- Duitku hosted checkout is local-only on `feat/payment-gateway`: server-recomputed Rupiah quotes, immutable orders, HMAC callback verification, authenticated status, and public merchant contact surfaces are implemented behind `FEATURE_DUITKU_PAYMENT`. Sandbox credentials, business address, local migration ledger repair, and live Sandbox review remain pending.
+
+- The external authoring workflow is split into validated Source Pack, Idea Bundle, and Product Bundle skills. Idea and Product skills keep a preference-only Authoring Learning Profile from explicit operator corrections, with no Revision Pack. Product authoring copies direct ITB examples from Source Pack, keeps benchmark identity separate from the dedicated allowed source reference and exact event label exported by Context Pack, and never emits Zyx-original questions. Product Bundle exposes only draft, published, and withdrawn. Publication projects ITB questions into the active bank, and provenance survives quiz, tryout, PKA, review, and live snapshots. Migration `0068_typical_warbird.sql` is generated; local migration remains blocked by the pre-existing migration ledger mismatch for `ai_allowance_leases`. Focused contracts, skill validation, lint, and typecheck pass; authenticated staging lifecycle and responsive visual review remain pending.
+- The admin interface enforces full-width left-aligned page headers without route-group width constraints, uses solid semantic card surfaces over the shared gradient and math ornament background, reserves sidebar width in desktop flow, limits back navigation to detail views, streamlines bundle-centered navigation, and uses Idea Bundle and Product Bundle display names without version suffixes. The repair is local-only; lint and typecheck pass, while desktop, dark mode, and 380px mobile visual review remain pending.
+- The student dashboard shows Minimal, Essential, and Premium package previews to students without an active enrollment while retaining token activation.
+- Plan 017 audit rework is in progress. It is local-only until a separate staging review authorizes remote actions.
+- Zyra AI Plans 001 and 003 through 006 have completed their recorded gates. Plan 002 remains partial because the quarantined preview model has insufficient successful samples.
+- Zyra AI Plan 007 is local-ready but still needs a controlled staging shadow and maintainer review.
+- Zyra AI Plans 008 through 013 have local implementations and focused evidence. Their additive schema is present in staging after migration 0067, but live rollout, parity checks, and human review remain pending.
+- Zyra murid UX repair is local-only: legacy graphs render through the bounded parser, math tutoring uses equation-first LaTeX with safe raw-equation recovery, empty or irrelevant RAG evidence falls back to scoped general teaching, quiz review supplies verified page context, the drawer supports viewport expansion, and the draggable hideable pet is an expressive application-owned fox-like Zyra companion. Focused tests and local lint pass; staging visual review remains pending.
+- Zyra canvas and multimodal UX repair is local-only: responsive Recharts plots, visual-language intent detection, interactive quadratic concept recovery, and post-response deterministic graph recovery work with or without canonical RAG evidence; direct Interactions routing, gateway-compatible image fallback, response-based allowance accounting, distinct provider errors, and private attachment previews with history hydration are implemented. Focused contracts pass; staging visual and live image review remain pending.
+- Zyra AI Plan 014 remains blocked until predecessor human and live staging gates pass.
+- Public Zyra continuation flags remain disabled unless explicitly enabled for an approved rollout.
+- Meet, Form Studio, Media, and Tautan repairs are local-ready. Focused contracts, lint, and typecheck pass; live Google Meet member provisioning, Drive permission sync, spreadsheet export, and responsive visual review remain staging gates.
 
 ### Blockers
-None
+
+- The Plan 007 staging identity has no active session for the controlled shadow run.
+- Production deployment, destructive database contraction, and feature rollout are outside the current authorization.
+- The preserved legacy 1024-dimensional vector indexes remain rollback assets and must not be modified without a separate cutover decision.
 
 ---
 
 ## Core Architectural Stack
 
 - **Database**: Turso for production, local SQLite (`dev.db`) for development. Never attempt to use PostgreSQL or neon-client.
-- **Vector Store**: Pinecone (Serverless Starter) is the primary vector database. Vectorize (Cloudflare) is conditional only (P8).
-- **Primary LLM**: Google Gemini API via `@google/genai` (Gemini 2.5 Flash is the primary model).
-- **AI Gateway**: Cloudflare AI Gateway routes all Gemini traffic (`CF_AI_GATEWAY_URL`). Caching enabled for Tier 1 tutor queries.
-- **Storage**: Cloudflare R2 bucket (`zyx`) is the storage provider. UploadThing is deprecated and pending complete teardown (P7).
+- **Vector Store**: Cloudflare Vectorize is the canonical vector database for staging retrieval, using `canonical-content-v2`, Gemini Embedding 2, 768 dimensions, cosine distance, and the authenticated V2 Worker. Pinecone was never provisioned in staging; local and production Pinecone variables are preserved outside the staging cutover scope.
+- **Primary LLM**: Google Gemini API via `@google/genai`. The default routed model is `gemini-3.1-flash-lite`; model policy and fallbacks live in `lib/ai/provider/model-registry.ts`.
+- **AI Gateway**: Cloudflare AI Gateway routes supported Gemini `generateContent` traffic (`CF_AI_GATEWAY_URL`). Interactions traffic uses the direct Google endpoint. Caching is enabled for eligible Tier 1 tutor queries.
+- **Storage**: Cloudflare R2 bucket (`zyx`) is the default storage provider. UploadThing remains a compatibility fallback while its configured call paths exist.
 
 ---
 
@@ -311,6 +340,34 @@ None
 | Scroll entrance | `Reveal` (handles reduced motion + admin bypass) | `components/ui/reveal` |
 | Icons | lucide-react, default `size-4`, section icons `size-5` | `lucide-react` |
 | Math | `MathText` | `components/course/math-text` |
+
+### Admin UI shared components (use these, do not re-implement)
+
+All admin pages live under `app/(admin)/admin/` and must compose the shared components in `components/admin/` instead of re-declaring the same markup per page. A lint/typecheck clean does not excuse duplication; if a pattern below fits, use the component.
+
+| Component | Import | Replaces |
+|---|---|---|
+| `AdminPageHeader` | `components/admin/page-header` | Manual page `<h1>` + description + icon blocks. Every standalone admin page uses it; do not hand-roll a page header. |
+| `AdminTabs` / `AdminTabsList` / `AdminTabsTrigger` / `AdminTabsContent` | `components/admin/tabs` | Raw `Tabs` wiring for admin tab views (settings panels, detail pages). |
+| `AdminStatCard` | `components/admin/stat-card` | Local `Stat`/`StatCard` KPI cards. `size` = `sm` (p-4, `text-h5`) or `md` (p-5, `text-h4`); `tone` colors the value + icon (default/brand/brand-secondary/info/success/warning/error); `iconClassName` overrides the icon color when the value stays foreground. |
+| `AdminSectionTitle` | `components/admin/section-title` | Repeated heading markup: `font-heading text-h5/h6/lg ... flex items-center gap-2` with icon + optional micro-label/description. `size` = `h5`/`h6`/`lg`; `border` adds `border-b border-border pb-3`; `right` slots an action; `as` picks the heading level (default `h3`). |
+| `AdminConfirmDialog` | `components/admin/confirm-dialog` | All destructive confirmation dialogs. Prefer over hand-rolled `Dialog` + "Batal"/destructive footer. `destructive={false}` yields a default confirm button; `loading` disables submit. |
+| `StatusBadge` | `components/admin/status-badges` | Raw status ternaries. `tone` = muted/info/success/warning/error/brand. Prefer tone-mapped dictionaries (`statusTone`) over per-file `statusColors` class maps. |
+| `DifficultyBadge` | `components/admin/status-badges` | Easy/Medium/Hard ternaries (string or numeric 3/2/1 input). Maps easy→success, medium→warning, hard→error; `prefix="Kesulitan"` for labeled variants. |
+| `CourseBadge` | `components/admin/status-badges` | The brand-primary course pill `text-xs font-bold uppercase tracking-wider bg-brand-primary/8 ...`. |
+| `AdminEmptyState` | `components/admin/state-panels` | Empty states. `compact` = single centered line `text-body-sm text-muted-foreground`; full = icon + title + description + optional `action`. |
+| `AdminErrorState` | `components/admin/state-panels` | `TriangleAlert` + message + optional Retry button. |
+| `AdminOptionLetter` | `components/admin/option-letter` | Question option letter badges; `isCorrect` renders the filled emerald variant. Never write `String.fromCharCode(65 + i)` for option badges. |
+| `AdminTable` / `AdminTableHead` | `components/admin/table` | The card table wrapper `overflow-hidden rounded-xl border border-border bg-card shadow-sm` and `thead` `bg-muted/50 border-b border-border`. Works for `<table>` and grid-based list surfaces. |
+
+Rules:
+- **Difficulty = semantic status tones, never the raw emerald/amber/rose palette.** `easy`→success, `medium`→warning, `hard`→error.
+- **Status badges are uppercase** (`uppercase tracking-wide`, `text-[10px] font-semibold`); display keys come from the API value, not invented labels.
+- **Table/list card wrappers use `AdminTable`.** A new table surface must not re-type `overflow-hidden rounded-xl border border-border bg-card shadow-sm`.
+- **Dialog edit shells** may keep the base `Dialog` family from `components/ui/dialog` (they vary too much to share), but **destructive confirmations must use `AdminConfirmDialog`**.
+- **Section headings** within a page use `AdminSectionTitle`, not ad hoc `h2`/`h3` blocks; the only exception is a card header that needs bespoke chrome (e.g. `flags-client.tsx`).
+- **KPI grids** are `AdminStatCard` inside a `grid`; never build a local stat-card component per page.
+- Keep dialog/form shells in `components/ui/*` and `radix-ui`; do not introduce a second component library.
 
 ### Layout
 
@@ -351,12 +408,11 @@ Every standalone page gets `<PageOrnaments variant="..." />` as first child insi
 | Service | Usage | Free limit |
 |---|---|---|
 | LLM | Gemini 2.5 Flash (4-key rotation via AI Gateway) | ~250 req/day per key |
-| Embeddings | Gemini text-embedding-004 | ~1,500 req/day |
+| Embeddings | Gemini Embedding 2, canonical-content-v2 | project key quota |
 | AI Gateway | Proxy, cache, rate limiting | 100k logged req/mo |
 | KV Cache | AI tutor response cache | 100k reads/day, 1k writes/day |
 | R2 | Object storage | 10 GB, zero egress |
-| Pinecone | Primary vector store | 2 GB Serverless Starter |
-| Vectorize (opt) | Secondary vector store | ~6,500 vectors at 768 dims |
+| Vectorize | Canonical vector store for staging | 768 dimensions, cosine, metadata allowlist |
 | Turso | SQLite database | 5 GB, 500M row reads/mo |
 | Inngest | Background job orchestration | 50k steps/mo |
 | Resend | Transactional emails | 100/day |
@@ -372,3 +428,12 @@ Every standalone page gets `<PageOrnaments variant="..." />` as first child insi
   3. Master Teaching Document chapter content generation.
 - **Zero-AI Features**: Recommendations, Streaks, Study Paths, Cohort Analytics, and reflections are computed deterministically with SQL + logic. Do NOT call Gemini.
 - **Write-Limit Guards**: Cloudflare Workers KV write limits must be guarded. Daily write counter under `meta:writes:{yyyy-mm-dd}` must stop writing when it approaches 900.
+
+## Google Spreadsheet Export & Drive Structuring
+1. Never recreate a Google Spreadsheet if one already exists for the entity instance. Update content in-place.
+2. Maintain structured folder placement under `Zyx Export/{domain}/...` on Google Drive.
+3. Route all exports through `lib/google-sheets.ts` / `/api/admin/export-spreadsheet`.
+4. **Owned-block writes**: the app owns only the data block (header row + data rows starting at cell A1). Writes use an explicit `GridRange`; cells right of the data block and rows below it are a reserved manual zone and must never be touched by the app.
+5. **Conflict confirmation**: before overwriting an existing spreadsheet, `syncGoogleSpreadsheet` reads the current grid and compares it with the stored `last_written_fingerprint`. Manual edits inside the owned block, manual rows overlapped by a growing data set, and manual columns overlapped by growing headers return `needsConfirmation` with typed conflict codes (`block_modified`, `manual_rows`, `manual_columns`). The client re-sends with `confirmOverwrite: true` only after the admin confirms via `useSpreadsheetExport` (`components/admin/spreadsheet-export.tsx`).
+6. **Conflict baseline**: `export_spreadsheets.last_header_count`, `last_row_count`, and `last_written_fingerprint` are the baseline. Legacy spreadsheets without metadata infer the previous block from the current grid on first re-export.
+7. **Admin editor grants**: when `FEATURE_DRIVE_EDITOR_SYNC=1`, every active admin email is granted `writer` on the spreadsheet (and its folder on creation) via `grantDriveEditorAccess`.

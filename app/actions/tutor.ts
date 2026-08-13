@@ -4,13 +4,26 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
-import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates } from "@/db/schema";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments } from "@/db/schema";
+import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
-import { askTutorRag } from "@/lib/tutor-rag";
+import { askTutorRag, type TutorPageContext } from "@/lib/tutor-rag";
 import { getOrCreateChatSession } from "@/lib/zyra/zyra-context-builder";
 import { isEnrolled } from "@/lib/course-utils";
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
+import {
+  assertZyraImageCount,
+  isZyraImageFeatureEnabled,
+  loadZyraImageParts,
+  markZyraAttachmentsDispatched,
+} from "@/lib/zyra/images";
+import type { ZyraImageMime } from "@/lib/zyra/images";
+import {
+  deserializeTutorMessageSources,
+  isZyraCanvasFeatureEnabled,
+  serializeTutorMessageSources,
+} from "@/lib/zyra/canvas";
 
 /** Thrown when a signed-in user tries to use Zyra for a course they are not enrolled in. */
 const NOT_ENROLLED = "NOT_ENROLLED";
@@ -211,12 +224,28 @@ export async function askTutorRagAction(
   courseId: string,
   chapterId: string | null,
   question: string,
-  sessionId?: string | null
+  sessionId?: string | null,
+  attachmentIds?: readonly string[],
+  pagePath?: string | null,
 ) {
   const user = await requireCourseAccess(courseId);
 
   const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, question.slice(0, 100));
   const startTime = Date.now();
+  const requestedAttachmentIds = attachmentIds ?? [];
+  assertZyraImageCount(requestedAttachmentIds.length);
+  if (requestedAttachmentIds.length > 0 && !isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)) {
+    throw new Error("IMAGE_INPUT_DISABLED");
+  }
+  const imageParts = requestedAttachmentIds.length > 0
+    ? await loadZyraImageParts({
+        ids: requestedAttachmentIds,
+        studentId: user.id,
+        courseId,
+        sessionId: sid,
+        promptBytes: new TextEncoder().encode(question).byteLength,
+      })
+    : [];
 
   const activeAttempt = await db
     .select({ id: studentQuizAttempts.id, questionsSnapshot: studentQuizAttempts.questionsSnapshot })
@@ -249,6 +278,58 @@ export async function askTutorRagAction(
     };
   }
 
+  let pageContext: TutorPageContext | null = null;
+  const reviewMatch = requestedAttachmentIds.length === 0
+    ? pagePath?.match(/^\/courses\/([^/]+)\/my-results\/([^/]+)(?:\/.*)?$/)
+    : null;
+  if (reviewMatch?.[1] === courseId) {
+    const attemptId = reviewMatch[2];
+    const [reviewAttempt] = await db
+      .select({
+        id: studentQuizAttempts.id,
+        title: quizTemplates.title,
+        questionsSnapshot: studentQuizAttempts.questionsSnapshot,
+        strongAreas: studentQuizAttempts.strongAreas,
+        weakAreas: studentQuizAttempts.weakAreas,
+      })
+      .from(studentQuizAttempts)
+      .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
+      .where(and(
+        eq(studentQuizAttempts.id, attemptId),
+        eq(studentQuizAttempts.studentId, user.id),
+        eq(quizTemplates.courseId, courseId),
+      ))
+      .limit(1);
+
+    if (reviewAttempt) {
+      const questions = Array.isArray(reviewAttempt.questionsSnapshot)
+        ? reviewAttempt.questionsSnapshot
+            .slice(0, 30)
+            .map((item, index) => {
+              const questionItem = item as Record<string, unknown>;
+              const prompt = [questionItem.prompt, questionItem.questionText, questionItem.text]
+                .find((value): value is string => typeof value === "string" && value.trim().length > 0);
+              return prompt ? `${index + 1}. ${prompt.trim().slice(0, 800)}` : null;
+            })
+            .filter((value): value is string => value !== null)
+        : [];
+      const strongAreas = Array.isArray(reviewAttempt.strongAreas) ? reviewAttempt.strongAreas : [];
+      const weakAreas = Array.isArray(reviewAttempt.weakAreas) ? reviewAttempt.weakAreas : [];
+      pageContext = {
+        id: `quiz-review-${reviewAttempt.id}`,
+        label: `Pembahasan ${reviewAttempt.title}`,
+        href: `/courses/${courseId}/my-results/${reviewAttempt.id}`,
+        content: [
+          "Konteks halaman saat ini adalah pembahasan kuis yang telah dikerjakan murid.",
+          `Judul kuis: ${reviewAttempt.title}`,
+          questions.length > 0 ? `Daftar soal:\n${questions.join("\n")}` : "Daftar soal tidak tersedia.",
+          strongAreas.length > 0 ? `Area kuat: ${strongAreas.join(", ")}` : "",
+          weakAreas.length > 0 ? `Area yang perlu dipelajari: ${weakAreas.join(", ")}` : "",
+        ].filter(Boolean).join("\n\n"),
+      };
+    }
+  }
+
   const result = await askTutorRag({
     studentId: user.id,
     courseId,
@@ -258,7 +339,13 @@ export async function askTutorRagAction(
     attemptState: hasActiveAttempt ? "in_progress" : "none",
     activityKind: hasActiveAttempt ? "quiz" : "study",
     protectedAnswers,
+    imageParts,
+    pageContext,
   });
+
+  if (requestedAttachmentIds.length > 0 && result.answer) {
+    await markZyraAttachmentsDispatched(requestedAttachmentIds, user.id);
+  }
 
   return {
     ...result,
@@ -271,7 +358,7 @@ const CHAT_HISTORY_LIMIT = 100;
 
 export async function saveTutorMessagesAction(
   courseId: string,
-  messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown }>,
+  messages: Array<{ role: "student" | "ai"; content: string; sources?: unknown; canvasSpec?: unknown; attachmentIds?: readonly string[] }>,
   sessionId?: string | null
 ) {
   const user = await requireCourseAccess(courseId);
@@ -280,17 +367,41 @@ export async function saveTutorMessagesAction(
 
   const sid = sessionId ?? await getOrCreateChatSession(user.id, courseId, "General Chat");
 
-  await db.insert(tutorChatMessages).values(
-    messages.map((m) => ({
+  const preparedRows = messages.map((m) => ({
       id: randomUUID(),
       studentId: user.id,
       courseId,
       sessionId: sid,
       role: m.role,
       content: m.content ?? "",
-      sources: m.sources ?? null,
-    }))
-  );
+      sources: serializeTutorMessageSources(
+        m.sources,
+        isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? m.canvasSpec : undefined,
+      ),
+      attachmentIds: m.role === "student" ? [...(m.attachmentIds ?? [])] : [],
+    }));
+
+  for (const row of preparedRows) assertZyraImageCount(row.attachmentIds.length);
+
+  await db.transaction(async (tx) => {
+    await tx.insert(tutorChatMessages).values(preparedRows.map(({ attachmentIds: _attachmentIds, ...row }) => row));
+    for (const row of preparedRows) {
+      if (row.attachmentIds.length === 0) continue;
+      for (const attachmentId of row.attachmentIds) {
+        const linked = await tx.update(zyraMessageAttachments)
+          .set({ messageId: row.id })
+          .where(and(
+            eq(zyraMessageAttachments.id, attachmentId),
+            eq(zyraMessageAttachments.studentId, user.id),
+            eq(zyraMessageAttachments.courseId, courseId),
+            eq(zyraMessageAttachments.sessionId, sid),
+            gt(zyraMessageAttachments.expiresAt, new Date()),
+            or(isNull(zyraMessageAttachments.messageId), eq(zyraMessageAttachments.messageId, row.id)),
+          ));
+        if (linked.rowsAffected !== 1) throw new Error("ZYRA_ATTACHMENT_LINK_FAILED");
+      }
+    }
+  });
 
   await db
     .update(chatSessions)
@@ -339,14 +450,52 @@ export async function loadTutorHistoryAction(
     .orderBy(asc(tutorChatMessages.createdAt))
     .limit(CHAT_HISTORY_LIMIT);
 
+  const messageIds = rows.map((row) => row.id);
+  const attachmentRows = messageIds.length > 0 && isZyraImageFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_IMAGE_INPUT_V1)
+    ? await db
+        .select({
+          id: zyraMessageAttachments.id,
+          messageId: zyraMessageAttachments.messageId,
+          mimeType: zyraMessageAttachments.mimeType,
+          width: zyraMessageAttachments.width,
+          height: zyraMessageAttachments.height,
+        })
+        .from(zyraMessageAttachments)
+        .where(and(
+          inArray(zyraMessageAttachments.messageId, messageIds),
+          eq(zyraMessageAttachments.studentId, user.id),
+          eq(zyraMessageAttachments.courseId, courseId),
+          eq(zyraMessageAttachments.sessionId, sid),
+          gt(zyraMessageAttachments.expiresAt, new Date()),
+          inArray(zyraMessageAttachments.status, ["uploaded", "attached", "dispatched"]),
+        ))
+    : [];
+  const attachmentsByMessage = new Map<string, typeof attachmentRows>();
+  for (const attachment of attachmentRows) {
+    if (!attachment.messageId) continue;
+    const current = attachmentsByMessage.get(attachment.messageId) ?? [];
+    current.push(attachment);
+    attachmentsByMessage.set(attachment.messageId, current);
+  }
+
   return {
     sessionId: sid,
-    messages: rows.map((r) => ({
-      id: r.id,
-      role: r.role as "student" | "ai",
-      content: r.content,
-      sources: r.sources as Array<{ type: string; id: string; label: string; href: string }> | undefined,
-    })),
+    messages: rows.map((r) => {
+      const decoded = deserializeTutorMessageSources(r.sources);
+      return {
+        id: r.id,
+        role: r.role as "student" | "ai",
+        content: r.content,
+        sources: decoded.sources.length > 0 ? decoded.sources : undefined,
+        canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? decoded.canvasSpec : undefined,
+        attachments: attachmentsByMessage.get(r.id)?.map((attachment) => ({
+          id: attachment.id,
+          mimeType: attachment.mimeType as ZyraImageMime,
+          width: attachment.width,
+          height: attachment.height,
+        })) ?? [],
+      };
+    }),
   };
 }
 

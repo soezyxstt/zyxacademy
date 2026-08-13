@@ -61,6 +61,9 @@ export const BlueprintSlotSchema = z.object({
   slotId: z.string().min(1),
   learningObjectiveId: z.string().nullable().optional(),
   knowledgeObjectId: z.string().min(1, "knowledgeObjectId is required for every blueprint slot"),
+  ideaIds: z.array(z.string().min(1)).min(1).optional(),
+  requiredIdeaRelations: z.array(z.string().min(1)).default([]),
+  ideaCount: z.number().int().positive().optional(),
   cognitiveProcess: CognitiveProcessSchema,
   difficultyTarget: DifficultyTargetSchema,
   difficultyBasis: z.string().min(1),
@@ -81,6 +84,8 @@ export const BlueprintSlotSchema = z.object({
   }),
   assessmentContext: z.enum(["quiz", "uts", "uas", "practice", "tryout", "tutorial"]),
   releasePolicy: z.enum(["immediate", "delayed", "scheduled"]),
+  applicationLevel: z.number().int().min(0).max(5).optional(),
+  estimatedSteps: z.number().int().positive().optional(),
 });
 export type BlueprintSlot = z.infer<typeof BlueprintSlotSchema>;
 
@@ -110,11 +115,14 @@ export interface UnshuffledDraftOption {
 export interface UnshuffledQuestionDraft {
   slotId: string;
   knowledgeObjectId: string;
+  ideaIds?: string[];
+  requiredIdeaRelations?: string[];
   prompt: string;
   options: UnshuffledDraftOption[];
   explanation: string;
   bloomLevel: CognitiveProcess;
   pattern: ReasoningPattern;
+  applicationLevel?: number;
   estimatedSteps: number;
 }
 
@@ -133,6 +141,8 @@ export interface DistractorProvenanceRecord {
 export interface ShuffledQuestion {
   slotId: string;
   knowledgeObjectId: string;
+  ideaIds?: string[];
+  requiredIdeaRelations?: string[];
   prompt: string;
   options: string[];
   correctIndices: number[];
@@ -142,6 +152,7 @@ export interface ShuffledQuestion {
   shuffleSeed: number;
   bloomLevel: CognitiveProcess;
   pattern: ReasoningPattern;
+  applicationLevel?: number;
   estimatedSteps: number;
 }
 

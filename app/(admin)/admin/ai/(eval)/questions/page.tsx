@@ -6,7 +6,9 @@ import { desc, eq } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { QuestionBankClient } from "./questions-client";
 import { HistoricalQuestionsClient } from "./historical-questions-client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { Library } from "lucide-react";
 
 export const metadata: Metadata = {
   title: pageTitle("Bank Soal"),
@@ -45,41 +47,34 @@ export default async function AIQuestionsPage() {
   const questions = rawQuestions.map((q) => ({ ...q, qualityScore: q.qualityScore ?? 0 }));
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6 text-left">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Bank Soal</h1>
-        <p className="mt-1 text-body-sm text-muted-foreground">
-          Kelola bank soal hasil ekstraksi AI dan soal-soal historis.
-        </p>
-      </div>
-      <Tabs defaultValue="historical" className="space-y-6">
-        <TabsList className="w-full justify-start border-b border-border bg-transparent p-0 rounded-none h-auto">
-          <TabsTrigger
-            value="historical"
-            className="border-b-2 border-transparent px-4 py-2 text-body-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none bg-transparent"
-          >
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={Library}
+        title="Bank Soal"
+        description="Kelola soal asli Zyx dan contoh soal ITB yang membawa sitasi sumber."
+      />
+      <AdminTabs defaultValue="historical">
+        <AdminTabsList>
+          <AdminTabsTrigger value="historical">
             Bank Asesmen Historis ({historicalQuestions.length})
-          </TabsTrigger>
-          <TabsTrigger
-            value="ai-generated"
-            className="border-b-2 border-transparent px-4 py-2 text-body-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none bg-transparent"
-          >
-            Dihasilkan AI (Question Bank) ({questions.length})
-          </TabsTrigger>
-        </TabsList>
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="ai-generated">
+            Bank soal aktif ({questions.length})
+          </AdminTabsTrigger>
+        </AdminTabsList>
 
-        <TabsContent value="historical" className="space-y-4">
+        <AdminTabsContent value="historical">
           <HistoricalQuestionsClient
             questions={historicalQuestions}
             courses={allCourses}
             courseMap={courseMap}
           />
-        </TabsContent>
+        </AdminTabsContent>
 
-        <TabsContent value="ai-generated" className="space-y-4">
+        <AdminTabsContent value="ai-generated">
           <QuestionBankClient questions={questions} courses={allCourses} courseMap={courseMap} />
-        </TabsContent>
-      </Tabs>
+        </AdminTabsContent>
+      </AdminTabs>
     </div>
   );
 }

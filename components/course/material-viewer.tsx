@@ -22,13 +22,14 @@ import {
   CheckCircle2, 
   PanelLeftClose, 
   PanelLeft, 
-  Trash2, 
+  Trash2,
+  Sparkles,
   X,
   Check,
-  Sparkles,
   Loader2,
   AlertTriangle
 } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,8 +53,10 @@ import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
+import { ZyraMark } from "@/components/course/zyra-mark";
 import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
+import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -676,7 +679,8 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
     return done ? 100 : 0;
   }, [material.kind, articleProgress, done]);
 
-  const { openExplain } = useTutor();
+  const { openExplain, openChatWithQuestion } = useTutor();
+  const selectionAskEnabled = isZyraSelectionAskEnabled();
   const [selectedText, setSelectedText] = useState("");
   const [selectionCoords, setSelectionCoords] = useState<{ top: number; left: number } | null>(null);
   const popoverActiveRef = useRef(false);
@@ -697,6 +701,13 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
 
   const runTutorExplain = (query: string) => {
     dismissPopover();
+    if (selectionAskEnabled) {
+      const selection = normalizeZyraSelection(query);
+      if (selection.length >= 3) {
+        openChatWithQuestion(`Kutipan dari materi ${material.title}: "${selection}"\n\nJelaskan bagian ini secara bertahap.`);
+        return;
+      }
+    }
     toast.promise(
       (async () => {
         const { findKoForMaterialSectionAction } = await import("@/app/actions/tutor");
@@ -1175,7 +1186,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
               runTutorExplain(selectedText);
             }}
           >
-            <Sparkles className="size-3.5" />
+            <ZyraMark className="size-4" />
             Tanya Zyra
           </Button>
         )}
@@ -1626,31 +1637,20 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                             <label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground px-1">
                               Indeks Pencarian Kata
                             </label>
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => {
-                                  setSearchQuery(e.target.value);
-                                  setActiveHighlightQuery(e.target.value);
-                                }}
-                                placeholder="Ketik kata kunci (e.g. limit, turunan)..."
-                                className="w-full bg-muted/60 text-body-xs border border-border rounded-xl pl-8 pr-8 py-2 focus:bg-card focus:outline-none transition-all placeholder:text-muted-foreground text-foreground"
-                              />
-                              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                              {searchQuery && (
-                                <button
-                                  onClick={() => {
-                                    setSearchQuery("");
-                                    setActiveHighlightQuery("");
-                                  }}
-                                  className="absolute right-2.5 top-2.5 p-0.5 rounded-full hover:bg-muted text-muted-foreground"
-                                  title="Bersihkan Pencarian"
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              )}
-                            </div>
+                            <SearchBar
+                              size="sm"
+                              variant="muted"
+                              value={searchQuery}
+                              onSearch={(val) => {
+                                setSearchQuery(val);
+                                setActiveHighlightQuery(val);
+                              }}
+                              onClear={() => {
+                                setSearchQuery("");
+                                setActiveHighlightQuery("");
+                              }}
+                              placeholder="Ketik kata kunci (e.g. limit, turunan)..."
+                            />
                           </div>
 
                           {/* Search Matches list */}

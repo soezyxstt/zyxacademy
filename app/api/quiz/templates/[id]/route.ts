@@ -5,11 +5,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { quizTemplates } from '@/db/schema';
+import { quizTemplates, courses } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { env } from '@/lib/env';
+import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
+import { sendQuizPublished } from '@/lib/notifications/send';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -58,6 +61,10 @@ export async function PATCH(req: NextRequest, { params }: Context) {
           hard: z.number().int().min(0),
         })
         .optional(),
+      assessmentType: z.enum(['quiz', 'tryout']).optional(),
+      chapterIds: z.array(z.string().min(1)).optional(),
+      blueprint: z.record(z.string(), z.unknown()).optional(),
+      seed: z.number().int().optional(),
     }).optional(),
     showDiscussion: z.boolean().optional(),
   });
@@ -83,6 +90,15 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   if (parsed.data.timeLimitSeconds !== undefined) updateData.timeLimitSeconds = parsed.data.timeLimitSeconds;
   if (parsed.data.maxAttempts !== undefined) updateData.maxAttempts = parsed.data.maxAttempts;
   if (parsed.data.selectionRules !== undefined) {
+    if (env.FEATURE_ASESMEN_IDE_V1 === '1' && parsed.data.selectionRules.assessmentType) {
+      const scope = assessmentScopeSchema.safeParse({
+        assessmentType: parsed.data.selectionRules.assessmentType,
+        chapterIds: parsed.data.selectionRules.chapterIds ?? [],
+      });
+      if (!scope.success) {
+        return NextResponse.json({ error: 'Assessment scope must match quiz or tryout chapter rules.' }, { status: 400 });
+      }
+    }
     updateData.selectionRules = parsed.data.selectionRules;
   }
   if (parsed.data.showDiscussion !== undefined) {
@@ -90,10 +106,37 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   }
   updateData.updatedAt = new Date();
 
+  // If status is changing, read the current row so we only notify on a
+  // transition into "published" (never on every save or re-publish).
+  const previous = parsed.data.status
+    ? await db
+        .select({ status: quizTemplates.status, title: quizTemplates.title, courseId: quizTemplates.courseId })
+        .from(quizTemplates)
+        .where(eq(quizTemplates.id, id))
+        .limit(1)
+        .then((rows) => rows[0] ?? null)
+    : null;
+
   await db
     .update(quizTemplates)
     .set(updateData)
     .where(eq(quizTemplates.id, id));
+
+  if (parsed.data.status === 'published' && previous && previous.status !== 'published') {
+    const courseRow = await db
+      .select({ title: courses.title })
+      .from(courses)
+      .where(eq(courses.id, previous.courseId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+    const quizTitle = typeof parsed.data.title === 'string' ? parsed.data.title : previous.title;
+    await sendQuizPublished(
+      quizTitle,
+      previous.courseId,
+      courseRow?.title ?? 'mata kuliah',
+      `/courses/${previous.courseId}/quiz`
+    );
+  }
 
   return NextResponse.json({ success: true });
 }

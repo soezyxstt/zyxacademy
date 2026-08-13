@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { env } from "@/lib/env";
 import { canPublishDiktat } from "@/lib/diktat/audit-contracts";
+import { joinKey, slugifySegment } from "@/lib/storage/keys";
 
 /**
  * Extracts the unique file key from an UploadThing CDN URL.
@@ -282,9 +283,10 @@ export async function executeDiktatPDFGeneration(
   try {
     const oldUrl = diktat.fileUrl;
 
-    // Upload using unified storage provider
-    const filename = `${diktat.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.pdf`;
-    const uploadedData = await storage.upload(pdfBuffer, filename, "application/pdf");
+    // Upload using unified storage provider (stable leaf name, delete old on replace)
+    const leaf = `${slugifySegment(diktat.title)}.pdf`;
+    const objectKey = joinKey("courses", slugifySegment(diktat.courseId), "diktats", leaf);
+    const uploadedData = await storage.upload(pdfBuffer, leaf, "application/pdf", { key: objectKey });
     const fileUrl = uploadedData.url; // Storing only key/reference URL
 
     // Trigger cleanup of the old file

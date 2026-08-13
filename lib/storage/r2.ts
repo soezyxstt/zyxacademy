@@ -4,11 +4,13 @@ import {
   DeleteObjectCommand, 
   HeadObjectCommand, 
   CopyObjectCommand,
-  GetObjectCommand
+  GetObjectCommand,
+  ListObjectsV2Command,
+  type _Object
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { randomUUID } from "node:crypto";
 import type { StorageProvider } from "./index";
+import { assertSafeKey, INVALID_OBJECT_KEY } from "./keys";
 
 export class R2Provider implements StorageProvider {
   private s3: S3Client;
@@ -35,8 +37,11 @@ export class R2Provider implements StorageProvider {
     mimeType: string,
     options?: any
   ): Promise<{ url: string; key: string; size: number }> {
-    // Generate a unique storage key if not provided to avoid collision
-    const key = options?.key || `${randomUUID()}-${filename.replace(/\s+/g, "_")}`;
+    // Keys are structured (`{domain}/{entity-slug}/{subfolder...}/{leaf}`); the
+    // caller must always pass an explicit safe key.
+    const key = options?.key;
+    if (!key) throw new Error(INVALID_OBJECT_KEY);
+    assertSafeKey(key);
     
     let body: Uint8Array;
     let size: number;
@@ -108,6 +113,16 @@ export class R2Provider implements StorageProvider {
     }
   }
 
+  async download(key: string): Promise<Uint8Array> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+    });
+    const response = await this.s3.send(command);
+    if (!response.Body) throw new Error(`R2 object has no body: ${key}`);
+    return response.Body.transformToByteArray();
+  }
+
   async copy(sourceKey: string, destKey: string): Promise<{ url: string; key: string }> {
     const command = new CopyObjectCommand({
       Bucket: this.bucket,
@@ -144,5 +159,29 @@ export class R2Provider implements StorageProvider {
       });
       return getSignedUrl(this.s3, command, { expiresIn });
     }
+  }
+
+  async list(prefix: string): Promise<{ key: string; size: number; lastModified: Date }[]> {
+    const objects: _Object[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const command = new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      });
+      const response = await this.s3.send(command);
+      objects.push(...(response.Contents || []));
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    return objects
+      .filter((obj) => obj.Key && !obj.Key.endsWith("/"))
+      .map((obj) => ({
+        key: obj.Key as string,
+        size: obj.Size || 0,
+        lastModified: obj.LastModified || new Date(0),
+      }));
   }
 }

@@ -1,0 +1,37 @@
+import { describe, expect, test } from "bun:test";
+import {
+  assertCompleteQuestionProvenance,
+  normalizeQuestionProvenance,
+  questionProvenanceSnapshot,
+} from "@/lib/asesmen/question-provenance";
+
+describe("question provenance", () => {
+  test("keeps Zyx questions citation-free", () => {
+    expect(normalizeQuestionProvenance({ origin: "zyx_original", sourceEventName: "ignored" })).toEqual({
+      origin: "zyx_original",
+      sourceEventName: null,
+      sourceReferenceId: null,
+    });
+  });
+
+  test("requires a source event and reference for ITB examples", () => {
+    expect(() => assertCompleteQuestionProvenance({ origin: "itb_example" })).toThrow("QUESTION_ITB_PROVENANCE_INCOMPLETE");
+    expect(questionProvenanceSnapshot({
+      origin: "itb_example",
+      sourceEventName: " UTS Matematika I ITB 2024 ",
+      sourceReferenceId: " ref-itb-2024 ",
+    })).toEqual({
+      origin: "itb_example",
+      sourceEventName: "UTS Matematika I ITB 2024",
+      sourceReferenceId: "ref-itb-2024",
+    });
+  });
+
+  test("accepts legacy snake-case snapshot fields", () => {
+    expect(normalizeQuestionProvenance({
+      origin: "itb_example",
+      source_event_name: "Kuis Fisika Dasar ITB 2023",
+      source_reference_id: "ref-legacy",
+    }).sourceEventName).toBe("Kuis Fisika Dasar ITB 2023");
+  });
+});

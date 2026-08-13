@@ -5,6 +5,8 @@ import { aiMaterialInstances, courses, chapters, masterTeachingDocuments, websit
 import { desc, eq, asc } from "drizzle-orm";
 import { assertAdmin } from "@/lib/uploadthing-admin";
 import { MaterialInstancesClient } from "./materials-client";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { BookText } from "lucide-react";
 
 export const metadata: Metadata = {
   title: pageTitle("Materi"),
@@ -89,13 +91,12 @@ export default async function AIMaterialsPage({ searchParams }: Props) {
   const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 space-y-6">
-      <div className="mb-6 text-left">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Materi AI</h1>
-        <p className="mt-1 text-body-sm text-muted-foreground">
-          Kelola materi kuliah dan referensi RAG untuk AI tutor.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={BookText}
+        title="Materi AI"
+        description="Kelola materi kuliah dan referensi RAG untuk AI tutor."
+      />
       <MaterialInstancesClient
         instances={formattedInstances}
         assessments={formattedAssessments}

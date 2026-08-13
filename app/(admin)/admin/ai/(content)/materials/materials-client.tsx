@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Instance {
   id: string;
@@ -237,6 +238,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
     setPdfFileName(file.name);
     const fd = new FormData();
     fd.append("file", file);
+    fd.append("courseId", form.courseId);
 
     try {
       const res = await fetch("/api/admin/upload-pdf", { method: "POST", body: fd });
@@ -808,19 +810,21 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                 {/* Course Selector */}
                 <div>
                   <label className="text-body-sm font-semibold text-foreground mb-1 block">Kursus</label>
-                  <select
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-body-sm focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/50"
+                  <Select
                     value={form.courseId}
-                    onChange={(e) => handleCourseChange(e.target.value)}
-                    required
+                    onValueChange={handleCourseChange}
                   >
-                    <option value="">Pilih kursus...</option>
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Pilih kursus..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Chapter Selector (Learning only) */}
@@ -920,7 +924,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
 
                 <div className="grid gap-4 md:grid-cols-2">
                   {/* ── ZONE 1: PDF (Archival) ── */}
-                  <div className="border border-border rounded-xl p-4 bg-card/40 space-y-3">
+                  <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
                     <div className="flex items-center gap-2">
                       <div className="size-7 rounded-md bg-muted flex items-center justify-center shrink-0">
                         <FileText className="size-3.5 text-muted-foreground" />
@@ -1095,7 +1099,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                 <div className="flex gap-2 p-3 bg-muted/30 border border-border rounded-lg text-xs text-muted-foreground">
                   <Info className="size-4 shrink-0 mt-0.5 text-primary" />
                   <span>
-                    <strong className="text-foreground">Cara kerja dual-document:</strong> PDF disimpan sebagai arsip sumber asli dan tidak diproses. Markdown kanonik adalah satu-satunya input yang dianalisis LLM, diindeks ke Pinecone (RAG), dan menghasilkan Knowledge Objects.
+                    <strong className="text-foreground">Cara kerja dual-document:</strong> PDF disimpan sebagai arsip sumber asli dan tidak diproses. Markdown kanonik adalah satu-satunya input yang dianalisis LLM, diindeks ke canonical Vectorize (RAG), dan menghasilkan Knowledge Objects.
                   </span>
                 </div>
               </div>

@@ -1,10 +1,12 @@
 import { GoogleGenAI } from '@google/genai';
-import { env } from '@/lib/env';
-import { getRpdLimit } from '@/lib/ai-router';
+import { zyraRuntimeEnv } from '@/lib/zyra/runtime-env';
+import { getRpdLimit, getRpmLimit, getProjectAliases } from '@/lib/ai/provider/model-registry';
+import { ProviderAdapterError } from '@/lib/ai/provider/errors';
 import { todayUtc } from '@/lib/date-utils';
 
 export interface GeminiKey {
   id: string;
+  projectAlias: string;
   key: string;
   client: GoogleGenAI;
   clientGateway: GoogleGenAI | null;
@@ -12,6 +14,12 @@ export interface GeminiKey {
   lastErrorAt: number;
   isHealthy: boolean;
 }
+
+export type GeminiRequestClientOptions = {
+  readonly viaGateway: boolean;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly timeoutMs?: number;
+};
 
 export interface KeyModelSchedulerState {
   successes: number;
@@ -46,17 +54,6 @@ export interface KeyModelDiagnostics {
 const CIRCUIT_BREAKER_THRESHOLD = 3;
 const CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
-function getDefaultRpmLimit(modelId: string): number {
-  const modelLower = modelId.toLowerCase();
-  if (modelLower.includes('pro')) {
-    return 2;
-  }
-  if (modelLower.includes('embed')) {
-    return 1500;
-  }
-  return 15; // default for flash/lite/gemma models
-}
-
 function createClients(apiKey: string, gatewayUrl?: string) {
   const direct = new GoogleGenAI({ apiKey });
   const gateway = gatewayUrl
@@ -64,8 +61,8 @@ function createClients(apiKey: string, gatewayUrl?: string) {
         apiKey,
         httpOptions: {
           baseUrl: gatewayUrl,
-          headers: env.CF_AI_GATEWAY_TOKEN
-            ? { 'cf-aig-authorization': `Bearer ${env.CF_AI_GATEWAY_TOKEN}` }
+          headers: zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN
+            ? { 'cf-aig-authorization': `Bearer ${zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN}` }
             : {},
         },
       })
@@ -78,23 +75,32 @@ export class GeminiKeyPool {
   private schedulerStates = new Map<string, KeyModelSchedulerState>();
 
   constructor() {
-    const gatewayUrl = env.CF_AI_GATEWAY_URL;
+    const gatewayUrl = zyraRuntimeEnv.CF_AI_GATEWAY_URL;
 
     const keyConfigs = [
-      { id: 'key1', key: env.GEMINI_API_KEY },
-      { id: 'key2', key: env.GEMINI_API_KEY_2 },
-      { id: 'key3', key: env.GEMINI_API_KEY_3 },
-      { id: 'key4', key: env.GEMINI_API_KEY_4 },
-    ].filter((k): k is { id: string; key: string } => !!k.key);
+      { id: 'key1', alias: zyraRuntimeEnv.GEMINI_PROJECT_ALIAS_1, key: zyraRuntimeEnv.GEMINI_API_KEY },
+      { id: 'key2', alias: zyraRuntimeEnv.GEMINI_PROJECT_ALIAS_2, key: zyraRuntimeEnv.GEMINI_API_KEY_2 },
+      { id: 'key3', alias: zyraRuntimeEnv.GEMINI_PROJECT_ALIAS_3, key: zyraRuntimeEnv.GEMINI_API_KEY_3 },
+      { id: 'key4', alias: zyraRuntimeEnv.GEMINI_PROJECT_ALIAS_4, key: zyraRuntimeEnv.GEMINI_API_KEY_4 },
+    ].filter((k): k is { id: string; alias: string | undefined; key: string } => !!k.key);
+
+    const aliases = getProjectAliases({
+      GEMINI_PROJECT_ALIAS_1: zyraRuntimeEnv.GEMINI_PROJECT_ALIAS_1,
+      GEMINI_PROJECT_ALIAS_2: zyraRuntimeEnv.GEMINI_PROJECT_ALIAS_2,
+      GEMINI_PROJECT_ALIAS_3: zyraRuntimeEnv.GEMINI_PROJECT_ALIAS_3,
+      GEMINI_PROJECT_ALIAS_4: zyraRuntimeEnv.GEMINI_PROJECT_ALIAS_4,
+    });
 
     if (keyConfigs.length === 0) {
       throw new Error('At least GEMINI_API_KEY must be set');
     }
 
-    this.keys = keyConfigs.map(({ id, key }) => {
+    this.keys = keyConfigs.map(({ id, alias, key }) => {
+      const slotIndex = Number(id.replace("key", "")) - 1;
       const { direct, gateway } = createClients(key, gatewayUrl);
       return {
         id,
+        projectAlias: alias ?? aliases[slotIndex],
         key,
         client: direct,
         clientGateway: gateway,
@@ -117,7 +123,7 @@ export class GeminiKeyPool {
         consecutiveFailures: 0,
         circuitState: 'CLOSED',
         cooldownUntil: 0,
-        estimatedRpmLimit: getDefaultRpmLimit(modelId),
+        estimatedRpmLimit: getRpmLimit(modelId),
         lastUsedAt: 0,
         requestTimestamps: [],
         activeRequests: [],
@@ -314,7 +320,7 @@ export class GeminiKeyPool {
       state.consecutiveFailures = 0;
     }
 
-    const defaultLimit = getDefaultRpmLimit(modelId);
+    const defaultLimit = getRpmLimit(modelId);
     if (state.estimatedRpmLimit < defaultLimit) {
       state.estimatedRpmLimit = Math.min(defaultLimit, state.estimatedRpmLimit + 0.5);
     }
@@ -328,8 +334,20 @@ export class GeminiKeyPool {
 
     state.failures++;
 
-    const isRateLimit = error.message?.includes('429') || 
-                        error.message?.includes('quota') || 
+    const classification = error instanceof ProviderAdapterError
+      ? error.retryClassification
+      : 'unknown';
+    if (classification === 'invalid_request' || classification === 'quarantined') {
+      console.warn(
+        `[GeminiKeyPool] Key ${keyId} model ${modelId} request rejected without key cooldown classification=${classification}`,
+      );
+      this.syncKeyLevelState(keyId);
+      return;
+    }
+
+    const isRateLimit = classification === 'rate_limited' ||
+                        error.message?.includes('429') ||
+                        error.message?.includes('quota') ||
                         error.message?.includes('RESOURCE_EXHAUSTED') ||
                         String(error).includes('429');
 
@@ -369,7 +387,7 @@ export class GeminiKeyPool {
       } else {
         const cooldownMs = retryAfterMs > 0 ? retryAfterMs : Math.min(1000 * Math.pow(2, state.consecutiveFailures), 300000);
         state.cooldownUntil = now + cooldownMs;
-        console.warn(`[GeminiKeyPool] Key ${keyId} model ${modelId} temporary error cooldown for ${cooldownMs / 1000}s`);
+        console.warn(`[GeminiKeyPool] Key ${keyId} model ${modelId} cooldown for ${cooldownMs / 1000}s classification=${classification}`);
       }
     }
 
@@ -414,6 +432,34 @@ export class GeminiKeyPool {
 
   getAllKeys(): GeminiKey[] {
     return this.keys;
+  }
+
+  /** Returns only the selected project slot; key material never leaves this class. */
+  getKeyByProjectAlias(projectAlias: string): GeminiKey | null {
+    return this.keys.find((key) => key.projectAlias === projectAlias) ?? null;
+  }
+
+  /** Builds a request-scoped SDK client so AI Gateway metadata cannot bleed across requests. */
+  createRequestClient(projectAlias: string, options: GeminiRequestClientOptions): GoogleGenAI | null {
+    const key = this.getKeyByProjectAlias(projectAlias);
+    if (!key) return null;
+    if (options.viaGateway && !zyraRuntimeEnv.CF_AI_GATEWAY_URL) return null;
+
+    const headers: Record<string, string> = { ...(options.headers ?? {}) };
+    if (options.viaGateway && zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN) {
+      headers["cf-aig-authorization"] = `Bearer ${zyraRuntimeEnv.CF_AI_GATEWAY_TOKEN}`;
+    }
+
+    return new GoogleGenAI({
+      apiKey: key.key,
+      httpOptions: {
+        ...(options.viaGateway && zyraRuntimeEnv.CF_AI_GATEWAY_URL
+          ? { baseUrl: zyraRuntimeEnv.CF_AI_GATEWAY_URL }
+          : {}),
+        ...(Object.keys(headers).length > 0 ? { headers } : {}),
+        ...(options.timeoutMs ? { timeout: options.timeoutMs } : {}),
+      },
+    });
   }
 
   getHealthyKeys(): GeminiKey[] {

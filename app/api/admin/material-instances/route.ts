@@ -14,14 +14,15 @@ import {
   conceptLocalizations,
   assessmentSources,
   assessmentSourceChapters,
+  vectorSyncQueue,
 } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { parseMaterialIntoSections } from '@/lib/ingestion-parser';
-import { upsertChunkVector } from '@/lib/pinecone';
 import { extractKnowledgeObjectsForChapter } from '@/lib/ko-extractor';
 import { validateCanonicalMarkdown } from '@/lib/canonical-validator';
 import { storage } from '@/lib/storage';
+import { joinKey, slugifySegment, userFileLeaf } from '@/lib/storage/keys';
 import { parseFrontmatter } from '@/lib/assessment-extractor';
 
 const BodySchema = z.object({
@@ -69,9 +70,8 @@ export async function POST(req: NextRequest) {
 
   // Upload pasted/uploaded canonical markdown to R2
   const markdownBuffer = Buffer.from(rawText, 'utf-8');
-  const safeTitle = title.toLowerCase().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
-  const filename = `${safeTitle || 'canonical'}.md`;
-  const storageKey = `materials/markdown/${randomUUID()}-${filename}`;
+  const filename = `${slugifySegment(title) || 'canonical'}.md`;
+  const storageKey = joinKey("courses", slugifySegment(courseId), "canonical", userFileLeaf(filename));
 
   const { key: canonicalMarkdownKey } = await storage.upload(
     markdownBuffer,
@@ -196,8 +196,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const vectorUpserts: Promise<void>[] = [];
-
   // 2. Trigger KO extraction via Gemini once for the entire chapter content (non-parallelized to prevent race condition deletes)
   try {
     await extractKnowledgeObjectsForChapter(
@@ -286,53 +284,29 @@ export async function POST(req: NextRequest) {
         isSynced: false,
       });
 
-      // Queue Pinecone upsert with inline status tracking
-      const upsertPromise = (async () => {
-        try {
-          await upsertChunkVector(vectorId, chunk.chunkText, {
-            course_id: courseId,
-            material_instance_id: instanceId,
-            section_id: sectionId,
-            chunk_id: chunkId,
-            chapter_name: section.title ?? title,
-            keywords,
-            difficulty_target: 'medium',
-          });
-          // Update specific chunk status
-          await db
-            .update(aiMaterialInstanceChunks)
-            .set({ isSynced: true })
-            .where(eq(aiMaterialInstanceChunks.id, chunkId));
-        } catch (error) {
-          console.error(`Gagal mengunggah chunk ${chunkId} ke Pinecone:`, error);
-          throw error;
-        }
-      })();
-      vectorUpserts.push(upsertPromise);
+      await db.insert(vectorSyncQueue).values({
+        id: `source-chunk-${chunkId}`,
+        courseId,
+        koId: null,
+        action: 'upsert',
+        namespace: 'source_materials',
+        payload: {
+          id: chunkId,
+          title: section.title ?? title,
+          text: chunk.chunkText,
+          metadata: {
+            entityId: chunkId,
+            chapterId,
+            status: 'active',
+            accessClass: 'enrolled',
+            language: 'id',
+          },
+        },
+        status: 'pending',
+        attempts: 0,
+      }).onConflictDoNothing();
     }
   }
-
-  // Fire vector upserts in background
-  Promise.allSettled(vectorUpserts).then(async (results) => {
-    const failed = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
-    const status = failed.length === 0 ? 'synced' : 'failed';
-    
-    let errorMsg = null;
-    if (failed.length > 0) {
-      const uniqueErrors = Array.from(
-        new Set(failed.map((f) => f.reason?.message || String(f.reason)))
-      );
-      errorMsg = `Gagal sinkronisasi ${failed.length} chunk. Detail Error: ${uniqueErrors.join('; ')}`;
-    }
-
-    await db
-      .update(aiMaterialInstances)
-      .set({
-        pineconeSyncStatus: status,
-        lastSyncError: errorMsg,
-      })
-      .where(eq(aiMaterialInstances.id, instanceId));
-  }).catch(console.error);
 
   return NextResponse.json(
     {
@@ -401,23 +375,22 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Material instance not found' }, { status: 404 });
   }
 
-  const vectorIds = instance.sections.flatMap((s) => s.chunks.map((c) => c.pineconeVectorId));
-
-  // Run Pinecone deletion asynchronously
-  const courseId = instance.courseId;
-  const deletePromise = (async () => {
-    try {
-      const { deleteSectionVectors } = await import('@/lib/pinecone');
-      await deleteSectionVectors(courseId, vectorIds);
-    } catch (err) {
-      console.error('Failed to delete vectors from Pinecone:', err);
+  for (const section of instance.sections) {
+    for (const chunk of section.chunks) {
+      await db.insert(vectorSyncQueue).values({
+        id: `delete-source-chunk-${chunk.id}`,
+        courseId: instance.courseId,
+        koId: null,
+        action: 'delete',
+        namespace: 'source_materials',
+        payload: { entityId: chunk.id },
+        status: 'pending',
+        attempts: 0,
+      }).onConflictDoNothing();
     }
-  })();
+  }
 
   await db.delete(aiMaterialInstances).where(eq(aiMaterialInstances.id, id));
-
-  // Await Pinecone deletion completion in background
-  Promise.allSettled([deletePromise]).catch(console.error);
 
   return NextResponse.json({ success: true });
 }

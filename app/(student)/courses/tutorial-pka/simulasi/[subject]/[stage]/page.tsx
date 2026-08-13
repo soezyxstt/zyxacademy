@@ -17,6 +17,7 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { Reveal } from "@/components/ui/reveal";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 
 import { normalizeDate } from "@/lib/date-utils";
 
@@ -98,6 +99,9 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
         options: string[];
         correct_indices: number[];
         explanation: string;
+        origin?: "zyx_original" | "itb_example";
+        sourceEventName?: string | null;
+        sourceReferenceId?: string | null;
       }>;
       const answers = (attempt.answersSnapshot as Record<string, number[]>) ?? {};
 
@@ -196,6 +200,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                           />
                         </div>
                       )}
+                      <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
                     </div>
                   );
                 })}
@@ -222,7 +227,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
         id: template.id,
         courseId: template.courseId,
         title: template.title,
-        questions: (attempt.questionsSnapshot as unknown as Array<{ id: string; prompt: string; options: string[]; correct_indices: number[] }>).map(
+        questions: (attempt.questionsSnapshot as unknown as Array<{ id: string; prompt: string; options: string[]; correct_indices: number[]; origin?: "zyx_original" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null }>).map(
           (q, idx) => ({
             id: q.id,
             order: idx + 1,
@@ -230,6 +235,9 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
             prompt: q.prompt,
             options: q.options,
             correctIndex: q.correct_indices?.[0] ?? 0,
+            origin: q.origin,
+            sourceEventName: q.sourceEventName,
+            sourceReferenceId: q.sourceReferenceId,
           }),
         ),
         settings: { timeLimitMinutes: template.timeLimitSeconds ? Math.round(template.timeLimitSeconds / 60) : 15 },

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { normalizeQuestion } from "@/lib/tutor-rag";
 
-export const TUTOR_PROMPT_VERSION = "v1.7.0";
+export const TUTOR_PROMPT_VERSION = "v1.8.0";
 export const TUTOR_POLICY_VERSION = "v1.0.0";
 export const TUTOR_SCHEMA_VERSION = "v1.0.0";
 export const TUTOR_DEFAULT_EVIDENCE_VERSION = "v1.0.0";

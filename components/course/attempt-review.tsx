@@ -12,12 +12,13 @@ import {
  Layers,
  ListChecks,
  BookOpen,
- Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
+import { ZyraMark } from "@/components/course/zyra-mark";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 
 interface QuestionSnapshot {
  id: string;
@@ -25,6 +26,9 @@ interface QuestionSnapshot {
  options: string[];
  correct_indices: number[];
  type?: string;
+ origin?: "zyx_original" | "itb_example";
+ sourceEventName?: string | null;
+ sourceReferenceId?: string | null;
 }
 
 interface AttemptData {
@@ -217,9 +221,9 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  Kekuatan Anda
  </span>
  <ul className="mt-2 space-y-1 text-body-base">
- {strongAreas && strongAreas.length > 0 ? (
- strongAreas.map((area, idx) => <li key={idx}>{area}</li>)
- ) : (
+  {strongAreas && strongAreas.length > 0 ? (
+  strongAreas.map((area, idx) => <li key={idx}><MathText as="span">{area}</MathText></li>)
+  ) : (
  <li className="text-muted-foreground text-body-sm">Belum ada konsep yang dikuasai sepenuhnya.</li>
  )}
  </ul>
@@ -232,8 +236,8 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  {weakAreas && weakAreas.length > 0 ? (
  weakAreas.map((area, idx) => (
  <li key={idx} className="flex items-center gap-1.5">
- <TrendingDown className="size-3.5 text-status-error" />
- <span>{area}</span>
+  <TrendingDown className="size-3.5 text-status-error" />
+  <MathText as="span">{area}</MathText>
  </li>
  ))
  ) : (
@@ -355,14 +359,14 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
 
  {/* Answers */}
  <div className="mt-4 space-y-1 pl-4 border-l-2 border-muted text-body-sm">
- <p>
- <span className="text-muted-foreground">Jawaban Anda: </span>
- <span className="font-medium">{submittedLabel || "-"}</span>
- </p>
- <p>
- <span className="text-muted-foreground">Jawaban Benar: </span>
- <span className="text-status-success font-semibold">{correctLabel}</span>
- </p>
+  <p>
+  <span className="text-muted-foreground">Jawaban Anda: </span>
+  <MathText className="font-medium" as="span">{submittedLabel || "-"}</MathText>
+  </p>
+  <p>
+  <span className="text-muted-foreground">Jawaban Benar: </span>
+  <MathText className="text-status-success font-semibold" as="span">{correctLabel}</MathText>
+  </p>
  </div>
 
  {/* Mistake feedback */}
@@ -376,7 +380,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  onClick={() => toggleFeedback(idx)}
  className="text-body-sm font-medium flex items-center gap-2 text-brand-primary hover:bg-transparent hover:text-brand-primary/80 p-0 h-auto"
  >
- <Sparkles className="size-4 animate-pulse" />
+ <ZyraMark className="size-4" />
  <span className="font-heading font-bold uppercase tracking-wider text-body-xs">Analisis Kesalahan oleh Zyra</span>
  <ChevronDown
  className={cn(
@@ -388,24 +392,24 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
 
  {openFeedback[idx] && (
  <div className="animate-in fade-in duration-200 pl-4 border-l-2 border-brand-primary/30 space-y-3">
- {fbItem.payload.misconceptionName && (
- <h6 className="text-body-sm font-semibold text-foreground">
- Miskonsep: {fbItem.payload.misconceptionName}
- </h6>
- )}
- <p className="text-body-base text-muted-foreground">
- {fbItem.payload.whyWrong}
- </p>
- {fbItem.payload.correctApproach && fbItem.payload.correctApproach.length > 0 && (
- <div className="space-y-1">
- <span className="text-body-sm font-semibold text-foreground">Langkah Penyelesaian:</span>
- <ol className="list-decimal pl-4 space-y-1 text-body-sm text-muted-foreground">
- {fbItem.payload.correctApproach.map((stepMsg, sIdx) => (
- <li key={sIdx}>{stepMsg}</li>
- ))}
- </ol>
- </div>
- )}
+  {fbItem.payload.misconceptionName && (
+  <h6 className="text-body-sm font-semibold text-foreground">
+  Miskonsep: <MathText as="span">{fbItem.payload.misconceptionName}</MathText>
+  </h6>
+  )}
+  <p className="text-body-base text-muted-foreground">
+  <MathText as="span">{fbItem.payload.whyWrong}</MathText>
+  </p>
+  {fbItem.payload.correctApproach && fbItem.payload.correctApproach.length > 0 && (
+  <div className="space-y-1">
+  <span className="text-body-sm font-semibold text-foreground">Langkah Penyelesaian:</span>
+  <ol className="list-decimal pl-4 space-y-1 text-body-sm text-muted-foreground">
+  {fbItem.payload.correctApproach.map((stepMsg, sIdx) => (
+  <li key={sIdx}><MathText as="span">{stepMsg}</MathText></li>
+  ))}
+  </ol>
+  </div>
+  )}
  <div className="flex flex-wrap items-center gap-3 pt-2">
  <MistakeFeedbackButton
  questionId={q.id}
@@ -420,11 +424,12 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  </div>
  </div>
  )}
+ <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
  </div>
  ) : isFeedbackPending ? (
  <div className="flex items-center gap-2 text-body-sm text-brand-primary mt-2 font-medium">
  <Loader2 className="animate-spin size-3.5" />
- <Sparkles className="size-3.5 animate-pulse" />
+ <ZyraMark className="size-3.5" />
  <span>Zyra sedang menganalisis kesalahan...</span>
  </div>
  ) : isFeedbackTimeout ? (

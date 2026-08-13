@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AdminTable } from "@/components/admin/table";
 import { cn } from "@/lib/utils";
 import {
   createPkaScheduleAction,
@@ -148,7 +149,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
           </Button>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <AdminTable>
           <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-border bg-muted/30 px-5 py-3">
             <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Sesi</span>
             <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
@@ -230,7 +231,7 @@ export function SchedulesTab({ schedules }: { schedules: PkaScheduleRow[] }) {
               );
             })}
           </ul>
-        </div>
+        </AdminTable>
       )}
 
       {/* Create / edit dialog */}

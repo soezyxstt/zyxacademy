@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
+import { isDuitkuPaymentEnabled } from "@/lib/payments/duitku";
 import PlansClient from "./plans-client";
 
 export const metadata: Metadata = {
@@ -9,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function PlansPage() {
-  return <PlansClient />;
+  return <PlansClient paymentEnabled={isDuitkuPaymentEnabled()} />;
 }

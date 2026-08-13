@@ -74,6 +74,9 @@ export default async function CourseTryoutTakePage({ params }: Props) {
           acceptsImage: content.acceptsImage,
           acceptsFile: content.acceptsFile,
           acceptableAnswers: content.acceptableAnswers || [],
+          origin: content.origin,
+          sourceEventName: content.sourceEventName,
+          sourceReferenceId: content.sourceReferenceId,
         };
       }),
     };

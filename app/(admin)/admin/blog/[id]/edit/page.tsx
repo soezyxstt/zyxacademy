@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { PenLine } from "lucide-react";
 
 export default async function EditArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,7 +15,13 @@ export default async function EditArticlePage({ params }: { params: Promise<{ id
   if (!article) notFound();
 
   return (
-    <div className="p-6">
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={PenLine}
+        title="Sunting Artikel"
+        description={article.title}
+        backHref="/admin/blog"
+      />
       <MarkdownEditor initialData={article} />
     </div>
   );

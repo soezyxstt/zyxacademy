@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "@/components/ui/toast";
 import { 
   Terminal, 
   FileCode, 
@@ -19,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTRenderer } from "@/components/course/markdown-renderer";
+import { MathText } from "@/components/course/math-text";
 import { CompilerResult, ASTBlock } from "@/lib/ast-validator";
 
 // Demos
@@ -151,7 +153,7 @@ export function ASTInspectorClient() {
           });
         }
       } catch (err: any) {
-        alert("Gagal mengimpor file: " + err.message);
+        toast.error("Gagal mengimpor file: " + err.message);
       }
     };
     reader.readAsText(file);
@@ -202,7 +204,7 @@ export function ASTInspectorClient() {
         {/* DUAL PANE */}
         <div className="flex flex-1 overflow-hidden">
           {/* LEFT PANE: EDITOR */}
-          <div className="w-1/2 flex flex-col border-r border-border bg-card/10">
+          <div className="flex w-1/2 flex-col border-r border-border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-muted/40 border-b border-border">
               <span className="text-xs font-mono font-semibold text-muted-foreground flex items-center gap-1.5">
                 <Terminal className="size-3.5" />
@@ -347,7 +349,7 @@ export function ASTInspectorClient() {
                                 {block.type}
                               </span>
                               <span className="text-body-sm font-semibold text-foreground truncate max-w-md">
-                                {getBlockSummary(block)}
+                                <MathText as="span">{getBlockSummary(block)}</MathText>
                               </span>
                             </div>
                             <span className="text-xs text-muted-foreground">
@@ -451,7 +453,7 @@ export function ASTInspectorClient() {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(JSON.stringify(result.ast, null, 2));
-                          alert("AST JSON berhasil disalin!");
+                          toast.success("AST JSON berhasil disalin!");
                         }}
                         className="px-2 py-1.2 rounded bg-card hover:bg-muted border border-border text-[10px] font-semibold"
                       >
@@ -552,8 +554,8 @@ export function ASTInspectorClient() {
                             <span className="text-body-xs font-semibold text-muted-foreground">{item.label}</span>
                             <span className="text-body-sm font-bold text-brand-primary">{item.val}%</span>
                           </div>
-                          <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden mb-2">
-                            <div className="bg-brand-primary h-full rounded-full" style={{ width: `${item.val}%` }} />
+                          <div className="mb-2 h-1.5 w-full overflow-hidden rounded-md bg-muted">
+                            <div className="h-full rounded-md bg-brand-primary transition-[width] duration-500 ease-out" style={{ width: `${item.val}%` }} />
                           </div>
                           <p className="text-[11px] text-muted-foreground leading-normal">{item.desc}</p>
                         </div>

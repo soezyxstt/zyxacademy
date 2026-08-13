@@ -10,8 +10,8 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { db } from "@/db";
-import { notifications, courses } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { notifications, courses, user } from "@/db/schema";
+import { desc, eq, count } from "drizzle-orm";
 import { sendAdminBroadcast } from "@/lib/notifications/send";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -94,33 +94,57 @@ export async function sendBroadcastAction(
 
 // ─── Get notification history ─────────────────────────────────────────────────
 
+export interface NotificationHistoryRow {
+  id: string;
+  userId: string;
+  userName: string | null;
+  title: string;
+  body: string;
+  type: string;
+  read: boolean;
+  attempted: number;
+  succeeded: number;
+  failedCount: number;
+  createdAt: Date;
+}
+
 /**
- * Fetches the global notification history (all users) for the admin table.
- * Limited to recent 100 records.
+ * Fetches the global notification history (all users) for the admin table,
+ * joining the user's display name. Returns rows plus the total count so the
+ * client table can paginate.
  */
 export async function getNotificationHistoryAction(
- page = 1,
- limit = 50
-): Promise<{ id: string; userId: string; title: string; type: string; read: boolean; createdAt: Date }[]> {
- await requireAdmin();
+  page = 1,
+  limit = 10
+): Promise<{ rows: NotificationHistoryRow[]; total: number }> {
+  await requireAdmin();
 
- const offset = (page - 1) * limit;
+  const offset = (page - 1) * limit;
 
- const rows = await db
- .select({
- id: notifications.id,
- userId: notifications.userId,
- title: notifications.title,
- type: notifications.type,
- read: notifications.read,
- createdAt: notifications.createdAt,
- })
- .from(notifications)
- .orderBy(desc(notifications.createdAt))
- .limit(limit)
- .offset(offset);
+  const [rows, totalRows] = await Promise.all([
+    db
+      .select({
+        id: notifications.id,
+        userId: notifications.userId,
+        userName: user.name,
+        title: notifications.title,
+        body: notifications.body,
+        type: notifications.type,
+        read: notifications.read,
+        attempted: notifications.attempted,
+        succeeded: notifications.succeeded,
+        failedCount: notifications.failedCount,
+        createdAt: notifications.createdAt,
+      })
+      .from(notifications)
+      .leftJoin(user, eq(notifications.userId, user.id))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ count: count() }).from(notifications),
+  ]);
 
- return rows;
+  return { rows, total: Number(totalRows[0]?.count ?? 0) };
 }
 
 // ─── Get courses for targeting ────────────────────────────────────────────────

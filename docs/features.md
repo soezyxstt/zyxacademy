@@ -6,9 +6,21 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 
 ## User Roles
 
+## Duitku Checkout
+
+1. The public plans page displays product descriptions and deterministic Rupiah prices for Minimal, Essential, and Premium.
+2. When `FEATURE_DUITKU_PAYMENT=1`, signed-in customers enter a checkout that recomputes the selected product and amount on the server. Client-provided prices are never accepted.
+3. Zyx stores an immutable order snapshot, requests a hosted Duitku POP invoice, and redirects the customer to Duitku. Zyx does not collect card or bank credentials.
+4. Only a valid Duitku server callback with matching merchant code, order ID, amount, and HMAC SHA-256 signature can mark an order paid. Browser return parameters are informational only.
+5. The authenticated status page shows the order to its owner. Package activation remains an admin workflow after payment verification.
+6. The `/contact` page publishes the configured support email, telephone number, and business address required for merchant review.
+
+Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps the legacy `user.role` projection during the expand phase. `FEATURE_PERAN_V2` switches the admin and tutor layout gates to domain memberships without changing chat speaker values such as `student`.
+
 ### Student
 - Redeems enrollment tokens to access courses
 - Views personalized dashboard with progress, weak concepts, daily recommendations
+- When no class is active, can compare a compact Minimal, Essential, and Premium plan preview while retaining enrollment-code activation
 - Reads interactive course materials (markdown, PDFs, images, embedded video)
 - Takes daily/weekly quizzes and timed tryouts
 - Views dedicated AI-powered Quiz Learning Analytics & Diagnosis page (`/summary`) upon quiz completion (3-layer executive summary, deterministic concept mastery, AI error pattern detection, cognitive skill breakdown, time/speed insights, and personalized 3-step action plan)
@@ -37,7 +49,9 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Manages career path templates
 - Monitors content quality flags (auto-detected issues)
 - Views coaching analytics dashboards
-- Accesses dedicated Quiz & Exam Analytics & Insight portal (`/admin/ai/quiz-insights`) for real-time item/distractor analysis and on-demand Gemini AI deep pedagogical insights
+- Accesses dedicated Quiz & Exam Analytics & Insight portal (`/admin/ai/quiz-insights`) for real-time item/distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV / Google Spreadsheet, and on-demand Gemini AI deep pedagogical insights
+- Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
+- Monitors real-time feature flag statuses (`/admin/ops/flags`) across all 28+ `FEATURE_*` flags with status badges, category filters, and env key helpers
 
 ## Core Pipelines
 
@@ -49,6 +63,76 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 5. Canonical concept resolution checks exact names, aliases, and flags high embedding similarity without exact match as `ambiguous`
 6. Run validated and assigned state (`staged`, `accepted`, `needs_review`, `failed`)
 7. Accepted runs persisted atomically using stable identity keys (`stableKey`) without destructive deletion
+
+### Canonical Source and Idea Domain
+1. Versioned source metadata is stored in `sumber_materi` with a checksum and canonical URI or R2 key.
+2. Exact source spans are stored in `potongan_sumber` with offsets, checksums, and embedding eligibility.
+3. `ide` provides the future course and chapter learning atom with optional global `concepts` linkage, semantic hashes, and explicit source policy.
+4. `asal_ide`, `relasi_ide`, and `ketergantungan_produk` preserve provenance, typed relations, and freshness transitions.
+5. `FEATURE_ARSITEKTUR_IDE_V1` remains off; existing KOs and callers are unchanged until later plans.
+
+### Product, Assessment, and Idea Mastery Domain
+1. Articles, diktat materials, questions, solutions, and flashcards have normalized versioned target records with source and generation hashes.
+2. Published products require at least one published Idea; question links support multiple Ideas with positive weights whose sum is checked within `0.000001`. Every Product Bundle question is an ITB example with a required source event and allowed reference, and multi-Idea questions require a HOT cognitive level.
+3. Assessment definitions separate blueprint, assessment, chapter scope, ordered items, attempts, and answers. Quiz scope is exactly one chapter; tryout scope is one or more chapters.
+4. Attempt and answer records carry rendered question, option order, response, grading policy, and content version snapshots so later content changes do not alter historical context.
+5. Answer evidence records Idea attribution, contribution, weight, confidence, evidence source, rubric version, and derivation status. Ambiguous evidence is retained but cannot affect mastery.
+6. `pemahaman_ide` stores score and confidence as separate 0 to 100 values, with append-only change history, replay metadata, and deterministic flashcard recommendations. Cards for Ideas with mastery score 80 or higher are suppressed. Only attributable verified evidence contributes to the score; a legacy concept baseline is explicitly labelled and never copied to an Idea.
+7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
+8. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` until the later workflow canaries; current legacy records remain unchanged.
+
+### Idea Bundle Workflow
+
+1. Admins upload strict ZIP bundles from `/admin/bundles/idea`; the first request only analyzes the archive and writes nothing to R2 or Turso. Validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, non-publishable Ideas or sources, inconsistent creator attribution, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
+2. The browser workspace maps every Idea, source excerpt, provenance record, and relation. Admins can search, preview math, and edit Idea copy, classification, reviewer notes, and relation meaning in place. Stable identities and source spans stay locked.
+3. Saving the reviewed draft sends the original ZIP and editable projection back to the server. The server applies an allowlist merge, recomputes semantic hashes, generation hashes, entity checksums, and the bundle checksum, validates again, then creates the immutable staged import. Identical retries are no-ops and a different checksum for the same bundle ID is blocked.
+4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically.
+5. `FEATURE_IDEA_BUNDLE_V2` controls the workflow. When absent or `0`, the legacy JSON importer remains visible for rollback.
+
+### Authoring Context Pack V1
+
+1. The `Siapkan pekerjaan` tab accepts one Source Pack, validates it without persistence, shows an informative inventory, and lets an admin select a course and one or more chapters by human labels. Every detected source section is mapped to a chapter before download; one selected chapter maps all sections automatically.
+2. The admin selects product families with dependency-safe controls. Article is mandatory, question includes solution, and assessment blueprint requires questions. Zyx produces one checksum-protected Authoring Job Pack containing the embedded Source Pack, locked target mapping, product request, attribution sentinels, website schemas, and workflow instructions.
+3. The `Lanjutkan setelah Idea` tab exports a deterministic context pack rooted in the selected course after official Idea publication. Snapshot and run identities are generated by the server, so the admin never copies technical IDs.
+4. The allowlist includes only published current reviewed Ideas, active source excerpts, provenance, relations, objectives, safe requirements, and allowed benchmark summaries. An allowed benchmark summary exposes a distinct ITB `referenceId` and exact `sourceLabel`; its benchmark `id` remains separate. The pack also includes machine-readable Idea Bundle and Product Bundle JSON Schemas plus an external-agent workflow contract.
+5. Holdout content, murid data, credentials, signed URLs, embeddings, and unpublished or stale content are excluded and counted or scanned before storage.
+6. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata. An authenticated admin can download the artifact until retention expires; internal R2 keys are not returned by the listing API.
+7. External agents use `$UPLOADER` and `$APPROVING_REVIEWER` for attribution without receiving private Zyx identity IDs. Publication resolves those sentinels to the accountable uploader and approving admin.
+8. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables both tabs and APIs when absent or `0`.
+
+### Product Bundle Workflow
+
+1. Admins upload typed ZIP bundles from `/admin/bundles/product`; the first request validates product schemas, checksums, Idea and source traceability, complete article quality coverage, assessment scope, atomic flashcards, deterministic question keys, one solution per question, draft status, consistent attribution, and holdout markers without a storage or database write.
+2. The pre-staging workspace summarizes every product type and dependency, supports search and filtering, displays the locked ITB source event and reference for each question, and provides in-place editors for Article blocks, Diktat content, questions and answer keys, solutions, flashcards, assessment metadata, Idea roles and weights, relation rationale, and ITB curator notes.
+3. Client checks call out empty content, invalid answer keys, and Idea weights before saving. The server still treats the browser draft as untrusted, preserves locked identity and source fields, refreshes Article to Diktat lineage and dependency hashes, recomputes all checksums, and repeats strict validation before staging.
+4. Product Idea-link weights must be positive and sum to one. An atomic flashcard has exactly one Idea. A multi-Idea question carries an explicit relation and rationale per linked Idea instead of attaching every relation to the first Idea.
+5. Product Bundle never creates Zyx-original questions. Every question declares `itbSource.referenceId` and `itbSource.eventName`; the source must be present in ITB curation, allowed for authoring, and label-matched against the database. Curation dimensions still cover difficulty, format, terminology, and reasoning pattern.
+6. Every Diktat declares its source Article ID, version, and generation hash. The bundle must include the matching Article dependency so the Diktat cannot silently drift from its Article.
+7. Product Bundle lifecycle is only `draft -> published -> withdrawn`. Explicit save stores a draft. A draft can be replaced with the same bundle ID, deleted, or published directly by an admin. Published bundles cannot be overwritten. Withdrawal keeps canonical and audit history while removing the products from active publication state.
+8. Publication verifies current published Ideas, active source excerpts, identities, dependency freshness, and ITB source identity before one transaction writes products, links, dependencies, the legacy bank compatibility projection, canonical vector outbox entries, publication state, and mutation audit records. Question answer-key fields are removed from runtime and Vectorize content. Only articles, questions, and solutions request runtime vectors; flashcards, Diktat, and assessment blueprints do not create generic product vectors.
+9. `FEATURE_PRODUCT_BUNDLE_V2` hides the page and API when absent or `0`; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
+
+### Question origin and citation
+
+1. `ai_question_bank` and canonical `soal` classify each row as `zyx_original` or `itb_example`. Manual and generated bank questions default to `zyx_original`; Product Bundle publication always writes `itb_example`.
+2. The admin bank can filter and distinguish the two groups. The tryout editor can import either group directly from the published bank.
+3. Quiz, tryout, PKA, daily API, and live-quiz payloads preserve origin, source event, and source reference in immutable snapshots. Every student question surface renders `Sumber: <event>` at the lower right for ITB examples only.
+4. `NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1=1` exposes the origin labels and learner citations. When absent or `0`, provenance remains stored but the new labels are hidden.
+
+### External Authoring Skills
+
+1. `source-pack-translator` converts each source document into complete Markdown and produces a Source Pack.
+2. `zyx-idea-authoring` consumes one Authoring Job Pack and stops after a validated Idea Bundle.
+3. `zyx-product-authoring` consumes the same Authoring Job Pack plus a fresh Authoring Context Pack after Idea publication, copies only direct ITB example questions whose event labels match an allowed reference, then produces a draft Product Bundle.
+4. Idea and Product skills keep a small local Authoring Learning Profile. An explicit operator correction updates the current artifact and adds a scoped lesson for later runs. Source facts, schemas, and quality gates always override learned preferences. No Revision Pack or separate training workflow is used.
+
+### Article and Diktat Quality Compiler
+
+1. Approved article products are normalized into typed pedagogic blocks with Idea IDs, source excerpts, learning purpose, generation hash, and reviewer state.
+2. Required article coverage includes prior-knowledge activation, problem introduction, per-Idea teaching blocks, synthesis for multi-Idea articles, summary, and retrieval close. Conditional blocks must carry a typed inapplicability reason.
+3. Idea prerequisites are ordered deterministically and cycles are rejected before compilation. Quality gates reject stale dependencies, empty blocks, broken math delimiters, missing traceability, and rejected review states.
+4. Diktat material is compressed only from an approved article representation. The compression report records the source article version and hash, every removed block, preserved formulas, preserved Idea coverage, and source traces.
+5. Admin previews expose block-level Idea and source traceability plus stable quality-gate reason codes. `FEATURE_MATERIAL_COMPILER_V2` keeps the new publication gate disabled when absent or `0`.
 
 ### Website Material Generation
 1. All KOs for a chapter are collected in order
@@ -68,6 +152,8 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Tier 1 Shared KV Cache isolation ensuring zero student identity, user ID, or conversation history is stored in shared cache payloads
 - Versioned prompt contracts, policy contracts, and evidence version digests in cache keys
 - Weak-concept addendum when student struggles
+- Empty or irrelevant course retrieval falls back to the model's general knowledge for learning requests within the Zyx scope. The response clearly states that it is not grounded in the current course material, provides no source badge, and keeps active assessment protections.
+- Requests outside the Zyx learning scope receive a short redirection instead of an unrestricted general chat response.
 - Capped at 30 AI requests per day per student
 
 ### Question Generation & Bank Soal Management
@@ -117,6 +203,131 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 - Active attempt answer protection: GET `/api/quiz/attempts` and `/api/quiz/attempts/[id]` strip `correct_indices`, stored explanations, and grading feedback during in-progress attempts.
 - Deterministic assistance policy engine (`lib/assessment-assistance-policy.ts`): gates AI tutor and mistake feedback based on activity kind (study, practice, quiz, simulation, exam), attempt state, answer release state, and match state.
 - Answer release state matrix: active attempts enforce `socratic_only` or `refuse_answer_reveal`; completed attempts follow release settings (`hidden`, `rationale_only`, `released`).
+
+### Assessment Integrity V2
+- `lib/asesmen/blueprint.ts` compiles quiz and tryout blueprints with exact largest-remainder dimension allocation, explicit chapter scope, reproducible seeds, and publication eligibility checks.
+- `lib/asesmen/evidence-rubric.ts` derives versioned per-Idea evidence from stable option IDs. Ambiguous evidence and misconception mappings never affect mastery, and free-response evidence requires a reviewed rubric or grading result.
+- `lib/asesmen/benchmark-policy.ts` rejects exact duplicates, applies versioned similarity thresholds, and keeps holdout content inside the benchmark boundary. Missing thresholds produce `needs_review`.
+- When `FEATURE_ASESMEN_IDE_V1=1`, quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
+- When `FEATURE_ARSITEKTUR_IDE_V1`, `FEATURE_DUAL_WRITE_IDE`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` are all `1`, a legacy quiz submission is bridged only when every snapshot question exactly matches a published canonical question and published Idea links. The bridge writes immutable canonical item and answer snapshots, per-Idea evidence, and deterministic mastery recompute events. Missing, stale, ambiguous, or unreviewed mappings leave the legacy submission intact and produce no canonical mastery evidence.
+
+### Canonical Vectorize Retrieval V2
+
+- Canonical content is indexed through the `canonical-content-v2` profile using Gemini Embedding 2, 768 dimensions, cosine distance, versioned IDs, and allowlisted metadata.
+- Turso remains the source of truth. `vector_sync_queue` is the retryable outbox, and the staging worker exposes only the authenticated `/v2/*` contract.
+- `FEATURE_VECTORIZE_ONLY_V1` is the read and write switch. When absent or `0`, the compatibility path is read-only. When `1`, active retrieval uses `zyx-vectors-staging-v2` in staging.
+- The old 1024-dimensional indexes are preserved as unbound rollback evidence. They are not active sources of truth.
+
+### Zyra Canonical Runtime V1
+
+- `FEATURE_ZYRA_IDEA_RUNTIME_V1` enables course-scoped retrieval that rehydrates current approved content from Turso before it reaches the tutor response.
+- Enrollment, status, version, content hash, active-assessment, restricted-solution capability, and source attribution checks fail closed.
+- Shared cache payloads remain student-free and active attempts never receive answer-bearing content.
+
+### Zyra Allowance Ledger V2
+
+- `FEATURE_ZYRA_ALLOWANCE_V2` enables role-aware application leases for murid, tutor, and admin requests.
+- Provider-backed turns and total interactions are counted separately; cache hits and deterministic actions spend zero provider units.
+- Provider Router V2 owns the allowance lease when both flags are active, so a single learner request consumes exactly one provider turn. Visual requests use the same published daily provider allowance and are not stopped by a smaller hidden premium balance.
+
+### Zyra Semantic Cache V1
+
+- `FEATURE_ZYRA_SEMANTIC_CACHE_V1` enables a profile-free exact and semantic cache for reusable teaching scaffolds.
+- Cache identity is scoped to canonical evidence, policy, language, route, assessment mode, and embedding profile; learner-specific data is excluded.
+- Personalization is applied after cache retrieval, while cache hits consume zero provider units.
+
+### Zyra Pedagogy V3
+
+- `FEATURE_ZYRA_PEDAGOGY_V3` enables the server-owned teaching state machine and typed response contract.
+- Zyra selects one teaching move, validates canonical citations and assessment safety, and asks at most one checkpoint question.
+- Invalid model output becomes a safe clarification or evidence-grounded composition. Active attempts remain capped at the approved hint boundary.
+- Reservations are idempotent and fail closed before provider dispatch. Terminal transitions preserve legacy usage history and repair derived compatibility events idempotently.
+- The authenticated allowance summary is scoped to the current session actor and includes Jakarta reset timing without exposing global capacity or another user's usage.
+- Questions outside the current course evidence use a bounded general-teaching fallback. It states the course boundary, presents one learning goal and staged explanation, and ends with exactly one check-for-understanding prompt instead of reverting to an unstructured chat response.
+
+### Zyra Personalization V1
+
+- `FEATURE_ZYRA_PERSONALIZATION_V1` enables deterministic adaptation from bounded learner evidence.
+- Recent evidence can select pacing, representation, support intensity, explanation length, and checkpoint type while leaving canonical truth, grades, mastery, and assessment policy unchanged.
+- Explicit learner preferences are stored separately from inferred fields. Learners can view, update, and reset their course-scoped adaptation through authenticated API routes.
+- Shared cache scaffolds remain profile-free. Personalization is composed only after cache retrieval and fails back to the grounded base answer on profile errors.
+- The Plan 008 surface is API-only; learner-facing controls are integrated by later Zyra experience plans.
+
+### Zyra Learning Canvas V1
+
+- `FEATURE_ZYRA_LEARNING_CANVAS_V1` enables typed application-owned visual specs for plots, derivations, tables, diagrams, vectors, and chemistry relationships.
+- Function expressions use a bounded allowlist parser. Controls, presets, reset, and invalid-expression fallback run locally and spend zero AI quota.
+- Every canvas includes alt text and a table or textual fallback. Grounded visuals include canonical claim references; a plot recovered only from a learner-provided equation keeps an empty claim-reference list instead of inventing provenance. Shared specs contain no learner profile or interaction state.
+- The renderer uses semantic tokens and keyboard-operable native controls. Arbitrary model-generated JavaScript, HTML, SVG, or unrestricted Mermaid is rejected.
+- Function and data plots use responsive Recharts surfaces with labeled axes, grid lines, tooltips, visible zero crossings, and local controls. Common Gemini notation such as `y = 2x²` is normalized before semantic validation and rendering. Evaluator syntax is separately formatted as readable mathematical notation, so `a*x^2 + b*x + c` is presented as `ax² + bx + c`. Invalid expressions produce a visible recovery message. Legacy typed visuals and explicit visual requests are upgraded into Learning Canvas specs after provider and cache handling. A learner equation or known deterministic concept visual is preferred over the model canvas, so a valid graph still renders when Gemini omits or returns an invalid `canvasSpec`, including when RAG has no matching source. The quadratic theory visual uses `y = ax^2 + bx + c` with local controls for `a`, `b`, and `c`.
+- The murid drawer can be resized up to the viewport or expanded with a dedicated button. Each current Zyra answer offers short follow-up actions for an example, a comprehension check, or another representation.
+- Static Zyra entry points use one application-owned hexagonal `Z` mark across the sidebar, material selection, mistake feedback, and drawer fallback. The mark does not reuse the generic four-point sparkle associated with other AI products. Drawer sizing uses labeled `Perbesar` and `Kecilkan` controls on desktop.
+- When the pet capability is enabled, the course launcher becomes a draggable fox-like Zyra companion with ears, tail, paws, face, and state-specific expressions. Thinking, listening, uploading, explaining, checking, success, confusion, rest, and error are communicated through its eyes, mouth, status glyph, accessible label, and semantic color. A murid can place it within the viewport, click it to open chat, hide it, and restore it from a compact character control. Position and visibility persist in browser storage.
+- On a verified quiz-review route, Zyra receives a bounded page context containing the quiz title and question prompts. This supports requests such as summarizing the current quiz without exposing learner answers or caching attempt-specific context.
+
+### Admin, Tutor, and Murid Workflows
+
+- `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` enables the guarded `alur_konten` lifecycle from upload through tutor review, admin approval, publication, supersession, or withdrawal. Every mutation carries an actor, course, version, request, reason, and snapshot hash in `audit_mutasi`.
+- `FEATURE_MURID_IDEA_WORKFLOW_V1` enables the `/murid` read model and compatibility route adapters. It projects published Ideas and preserves Tutorial PKA and historical attempt snapshots without rewriting them.
+
+### Structured Form Upload Storage System
+
+- All public form file response uploads and admin form builder question attachments are saved under a structured R2 storage key hierarchy: `forms/[slugified-judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`.
+- Path key resolution is handled deterministically via `lib/forms/storage-utils.ts` (`buildFormStorageKey`) and `/api/forms/upload`.
+
+### Push Notifications & In-App Inbox
+
+- Users get an in-app notification bell (unread badge, list, mark-as-read) in the marketing navbar and the app sidebar, backed by `GET /api/notifications/history` and `PATCH /api/notifications/read`.
+- FCM push triggers: quiz published (via `saveQuizTemplateAction` and `PATCH /api/quiz/templates/[id]` on a draft-to-published transition), PKA announcements and schedule updates, and admin broadcasts.
+- Every notification row persists FCM delivery stats (`attempted`, `succeeded`, `failedCount`, `sentAt`); the admin history table shows a delivery status (Terkirim / Sebagian / Gagal / Tanpa perangkat) alongside the read state.
+- The browser permission flow only prompts authenticated users, "Nanti Saja" defers for 7 days instead of denying forever, and foreground FCM messages surface as toasts and refresh the inbox.
+
+### Meet Studio Improvements
+- Meet sessions share the `/f/[slug]` resolver with Form Studio. Slugs default from the title, remain editable, and are checked against active Meet and Form records before creation.
+- Restricted and Trusted access use a role/course filtered picker with additive bulk selects. Selected users are created as Meet space members, so they can join without knocking according to the selected access mode.
+- The signed-in creator and every active admin are provisioned as `COHOST` members through the Developer Preview Meet `v2beta` member endpoint. The OAuth principal remains the meeting organizer; the creator receives host-management rights as a co-host.
+- Host, co-host, and invited emails are persisted on `google_meet_sessions`. Failed member grants are returned as visible warnings instead of being presented as successful assignments.
+- When `FEATURE_DRIVE_EDITOR_SYNC=1`, active admin emails are granted Drive editor access for exported spreadsheets, Forms files, recording files, transcripts, and new export folders through `lib/google-drive-permissions.ts`.
+
+### Form Studio Fixes & Presets
+- Spreadsheet export is scoped to a structured Drive folder (`forms/{slug}`, title `form-{slug}-responses`) and excludes SECTION rows from the data export.
+- "Lainnya" (other) options use a stable sentinel (`\uE000__other__`) so open answers survive round trips; SECTION counts are excluded everywhere via a continuous `questionNumberMap`.
+- The builder auto-scrolls, resets after a successful publish, and uses shadcn Switch toggles for settings (collect email, show progress, etc.).
+- `collectEmail` works end to end; schedule inputs are converted from browser-local values to absolute ISO instants before save, then use `formatDatetimeLocal` for editing.
+- Reusable presets (question blueprints + settings) can be saved and re-applied from `/admin/forms` via `/api/admin/form-presets` and `components/forms/form-presets.tsx`, gated by `FEATURE_FORM_PRESETS=1`.
+- Settings panels fill the container width; the matrix question table was removed; terminology and section header images with zoom were fixed.
+
+### Media Library
+- Admins can upload, organize, preview, and manage shared media in R2 under `media/{children_folder...}/{filename}` via `/admin/media` (`components/admin/media-library.tsx`).
+- Virtual folder tree with `.keep` markers; move, copy, rename, replace, delete, and download operations, including recursive folder ops and bulk ops.
+- Built-in document viewer for image, video, audio, PDF, markdown, and text (`components/admin/document-viewer.tsx`).
+- Gated by `FEATURE_MEDIA_LIBRARY=1`; uploads use `buildMediaKey` from `lib/storage/keys.ts` and `StorageProvider.list()` from `lib/storage/index.ts`.
+
+### Tautan (Important Links)
+- Admins manage a curated links library at `/admin/tautan` (`components/admin/links-manager.tsx`) backed by `lib/links.ts` and `/api/admin/links/*`.
+- A public Linktree-style page at `/tautan` renders only active links grouped by category.
+- Gated by `FEATURE_LINK_LIBRARY=1`; stored in the `important_links` table with title, URL, description, icon, category, color, and sort order.
+
+### Zyra multimodal tutoring and murid experience
+
+- `FEATURE_ZYRA_IMAGE_INPUT_V1` provides authenticated JPEG, PNG, and WebP uploads for a tutoring turn. Files are sanitized server-side, stored privately for a bounded retention period, and excluded from shared response caches.
+- Large accepted images are rotated and resized to a maximum 2048 px dispatch edge before private storage, reducing multimodal latency and payload size without enlarging smaller screenshots.
+- Sent images remain visible as authenticated thumbnails on the learner message and in restored chat history. Selecting a thumbnail opens a larger private preview; expired or unauthorized objects remain unreadable.
+- Image and text are dispatched as one multimodal request. Gemini Interactions calls use the direct Google endpoint, while the stable `gemini-2.5-flash` image fallback uses Cloudflare AI Gateway through `generateContent`. Retryable provider failures move through this bounded model chain. One successful learner turn spends one allowance; a terminal provider failure refunds it.
+- Mathematical tutoring uses equation-first Markdown with inline and display LaTeX. The tutor prompt prefers symbolic derivations over verbal operation lists, while a bounded presentation normalizer repairs common raw equations in new responses and restored chat history without changing valid LaTeX or code.
+- A learner can paste an image from the clipboard into the chat input as well as select a file. Image turns treat the current attachment as the primary problem statement and bypass text-only course retrieval, preventing an unrelated published question and its source link from replacing the image content.
+- `FEATURE_ZYRA_MURID_V3` adds the personal allowance summary and the integrated murid Zyra surface. `FEATURE_ZYRA_SELECTION_ASK_V1` sends only a bounded explicit lesson quote, and `FEATURE_ZYRA_PET_V1` shows accessible application-owned request states.
+- Learning Canvas exploration remains local after render and spends no provider allowance. Image and Canvas behavior are independently gated.
+
+### Zyra tutor and admin copilots
+
+- `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` expose scoped proposal-first workflows. They show evidence, preconditions, impact, warnings, and lifecycle state before any future mutation integration.
+- Proposals never auto-apply. The current mutation call fails closed until the accepted mutation boundary is available.
+
+### Zyra operations
+
+- `FEATURE_ZYRA_AI_OPS_V1` exposes admin-only privacy-safe operational metrics. It separates Zyx-recorded usage from configured limits and marks external provider usage unknown when no authoritative balance exists.
+- Metrics use the Asia/Jakarta day boundary and expose deduplicated quota, provider, cache, image, assessment, telemetry, and proposal alerts. Each alert carries a rollback flag and a versioned runbook reference; no raw learner or provider payload is shown.
 
 ## Money & Quota Rules
 

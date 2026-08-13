@@ -5,6 +5,8 @@ import { quizTemplates, courses } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { QuizzesCurationClient } from "./quizzes-client";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { NotebookPen } from "lucide-react";
 
 export const metadata: Metadata = {
   title: pageTitle("Kelola Template Kuis"),
@@ -30,13 +32,12 @@ export default async function AIQuizzesPage({ searchParams }: Props) {
   const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6 text-left">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Template Kuis</h1>
-        <p className="mt-1 text-body-sm text-muted-foreground">
-          Kelola kuis mandiri dan kurasi soal-soal AI.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={NotebookPen}
+        title="Template Kuis"
+        description="Kelola kuis mandiri dan kurasi soal-soal AI."
+      />
       <QuizzesCurationClient
         initialTemplates={templates}
         courses={allCourses}

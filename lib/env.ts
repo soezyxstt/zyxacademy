@@ -20,12 +20,26 @@ export const env = createEnv({
  BETTER_AUTH_SECRET: z.string().min(1),
  GOOGLE_CLIENT_ID: z.string(),
  GOOGLE_CLIENT_SECRET: z.string(),
+ /** Primary Google OAuth Refresh Token for Google Workspace REST APIs (Meet, Forms, Sheets, Drive) */
+ GOOGLE_REFRESH_TOKEN: z.string().optional(),
+ /** Google OAuth Refresh Token for Master Pro Account (Meet REST API) */
+ GOOGLE_MEET_REFRESH_TOKEN: z.string().optional(),
+ /** Dedicated Google OAuth Refresh Token for Google Forms REST API (optional fallback to GOOGLE_REFRESH_TOKEN / GOOGLE_MEET_REFRESH_TOKEN) */
+ GOOGLE_FORMS_REFRESH_TOKEN: z.string().optional(),
  /** From https://uploadthing.com/dashboard ; replaces direct S3/Tigris uploads. */
  UPLOADTHING_TOKEN: z.string().min(1),
  /** Resend API Key for sending transactional emails. */
  RESEND_API_KEY: z.string().min(1),
  /** Nomor WhatsApp admin (digits; `+`/spaces allowed). Contoh: `6281234567890`. */
  WHATSAPP_ADMIN_NUMBER: z.string().optional(),
+ /** Duitku project identifier. Use the credential for the selected environment. */
+ DUITKU_MERCHANT_CODE: z.string().min(1).optional(),
+ /** Server-only Duitku Merchant Key. */
+ DUITKU_API_KEY: z.string().min(1).optional(),
+ /** Duitku endpoint selection. Sandbox is the safe default. */
+ DUITKU_ENVIRONMENT: z.enum(["sandbox", "production"]).optional().default("sandbox"),
+ /** Hosted checkout and invoice creation through Duitku POP. "1" enables. */
+ FEATURE_DUITKU_PAYMENT: z.string().optional(),
  /** Gemini API Key for AI operations (primary) */
  GEMINI_API_KEY: z.string().min(1),
  /** Gemini API Key #2 for failover/load balancing */
@@ -34,10 +48,14 @@ export const env = createEnv({
  GEMINI_API_KEY_3: z.string().optional(),
  /** Gemini API Key #4 for failover/load balancing */
  GEMINI_API_KEY_4: z.string().optional(),
- /** Pinecone API Key for vector search (required for AI quiz generation) */
- PINECONE_API_KEY: z.string().transform((v) => v || undefined).optional(),
- /** Pinecone index name (e.g. "zyx-edu") */
- PINECONE_INDEX_NAME: z.string().transform((v) => v || undefined).optional(),
+ /** Non-secret alias for Gemini project slot 1. */
+ GEMINI_PROJECT_ALIAS_1: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 2. */
+ GEMINI_PROJECT_ALIAS_2: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 3. */
+ GEMINI_PROJECT_ALIAS_3: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 4. */
+ GEMINI_PROJECT_ALIAS_4: z.string().optional(),
  /** Inngest event key for sending events */
  INNGEST_EVENT_KEY: z.string().min(1),
  /** Inngest signing key for production request verification */
@@ -65,6 +83,10 @@ export const env = createEnv({
  CF_AI_GATEWAY_URL: z.string().url().optional(),
  /** Cloudflare AI Gateway token for Authorization header */
  CF_AI_GATEWAY_TOKEN: z.string().optional(),
+ /** Absolute origin of the staging Zyra control-plane Worker. */
+ ZYRA_CONTROL_PLANE_URL: z.string().url().optional(),
+ /** Server-only bearer token for the Zyra control-plane Worker. */
+ ZYRA_CONTROL_PLANE_TOKEN: z.string().optional(),
  /** Cloudflare account ID (used for KV REST API and Workers) */
  CF_ACCOUNT_ID: z.string().optional(),
  /** Cloudflare Workers KV namespace ID for zyx-ai-cache */
@@ -107,6 +129,8 @@ export const env = createEnv({
  FEATURE_PKA: z.string().optional(),
  /** P0 Versioned AI Prompt Contracts & Provenance. "1" enables. */
  FEATURE_AI_CONTRACT_V2: z.string().optional(),
+ /** P0 versioned Gemini model registry and provider adapters. "1" enables the registry route policy. */
+ FEATURE_AI_PROVIDER_REGISTRY_V1: z.string().optional(),
  /** Assessment assistance policy: deterministic gating for AI tutor and mistake feedback. "1" enables. */
  FEATURE_ASSESSMENT_ASSISTANCE_POLICY: z.string().optional(),
  /** P0 Knowledge object provenance and stable identity pipeline. "1" enables. */
@@ -123,9 +147,70 @@ export const env = createEnv({
  FEATURE_DIKTAT_QA_V2: z.string().optional(),
  /** P1 Analytics Diagnosis V2: evidence-calibrated analytics. "1" enables. */
  FEATURE_ANALYTICS_DIAGNOSIS_V2: z.string().optional(),
+ /** Indonesian domain identity and multi-role authorization. "1" enables membership checks. */
+ FEATURE_PERAN_V2: z.string().optional(),
+ /** Canonical source and Idea domain contracts. "1" enables the additive Idea architecture. */
+ FEATURE_ARSITEKTUR_IDE_V1: z.string().optional(),
+ /** Migration-only transaction-scoped mirror for the additive Idea architecture. */
+ FEATURE_DUAL_WRITE_IDE: z.string().optional(),
+ /** Strict ZIP-based Idea Bundle V2 workflow. */
+ FEATURE_IDEA_BUNDLE_V2: z.string().optional(),
+ /** Deterministic and redacted Authoring Context Pack export. */
+ FEATURE_AUTHORING_CONTEXT_V1: z.string().optional(),
+ /** Strict ZIP-based Product Bundle V2 workflow. */
+ FEATURE_PRODUCT_BUNDLE_V2: z.string().optional(),
+ /** Question origin, ITB event provenance, and learner-facing source citations. */
+ /** Product and Idea links domain contracts. "1" enables the additive product tables. */
+ FEATURE_PRODUK_IDE_V1: z.string().optional(),
+ /** Assessment and Idea coverage contracts. "1" enables the additive assessment tables. */
+ FEATURE_ASESMEN_IDE_V1: z.string().optional(),
+ /** Canonical 768-dimension Vectorize-only read and write path. "1" enables it. */
+ FEATURE_VECTORIZE_ONLY_V1: z.string().optional(),
+ /** Canonical Zyra retrieval and hydration over approved Idea content. "1" enables it. */
+ FEATURE_ZYRA_IDEA_RUNTIME_V1: z.string().optional(),
+ /** Admin and tutor content workflow with centralized transitions and audit. "1" enables it. */
+ FEATURE_ADMIN_TUTOR_WORKFLOW_V1: z.string().optional(),
+ /** Murid Idea-centered read model with Tutorial PKA compatibility adapters. "1" enables it. */
+ FEATURE_MURID_IDEA_WORKFLOW_V1: z.string().optional(),
+  /** Idea evidence and mastery contracts. "1" enables the additive mastery tables. */
+  FEATURE_PEMAHAMAN_IDE_V1: z.string().optional(),
+ /** Zyra transactional role allowance and usage lease ledger. "1" enables it. */
+  FEATURE_ZYRA_ALLOWANCE_V2: z.string().optional(),
+   /** Health-aware four-project provider routing. "1" enables it. */
+   FEATURE_ZYRA_PROVIDER_ROUTER_V2: z.string().optional(),
+  /** Profile-free exact and semantic cache. "1" enables the semantic gate. */
+  FEATURE_ZYRA_SEMANTIC_CACHE_V1: z.string().optional(),
+   /** Deterministic pedagogical state machine and typed Zyra teaching response. "1" enables the harness. */
+   FEATURE_ZYRA_PEDAGOGY_V3: z.string().optional(),
+   /** Evidence-based learner presentation adaptation. "1" enables the profile controls. */
+   FEATURE_ZYRA_PERSONALIZATION_V1: z.string().optional(),
+   /** Typed local Learning Canvas visuals and safe expression evaluation. "1" enables the canvas. */
+   FEATURE_ZYRA_LEARNING_CANVAS_V1: z.string().optional(),
+   /** Authenticated private learner image input for Zyra. "1" enables the multimodal path. */
+   FEATURE_ZYRA_IMAGE_INPUT_V1: z.string().optional(),
+   /** Integrated murid Zyra experience. "1" enables the additive UI surfaces. */
+   FEATURE_ZYRA_MURID_V3: z.string().optional(),
+   /** Selection-to-ask context handoff. "1" enables the additive selection action. */
+   FEATURE_ZYRA_SELECTION_ASK_V1: z.string().optional(),
+   /** Application-owned Zyra pet state indicator. "1" enables the additive pet. */
+   FEATURE_ZYRA_PET_V1: z.string().optional(),
+   /** Tutor proposal copilot. "1" enables read-only proposal workflows. */
+   FEATURE_ZYRA_TUTOR_COPILOT_V1: z.string().optional(),
+   /** Admin proposal copilot. "1" enables read-only proposal workflows. */
+   FEATURE_ZYRA_ADMIN_COPILOT_V1: z.string().optional(),
+   /** Privacy-safe Zyra operations surfaces. "1" enables the additive monitor. */
+   FEATURE_ZYRA_AI_OPS_V1: z.string().optional(),
+   /** Dedicated staging-only user allowed to execute hidden pedagogy shadow comparisons. */
+   STAGING_ZYRA_PEDAGOGY_USER_ID: z.string().optional(),
+  /** Auto-grant editor access on every exported Google Spreadsheet and its Drive folder to all active admin emails. "1" enables. */
+  FEATURE_DRIVE_EDITOR_SYNC: z.string().optional(),
+  /** Admin Media Library: upload, organize, preview and manage shared media files in R2 under `media/`. "1" enables. */
+  FEATURE_MEDIA_LIBRARY: z.string().optional(),
+  /** Admin Tautan (important links) library. "1" enables. */
+  FEATURE_LINK_LIBRARY: z.string().optional(),
+  /** Reusable Form Studio presets (questions + settings). "1" enables. */
+  FEATURE_FORM_PRESETS: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
- /** Active vector store: 'pinecone' (default) | 'dual' (write both) | 'vectorize' (read from VZ) */
- VECTOR_STORE: z.enum(['pinecone', 'vectorize', 'dual']).optional(),
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
   /** Shared secret matching SHARED_SECRET set on the zyx-vector-api Worker */
@@ -150,18 +235,42 @@ export const env = createEnv({
   NEXT_PUBLIC_REALTIME_URL: z.string().url().optional(),
   /** Email resmi brand Zyx Academy. */
   NEXT_PUBLIC_BRAND_EMAIL: z.string().email().optional().default("contact@zyxacademy.com"),
+  /** Nomor telepon dukungan usaha yang ditampilkan pada halaman kontak. */
+  NEXT_PUBLIC_BUSINESS_PHONE: z.string().optional(),
+  /** Alamat lengkap usaha yang ditampilkan pada halaman kontak. */
+  NEXT_PUBLIC_BUSINESS_ADDRESS: z.string().optional(),
   /** Akun Instagram resmi brand Zyx Academy. */
   NEXT_PUBLIC_BRAND_INSTAGRAM: z.string().url().optional().default("https://instagram.com/zyx_academy"),
   /** Akun TikTok resmi brand Zyx Academy. */
   NEXT_PUBLIC_BRAND_TIKTOK: z.string().url().optional().default("https://tiktok.com/@zyx_academy"),
+  /** PostHog Project API Key for feature flags and analytics */
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
+  /** PostHog API Host URL (default: https://us.i.posthog.com) */
+  NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional().default("https://us.i.posthog.com"),
+  NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_ZYRA_PET_V1: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1: z.enum(["0", "1"]).optional(),
   },
  runtimeEnv: {
  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
  NEXT_PUBLIC_DESMOS_API_KEY: process.env.NEXT_PUBLIC_DESMOS_API_KEY,
  NEXT_PUBLIC_WHATSAPP_NUMBER: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER,
  NEXT_PUBLIC_BRAND_EMAIL: process.env.NEXT_PUBLIC_BRAND_EMAIL,
+ NEXT_PUBLIC_BUSINESS_PHONE: process.env.NEXT_PUBLIC_BUSINESS_PHONE,
+ NEXT_PUBLIC_BUSINESS_ADDRESS: process.env.NEXT_PUBLIC_BUSINESS_ADDRESS,
  NEXT_PUBLIC_BRAND_INSTAGRAM: process.env.NEXT_PUBLIC_BRAND_INSTAGRAM,
  NEXT_PUBLIC_BRAND_TIKTOK: process.env.NEXT_PUBLIC_BRAND_TIKTOK,
+ NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+ NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+ NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1,
+ NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1,
+ NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3: process.env.NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3,
+ NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1,
+ NEXT_PUBLIC_FEATURE_ZYRA_PET_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_PET_V1,
+ NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1: process.env.NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1,
  DATABASE_URL: process.env.DATABASE_URL,
  TURSO_CONNECTION_URL: process.env.TURSO_CONNECTION_URL,
  TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN,
@@ -169,15 +278,24 @@ export const env = createEnv({
  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+ GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN,
+ GOOGLE_MEET_REFRESH_TOKEN: process.env.GOOGLE_MEET_REFRESH_TOKEN,
+ GOOGLE_FORMS_REFRESH_TOKEN: process.env.GOOGLE_FORMS_REFRESH_TOKEN,
  UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
  RESEND_API_KEY: process.env.RESEND_API_KEY,
  WHATSAPP_ADMIN_NUMBER: process.env.WHATSAPP_ADMIN_NUMBER,
+ DUITKU_MERCHANT_CODE: process.env.DUITKU_MERCHANT_CODE,
+ DUITKU_API_KEY: process.env.DUITKU_API_KEY,
+ DUITKU_ENVIRONMENT: process.env.DUITKU_ENVIRONMENT,
+ FEATURE_DUITKU_PAYMENT: process.env.FEATURE_DUITKU_PAYMENT,
  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
  GEMINI_API_KEY_2: process.env.GEMINI_API_KEY_2,
  GEMINI_API_KEY_3: process.env.GEMINI_API_KEY_3,
  GEMINI_API_KEY_4: process.env.GEMINI_API_KEY_4,
- PINECONE_API_KEY: process.env.PINECONE_API_KEY,
- PINECONE_INDEX_NAME: process.env.PINECONE_INDEX_NAME,
+ GEMINI_PROJECT_ALIAS_1: process.env.GEMINI_PROJECT_ALIAS_1,
+ GEMINI_PROJECT_ALIAS_2: process.env.GEMINI_PROJECT_ALIAS_2,
+ GEMINI_PROJECT_ALIAS_3: process.env.GEMINI_PROJECT_ALIAS_3,
+ GEMINI_PROJECT_ALIAS_4: process.env.GEMINI_PROJECT_ALIAS_4,
  INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
  INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
  // R2
@@ -190,6 +308,8 @@ export const env = createEnv({
  // AI Gateway
  CF_AI_GATEWAY_URL: process.env.CF_AI_GATEWAY_URL,
  CF_AI_GATEWAY_TOKEN: process.env.CF_AI_GATEWAY_TOKEN,
+ ZYRA_CONTROL_PLANE_URL: process.env.ZYRA_CONTROL_PLANE_URL,
+ ZYRA_CONTROL_PLANE_TOKEN: process.env.ZYRA_CONTROL_PLANE_TOKEN,
  CF_API_TOKEN: process.env.CF_API_TOKEN,
  CF_KV_NAMESPACE_ID: process.env.CF_KV_NAMESPACE_ID,
  CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
@@ -214,6 +334,7 @@ export const env = createEnv({
  FEATURE_ADAPTIVE_QUIZ: process.env.FEATURE_ADAPTIVE_QUIZ,
  FEATURE_PKA: process.env.FEATURE_PKA,
  FEATURE_AI_CONTRACT_V2: process.env.FEATURE_AI_CONTRACT_V2,
+ FEATURE_AI_PROVIDER_REGISTRY_V1: process.env.FEATURE_AI_PROVIDER_REGISTRY_V1,
  FEATURE_ASSESSMENT_ASSISTANCE_POLICY: process.env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY,
  FEATURE_KO_PIPELINE_V2: process.env.FEATURE_KO_PIPELINE_V2,
  FEATURE_QUESTION_GENERATOR_V2: process.env.FEATURE_QUESTION_GENERATOR_V2,
@@ -222,8 +343,38 @@ export const env = createEnv({
  FEATURE_FLASHCARD_GENERATOR_V2: process.env.FEATURE_FLASHCARD_GENERATOR_V2,
  FEATURE_DIKTAT_QA_V2: process.env.FEATURE_DIKTAT_QA_V2,
  FEATURE_ANALYTICS_DIAGNOSIS_V2: process.env.FEATURE_ANALYTICS_DIAGNOSIS_V2,
+ FEATURE_PERAN_V2: process.env.FEATURE_PERAN_V2,
+ FEATURE_ARSITEKTUR_IDE_V1: process.env.FEATURE_ARSITEKTUR_IDE_V1,
+ FEATURE_DUAL_WRITE_IDE: process.env.FEATURE_DUAL_WRITE_IDE,
+ FEATURE_IDEA_BUNDLE_V2: process.env.FEATURE_IDEA_BUNDLE_V2,
+ FEATURE_AUTHORING_CONTEXT_V1: process.env.FEATURE_AUTHORING_CONTEXT_V1,
+ FEATURE_PRODUCT_BUNDLE_V2: process.env.FEATURE_PRODUCT_BUNDLE_V2,
+ FEATURE_PRODUK_IDE_V1: process.env.FEATURE_PRODUK_IDE_V1,
+ FEATURE_ASESMEN_IDE_V1: process.env.FEATURE_ASESMEN_IDE_V1,
+ FEATURE_VECTORIZE_ONLY_V1: process.env.FEATURE_VECTORIZE_ONLY_V1,
+ FEATURE_ZYRA_IDEA_RUNTIME_V1: process.env.FEATURE_ZYRA_IDEA_RUNTIME_V1,
+ FEATURE_ADMIN_TUTOR_WORKFLOW_V1: process.env.FEATURE_ADMIN_TUTOR_WORKFLOW_V1,
+ FEATURE_MURID_IDEA_WORKFLOW_V1: process.env.FEATURE_MURID_IDEA_WORKFLOW_V1,
+  FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
+   FEATURE_ZYRA_ALLOWANCE_V2: process.env.FEATURE_ZYRA_ALLOWANCE_V2,
+   FEATURE_ZYRA_PROVIDER_ROUTER_V2: process.env.FEATURE_ZYRA_PROVIDER_ROUTER_V2,
+   FEATURE_ZYRA_SEMANTIC_CACHE_V1: process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
+   FEATURE_ZYRA_PEDAGOGY_V3: process.env.FEATURE_ZYRA_PEDAGOGY_V3,
+   FEATURE_ZYRA_PERSONALIZATION_V1: process.env.FEATURE_ZYRA_PERSONALIZATION_V1,
+   FEATURE_ZYRA_LEARNING_CANVAS_V1: process.env.FEATURE_ZYRA_LEARNING_CANVAS_V1,
+   FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.FEATURE_ZYRA_IMAGE_INPUT_V1,
+   FEATURE_ZYRA_MURID_V3: process.env.FEATURE_ZYRA_MURID_V3,
+   FEATURE_ZYRA_SELECTION_ASK_V1: process.env.FEATURE_ZYRA_SELECTION_ASK_V1,
+   FEATURE_ZYRA_PET_V1: process.env.FEATURE_ZYRA_PET_V1,
+   FEATURE_ZYRA_TUTOR_COPILOT_V1: process.env.FEATURE_ZYRA_TUTOR_COPILOT_V1,
+   FEATURE_ZYRA_ADMIN_COPILOT_V1: process.env.FEATURE_ZYRA_ADMIN_COPILOT_V1,
+   FEATURE_ZYRA_AI_OPS_V1: process.env.FEATURE_ZYRA_AI_OPS_V1,
+   STAGING_ZYRA_PEDAGOGY_USER_ID: process.env.STAGING_ZYRA_PEDAGOGY_USER_ID,
+  FEATURE_DRIVE_EDITOR_SYNC: process.env.FEATURE_DRIVE_EDITOR_SYNC,
+  FEATURE_MEDIA_LIBRARY: process.env.FEATURE_MEDIA_LIBRARY,
+  FEATURE_LINK_LIBRARY: process.env.FEATURE_LINK_LIBRARY,
+  FEATURE_FORM_PRESETS: process.env.FEATURE_FORM_PRESETS,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
- VECTOR_STORE: process.env.VECTOR_STORE,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,
   // Diktat PDF Renderer
