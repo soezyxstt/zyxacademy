@@ -1,5 +1,11 @@
 # Development Guide
 
+## Duitku Sandbox
+
+Configure `DUITKU_MERCHANT_CODE` and server-only `DUITKU_API_KEY` from the same Duitku Sandbox project. Set `DUITKU_ENVIRONMENT=sandbox` and `FEATURE_DUITKU_PAYMENT=1` only after migration `0069_unusual_sunset_bain.sql` is applied. `NEXT_PUBLIC_APP_URL` must be a public HTTPS origin for Duitku callbacks outside local-only UI development.
+
+Public merchant-review contact data uses `NEXT_PUBLIC_BRAND_EMAIL`, `NEXT_PUBLIC_BUSINESS_PHONE`, and `NEXT_PUBLIC_BUSINESS_ADDRESS`. Do not place the Duitku API key in any `NEXT_PUBLIC_*` variable.
+
 ## Quick Start
 
 ```bash

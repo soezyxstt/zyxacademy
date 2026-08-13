@@ -2,6 +2,10 @@
 
 This document provides a detailed reference of the SQLite/Turso database schema defined in [db/schema.ts](../db/schema.ts). 
 
+## `payment_orders`
+
+Stores Duitku checkout order snapshots. Each row has a unique merchant order ID, owning user, product code, product description, Rupiah amount, participant and course selection, customer contact data, Duitku reference and hosted URL, payment status, method, result code, expiry, and timestamps. Callback updates are idempotent and a paid row is not downgraded by later callbacks.
+
 ---
 
 ## High Level Overview

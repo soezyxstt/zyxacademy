@@ -4,6 +4,10 @@
 
 Production runs on Vercel (Next.js) + Turso (DB) with supporting Cloudflare services.
 
+## Duitku
+
+Keep the payment feature disabled during deployment and migration. Configure the Duitku project callback as `/api/payments/duitku/callback` on the public HTTPS application origin. Sandbox and production use separate Merchant Code and Merchant Key values; switch `DUITKU_ENVIRONMENT` and credentials together. Enable `FEATURE_DUITKU_PAYMENT=1` only after a Sandbox checkout, valid callback, invalid-signature rejection, amount-mismatch rejection, duplicate-callback test, status-page review, and merchant contact review pass.
+
 ```
 
 ## Staging overhaul execution

@@ -45,6 +45,11 @@ export function Footer() {
                   Testimoni
                 </Link>
               </li>
+              <li>
+                <Link href="/contact" className="interactive text-body-sm text-muted-foreground transition-colors hover:text-foreground">
+                  Kontak dukungan
+                </Link>
+              </li>
             </ul>
           </nav>
 

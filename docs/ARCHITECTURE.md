@@ -2,6 +2,12 @@
 
 **Stack:** Next.js 16 (App Router), Drizzle ORM + SQLite (dev) / Turso (prod), Better-Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), UploadThing / R2 (storage abstraction), Inngest (background jobs), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
 
+## Duitku Payment Boundary
+
+`payment_orders` is the source of truth for checkout state and stores immutable product, amount, customer, and selection snapshots. The browser submits only a plan configuration and customer telephone number; the server validates the catalog selection and recomputes the Rupiah amount before creating an order.
+
+The server requests a hosted invoice from Duitku POP with HMAC SHA-256 headers. Payment credentials remain on Duitku. The public callback accepts form data only while the feature is enabled, verifies the merchant code and constant-time HMAC, then matches the stored order and amount before an idempotent status transition. The authenticated return page reads database state and never trusts redirect query status. Paid orders do not automatically create enrollments; activation remains a separately reviewed admin operation.
+
 ---
 
 ## 1. Core Philosophy & 4-Layer Design

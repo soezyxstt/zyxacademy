@@ -23,7 +23,7 @@ import {
 } from "@/lib/pricing-constants";
 import { planTiers } from "@/lib/plan-tiers";
 
-export default function PlansClient() {
+export default function PlansClient({ paymentEnabled }: { paymentEnabled: boolean }) {
   const [persons, setPersons] = useState<number>(DEFAULT_PERSONS);
   // Separate standard courses and other courses (Lain-Lain) count
   const [selectedStandardCourses, setSelectedStandardCourses] = useState<string[]>(() =>
@@ -84,6 +84,16 @@ export default function PlansClient() {
     }
   };
 
+  const getCheckoutUrl = (planKey: string): string => {
+    const params = new URLSearchParams({
+      plan: planKey,
+      persons: persons.toString(),
+      courses: selectedStandardCourses.join(","),
+      other: otherCoursesCount.toString(),
+    });
+    return `/checkout?${params.toString()}`;
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <Reveal>
@@ -91,7 +101,9 @@ export default function PlansClient() {
           sectionId="plans"
           eyebrow="Zyx Academy"
           title="Paket & layanan"
-          description="Pilih kombinasi course dan intensitas pendampingan. Pembayaran dilakukan di luar website; admin akan mengaktifkan akses sesuai paket."
+          description={paymentEnabled
+            ? "Pilih kombinasi mata kuliah dan intensitas pendampingan, lalu bayar secara aman melalui Duitku. Akses diaktifkan setelah pembayaran terverifikasi."
+            : "Pilih kombinasi mata kuliah dan intensitas pendampingan. Admin akan membantu proses pendaftaran sesuai paket."}
         />
       </Reveal>
 
@@ -390,6 +402,10 @@ export default function PlansClient() {
                       {isFree ? (
                         <Link href="/sign-up">
                           Daftar Sekarang
+                        </Link>
+                      ) : paymentEnabled && !isCustom ? (
+                        <Link href={getCheckoutUrl(tier.key)}>
+                          Checkout
                         </Link>
                       ) : (
                         <Link href={whatsAppUrl} target="_blank" rel="noopener noreferrer">

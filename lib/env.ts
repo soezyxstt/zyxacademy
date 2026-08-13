@@ -32,6 +32,14 @@ export const env = createEnv({
  RESEND_API_KEY: z.string().min(1),
  /** Nomor WhatsApp admin (digits; `+`/spaces allowed). Contoh: `6281234567890`. */
  WHATSAPP_ADMIN_NUMBER: z.string().optional(),
+ /** Duitku project identifier. Use the credential for the selected environment. */
+ DUITKU_MERCHANT_CODE: z.string().min(1).optional(),
+ /** Server-only Duitku Merchant Key. */
+ DUITKU_API_KEY: z.string().min(1).optional(),
+ /** Duitku endpoint selection. Sandbox is the safe default. */
+ DUITKU_ENVIRONMENT: z.enum(["sandbox", "production"]).optional().default("sandbox"),
+ /** Hosted checkout and invoice creation through Duitku POP. "1" enables. */
+ FEATURE_DUITKU_PAYMENT: z.string().optional(),
  /** Gemini API Key for AI operations (primary) */
  GEMINI_API_KEY: z.string().min(1),
  /** Gemini API Key #2 for failover/load balancing */
@@ -227,6 +235,10 @@ export const env = createEnv({
   NEXT_PUBLIC_REALTIME_URL: z.string().url().optional(),
   /** Email resmi brand Zyx Academy. */
   NEXT_PUBLIC_BRAND_EMAIL: z.string().email().optional().default("contact@zyxacademy.com"),
+  /** Nomor telepon dukungan usaha yang ditampilkan pada halaman kontak. */
+  NEXT_PUBLIC_BUSINESS_PHONE: z.string().optional(),
+  /** Alamat lengkap usaha yang ditampilkan pada halaman kontak. */
+  NEXT_PUBLIC_BUSINESS_ADDRESS: z.string().optional(),
   /** Akun Instagram resmi brand Zyx Academy. */
   NEXT_PUBLIC_BRAND_INSTAGRAM: z.string().url().optional().default("https://instagram.com/zyx_academy"),
   /** Akun TikTok resmi brand Zyx Academy. */
@@ -247,6 +259,8 @@ export const env = createEnv({
  NEXT_PUBLIC_DESMOS_API_KEY: process.env.NEXT_PUBLIC_DESMOS_API_KEY,
  NEXT_PUBLIC_WHATSAPP_NUMBER: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER,
  NEXT_PUBLIC_BRAND_EMAIL: process.env.NEXT_PUBLIC_BRAND_EMAIL,
+ NEXT_PUBLIC_BUSINESS_PHONE: process.env.NEXT_PUBLIC_BUSINESS_PHONE,
+ NEXT_PUBLIC_BUSINESS_ADDRESS: process.env.NEXT_PUBLIC_BUSINESS_ADDRESS,
  NEXT_PUBLIC_BRAND_INSTAGRAM: process.env.NEXT_PUBLIC_BRAND_INSTAGRAM,
  NEXT_PUBLIC_BRAND_TIKTOK: process.env.NEXT_PUBLIC_BRAND_TIKTOK,
  NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
@@ -270,6 +284,10 @@ export const env = createEnv({
  UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
  RESEND_API_KEY: process.env.RESEND_API_KEY,
  WHATSAPP_ADMIN_NUMBER: process.env.WHATSAPP_ADMIN_NUMBER,
+ DUITKU_MERCHANT_CODE: process.env.DUITKU_MERCHANT_CODE,
+ DUITKU_API_KEY: process.env.DUITKU_API_KEY,
+ DUITKU_ENVIRONMENT: process.env.DUITKU_ENVIRONMENT,
+ FEATURE_DUITKU_PAYMENT: process.env.FEATURE_DUITKU_PAYMENT,
  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
  GEMINI_API_KEY_2: process.env.GEMINI_API_KEY_2,
  GEMINI_API_KEY_3: process.env.GEMINI_API_KEY_3,

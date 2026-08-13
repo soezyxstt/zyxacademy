@@ -6,6 +6,15 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 
 ## User Roles
 
+## Duitku Checkout
+
+1. The public plans page displays product descriptions and deterministic Rupiah prices for Minimal, Essential, and Premium.
+2. When `FEATURE_DUITKU_PAYMENT=1`, signed-in customers enter a checkout that recomputes the selected product and amount on the server. Client-provided prices are never accepted.
+3. Zyx stores an immutable order snapshot, requests a hosted Duitku POP invoice, and redirects the customer to Duitku. Zyx does not collect card or bank credentials.
+4. Only a valid Duitku server callback with matching merchant code, order ID, amount, and HMAC SHA-256 signature can mark an order paid. Browser return parameters are informational only.
+5. The authenticated status page shows the order to its owner. Package activation remains an admin workflow after payment verification.
+6. The `/contact` page publishes the configured support email, telephone number, and business address required for merchant review.
+
 Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps the legacy `user.role` projection during the expand phase. `FEATURE_PERAN_V2` switches the admin and tutor layout gates to domain memberships without changing chat speaker values such as `student`.
 
 ### Student

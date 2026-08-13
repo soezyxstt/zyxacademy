@@ -391,6 +391,48 @@ export const enrollments = sqliteTable("enrollments", {
  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(), // Locks out students once the semester ends
 });
 
+/** Duitku checkout orders. Product and price snapshots remain immutable after creation. */
+export const paymentOrders = sqliteTable(
+ "payment_orders",
+ {
+  id: text("id").primaryKey(),
+  merchantOrderId: text("merchant_order_id").notNull().unique(),
+  userId: text("user_id")
+   .notNull()
+   .references(() => user.id, { onDelete: "restrict" }),
+  productCode: text("product_code").$type<"minimal" | "essential" | "premium">().notNull(),
+  productName: text("product_name").notNull(),
+  productDescription: text("product_description").notNull(),
+  amount: integer("amount").notNull(),
+  currency: text("currency").$type<"IDR">().default("IDR").notNull(),
+  persons: integer("persons").notNull(),
+  coursesCount: integer("courses_count").notNull(),
+  selectedCourses: text("selected_courses", { mode: "json" }).$type<string[]>().notNull(),
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  status: text("status")
+   .$type<"pending" | "paid" | "failed" | "expired">()
+   .default("pending")
+   .notNull(),
+  duitkuReference: text("duitku_reference").unique(),
+  paymentUrl: text("payment_url"),
+  paymentMethod: text("payment_method"),
+  resultCode: text("result_code"),
+  paidAt: integer("paid_at", { mode: "timestamp" }),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+   .defaultNow()
+   .$onUpdate(() => new Date())
+   .notNull(),
+ },
+ (table) => [
+  index("payment_orders_user_idx").on(table.userId, table.createdAt),
+  index("payment_orders_status_idx").on(table.status, table.createdAt),
+ ],
+);
+
 // Progress (Materials) Table
 export const progress = sqliteTable("progress", {
  id: text("id").primaryKey(),

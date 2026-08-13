@@ -4,6 +4,12 @@ This document tracks system validation gates and pre-deployment readiness checks
 
 ## Pre-Deployment Validation Gates
 
+- [ ] Duitku migration `0069_unusual_sunset_bain.sql` is applied and `payment_orders` is foreign-key clean.
+- [ ] Duitku Sandbox creates a hosted invoice with the server-computed IDR amount and returns to the owning user's status page.
+- [ ] Duitku callback accepts the valid HMAC SHA-256 notification, rejects invalid signatures and mismatched amounts, and treats a duplicate paid callback as a no-op.
+- [ ] `/plans` shows product descriptions and Rupiah prices; `/contact` shows the verified support email, telephone number, and full business address.
+- [ ] Sandbox and production Merchant Code and Merchant Key are never mixed; the Merchant Key is server-only.
+
 - [ ] **Linting**: `bun run lint` passes with 0 errors and 0 new warnings.
 - [ ] **Type Checking**: `bun run typecheck` (`tsc --noEmit`) passes with 0 errors.
 - [ ] **AI Contract Suite**: `bun run test:ai-contracts` passes deterministically with 0 network calls.
