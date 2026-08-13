@@ -151,6 +151,7 @@ export const env = createEnv({
  FEATURE_AUTHORING_CONTEXT_V1: z.string().optional(),
  /** Strict ZIP-based Product Bundle V2 workflow. */
  FEATURE_PRODUCT_BUNDLE_V2: z.string().optional(),
+ /** Question origin, ITB event provenance, and learner-facing source citations. */
  /** Product and Idea links domain contracts. "1" enables the additive product tables. */
  FEATURE_PRODUK_IDE_V1: z.string().optional(),
  /** Assessment and Idea coverage contracts. "1" enables the additive assessment tables. */
@@ -239,6 +240,7 @@ export const env = createEnv({
   NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3: z.enum(["0", "1"]).optional(),
   NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1: z.enum(["0", "1"]).optional(),
   NEXT_PUBLIC_FEATURE_ZYRA_PET_V1: z.enum(["0", "1"]).optional(),
+  NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1: z.enum(["0", "1"]).optional(),
   },
  runtimeEnv: {
  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
@@ -254,6 +256,7 @@ export const env = createEnv({
  NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3: process.env.NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3,
  NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1,
  NEXT_PUBLIC_FEATURE_ZYRA_PET_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_PET_V1,
+ NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1: process.env.NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1,
  DATABASE_URL: process.env.DATABASE_URL,
  TURSO_CONNECTION_URL: process.env.TURSO_CONNECTION_URL,
  TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN,

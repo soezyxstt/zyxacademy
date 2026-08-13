@@ -10,7 +10,7 @@ describe("Plan 008 product preview boundary", () => {
       courseId: "course-preview",
       chapterId: "chapter-preview",
       version: 1,
-      status: "in_review",
+      status: "draft",
       ideaLinks: [{ id: "idea-preview", version: 1, semanticHash: "a".repeat(64), weight: 1, role: "primary" }],
       sourceRefs: [{ sourceId: "source-preview", version: 1, checksum: "b".repeat(64), excerptIds: ["excerpt-preview"] }],
       schemaVersion: "1.0",
@@ -20,6 +20,7 @@ describe("Plan 008 product preview boundary", () => {
       questionType: "essay",
       prompt: "Explain the method.",
       options: [],
+      itbSource: { referenceId: "itb-preview", eventName: "UTS Matematika I ITB 2024" },
       itbCuration: [{
         referenceId: "itb-preview",
         dimensions: {

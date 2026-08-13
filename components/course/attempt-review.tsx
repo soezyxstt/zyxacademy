@@ -18,6 +18,7 @@ import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { ZyraMark } from "@/components/course/zyra-mark";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 
 interface QuestionSnapshot {
  id: string;
@@ -25,6 +26,9 @@ interface QuestionSnapshot {
  options: string[];
  correct_indices: number[];
  type?: string;
+ origin?: "zyx_original" | "itb_example";
+ sourceEventName?: string | null;
+ sourceReferenceId?: string | null;
 }
 
 interface AttemptData {
@@ -420,6 +424,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  </div>
  </div>
  )}
+ <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
  </div>
  ) : isFeedbackPending ? (
  <div className="flex items-center gap-2 text-body-sm text-brand-primary mt-2 font-medium">

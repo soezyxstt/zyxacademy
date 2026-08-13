@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { previewProducts } from "@/lib/bundle/product-preview";
-import { getProductBundleImport, parseStagedProductBundle } from "@/lib/bundle/product-staging";
+import { discardProductBundleDraft, getProductBundleImport, parseStagedProductBundle, productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
 
 export const runtime = "nodejs";
 
@@ -21,7 +21,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         bundleId: row.bundleId,
         checksum: row.checksum,
         courseId: row.courseId,
-        status: row.status,
+        status: productBundleLifecycleStatus(row.status),
         validationReport: row.validationReport,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -35,6 +35,20 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     });
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "PRODUCT_BUNDLE_DETAIL_FAILED";
+    const status = code === "PRODUCT_BUNDLE_NOT_FOUND" ? 404 : 422;
+    return NextResponse.json({ error: code }, { status });
+  }
+}
+
+export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  if (process.env.FEATURE_PRODUCT_BUNDLE_V2 !== "1") return NextResponse.json({ error: "PRODUCT_BUNDLE_V2_DISABLED" }, { status: 404 });
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await context.params;
+  try {
+    return NextResponse.json({ result: await discardProductBundleDraft({ importId: id, actorId: session.user.id }) });
+  } catch (error) {
+    const code = error instanceof Error ? error.message.split(":", 1)[0] : "PRODUCT_BUNDLE_DISCARD_FAILED";
     const status = code === "PRODUCT_BUNDLE_NOT_FOUND" ? 404 : 422;
     return NextResponse.json({ error: code }, { status });
   }

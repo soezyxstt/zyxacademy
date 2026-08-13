@@ -11,6 +11,7 @@ import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/
 import type { QuizOptionState } from "@/components/course/quiz-option-styles";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { MathText } from "@/components/course/math-text";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 // Fixture import removed
 import { getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
@@ -229,6 +230,7 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
               );
             })}
           </ul>
+          <QuestionSourceCitation origin={currentQuestion.origin} sourceEventName={currentQuestion.sourceEventName} />
 
           {myAnswer !== null && sessionState === "question" && (
             <p className="text-body-sm text-muted-foreground">

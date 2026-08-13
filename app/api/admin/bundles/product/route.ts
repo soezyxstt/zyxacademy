@@ -1,8 +1,10 @@
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { stageProductBundle, listProductBundleImports } from "@/lib/bundle/product-staging";
+import { stageProductBundle, listProductBundleImports, productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
 import { validateProductBundle } from "@/lib/bundle/product-validator";
+import { previewProducts } from "@/lib/bundle/product-preview";
+import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
 
 export const runtime = "nodejs";
 
@@ -34,7 +36,7 @@ export async function GET() {
         bundleType: row.bundleType,
         courseId: row.courseId,
         version: row.version,
-        status: row.status,
+        status: productBundleLifecycleStatus(row.status),
         validationReport: row.validationReport,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -54,16 +56,32 @@ export async function POST(request: NextRequest) {
     const file = form.get("file");
     if (!(file instanceof File)) return NextResponse.json({ error: "PRODUCT_BUNDLE_FILE_REQUIRED" }, { status: 400 });
     if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) return NextResponse.json({ error: "PRODUCT_BUNDLE_FILE_LIMIT" }, { status: 413 });
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const validation = validateProductBundle(bytes);
+    const uploadedBytes = new Uint8Array(await file.arrayBuffer());
+    const validation = validateProductBundle(uploadedBytes);
     if (!validation.success) return NextResponse.json({ error: "PRODUCT_BUNDLE_VALIDATION_FAILED", reasonCodes: validation.issues.map((issue) => issue.code), issues: validation.issues }, { status: 422 });
-    const bundle = validation.data;
+    const intent = form.get("intent");
+    if (intent !== "stage") {
+      const counts = Object.fromEntries(validation.data.products.reduce((entries, product) => entries.set(product.productType, (entries.get(product.productType) ?? 0) + 1), new Map<string, number>()));
+      return NextResponse.json({
+        persisted: false,
+        filename: file.name,
+        manifest: validation.data.manifest,
+        summary: { total: validation.data.products.length, counts, dependencyCount: validation.data.dependencies.length },
+        previews: previewProducts(validation.data.products),
+        dependencies: validation.data.dependencies,
+        draft: createProductBundleDraft(validation.data),
+      });
+    }
+    const draftValue = form.get("draft");
+    if (typeof draftValue !== "string" || draftValue.length > 12 * 1024 * 1024) return NextResponse.json({ error: "PRODUCT_BUNDLE_DRAFT_REQUIRED" }, { status: 400 });
+    const finalized = finalizeProductBundleDraft(validation.data, JSON.parse(draftValue) as ProductBundleDraft);
+    const bundle = finalized.bundle;
     const result = await stageProductBundle({
       runId: request.headers.get("x-correlation-id") ?? `api-${Date.now()}`,
       bundleId: bundle.manifest.bundleId,
       courseId: bundle.manifest.courseId,
       checksum: bundle.manifest.bundleChecksum,
-      bytes,
+      bytes: finalized.bytes,
       requestedBy: actor.id,
       bundle,
       filename: file.name || "product-bundle-v2.zip",

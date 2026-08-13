@@ -3,6 +3,7 @@ import { and, desc, eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { auditMutasi, courses, imporBundle, itemImporBundle, mataKuliah, reviewBundle, tutorCourses, user } from "@/db/schema";
 import { storage } from "@/lib/storage";
+import { buildProductBundleKey } from "@/lib/storage/keys";
 import { productEntityHash, parseProductBundleZip } from "./product-bundle-v2";
 import { deterministicProductSerialization, type ProductDependency } from "./product-validator";
 import { type ProductBundleValidation } from "./product-validator";
@@ -18,16 +19,20 @@ export type ProductStageInput = {
   filename?: string;
 };
 
+export type ProductBundleLifecycleStatus = "draft" | "published" | "withdrawn";
+
+export function productBundleLifecycleStatus(status: string): ProductBundleLifecycleStatus {
+  if (status === "published") return "published";
+  if (status === "withdrawn") return "withdrawn";
+  return "draft";
+}
+
 function enabled(): void {
   if (process.env.FEATURE_PRODUCT_BUNDLE_V2 !== "1") throw new Error("PRODUCT_BUNDLE_V2_DISABLED");
 }
 
 function stableId(prefix: string, value: string): string {
   return `${prefix}-${createHash("sha256").update(`${prefix}:${value}`, "utf8").digest("hex").slice(0, 32)}`;
-}
-
-function safe(value: string): string {
-  return value.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 100);
 }
 
 function hashDependency(dependency: ProductDependency): string {
@@ -48,28 +53,37 @@ export async function stageProductBundle(input: ProductStageInput) {
   const [same] = await db.select().from(imporBundle).where(and(eq(imporBundle.bundleId, input.bundleId), eq(imporBundle.checksum, input.checksum))).limit(1);
   if (same) {
     const items = await db.select({ id: itemImporBundle.id }).from(itemImporBundle).where(eq(itemImporBundle.imporBundleId, same.id));
-    return { importId: same.id, bundleId: same.bundleId, checksum: same.checksum, sourceKey: same.sourceUriOrKey, created: false, status: "existing" as const, itemCount: items.length };
+    return { importId: same.id, bundleId: same.bundleId, checksum: same.checksum, sourceKey: same.sourceUriOrKey, created: false, replaced: false, status: productBundleLifecycleStatus(same.status), itemCount: items.length };
   }
-  const [conflict] = await db.select({ id: imporBundle.id }).from(imporBundle).where(eq(imporBundle.bundleId, input.bundleId)).limit(1);
-  if (conflict) throw new Error(`PRODUCT_BUNDLE_CONFLICT:${input.bundleId}`);
+  const [conflict] = await db.select().from(imporBundle).where(eq(imporBundle.bundleId, input.bundleId)).limit(1);
+  if (conflict && productBundleLifecycleStatus(conflict.status) !== "draft") throw new Error(`PRODUCT_BUNDLE_CONFLICT:${input.bundleId}`);
   const importId = stableId("impor-product", `${input.bundleId}:${input.checksum}`);
-  const sourceKey = `overhaul/product-bundles/${safe(input.runId)}/${safe(input.bundleId)}-${input.checksum.slice(0, 16)}.zip`;
-  await storage.upload(input.bytes, input.filename ?? `${safe(input.bundleId)}.zip`, "application/zip", { key: sourceKey, metadata: { bundleId: input.bundleId, runId: input.runId, checksum: input.checksum } });
+  const sourceKey = buildProductBundleKey(input);
+  await storage.upload(input.bytes, input.filename ?? `${input.bundleId}.zip`, "application/zip", { key: sourceKey, metadata: { bundleId: input.bundleId, runId: input.runId, checksum: input.checksum } });
   const items = [
     ...input.bundle.products.map((product) => ({ entityType: product.productType, entityId: product.id, entityVersion: product.version, entityHash: productEntityHash(product) })),
     ...input.bundle.dependencies.map((dependency) => ({ entityType: "dependency", entityId: dependency.id, entityVersion: dependency.downstreamVersion, entityHash: hashDependency(dependency) })),
   ];
   try {
     await db.transaction(async (tx) => {
-      await tx.insert(imporBundle).values({ id: importId, bundleId: input.bundleId, checksum: input.checksum, bundleType: "product", courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: 2, status: "validated", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length } });
-      await tx.insert(itemImporBundle).values(items.map((item) => ({ id: stableId("impor-product-item", `${importId}:${item.entityType}:${item.entityId}:${item.entityVersion}`), imporBundleId: importId, entityType: item.entityType, entityId: item.entityId, entityVersion: item.entityVersion, entityHash: item.entityHash, status: "validated" as const })));
-      await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${importId}:imported`), actorId: input.requestedBy, entityType: "product_bundle", entityId: importId, action: "imported", beforeSnapshot: null, afterSnapshot: { bundleId: input.bundleId, checksum: input.checksum, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length }, correlationId: input.runId });
+      const targetImportId = conflict?.id ?? importId;
+      const mutationAt = new Date();
+      if (conflict) {
+        await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, conflict.id));
+        await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, conflict.id));
+        await tx.update(imporBundle).set({ checksum: input.checksum, courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: 2, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length }, updatedAt: new Date() }).where(eq(imporBundle.id, conflict.id));
+      } else {
+        await tx.insert(imporBundle).values({ id: targetImportId, bundleId: input.bundleId, checksum: input.checksum, bundleType: "product", courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: 2, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length } });
+      }
+      await tx.insert(itemImporBundle).values(items.map((item) => ({ id: stableId("impor-product-item", `${targetImportId}:${item.entityType}:${item.entityId}:${item.entityVersion}`), imporBundleId: targetImportId, entityType: item.entityType, entityId: item.entityId, entityVersion: item.entityVersion, entityHash: item.entityHash, status: "draft" as const })));
+      await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${targetImportId}:draft:${input.checksum}:${mutationAt.getTime()}`), actorId: input.requestedBy, entityType: "product_bundle", entityId: targetImportId, action: conflict ? "draft_replaced" : "draft_created", beforeSnapshot: conflict ? { checksum: conflict.checksum, status: productBundleLifecycleStatus(conflict.status) } : null, afterSnapshot: { status: "draft", bundleId: input.bundleId, checksum: input.checksum, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length }, correlationId: input.runId, createdAt: mutationAt });
     });
   } catch (error) {
     await storage.delete(sourceKey).catch(() => undefined);
     throw error;
   }
-  return { importId, bundleId: input.bundleId, checksum: input.checksum, sourceKey, created: true, status: "validated" as const, itemCount: items.length };
+  if (conflict && conflict.sourceUriOrKey !== sourceKey) await storage.delete(conflict.sourceUriOrKey).catch(() => undefined);
+  return { importId: conflict?.id ?? importId, bundleId: input.bundleId, checksum: input.checksum, sourceKey, created: !conflict, replaced: Boolean(conflict), status: "draft" as const, itemCount: items.length };
 }
 
 export async function getProductBundleImport(importId: string) {
@@ -110,9 +124,10 @@ export async function reviewProductBundle(input: { importId: string; reviewerId:
   const role = await reviewerRole(row, input.reviewerId);
   const [existing] = row.reviews.filter((review) => review.reviewerId === input.reviewerId);
   if (existing && (existing.status !== input.decision || (existing.notes ?? null) !== (input.notes ?? null))) throw new Error("PRODUCT_BUNDLE_REVIEW_IMMUTABLE");
-  if (existing) return { reviewId: existing.id, status: row.status, reviewerRole: role };
+  if (existing) return { reviewId: existing.id, status: productBundleLifecycleStatus(row.status), reviewerRole: role };
   const reviewId = stableId("review-product", `${input.importId}:${input.reviewerId}`);
-  const status = input.decision === "rejected" ? "rejected" as const : role === "admin" ? "approved" as const : "validated" as const;
+  if (productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_REVIEW_DRAFT_REQUIRED");
+  const status = "draft" as const;
   const now = new Date();
   await db.transaction(async (tx) => {
     await tx.insert(reviewBundle).values({ id: reviewId, imporBundleId: input.importId, reviewerId: input.reviewerId, status: input.decision, notes: input.notes ?? null, reviewedAt: now });
@@ -120,6 +135,21 @@ export async function reviewProductBundle(input: { importId: string; reviewerId:
     await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${input.importId}:review:${input.reviewerId}`), actorId: input.reviewerId, entityType: "product_bundle", entityId: input.importId, action: input.decision === "approved" ? "reviewed" : "rejected", beforeSnapshot: null, afterSnapshot: { decision: input.decision, reviewerRole: role }, correlationId: input.importId });
   });
   return { reviewId, status, reviewerRole: role };
+}
+
+export async function discardProductBundleDraft(input: { importId: string; actorId: string }): Promise<{ importId: string; discarded: boolean }> {
+  enabled();
+  const row = await getProductBundleImport(input.importId);
+  if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
+  await db.transaction(async (tx) => {
+    await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, row.id));
+    await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, row.id));
+    await tx.delete(imporBundle).where(eq(imporBundle.id, row.id));
+    await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${row.id}:discarded`), actorId: input.actorId, entityType: "product_bundle", entityId: row.id, action: "draft_discarded", beforeSnapshot: { status: "draft", bundleId: row.bundleId, checksum: row.checksum }, afterSnapshot: null, correlationId: row.id });
+  });
+  await storage.delete(row.sourceUriOrKey).catch(() => undefined);
+  return { importId: row.id, discarded: true };
 }
 
 export async function parseStagedProductBundle(importId: string): Promise<Extract<ProductBundleValidation, { success: true }>["data"]> {

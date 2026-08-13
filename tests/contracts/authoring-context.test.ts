@@ -43,7 +43,7 @@ function input(): AuthoringContextInput {
     objectives: [{ id: "objective-1", courseId: "course-fixture", chapterId: "chapter-1", objectiveText: "Explain velocity", bloomLevel: "understand", relatedIdeaIds: ["idea-current"] }],
     requirements: [{ id: "requirement-1", kind: "explanation", text: "Include units", chapterId: "chapter-1" }],
     benchmarks: [
-      { id: "benchmark-allowed", datasetKey: "public-set", authoringVisibility: "allowed", version: 1, checksum: HASH_A, status: "active", summary: "Allowed benchmark summary" },
+      { id: "benchmark-allowed", referenceId: "itb-reference-allowed", sourceLabel: "UTS Matematika I ITB 2024", datasetKey: "public-set", authoringVisibility: "allowed", version: 1, checksum: HASH_A, status: "active", summary: "Allowed benchmark summary" },
       { id: "benchmark-holdout", datasetKey: "protected-set", authoringVisibility: "holdout", version: 1, checksum: HASH_B, status: "active", summary: "HOLDOUT_CANARY" },
     ],
   };
@@ -57,7 +57,10 @@ describe("Plan 007 deterministic authoring context pack", () => {
     expect(ideas.map((idea: { id: string }) => idea.id)).toEqual(["idea-current"]);
     expect(ideas[0]).not.toHaveProperty("creatorId");
     expect(ideas[0]).not.toHaveProperty("curatorId");
-    expect(benchmarks).toEqual([{ checksum: HASH_A, datasetKey: "public-set", id: "benchmark-allowed", summary: "Allowed benchmark summary", version: 1 }]);
+    expect(benchmarks).toEqual([{ checksum: HASH_A, datasetKey: "public-set", id: "benchmark-allowed", referenceId: "itb-reference-allowed", sourceLabel: "UTS Matematika I ITB 2024", summary: "Allowed benchmark summary", version: 1 }]);
+    expect(pack.files.has("contracts/external-authoring-workflow.json")).toBe(true);
+    expect(pack.files.has("contracts/idea-bundle/manifest.schema.json")).toBe(true);
+    expect(pack.files.has("contracts/product-bundle/product.schema.json")).toBe(true);
     expect(pack.holdoutExcludedCount).toBe(1);
     expect(scanAuthoringContextPack(pack)).toEqual([]);
     expect(serializeAuthoringContextPack(pack).byteLength).toBeGreaterThan(0);

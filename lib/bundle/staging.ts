@@ -12,6 +12,9 @@ import {
   user,
 } from "@/db/schema";
 import { storage } from "@/lib/storage";
+import { buildIdeaBundleKey } from "@/lib/storage/keys";
+import { parseIdeaBundle, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
+import { readSecureZip } from "@/lib/bundle/zip-reader";
 
 export type IdeaBundleStageItem = {
   entityType: string;
@@ -59,11 +62,6 @@ function ensureFeatureEnabled(): void {
   }
 }
 
-function safeSegment(value: string): string {
-  const normalized = value.replace(/[^A-Za-z0-9._-]/g, "_");
-  return normalized.length > 0 ? normalized.slice(0, 120) : "bundle";
-}
-
 function stableId(prefix: string, value: string): string {
   const digest = createHash("sha256").update(`${prefix}:${value}`).digest("hex").slice(0, 32);
   return `${prefix}-${digest}`;
@@ -74,7 +72,7 @@ function assertSha256(value: string, field: string): void {
 }
 
 async function uploadArtifact(input: IdeaBundleStageInput, key: string): Promise<void> {
-  await storage.upload(input.bytes, input.filename ?? `${safeSegment(input.bundleId)}.zip`, "application/zip", {
+  await storage.upload(input.bytes, input.filename ?? `${input.bundleId}.zip`, "application/zip", {
     key,
     metadata: {
       bundleId: input.bundleId,
@@ -134,7 +132,7 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
   if (conflictingBundle) throw new Error(`IDEA_BUNDLE_CONFLICT:${input.bundleId}`);
 
   const importId = stableId("impor-idea", `${input.bundleId}:${input.checksum}`);
-  const sourceKey = `overhaul/idea-bundles/${safeSegment(input.runId)}/${safeSegment(input.bundleId)}-${input.checksum.slice(0, 16)}.zip`;
+  const sourceKey = buildIdeaBundleKey(input);
   await uploadArtifact(input, sourceKey);
 
   try {
@@ -216,6 +214,16 @@ export async function downloadIdeaBundleArtifact(importId: string): Promise<Uint
   if (!row) throw new Error("IDEA_BUNDLE_NOT_FOUND");
   if (!storage.download) throw new Error("IDEA_BUNDLE_STORAGE_DOWNLOAD_UNAVAILABLE");
   return storage.download(row.sourceUriOrKey);
+}
+
+export async function parseStagedIdeaBundle(importId: string): Promise<ValidatedIdeaBundle> {
+  const row = await getIdeaBundleImport(importId);
+  if (!row) throw new Error("IDEA_BUNDLE_NOT_FOUND");
+  const bundle = parseIdeaBundle(readSecureZip(await downloadIdeaBundleArtifact(importId)));
+  if (bundle.manifest.bundleId !== row.bundleId || bundle.manifest.bundleChecksum !== row.checksum) {
+    throw new Error("IDEA_BUNDLE_CHECKSUM_MISMATCH");
+  }
+  return bundle;
 }
 
 async function assertReviewAccess(importRow: NonNullable<Awaited<ReturnType<typeof getIdeaBundleImport>>>, reviewerId: string): Promise<"admin" | "tutor"> {

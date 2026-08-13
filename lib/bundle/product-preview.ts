@@ -27,7 +27,14 @@ function sectionsOf(product: ProductEntity): ProductPreview["sections"] {
     case "diktat":
       return [{ label: "content", content: product.contentMarkdown }];
     case "question":
-      return [{ label: "prompt", content: product.prompt }, { label: "reasoning", content: product.reasoningPattern }];
+      return [
+        { label: "prompt", content: product.prompt },
+        { label: "options", content: JSON.stringify(product.options) },
+        { label: "reasoning", content: product.reasoningPattern },
+        { label: "ITB source", content: `${product.itbSource.eventName} (${product.itbSource.referenceId})` },
+        { label: "Idea relations", content: product.ideaRelations.map((relation) => `${relation.ideaId}: ${relation.relationType}${relation.rationale ? ` (${relation.rationale})` : ""}`).join("\n") || "none" },
+        { label: "ITB curation", content: product.itbCuration.map((entry) => `${entry.referenceId}: ${entry.curatorNote}`).join("\n") },
+      ];
     case "solution":
       return [{ label: "solution", content: product.content }];
     case "flashcard_set":

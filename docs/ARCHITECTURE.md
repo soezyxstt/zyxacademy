@@ -127,7 +127,7 @@ Plan 004 adds the normalized Indonesian product and learner-state layer as empty
 | Protected references and flashcards | `soal_itb_referensi`, `benchmark_soal`, `set_flashcard`, `flashcard`, `flashcard_ide`, `kemajuan_flashcard_murid`, `review_flashcard` | Holdout references carry an explicit visibility state; review history is append-only by data model. |
 | Assessments | `blueprint_asesmen`, `asesmen`, `cakupan_asesmen`, `item_asesmen`, `percobaan_asesmen`, `jawaban_murid` | Quiz scope is one chapter; tryout scope is one or more chapters; rendered content and grading snapshots are required. |
 | Evidence and mastery | `bukti_ide_jawaban`, `bukti_pembelajaran`, `pemahaman_ide`, `perubahan_pemahaman`, `rekomendasi_flashcard` | Score and confidence remain separate; ambiguous evidence cannot affect mastery; replay metadata makes the state reproducible. |
-| Bundle lifecycle | `impor_bundle`, `item_impor_bundle`, `review_bundle`, `publikasi_bundle`, `audit_mutasi` | Bundle identity is checksum-versioned and publication references an approved review. |
+| Bundle lifecycle | `impor_bundle`, `item_impor_bundle`, `review_bundle`, `publikasi_bundle`, `audit_mutasi` | Product bundles expose only draft, published, and withdrawn; review rows remain internal evidence. |
 
 Plan 005 backfills the supported legacy shapes into these targets without deleting or rewriting source rows. Exact evidence is copied to target links; ambiguous questions, unattributable learning events, legacy concept baselines, and compatibility-only history are preserved in the exception ledger. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` in staging until their later canary gates pass.
 
@@ -159,12 +159,14 @@ Plan 005 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan
 
 ### Idea Bundle V2 Workflow
 
-Plan 006 adds a strict ZIP boundary around the additive source and Idea domain. The upload path validates archive structure, manifest checksums, source spans, entity references, stable keys, provenance, and relation acyclicity before any canonical row is written.
+Plan 006 adds a strict ZIP boundary around the additive source and Idea domain. The upload path validates archive structure, manifest checksums, source spans, entity references, stable keys, provenance, and relation acyclicity before any canonical row is written. The admin workflow now also keeps the first analysis request fully non-persistent. Only an explicit save after in-place review creates the staged artifact and inventory.
 
 ```mermaid
 flowchart LR
     U[Admin ZIP upload] --> V[Secure ZIP and contract validation]
-    V --> I[impor_bundle and item inventory]
+    V --> E[Editable Idea, evidence, and relation map]
+    E --> F[Server allowlist merge and checksum refresh]
+    F --> I[impor_bundle and item inventory]
     I --> R[Tutor review]
     R --> A[Admin approval]
     A --> P[One Turso publication transaction]
@@ -179,7 +181,19 @@ Plan 006 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan
 
 ### Authoring Context Pack V1
 
-Plan 007 adds a read-only, explicit allowlist projection for external authoring. The projection begins with published current Ideas and active source excerpts, joins only safe educational metadata, counts holdout benchmark rows, scans the projected object, then stores a private run-scoped ZIP.
+The admin authoring page now has two explicit handoff stages. Before Ideas exist, a non-persistent boundary validates a Source Pack, analyzes source sections, resolves active course and chapter options from `mata_kuliah` and `bab`, validates a complete admin mapping, and returns one Authoring Job Pack. The job embeds source bytes, schema contracts, product choices, and privacy-safe attribution sentinels. No raw ID entry, R2 write, or database write occurs in this preparation stage.
+
+```mermaid
+flowchart LR
+    U[Source Pack upload] --> V[Secure in-memory validation]
+    V --> M[Course and chapter selection]
+    M --> P[Section mapping and product choices]
+    P --> J[Authoring Job Pack download]
+    J --> I[External Idea authoring]
+    I --> R[Admin review and Idea publication]
+```
+
+After Ideas are published, Plan 007's read-only explicit allowlist projection begins with published current Ideas and active source excerpts, joins only safe educational metadata, counts holdout benchmark rows, scans the projected object, then stores a private run-scoped ZIP. Each allowed benchmark projection keeps its benchmark ID distinct from the linked ITB reference ID and exact source label. This lets Product authoring emit a publishable citation without exposing the protected question or answer snapshot. The server generates snapshot and run identities for browser requests while preserving optional explicit values for controlled scripts.
 
 ```mermaid
 flowchart LR
@@ -193,26 +207,36 @@ flowchart LR
 
 The exporter does not call an external model and never includes user, credential, attempt, answer, mastery, chat, embedding, signed URL, or holdout content. `FEATURE_AUTHORING_CONTEXT_V1` is disabled by default and tutor access remains disabled until a separate assigned-course policy test is added.
 
+The private download route resolves an audited pack ID to its exact R2 key, checks retention, and streams the ZIP only to an authenticated admin with `private, no-store` caching. Every pack carries generated JSON Schemas for both bundle families and a deterministic external-authoring workflow. Privacy-safe `$UPLOADER` and `$APPROVING_REVIEWER` sentinels are resolved only inside the atomic publication transaction.
+
+The Authoring Job Pack contract is documented in `docs/bundle/authoring-job-pack-v1.md`. Product authoring still requires a fresh Authoring Context Pack after official Idea publication; the initial job never substitutes local candidate Idea identities for canonical ones.
+
 ### Product Bundle V2
 
-Product Bundle V2 extends the additive product tables with a strict import lifecycle. `lib/bundle/product-validator.ts` validates the manifest and typed entity files without database writes. `lib/bundle/product-staging.ts` stores the immutable ZIP and inventory in `impor_bundle` and `item_impor_bundle`. `lib/bundle/product-preview.ts` exposes only staged product content and its Idea and source references.
+Product Bundle V2 extends the additive product tables with a strict three-state lifecycle. `lib/bundle/product-validator.ts` validates the manifest and typed entity files without database writes. External authoring emits draft entities. The first admin upload returns a browser-held editable projection with full product previews and dependency mapping. `lib/bundle/product-draft.ts` applies only allowed editable fields to the original validated bundle, refreshes content hashes, Article to Diktat lineage, dependency hashes, file checksums, and the bundle checksum, then validates the reconstructed ZIP. `lib/bundle/product-staging.ts` stores the confirmed ZIP and inventory with status `draft`.
 
-Publication in `lib/bundle/product-publication.ts` is a single transaction. It verifies published Idea versions and semantic hashes, active source versions and excerpts, creator and curator identities, dependency freshness, and typed product references before inserting article, diktat, question, solution, flashcard, blueprint, dependency, publication, audit, and canonical vector outbox rows. Product validation also enforces one-Idea flashcards, normalized Idea weights, complete multi-Idea relations, allowed ITB curation references, and explicit Article to Diktat dependencies when lineage is declared. Version greater than one uses a versioned physical target ID so the prior published row is not overwritten.
+Publication in `lib/bundle/product-publication.ts` is a single transaction. It verifies published Idea versions and semantic hashes, active source versions and excerpts, resolved creator and curator identities, dependency freshness, and typed product references before inserting article, diktat, question, solution, flashcard, blueprint, dependency, publication, audit, and canonical vector outbox rows. Product validation also runs the existing strict Article compiler gate, enforces one-Idea flashcards, normalized Idea weights, deterministic typed question options, exactly one solution per question, complete multi-Idea relations, required ITB source identity, allowed ITB curation references, and mandatory Article to Diktat lineage dependencies. Every Product Bundle question is written as `itb_example`; the source event must match the allowed `soal_itb_referensi.source_label`. The same transaction projects the question into `ai_question_bank` so legacy quiz and tryout assembly can use it. Correct-answer markers remain in the private grading representation but are stripped from runtime hydration and vector payloads. Version greater than one uses a versioned physical target ID so the prior published row is not overwritten.
 
 ```mermaid
 flowchart LR
     U[Admin ZIP upload] --> V[Pure typed validation]
-    V --> S[Immutable staged import]
-    S --> P[Traceable product preview]
-    P --> R[Tutor and admin review]
+    V --> P[Editable content and traceability preview]
+    P --> F[Server merge, hash refresh, and revalidation]
+    F --> S[Draft import]
+    S --> R[Admin preview and edit]
     R --> C{Dependencies current}
     C -->|No| H[Needs review]
     C -->|Yes| T[Atomic publication transaction]
     T --> O[Product rows and vector outbox]
     T --> A[Publication and mutation audit]
+    T --> W[Audited withdrawal]
 ```
 
-`FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
+The public lifecycle is `draft -> published -> withdrawn`. A draft may be replaced in place by the same bundle ID or deleted. Publishing creates or refreshes an internal approved review record as accountability evidence and commits canonical products atomically. Published bundles cannot be replaced or deleted. Withdrawal retains rows and audit history, marks learner-facing products inactive, and queues removal for vectorized article, question, and solution content. `FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
+
+Question provenance crosses the compatibility boundary as data, not presentation-only state. `soal` and `ai_question_bank` store `origin`, `source_event_name`, and `source_reference_id`. Quiz attempts, tryout submissions, PKA attempts, and live quiz sessions carry the same fields in JSON snapshots. `QuestionSourceCitation` is the shared student renderer and shows a lower-right source line only for `itb_example`. The admin question bank exposes origin filtering, while the tutor tryout action copies a published bank question and its provenance into the per-exam question snapshot.
+
+External authoring is split into three bounded skills under `.temp/skill`: Source Pack translation, Idea authoring, and Product authoring. The Product skill requires both the original Authoring Job Pack and a fresh Authoring Context Pack, preventing unpublished candidate Idea identities from leaking into products. It copies ITB questions from the Source Pack, matches the exact event label to an allowed context reference, and never substitutes a benchmark ID for the dedicated source reference ID. Idea and Product skills maintain local preference-only Authoring Learning Profiles from explicit operator corrections. These profiles do not alter source truth, schemas, or quality gates and create no additional pack lifecycle.
 
 ### Article and Diktat Quality Compiler
 
@@ -315,7 +339,7 @@ The compatibility submit route keeps the legacy quiz as the source of the user-v
 | `ai_material_instance_sections` | Legacy sections |
 | `ai_material_instance_chunks` | Legacy text chunks retained for read-only compatibility |
 | `ai_generation_jobs` | Tracks Gemini generation: pending→processing→completed→failed, token counts |
-| `ai_question_bank` | Permanent question repository: linked to KO/MTD with generationHash, distractorMap, bloomLevel, pattern, estimatedSteps, isStale |
+| `ai_question_bank` | Permanent question repository: classifies Zyx originals and ITB examples, stores the ITB event and reference when applicable, and remains linked to KO/MTD with generationHash, distractorMap, bloomLevel, pattern, estimatedSteps, and isStale |
 | `question_option_stats` | Per-option selection counters for distractor analytics |
 | `ai_usage_events` | Token usage per user per feature per model |
 | `ai_generation_traces` | Privacy-safe AI execution provenance traces (hashes, versions, tokens, violations, latency, terminal outcome) |

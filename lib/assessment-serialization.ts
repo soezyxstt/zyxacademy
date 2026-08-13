@@ -4,6 +4,7 @@
  */
 
 import { AnswerReleaseState } from './assessment-assistance-policy';
+import { normalizeQuestionProvenance, type QuestionOrigin } from './asesmen/question-provenance';
 
 export interface QuestionClientView {
   id: string;
@@ -14,6 +15,9 @@ export interface QuestionClientView {
   questionType?: string;
   tags?: string[];
   stable_option_ids?: string[];
+  origin?: QuestionOrigin;
+  sourceEventName?: string | null;
+  sourceReferenceId?: string | null;
   correct_indices?: number[];
   correctIndices?: number[];
   acceptable_answers?: string[];
@@ -43,6 +47,7 @@ export function sanitizeQuestionsSnapshot(
       id: String(q.id ?? ''),
       prompt: String(q.prompt ?? ''),
       options: Array.isArray(q.options) ? q.options.map(String) : [],
+      ...normalizeQuestionProvenance(q),
     };
 
     if (qType) {

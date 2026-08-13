@@ -146,6 +146,10 @@ Inherited checks currently observed:
 - [x] Existing legacy paths remain available when flags are off.
 - [x] Any required schema migration is documented as a separate follow-up, not silently added.
 - [ ] Local material compiler rehearsal has a canonical fixture available.
+- [x] External authoring handoff includes private context-pack download and machine-readable Idea and Product schemas.
+- [x] Bundle review surfaces expose complete Idea evidence and Product content before approval controls.
+- [x] Product validation requires compiler-quality Articles, deterministic grading options, one solution per question, and mandatory Diktat lineage.
+- [x] Correct-answer markers are removed from canonical runtime and vector content.
 
 ## Rollback
 

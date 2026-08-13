@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { auditMutasi } from "@/db/schema";
 import { storage } from "@/lib/storage";
+import { buildAuthoringContextKey } from "@/lib/storage/keys";
 import { assertSafeRunId } from "@/lib/staging/migration-ledger";
 import { buildAuthoringContextPack, serializeAuthoringContextPack } from "./context-pack";
 import { loadAuthoringContextInput } from "./snapshot";
+import { daysFrom } from "@/lib/date-utils";
 
 export type AuthoringContextExportOptions = {
   runId: string;
@@ -21,7 +23,7 @@ function sha256(bytes: Uint8Array): string {
 }
 
 function isoAfterDays(createdAt: string, days: number): string {
-  return new Date(new Date(createdAt).getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+  return daysFrom(days, new Date(createdAt)).toISOString();
 }
 
 export async function exportAuthoringContext(options: AuthoringContextExportOptions) {
@@ -32,7 +34,7 @@ export async function exportAuthoringContext(options: AuthoringContextExportOpti
   const input = await loadAuthoringContextInput({ courseId: options.courseId, snapshotId: options.snapshotId, createdAt, retentionUntil });
   const pack = buildAuthoringContextPack(input);
   const bytes = serializeAuthoringContextPack(pack);
-  const objectKey = `overhaul/${runId}/authoring-context/${pack.manifest.packId}.zip`;
+  const objectKey = buildAuthoringContextKey({ runId, packId: pack.manifest.packId });
   await storage.upload(bytes, `${pack.manifest.packId}.zip`, "application/zip", {
     key: objectKey,
     metadata: {
@@ -60,6 +62,7 @@ export async function exportAuthoringContext(options: AuthoringContextExportOpti
         artifactChecksum: sha256(bytes),
         objectKey,
         retentionUntil,
+        byteLength: bytes.byteLength,
       },
       correlationId: runId,
     });
@@ -87,4 +90,28 @@ export async function listAuthoringContextExports(limit = 20) {
     .where(eq(auditMutasi.entityType, "authoring_context_pack"))
     .orderBy(desc(auditMutasi.createdAt))
     .limit(Math.min(Math.max(limit, 1), 100));
+}
+
+export async function downloadAuthoringContextExport(packId: string): Promise<{
+  bytes: Uint8Array;
+  filename: string;
+  retentionUntil: string;
+}> {
+  if (process.env.FEATURE_AUTHORING_CONTEXT_V1 !== "1") throw new Error("AUTHORING_CONTEXT_V1_DISABLED");
+  const [row] = await db
+    .select({ afterSnapshot: auditMutasi.afterSnapshot })
+    .from(auditMutasi)
+    .where(and(eq(auditMutasi.entityType, "authoring_context_pack"), eq(auditMutasi.entityId, packId)))
+    .orderBy(desc(auditMutasi.createdAt))
+    .limit(1);
+  const objectKey = row?.afterSnapshot?.objectKey;
+  const retentionUntil = row?.afterSnapshot?.retentionUntil;
+  if (typeof objectKey !== "string" || typeof retentionUntil !== "string") throw new Error("AUTHORING_CONTEXT_NOT_FOUND");
+  if (new Date(retentionUntil).getTime() <= Date.now()) throw new Error("AUTHORING_CONTEXT_EXPIRED");
+  if (!storage.download) throw new Error("AUTHORING_CONTEXT_STORAGE_DOWNLOAD_UNAVAILABLE");
+  return {
+    bytes: await storage.download(objectKey),
+    filename: `${packId}.zip`,
+    retentionUntil,
+  };
 }

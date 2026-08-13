@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { BundleValidationError, parseSchema, parseStrictJson, sha256Bytes } from "@/lib/bundle/validator";
 import { readSecureZip, type SecureZipArchive } from "@/lib/bundle/zip-reader";
+import { compileArticleProduct } from "@/lib/materials/compiler";
 
 export const productBundleEntityTypeSchema = z.enum(["products", "dependencies"]);
 export type ProductBundleEntityType = z.infer<typeof productBundleEntityTypeSchema>;
@@ -32,11 +33,16 @@ export const productItbCurationSchema = z.object({
   curatorNote: z.string().trim().min(1),
 }).strict();
 
-const productDiktatLineageFields = {
-  sourceArticleId: id.optional(),
-  sourceArticleVersion: positive.optional(),
-  sourceArticleHash: hash.optional(),
-};
+export const productItbSourceSchema = z.object({
+  referenceId: id,
+  eventName: z.string().trim().min(1),
+}).strict();
+
+export const productQuestionOptionSchema = z.object({
+  id,
+  text: z.string().trim().min(1),
+  isCorrect: z.boolean(),
+}).strict();
 
 export const productIdeaLinkSchema = z.object({ id: id, version: positive, semanticHash: hash, weight: z.number().finite().positive().max(1), role: z.enum(["primary", "supporting", "required"]).default("supporting") }).strict();
 export const productSourceRefSchema = z.object({ sourceId: id, version: positive, checksum: hash, excerptIds: z.array(id).min(1) }).strict();
@@ -47,7 +53,7 @@ const commonProduct = z.object({
   courseId: id,
   chapterId: id.optional(),
   version: positive,
-  status: z.enum(["draft", "in_review", "published", "retired"]),
+  status: z.enum(["draft", "published", "withdrawn"]),
   ideaLinks: z.array(productIdeaLinkSchema).min(1),
   sourceRefs: z.array(productSourceRefSchema).min(1),
   schemaVersion: id,
@@ -60,8 +66,8 @@ const commonProduct = z.object({
 
 export const productEntitySchema = z.discriminatedUnion("productType", [
   commonProduct.extend({ productType: z.literal("article"), slug: id, title: z.string().min(1), blocks: z.array(z.object({ id, blockType: id, orderIndex: z.number().int().nonnegative(), content: z.string().min(1) }).strict()).min(1) }),
-  commonProduct.extend({ productType: z.literal("diktat"), title: z.string().min(1), contentMarkdown: z.string().min(1), ...productDiktatLineageFields }),
-  commonProduct.extend({ productType: z.literal("question"), questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]), prompt: z.string().min(1), options: z.array(z.unknown()), difficulty: z.enum(["easy", "medium", "hard"]), cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]), reasoningPattern: id, relationTypes: z.array(questionRelationTypeSchema).default([]), ideaRelations: z.array(productIdeaRelationSchema).default([]), itbCuration: z.array(productItbCurationSchema).min(1) }),
+  commonProduct.extend({ productType: z.literal("diktat"), title: z.string().min(1), contentMarkdown: z.string().min(1), sourceArticleId: id, sourceArticleVersion: positive, sourceArticleHash: hash }),
+  commonProduct.extend({ productType: z.literal("question"), questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]), prompt: z.string().min(1), options: z.array(productQuestionOptionSchema), difficulty: z.enum(["easy", "medium", "hard"]), cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]), reasoningPattern: id, relationTypes: z.array(questionRelationTypeSchema).default([]), ideaRelations: z.array(productIdeaRelationSchema).default([]), itbSource: productItbSourceSchema, itbCuration: z.array(productItbCurationSchema).min(1) }),
   commonProduct.extend({ productType: z.literal("solution"), questionId: id, content: z.string().min(1) }),
   commonProduct.extend({ productType: z.literal("flashcard_set"), title: z.string().min(1), cards: z.array(id).min(1) }),
   commonProduct.extend({ productType: z.literal("flashcard"), setId: z.string().min(1).optional(), front: z.string().min(1), back: z.string().min(1), explanation: z.string().optional(), atomic: z.literal(true) }),
@@ -155,15 +161,31 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       if (productKeys.has(key)) return { success: false, issues: [issue("PRODUCT_DUPLICATE_VERSION", `duplicate product version ${key}`)] };
       productKeys.add(key);
       if (product.courseId !== manifest.courseId) return { success: false, issues: [issue("PRODUCT_COURSE_MISMATCH", `product ${product.id} belongs to another course`)] };
+      if (product.status === "withdrawn") return { success: false, issues: [issue("PRODUCT_STATUS_WITHDRAWN", `product ${product.id} cannot enter a draft bundle after withdrawal`)] };
+      if (product.creatorId !== manifest.creatorId) return { success: false, issues: [issue("PRODUCT_CREATOR_MISMATCH", `product ${product.id} creator must match manifest creatorId`)] };
+      if (manifest.curatorId && product.curatorId !== manifest.curatorId) return { success: false, issues: [issue("PRODUCT_CURATOR_MISMATCH", `product ${product.id} curator must match manifest curatorId`)] };
       if (new Set(product.ideaLinks.map((link) => link.id)).size !== product.ideaLinks.length) return { success: false, issues: [issue("PRODUCT_IDEA_LINK_INVALID", `product ${product.id} has duplicate Idea links`)] };
       const weightSum = product.ideaLinks.reduce((sum, link) => sum + link.weight, 0);
       if (Math.abs(weightSum - 1) > 0.000001) return { success: false, issues: [issue("PRODUCT_IDEA_WEIGHT_SUM_INVALID", `product ${product.id} Idea-link weights must sum to 1`)] };
       if (product.productType === "article" && new Set(product.blocks.map((block) => block.orderIndex)).size !== product.blocks.length) return { success: false, issues: [issue("PRODUCT_BLOCK_INVALID", `article ${product.id} has duplicate block order`)] };
+      if (product.productType === "article") {
+        try {
+          compileArticleProduct(product);
+        } catch (error) {
+          return { success: false, issues: [issue("PRODUCT_ARTICLE_QUALITY_FAILED", error instanceof Error ? error.message : `article ${product.id} failed quality validation`)] };
+        }
+      }
       if (product.productType === "flashcard") {
         if (product.ideaLinks.length !== 1) return { success: false, issues: [issue("PRODUCT_FLASHCARD_IDEA_COUNT_INVALID", `flashcard ${product.id} must reference exactly one Idea`)] };
         if (product.front.split("?").length > 2) return { success: false, issues: [issue("PRODUCT_FLASHCARD_NOT_ATOMIC", `flashcard ${product.id} contains multiple prompts`)] };
       }
       if (product.productType === "question") {
+        const optionIds = product.options.map((option) => option.id);
+        const correctCount = product.options.filter((option) => option.isCorrect).length;
+        if (new Set(optionIds).size !== optionIds.length) return { success: false, issues: [issue("PRODUCT_QUESTION_OPTION_DUPLICATE", `question ${product.id} contains duplicate option IDs`)] };
+        if (product.questionType === "multiple_choice" && (product.options.length < 2 || correctCount !== 1)) return { success: false, issues: [issue("PRODUCT_QUESTION_GRADING_INVALID", `question ${product.id} requires at least two options and exactly one correct option`)] };
+        if (product.questionType === "multiple_choices" && (product.options.length < 2 || correctCount < 1)) return { success: false, issues: [issue("PRODUCT_QUESTION_GRADING_INVALID", `question ${product.id} requires at least two options and one or more correct options`)] };
+        if (["short_answer", "essay"].includes(product.questionType) && product.options.length > 0) return { success: false, issues: [issue("PRODUCT_QUESTION_GRADING_INVALID", `question ${product.id} free-response options must be empty`)] };
         const ideaIds = new Set(product.ideaLinks.map((link) => link.id));
         if (ideaIds.size > 1 && !["analyze", "evaluate", "create"].includes(product.cognitiveLevel)) return { success: false, issues: [issue("PRODUCT_QUESTION_MULTI_IDEA_HOT_REQUIRED", `question ${product.id} with multiple Ideas must use analyze, evaluate, or create cognitive level`)] };
         const relationKeys = new Set<string>();
@@ -180,11 +202,9 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
         }
         const curationIds = product.itbCuration.map((entry) => entry.referenceId);
         if (new Set(curationIds).size !== curationIds.length) return { success: false, issues: [issue("PRODUCT_ITB_CURATION_DUPLICATE", `question ${product.id} contains duplicate ITB references`)] };
+        if (!curationIds.includes(product.itbSource.referenceId)) return { success: false, issues: [issue("PRODUCT_ITB_SOURCE_NOT_CURATED", `question ${product.id} source reference must be included in ITB curation`)] };
       }
       if (product.productType === "diktat") {
-        const lineageValues = [product.sourceArticleId, product.sourceArticleVersion, product.sourceArticleHash];
-        const lineageCount = lineageValues.filter((value) => value !== undefined).length;
-        if (lineageCount !== 0 && lineageCount !== lineageValues.length) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_INCOMPLETE", `diktat ${product.id} must provide Article ID, version, and hash together`)] };
         if (product.sourceArticleId === product.id) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_INVALID", `diktat ${product.id} cannot reference itself as its Article`)] };
       }
       if (product.productType === "assessment_blueprint") {
@@ -194,7 +214,7 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       if (/HOLDOUT_CANARY|authoringVisibility\s*[:=]\s*["']holdout|questionSnapshot|answerSnapshot/i.test(serialized)) return { success: false, issues: [issue("PRODUCT_HOLDOUT_LEAK", `product ${product.id} contains holdout content`)] };
     }
     for (const product of products) {
-      if (product.productType !== "diktat" || !product.sourceArticleId || product.sourceArticleVersion === undefined || !product.sourceArticleHash) continue;
+      if (product.productType !== "diktat") continue;
       const sourceArticle = products.find((candidate) => candidate.productType === "article" && candidate.id === product.sourceArticleId && candidate.version === product.sourceArticleVersion);
       if (sourceArticle && sourceArticle.generationHash !== product.sourceArticleHash) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_HASH_MISMATCH", `diktat ${product.id} does not match the referenced Article generation hash`)] };
       const lineageDependency = dependencies.find((dependency) =>
@@ -210,6 +230,10 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
       if (!lineageDependency) return { success: false, issues: [issue("PRODUCT_DIKTAT_LINEAGE_DEPENDENCY_MISSING", `diktat ${product.id} must lock its source Article dependency`)] };
     }
     const questionIds = new Set(products.filter((product) => product.productType === "question").map((product) => product.id));
+    const solutionQuestionIds = products.filter((product) => product.productType === "solution").map((product) => product.questionId);
+    for (const questionId of questionIds) {
+      if (solutionQuestionIds.filter((candidate) => candidate === questionId).length !== 1) return { success: false, issues: [issue("PRODUCT_QUESTION_SOLUTION_INVALID", `question ${questionId} requires exactly one solution`)] };
+    }
     for (const product of products) if (product.productType === "solution" && !questionIds.has(product.questionId)) return { success: false, issues: [issue("PRODUCT_SOLUTION_QUESTION_MISSING", `solution ${product.id} references a missing question`)] };
     const productById = new Map(products.map((product) => [product.id, product]));
     for (const product of products) {

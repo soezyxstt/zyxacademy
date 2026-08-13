@@ -249,13 +249,13 @@ export default async function AdminHomePage() {
           stat: null,
         },
         {
-          title: "Authoring Context Pack",
+          title: "Authoring eksternal",
           description:
-            "Ekspor konteks authoring deterministik dengan filter Ideas, sumber, benchmark, dan data sensitif.",
+            "Siapkan pekerjaan agent dari Source Pack, lalu ekspor konteks Ideas resmi untuk penulisan produk.",
           icon: ShieldCheck,
           iconColor: "text-status-success",
           href: "/admin/authoring-context",
-          label: "Buat context pack",
+          label: "Siapkan authoring",
           stat: null,
         },
         {

@@ -104,7 +104,7 @@ function makeValidFiles(runId: string, courseId: string, idea: typeof ide.$infer
     ideaLinks: [{ id: idea.id, version: idea.version, semanticHash: idea.semanticHash, weight: 1, role: "primary" }],
     sourceRefs: [{ sourceId: source.id, version: source.version, checksum: source.checksum, excerptIds: [chunk.id] }],
     schemaVersion: "product.v2",
-    status: "published",
+    status: "draft",
     creatorId: actorId,
     curatorId: actorId,
     ai: { provider: "staging-fixture", model: "deterministic", promptVersion: "fixture-v1" },
@@ -113,18 +113,34 @@ function makeValidFiles(runId: string, courseId: string, idea: typeof ide.$infer
     const base = { id, productType, version: 1, ...traceability, ...body };
     return { ...base, sourceHash: productHash(id, { sourceId: source.id, checksum: source.checksum }), generationHash: productHash(id, base) };
   };
-  const article = product(articleId, "article", { slug: `${prefix}-article`, title: "Staging Product Article", blocks: [{ id: `${articleId}-intro`, blockType: "paragraph", orderIndex: 0, content: "Article staging berbasis Idea dan source yang sudah dipublikasikan." }] });
-  const question = product(questionId, "question", { questionType: "multiple_choice", prompt: "Apa fungsi utama fixture Product Bundle V2 ini?", options: [{ id: "a", label: "Menguji traceability dan publication" }, { id: "b", label: "Menghapus source lama" }], difficulty: "medium", cognitiveLevel: "understand", reasoningPattern: "traceability_check", relationTypes: ["required"], itbCuration: [{ referenceId: itbReference.id, dimensions: { difficulty: "similar", format: "similar", terminology: "similar", reasoningPattern: "similar" }, curatorNote: "Staging fixture uses an allowed ITB reference." }] });
+  const article = product(articleId, "article", { slug: `${prefix}-article`, title: "Staging Product Article", blocks: [
+    "prior_knowledge_activation", "problem_introduction", "explanation", "verbal_representation",
+    "mathematical_representation", "analogy", "worked_example", "misconception", "application",
+    "retrieval_prompt", "summary", "retrieval_close",
+  ].map((blockType, orderIndex) => ({ id: `${articleId}-${orderIndex}`, blockType, orderIndex, content: `${blockType} untuk verifikasi kualitas artikel berbasis Idea.` })) });
+  const question = product(questionId, "question", { questionType: "multiple_choice", prompt: "Apa fungsi utama fixture Product Bundle V2 ini?", options: [{ id: "a", text: "Menguji traceability dan publication", isCorrect: true }, { id: "b", text: "Menghapus source lama", isCorrect: false }], difficulty: "medium", cognitiveLevel: "understand", reasoningPattern: "traceability_check", relationTypes: ["required"], itbSource: { referenceId: itbReference.id, eventName: itbReference.sourceLabel }, itbCuration: [{ referenceId: itbReference.id, dimensions: { difficulty: "similar", format: "similar", terminology: "similar", reasoningPattern: "similar" }, curatorNote: "Staging fixture uses an allowed ITB reference." }] });
+  const diktat = product(diktatId, "diktat", { title: "Staging Product Diktat", contentMarkdown: "Materi diktat untuk verifikasi Product Bundle V2.", sourceArticleId: articleId, sourceArticleVersion: 1, sourceArticleHash: article.generationHash });
   const products = [
     article,
-    product(diktatId, "diktat", { title: "Staging Product Diktat", contentMarkdown: "Materi diktat untuk verifikasi Product Bundle V2." }),
+    diktat,
     question,
     product(solutionId, "solution", { questionId, content: "Solusi fixture memeriksa bahwa question yang dirujuk tersedia." }),
     product(setId, "flashcard_set", { title: "Staging Product Flashcards", cards: [cardId] }),
     product(cardId, "flashcard", { setId, front: "Apa yang diuji?", back: "Traceability, preview, dan publication atomik.", explanation: "Satu prompt dan satu jawaban.", atomic: true }),
     product(blueprintId, "assessment_blueprint", { title: "Staging Product Blueprint", assessmentType: "quiz", chapterIds: [idea.babId], questionIds: [questionId] }),
   ];
-  const dependencies: JsonRecord[] = [];
+  const dependencies: JsonRecord[] = [{
+    id: `${prefix}-article-diktat-dependency`,
+    upstreamEntityType: "product",
+    upstreamEntityId: articleId,
+    upstreamVersion: 1,
+    upstreamHash: article.generationHash,
+    downstreamEntityType: "diktat",
+    downstreamEntityId: diktatId,
+    downstreamVersion: 1,
+    downstreamHash: diktat.generationHash,
+    freshness: "UP_TO_DATE",
+  }];
   const manifest: JsonRecord = {
     bundleId: `${prefix}-bundle`,
     bundleType: "product",
@@ -161,16 +177,36 @@ function reasonCode(bytes: Uint8Array): string {
   return result.success ? "VALID" : result.issues[0].code;
 }
 
-function cloneVersionTwo(files: FixtureFiles, bundleId: string, itbReferenceId: string): FixtureFiles {
+function cloneVersionTwo(files: FixtureFiles, bundleId: string, itbReferenceId: string, itbEventName: string): FixtureFiles {
   const next = cloneFiles(files);
-  const products = json<JsonRecord[]>(next, "entities/products.json").map((product) => {
+  let products: JsonRecord[] = json<JsonRecord[]>(next, "entities/products.json").map((product): JsonRecord => {
     const versioned: JsonRecord = { ...product, version: 2 };
     if (versioned.productType === "question" && Array.isArray(versioned.itbCuration)) {
       versioned.itbCuration = versioned.itbCuration.map((entry: JsonRecord, index: number) => index === 0 ? { ...entry, referenceId: itbReferenceId } : entry);
+      versioned.itbSource = { referenceId: itbReferenceId, eventName: itbEventName };
     }
     return { ...versioned, generationHash: productHash(product.id, { ...versioned, revision: "v2" }) };
   });
-  const dependencies = json<JsonRecord[]>(next, "entities/dependencies.json").map((dependency) => ({ ...dependency, downstreamVersion: 2, downstreamHash: sha256Text(`${dependency.downstreamEntityId}:v2`) }));
+  const articlesById = new Map(products.filter((product) => product.productType === "article").map((product) => [String(product.id), product]));
+  products = products.map((product): JsonRecord => {
+    if (product.productType !== "diktat") return product;
+    const article = articlesById.get(String(product.sourceArticleId));
+    if (!article) return product;
+    const versioned = { ...product, sourceArticleVersion: 2, sourceArticleHash: article.generationHash };
+    return { ...versioned, generationHash: productHash(product.id, { ...versioned, revision: "v2-lineage" }) };
+  });
+  const productsById = new Map(products.map((product) => [String(product.id), product]));
+  const dependencies = json<JsonRecord[]>(next, "entities/dependencies.json").map((dependency) => {
+    const upstream = dependency.upstreamEntityType === "product" ? productsById.get(String(dependency.upstreamEntityId)) : undefined;
+    const downstream = productsById.get(String(dependency.downstreamEntityId));
+    return {
+      ...dependency,
+      upstreamVersion: upstream ? 2 : dependency.upstreamVersion,
+      upstreamHash: upstream ? upstream.generationHash : dependency.upstreamHash,
+      downstreamVersion: 2,
+      downstreamHash: downstream?.generationHash ?? dependency.downstreamHash,
+    };
+  });
   const manifest = json<JsonRecord>(next, "manifest.json");
   manifest.bundleId = bundleId;
   manifest.createdAt = "2026-08-03T00:05:00.000Z";
@@ -244,13 +280,8 @@ async function main(): Promise<void> {
     conflictManifest.createdAt = "2026-08-03T00:01:00.000Z";
     writeJson(conflictFiles, "manifest.json", conflictManifest);
     refreshChecksums(conflictFiles);
-    let conflictCode = "NONE";
-    try {
-      await stageProductBundle(stageInput(conflictFiles, archive(conflictFiles), runId, prerequisites.adminId));
-    } catch (error) {
-      conflictCode = error instanceof Error ? error.message.split(":", 1)[0] : "UNKNOWN";
-    }
-    if (conflictCode !== "PRODUCT_BUNDLE_CONFLICT") throw new Error(`STAGING_PRODUCT_CONFLICT_EXPECTATION_FAILED:${conflictCode}`);
+    const replacement = await stageProductBundle(stageInput(conflictFiles, archive(conflictFiles), runId, prerequisites.adminId));
+    if (!replacement.replaced || replacement.importId !== staged.importId || replacement.status !== "draft") throw new Error("STAGING_PRODUCT_DRAFT_REPLACEMENT_FAILED");
 
     const review = await reviewProductBundle({ importId: staged.importId, reviewerId: prerequisites.adminId, decision: "approved", notes: "Plan 008 staging fixture" });
     process.env.STAGING_PRODUCT_FAILURE_TEST = "1";
@@ -266,7 +297,7 @@ async function main(): Promise<void> {
     const products = validValidation.data.products as readonly JsonRecord[];
     const failedVisibleProducts = await visibleProductCount(products);
     const [failedImport] = await db.select({ status: imporBundle.status }).from(imporBundle).where(eq(imporBundle.id, staged.importId)).limit(1);
-    if (failedImport?.status !== "approved" || failedVisibleProducts !== 0) throw new Error(`STAGING_PRODUCT_PARTIAL_PUBLICATION_ROLLBACK_FAILED:${failedVisibleProducts}`);
+    if (failedImport?.status !== "draft" || failedVisibleProducts !== 0) throw new Error(`STAGING_PRODUCT_PARTIAL_PUBLICATION_ROLLBACK_FAILED:${failedVisibleProducts}`);
 
     const failureStages = ["flashcard_set", "question", "diktat", "flashcard", "solution", "assessment_blueprint", "outbox"] as const;
     const failureMatrix: JsonRecord[] = [];
@@ -288,7 +319,7 @@ async function main(): Promise<void> {
       }
       const visibleAfterStageFailure = await visibleProductCount(failureValidation.data.products as readonly JsonRecord[]);
       const [failedStageImport] = await db.select({ status: imporBundle.status }).from(imporBundle).where(eq(imporBundle.id, failureStageResult.importId)).limit(1);
-      if (stageCode !== "PRODUCT_BUNDLE_TEST_FAILURE" || failedStageImport?.status !== "approved" || visibleAfterStageFailure !== 0) throw new Error(`STAGING_PRODUCT_FAILURE_MATRIX_FAILED:${failureStage}:${stageCode}:${visibleAfterStageFailure}`);
+      if (stageCode !== "PRODUCT_BUNDLE_TEST_FAILURE" || failedStageImport?.status !== "draft" || visibleAfterStageFailure !== 0) throw new Error(`STAGING_PRODUCT_FAILURE_MATRIX_FAILED:${failureStage}:${stageCode}:${visibleAfterStageFailure}`);
       failureMatrix.push({ stage: failureStage, importId: failureStageResult.importId, code: stageCode, statusAfterRollback: failedStageImport.status, visibleProductsAfterRollback: visibleAfterStageFailure });
     }
 
@@ -308,7 +339,7 @@ async function main(): Promise<void> {
     }
     if (staleCode !== "PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW") throw new Error(`STAGING_PRODUCT_STALE_EXPECTATION_FAILED:${staleCode}`);
 
-    const versionFiles = cloneVersionTwo(validFiles, `p008-${safeSegment(runId)}-v2-bundle`, prerequisites.itbReferenceV2.id);
+    const versionFiles = cloneVersionTwo(validFiles, `p008-${safeSegment(runId)}-v2-bundle`, prerequisites.itbReferenceV2.id, prerequisites.itbReferenceV2.sourceLabel);
     const versionStage = await stageProductBundle(stageInput(versionFiles, archive(versionFiles), runId, prerequisites.adminId));
     await reviewProductBundle({ importId: versionStage.importId, reviewerId: prerequisites.adminId, decision: "approved", notes: "Plan 008 versioned reimport" });
     const versionPublished = await publishProductBundle({ importId: versionStage.importId, publishedBy: prerequisites.adminId });
@@ -334,7 +365,7 @@ async function main(): Promise<void> {
     report.prerequisites = { adminId: prerequisites.adminId, courseId: prerequisites.courseId, ideaId: prerequisites.idea.id, sourceId: prerequisites.source.id, excerptId: prerequisites.chunk.id };
     report.import = { importId: staged.importId, bundleId: staged.bundleId, checksum: staged.checksum, reviewStatus: review.status };
     report.idempotency = { beforeImportCount: beforeImports.length, afterFirstImportCount: afterFirstStage.length, afterRetryImportCount: afterRetryImports.length, retryCreated: retry.created };
-    report.conflict = { code: conflictCode };
+    report.draftReplacement = { importId: replacement.importId, replaced: replacement.replaced, status: replacement.status };
     report.partialPublishFailure = { code: failureCode, importStatusAfterRollback: failedImport?.status ?? null, visibleProductsAfterRollback: failedVisibleProducts };
     report.failureMatrix = failureMatrix;
     report.publication = { result: published, reconcile };

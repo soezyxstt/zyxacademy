@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
  const courseId = searchParams.get('courseId');
  const reviewStatus = searchParams.get('reviewStatus');
  const difficulty = searchParams.get('difficulty');
+ const origin = searchParams.get('origin');
  const limit = Math.min(Number(searchParams.get('limit') ?? '50'), 200);
  const offset = Number(searchParams.get('offset') ?? '0');
 
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
  conditions.push(
  eq(aiQuestionBank.difficulty, difficulty as 'easy' | 'medium' | 'hard'),
  );
+ if (origin === 'zyx_original' || origin === 'itb_example') conditions.push(eq(aiQuestionBank.origin, origin));
 
  const questions = await db
  .select()
@@ -109,6 +111,9 @@ export async function POST(req: NextRequest) {
   await db.insert(aiQuestionBank).values({
     id,
     courseId,
+    origin: 'zyx_original',
+    sourceEventName: null,
+    sourceReferenceId: null,
     difficulty,
     questionType,
     tags: tags as unknown as Record<string, unknown>,

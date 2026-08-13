@@ -16,6 +16,7 @@ import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
 import { serializeStudentQuizAttemptList } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
 import { buildStableOptionIds } from '@/lib/asesmen/attempt';
+import { questionProvenanceSnapshot } from '@/lib/asesmen/question-provenance';
 
 const StartSchema = z.object({
  templateId: z.string().min(1),
@@ -187,6 +188,7 @@ export async function POST(req: NextRequest) {
   // Build deep snapshot (includes answers ; stored server-side only)
   const snapshot = selected.map((q) => ({
     id: q.id,
+    ...questionProvenanceSnapshot(q),
     prompt: q.prompt,
     question_type: q.questionType,
     options: q.options,
@@ -256,6 +258,7 @@ export async function POST(req: NextRequest) {
   // Return questions WITHOUT correct_indices to the client
   const clientQuestions = selected.map((q) => ({
     id: q.id,
+    ...questionProvenanceSnapshot(q),
     prompt: q.prompt,
     question_type: q.questionType,
     options: q.options,

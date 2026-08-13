@@ -191,6 +191,8 @@ function validateEntities(manifest: IdeaBundleManifest, files: ReadonlyMap<strin
     const version = sourceVersionById.get(source.id);
     assertCondition(version !== undefined, "BUNDLE_MISSING_SOURCE", `source ${source.id} is not declared in sourceVersions`, source.id);
     assertCondition(source.version === version.version && source.checksum === version.checksum, "BUNDLE_SOURCE_CHECKSUM_MISMATCH", `source metadata does not match sourceVersions for ${source.id}`, source.id);
+    assertCondition(source.status === "active", "BUNDLE_ENTITY_INVALID", `source ${source.id} must be active for publication`, source.id);
+    assertCondition(source.creatorId === manifest.creatorId, "BUNDLE_ENTITY_INVALID", `source ${source.id} creator must match manifest creatorId`, source.id);
     parseSourceText(files, version);
   }
   for (const version of manifest.sourceVersions) {
@@ -216,6 +218,9 @@ function validateEntities(manifest: IdeaBundleManifest, files: ReadonlyMap<strin
     assertCondition(idea.courseId === manifest.courseId, "BUNDLE_ENTITY_INVALID", `Idea ${idea.id} belongs to another course`, idea.id);
     assertCondition(!ideaById.has(idea.id), "BUNDLE_ENTITY_INVALID", `duplicate Idea ${idea.id}`, idea.id);
     assertCondition(!stableKeys.has(idea.stableKey), "BUNDLE_DUPLICATE_STABLE_KEY", `duplicate Idea stableKey ${idea.stableKey}`, idea.id);
+    assertCondition(idea.status === "published", "BUNDLE_ENTITY_INVALID", `Idea ${idea.id} must be publication-ready`, idea.id);
+    assertCondition(idea.creatorId === manifest.creatorId, "BUNDLE_ENTITY_INVALID", `Idea ${idea.id} creator must match manifest creatorId`, idea.id);
+    if (idea.curatorId) assertCondition(idea.curatorId === manifest.curatorId, "BUNDLE_ENTITY_INVALID", `Idea ${idea.id} curator must match manifest curatorId`, idea.id);
     ideaById.set(idea.id, idea);
     stableKeys.add(idea.stableKey);
   }

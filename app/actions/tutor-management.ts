@@ -20,6 +20,7 @@ import { randomUUID } from "crypto";
 import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
 import { sendQuizPublished } from "@/lib/notifications/send";
+import { normalizeQuestionProvenance, questionProvenanceSnapshot } from "@/lib/asesmen/question-provenance";
 
 // Helper to verify tutor role and course access
 export async function verifyTutorAccess(courseId: string) {
@@ -537,6 +538,13 @@ export async function saveTryoutQuestionAction(
   await verifyTutorAccess(courseId);
 
   const targetId = questionId || `que-tutor-${randomUUID()}`;
+  let existingProvenance = normalizeQuestionProvenance(null);
+  if (questionId) {
+    const [existingQuestion] = await db.select({ examId: questions.examId, content: questions.content }).from(questions).where(eq(questions.id, questionId)).limit(1);
+    if (!existingQuestion || existingQuestion.examId !== examId) throw new Error("Soal tryout tidak ditemukan.");
+    const existingContent = typeof existingQuestion.content === "string" ? JSON.parse(existingQuestion.content) : existingQuestion.content;
+    existingProvenance = normalizeQuestionProvenance(existingContent);
+  }
   const content = {
     prompt: data.prompt,
     options: data.options || [],
@@ -545,6 +553,7 @@ export async function saveTryoutQuestionAction(
     acceptsImage: data.acceptsImage || false,
     acceptsFile: data.acceptsFile || false,
     acceptableAnswers: data.acceptableAnswers || [],
+    ...existingProvenance,
   };
 
   if (questionId) {
@@ -568,6 +577,53 @@ export async function saveTryoutQuestionAction(
 
   revalidatePath(`/tutor/${courseId}/tryouts`);
   return { success: true, id: targetId };
+}
+
+export async function importQuestionBankToTryoutAction(courseId: string, examId: string, questionBankIds: string[]) {
+  await verifyTutorAccess(courseId);
+  const uniqueIds = [...new Set(questionBankIds)];
+  if (uniqueIds.length === 0) throw new Error("Pilih minimal satu soal dari bank soal.");
+
+  const [exam] = await db.select({ id: exams.id, courseId: exams.courseId, type: exams.type }).from(exams).where(eq(exams.id, examId)).limit(1);
+  if (!exam || exam.courseId !== courseId || exam.type !== "tryout") throw new Error("Tryout tidak ditemukan.");
+
+  const [bankRows, existingQuestions] = await Promise.all([
+    db.select().from(aiQuestionBank).where(and(eq(aiQuestionBank.courseId, courseId), eq(aiQuestionBank.reviewStatus, "published"), inArray(aiQuestionBank.id, uniqueIds))),
+    db.select({ content: questions.content, order: questions.order }).from(questions).where(eq(questions.examId, examId)),
+  ]);
+  if (bankRows.length !== uniqueIds.length) throw new Error("Sebagian soal bank tidak tersedia atau belum dipublikasi.");
+
+  const importedIds = new Set(existingQuestions.flatMap((question) => {
+    const content = typeof question.content === "string" ? JSON.parse(question.content) : question.content;
+    return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
+  }));
+  const rowsToImport = uniqueIds.map((questionId) => bankRows.find((row) => row.id === questionId)!).filter((row) => !importedIds.has(row.id));
+  const firstOrder = existingQuestions.reduce((highest, question) => Math.max(highest, question.order), 0) + 1;
+
+  if (rowsToImport.length > 0) {
+    await db.insert(questions).values(rowsToImport.map((row, index) => ({
+      id: `que-bank-${randomUUID()}`,
+      examId,
+      type: row.questionType,
+      order: firstOrder + index,
+      content: {
+        bankQuestionId: row.id,
+        prompt: row.prompt,
+        options: Array.isArray(row.options) ? row.options.map(String) : [],
+        correctIndex: Array.isArray(row.correctIndices) ? row.correctIndices[0] : undefined,
+        correctIndices: Array.isArray(row.correctIndices) ? row.correctIndices : [],
+        acceptsImage: false,
+        acceptsFile: false,
+        acceptableAnswers: Array.isArray(row.acceptableAnswers) ? row.acceptableAnswers : [],
+        explanation: row.explanation,
+        ...questionProvenanceSnapshot(row),
+      },
+    })));
+  }
+
+  revalidatePath(`/tutor/${courseId}/tryouts`);
+  revalidatePath(`/courses/${courseId}/tryout/${examId}`);
+  return { success: true, imported: rowsToImport.length, skipped: uniqueIds.length - rowsToImport.length };
 }
 
 export async function deleteTryoutQuestionAction(courseId: string, questionId: string) {
@@ -642,6 +698,8 @@ export async function submitTryoutAction(courseId: string, examId: string, answe
       acceptsImage: qContent.acceptsImage,
       acceptsFile: qContent.acceptsFile,
       acceptableAnswers: qContent.acceptableAnswers || [],
+      explanation: qContent.explanation || "",
+      ...normalizeQuestionProvenance(qContent),
     };
   });
 

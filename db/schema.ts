@@ -766,6 +766,12 @@ export const aiQuestionBank = sqliteTable(
       .references(() => courses.id, { onDelete: "cascade" }),
     sourceSectionId: text("source_section_id")
       .references(() => aiMaterialInstanceSections.id, { onDelete: "set null" }),
+    origin: text("origin")
+      .$type<"zyx_original" | "itb_example">()
+      .default("zyx_original")
+      .notNull(),
+    sourceEventName: text("source_event_name"),
+    sourceReferenceId: text("source_reference_id"),
 
     // Final v4 adjustments
     knowledgeObjectId: text("knowledge_object_id")
@@ -815,6 +821,7 @@ export const aiQuestionBank = sqliteTable(
     index("idx_qbank_tags").on(table.tags),
     index("idx_qbank_ko").on(table.knowledgeObjectId),
     index("idx_qbank_gen_run").on(table.generationRunId),
+    index("idx_qbank_origin").on(table.origin, table.sourceEventName),
   ]
 );
 
@@ -1642,6 +1649,9 @@ export const soal = sqliteTable(
   questionType: text("question_type").$type<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">().notNull(),
   prompt: text("prompt").notNull(),
   optionsSnapshot: text("options_snapshot", { mode: "json" }).$type<unknown[]>().$defaultFn(() => []).notNull(),
+  origin: text("origin").$type<"zyx_original" | "itb_example">().default("zyx_original").notNull(),
+  sourceEventName: text("source_event_name"),
+  sourceReferenceId: text("source_reference_id"),
   version: integer("version").default(1).notNull(),
   status: text("status").$type<"draft" | "in_review" | "published" | "retired">().default("draft").notNull(),
   difficulty: text("difficulty").$type<"easy" | "medium" | "hard">().notNull(),
@@ -1658,6 +1668,7 @@ export const soal = sqliteTable(
   index("soal_course_idx").on(table.mataKuliahId),
   index("soal_chapter_idx").on(table.babId),
   index("soal_status_version_idx").on(table.status, table.version),
+  index("soal_origin_idx").on(table.origin, table.sourceEventName),
   check("soal_version_check", sql`${table.version} > 0`),
   check("soal_status_check", sql`${table.status} IN ('draft', 'in_review', 'published', 'retired')`),
  ],
@@ -2164,7 +2175,7 @@ export const imporBundle = sqliteTable(
  courseId: text("course_id").references(() => courses.id, { onDelete: "restrict" }),
  sourceUriOrKey: text("source_uri_or_key").notNull(),
  version: integer("version").default(1).notNull(),
- status: text("status").$type<"received" | "validated" | "rejected" | "approved" | "published">().default("received").notNull(),
+ status: text("status").$type<"received" | "validated" | "rejected" | "approved" | "draft" | "published" | "withdrawn">().default("received").notNull(),
  validationReport: text("validation_report", { mode: "json" }).$type<Record<string, unknown>>().$defaultFn(() => ({})).notNull(),
   requestedBy: text("requested_by").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
@@ -2186,7 +2197,7 @@ export const itemImporBundle = sqliteTable(
   entityId: text("entity_id").notNull(),
   entityVersion: integer("entity_version").notNull(),
   entityHash: text("entity_hash").notNull(),
-  status: text("status").$type<"pending" | "validated" | "rejected" | "published">().default("pending").notNull(),
+  status: text("status").$type<"pending" | "validated" | "rejected" | "draft" | "published" | "withdrawn">().default("pending").notNull(),
   errorMessage: text("error_message"),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  },

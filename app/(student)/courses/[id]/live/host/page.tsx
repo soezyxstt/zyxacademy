@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Radio, Users, AlertTriangle } from "lucide-react";
 import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
 import { MathText } from "@/components/course/math-text";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { cn } from "@/lib/utils";
 
 interface Template {
@@ -263,6 +264,7 @@ export default function LiveHostPage() {
               );
             })}
           </div>
+          <QuestionSourceCitation origin={currentQuestion.origin} sourceEventName={currentQuestion.sourceEventName} />
         </div>
       )}
 

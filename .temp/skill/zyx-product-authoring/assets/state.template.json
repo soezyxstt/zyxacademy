@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "zyx-product-authoring-run.v1",
+  "jobId": "replace-me",
+  "currentFamily": "ARTICLE",
+  "inputChecksums": {},
+  "lockedCourseId": "replace-me",
+  "lockedChapterIds": [],
+  "allowedItbReferences": [],
+  "questionSourceMatches": [],
+  "completedSubtasks": [],
+  "artifacts": [],
+  "gates": [],
+  "openIssues": []
+}

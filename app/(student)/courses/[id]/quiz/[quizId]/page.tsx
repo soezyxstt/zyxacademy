@@ -21,6 +21,7 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { normalizeDate } from "@/lib/date-utils";
 import { ZyraMark } from "@/components/course/zyra-mark";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 
 type Props = {
   params: Promise<{ id: string; quizId: string }>;
@@ -285,6 +286,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         question_type?: string;
         options: string[];
         correct_indices: number[];
+        origin?: "zyx_original" | "itb_example";
+        sourceEventName?: string | null;
+        sourceReferenceId?: string | null;
       }>).map((q, idx) => ({
         id: q.id,
         order: idx + 1,
@@ -292,6 +296,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         prompt: q.prompt,
         options: q.options || [],
         correctIndex: q.correct_indices?.[0] ?? 0,
+        origin: q.origin,
+        sourceEventName: q.sourceEventName,
+        sourceReferenceId: q.sourceReferenceId,
       })),
     };
 
@@ -333,6 +340,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       correct_indices: number[];
       explanation: string;
       difficulty: string;
+      origin?: "zyx_original" | "itb_example";
+      sourceEventName?: string | null;
+      sourceReferenceId?: string | null;
     }>) ?? [];
     const answers = (targetAttempt?.answersSnapshot as Record<string, number[]>) ?? {};
     
@@ -343,6 +353,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       correct_indices: number[];
       explanation: string;
       difficulty: string;
+      origin?: "zyx_original" | "itb_example";
+      sourceEventName?: string | null;
+      sourceReferenceId?: string | null;
     }> = [];
 
     if (isDiscussionOpen) {
@@ -397,6 +410,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           correct_indices: Array.isArray(corrects) ? corrects : [],
           difficulty: q.difficulty,
           explanation: q.explanation || "",
+          origin: q.origin,
+          sourceEventName: q.sourceEventName,
+          sourceReferenceId: q.sourceReferenceId,
         };
       });
     }
@@ -632,6 +648,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                           />
                         </div>
                       )}
+                      <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
                     </div>
                   );
                 })}
@@ -728,6 +745,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                           </div>
                         </div>
                       )}
+                      <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
                     </div>
                   );
                 })}

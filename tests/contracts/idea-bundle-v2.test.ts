@@ -8,6 +8,7 @@ import {
   type IdeaBundleManifest,
 } from "@/lib/bundle/idea-bundle-v2";
 import { sha256Bytes } from "@/lib/bundle/validator";
+import { createIdeaBundleDraft, finalizeIdeaBundleDraft } from "@/lib/bundle/idea-draft";
 
 const fixtureRoot = join(process.cwd(), "tests/fixtures/bundles/idea-v2");
 const fixturePaths = [
@@ -44,6 +45,29 @@ function refreshChecksums(files: Map<string, Uint8Array>): void {
 }
 
 describe("Plan 006 pure Idea Bundle V2 validation", () => {
+  it("finalizes reviewed edits into a newly checksummed bundle without changing identity", () => {
+    const parsed = validateIdeaBundle(fixtureFiles());
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    const draft = createIdeaBundleDraft(parsed.data);
+    draft.ideas[0].canonicalStatement = "Kecepatan menyatakan perubahan posisi tiap satuan waktu.";
+    draft.ideas[0].conciseExplanation = "Gunakan perpindahan, bukan hanya panjang lintasan.";
+    const originalHash = parsed.data.entities.ideas[0].semanticHash;
+    const finalized = finalizeIdeaBundleDraft(parsed.data, draft);
+    expect(finalized.bundle.entities.ideas[0].id).toBe(parsed.data.entities.ideas[0].id);
+    expect(finalized.bundle.entities.ideas[0].semanticHash).not.toBe(originalHash);
+    expect(finalized.bundle.manifest.bundleChecksum).not.toBe(parsed.data.manifest.bundleChecksum);
+  });
+
+  it("rejects a draft that attempts to replace an Idea identity", () => {
+    const parsed = validateIdeaBundle(fixtureFiles());
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    const draft = createIdeaBundleDraft(parsed.data);
+    draft.ideas[0].id = "idea-replaced";
+    expect(() => finalizeIdeaBundleDraft(parsed.data, draft)).toThrow("IDEA_DRAFT_IDENTITY_CHANGED");
+  });
+
   it("accepts the strict fixture and exposes deterministic serialization", () => {
     const files = fixtureFiles();
     const result = validateIdeaBundle(files);
@@ -103,5 +127,21 @@ describe("Plan 006 pure Idea Bundle V2 validation", () => {
     writeJson(cycle, "manifest.json", cycleManifest);
     refreshChecksums(cycle);
     expect(validateIdeaBundle(cycle)).toMatchObject({ success: false, issues: [{ code: "BUNDLE_PREREQUISITE_CYCLE" }] });
+  });
+
+  it("rejects non-publishable Ideas and inconsistent creator attribution", () => {
+    const draft = fixtureFiles();
+    const draftIdeas = JSON.parse(new TextDecoder().decode(draft.get("entities/ideas.json")));
+    draftIdeas[0].status = "draft";
+    writeJson(draft, "entities/ideas.json", draftIdeas);
+    refreshChecksums(draft);
+    expect(validateIdeaBundle(draft)).toMatchObject({ success: false, issues: [{ code: "BUNDLE_ENTITY_INVALID" }] });
+
+    const inconsistentCreator = fixtureFiles();
+    const ideas = JSON.parse(new TextDecoder().decode(inconsistentCreator.get("entities/ideas.json")));
+    ideas[0].creatorId = "another-creator";
+    writeJson(inconsistentCreator, "entities/ideas.json", ideas);
+    refreshChecksums(inconsistentCreator);
+    expect(validateIdeaBundle(inconsistentCreator)).toMatchObject({ success: false, issues: [{ code: "BUNDLE_ENTITY_INVALID" }] });
   });
 });

@@ -304,8 +304,9 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 * `FEATURE_ZYRA_PERSONALIZATION_V1`: deterministic evidence-based learner adaptation after shared-cache retrieval.
 * `FEATURE_ZYRA_LEARNING_CANVAS_V1`: typed interactive visuals with safe local expression evaluation and accessible fallbacks.
 * `FEATURE_IDEA_BUNDLE_V2`: strict ZIP-based Idea import, review, and atomic publication.
-* `FEATURE_AUTHORING_CONTEXT_V1`: deterministic redacted Authoring Context Pack export.
-* `FEATURE_PRODUCT_BUNDLE_V2`: typed Product Bundle upload, preview, review, and atomic publication.
+* `FEATURE_AUTHORING_CONTEXT_V1`: admin Authoring Job preparation plus deterministic redacted Authoring Context Pack export.
+* `FEATURE_PRODUCT_BUNDLE_V2`: typed Product Bundle analysis, in-place preview and editing, draft storage, atomic publication, and audited withdrawal.
+* `NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1`: admin origin labels and lower-right ITB source citations on student question surfaces.
 
 | Flag | Feature |
 |------|---------|
@@ -322,8 +323,9 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_ASESMEN_IDE_V1` | Normalized assessment and historical snapshot domain |
 | `FEATURE_PEMAHAMAN_IDE_V1` | Idea evidence and mastery domain |
 | `FEATURE_IDEA_BUNDLE_V2` | Strict ZIP Idea Bundle upload, review, and publication |
-| `FEATURE_AUTHORING_CONTEXT_V1` | Deterministic redacted authoring context export |
+| `FEATURE_AUTHORING_CONTEXT_V1` | Authoring Job builder and deterministic redacted context export |
 | `FEATURE_PRODUCT_BUNDLE_V2` | Typed product bundle workflow and atomic publication |
+| `NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1` | Question origin labels and ITB event citations |
 | `FEATURE_ZYRA_PERSONALIZATION_V1` | Evidence-based learner presentation adaptation |
 | `FEATURE_ZYRA_LEARNING_CANVAS_V1` | Typed interactive Learning Canvas visuals |
 | `FEATURE_VECTORIZE_ONLY_V1` | Canonical 768-dimensional Vectorize-only indexing and retrieval |

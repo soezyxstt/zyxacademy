@@ -212,8 +212,7 @@ function sha256(value: unknown): string {
 
 function statusToReviewerState(status: ProductEntity["status"]): ArticleBlock["reviewerState"] {
   if (status === "published") return "approved";
-  if (status === "in_review") return "in_review";
-  if (status === "retired") return "rejected";
+  if (status === "withdrawn") return "rejected";
   return "draft";
 }
 

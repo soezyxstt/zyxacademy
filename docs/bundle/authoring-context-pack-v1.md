@@ -4,7 +4,7 @@ Plan 007 defines a deterministic, redacted export for external authoring. The bo
 
 ## Included content
 
-The pack contains a versioned manifest, course and chapter metadata, published current Ideas, active source metadata, exact source excerpts, Idea provenance and relations, active learning objectives, safe content requirements, allowed benchmark summaries, and the authoring contract. The projection uses explicit fields and never serializes database rows directly.
+The pack contains a versioned manifest, course and chapter metadata, published current Ideas, active source metadata, exact source excerpts, Idea provenance and relations, active learning objectives, safe content requirements, allowed benchmark summaries, and the authoring contract. An allowed benchmark projection includes its benchmark ID, dedicated ITB `referenceId`, exact `sourceLabel`, dataset key, version, checksum, and safe summary. The benchmark ID must never be used as the question source reference. The projection uses explicit fields and never serializes database rows directly.
 
 Ideas must be published, current, and reviewed. Draft, stale, superseded, withdrawn, needs-review, or unreviewed Ideas are excluded. Source excerpts must belong to an active source version in the selected course.
 

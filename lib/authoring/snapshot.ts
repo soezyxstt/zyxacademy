@@ -99,15 +99,20 @@ export async function loadAuthoringContextInput(options: AuthoringSnapshotOption
   const authoringRelations: AuthoringRelation[] = relations.map((row) => ({ id: row.id, sourceIdeaId: row.sourceIdeaId, targetIdeaId: row.targetIdeaId, relationType: row.relationType, explanation: row.explanation, version: row.version }));
   const objectives: AuthoringObjective[] = objectiveRows.map((row) => ({ id: row.id, courseId: course.id, chapterId: chapterRows.find((chapter) => (chapter.legacyChapterId ?? chapter.id) === row.chapterId)?.id ?? row.chapterId, objectiveText: row.objectiveText, bloomLevel: row.bloomLevel, relatedIdeaIds: Array.isArray(row.relatedKoIds) ? row.relatedKoIds.map(String) : [] }));
   const requirements = objectives.map((objective) => ({ id: objective.id, kind: "learning_objective", text: objective.objectiveText, chapterId: objective.chapterId }));
-  const benchmarks = benchmarkRows.map(({ benchmark, reference }) => ({
-    id: benchmark.id,
-    datasetKey: benchmark.datasetKey,
-    authoringVisibility: benchmark.authoringVisibility,
-    version: benchmark.version,
-    checksum: benchmark.checksum,
-    status: benchmark.status,
-    summary: reference?.sourceLabel ?? benchmark.datasetKey,
-  }));
+  const benchmarks = benchmarkRows.map(({ benchmark, reference }) => {
+    const allowedReference = reference?.authoringVisibility === "allowed" ? reference : null;
+    return {
+      id: benchmark.id,
+      referenceId: allowedReference?.id ?? null,
+      sourceLabel: allowedReference?.sourceLabel ?? null,
+      datasetKey: benchmark.datasetKey,
+      authoringVisibility: benchmark.authoringVisibility,
+      version: benchmark.version,
+      checksum: benchmark.checksum,
+      status: benchmark.status,
+      summary: allowedReference?.sourceLabel ?? benchmark.datasetKey,
+    };
+  });
 
   return {
     snapshotId: options.snapshotId,

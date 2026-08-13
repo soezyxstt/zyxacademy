@@ -167,6 +167,9 @@ export default async function SubmissionReviewPage({ params }: Props) {
             correctAnswerLabel: correctAnswerLabel || undefined,
             teacherNote: dbSub.teacherNotes,
             explanationText: q.explanation || "",
+            origin: q.origin,
+            sourceEventName: q.sourceEventName,
+            sourceReferenceId: q.sourceReferenceId,
           };
         }),
       };

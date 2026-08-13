@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Flag, Timer, BookOpen, AlertCircle, FileText, CheckCircle2, Trash2, ArrowLeft, ArrowRight, UploadCloud } from "lucide-react";
 import { MathText } from "@/components/course/math-text";
 import type { ExamFixture, QuestionSpec } from "@/lib/student-course-fixtures";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 
 import { submitTryoutAction } from "@/app/actions/tutor-management";
 
@@ -413,6 +414,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               Progress ujian tersimpan aman
             </span>
           </div>
+          <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
         </div>
 
         {/* Back and Forth Control buttons */}

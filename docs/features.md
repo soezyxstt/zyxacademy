@@ -64,7 +64,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 
 ### Product, Assessment, and Idea Mastery Domain
 1. Articles, diktat materials, questions, solutions, and flashcards have normalized versioned target records with source and generation hashes.
-2. Published products require at least one published Idea; question links support multiple Ideas with positive weights whose sum is checked within `0.000001`. Product Bundle questions require ITB curation, and multi-Idea questions require a HOT cognitive level.
+2. Published products require at least one published Idea; question links support multiple Ideas with positive weights whose sum is checked within `0.000001`. Every Product Bundle question is an ITB example with a required source event and allowed reference, and multi-Idea questions require a HOT cognitive level.
 3. Assessment definitions separate blueprint, assessment, chapter scope, ordered items, attempts, and answers. Quiz scope is exactly one chapter; tryout scope is one or more chapters.
 4. Attempt and answer records carry rendered question, option order, response, grading policy, and content version snapshots so later content changes do not alter historical context.
 5. Answer evidence records Idea attribution, contribution, weight, confidence, evidence source, rubric version, and derivation status. Ambiguous evidence is retained but cannot affect mastery.
@@ -74,30 +74,48 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 
 ### Idea Bundle Workflow
 
-1. Admins upload strict ZIP bundles from `/admin/bundles/idea`; validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
-2. Valid uploads create an immutable import record and entity inventory without writing canonical source or Idea rows. Identical retries are no-ops and a different checksum for the same bundle ID is blocked.
-3. Assigned tutors can review provenance and Idea correctness. Admin approval and rejection decisions are audited and immutable.
+1. Admins upload strict ZIP bundles from `/admin/bundles/idea`; the first request only analyzes the archive and writes nothing to R2 or Turso. Validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, non-publishable Ideas or sources, inconsistent creator attribution, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
+2. The browser workspace maps every Idea, source excerpt, provenance record, and relation. Admins can search, preview math, and edit Idea copy, classification, reviewer notes, and relation meaning in place. Stable identities and source spans stay locked.
+3. Saving the reviewed draft sends the original ZIP and editable projection back to the server. The server applies an allowlist merge, recomputes semantic hashes, generation hashes, entity checksums, and the bundle checksum, validates again, then creates the immutable staged import. Identical retries are no-ops and a different checksum for the same bundle ID is blocked.
 4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically.
 5. `FEATURE_IDEA_BUNDLE_V2` controls the workflow. When absent or `0`, the legacy JSON importer remains visible for rollback.
 
 ### Authoring Context Pack V1
 
-1. Admins can export a deterministic context pack from `/admin/authoring-context` rooted in a selected course snapshot.
-2. The allowlist includes only published current reviewed Ideas, active source excerpts, provenance, relations, objectives, safe requirements, and allowed benchmark summaries.
-3. Holdout content, murid data, credentials, signed URLs, embeddings, and unpublished or stale content are excluded and counted or scanned before storage.
-4. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata.
-5. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables the UI and API when absent or `0`.
+1. The `Siapkan pekerjaan` tab accepts one Source Pack, validates it without persistence, shows an informative inventory, and lets an admin select a course and one or more chapters by human labels. Every detected source section is mapped to a chapter before download; one selected chapter maps all sections automatically.
+2. The admin selects product families with dependency-safe controls. Article is mandatory, question includes solution, and assessment blueprint requires questions. Zyx produces one checksum-protected Authoring Job Pack containing the embedded Source Pack, locked target mapping, product request, attribution sentinels, website schemas, and workflow instructions.
+3. The `Lanjutkan setelah Idea` tab exports a deterministic context pack rooted in the selected course after official Idea publication. Snapshot and run identities are generated by the server, so the admin never copies technical IDs.
+4. The allowlist includes only published current reviewed Ideas, active source excerpts, provenance, relations, objectives, safe requirements, and allowed benchmark summaries. An allowed benchmark summary exposes a distinct ITB `referenceId` and exact `sourceLabel`; its benchmark `id` remains separate. The pack also includes machine-readable Idea Bundle and Product Bundle JSON Schemas plus an external-agent workflow contract.
+5. Holdout content, murid data, credentials, signed URLs, embeddings, and unpublished or stale content are excluded and counted or scanned before storage.
+6. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata. An authenticated admin can download the artifact until retention expires; internal R2 keys are not returned by the listing API.
+7. External agents use `$UPLOADER` and `$APPROVING_REVIEWER` for attribution without receiving private Zyx identity IDs. Publication resolves those sentinels to the accountable uploader and approving admin.
+8. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables both tabs and APIs when absent or `0`.
 
 ### Product Bundle Workflow
 
-1. Admins upload typed ZIP bundles from `/admin/bundles/product`; the server validates product schemas, checksums, Idea and source traceability, renderable blocks, assessment scope, atomic flashcards, and holdout markers.
-2. Valid uploads create immutable staged inventories. Identical retries write no rows, while a different checksum for the same bundle ID is rejected.
-3. Reviewers see a server-rendered preview for every product type with source and Idea IDs. Tutor approval is course-scoped and admin approval is required for publication.
+1. Admins upload typed ZIP bundles from `/admin/bundles/product`; the first request validates product schemas, checksums, Idea and source traceability, complete article quality coverage, assessment scope, atomic flashcards, deterministic question keys, one solution per question, draft status, consistent attribution, and holdout markers without a storage or database write.
+2. The pre-staging workspace summarizes every product type and dependency, supports search and filtering, displays the locked ITB source event and reference for each question, and provides in-place editors for Article blocks, Diktat content, questions and answer keys, solutions, flashcards, assessment metadata, Idea roles and weights, relation rationale, and ITB curator notes.
+3. Client checks call out empty content, invalid answer keys, and Idea weights before saving. The server still treats the browser draft as untrusted, preserves locked identity and source fields, refreshes Article to Diktat lineage and dependency hashes, recomputes all checksums, and repeats strict validation before staging.
 4. Product Idea-link weights must be positive and sum to one. An atomic flashcard has exactly one Idea. A multi-Idea question carries an explicit relation and rationale per linked Idea instead of attaching every relation to the first Idea.
-5. Question products may carry ITB curation dimensions for difficulty, format, terminology, and reasoning pattern. Publication accepts only `allowed` references, links them to the published question, and rejects holdout references.
-6. A Diktat may declare its source Article ID, version, and generation hash. When declared, the bundle must include the matching Article dependency so the Diktat cannot silently drift from its Article.
-7. Publication verifies current published Ideas, active source excerpts, identities, and dependency freshness before one transaction writes products, links, dependencies, canonical vector outbox entries, publication state, and mutation audit records. Only articles, questions, and solutions request runtime vectors; flashcards, Diktat, and assessment blueprints do not create generic product vectors.
-8. `FEATURE_PRODUCT_BUNDLE_V2` hides the page and API when absent or `0`; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
+5. Product Bundle never creates Zyx-original questions. Every question declares `itbSource.referenceId` and `itbSource.eventName`; the source must be present in ITB curation, allowed for authoring, and label-matched against the database. Curation dimensions still cover difficulty, format, terminology, and reasoning pattern.
+6. Every Diktat declares its source Article ID, version, and generation hash. The bundle must include the matching Article dependency so the Diktat cannot silently drift from its Article.
+7. Product Bundle lifecycle is only `draft -> published -> withdrawn`. Explicit save stores a draft. A draft can be replaced with the same bundle ID, deleted, or published directly by an admin. Published bundles cannot be overwritten. Withdrawal keeps canonical and audit history while removing the products from active publication state.
+8. Publication verifies current published Ideas, active source excerpts, identities, dependency freshness, and ITB source identity before one transaction writes products, links, dependencies, the legacy bank compatibility projection, canonical vector outbox entries, publication state, and mutation audit records. Question answer-key fields are removed from runtime and Vectorize content. Only articles, questions, and solutions request runtime vectors; flashcards, Diktat, and assessment blueprints do not create generic product vectors.
+9. `FEATURE_PRODUCT_BUNDLE_V2` hides the page and API when absent or `0`; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
+
+### Question origin and citation
+
+1. `ai_question_bank` and canonical `soal` classify each row as `zyx_original` or `itb_example`. Manual and generated bank questions default to `zyx_original`; Product Bundle publication always writes `itb_example`.
+2. The admin bank can filter and distinguish the two groups. The tryout editor can import either group directly from the published bank.
+3. Quiz, tryout, PKA, daily API, and live-quiz payloads preserve origin, source event, and source reference in immutable snapshots. Every student question surface renders `Sumber: <event>` at the lower right for ITB examples only.
+4. `NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1=1` exposes the origin labels and learner citations. When absent or `0`, provenance remains stored but the new labels are hidden.
+
+### External Authoring Skills
+
+1. `source-pack-translator` converts each source document into complete Markdown and produces a Source Pack.
+2. `zyx-idea-authoring` consumes one Authoring Job Pack and stops after a validated Idea Bundle.
+3. `zyx-product-authoring` consumes the same Authoring Job Pack plus a fresh Authoring Context Pack after Idea publication, copies only direct ITB example questions whose event labels match an allowed reference, then produces a draft Product Bundle.
+4. Idea and Product skills keep a small local Authoring Learning Profile. An explicit operator correction updates the current artifact and adds a scoped lesson for later runs. Source facts, schemas, and quality gates always override learned preferences. No Revision Pack or separate training workflow is used.
 
 ### Article and Diktat Quality Compiler
 

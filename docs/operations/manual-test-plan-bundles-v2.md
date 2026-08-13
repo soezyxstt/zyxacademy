@@ -58,10 +58,10 @@ Verify the archive has no wrapping directory; `manifest.json` must be the top-le
 
 Note that this fixture declares `courseId: "course-physics"` and fixture-local creator ids. It will pass validation and staging on any database, but publication requires those identities to exist. Either seed them or edit the fixture and recompute checksums (see 1.5).
 
-**Product Bundle.** No on-disk fixture exists. The only valid product bundle is built in-process by `makeValidFiles()` in `scripts/staging/test-product-bundle.ts`, which never writes a ZIP to disk. Before running Part B, produce one of:
+**Product Bundle.** The downloadable Authoring Context Pack now contains machine-readable Product Bundle schemas and the external workflow contract. The staging fixture is still built in-process by `makeValidFiles()` in `scripts/staging/test-product-bundle.ts`, which never writes a ZIP to disk. Before running Part B, produce one of:
 
 1. A short throwaway script that imports the same helpers and writes `archive(makeValidFiles(...))` to a file, or
-2. A hand-built bundle following `docs/bundle/product-bundle-v2.md` plus the invariants in `lib/bundle/product-validator.ts`.
+2. A bundle produced by an external agent using the downloaded context pack, `docs/bundle/product-bundle-v2.md`, and operator-supplied source files.
 
 Track this as blocking prep work; the rest of Part B cannot execute without it.
 
@@ -80,8 +80,11 @@ Panel: `/admin/bundles/idea`. API base: `/api/admin/bundles/idea`.
 **IB-01 Panel renders.**
 Sign in as A1, open `/admin/bundles/idea`. Expect heading "Idea Bundle", a file input restricted to `.zip`, and an import list. With no prior imports the list reads "Belum ada Idea Bundle."
 
-**IB-02 Valid upload stages.**
-Select `idea-valid.zip`, submit "Validasi dan staging". Expect HTTP 201, a success line `Bundle bundle-idea-motion-v2 masuk staging.`, and a new list row showing bundle id, checksum, course, and `Status validated`. Confirm no canonical rows were written: `ide`, `sumber_materi`, and `chunk` counts are unchanged.
+**IB-02 Valid upload analyzes without persistence.**
+Select `idea-valid.zip`, submit "Analisis ZIP". Expect HTTP 200, the message "ZIP lolos pemeriksaan awal. Belum ada data yang disimpan.", and a workspace showing the bundle summary, every Idea, source evidence, and relation. Confirm R2 object count plus `impor_bundle`, `item_impor_bundle`, `ide`, `sumber_materi`, and `chunk` counts are unchanged.
+
+**IB-02A Edit and stage.**
+Change an Idea statement, explanation, formula, evidence note, and relation explanation. Confirm the math preview updates and an empty required field disables "Simpan ke staging" with a plain-language warning. Save, then expect HTTP 201, a success line ending "disimpan ke staging", and a new list row with `Status validated`. Download or parse the staged ZIP and confirm stable IDs and source spans did not change, while Idea hashes, entity checksums, and bundle checksum did change.
 
 **IB-03 Review buttons gate on status.**
 On the `validated` row, "Setujui" and "Tolak" are visible; "Publikasikan" is not.
@@ -162,16 +165,18 @@ Requires the fixture from 1.4. The valid fixture covers all seven product types:
 **PB-01 Panel renders.**
 As A1, open `/admin/bundles/product`. Expect heading "Product Bundle" and, unlike the Idea panel, a "Preview" button on every row.
 
-**PB-02 Valid upload stages.** Same expectations as IB-02, message "masuk staging", status `validated`.
+**PB-02 Valid upload analyzes without persistence.** Select the ZIP and click "Analisis ZIP". Expect a non-persistent summary of all seven product types, search and type filtering, editable content, Product to Idea mapping, and dependency mapping. Confirm no R2 object or Turso row was created.
+
+**PB-02A Edit and stage.** Edit one Article block, Diktat content, question option and key, solution, flashcard, blueprint title, Idea weight or role, relation rationale, and ITB curator note. Confirm invalid weights and answer keys show plain-language warnings and disable saving. Restore a valid state and save. Confirm the staged ZIP contains the edits, locked identity and source fields are unchanged, and Article generation hash, Diktat source Article hash, dependency hashes, file checksums, and bundle checksum are refreshed.
 
 **PB-03 Preview and traceability.**
-Click "Preview". Expect a "Preview dan traceability" section listing one article per product, each showing `title (productType vN)`, the linked Idea ids and source ids, and up to two content sections. Math in previews renders through `MathText`; confirm a formula in the article body renders as math, not raw LaTeX.
+Click "Tinjau isi". Expect a "Preview dan traceability" section listing one article per product, each showing `title (productType vN)`, the linked Idea ids and source ids, and every content section. Confirm options, correct markers for the authorized reviewer, reasoning, Idea relations, ITB curation, solutions, and all Article blocks are visible. Math in previews renders through `MathText`; confirm a formula in the article body renders as math, not raw LaTeX.
 
 **PB-04 Publication not blocked.**
 With current dependencies, the warning "Publikasi tertahan karena dependency memerlukan review." is absent.
 
-**PB-05 Approve then publish.**
-Approve, then publish. Expect "Product Bundle dipublikasikan secara atomik." and status `published`. Verify routing of content to the correct tables:
+**PB-05 Publish the draft.**
+From status `draft`, publish directly. Expect "Product Bundle dipublikasikan secara atomik." and status `published`. Verify routing of content to the correct tables:
 - article content in `artikel`,
 - diktat in `diktat_materi`,
 - question in `soal`,
@@ -181,19 +186,24 @@ Approve, then publish. Expect "Product Bundle dipublikasikan secara atomik." and
 
 There is no generic `product` namespace; a row landing anywhere else is a defect. Also verify `publikasi_bundle`, per-item statuses, the canonical vector outbox entries, and `audit_mutasi`.
 
-### 3.2 Idempotency, conflict, versioning
+**PB-05A Withdraw the published bundle.**
+Click "Tarik publikasi" and confirm. Expect status `withdrawn`, retained import, item, publication, and audit history, inactive or retired canonical rows, and vector delete jobs for Article, question, and solution. A second withdrawal is an idempotent no-op.
+
+### 3.2 Idempotency, draft replacement, versioning
 
 **PB-06 Identical retry is a no-op.** HTTP 200, "sudah ada", no new rows.
 
-**PB-07 Same id, different checksum.** 422 `PRODUCT_BUNDLE_CONFLICT`.
+**PB-07 Same bundle id, different checksum while draft.** The existing draft import ID is retained, its item inventory and ZIP are replaced, status remains `draft`, and the old R2 object is deleted after the transaction. Once the bundle is `published` or `withdrawn`, the same operation returns 422 `PRODUCT_BUNDLE_CONFLICT`.
+
+**PB-07A Delete a draft.** Click "Hapus draft" and confirm. The import, items, review evidence, and staged ZIP are deleted, while an audit tombstone remains. Deleting a published or withdrawn bundle returns 422 `PRODUCT_BUNDLE_DRAFT_REQUIRED`.
 
 **PB-08 Versioned re-import.**
-Bump every product `version` to `2`, refresh `generationHash`, give the bundle a new `bundleId`, point the question at a second `allowed` ITB reference, recompute checksums. Upload, approve, publish. Expect success, and expect both generations to remain queryable: version 2 rows exist under versioned target ids such as `product-id:v2`, and the original version 1 rows are still present and unchanged.
+Bump every product `version` to `2`, refresh `generationHash`, give the bundle a new `bundleId`, point the question at a second `allowed` ITB reference, recompute checksums. Upload and publish. Expect success, and expect both generations to remain queryable: version 2 rows exist under versioned target ids such as `product-id:v2`, and the original version 1 rows are still present and unchanged.
 
 ### 3.3 Dependency gating
 
 **PB-09 `NEEDS_REVIEW` dependency blocks publication.**
-Add a dependency entry with `freshness: "NEEDS_REVIEW"` pointing at the article product, new `bundleId`, recompute checksums. Upload and approve.
+Add a dependency entry with `freshness: "NEEDS_REVIEW"` pointing at the article product, new `bundleId`, recompute checksums, and upload.
 - In "Preview", expect the warning "Publikasi tertahan karena dependency memerlukan review." and `publicationBlocked: true` in the JSON response.
 - Publishing anyway returns 422 `PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW`.
 - Confirm no product rows were written.
@@ -225,6 +235,9 @@ Single-mutation cases against the valid fixture. All expect HTTP 422 and no new 
 | PB-27 | Remove `entities/dependencies.json` | `PRODUCT_ENTITY_FILE_MISSING` |
 | PB-28 | Remove `manifest.json` | `PRODUCT_MANIFEST_MISSING` |
 | PB-29 | Upload a non-ZIP file renamed to `.zip` | `PRODUCT_ZIP_INVALID` |
+| PB-29A | Article omits a required pedagogic block | `PRODUCT_ARTICLE_QUALITY_FAILED` |
+| PB-29B | Multiple-choice options have zero or multiple correct entries | `PRODUCT_QUESTION_GRADING_INVALID` |
+| PB-29C | A question has zero or more than one solution | `PRODUCT_QUESTION_SOLUTION_INVALID` |
 
 ### 3.5 Holdout leak
 
@@ -233,25 +246,25 @@ Set the first article block's content to `HOLDOUT_CANARY`, new `bundleId`, recom
 
 ### 3.6 Diktat lineage
 
-Applies when a diktat product carries Article lineage fields (`sourceArticleId`, `sourceArticleVersion`, `sourceArticleGenerationHash`).
+Every Diktat carries Article lineage fields (`sourceArticleId`, `sourceArticleVersion`, `sourceArticleHash`).
 
 | Case | Mutation | Expected code |
 |---|---|---|
 | PB-31 | Lineage present, matching Article dependency removed | `PRODUCT_DIKTAT_LINEAGE_DEPENDENCY_MISSING` |
-| PB-32 | Lineage with version present but generation hash omitted | `PRODUCT_DIKTAT_LINEAGE_INCOMPLETE` |
+| PB-32 | Required lineage generation hash omitted | `BUNDLE_ENTITY_INVALID` |
 | PB-33 | Lineage generation hash altered | `PRODUCT_DIKTAT_LINEAGE_HASH_MISMATCH` |
 
 ### 3.7 Publication-time failures
 
 | Case | Setup | Expected |
 |---|---|---|
-| PB-34 | Publish while status is `validated` | 422 `PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED` |
+| PB-34 | Withdraw while status is `draft` | 422 `PRODUCT_BUNDLE_PUBLISHED_REQUIRED` |
 | PB-35 | `creatorId` missing from `user` | 422 `PRODUCT_BUNDLE_CREATOR_NOT_FOUND` |
 | PB-36 | `curatorId` missing from `user` | 422 `PRODUCT_BUNDLE_CURATOR_NOT_FOUND` |
 | PB-37 | Publish a nonexistent id | 404 `PRODUCT_BUNDLE_NOT_FOUND` |
 
 **PB-38 Per-stage rollback matrix.**
-For each stage in `article`, `diktat`, `question`, `solution`, `flashcard_set`, `flashcard`, `assessment_blueprint`, `outbox`: stage a fresh bundle, approve, then set `STAGING_PRODUCT_FAILURE_TEST=1` and call `publishProductBundle({ ..., testFailureAfter: <stage> })`. For every stage expect the throw `PRODUCT_BUNDLE_TEST_FAILURE`, `impor_bundle.status` still `approved`, and zero visible product rows across all seven target tables. A single stage that leaves rows behind is a release blocker.
+For each stage in `article`, `diktat`, `question`, `solution`, `flashcard_set`, `flashcard`, `assessment_blueprint`, `outbox`: stage a fresh draft, then set `STAGING_PRODUCT_FAILURE_TEST=1` and call `publishProductBundle({ ..., testFailureAfter: <stage> })`. For every stage expect the throw `PRODUCT_BUNDLE_TEST_FAILURE`, `impor_bundle.status` still `draft`, and zero visible product rows across all seven target tables. A single stage that leaves rows behind is a release blocker.
 
 ---
 

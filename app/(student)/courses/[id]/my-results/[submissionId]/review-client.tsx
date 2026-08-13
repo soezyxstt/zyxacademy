@@ -10,6 +10,7 @@ import { ZyraMark } from "@/components/course/zyra-mark";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import { useTutor } from "@/components/course/tutor-drawer";
 import type { SubmissionReviewFixture, SubmissionListItem } from "@/lib/student-course-fixtures";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 
 type ReviewClientProps = {
   courseId: string;
@@ -228,6 +229,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
 
                 </div>
               )}
+              <QuestionSourceCitation origin={item.origin} sourceEventName={item.sourceEventName} />
             </li>
           );
         })}

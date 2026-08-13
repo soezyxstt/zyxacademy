@@ -5,6 +5,8 @@ import { readSecureZip, ZipSecurityError } from "@/lib/bundle/zip-reader";
 import { serializeDeterministically, validateIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { stageIdeaBundle, listIdeaBundleImports } from "@/lib/bundle/staging";
 import { sha256Text } from "@/lib/bundle/validator";
+import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
+import { createIdeaBundleDraft, finalizeIdeaBundleDraft, type IdeaBundleDraft } from "@/lib/bundle/idea-draft";
 
 export const runtime = "nodejs";
 
@@ -61,8 +63,8 @@ export async function POST(request: NextRequest) {
     const file = form.get("file");
     if (!(file instanceof File)) return NextResponse.json({ error: "IDEA_BUNDLE_FILE_REQUIRED" }, { status: 400 });
     if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) return NextResponse.json({ error: "IDEA_BUNDLE_FILE_LIMIT" }, { status: 413 });
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const archive = readSecureZip(bytes);
+    const uploadedBytes = new Uint8Array(await file.arrayBuffer());
+    const archive = readSecureZip(uploadedBytes);
     const validation = validateIdeaBundle(archive);
     if (!validation.success) {
       return NextResponse.json({
@@ -72,7 +74,23 @@ export async function POST(request: NextRequest) {
       }, { status: 422 });
     }
 
-    const bundle = validation.data;
+    const intent = form.get("intent");
+    if (intent !== "stage") {
+      return NextResponse.json({
+        persisted: false,
+        filename: file.name,
+        manifest: validation.data.manifest,
+        preview: previewIdeaBundle(validation.data),
+        draft: createIdeaBundleDraft(validation.data),
+      });
+    }
+
+    const draftValue = form.get("draft");
+    if (typeof draftValue !== "string" || draftValue.length > 8 * 1024 * 1024) {
+      return NextResponse.json({ error: "IDEA_BUNDLE_DRAFT_REQUIRED" }, { status: 400 });
+    }
+    const finalized = finalizeIdeaBundleDraft(validation.data, JSON.parse(draftValue) as IdeaBundleDraft);
+    const bundle = finalized.bundle;
     const items = [
       ...bundle.entities.sourceMaterials.map((entity) => ({ entityType: "source_material", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
       ...bundle.entities.sourceChunks.map((entity) => ({ entityType: "source_chunk", entityId: entity.id, entityVersion: entity.sourceVersion, entityHash: sha256Text(serializeDeterministically(entity)) })),
@@ -86,13 +104,13 @@ export async function POST(request: NextRequest) {
       courseId: bundle.manifest.courseId,
       schemaVersion: parseSchemaVersion(bundle.manifest.schemaVersion),
       checksum: bundle.manifest.bundleChecksum,
-      bytes,
+      bytes: finalized.bytes,
       requestedBy: actor.id,
       items,
       validationReport: {
         valid: true,
         reasonCodes: [],
-        fileCount: archive.entries.filter((entry) => !entry.isDirectory).length,
+        fileCount: bundle.files.size,
         entityCount: items.length,
         sourceCount: bundle.entities.sourceMaterials.length,
         relationCount: bundle.entities.relations.length,

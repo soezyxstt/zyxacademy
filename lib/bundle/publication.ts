@@ -24,6 +24,7 @@ import { downloadIdeaBundleArtifact, getIdeaBundleImport } from "@/lib/bundle/st
 import { parseIdeaBundle, serializeDeterministically, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { sha256Text } from "@/lib/bundle/validator";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
+import { resolveBundleIdentity } from "@/lib/bundle/attribution";
 
 export type IdeaBundlePublicationResult = {
   publicationId: string;
@@ -179,7 +180,7 @@ export async function publishIdeaBundle(input: {
     if (!publisher || publisher.role !== "admin") throw new Error("IDEA_BUNDLE_PUBLISH_FORBIDDEN");
 
     const [approvedReview] = await tx
-      .select({ id: reviewBundle.id })
+      .select({ id: reviewBundle.id, reviewerId: reviewBundle.reviewerId })
       .from(reviewBundle)
       .innerJoin(user, eq(user.id, reviewBundle.reviewerId))
       .where(and(
@@ -192,6 +193,7 @@ export async function publishIdeaBundle(input: {
 
     const course = await resolveCourse(tx, bundle.manifest.courseId);
     const now = new Date();
+    const attribution = { uploaderId: row.requestedBy, approvingReviewerId: approvedReview.reviewerId };
     const publicationId = deterministicId("publikasi-idea", input.importId);
     const sourceContentPathById = new Map(bundle.manifest.sourceVersions.map((source) => [source.sourceMaterialId, source.contentPath]));
     const chapterBySourceId = new Map<string, string | null>();
@@ -200,7 +202,8 @@ export async function publishIdeaBundle(input: {
       const targetChapterId = await resolveChapter(tx, source.chapterId, course.targetId);
       chapterBySourceId.set(source.id, targetChapterId);
       if (source.status !== "active") throw new Error(`IDEA_BUNDLE_SOURCE_NOT_ACTIVE:${source.id}`);
-      await requireIdentity(tx, source.creatorId, `IDEA_BUNDLE_CREATOR_NOT_FOUND:${source.creatorId}`);
+      const creatorId = resolveBundleIdentity(source.creatorId, attribution);
+      await requireIdentity(tx, creatorId, `IDEA_BUNDLE_CREATOR_NOT_FOUND:${creatorId}`);
       const sourcePayload = {
         id: source.id,
         mataKuliahId: course.targetId,
@@ -211,7 +214,7 @@ export async function publishIdeaBundle(input: {
         version: source.version,
         checksum: source.checksum,
         status: source.status,
-        creatorId: source.creatorId,
+        creatorId,
       };
       const [existing] = await tx.select().from(sumberMateri).where(eq(sumberMateri.id, source.id)).limit(1);
       if (!assertEqualFields(existing as Record<string, unknown> | undefined, sourcePayload, "IDEA_BUNDLE_SOURCE_VERSION_CONFLICT")) {
@@ -248,9 +251,11 @@ export async function publishIdeaBundle(input: {
         const [concept] = await tx.select({ id: concepts.id }).from(concepts).where(eq(concepts.id, idea.conceptId)).limit(1);
         if (!concept) throw new Error(`IDEA_BUNDLE_CONCEPT_NOT_FOUND:${idea.conceptId}`);
       }
-      await requireIdentity(tx, idea.creatorId, `IDEA_BUNDLE_CREATOR_NOT_FOUND:${idea.creatorId}`);
-      if (idea.curatorId) {
-        await requireIdentity(tx, idea.curatorId, `IDEA_BUNDLE_CURATOR_NOT_FOUND:${idea.curatorId}`);
+      const creatorId = resolveBundleIdentity(idea.creatorId, attribution);
+      const curatorId = idea.curatorId ? resolveBundleIdentity(idea.curatorId, attribution) : null;
+      await requireIdentity(tx, creatorId, `IDEA_BUNDLE_CREATOR_NOT_FOUND:${creatorId}`);
+      if (curatorId) {
+        await requireIdentity(tx, curatorId, `IDEA_BUNDLE_CURATOR_NOT_FOUND:${curatorId}`);
       }
       const ideaPayload = {
         id: idea.id,
@@ -271,8 +276,8 @@ export async function publishIdeaBundle(input: {
         schemaVersion: idea.schemaVersion,
         semanticHash: idea.semanticHash,
         generationHash: idea.generationHash,
-        creatorId: idea.creatorId,
-        curatorId: idea.curatorId ?? null,
+        creatorId,
+        curatorId,
       };
       const [existing] = await tx.select().from(ide).where(eq(ide.id, idea.id)).limit(1);
       if (!assertEqualFields(existing as Record<string, unknown> | undefined, ideaPayload, "IDEA_BUNDLE_IDEA_VERSION_CONFLICT")) {

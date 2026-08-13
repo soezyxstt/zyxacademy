@@ -105,6 +105,44 @@ export function buildFormStorageKey(params: {
   );
 }
 
+export function buildIdeaBundleKey(input: {
+  runId: string;
+  bundleId: string;
+  checksum: string;
+}): string {
+  return joinKey(
+    "overhaul",
+    "idea-bundles",
+    slugifySegment(input.runId, "run"),
+    `${slugifySegment(input.bundleId, "idea-bundle")}-${input.checksum.slice(0, 16)}.zip`,
+  );
+}
+
+export function buildProductBundleKey(input: {
+  runId: string;
+  bundleId: string;
+  checksum: string;
+}): string {
+  return joinKey(
+    "overhaul",
+    "product-bundles",
+    slugifySegment(input.runId, "run"),
+    `${slugifySegment(input.bundleId, "product-bundle")}-${input.checksum.slice(0, 16)}.zip`,
+  );
+}
+
+export function buildAuthoringContextKey(input: {
+  runId: string;
+  packId: string;
+}): string {
+  return joinKey(
+    "overhaul",
+    slugifySegment(input.runId, "run"),
+    "authoring-context",
+    `${slugifySegment(input.packId, "authoring-context")}.zip`,
+  );
+}
+
 /**
  * Media Library leaf name. Unlike user-upload leaves, the Media Library is a
  * managed workspace where the human-visible filename IS the object name, so the

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -30,7 +31,10 @@ export async function GET() {
         action: row.action,
         correlationId: row.correlationId,
         createdAt: row.createdAt,
-        metadata: row.afterSnapshot,
+        artifactChecksum: row.afterSnapshot?.artifactChecksum,
+        courseId: row.afterSnapshot?.courseId,
+        retentionUntil: row.afterSnapshot?.retentionUntil,
+        byteLength: row.afterSnapshot?.byteLength,
       })),
     });
   } catch (error) {
@@ -43,16 +47,23 @@ export async function POST(request: NextRequest) {
   if (actor instanceof NextResponse) return actor;
   try {
     const body = (await request.json()) as { courseId?: string; snapshotId?: string; runId?: string; createdAt?: string; retentionUntil?: string };
-    if (!body.courseId || !body.snapshotId) return NextResponse.json({ error: "AUTHORING_CONTEXT_INPUT_REQUIRED" }, { status: 400 });
+    if (!body.courseId) return NextResponse.json({ error: "AUTHORING_CONTEXT_INPUT_REQUIRED" }, { status: 400 });
+    const requestId = randomUUID();
     const result = await exportAuthoringContext({
       actorId: actor.id,
       courseId: body.courseId,
-      snapshotId: body.snapshotId,
-      runId: body.runId ?? request.headers.get("x-correlation-id") ?? `authoring-${Date.now()}`,
+      snapshotId: body.snapshotId ?? `snapshot-${requestId}`,
+      runId: body.runId ?? request.headers.get("x-correlation-id") ?? `authoring-${requestId}`,
       createdAt: body.createdAt,
       retentionUntil: body.retentionUntil,
     });
-    return NextResponse.json({ result }, { status: 201 });
+    return NextResponse.json({
+      result: {
+        ...result,
+        objectKey: undefined,
+        downloadHref: `/api/admin/authoring-context/${encodeURIComponent(result.packId)}`,
+      },
+    }, { status: 201 });
   } catch (error) {
     return errorResponse(error);
   }

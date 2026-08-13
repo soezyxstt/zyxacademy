@@ -36,7 +36,13 @@ export type QuestionType =
  | "multiple_choices"
  | "essay";
 
-export type QuestionSpec =
+export type QuestionProvenanceSpec = {
+ origin?: "zyx_original" | "itb_example";
+ sourceEventName?: string | null;
+ sourceReferenceId?: string | null;
+};
+
+export type QuestionSpec = QuestionProvenanceSpec & (
  | {
  id: string;
  order: number;
@@ -68,7 +74,7 @@ export type QuestionSpec =
  type: "essay";
  prompt: string;
  acceptsFile?: boolean;
- };
+ });
 
 export type ExamFixture = {
  id: string;
@@ -120,6 +126,9 @@ export type ReviewItem = {
  explanationImage?: string;
  explanationVideoUrl?: string;
  explanationVideoKind?: "youtube" | "r2";
+ origin?: "zyx_original" | "itb_example";
+ sourceEventName?: string | null;
+ sourceReferenceId?: string | null;
 };
 
 export type SubmissionReviewFixture = {

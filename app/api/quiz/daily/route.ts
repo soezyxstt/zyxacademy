@@ -113,6 +113,9 @@ export async function GET() {
  // Strip correct answers from the client-facing payload
  const clientQuestions = shuffled.map((q) => ({
  id: q.id,
+ origin: q.origin,
+ sourceEventName: q.sourceEventName,
+ sourceReferenceId: q.sourceReferenceId,
  prompt: q.prompt,
  options: q.options,
  difficulty: q.difficulty,

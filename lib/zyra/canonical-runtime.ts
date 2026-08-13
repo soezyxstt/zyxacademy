@@ -32,6 +32,7 @@ import {
   type CanonicalVectorMetadata,
 } from "@/lib/vectorize/contracts";
 import type { TutorSource } from "@/lib/tutor-rag";
+import { redactQuestionAnswerKeys } from "@/lib/asesmen/question-options";
 
 export const CANONICAL_RUNTIME_REASON_CODES = [
   "INVALID_VECTOR_ID",
@@ -469,7 +470,7 @@ async function loadCanonicalRecords(
   }
 
   for (const row of questionRows) {
-    const fullContent = `${row.prompt}\n\nOptions: ${stableSerialize(row.optionsSnapshot)}`;
+    const fullContent = `${row.prompt}\n\nOptions: ${stableSerialize(redactQuestionAnswerKeys(row.optionsSnapshot))}`;
     records.push({
       namespace: "published_questions",
       entityType: "question",

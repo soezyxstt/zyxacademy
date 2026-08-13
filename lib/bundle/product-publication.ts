@@ -2,12 +2,14 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  aiQuestionBank,
   artikel,
   artikelIde,
   auditMutasi,
   bab,
   blueprintAsesmen,
   blokArtikel,
+  courses,
   diktatIde,
   diktatMateri,
   flashcard,
@@ -32,9 +34,11 @@ import {
   vectorSyncQueue,
 } from "@/db/schema";
 import { serializeDeterministically } from "@/lib/bundle/idea-bundle-v2";
+import { redactQuestionAnswerKeys } from "@/lib/asesmen/question-options";
 import { canonicalNamespaceForProductType } from "@/lib/vectorize/outbox";
 import type { CanonicalEntityType, CanonicalNamespace } from "@/lib/vectorize/contracts";
-import { parseStagedProductBundle, getProductBundleImport } from "./product-staging";
+import { resolveBundleIdentity } from "./attribution";
+import { parseStagedProductBundle, getProductBundleImport, productBundleLifecycleStatus } from "./product-staging";
 import type { ProductDependency, ProductEntity } from "./product-validator";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -78,6 +82,11 @@ async function resolveCourse(tx: Tx, courseId: string): Promise<{ targetId: stri
   const [row] = await tx.select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId }).from(mataKuliah).where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId))).limit(1);
   if (!row) throw new Error(`PRODUCT_BUNDLE_COURSE_NOT_FOUND:${courseId}`);
   return { targetId: row.id, legacyId: row.legacyCourseId ?? row.id };
+}
+
+async function requireLegacyCourse(tx: Tx, legacyId: string): Promise<void> {
+  const [row] = await tx.select({ id: courses.id }).from(courses).where(eq(courses.id, legacyId)).limit(1);
+  if (!row) throw new Error(`PRODUCT_BUNDLE_LEGACY_COURSE_MAPPING_MISSING:${legacyId}`);
 }
 
 async function resolveChapter(tx: Tx, chapterId: string | undefined, courseTargetId: string): Promise<string | null> {
@@ -160,7 +169,7 @@ function canonicalProductVectorSpec(product: ProductEntity): CanonicalProductVec
         entityId: targetId(product),
         version: product.version,
         title: "Published question",
-        text: `${product.prompt}\n\nOptions: ${serializeDeterministically(product.options)}`,
+        text: `${product.prompt}\n\nOptions: ${serializeDeterministically(redactQuestionAnswerKeys(product.options))}`,
       };
     case "solution":
       return {
@@ -200,13 +209,15 @@ async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productTyp
   for (const link of product.ideaLinks) await tx.insert(diktatIde).values({ id: id("diktat-ide", `${materialId}:${link.id}`), diktatMateriId: materialId, ideId: link.id, weight: link.weight }).onConflictDoNothing();
 }
 
-async function insertQuestion(tx: Tx, product: Extract<ProductEntity, { productType: "question" }>, course: { targetId: string }, now: Date): Promise<void> {
+async function insertQuestion(tx: Tx, product: Extract<ProductEntity, { productType: "question" }>, course: { targetId: string; legacyId: string }, now: Date): Promise<void> {
   const questionId = targetId(product);
   const chapterId = await resolveChapter(tx, product.chapterId, course.targetId);
-  const values = { id: questionId, mataKuliahId: course.targetId, babId: chapterId, questionType: product.questionType, prompt: product.prompt, optionsSnapshot: product.options, version: product.version, status: "published" as const, difficulty: product.difficulty, cognitiveLevel: product.cognitiveLevel, reasoningPattern: product.reasoningPattern, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
-  const [existing] = await tx.select({ id: soal.id, version: soal.version, generationHash: soal.generationHash }).from(soal).where(eq(soal.id, questionId)).limit(1);
+  const sourceEventName = product.itbSource.eventName.trim();
+  const sourceReferenceId = product.itbSource.referenceId;
+  const values = { id: questionId, mataKuliahId: course.targetId, babId: chapterId, questionType: product.questionType, prompt: product.prompt, optionsSnapshot: product.options, origin: "itb_example" as const, sourceEventName, sourceReferenceId, version: product.version, status: "published" as const, difficulty: product.difficulty, cognitiveLevel: product.cognitiveLevel, reasoningPattern: product.reasoningPattern, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
+  const [existing] = await tx.select({ id: soal.id, version: soal.version, generationHash: soal.generationHash, origin: soal.origin, sourceEventName: soal.sourceEventName, sourceReferenceId: soal.sourceReferenceId }).from(soal).where(eq(soal.id, questionId)).limit(1);
   if (existing) {
-    if (existing.version !== values.version || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
+    if (existing.version !== values.version || existing.generationHash !== values.generationHash || existing.origin !== values.origin || existing.sourceEventName !== values.sourceEventName || existing.sourceReferenceId !== values.sourceReferenceId) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
   } else await tx.insert(soal).values(values);
   for (const link of product.ideaLinks) await tx.insert(soalIde).values({ id: id("soal-ide", `${questionId}:${link.id}`), soalId: questionId, ideId: link.id, weight: link.weight, role: link.role === "required" ? "required" : link.role === "primary" ? "primary" : "supporting" }).onConflictDoNothing();
   const relations = product.ideaRelations.length > 0
@@ -222,17 +233,48 @@ async function insertQuestion(tx: Tx, product: Extract<ProductEntity, { productT
       status: "active",
     }).onConflictDoNothing();
   }
-  for (const curation of product.itbCuration) {
+  const referenceIds = [...new Set([sourceReferenceId, ...product.itbCuration.map((curation) => curation.referenceId)])];
+  for (const referenceId of referenceIds) {
     const [reference] = await tx
-      .select({ id: soalItbReferensi.id, soalId: soalItbReferensi.soalId, authoringVisibility: soalItbReferensi.authoringVisibility })
+      .select({ id: soalItbReferensi.id, soalId: soalItbReferensi.soalId, sourceLabel: soalItbReferensi.sourceLabel, authoringVisibility: soalItbReferensi.authoringVisibility })
       .from(soalItbReferensi)
-      .where(eq(soalItbReferensi.id, curation.referenceId))
+      .where(eq(soalItbReferensi.id, referenceId))
       .limit(1);
-    if (!reference) throw new Error(`PRODUCT_ITB_REFERENCE_MISSING:${curation.referenceId}`);
-    if (reference.authoringVisibility !== "allowed") throw new Error(`PRODUCT_ITB_REFERENCE_NOT_ALLOWED:${curation.referenceId}`);
-    if (reference.soalId && reference.soalId !== questionId) throw new Error(`PRODUCT_ITB_REFERENCE_ALREADY_LINKED:${curation.referenceId}`);
-    await tx.update(soalItbReferensi).set({ soalId: questionId }).where(eq(soalItbReferensi.id, curation.referenceId));
+    if (!reference) throw new Error(`PRODUCT_ITB_REFERENCE_MISSING:${referenceId}`);
+    if (reference.authoringVisibility !== "allowed") throw new Error(`PRODUCT_ITB_REFERENCE_NOT_ALLOWED:${referenceId}`);
+    if (referenceId !== sourceReferenceId) continue;
+    if (reference.sourceLabel.trim() !== sourceEventName) throw new Error(`PRODUCT_ITB_SOURCE_LABEL_MISMATCH:${referenceId}`);
+    if (reference.soalId && reference.soalId !== questionId) throw new Error(`PRODUCT_ITB_REFERENCE_ALREADY_LINKED:${referenceId}`);
+    await tx.update(soalItbReferensi).set({ soalId: questionId }).where(eq(soalItbReferensi.id, referenceId));
   }
+
+  await requireLegacyCourse(tx, course.legacyId);
+  const correctIndices = product.options.flatMap((option, index) => option.isCorrect ? [index] : []);
+  const compatibilityValues = {
+    id: questionId,
+    courseId: course.legacyId,
+    origin: "itb_example" as const,
+    sourceEventName,
+    sourceReferenceId,
+    generationHash: product.generationHash,
+    status: "active",
+    difficulty: product.difficulty,
+    questionType: product.questionType,
+    tags: ["contoh_itb"],
+    prompt: product.prompt,
+    options: product.options.map((option) => option.text),
+    correctIndices,
+    acceptableAnswers: [],
+    distractorMap: [],
+    explanation: "",
+    reviewStatus: "published" as const,
+    reasoningType: product.reasoningPattern,
+    createdAt: now,
+  };
+  const [existingCompatibility] = await tx.select({ id: aiQuestionBank.id, generationHash: aiQuestionBank.generationHash, origin: aiQuestionBank.origin, sourceEventName: aiQuestionBank.sourceEventName, sourceReferenceId: aiQuestionBank.sourceReferenceId }).from(aiQuestionBank).where(eq(aiQuestionBank.id, questionId)).limit(1);
+  if (existingCompatibility) {
+    if (existingCompatibility.generationHash !== compatibilityValues.generationHash || existingCompatibility.origin !== compatibilityValues.origin || existingCompatibility.sourceEventName !== compatibilityValues.sourceEventName || existingCompatibility.sourceReferenceId !== compatibilityValues.sourceReferenceId) throw new Error(`PRODUCT_BUNDLE_QUESTION_BANK_CONFLICT:${product.id}`);
+  } else await tx.insert(aiQuestionBank).values(compatibilityValues);
 }
 
 async function insertFlashcardSet(tx: Tx, product: Extract<ProductEntity, { productType: "flashcard_set" }>, course: { targetId: string }, now: Date): Promise<void> {
@@ -276,20 +318,31 @@ export async function publishProductBundle(input: { importId: string; publishedB
     if (!publication) throw new Error("PRODUCT_BUNDLE_PUBLISHED_RECORD_MISSING");
     return { publicationId: publication.id, importId: input.importId, published: false, productCount: 0, vectorJobCount: 0 };
   }
-  if (snapshot.status !== "approved") throw new Error("PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED");
+  if (productBundleLifecycleStatus(snapshot.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
   if (bundle.publicationBlocked) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
   return db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
-    if (!row || row.bundleType !== "product" || row.status !== "approved") throw new Error("PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED");
+    if (!row || row.bundleType !== "product" || productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
     const [publisher] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.publishedBy)).limit(1);
     if (!publisher || publisher.role !== "admin") throw new Error("PRODUCT_BUNDLE_PUBLISH_FORBIDDEN");
     await requireIdentity(tx, input.publishedBy, "PRODUCT_BUNDLE_PUBLISHER_NOT_FOUND");
-    const [review] = await tx.select({ id: reviewBundle.id }).from(reviewBundle).innerJoin(user, eq(user.id, reviewBundle.reviewerId)).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.status, "approved"), eq(user.role, "admin"))).limit(1);
-    if (!review) throw new Error("PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED");
+    const [existingReview] = await tx.select({ id: reviewBundle.id, reviewerId: reviewBundle.reviewerId }).from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.publishedBy))).limit(1);
+    const review = existingReview ?? { id: id("review-product", `${input.importId}:${input.publishedBy}`), reviewerId: input.publishedBy };
+    if (existingReview) {
+      await tx.update(reviewBundle).set({ status: "approved", reviewedAt: new Date() }).where(eq(reviewBundle.id, existingReview.id));
+    } else {
+      await tx.insert(reviewBundle).values({ id: review.id, imporBundleId: input.importId, reviewerId: input.publishedBy, status: "approved", notes: "Published by admin", reviewedAt: new Date() });
+    }
     const course = await resolveCourse(tx, bundle.manifest.courseId);
     const now = new Date();
-    for (const product of bundle.products) {
+    const attribution = { uploaderId: row.requestedBy, approvingReviewerId: review.reviewerId };
+    const products = bundle.products.map((product) => ({
+      ...product,
+      creatorId: resolveBundleIdentity(product.creatorId, attribution),
+      curatorId: product.curatorId ? resolveBundleIdentity(product.curatorId, attribution) : undefined,
+    })) as readonly ProductEntity[];
+    for (const product of products) {
       await requireIdentity(tx, product.creatorId, "PRODUCT_BUNDLE_CREATOR_NOT_FOUND");
       if (product.curatorId) await requireIdentity(tx, product.curatorId, "PRODUCT_BUNDLE_CURATOR_NOT_FOUND");
       await verifyTraceability(tx, product);
@@ -307,9 +360,9 @@ export async function publishProductBundle(input: { importId: string; publishedB
         if (!lineageDependency) throw new Error(`PRODUCT_DIKTAT_LINEAGE_DEPENDENCY_MISSING:${product.id}`);
       }
     }
-    await verifyDependencies(tx, bundle.dependencies, bundle.products);
-    const setProducts = bundle.products.filter((product): product is Extract<ProductEntity, { productType: "flashcard_set" }> => product.productType === "flashcard_set");
-    const ordered = [...bundle.products].sort((left, right) => ["flashcard_set", "question", "article", "diktat", "flashcard", "solution", "assessment_blueprint"].indexOf(left.productType) - ["flashcard_set", "question", "article", "diktat", "flashcard", "solution", "assessment_blueprint"].indexOf(right.productType));
+    await verifyDependencies(tx, bundle.dependencies, products);
+    const setProducts = products.filter((product): product is Extract<ProductEntity, { productType: "flashcard_set" }> => product.productType === "flashcard_set");
+    const ordered = [...products].sort((left, right) => ["flashcard_set", "question", "article", "diktat", "flashcard", "solution", "assessment_blueprint"].indexOf(left.productType) - ["flashcard_set", "question", "article", "diktat", "flashcard", "solution", "assessment_blueprint"].indexOf(right.productType));
     for (const product of ordered) {
       switch (product.productType) {
         case "flashcard_set": await insertFlashcardSet(tx, product, course, now); break;
@@ -319,11 +372,12 @@ export async function publishProductBundle(input: { importId: string; publishedB
         case "flashcard": await insertFlashcard(tx, product, setProducts, now); break;
         case "solution": {
           const solutionId = targetId(product);
-          const question = bundle.products.find((candidate) => candidate.productType === "question" && candidate.id === product.questionId);
+          const question = products.find((candidate) => candidate.productType === "question" && candidate.id === product.questionId);
           const questionId = question ? targetId(question) : product.questionId;
           const [existingQuestion] = await tx.select({ id: soal.id }).from(soal).where(eq(soal.id, questionId)).limit(1);
           if (!existingQuestion) throw new Error(`PRODUCT_BUNDLE_SOLUTION_QUESTION_MISSING:${product.id}`);
           await tx.insert(pembahasanSoal).values({ id: solutionId, soalId: questionId, version: product.version, content: product.content, status: "published", generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now }).onConflictDoNothing();
+          await tx.update(aiQuestionBank).set({ explanation: product.content }).where(eq(aiQuestionBank.id, questionId));
           break;
         }
         case "assessment_blueprint": await insertBlueprint(tx, product, course, now); break;
@@ -333,7 +387,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
     for (const dependency of bundle.dependencies) {
       await tx.insert(ketergantunganProduk).values({ id: dependency.id, upstreamEntityType: dependency.upstreamEntityType, upstreamEntityId: dependency.upstreamEntityId, upstreamVersion: dependency.upstreamVersion, upstreamHash: dependency.upstreamHash, downstreamEntityType: dependency.downstreamEntityType, downstreamEntityId: dependency.downstreamEntityId, downstreamVersion: dependency.downstreamVersion, downstreamHash: dependency.downstreamHash, freshness: dependency.freshness, reason: null, createdAt: now, updatedAt: now }).onConflictDoNothing();
     }
-    const vectorJobs = bundle.products.flatMap((product) => {
+    const vectorJobs = products.flatMap((product) => {
       const spec = canonicalProductVectorSpec(product);
       if (!spec) return [];
       return [{
@@ -364,9 +418,72 @@ export async function publishProductBundle(input: { importId: string; publishedB
     await tx.insert(publikasiBundle).values({ id: publicationId, imporBundleId: input.importId, approvedReviewId: review.id, version: 1, publicationHash, status: "published", publishedBy: input.publishedBy, publishedAt: now, createdAt: now });
     await tx.update(itemImporBundle).set({ status: "published" }).where(eq(itemImporBundle.imporBundleId, input.importId));
     await tx.update(imporBundle).set({ status: "published", updatedAt: now }).where(eq(imporBundle.id, input.importId));
+    const itbSources = bundle.products.flatMap((product) => product.productType === "question" ? [{ questionId: product.id, referenceId: product.itbSource.referenceId, eventName: product.itbSource.eventName }] : []);
     const itbCuration = bundle.products.flatMap((product) => product.productType === "question" ? product.itbCuration.map((curation) => ({ questionId: product.id, referenceId: curation.referenceId, dimensions: curation.dimensions })) : []);
-    await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "approved" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: vectorJobs.length, publicationHash, itbCuration }, correlationId: input.importId });
+    await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "draft" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: vectorJobs.length, publicationHash, itbSources, itbCuration }, correlationId: input.importId });
     return { publicationId, importId: input.importId, published: true, productCount: bundle.products.length, vectorJobCount: vectorJobs.length };
+  });
+}
+
+export async function withdrawProductBundle(input: { importId: string; withdrawnBy: string }): Promise<{ importId: string; withdrawn: boolean; productCount: number; vectorJobCount: number }> {
+  enabled();
+  const snapshot = await getProductBundleImport(input.importId);
+  if (!snapshot) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (productBundleLifecycleStatus(snapshot.status) === "withdrawn") return { importId: input.importId, withdrawn: false, productCount: 0, vectorJobCount: 0 };
+  if (productBundleLifecycleStatus(snapshot.status) !== "published") throw new Error("PRODUCT_BUNDLE_PUBLISHED_REQUIRED");
+  const bundle = await parseStagedProductBundle(input.importId);
+
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
+    if (!row || row.bundleType !== "product" || productBundleLifecycleStatus(row.status) !== "published") throw new Error("PRODUCT_BUNDLE_PUBLISHED_REQUIRED");
+    const [actor] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.withdrawnBy)).limit(1);
+    if (!actor || actor.role !== "admin") throw new Error("PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN");
+    await requireIdentity(tx, input.withdrawnBy, "PRODUCT_BUNDLE_WITHDRAWER_NOT_FOUND");
+    const course = await resolveCourse(tx, bundle.manifest.courseId);
+    const now = new Date();
+    const productIds = bundle.products.map(targetId);
+    const byType = <T extends ProductEntity["productType"]>(type: T) => bundle.products.filter((product): product is Extract<ProductEntity, { productType: T }> => product.productType === type).map(targetId);
+    const articleIds = byType("article");
+    const diktatIds = byType("diktat");
+    const questionIds = byType("question");
+    const solutionIds = byType("solution");
+    const setIds = byType("flashcard_set");
+    const cardIds = byType("flashcard");
+    const blueprintIds = byType("assessment_blueprint");
+
+    if (articleIds.length > 0) {
+      await tx.update(artikel).set({ status: "withdrawn", updatedAt: now }).where(inArray(artikel.id, articleIds));
+      await tx.update(blokArtikel).set({ status: "withdrawn", updatedAt: now }).where(inArray(blokArtikel.artikelId, articleIds));
+    }
+    if (diktatIds.length > 0) await tx.update(diktatMateri).set({ status: "withdrawn", updatedAt: now }).where(inArray(diktatMateri.id, diktatIds));
+    if (questionIds.length > 0) {
+      await tx.update(soal).set({ status: "retired", updatedAt: now }).where(inArray(soal.id, questionIds));
+      await tx.update(soalRelasiIde).set({ status: "withdrawn" }).where(inArray(soalRelasiIde.soalId, questionIds));
+      await tx.update(aiQuestionBank).set({ status: "retired", reviewStatus: "retired" }).where(inArray(aiQuestionBank.id, questionIds));
+    }
+    if (solutionIds.length > 0) await tx.update(pembahasanSoal).set({ status: "retired", updatedAt: now }).where(inArray(pembahasanSoal.id, solutionIds));
+    if (setIds.length > 0) await tx.update(setFlashcard).set({ status: "retired", updatedAt: now }).where(inArray(setFlashcard.id, setIds));
+    if (cardIds.length > 0) await tx.update(flashcard).set({ status: "retired", updatedAt: now }).where(inArray(flashcard.id, cardIds));
+    if (blueprintIds.length > 0) await tx.update(blueprintAsesmen).set({ status: "retired", updatedAt: now }).where(inArray(blueprintAsesmen.id, blueprintIds));
+
+    const vectorJobs = bundle.products.flatMap((product) => {
+      const spec = canonicalProductVectorSpec(product);
+      if (!spec) return [];
+      return [{
+        id: id("vector-product-withdraw", `${input.importId}:${spec.entityId}:${spec.version}`),
+        courseId: course.legacyId,
+        koId: null,
+        action: "delete" as const,
+        namespace: spec.namespace,
+        payload: { entityType: spec.entityType, entityId: spec.entityId, version: spec.version, metadata: { entityId: spec.entityId, version: spec.version } },
+      }];
+    });
+    for (const job of vectorJobs) await tx.insert(vectorSyncQueue).values(job).onConflictDoNothing();
+    await tx.update(publikasiBundle).set({ status: "withdrawn" }).where(and(eq(publikasiBundle.imporBundleId, input.importId), eq(publikasiBundle.status, "published")));
+    await tx.update(itemImporBundle).set({ status: "withdrawn" }).where(eq(itemImporBundle.imporBundleId, input.importId));
+    await tx.update(imporBundle).set({ status: "withdrawn", updatedAt: now }).where(eq(imporBundle.id, input.importId));
+    await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:withdrawn`), actorId: input.withdrawnBy, entityType: "product_bundle", entityId: input.importId, action: "withdrawn", beforeSnapshot: { status: "published" }, afterSnapshot: { status: "withdrawn", productCount: productIds.length, vectorJobCount: vectorJobs.length }, correlationId: input.importId });
+    return { importId: input.importId, withdrawn: true, productCount: productIds.length, vectorJobCount: vectorJobs.length };
   });
 }
 

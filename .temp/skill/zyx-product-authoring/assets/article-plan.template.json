@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "zyx-article-plan.v1",
+  "articleId": "replace-me",
+  "globalPromises": {
+    "learnerLevel": "replace-me",
+    "terminology": {},
+    "symbols": {},
+    "units": {},
+    "assumptions": [],
+    "tone": "clear-academic"
+  },
+  "parts": [],
+  "completenessMatrix": [],
+  "openIssues": []
+}

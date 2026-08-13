@@ -1,6 +1,17 @@
 import { createHash } from "node:crypto";
 import { zipSync } from "fflate";
-import { AUTHORING_CONTEXT_CONTRACT, AUTHORING_CONTEXT_POLICY_VERSION, AUTHORING_CONTEXT_SCHEMA_VERSION } from "./policy";
+import { z } from "zod";
+import {
+  ideaBundleManifestSchema,
+} from "@/lib/bundle/idea-bundle-v2";
+import {
+  productBundleManifestSchema,
+  productDependencySchema,
+  productEntitySchema,
+} from "@/lib/bundle/product-validator";
+import { ideaProvenanceSchema, ideaRelationSchema, ideaSchema } from "@/lib/ide/contracts";
+import { sourceChunkSchema, sourceMaterialSchema } from "@/lib/sumber/contracts";
+import { AUTHORING_CONTEXT_CONTRACT, AUTHORING_CONTEXT_POLICY_VERSION, AUTHORING_CONTEXT_SCHEMA_VERSION, EXTERNAL_AUTHORING_WORKFLOW } from "./policy";
 import { assertAuthoringContextSafe, isSafeRelativeCitation, scanAuthoringContext, type RedactionFinding } from "./redaction";
 
 export type AuthoringCourse = { id: string; code?: string; title: string };
@@ -74,6 +85,8 @@ export type AuthoringObjective = {
 export type AuthoringRequirement = { id: string; kind: string; text: string; chapterId?: string | null };
 export type AuthoringBenchmark = {
   id: string;
+  referenceId?: string | null;
+  sourceLabel?: string | null;
   datasetKey: string;
   authoringVisibility: "allowed" | "holdout";
   version: number;
@@ -152,7 +165,15 @@ function project(input: AuthoringContextInput) {
   const eligibleObjectives = sorted(input.objectives.filter((objective) => objective.courseId === input.course.id && objective.relatedIdeaIds.some((id) => ideaIds.has(id))), (objective) => objective.id);
   const eligibleRequirements = sorted((input.requirements ?? []).filter((requirement) => !requirement.chapterId || input.chapters.some((chapter) => chapter.id === requirement.chapterId && chapter.courseId === input.course.id)), (requirement) => requirement.id);
   const benchmarks = sorted(input.benchmarks ?? [], (benchmark) => `${benchmark.datasetKey}:${benchmark.version}:${benchmark.id}`);
-  const allowedBenchmarks = benchmarks.filter((benchmark) => benchmark.authoringVisibility === "allowed" && benchmark.status === "active").map((benchmark) => ({ id: benchmark.id, datasetKey: benchmark.datasetKey, version: benchmark.version, checksum: benchmark.checksum, summary: benchmark.summary }));
+  const allowedBenchmarks = benchmarks.filter((benchmark) => benchmark.authoringVisibility === "allowed" && benchmark.status === "active").map((benchmark) => ({
+    id: benchmark.id,
+    referenceId: benchmark.referenceId ?? null,
+    sourceLabel: benchmark.sourceLabel ?? null,
+    datasetKey: benchmark.datasetKey,
+    version: benchmark.version,
+    checksum: benchmark.checksum,
+    summary: benchmark.summary,
+  }));
   return {
     course: { id: input.course.id, code: input.course.code ?? null, title: input.course.title },
     chapters: sorted(input.chapters.filter((chapter) => chapter.courseId === input.course.id), (chapter) => `${chapter.orderIndex}:${chapter.id}`).map((chapter) => ({ id: chapter.id, code: chapter.code ?? null, title: chapter.title, orderIndex: chapter.orderIndex })),
@@ -201,6 +222,16 @@ export function buildAuthoringContextPack(input: AuthoringContextInput): Authori
     "entities/requirements.json": projected.requirements,
     "entities/benchmark-summaries.json": projected.benchmarks,
     "contracts/authoring-context.json": AUTHORING_CONTEXT_CONTRACT,
+    "contracts/external-authoring-workflow.json": EXTERNAL_AUTHORING_WORKFLOW,
+    "contracts/idea-bundle/manifest.schema.json": z.toJSONSchema(ideaBundleManifestSchema),
+    "contracts/idea-bundle/source-material.schema.json": z.toJSONSchema(sourceMaterialSchema),
+    "contracts/idea-bundle/source-chunk.schema.json": z.toJSONSchema(sourceChunkSchema),
+    "contracts/idea-bundle/idea.schema.json": z.toJSONSchema(ideaSchema),
+    "contracts/idea-bundle/provenance.schema.json": z.toJSONSchema(ideaProvenanceSchema),
+    "contracts/idea-bundle/relation.schema.json": z.toJSONSchema(ideaRelationSchema),
+    "contracts/product-bundle/manifest.schema.json": z.toJSONSchema(productBundleManifestSchema),
+    "contracts/product-bundle/product.schema.json": z.toJSONSchema(productEntitySchema),
+    "contracts/product-bundle/dependency.schema.json": z.toJSONSchema(productDependencySchema),
   };
   const fileMap = new Map<string, Uint8Array>();
   for (const [path, value] of Object.entries(entityValues).sort(([left], [right]) => left.localeCompare(right))) fileMap.set(path, bytes(value));

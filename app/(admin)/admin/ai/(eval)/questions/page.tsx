@@ -51,7 +51,7 @@ export default async function AIQuestionsPage() {
       <AdminPageHeader
         icon={Library}
         title="Bank Soal"
-        description="Kelola bank soal hasil ekstraksi AI dan soal-soal historis."
+        description="Kelola soal asli Zyx dan contoh soal ITB yang membawa sitasi sumber."
       />
       <AdminTabs defaultValue="historical">
         <AdminTabsList>
@@ -59,7 +59,7 @@ export default async function AIQuestionsPage() {
             Bank Asesmen Historis ({historicalQuestions.length})
           </AdminTabsTrigger>
           <AdminTabsTrigger value="ai-generated">
-            Dihasilkan AI (Question Bank) ({questions.length})
+            Bank soal aktif ({questions.length})
           </AdminTabsTrigger>
         </AdminTabsList>
 

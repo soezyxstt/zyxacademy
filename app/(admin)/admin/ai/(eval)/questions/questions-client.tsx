@@ -18,10 +18,14 @@ import { MathText } from "@/components/course/math-text";
 
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
 type Difficulty = "easy" | "medium" | "hard";
+type QuestionOrigin = "zyx_original" | "itb_example";
 
 interface Question {
   id: string;
   courseId: string;
+  origin: QuestionOrigin;
+  sourceEventName: string | null;
+  sourceReferenceId: string | null;
   difficulty: Difficulty;
   questionType: string;
   tags: unknown;
@@ -57,6 +61,8 @@ const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" 
   retired: "error",
 };
 
+const provenanceEnabled = process.env.NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1 === "1";
+
 export function QuestionBankClient({ questions, courses, courseMap }: Props) {
   const router = useRouter();
 
@@ -68,6 +74,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
   const [filterStatus, setFilterStatus] = useState<ReviewStatus | "all">("all");
   const [filterCourse, setFilterCourse] = useState("all");
+  const [filterOrigin, setFilterOrigin] = useState<QuestionOrigin | "all">("all");
   const [filterKOId, setFilterKOId] = useState("");
   const [filterBloom, setFilterBloom] = useState("all");
   const [filterBlueprint, setFilterBlueprint] = useState("all");
@@ -109,6 +116,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
     return localQuestions.filter((q) => {
       if (filterStatus !== "all" && q.reviewStatus !== filterStatus) return false;
       if (filterCourse !== "all" && q.courseId !== filterCourse) return false;
+      if (provenanceEnabled && filterOrigin !== "all" && q.origin !== filterOrigin) return false;
       if (filterKOId && (!q.knowledgeObjectId || !q.knowledgeObjectId.toLowerCase().includes(filterKOId.toLowerCase()))) return false;
       
       const tagsList = Array.isArray(q.tags) ? (q.tags as string[]) : [];
@@ -117,7 +125,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
       
       return true;
     });
-  }, [localQuestions, filterStatus, filterCourse, filterKOId, filterBloom, filterBlueprint]);
+  }, [localQuestions, filterStatus, filterCourse, filterOrigin, filterKOId, filterBloom, filterBlueprint]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -229,6 +237,9 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
       const createdQuestion: Question = {
         id: newQ.id,
         courseId: createCourseId,
+        origin: "zyx_original",
+        sourceEventName: null,
+        sourceReferenceId: null,
         difficulty: createDifficulty,
         questionType: createQuestionType,
         tags,
@@ -400,7 +411,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
           <span className="text-body-sm font-semibold">Filter Pencarian &amp; Curation Grid</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div className={cn("grid grid-cols-1 gap-3 md:grid-cols-3", provenanceEnabled ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
           <Select value={filterStatus} onValueChange={(val) => setFilterStatus(val as any)}>
             <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
               <SelectValue placeholder="Status" />
@@ -428,6 +439,17 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
               ))}
             </SelectContent>
           </Select>
+
+          {provenanceEnabled ? <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
+            <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectValue placeholder="Asal soal" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua asal</SelectItem>
+              <SelectItem value="zyx_original">Asli Zyx</SelectItem>
+              <SelectItem value="itb_example">Contoh ITB</SelectItem>
+            </SelectContent>
+          </Select> : null}
 
           <Select value={filterBloom} onValueChange={setFilterBloom}>
             <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
@@ -996,6 +1018,10 @@ function QuestionRow({
               {question.reviewStatus}
             </StatusBadge>
 
+            {provenanceEnabled ? <StatusBadge tone={question.origin === "itb_example" ? "info" : "brand"}>
+              {question.origin === "itb_example" ? "Contoh ITB" : "Asli Zyx"}
+            </StatusBadge> : null}
+
             <span className="rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-2 py-0.5 text-xs font-semibold">
               {qTypeLabel}
             </span>
@@ -1016,6 +1042,10 @@ function QuestionRow({
               digunakan {question.useCount}×
             </span>
           </div>
+
+          {provenanceEnabled && question.origin === "itb_example" && question.sourceEventName ? (
+            <p className="mt-2 text-body-xs font-medium text-muted-foreground">Sumber: {question.sourceEventName}</p>
+          ) : null}
 
           {expanded ? (
             <div className="mt-3 border-l-2 border-brand-primary/40 pl-3">

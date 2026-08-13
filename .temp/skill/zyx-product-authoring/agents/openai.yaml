@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Product Authoring"
+  short_description: "Build cited ITB-based Zyx Product Bundles"
+  default_prompt: "Use $zyx-product-authoring to build a draft Product Bundle from this Authoring Job Pack and fresh Authoring Context Pack."

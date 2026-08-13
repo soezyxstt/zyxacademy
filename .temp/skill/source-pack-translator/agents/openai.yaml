@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Source Pack Translator"
+  short_description: "Build validated lossless Zyx Source Packs"
+  default_prompt: "Use $source-pack-translator to convert these source documents into a validated Zyx Source Pack."

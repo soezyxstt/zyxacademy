@@ -185,7 +185,7 @@ function AdminSidebarInner() {
           <NavItem href="/admin/courses" icon={GraduationCap} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} isChild />
           <NavItem href="/admin/bundles/idea" icon={Layers} label="Idea Bundle" active={isPrefix("/admin/bundles/idea")} collapsed={c} isChild />
           <NavItem href="/admin/bundles/product" icon={Package} label="Product Bundle" active={isPrefix("/admin/bundles/product")} collapsed={c} isChild />
-          <NavItem href="/admin/authoring-context" icon={ShieldCheck} label="Authoring Context" active={isPrefix("/admin/authoring-context")} collapsed={c} isChild />
+          <NavItem href="/admin/authoring-context" icon={ShieldCheck} label="Authoring eksternal" active={isPrefix("/admin/authoring-context")} collapsed={c} isChild />
           <NavItem href="/admin/ai/materials" icon={BookText} label="Materi & RAG" active={isPrefix("/admin/ai/materials") && !pkaMaterialActive} collapsed={c} isChild />
         </NavCollapsible>
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Idea Authoring"
+  short_description: "Build source-grounded Zyx Idea Bundles"
+  default_prompt: "Use $zyx-idea-authoring to build a validated Idea Bundle from this Zyx Authoring Job Pack."

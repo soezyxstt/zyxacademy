@@ -303,7 +303,7 @@ Plan 004 adds the normalized target tables below. Plan 005 owns deterministic ma
 ### Product tables
 * `artikel`, `artikel_ide`, `blok_artikel`: Markdown article versions, Idea links, and ordered blocks.
 * `diktat_materi`, `diktat_ide`, `diktat_pembahasan`, `item_diktat_pembahasan`: Material and explanation versions with Idea links and question snapshots.
-* `soal`, `soal_ide`, `soal_relasi_ide`, `pembahasan_soal`: Versioned questions, multi-Idea weights, independent relation metadata, and solutions.
+* `soal`, `soal_ide`, `soal_relasi_ide`, `pembahasan_soal`: Versioned questions, `zyx_original` or `itb_example` origin, optional ITB source event and reference, multi-Idea weights, independent relation metadata, and solutions.
 * `set_flashcard`, `flashcard`, `flashcard_ide`: Versioned flashcard sets and multi-Idea links.
 * `kemajuan_flashcard_murid`, `review_flashcard`: Per-murid scheduling state and review history.
 
@@ -334,15 +334,15 @@ The migration adds foreign keys and query indexes only. Existing attempt, learni
 Ambiguous evidence is stored with explicit status and the schema check prevents it from being marked as mastery-affecting. Plan 011 recomputes only the additive per-Idea tables; no legacy mastery, learning-event, answer, or review row is rewritten.
 
 ### Bundle and audit tables
-* `impor_bundle`, `item_impor_bundle`: Checksum-identified import and entity inventory, optional legacy course association, and JSON validation report.
-* `review_bundle`, `publikasi_bundle`: Review decision and publication record; publication references the approved import review through foreign keys and contract validation.
+* `impor_bundle`, `item_impor_bundle`: Checksum-identified import and entity inventory, optional legacy course association, JSON validation report, and public Product Bundle status `draft`, `published`, or `withdrawn`. Legacy Idea workflow status values remain readable.
+* `review_bundle`, `publikasi_bundle`: Internal review evidence and publication record. Product publication records or refreshes the responsible admin approval without exposing review as a separate public lifecycle state.
 * `audit_mutasi`: Actor, entity, action, snapshots, correlation ID, and timestamp for mutation auditability.
 
 Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. A matching bundle ID and checksum is idempotent; a different checksum is a conflict. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
 
-Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Product item types are recorded in the inventory, while canonical article, diktat, question, solution, flashcard, and assessment blueprint rows are inserted only after traceability and dependency checks pass. Question products require ITB curation, and multi-Idea questions require a HOT cognitive level before publication. Versions greater than one use versioned product IDs so prior rows remain queryable. No schema migration was required for this workflow.
+Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Draft replacement rewrites only the import inventory and R2 artifact before publication. Publication inserts canonical article, diktat, question, solution, flashcard, and assessment blueprint rows after traceability and dependency checks pass. Withdrawal marks canonical rows inactive or retired according to their existing table contract and adds vector delete jobs. Question products are exclusively ITB examples and require `itbSource`, ITB curation, typed option IDs with deterministic correct markers, exactly one paired solution, and a HOT cognitive level for multi-Idea questions. Correct markers remain inside the private `soal.options_snapshot` grading representation and are redacted from runtime and vector content. Versions greater than one use versioned product IDs so prior rows remain queryable.
 
-The branch-local Plan 017 audit rework continues to use these existing tables. Product Bundle curation dimensions are retained in the publication audit snapshot, while the existing `soal_itb_referensi.soal_id` links an allowed ITB reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes; no new lineage column or migration is added. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
+Migration `0068_typical_warbird.sql` adds `origin`, `source_event_name`, and `source_reference_id` to both `soal` and `ai_question_bank`, with `zyx_original` as the non-null default and an origin plus event index on each table. Existing rows therefore remain Zyx originals without a data rewrite. Product publication validates ITB completeness before writing and creates the `ai_question_bank` compatibility projection. Product Bundle source and curation data are retained in the publication audit snapshot, while `soal_itb_referensi.soal_id` links the single source reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
 
 ### Plan 005 migration tables
 * `legacy_backfill_exceptions`: Zero-loss preservation ledger for a legacy row that has no exact additive representation. It stores `runId`, source table and ID, reason code, preservation path, source checksum, details, and `blocksCutover`.
@@ -869,6 +869,9 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 ### aiQuestionBank
 * `id`
 * `courseId`
+* `origin`: `zyx_original` for normal bank questions or `itb_example` for Product Bundle projections. Existing rows default to `zyx_original`.
+* `sourceEventName`: Required by the application contract for `itb_example`; null for Zyx originals.
+* `sourceReferenceId`: Allowed ITB reference ID for `itb_example`; null for Zyx originals.
 * `knowledgeObjectId`
 * `sourceMtdId`
 * `sourceSectionId`

@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   assertSafeKey,
+  buildAuthoringContextKey,
   buildFormStorageKey,
+  buildIdeaBundleKey,
+  buildProductBundleKey,
   formatQuestionFolder,
   isSafeKey,
   joinKey,
@@ -90,5 +93,20 @@ describe("form storage helpers (migrated to keys.ts)", () => {
       filename: "Pas Foto Siswa.JPG",
     });
     expect(key).toMatch(/^forms\/formulir-pendaftaran-siswa-2026\/question-1\/\d+-[a-f0-9]{8}-pas_foto_siswa\.jpg$/);
+  });
+});
+
+describe("overhaul artifact keys", () => {
+  test("builds centralized keys for external authoring artifacts", () => {
+    const checksum = "a".repeat(64);
+    expect(buildIdeaBundleKey({ runId: "Run 01", bundleId: "Idea Gerak", checksum })).toBe(
+      `overhaul/idea-bundles/run-01/idea-gerak-${checksum.slice(0, 16)}.zip`,
+    );
+    expect(buildProductBundleKey({ runId: "Run 01", bundleId: "Produk Gerak", checksum })).toBe(
+      `overhaul/product-bundles/run-01/produk-gerak-${checksum.slice(0, 16)}.zip`,
+    );
+    expect(buildAuthoringContextKey({ runId: "Run 01", packId: "Pack Gerak" })).toBe(
+      "overhaul/run-01/authoring-context/pack-gerak.zip",
+    );
   });
 });
