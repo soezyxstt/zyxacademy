@@ -116,7 +116,7 @@ wrangler deploy
 | Cloudflare AI Gateway | Gemini proxy, caching, rate limiting | 100k logged req/mo |
 | Cloudflare KV | AI response cache | 100k reads/day, 1k writes/day |
 | Inngest | Background job orchestration | 50k steps/mo |
-| Resend | Transactional emails | 100 emails/day |
+| Resend | Essential and preference-gated optional emails | 100 emails/day |
 | Firebase Cloud Messaging | Push notifications | Free |
 | Sentry | Error tracking | 5k events/mo |
 | UploadThing | Dev file upload fallback | 2 GB |
@@ -146,6 +146,13 @@ The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
 ## Feature Flags
 
 All `FEATURE_*` env vars default to off. Enable gradually per environment. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the full list.
+
+## Email Notification Preferences
+
+Migration `0069_tan_molecule_man.sql` adds `email_notification_preferences`. Apply it before enabling `FEATURE_NOTIFICATION_PREFERENCES=1`. Verify the settings page with a Google-authenticated account, then send one message from each optional category. Each delivered message must contain its visible unsubscribe link, a `List-Unsubscribe` URL, and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`.
+
+Verify that opening the visible link does not change state until confirmation, the one-click POST disables only the token category, expired or modified tokens fail, and a database read failure suppresses optional delivery. Keep the feature flag absent or `0` for rollback. The legacy Tutorial PKA choice remains available while the flag is off, and push delivery is unaffected.
+
 ## Authoring Context Pack V1
 
 Keep `FEATURE_AUTHORING_CONTEXT_V1` absent or `0` until the local contract suite and staging round trip pass. The export API is admin-only by default, stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.

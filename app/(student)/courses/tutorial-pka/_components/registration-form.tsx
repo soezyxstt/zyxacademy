@@ -27,9 +27,11 @@ const MAX_PROOF_BYTES = 5 * 1024 * 1024;
 export function PkaRegistrationForm({
   googleEmail,
   defaultName,
+  useCentralEmailPreferences,
 }: {
   googleEmail: string;
   defaultName: string;
+  useCentralEmailPreferences: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -38,13 +40,13 @@ export function PkaRegistrationForm({
   const [fullName, setFullName] = useState(defaultName);
   const [faculty, setFaculty] = useState("");
   const [useGoogleEmail, setUseGoogleEmail] = useState(true);
-  const [email, setEmail] = useState(googleEmail);
+  const [contactEmail, setContactEmail] = useState(googleEmail);
   const [instagram, setInstagram] = useState("");
   const [receiveAnnouncements, setReceiveAnnouncements] = useState(true);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const effectiveEmail = useGoogleEmail ? googleEmail : email;
+  const effectiveEmail = useCentralEmailPreferences || useGoogleEmail ? googleEmail : contactEmail;
 
   const handleFile = (file: File | null) => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -161,27 +163,45 @@ export function PkaRegistrationForm({
           <Label htmlFor="pka-email" className="text-body-sm font-medium text-foreground">
             Email
           </Label>
-          <Input
-            id="pka-email"
-            type="email"
-            value={effectiveEmail}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={useGoogleEmail}
-            placeholder="nama@email.com"
-            required
-            className={cn("rounded-md", useGoogleEmail && "opacity-70")}
-          />
-          <label className="flex items-center gap-2 pt-1 text-body-sm text-muted-foreground">
-            <Checkbox
-              checked={useGoogleEmail}
-              onCheckedChange={(v) => {
-                const on = v === true;
-                setUseGoogleEmail(on);
-                if (on) setEmail(googleEmail);
-              }}
-            />
-            Gunakan email Google saya ({googleEmail})
-          </label>
+          {useCentralEmailPreferences ? (
+            <>
+              <Input
+                id="pka-email"
+                type="email"
+                value={googleEmail}
+                disabled
+                required
+                className="rounded-md opacity-70"
+              />
+              <p className="pt-1 text-body-sm text-muted-foreground">
+                Email dikirim ke akun Google yang digunakan untuk masuk.
+              </p>
+            </>
+          ) : (
+            <>
+              <Input
+                id="pka-email"
+                type="email"
+                value={effectiveEmail}
+                onChange={(event) => setContactEmail(event.target.value)}
+                disabled={useGoogleEmail}
+                placeholder="nama@email.com"
+                required
+                className={cn("rounded-md", useGoogleEmail && "opacity-70")}
+              />
+              <label className="flex items-center gap-2 pt-1 text-body-sm text-muted-foreground">
+                <Checkbox
+                  checked={useGoogleEmail}
+                  onCheckedChange={(checked) => {
+                    const enabled = checked === true;
+                    setUseGoogleEmail(enabled);
+                    if (enabled) setContactEmail(googleEmail);
+                  }}
+                />
+                Gunakan email Google saya ({googleEmail})
+              </label>
+            </>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -248,20 +268,21 @@ export function PkaRegistrationForm({
           )}
         </div>
 
-        {/* Announcement opt-in */}
-        <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-4">
-          <Checkbox
-            checked={receiveAnnouncements}
-            onCheckedChange={(v) => setReceiveAnnouncements(v === true)}
-            className="mt-0.5"
-          />
-          <span className="text-body-sm">
-            <span className="block font-medium text-foreground">Terima email pengumuman & jadwal</span>
-            <span className="block text-muted-foreground">
-              Kami kirim notifikasi setiap ada sesi live baru atau pengumuman penting. Bisa dimatikan.
+        {!useCentralEmailPreferences ? (
+          <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-4">
+            <Checkbox
+              checked={receiveAnnouncements}
+              onCheckedChange={(v) => setReceiveAnnouncements(v === true)}
+              className="mt-0.5"
+            />
+            <span className="text-body-sm">
+              <span className="block font-medium text-foreground">Terima email pengumuman & jadwal</span>
+              <span className="block text-muted-foreground">
+                Kami kirim notifikasi setiap ada sesi live baru atau pengumuman penting. Bisa dimatikan.
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
+        ) : null}
       </div>
 
       <div className="flex items-center justify-end gap-3">

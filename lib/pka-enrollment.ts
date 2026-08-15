@@ -3,16 +3,15 @@ import { redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
 import { and, eq, gt, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { enrollments, pkaAnnouncements, pkaSchedules, user } from "@/db/schema";
+import { enrollments, pkaAnnouncements, pkaSchedules } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { env } from "@/lib/env";
-import { resend } from "@/lib/resend";
 import { getSemesterEndDate } from "@/lib/utils";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { sendToUser } from "@/lib/notifications/send";
 import { pkaAnnouncementPayload } from "@/lib/notifications/templates";
 import { pkaAnnouncementEmailHtml, scheduleEmailHtml } from "@/lib/pka-email-template";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
+import { sendOptionalEmail } from "@/lib/email-preferences/send";
 
 /** True when the user already holds a Tutorial PKA enrollment row. */
 export async function isPkaEnrolled(userId: string): Promise<boolean> {
@@ -80,17 +79,13 @@ export async function ensurePkaEnrollment(userId: string, notify = true): Promis
 
   if (futureSchedules.length === 0 && recentAnnouncements.length === 0) return;
 
-  const [u] = await db.select({ email: user.email }).from(user).where(eq(user.id, userId)).limit(1);
-  if (!u?.email) return;
-
-  const fromEmail = env.NEXT_PUBLIC_BRAND_EMAIL || "contact@zyxacademy.com";
   const sends: Promise<unknown>[] = [];
 
   for (const sched of futureSchedules) {
     sends.push(
-      resend.emails.send({
-        from: `Zyx Academy <${fromEmail}>`,
-        to: u.email,
+      sendOptionalEmail({
+        userId,
+        category: "events_and_schedules",
         subject: `Sesi Review PKA - ${sched.title}`,
         html: scheduleEmailHtml(sched.title, sched.sessionAt, sched.meetLink),
       }),
@@ -103,9 +98,9 @@ export async function ensurePkaEnrollment(userId: string, notify = true): Promis
 
   for (const ann of recentAnnouncements) {
     sends.push(
-      resend.emails.send({
-        from: `Zyx Academy <${fromEmail}>`,
-        to: u.email,
+      sendOptionalEmail({
+        userId,
+        category: "course_updates",
         subject: `Pengumuman PKA - ${ann.title}`,
         html: pkaAnnouncementEmailHtml(ann.title, ann.body),
       }),

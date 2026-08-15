@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { pageTitle } from "@/lib/site";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { isPkaEnrolled } from "@/lib/pka-enrollment";
+import { env } from "@/lib/env";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { PkaRegistrationForm } from "../_components/registration-form";
 
@@ -33,6 +34,7 @@ export default async function PkaRegisterPage() {
       <PkaRegistrationForm
         googleEmail={session.user.email}
         defaultName={session.user.name ?? ""}
+        useCentralEmailPreferences={env.FEATURE_NOTIFICATION_PREFERENCES === "1"}
       />
     </CoursePageShell>
   );

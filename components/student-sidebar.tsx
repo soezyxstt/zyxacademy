@@ -23,6 +23,7 @@ import {
   Flame,
   Search,
   BarChart3,
+  Bell,
 } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { useTutor } from "@/components/course/tutor-drawer";
@@ -40,12 +41,14 @@ interface StudentSidebarProps {
   showStudyPath?: boolean;
   showMastery?: boolean;
   showLive?: boolean;
+  showNotificationPreferences?: boolean;
 }
 
 export function StudentSidebar({
   showStudyPath = false,
   showMastery = false,
   showLive = false,
+  showNotificationPreferences = false,
 }: StudentSidebarProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
@@ -331,6 +334,16 @@ export function StudentSidebar({
           active={pathname === "/profile"}
           collapsed={c}
         />
+
+        {showNotificationPreferences ? (
+          <NavItem
+            href="/settings/notifications"
+            icon={Bell}
+            label="Notification preferences"
+            active={pathname === "/settings/notifications"}
+            collapsed={c}
+          />
+        ) : null}
 
         <div className="flex-1" />
       </nav>

@@ -28,7 +28,7 @@ const navLinks = [
  { name: "Blog", href: "/blog", icon: BookOpen },
 ];
 
-export function Navbar() {
+export function Navbar({ showNotificationPreferences = false }: { showNotificationPreferences?: boolean }) {
  const [mobileOpen, setMobileOpen] = useState(false);
  const { setOpen: setSearchOpen } = useCommandMenu();
  const [isScrolled, setIsScrolled] = useState(false);
@@ -117,7 +117,11 @@ export function Navbar() {
 
   <NotificationBell variant="navbar" />
 
-  <NavProfileOrSignIn variant="toolbar" callbackURL="/dashboard" />
+  <NavProfileOrSignIn
+  variant="toolbar"
+  callbackURL="/dashboard"
+  showNotificationPreferences={showNotificationPreferences}
+  />
 
  <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
  <SheetTrigger asChild>
@@ -209,6 +213,7 @@ export function Navbar() {
   variant="sheet"
   callbackURL="/dashboard"
   onNavigate={() => setMobileOpen(false)}
+  showNotificationPreferences={showNotificationPreferences}
   />
   </div>
  </SheetContent>

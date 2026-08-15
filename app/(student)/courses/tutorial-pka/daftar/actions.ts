@@ -49,9 +49,12 @@ export async function registerPkaAction(
 
     const fullName = formData.get("fullName")?.toString().trim() ?? "";
     const faculty = formData.get("faculty")?.toString().trim() ?? "";
-    const emailRaw = formData.get("email")?.toString().trim() ?? "";
+    const useCentralEmailPreferences = env.FEATURE_NOTIFICATION_PREFERENCES === "1";
+    const emailRaw = useCentralEmailPreferences
+      ? session.user.email?.trim() ?? ""
+      : formData.get("email")?.toString().trim() ?? "";
     const instagramRaw = formData.get("instagram")?.toString() ?? "";
-    const receiveAnnouncements = formData.get("receiveAnnouncements") === "on";
+    const receiveAnnouncements = useCentralEmailPreferences || formData.get("receiveAnnouncements") === "on";
     const proof = formData.get("proof");
 
     if (!fullName) return { error: "Nama lengkap wajib diisi." };

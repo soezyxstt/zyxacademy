@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, User, LayoutDashboard, GraduationCap, ShieldCheck } from "lucide-react";
+import { Bell, LogOut, User, LayoutDashboard, GraduationCap, ShieldCheck } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
@@ -16,6 +16,7 @@ type NavProfileOrSignInProps = {
  onNavigate?: () => void;
  /** Set false for contexts (e.g. admin bar) where Sign In must not appear. */
  showSignIn?: boolean;
+ showNotificationPreferences?: boolean;
 };
 
 export function NavProfileOrSignIn({
@@ -23,6 +24,7 @@ export function NavProfileOrSignIn({
  callbackURL = "/dashboard",
  onNavigate,
  showSignIn = true,
+ showNotificationPreferences = false,
 }: NavProfileOrSignInProps) {
  const { data: session, isPending } = useSession();
  const sheet = variant === "sheet";
@@ -89,6 +91,18 @@ export function NavProfileOrSignIn({
  </div>
  </Link>
  </SheetClose>
+ {showNotificationPreferences ? (
+ <SheetClose asChild>
+ <Link
+ href="/settings/notifications"
+ onClick={onNavigate}
+ className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-background text-body-sm font-medium text-foreground transition-colors hover:bg-muted/70"
+ >
+ <Bell className="size-4" aria-hidden />
+ Notification preferences
+ </Link>
+ </SheetClose>
+ ) : null}
  <Button
  type="button"
  variant="outline"
@@ -166,6 +180,17 @@ export function NavProfileOrSignIn({
  <span>Profile</span>
  </Link>
  </DropdownMenu.Item>
+ {showNotificationPreferences ? (
+ <DropdownMenu.Item
+ asChild
+ className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
+ >
+ <Link href="/settings/notifications" prefetch={true} onClick={onNavigate}>
+ <Bell className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+ <span>Notification preferences</span>
+ </Link>
+ </DropdownMenu.Item>
+ ) : null}
  {(userRole === "teacher" || userRole === "admin") && (
  <DropdownMenu.Item
  asChild

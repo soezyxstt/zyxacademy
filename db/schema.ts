@@ -30,6 +30,23 @@ export const user = sqliteTable("user", {
  lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
 });
 
+/** User-controlled optional email categories. Essential transactional email bypasses this table. */
+export const emailNotificationPreferences = sqliteTable("email_notification_preferences", {
+ userId: text("user_id")
+  .primaryKey()
+  .references(() => user.id, { onDelete: "cascade" }),
+ emailEnabled: integer("email_enabled", { mode: "boolean" }).default(true).notNull(),
+ courseUpdates: integer("course_updates", { mode: "boolean" }).default(true).notNull(),
+ eventsAndSchedules: integer("events_and_schedules", { mode: "boolean" }).default(true).notNull(),
+ learningReminders: integer("learning_reminders", { mode: "boolean" }).default(true).notNull(),
+ newsAndOffers: integer("news_and_offers", { mode: "boolean" }).default(false).notNull(),
+ createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ updatedAt: integer("updated_at", { mode: "timestamp" })
+  .defaultNow()
+  .$onUpdate(() => /* @__PURE__ */ new Date())
+  .notNull(),
+});
+
 /** Canonical domain identity for a Better Auth user. */
 export const pengguna = sqliteTable(
  "pengguna",
@@ -140,9 +157,20 @@ export const verification = sqliteTable(
 export const userRelations = relations(user, ({ many, one }) => ({
  sessions: many(session),
  accounts: many(account),
+ emailNotificationPreferences: one(emailNotificationPreferences, {
+  fields: [user.id],
+  references: [emailNotificationPreferences.userId],
+ }),
  pengguna: one(pengguna, {
   fields: [user.id],
   references: [pengguna.id],
+ }),
+}));
+
+export const emailNotificationPreferencesRelations = relations(emailNotificationPreferences, ({ one }) => ({
+ user: one(user, {
+  fields: [emailNotificationPreferences.userId],
+  references: [user.id],
  }),
 }));
 
@@ -4626,9 +4654,9 @@ export const pkaSchedules = sqliteTable("pka_schedules", {
 });
 
 // Gated enrollment intake: incoming students fill this form (name, faculty,
-// contact, Instagram follow proof) before an enrollment row is created. The
-// receiveAnnouncements opt-in controls whether they get schedule/announcement
-// broadcasts. One row per user (uniqueIndex on user_id).
+// contact, Instagram follow proof) before an enrollment row is created.
+// receiveAnnouncements is retained as the legacy preference fallback and as
+// the push-notification choice. Central email preferences supersede it.
 export const pkaRegistrations = sqliteTable(
   "pka_registrations",
   {

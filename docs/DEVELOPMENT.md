@@ -112,6 +112,7 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `DIKTAT_RENDERER_URL`, `DIKTAT_RENDERER_SECRET` ; Puppeteer PDF service
 - `NEXT_PUBLIC_REALTIME_URL`, `LIVE_HMAC_SECRET` ; Live quiz Worker
 - `WHATSAPP_ADMIN_NUMBER` ; Admin WhatsApp notifications
+- `FEATURE_NOTIFICATION_PREFERENCES` ; central optional-email preferences, visible unsubscribe links, and RFC 8058 one-click unsubscribe
 - `SENTRY_*` ; Error tracking
 
 ### Staging overhaul guard
@@ -339,6 +340,7 @@ Plan 004 adds three disabled target-domain flags. They remain absent or `0` in s
 | `FEATURE_LIVE` | Real-time classroom (P9) |
 | `FEATURE_REFLECTION` | Weekly reflections |
 | `FEATURE_REFLECTION_EMAIL` | Reflection email delivery |
+| `FEATURE_NOTIFICATION_PREFERENCES` | Global optional-email preferences and category unsubscribe flow |
 | `FEATURE_ADAPTIVE_QUIZ` | Adaptive quiz difficulty |
 | `FEATURE_PKA` | Tutorial PKA campaign |
 | `FEATURE_PERAN_V2` | Indonesian domain identity and multi-role authorization |

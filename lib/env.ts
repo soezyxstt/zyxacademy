@@ -115,6 +115,8 @@ export const env = createEnv({
  LIVE_HMAC_SECRET: z.string().optional(),
  FEATURE_REFLECTION: z.string().optional(),
  FEATURE_REFLECTION_EMAIL: z.string().optional(),
+ /** Central optional-email preferences, signed unsubscribe links, and one-click headers. "1" enables. */
+ FEATURE_NOTIFICATION_PREFERENCES: z.string().optional(),
  /** Adaptive quiz difficulty: bias a quiz's easy/medium/hard mix by the student's course mastery. "1" enables. */
  FEATURE_ADAPTIVE_QUIZ: z.string().optional(),
  /** Tutorial PKA campaign: free multi-stage PKA simulation course + auto-enroll link + admin announcements. "1" enables. */
@@ -313,6 +315,7 @@ export const env = createEnv({
  LIVE_HMAC_SECRET: process.env.LIVE_HMAC_SECRET,
  FEATURE_REFLECTION: process.env.FEATURE_REFLECTION,
  FEATURE_REFLECTION_EMAIL: process.env.FEATURE_REFLECTION_EMAIL,
+ FEATURE_NOTIFICATION_PREFERENCES: process.env.FEATURE_NOTIFICATION_PREFERENCES,
  FEATURE_ADAPTIVE_QUIZ: process.env.FEATURE_ADAPTIVE_QUIZ,
  FEATURE_PKA: process.env.FEATURE_PKA,
  FEATURE_AI_CONTRACT_V2: process.env.FEATURE_AI_CONTRACT_V2,

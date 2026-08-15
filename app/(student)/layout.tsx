@@ -11,6 +11,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
         showStudyPath={env.FEATURE_STUDY_PATH === "1"}
         showMastery={env.FEATURE_MASTERY === "1"}
         showLive={env.FEATURE_LIVE === "1"}
+        showNotificationPreferences={env.FEATURE_NOTIFICATION_PREFERENCES === "1"}
       />
       <main
         id="main-content"
