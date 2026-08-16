@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function LegacyAuthoringContextPage() {
-  redirect("/admin/materials?tab=manual");
+  redirect("/admin/materials/manual");
 }

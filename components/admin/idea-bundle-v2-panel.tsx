@@ -209,7 +209,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
       setSelected({ id: payload.bundle.id, status: payload.bundle.status, preview: payload.preview });
       setSelectedPreviewIdeaId(payload.preview.ideas[0]?.id ?? null);
     } catch (inspectError) {
-      setError(inspectError instanceof Error ? inspectError.message : "IDEA_BUNDLE_DETAIL_FAILED");
+      setError(explainBundleError(inspectError instanceof Error ? inspectError.message : "IDEA_BUNDLE_DETAIL_FAILED"));
     } finally {
       setLoading(false);
     }

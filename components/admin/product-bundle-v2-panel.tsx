@@ -262,7 +262,7 @@ export function ProductBundleV2Panel({ initialImports, courseLabels = {}, author
       setPreviewTypeFilter("all");
       setSelectedPreviewId(previews[0]?.id ?? null);
     } catch (inspectError) {
-      setError(inspectError instanceof Error ? inspectError.message : "PRODUCT_BUNDLE_DETAIL_FAILED");
+      setError(explainBundleError(inspectError instanceof Error ? inspectError.message : "PRODUCT_BUNDLE_DETAIL_FAILED"));
     } finally {
       setLoading(false);
     }

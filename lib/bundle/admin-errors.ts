@@ -6,6 +6,7 @@ const explanations: Record<string, string> = {
   BUNDLE_INVALID_MANIFEST: "Manifest bundle tidak mengikuti format yang diwajibkan.",
   BUNDLE_CHECKSUM_MISMATCH: "Isi ZIP berubah dan tidak cocok dengan checksum manifest.",
   PRODUCT_BUNDLE_CHECKSUM_MISMATCH: "Isi Product Bundle tidak cocok dengan checksum manifest.",
+  R2_DOWNLOAD_FAILED: "Artifact belum dapat dibaca dari penyimpanan R2. Coba lagi atau periksa konfigurasi artifact.",
   BUNDLE_MISSING_SOURCE: "Ada Idea yang tidak memiliki sumber atau bukti yang diwajibkan.",
   BUNDLE_INVALID_SPAN: "Potongan bukti tidak cocok dengan posisi teks pada sumber.",
   BUNDLE_PREREQUISITE_CYCLE: "Relasi prerequisite membentuk putaran. Ubah arah atau jenis relasinya.",

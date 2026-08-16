@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function LegacyIdeaBundlePage() {
-  redirect("/admin/materials?tab=review&section=idea");
+  redirect("/admin/materials/review?section=idea");
 }

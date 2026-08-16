@@ -63,7 +63,7 @@ export const env = createEnv({
  R2_ACCESS_KEY_ID: z.string().optional(),
  /** Cloudflare R2 secret access key */
  R2_SECRET_ACCESS_KEY: z.string().optional(),
- /** Storage provider mode: 'r2' | 'uploadthing' (default: uploadthing) */
+ /** Storage provider mode: 'r2' | 'uploadthing' (default: r2) */
  STORAGE_PROVIDER_MODE: z.enum(['r2', 'uploadthing']).optional(),
  // ── Cloudflare AI Gateway ──────────────────────────────────────────────
  /**

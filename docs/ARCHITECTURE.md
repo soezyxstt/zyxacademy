@@ -177,7 +177,7 @@ flowchart LR
 
 `impor_bundle` stores the checksum identity, legacy course association, and immutable validation report. `review_bundle` stores one immutable decision per reviewer. Publication is idempotent and compares existing target versions field by field; conflicts fail rather than overwrite. The transaction also inserts deterministic vector jobs for embedding-eligible source chunks and published Ideas. `FEATURE_IDEA_BUNDLE_V2` gates the admin API and panel, while the legacy importer remains the rollback path.
 
-The admin presentation boundary for this workflow is `/admin/materials`. `Review materi` contains separate `Source Pack + Idea` and `Product` tabs. Artifact cards use stored creation time, requested-by identity, and course association as the primary review context; bundle IDs and checksums remain secondary technical details. The client keeps pre-staging edits in memory and presents one Idea or Product at a time, with relations, dependencies, and product families separated into dedicated tabs. `Upload manual` contains the paginated Source Pack handoff and the preserved Context Pack export as internal process choices, so neither requires a separate top-level navigation entry.
+The admin presentation boundary for this workflow is split into `/admin/materials/review` and `/admin/materials/manual`. The Review page contains separate `Source Pack + Idea` and `Product` tabs. Artifact cards use stored creation time, requested-by identity, and course association as the primary review context; bundle IDs and checksums remain secondary technical details. The client keeps pre-staging edits in memory and presents one Idea or Product at a time, with relations, dependencies, and product families separated into dedicated tabs. The Upload Manual page contains the paginated Source Pack handoff and the preserved Context Pack export as internal process choices.
 
 Plan 006 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json`, with an independent database reconciliation at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-reconcile.json`.
 
@@ -211,7 +211,7 @@ The exporter does not call an external model and never includes user, credential
 
 The private download route resolves an audited pack ID to its exact R2 key, checks retention, and streams the ZIP only to an authenticated admin with `private, no-store` caching. Every pack carries generated JSON Schemas for both bundle families and a deterministic external-authoring workflow. Privacy-safe `$UPLOADER` and `$APPROVING_REVIEWER` sentinels are resolved only inside the atomic publication transaction.
 
-The Context Pack export is presented inside the `/admin/materials` `Upload manual` workspace under `Lanjutkan dari Idea terbit`. The UI exposes course labels, creation time, retention, checksum, and a direct download action while keeping raw pack IDs and R2 keys secondary.
+The Context Pack export is presented inside `/admin/materials/manual` under `Lanjutkan dari Idea terbit`. The UI exposes course labels, creation time, retention, checksum, and a direct download action while keeping raw pack IDs and R2 keys secondary.
 
 The Authoring Job Pack contract is documented in `docs/bundle/authoring-job-pack-v1.md`. Product authoring still requires a fresh Authoring Context Pack after official Idea publication; the initial job never substitutes local candidate Idea identities for canonical ones.
 
@@ -256,7 +256,7 @@ flowchart LR
 
 The public lifecycle is `draft -> published -> withdrawn`. A draft may be replaced in place by the same bundle ID or deleted. Publishing creates or refreshes an internal approved review record as accountability evidence and commits canonical products atomically. Published bundles cannot be replaced or deleted. Withdrawal retains rows and audit history, marks learner-facing products inactive, and queues removal for vectorized article, question, and solution content. `FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
 
-The Product review UI uses the same `/admin/materials` workspace. Product-family tabs prevent a generated Article, Diktat, question, or solution from being presented as one unstructured vertical stream. Preview content uses the shared `MathText` KaTeX renderer, including formula-only fields that arrive without delimiters.
+The Product review UI uses `/admin/materials/review`. Product-family tabs prevent a generated Article, Diktat, question, or solution from being presented as one unstructured vertical stream. Preview content uses the shared `MathText` KaTeX renderer, including formula-only fields that arrive without delimiters.
 
 Question provenance crosses the compatibility boundary as data, not presentation-only state. `soal` and `ai_question_bank` store `origin`, `source_event_name`, and `source_reference_id`. Quiz attempts, tryout submissions, PKA attempts, and live quiz sessions carry the same fields in JSON snapshots. `QuestionSourceCitation` is the shared student renderer and shows a lower-right source line only for `itb_example`. The admin question bank exposes origin filtering, while the tutor tryout action copies a published bank question and its provenance into the per-exam question snapshot.
 
@@ -790,7 +790,7 @@ Cloudflare Workers (deployed via wrangler):
 | Aspect | Development | Production |
 |---|---|---|
 | **Database** | SQLite file (`dev.db`) | Turso (libsql, distributed SQLite) |
-| **Object Storage** | UploadThing (default) | R2 via `lib/storage/index.ts` (`STORAGE_PROVIDER_MODE`) |
+| **Object Storage** | R2 via `lib/storage/index.ts` (`STORAGE_PROVIDER_MODE`) | UploadThing compatibility fallback |
 | **Vector Store** | Cloudflare Vectorize | canonical-content-v2, 768 dimensions |
 | **AI Gateway** | Direct Gemini API | Cloudflare AI Gateway (rate limit, caching, observability) |
 | **Auth URL** | `localhost:3000` | `BETTER_AUTH_URL` = production origin |

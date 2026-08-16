@@ -21,7 +21,7 @@ type Props = {
   ideaEnabled: boolean;
   productEnabled: boolean;
   authoringEnabled: boolean;
-  initialTab: "review" | "manual";
+  mode: "review" | "manual";
   initialReviewTab: "idea" | "product";
 };
 
@@ -35,28 +35,22 @@ export function MaterialWorkspace({
   ideaEnabled,
   productEnabled,
   authoringEnabled,
-  initialTab,
+  mode,
   initialReviewTab,
 }: Props) {
   const firstReviewTab = ideaEnabled ? "idea" : "product";
-  const [activeTab, setActiveTab] = useState<"review" | "manual">(initialTab);
   const [activeReviewTab, setActiveReviewTab] = useState<"idea" | "product">(initialReviewTab === "idea" && ideaEnabled ? "idea" : initialReviewTab === "product" && productEnabled ? "product" : firstReviewTab);
 
   return (
     <div className="space-y-8">
       <AdminPageHeader
-        icon={BookOpenCheck}
-        title="Materi"
-        description="Siapkan pekerjaan manual atau review hasil generasi MCP dari satu workspace. Pilih satu tahap, lalu kerjakan bagian yang sedang dibutuhkan."
+        icon={mode === "review" ? BookOpenCheck : Upload}
+        title={mode === "review" ? "Review materi" : "Upload manual"}
+        description={mode === "review" ? "Periksa hasil generasi MCP berdasarkan mata kuliah, waktu dibuat, dan pembuatnya." : "Siapkan Source Pack atau lanjutkan dari Idea terbit untuk alur kerja manual."}
       />
 
-      <AdminTabs value={activeTab} onValueChange={(value) => setActiveTab(value as "review" | "manual")}>
-        <AdminTabsList>
-          <AdminTabsTrigger value="review"><BookOpenCheck className="size-4" />Review materi</AdminTabsTrigger>
-          <AdminTabsTrigger value="manual"><Upload className="size-4" />Upload manual</AdminTabsTrigger>
-        </AdminTabsList>
-
-        <AdminTabsContent value="review" className="space-y-6">
+      {mode === "review" ? (
+        <div className="space-y-6">
           {!ideaEnabled && !productEnabled ? (
             <AdminEmptyState title="Review MCP belum tersedia" description="Aktifkan workflow bundle terlebih dahulu sebelum mengirim hasil generasi MCP ke Zyx." icon={FileArchive} />
           ) : (
@@ -69,9 +63,9 @@ export function MaterialWorkspace({
               {productEnabled && <AdminTabsContent value="product"><ProductBundleV2Panel initialImports={initialProductImports} courseLabels={courseLabels} authorLabels={authorLabels} embedded /></AdminTabsContent>}
             </AdminTabs>
           )}
-        </AdminTabsContent>
-
-        <AdminTabsContent value="manual" className="space-y-6">
+        </div>
+      ) : (
+        <div className="space-y-6">
           {authoringEnabled ? (
             <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
               <AdminSectionIntro />
@@ -87,8 +81,8 @@ export function MaterialWorkspace({
           ) : (
             <AdminEmptyState title="Upload manual belum tersedia" description="Workflow Source Pack manual belum diaktifkan di lingkungan ini." icon={Upload} />
           )}
-        </AdminTabsContent>
-      </AdminTabs>
+        </div>
+      )}
     </div>
   );
 }

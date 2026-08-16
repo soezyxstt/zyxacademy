@@ -65,8 +65,8 @@ function AdminSidebarInner() {
     pathname === "/admin/ai/quizzes" && searchParams?.get("courseId") === "tutorial-pka";
   const pkaMaterialActive =
     pathname === "/admin/ai/materials" && searchParams?.get("courseId") === "tutorial-pka";
-  const materialsReviewActive = pathname === "/admin/materials" && searchParams?.get("tab") !== "manual";
-  const materialsManualActive = pathname === "/admin/materials" && searchParams?.get("tab") === "manual";
+  const materialsReviewActive = isPrefix("/admin/materials/review");
+  const materialsManualActive = isPrefix("/admin/materials/manual");
 
   const akademikActive =
     isPrefix("/admin/courses") ||
@@ -180,8 +180,8 @@ function AdminSidebarInner() {
 
         <NavCollapsible icon={BookOpen} label="Akademik" collapsed={c} active={akademikActive}>
           <NavItem href="/admin/courses" icon={GraduationCap} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} isChild />
-          <NavItem href="/admin/materials?tab=review" icon={ClipboardCheck} label="Review Materi" active={materialsReviewActive} collapsed={c} isChild />
-          <NavItem href="/admin/materials?tab=manual" icon={Upload} label="Upload Manual" active={materialsManualActive} collapsed={c} isChild />
+          <NavItem href="/admin/materials/review" icon={ClipboardCheck} label="Review Materi" active={materialsReviewActive} collapsed={c} isChild />
+          <NavItem href="/admin/materials/manual" icon={Upload} label="Upload Manual" active={materialsManualActive} collapsed={c} isChild />
         </NavCollapsible>
 
         <NavCollapsible icon={GraduationCap} label="Tutorial PKA" collapsed={c} active={pkaActive}>
