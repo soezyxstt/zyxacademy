@@ -47,7 +47,6 @@ export const auth = betterAuth({
   user: {
    create: {
     after: async (createdUser) => {
-     if (process.env.FEATURE_PERAN_V2 !== "1") return;
      await provisionPenggunaForNewUser({
       id: createdUser.id,
       role: createdUser.role,

@@ -70,7 +70,7 @@ An ordinary turn performs at most one generative call. Shape or semantic failure
 - Refactor `lib/tutor-rag.ts` to delegate teaching behavior while preserving Overhaul Plan 013 retrieval and policy.
 - Versioned prompt files under `prompts/zyra/**`.
 - Extend `lib/tutor/pedagogy-contracts.ts` without deleting compatible exports.
-- Golden fixtures, scoring scripts, staging smoke, trace metadata, and feature flag `FEATURE_ZYRA_PEDAGOGY_V3`.
+- Golden fixtures, scoring scripts, staging smoke, trace metadata, and an explicit staging shadow request.
 - Required feature, architecture, development, and readiness docs.
 
 **Out of scope**:
@@ -182,4 +182,4 @@ Local implementation and machine gates are green. The focused suite passes 50 te
 
 ## Rollback and maintenance
 
-Set `FEATURE_ZYRA_PEDAGOGY_V3=0` and return to the accepted Overhaul Plan 013 response path. Preserve traces and messages. New teaching moves require a state transition, schema update, validator, golden fixture, prompt version, and cache-version change.
+Return to the accepted Overhaul Plan 013 response path through the deployment rollback procedure. Preserve traces and messages. New teaching moves require a state transition, schema update, validator, golden fixture, prompt version, and cache-version change.

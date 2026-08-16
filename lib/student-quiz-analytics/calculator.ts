@@ -85,7 +85,6 @@ export async function computeQuizAnalyticsFacts(
 
   let totalDuration = attempt.durationSeconds ?? 0;
   const hasPerQuestionTiming = questionsSnapshot.every((q) => typeof q.time_spent_seconds === "number");
-  const useAnalyticsV2 = process.env.FEATURE_ANALYTICS_DIAGNOSIS_V2 === "1";
   const avgTimePerQuestion = questionsSnapshot.length > 0 ? Math.round(totalDuration / questionsSnapshot.length) : 0;
   let fastAnswerCount = 0;
   let fastIncorrectCount = 0;
@@ -108,12 +107,10 @@ export async function computeQuizAnalyticsFacts(
       incorrectCount++;
     }
 
-    // Time analysis: Do NOT substitute attempt average if V2 flag is enabled and per-question timing is absent
+    // Time analysis keeps missing per-question timing explicit instead of inventing precision.
     const spentSec = typeof q.time_spent_seconds === "number"
       ? q.time_spent_seconds
-      : useAnalyticsV2
-      ? null
-      : avgTimePerQuestion;
+      : null;
     if (spentSec !== null && spentSec > 0 && spentSec < 15) {
       fastAnswerCount++;
       if (!isCorrect) fastIncorrectCount++;

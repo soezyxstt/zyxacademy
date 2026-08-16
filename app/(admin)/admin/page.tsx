@@ -366,7 +366,7 @@ export default async function AdminHomePage() {
         {
           title: "Feature Flags",
           description:
-            "Pantau status keaktifan dan konfigurasi seluruh feature flag (FEATURE_*) sistem.",
+            "Pantau status keaktifan dan konfigurasi feature flag granular kategori 4 sistem.",
           icon: Flag,
           iconColor: "text-brand-primary",
           href: "/admin/ops/flags",

@@ -13,11 +13,9 @@ export async function GET() {
     if (env.FEATURE_LINK_LIBRARY !== "1") {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    if (env.FEATURE_PERAN_V2 === "1") {
-      const session = await auth.api.getSession({ headers: await headers() });
-      if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
-        return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
-      }
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
+      return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
     }
 
     const links = await db
@@ -38,13 +36,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     let createdById: string | undefined;
-    if (env.FEATURE_PERAN_V2 === "1") {
-      const session = await auth.api.getSession({ headers: await headers() });
-      if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
-        return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
-      }
-      createdById = session.user.id;
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
+      return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
     }
+    createdById = session.user.id;
 
     const body = await req.json().catch(() => ({}));
     const title = String(body.title ?? "").trim();

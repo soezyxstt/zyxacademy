@@ -38,8 +38,8 @@ export function normalizeZyraSelection(value: string): string {
     .slice(0, ZYRA_SELECTION_MAX_CHARS);
 }
 
-export function isZyraMuridFeatureEnabled(value = process.env.NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3): boolean {
-  return value === "1";
+export function isZyraMuridFeatureEnabled(): true {
+  return true;
 }
 
 export function isZyraSelectionAskEnabled(value = process.env.NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1): boolean {

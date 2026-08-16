@@ -1,12 +1,7 @@
-import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
-import { db } from "@/db";
-import { knowledgeObjects } from "@/db/schema";
 import { CANONICAL_NAMESPACE_BY_LEGACY } from "@/lib/namespaces";
 import {
   CANONICAL_NAMESPACES,
   CANONICAL_VECTOR_PROFILE,
-  createVersionedVectorId,
   type CanonicalMetadataFilter,
   type CanonicalNamespace,
 } from "@/lib/vectorize/contracts";
@@ -16,11 +11,11 @@ import { vectorizeCanonicalQuery } from "@/lib/vectorize-client";
 export { VECTOR_NAMESPACES } from "@/lib/namespaces";
 
 export function isCanonicalVectorizeOnlyEnabled(): boolean {
-  return process.env.FEATURE_VECTORIZE_ONLY_V1 === "1";
+  return true;
 }
 
-export function vectorStoreRoute(flagValue = process.env.FEATURE_VECTORIZE_ONLY_V1): "canonical-v2" | "legacy-rollback" {
-  return flagValue === "1" ? "canonical-v2" : "legacy-rollback";
+export function vectorStoreRoute(): "canonical-v2" {
+  return "canonical-v2";
 }
 
 export interface VectorStoreMatch {
@@ -95,48 +90,8 @@ export class CanonicalVectorizeStore implements VectorStore {
   }
 }
 
-/**
- * Rollback compatibility is deliberately read-only. It serves deterministic
- * local tests and historical fallback while the canonical provider is off;
- * it never creates or updates vectors.
- */
-class ReadOnlyCompatibilityStore implements VectorStore {
-  async query(
-    courseNamespace: string,
-    _queryText: string,
-    options: VectorStoreQueryOptions = {},
-  ): Promise<VectorStoreMatch[]> {
-    if (process.env.MOCK_GEMINI !== "true") return [];
-    const legacySuffix = Object.keys(CANONICAL_NAMESPACE_BY_LEGACY)
-      .find((suffix) => courseNamespace.endsWith(`_${suffix}`));
-    const courseId = legacySuffix
-      ? courseNamespace.slice(0, -(`_${legacySuffix}`).length)
-      : courseNamespace;
-    const rows = await db
-      .select()
-      .from(knowledgeObjects)
-      .where(and(eq(knowledgeObjects.courseId, courseId), eq(knowledgeObjects.status, "active")))
-      .limit(options.topK ?? 10);
-    return rows.map((row, index) => ({
-      id: row.id,
-      score: 0.95 - index * 0.05,
-      metadata: {
-        courseId: row.courseId,
-        chapterId: row.chapterId,
-        conceptId: row.conceptId,
-        entityType: "idea",
-        contentHash: createHash("sha256").update(row.content, "utf8").digest("hex"),
-        profileId: CANONICAL_VECTOR_PROFILE.id,
-        vectorId: createVersionedVectorId("idea", row.id, 1),
-      },
-    }));
-  }
-}
-
 function createVectorStore(): VectorStore {
-  return isCanonicalVectorizeOnlyEnabled()
-    ? new CanonicalVectorizeStore()
-    : new ReadOnlyCompatibilityStore();
+  return new CanonicalVectorizeStore();
 }
 
 export const vectorStore: VectorStore = createVectorStore();

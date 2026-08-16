@@ -108,12 +108,12 @@ function deterministicId(prefix: string, sourceId: string): string {
   return `${prefix}-${digest}`;
 }
 
-function isEnabled(environment: NodeJS.ProcessEnv = process.env): boolean {
-  return environment.FEATURE_ARSITEKTUR_IDE_V1 === "1" && environment.FEATURE_DUAL_WRITE_IDE === "1";
+function isEnabled(_environment?: NodeJS.ProcessEnv): boolean {
+  return true;
 }
 
-export function dualWriteEnabled(environment: NodeJS.ProcessEnv = process.env): boolean {
-  return isEnabled(environment);
+export function dualWriteEnabled(_environment?: NodeJS.ProcessEnv): boolean {
+  return true;
 }
 
 async function audit(
@@ -270,8 +270,7 @@ export async function dualWriteLearningEvent(
   event: LegacyLearningEventMirror,
   actorId?: string | null,
 ): Promise<void> {
-  const ideaEvidenceEnabled = process.env.FEATURE_PEMAHAMAN_IDE_V1 === "1";
-  if ((!isEnabled() && !ideaEvidenceEnabled) || !event.koId) return;
+  if (!event.koId) return;
   const [targetIdea] = await tx.select({ id: ide.id }).from(ide).where(eq(ide.id, event.koId)).limit(1);
   if (!targetIdea) return;
   await requirePengguna(tx, event.studentId);

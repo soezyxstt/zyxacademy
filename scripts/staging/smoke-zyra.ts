@@ -1,5 +1,4 @@
 import { join } from "node:path";
-import { env } from "@/lib/env";
 import { currentSourceCommit, parseCliArgs, requiredCliArg, writeArtifact } from "@/lib/staging/migration-ledger";
 import { assertStagingEnvironment, parseEnvFile, safeGuardError } from "@/lib/staging/staging-guard";
 import { retrieveCanonicalEvidence } from "@/lib/zyra/canonical-runtime";
@@ -21,10 +20,6 @@ async function main(): Promise<void> {
       productionEnv: parseEnvFile(join(process.cwd(), ".env.prod")),
       requiredResources: ["database", "authUrl", "vectorizeWorker"],
     });
-    if (env.FEATURE_ZYRA_IDEA_RUNTIME_V1 !== "1" || env.FEATURE_VECTORIZE_ONLY_V1 !== "1") {
-      throw new Error("ZYRA_CANONICAL_FLAGS_NOT_ENABLED");
-    }
-
     const activeAttempt = suite === "active-attempt";
     const result = await retrieveCanonicalEvidence({
       courseId,
@@ -51,10 +46,7 @@ async function main(): Promise<void> {
         rejectedReasonCodes: [...new Set(result.rejected.map((item) => item.reasonCode))].sort(),
         answerLeakFindings,
       },
-      featureFlags: {
-        FEATURE_VECTORIZE_ONLY_V1: env.FEATURE_VECTORIZE_ONLY_V1,
-        FEATURE_ZYRA_IDEA_RUNTIME_V1: env.FEATURE_ZYRA_IDEA_RUNTIME_V1,
-      },
+      runtimePolicy: { canonicalVectorize: "always-on", canonicalIdeaRuntime: "always-on" },
       operatorTimestamp: new Date().toISOString(),
     };
     await writeArtifact(runId, `plan-013-smoke-${suite}.json`, artifact);

@@ -21,7 +21,7 @@ describe("Zyra ops alerts", () => {
     expect(alerts.map((alert) => alert.code)).toEqual(["ACTIVE_RESERVATION_SPIKE", "IMAGE_SANITIZER_FAILURE_SPIKE", "TEACHING_VALIDATION_VIOLATION"]);
     expect(new Set(alerts.map((alert) => alert.dedupKey)).size).toBe(alerts.length);
     expect(alerts.every((alert) => alert.runbook.startsWith("docs/operations/"))).toBe(true);
-    expect(alerts.every((alert) => alert.rollbackFlag.startsWith("FEATURE_"))).toBe(true);
+    expect(alerts.every((alert) => !alert.rollbackFlag || alert.rollbackFlag.startsWith("FEATURE_"))).toBe(true);
   });
 
   test("maps privacy, provider, cache, assessment, telemetry, and proposal signals", () => {

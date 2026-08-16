@@ -123,7 +123,6 @@ async function main(): Promise<void> {
   : ["admin", "tutor", "murid", "multi"];
 
  try {
-  if (process.env.FEATURE_PERAN_V2 !== "1") throw new Error("FEATURE_PERAN_V2 must be 1 for auth smoke");
   assertStagingEnvironment({
    productionEnv: parseEnvFile(join(process.cwd(), ".env.prod")),
    requiredResources: ["database", "authUrl"],
@@ -152,7 +151,7 @@ async function main(): Promise<void> {
     status: cases.every((item) => item.status === "passed") ? "passed" : "blocked",
     runId,
     sourceCommit: currentSourceCommit(),
-    featurePeranV2: process.env.FEATURE_PERAN_V2 === "1",
+    authorizationPolicy: "peran-membership-always-on",
     cases,
    };
    await writeArtifact(runId, "smoke-auth.json", report);

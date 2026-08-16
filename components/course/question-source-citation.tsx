@@ -8,7 +8,6 @@ type QuestionSourceCitationProps = {
 };
 
 export function QuestionSourceCitation({ origin, sourceEventName, className }: QuestionSourceCitationProps) {
-  if (process.env.NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1 !== "1") return null;
   const label = sourceEventName?.trim();
   if (origin !== "itb_example" || !label) return null;
 

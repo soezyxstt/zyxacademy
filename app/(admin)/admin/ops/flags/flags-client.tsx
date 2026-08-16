@@ -531,7 +531,7 @@ export function FlagsClient() {
         </div>
         <div className="space-y-3 text-body-sm text-muted-foreground leading-relaxed">
           <p>
-            Seluruh feature flag di Zyx Academy dikendalikan secara rasional melalui variabel lingkungan (Environment Variables) pada layer runtime.
+            Feature flag kategori 4 di Zyx Academy dikendalikan melalui variabel lingkungan pada layer runtime; fondasi sistem berjalan selalu aktif.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-border bg-muted/30 p-3.5 space-y-1.5">

@@ -4,7 +4,6 @@ import { db } from "@/db";
 import { alurKonten, auditMutasi } from "@/db/schema";
 import { hasAnyPeranFromCodes } from "@/lib/auth/authorization";
 import { buildMutationAuditRow } from "@/lib/audit/mutasi";
-import { env } from "@/lib/env";
 
 export const CONTENT_WORKFLOW_STATES = [
   "uploaded",
@@ -58,7 +57,6 @@ const ADMIN_TRANSITIONS = new Set<ContentWorkflowState>(["approved", "published"
 const TUTOR_TRANSITIONS = new Set<ContentWorkflowState>(["validated", "staged", "tutor_review", "changes_requested", "admin_review"]);
 
 export function assertContentWorkflowTransition(input: WorkflowTransitionInput): void {
-  if (env.FEATURE_ADMIN_TUTOR_WORKFLOW_V1 !== "1") throw new Error("CONTENT_WORKFLOW_DISABLED");
   if (!CONTENT_WORKFLOW_STATES.includes(input.from) || !CONTENT_WORKFLOW_STATES.includes(input.to)) {
     throw new Error("CONTENT_WORKFLOW_STATE_INVALID");
   }

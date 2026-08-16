@@ -20,7 +20,7 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `email`
 * `emailVerified`: Boolean flag indicating whether the user's email has been verified.
 * `image`: URL of the user's profile avatar.
-* `role`: Temporary compatibility projection, which can be 'admin', 'teacher', or 'student' during the expand phase. Canonical authorization uses `pengguna_peran` when `FEATURE_PERAN_V2=1`.
+* `role`: Temporary compatibility projection, which can be 'admin', 'teacher', or 'student' during the expand phase. Canonical authorization always uses `pengguna_peran`.
 * `createdAt`
 * `updatedAt`
 
@@ -1132,7 +1132,7 @@ Plan 010 reuses the additive assessment tables without changing legacy quiz snap
 * `percobaan_asesmen` and `jawaban_murid` preserve the rendered question, option order, response, grading policy, and content version at attempt time.
 * `bukti_ide_jawaban` stores per-Idea score contribution, weight, confidence, rubric version, derivation status, and the invariant that ambiguous evidence cannot affect mastery.
 
-The V2 runtime adds stable option IDs inside the existing JSON snapshots when `FEATURE_ASESMEN_IDE_V1=1`; this is an additive compatibility field and does not rewrite historical `questions_snapshot`, `answers_snapshot`, or `mastery_before` values.
+The runtime adds stable option IDs inside the existing JSON snapshots as an additive compatibility field and does not rewrite historical `questions_snapshot`, `answers_snapshot`, or `mastery_before` values.
 
 The compatibility submit bridge is flag-gated by the complete canonical rollout set. It uses deterministic IDs compatible with the legacy backfill, writes no rows when any question mapping is missing or stale, and leaves legacy attempt and answer snapshots authoritative. Holdout and unreviewed content never contributes to `bukti_ide_jawaban`.
 

@@ -33,7 +33,7 @@ export const ZyraOpsAlertSchema = z.object({
   severity: z.enum(["warning", "critical"]),
   dedupKey: z.string().regex(/^[a-z0-9._-]{1,96}$/),
   runbook: z.string().regex(/^docs\/operations\/[A-Za-z0-9._/-]+#[a-z0-9-]+$/),
-  rollbackFlag: z.string().regex(/^FEATURE_[A-Z0-9_]+$/),
+  rollbackFlag: z.string().regex(/^FEATURE_[A-Z0-9_]+$/).optional(),
 }).strict();
 export type ZyraOpsAlert = z.infer<typeof ZyraOpsAlertSchema>;
 

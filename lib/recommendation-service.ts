@@ -14,7 +14,6 @@ import {
   knowledgeObjects,
 } from "@/db/schema";
 import { getMastery } from "@/lib/mastery-store";
-import { env } from "@/lib/env";
 import { getOrComputeStudyPath } from "@/lib/study-path-service";
 import { eq, and, or, lte, isNull, gt, gte, notInArray, asc, inArray } from "drizzle-orm";
 
@@ -90,9 +89,8 @@ async function buildPlan(
   let quizItem: PlanItem | null = null;
   let moduleItem: PlanItem | null = null;
 
-  if (env.FEATURE_STUDY_PATH === "1") {
-    for (const courseId of enrolledCourseIds) {
-      if (quizPicked && modulePicked) break;
+  for (const courseId of enrolledCourseIds) {
+    if (quizPicked && modulePicked) break;
 
       try {
         const path = await getOrComputeStudyPath(studentId, courseId);
@@ -145,7 +143,6 @@ async function buildPlan(
       } catch (err) {
         console.error(`Error computing recommendations from study path for course ${courseId}:`, err);
       }
-    }
   }
 
   // Fallback to legacy quiz selection if not picked by study path

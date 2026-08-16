@@ -27,6 +27,8 @@ export type MigrationEvidence = {
   rowCounts?: Record<string, number>;
   reconciliationHashes?: Record<string, string>;
   featureFlags?: Record<string, string | undefined>;
+  runtimePolicy?: Record<string, unknown>;
+  authorizationPolicy?: string;
   rollback?: { attempted: boolean; passed: boolean; detail: string };
   operatorTimestamp: string;
   knownLimitations?: string[];

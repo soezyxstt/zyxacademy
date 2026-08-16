@@ -114,8 +114,8 @@ describe("KO Pipeline Contract Tests", () => {
     expect(supersedeResult?.existingId).toBe("ko_existing_003_old");
   });
 
-  it("AI-KO-ENV-001: Contains FEATURE_KO_PIPELINE_V2 feature flag in server schema", () => {
-    expect("FEATURE_KO_PIPELINE_V2" in env).toBe(true);
+  it("AI-KO-ENV-001: Treats the canonical KO pipeline as foundational", () => {
+    expect("FEATURE_KO_PIPELINE_V2" in env).toBe(false);
   });
 
   // ── Plan 008 Staged Extraction Contract Tests ──────────────────────────────

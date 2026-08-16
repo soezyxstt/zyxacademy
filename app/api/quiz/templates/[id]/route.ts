@@ -10,7 +10,6 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { env } from '@/lib/env';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
 import { sendQuizPublished } from '@/lib/notifications/send';
 
@@ -90,7 +89,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   if (parsed.data.timeLimitSeconds !== undefined) updateData.timeLimitSeconds = parsed.data.timeLimitSeconds;
   if (parsed.data.maxAttempts !== undefined) updateData.maxAttempts = parsed.data.maxAttempts;
   if (parsed.data.selectionRules !== undefined) {
-    if (env.FEATURE_ASESMEN_IDE_V1 === '1' && parsed.data.selectionRules.assessmentType) {
+    if (parsed.data.selectionRules.assessmentType) {
       const scope = assessmentScopeSchema.safeParse({
         assessmentType: parsed.data.selectionRules.assessmentType,
         chapterIds: parsed.data.selectionRules.chapterIds ?? [],

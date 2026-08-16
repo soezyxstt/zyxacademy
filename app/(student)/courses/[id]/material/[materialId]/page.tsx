@@ -239,7 +239,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
       <MaterialViewer
         material={material}
         chapterId={material.chapterId}
-        ragEnabled={env.FEATURE_TUTOR_RAG === "1"}
+        ragEnabled
         termIndex={termIndex}
         materialLiveEnabled={materialLiveEnabled}
       />

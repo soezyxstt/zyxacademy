@@ -311,12 +311,12 @@ describe("Tutor RAG Contract Tests", () => {
     expect(keySession1).not.toContain("session_");
   });
 
-  it("AI-TUTOR-ENV-001: Env schema contains FEATURE_TUTOR_PIPELINE_V2 flag", () => {
-    expect("FEATURE_TUTOR_PIPELINE_V2" in env).toBe(true);
+  it("AI-TUTOR-ENV-001: Tutor pipeline is foundational and has no runtime flag", () => {
+    expect("FEATURE_TUTOR_PIPELINE_V2" in env).toBe(false);
   });
 
-  it("AI-TUTOR-ENV-002: Env schema contains FEATURE_TUTOR_EVIDENCE_V2 flag", () => {
-    expect("FEATURE_TUTOR_EVIDENCE_V2" in env).toBe(true);
+  it("AI-TUTOR-ENV-002: Tutor evidence is foundational and has no runtime flag", () => {
+    expect("FEATURE_TUTOR_EVIDENCE_V2" in env).toBe(false);
   });
 
   it("AI-TUTOR-CIT-001: Reject citation IDs that do not exist in retrieved source set", () => {

@@ -16,15 +16,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { db } from "@/db";
 import {
   aiUsageEvents,
-  aiMaterialInstanceChunks,
- aiMaterialInstanceSections,
- knowledgeObjects,
- aiQuestionBank,
- assessmentObjects,
+  knowledgeObjects,
 } from "@/db/schema";
-import { inArray, and, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { vectorStore, VECTOR_NAMESPACES } from "@/lib/vector-store";
 import { kvGet, kvPut } from "@/lib/kv-cache";
 import { PromptExecutor, type SystemPrompt } from "@/lib/prompt-executor";
 import { getConversationMemory } from "@/lib/zyra/conversation-memory";
@@ -117,10 +112,8 @@ import {
 } from "@/lib/zyra/ops/telemetry";
 import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 
-const SIMILARITY_FLOOR = 0.5;
 const _CACHE_CONFIDENCE_FLOOR = 0.6;
 const SUMMARY_TTL_SECONDS = 30 * 24 * 3600;
-const TOP_K = 6;
 
 // ─── Contracts ────────────────────────────────────────────────────────────────
 
@@ -475,187 +468,24 @@ async function retrieve(
     matchState: MatchState;
   }
 ): Promise<RetrievedSource[]> {
- if (zyraRuntimeEnv.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
-  const result = await retrieveCanonicalEvidence({
-   studentId: runtime?.studentId,
-   courseId,
-   chapterId,
-   isEnrolled: false,
-   activityKind: runtime?.activityKind,
-   attemptState: runtime?.attemptState,
-   answerReleaseState: runtime?.answerReleaseState,
-   matchState: runtime?.matchState,
-  }, question);
-  return result.sources.map((source) => ({
-   type: source.type,
-   id: source.id,
-   label: source.label,
-   href: source.href,
-   content: source.content,
-   version: source.version,
-  }));
- }
-
- const [learningMatches, practiceMatches, pastExamMatches] = await Promise.all([
-  vectorStore.query(`${courseId}_${VECTOR_NAMESPACES.learning}`, question, {
-   topK: TOP_K,
-   ...(chapterId ? { filter: { chapterId } } : {}),
-  }),
-  vectorStore.query(`${courseId}_${VECTOR_NAMESPACES.practice}`, question, {
-   topK: TOP_K,
-   ...(chapterId ? { filter: { chapterId } } : {}),
-  }),
-  vectorStore.query(`${courseId}_${VECTOR_NAMESPACES.past_exams}`, question, {
-   topK: TOP_K,
-   ...(chapterId ? { filter: { chapterId } } : {}),
-  }),
- ]);
-
- const relevantLearning = learningMatches.filter((m) => m.score >= SIMILARITY_FLOOR);
- const relevantPractice = practiceMatches.filter((m) => m.score >= SIMILARITY_FLOOR);
- const relevantPastExams = pastExamMatches.filter((m) => m.score >= SIMILARITY_FLOOR);
-
- if (
-  relevantLearning.length === 0 &&
-  relevantPractice.length === 0 &&
-  relevantPastExams.length === 0
- ) {
-  return [];
- }
-
- const combinedMatches = [
-  ...relevantLearning.map((m) => ({ ...m, sourceNs: "learning" as const })),
-  ...relevantPractice.map((m) => ({ ...m, sourceNs: "practice" as const })),
-  ...relevantPastExams.map((m) => ({ ...m, sourceNs: "past_exams" as const })),
- ]
-  .sort((a, b) => b.score - a.score)
-  .slice(0, TOP_K);
-
- const chunkIds: string[] = [];
- const koIds: string[] = [];
- const practiceQuestionIds: string[] = [];
- const pastExamIds: string[] = [];
-
- const rankMap = new Map<string, number>();
- combinedMatches.forEach((m, idx) => {
-  if (m.sourceNs === "learning" && typeof m.metadata.chunk_id === "string" && m.metadata.chunk_id) {
-   rankMap.set(m.metadata.chunk_id, idx);
-  } else {
-   rankMap.set(m.id, idx);
-  }
- });
-
- for (const m of combinedMatches) {
-  if (m.sourceNs === "learning") {
-   if (typeof m.metadata.chunk_id === "string" && m.metadata.chunk_id) {
-    chunkIds.push(m.metadata.chunk_id);
-   } else {
-    koIds.push(m.id);
-   }
-  } else if (m.sourceNs === "practice") {
-   practiceQuestionIds.push(m.id);
-  } else if (m.sourceNs === "past_exams") {
-   pastExamIds.push(m.id);
-  }
- }
-
- const [chunkRows, koRows, practiceRows, pastExamRows] = await Promise.all([
-  chunkIds.length > 0
-   ? db
-      .select({
-       id: aiMaterialInstanceChunks.id,
-       chunkText: aiMaterialInstanceChunks.chunkText,
-       sectionTitle: aiMaterialInstanceSections.title,
-       materialInstanceId: aiMaterialInstanceSections.materialInstanceId,
-      })
-      .from(aiMaterialInstanceChunks)
-      .innerJoin(
-       aiMaterialInstanceSections,
-       eq(aiMaterialInstanceChunks.sectionId, aiMaterialInstanceSections.id)
-      )
-      .where(inArray(aiMaterialInstanceChunks.id, chunkIds))
-   : Promise.resolve([]),
-  koIds.length > 0
-   ? db
-      .select()
-      .from(knowledgeObjects)
-      .where(and(inArray(knowledgeObjects.id, koIds), eq(knowledgeObjects.status, "active")))
-   : Promise.resolve([]),
-  practiceQuestionIds.length > 0
-   ? db
-      .select({
-       id: aiQuestionBank.id,
-       prompt: aiQuestionBank.prompt,
-       explanation: aiQuestionBank.explanation,
-      })
-      .from(aiQuestionBank)
-      .where(and(inArray(aiQuestionBank.id, practiceQuestionIds), eq(aiQuestionBank.status, "active")))
-   : Promise.resolve([]),
-  pastExamIds.length > 0
-   ? db
-      .select({
-       id: assessmentObjects.id,
-       questionMarkdown: assessmentObjects.questionMarkdown,
-       answerMarkdown: assessmentObjects.answerMarkdown,
-      })
-      .from(assessmentObjects)
-      .where(inArray(assessmentObjects.id, pastExamIds))
-   : Promise.resolve([]),
- ]);
-
- const sourcesWithRank: { source: RetrievedSource; rank: number }[] = [];
-
- for (const c of chunkRows) {
-  sourcesWithRank.push({
-   source: {
-    type: "chapter",
-    id: c.materialInstanceId,
-    label: c.sectionTitle || "Materi",
-    href: `/courses/${courseId}/material/${c.materialInstanceId}`,
-    content: c.chunkText,
-   },
-   rank: rankMap.get(c.id) ?? 999,
-  });
- }
- for (const ko of koRows) {
-  sourcesWithRank.push({
-   source: {
-    type: "ko",
-    id: ko.id,
-    label: ko.title,
-    href: `/courses/${courseId}/material`,
-    content: `${ko.conceptName}: ${ko.content}`,
-   },
-   rank: rankMap.get(ko.id) ?? 999,
-  });
- }
- for (const q of practiceRows) {
-  sourcesWithRank.push({
-   source: {
-    type: "practice_question",
-    id: q.id,
-    label: "Practice Question",
-    href: `/courses/${courseId}/practice`,
-    content: `Question: ${q.prompt}\nExplanation: ${q.explanation}`,
-   },
-   rank: rankMap.get(q.id) ?? 999,
-  });
- }
- for (const ae of pastExamRows) {
-  sourcesWithRank.push({
-   source: {
-    type: "past_exam",
-    id: ae.id,
-    label: "Past Exam Question",
-    href: `/courses/${courseId}/material`,
-    content: `Question: ${ae.questionMarkdown}\nSolution: ${ae.answerMarkdown || ""}`,
-   },
-   rank: rankMap.get(ae.id) ?? 999,
-  });
- }
-
- sourcesWithRank.sort((a, b) => a.rank - b.rank);
- return sourcesWithRank.map((item) => item.source);
+ const result = await retrieveCanonicalEvidence({
+  studentId: runtime?.studentId,
+  courseId,
+  chapterId,
+  isEnrolled: false,
+  activityKind: runtime?.activityKind,
+  attemptState: runtime?.attemptState,
+  answerReleaseState: runtime?.answerReleaseState,
+  matchState: runtime?.matchState,
+ }, question);
+ return result.sources.map((source) => ({
+  type: source.type,
+  id: source.id,
+  label: source.label,
+  href: source.href,
+  content: source.content,
+  version: source.version,
+ }));
 }
 
 // ─── Tier 2 + Tier 3 (per student, never cached) ─────────────────────────────
@@ -756,7 +586,6 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
   const chapterId = params.chapterId ?? null;
   const pedagogyMode = resolvePedagogyExecutionMode({
     requestedMode: params.pedagogyMode,
-    featureEnabled: zyraRuntimeEnv.FEATURE_ZYRA_PEDAGOGY_V3 === "1",
     environment: zyraRuntimeEnv.ZYX_ENVIRONMENT,
     configuredShadowUserId: zyraRuntimeEnv.STAGING_ZYRA_PEDAGOGY_USER_ID,
     userId: studentId,
@@ -771,20 +600,17 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
     throw new PedagogyShadowGuardError("PEDAGOGY_SHADOW_OBSERVER_SHADOW_ONLY");
   }
 
-  const usePolicy = zyraRuntimeEnv.FEATURE_ASSESSMENT_ASSISTANCE_POLICY === "1";
   const activityKind = params.activityKind ?? (params.attemptState && params.attemptState !== "none" ? "quiz" : "study");
   const attemptState = params.attemptState ?? "none";
   const answerReleaseState = params.answerReleaseState ?? (attemptState === "completed" ? "released" : "hidden");
   const matchState = params.matchState ?? "none";
 
-  const policy = usePolicy
-    ? evaluateAssessmentAssistancePolicy({
-        activityKind,
-        attemptState,
-        answerReleaseState,
-        matchState,
-      })
-    : null;
+  const policy = evaluateAssessmentAssistancePolicy({
+    activityKind,
+    attemptState,
+    answerReleaseState,
+    matchState,
+  });
 
   const protectedPayload = protectedAnswers || {};
   const profile = await buildLearnerProfile(studentId, courseId);
@@ -927,27 +753,23 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
         }
       }
     }
-    if (zyraRuntimeEnv.FEATURE_ZYRA_IDEA_RUNTIME_V1 === "1") {
-      const rehydrated = await rehydrateCanonicalSourceIds({
-        studentId,
-        courseId,
-        chapterId,
-        isEnrolled: false,
-        activityKind,
-        attemptState,
-        answerReleaseState,
-        matchState,
-      }, historySources.map((source) => source.id));
-      retrieved = rehydrated.sources.map((source) => ({
-        type: source.type,
-        id: source.id,
-        label: source.label,
-        href: source.href,
-        content: source.content,
-      }));
-    } else {
-      retrieved = historySources;
-    }
+    const rehydrated = await rehydrateCanonicalSourceIds({
+      studentId,
+      courseId,
+      chapterId,
+      isEnrolled: false,
+      activityKind,
+      attemptState,
+      answerReleaseState,
+      matchState,
+    }, historySources.map((source) => source.id));
+    retrieved = rehydrated.sources.map((source) => ({
+      type: source.type,
+      id: source.id,
+      label: source.label,
+      href: source.href,
+      content: source.content,
+    }));
   } else if (await isMetaExamQuery(searchQuestion)) {
     const statsSummary = await executeMetaQuery(courseId, searchQuestion);
     retrieved = [
@@ -1134,14 +956,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       } else if (evidenceEval.state === "none") {
         base = await generateGeneralTeachingFallback();
       } else {
-        const useEvidenceV2 = zyraRuntimeEnv.FEATURE_TUTOR_EVIDENCE_V2 === "1"
-          || zyraRuntimeEnv.FEATURE_TUTOR_PIPELINE_V2 === "1";
-
-        const contextBlock = useEvidenceV2
-          ? buildSanitizedContextBlock(sourceEnvelopes)
-          : contextSources
-              .map((s, i) => `[${i + 1}] (source id: ${s.id})\n${s.content}`)
-              .join("\n\n");
+        const contextBlock = buildSanitizedContextBlock(sourceEnvelopes);
 
         const sourceList = contextSources.map((s) => `${s.id} | ${s.type} | ${s.label}`).join("\n");
         const sanitizedQuestion = sanitizePromptInput(searchQuestion);

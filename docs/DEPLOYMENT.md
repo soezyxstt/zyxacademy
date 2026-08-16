@@ -145,7 +145,7 @@ The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
 
 ## Feature Flags
 
-All `FEATURE_*` env vars default to off. Enable gradually per environment. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the full list.
+Only the retained category 4 flags are runtime rollout controls. Foundational authorization, canonical retrieval, assessment, learning, and pedagogy behavior is always-on. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the full list.
 ## Authoring Context Pack V1
 
 Keep `FEATURE_AUTHORING_CONTEXT_V1` absent or `0` until the local contract suite and staging round trip pass. The export API is admin-only by default, stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.
@@ -154,7 +154,7 @@ The artifact must use the private R2 staging bucket and must not use a public UR
 
 ## Zyra Plans 008 through 014 staging boundary
 
-Plans 008 through 013 are additive implementations in this checkpoint. Migration `0067_zyra_continuation.sql` was applied to remote staging on 2026-08-12 after encrypted export and disposable restore validation. Reconciliation recorded 164 tables, 7 additive tables, and zero foreign-key violations. It was not applied to production. Their feature flags remain absent or `0`.
+Plans 008 through 013 are additive implementations in this checkpoint. Migration `0067_zyra_continuation.sql` was applied to remote staging on 2026-08-12 after encrypted export and disposable restore validation. Reconciliation recorded 164 tables, 7 additive tables, and zero foreign-key violations. It was not applied to production. Their optional category 4 rollout flags remain separately controlled.
 
 Plan 010 requires the dedicated private attachment bucket and the normal R2 or staging Wrangler private adapter. Do not set `STORAGE_PROVIDER_MODE=uploadthing` for the multimodal path. Image source bytes are never sent directly from the browser to a provider and no public object URL is issued.
 
@@ -176,13 +176,13 @@ The Worker configuration is `workers/zyra-control-plane/wrangler.jsonc` and must
 
 ## Zyra model registry staging probe
 
-Plan 002 keeps the provider registry flag off by default. Run the deterministic mock probe before any provider call:
+Plan 002 uses the model registry as the default route. Run the deterministic mock probe before any provider call:
 
 ```bash
 bun --env-file=.env.staging run staging:probe-gemini-models -- --mock --run-id <runId>
 ```
 
-The bounded real probe is staging-only, requires four Gemini key slots and four non-secret project aliases in `.env.staging`, requires an explicit `--max-requests`, and is capped at 40 requests. It records only model, project alias, key-slot name, latency, dimensions, status, and typed error metadata. It never records prompts, responses, key values, or authenticated URLs. Do not use `.env.local` or production credentials for this probe. Keep `FEATURE_AI_PROVIDER_REGISTRY_V1` absent or `0` until the real four-project evidence and quarantine health gate are complete.
+The bounded real probe is staging-only, requires four Gemini key slots and four non-secret project aliases in `.env.staging`, requires an explicit `--max-requests`, and is capped at 40 requests. It records only model, project alias, key-slot name, latency, dimensions, status, and typed error metadata. It never records prompts, responses, key values, or authenticated URLs. Do not use `.env.local` or production credentials for this probe. The model registry is already the default route; use the retained provider-router flag only for its explicit lease-aware rollout.
 
 ## Zyra quota coordinator staging smoke
 
@@ -196,11 +196,11 @@ The Plan 003 Worker version has been deployed only to the approved staging Worke
 
 ## Zyra application allowances
 
-Plan 004 uses the guarded staging migration runner for the additive `ai_allowance_leases` table. The reviewed staging-backed application canary passed with the flag enabled only in its local process, then the flag was off afterward. The read-only manifest is captured before and after migration, and strict reconciliation verifies that legacy usage and trace manifests are unchanged, committed leases have derived compatibility events, and no invalid lease status exists.
+Plan 004 uses the guarded staging migration runner for the additive `ai_allowance_leases` table. The reviewed staging-backed application canary passed with the optional allowance capability enabled only in its local process, then the capability was off afterward. The read-only manifest is captured before and after migration, and strict reconciliation verifies that legacy usage and trace manifests are unchanged, committed leases have derived compatibility events, and no invalid lease status exists.
 
 ## Zyra health-aware provider routing
 
-Plan 005 keeps `FEATURE_ZYRA_PROVIDER_ROUTER_V2` disabled by default. Its server-only lifecycle reserves the application allowance first, then a staging Worker project-model lease, dispatches both before calling Gemini, and commits or refunds without a direct-after-Gateway duplicate. AI Gateway metadata is bounded and privacy-safe; personalized and active-assessment requests bypass Gateway cache and payload logging.
+Plan 005 keeps the lease-aware provider router as an optional category 4 capability. Its server-only lifecycle reserves the application allowance first, then a staging Worker project-model lease, dispatches both before calling Gemini, and commits or refunds without a direct-after-Gateway duplicate. AI Gateway metadata is bounded and privacy-safe; personalized and active-assessment requests bypass Gateway cache and payload logging.
 
 The bounded staging smoke is:
 
@@ -208,7 +208,7 @@ The bounded staging smoke is:
 bun --env-file=.env.staging scripts/staging/smoke-zyra-provider-router.ts --run-id <runId> --max-provider-requests 40
 ```
 
-It requires the existing staging control-plane secret plus configured control-plane URL, AI Gateway URL/token, four Gemini key slots, four distinct non-secret project aliases, and a dedicated staging router identity. The accepted staging run uses a bounded 3.1-second application pacing interval to respect the 20-per-minute admin allowance. It completed 40 of 40 provider requests, used four project slots, selected only `gemini-3.1-flash-lite`, recorded zero quarantined traffic, restored the feature flag, and performed no production deployment. Evidence: `artifacts/zyra-ai/20260807-plan005-provider-router-paced-v1/plan-005-provider-router.json`.
+It requires the existing staging control-plane secret plus configured control-plane URL, AI Gateway URL/token, four Gemini key slots, four distinct non-secret project aliases, and a dedicated staging router identity. The accepted staging run uses a bounded 3.1-second application pacing interval to respect the 20-per-minute admin allowance. It completed 40 of 40 provider requests, used four project slots, selected only `gemini-3.1-flash-lite`, recorded zero quarantined traffic, restored the optional capability setting, and performed no production deployment. Evidence: `artifacts/zyra-ai/20260807-plan005-provider-router-paced-v1/plan-005-provider-router.json`.
 
 ## Zyra privacy-safe semantic cache
 
@@ -224,9 +224,9 @@ The smoke passed with one single-flight leader, 49 followers, one strict semanti
 
 ## Zyra pedagogical harness
 
-Plan 007 keeps `FEATURE_ZYRA_PEDAGOGY_V3` disabled by default. When enabled for a reviewed process, the server selects the teaching state and hint level before the model call, validates canonical citations and assessment safety after the call, and uses deterministic safe composition on failure. The contract sets one total model attempt, so the ordinary turn has no hidden repair call. Personal guidance calls remain disabled on this path until the later personalization plan.
+Plan 007 pedagogy is always-on. The server selects the teaching state and hint level before the model call, validates canonical citations and assessment safety after the call, and uses deterministic safe composition on failure. The contract sets one total model attempt, so the ordinary turn has no hidden repair call. Shadow comparison remains an explicit staging request, and personal guidance remains separately controlled by the retained personalization flag.
 
-Plan 007 remote shadow is staging-only and opt-in. Configure the non-secret `STAGING_ZYRA_PEDAGOGY_USER_ID` only in the ignored `.env.staging` file, then invoke the smoke script with `--remote-shadow`. The runner verifies staging resource fingerprints, exact active murid identity, current legacy and canonical enrollment, and published canonical question evidence before any model call. A 40-request cap permits at most five cases under the current seven-call upper bound per case. The runner never changes the public feature flag, never saves duplicate chat messages, and never writes learner summary or learning-event state.
+Plan 007 remote shadow is staging-only and opt-in. Configure the non-secret `STAGING_ZYRA_PEDAGOGY_USER_ID` only in the ignored `.env.staging` file, then invoke the smoke script with `--remote-shadow`. The runner verifies staging resource fingerprints, exact active murid identity, current legacy and canonical enrollment, and published canonical question evidence before any model call. A 40-request cap permits at most five cases under the current seven-call upper bound per case. The runner never changes public rollout settings, never saves duplicate chat messages, and never writes learner summary or learning-event state.
 
 Before a remote retry, use `--startup-diagnostics-only`. This mode performs Turso SELECT checks and local module imports only; provider calls, Vectorize queries, control-plane leases, trace writes, and learner writes remain zero. Canonical and tutor imports use the scoped Zyra runtime env contract and do not require unrelated UploadThing or Resend credentials. The latest diagnostic reached the database but stopped at `session_context` with `PEDAGOGY_STARTUP_ACTIVE_SESSION_MISSING`; it made zero provider calls and writes. The older all-stage artifact remains historical evidence: `artifacts/staging-overhaul/20260808-plan007-startup-diagnostics-v3/plan-007-pedagogy-startup-diagnostics.json`.
 
@@ -284,7 +284,7 @@ This procedure mutates only the verified staging database. It does not deploy th
 
 ## Product Bundle V2
 
-Keep `FEATURE_PRODUCT_BUNDLE_V2` absent or `0` until local contract gates and the staging product-bundle rehearsal pass. The workflow uses the normal private R2 storage abstraction for staged ZIP artifacts and writes product publication, dependency, audit, and vector outbox records transactionally. Run the staging test with `.env.staging` and the authenticated Wrangler fallback only when the script explicitly enables it. Do not enable the flag in production as part of Plan 008; production rollout remains out of scope.
+Keep `FEATURE_PRODUCT_BUNDLE_V2` optional until local contract gates and the staging product-bundle rehearsal pass. The workflow uses the normal private R2 storage abstraction for staged ZIP artifacts and writes product publication, dependency, audit, and vector outbox records transactionally. Run the staging test with `.env.staging` and the authenticated Wrangler fallback only when the script explicitly enables it. Do not enable the flag in production as part of Plan 008; production rollout remains out of scope.
 
 ## Provider-neutral Authoring MCP
 
@@ -296,4 +296,4 @@ The current transport is stateless and does not require a database migration. OA
 
 ## Plan 017 audit rework
 
-The branch-local rework adds no table, migration, provider, or deployment requirement. Keep `FEATURE_PRODUCT_BUNDLE_V2`, the canonical Idea and assessment flags, and the canonical Vectorize runtime disabled until the local gates pass and a separate staging rehearsal is approved. The rework routes only approved Article, question, and solution products to canonical Vectorize namespaces, excludes holdout references, and appends per-Idea evidence only for exact published mappings. Rollback is branch-only during this phase; switching back to `staging` requires no data rollback.
+The branch-local rework adds no table, migration, provider, or deployment requirement. Keep `FEATURE_PRODUCT_BUNDLE_V2` optional until the local gates pass and a separate staging rehearsal is approved; canonical Idea, assessment, evidence, and Vectorize runtimes are always-on. The rework routes only approved Article, question, and solution products to canonical Vectorize namespaces, excludes holdout references, and appends per-Idea evidence only for exact published mappings. Rollback is branch-only during this phase; switching back to `staging` requires no data rollback.

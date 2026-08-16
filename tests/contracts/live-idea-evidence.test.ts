@@ -155,15 +155,7 @@ describe("live assessment to Idea evidence adapter", () => {
     expect(legacyAnswerEvidenceId("answer-1", "idea-1")).not.toBe(legacyAnswerEvidenceId("answer-1", "idea-2"));
   });
 
-  it("requires the complete canonical flag set and preserves legacy mode otherwise", () => {
-    const enabled = {
-      FEATURE_ARSITEKTUR_IDE_V1: "1",
-      FEATURE_DUAL_WRITE_IDE: "1",
-      FEATURE_ASESMEN_IDE_V1: "1",
-      FEATURE_PEMAHAMAN_IDE_V1: "1",
-    };
-    expect(isCanonicalIdeaEvidenceEnabled(enabled)).toBe(true);
-    expect(isCanonicalIdeaEvidenceEnabled({ ...enabled, FEATURE_PEMAHAMAN_IDE_V1: "0" })).toBe(false);
-    expect(isCanonicalIdeaEvidenceEnabled({ FEATURE_ASESMEN_IDE_V1: "1", FEATURE_PEMAHAMAN_IDE_V1: "1" })).toBe(false);
+  it("keeps canonical Idea evidence active without a rollout flag", () => {
+    expect(isCanonicalIdeaEvidenceEnabled()).toBe(true);
   });
 });

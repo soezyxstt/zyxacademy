@@ -14,7 +14,6 @@ import { calculateSM2 } from "./flashcard-scheduler";
 import { randomUUID } from "crypto";
 import { inngest } from "@/lib/inngest";
 import { markRecommendationDone } from "@/lib/recommendation-service";
-import { env } from "@/lib/env";
 import { dualWriteFlashcardReview, dualWriteLearningEvent } from "@/lib/migrasi/repository-kompatibilitas";
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
 
@@ -347,7 +346,7 @@ export async function submitFlashcardReviewTx(
     console.error("Failed to trigger recompute:", err);
   }
 
-  if (env.FEATURE_TODAY === "1") {
+  {
     Promise.resolve().then(async () => {
       const now = new Date();
       const remaining = await db
@@ -539,8 +538,6 @@ async function recordFlashcardIdeaEvidence(
   scoreContribution: number,
   occurredAt: Date,
 ): Promise<void> {
-  if (env.FEATURE_PEMAHAMAN_IDE_V1 !== "1") return;
-
   const links = await db
     .select({ ideId: flashcardIde.ideId, weight: flashcardIde.weight })
     .from(flashcardIde)

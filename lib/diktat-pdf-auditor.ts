@@ -12,10 +12,6 @@ export async function auditRenderedPDF(
   pdfBuffer: Buffer,
   structure: DiktatStructure
 ): Promise<PDFAuditResult> {
-  if (process.env.FEATURE_DIKTAT_AI !== "1" && process.env.FEATURE_DIKTAT_QA_V2 !== "1") {
-    return { status: "pass", warnings: [] };
-  }
-
   const warnings: string[] = [];
 
   let extractedText = "";

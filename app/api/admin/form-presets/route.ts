@@ -13,7 +13,6 @@ async function requireAdmin(): Promise<string | null> {
   if (env.FEATURE_FORM_PRESETS !== "1") {
     return "NotFound. Feature disabled.";
   }
-  if (env.FEATURE_PERAN_V2 !== "1") return null;
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
     return "Unauthorized. Admin role required.";

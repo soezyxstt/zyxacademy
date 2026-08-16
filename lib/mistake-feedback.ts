@@ -5,7 +5,6 @@ import { eq, inArray, and } from "drizzle-orm";
 import { kvGet, kvPut } from "@/lib/kv-cache";
 import { generateContentWithFallback } from "@/lib/gemini";
 import { USE_CASES } from "@/lib/ai-router";
-import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { randomUUID } from "node:crypto";
 import { validateTutorOutput } from "@/lib/assessment-assistance-policy";
 
@@ -134,8 +133,6 @@ export async function generateMistakeFeedback(attemptId: string): Promise<void> 
  const deterministic: Array<{ questionId: string; questionIndex: number; payload: FeedbackPayload }> = [];
  const misses: Array<{ id: string; correctIndices: number[]; submitted: number[]; index: number; cacheKey: string }> = [];
 
- const useDeterministic = zyraRuntimeEnv.FEATURE_MISCONCEPTION === "1";
-
  // Find selected misconception distractors so we can fetch their KO content in one query.
  const pendingForLLM: typeof wrongQuestions = [];
  const detPlan: Array<{ wq: (typeof wrongQuestions)[number]; entry: DistractorEntryShape }> = [];
@@ -144,9 +141,7 @@ export async function generateMistakeFeedback(attemptId: string): Promise<void> 
  const details = bankMap.get(wq.id);
  const dmap = (details?.distractorMap as DistractorEntryShape[] | null) ?? [];
  const submitted = new Set(wq.submitted);
- const tagged = useDeterministic
- ? dmap.find((e) => e.kind === "misconception" && e.misconceptionKoId && submitted.has(e.optionIndex))
- : undefined;
+ const tagged = dmap.find((e) => e.kind === "misconception" && e.misconceptionKoId && submitted.has(e.optionIndex));
  if (tagged) {
  detPlan.push({ wq, entry: tagged });
  } else {

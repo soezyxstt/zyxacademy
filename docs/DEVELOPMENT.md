@@ -57,7 +57,7 @@ bun run dev                  # http://localhost:3000
 | `bun --env-file=.env.staging run staging:smoke-zyra-canvas -- --run-id <runId> --course <courseId>` | Run the zero-provider Plan 009 Learning Canvas smoke |
 | `bun --env-file=.env.staging run staging:e2e-admin-tutor -- --run-id <runId> --course <courseId>` | Exercise the guarded admin and tutor workflow fixture |
 | `bun --env-file=.env.staging run staging:e2e-murid -- --run-id <runId> --course <courseId> --account dedicated` | Exercise the dedicated murid read-model smoke |
-| `bun --env-file=.env.staging run staging:full-rehearsal -- --run-id <runId> --plan-012-run-id <runId> --plan-013-run-id <runId> --plan-014-run-id <runId> --plan-015-run-id <runId> --with-rollback` | Rehearse canonical enable, full rollback, and re-enable after all predecessor result artifacts pass |
+| `bun --env-file=.env.staging run staging:full-rehearsal -- --run-id <runId> --plan-012-run-id <runId> --plan-013-run-id <runId> --plan-014-run-id <runId> --plan-015-run-id <runId> --with-rollback` | Verify canonical always-on routing, compatibility preservation, and rollback evidence after all predecessor result artifacts pass |
 | `bun --env-file=.env.staging run staging:legacy-caller-inventory -- --run-id <runId> --fail-on-write` | Inventory remaining legacy provider matches and fail on active writers |
 | `bun --env-file=.env.staging run staging:decommission-pinecone -- --dry-run --not-provisioned` | Record the exact deterministic absence fingerprint when staging never provisioned a legacy Pinecone index |
 | `bun --env-file=.env.staging run staging:finalize-cutover -- --run-id <runId> --run-a <runId> --run-b <runId> --plan-012-run-id <runId> --plan-013-run-id <runId> --plan-014-run-id <runId> --plan-015-run-id <runId> --inventory-run-id <runId> --decommission-run-id <runId>` | Generate the staging-only Plan 016 go or no-go dossier after both rehearsals, zero runtime legacy callers, and confirmed decommission |
@@ -105,16 +105,12 @@ https://<zyx-origin>/api/mcp/authoring
 ### Optional ; Zyra model registry
 - `GEMINI_API_KEY_2`, `GEMINI_API_KEY_3`, `GEMINI_API_KEY_4` ; additional staging project keys. The primary slot is `GEMINI_API_KEY` and `GEMINI_API_KEY_1` is accepted only as its compatibility alias.
 - `GEMINI_PROJECT_ALIAS_1` through `GEMINI_PROJECT_ALIAS_4` ; non-secret distinct project aliases such as `gemini-project-1` through `gemini-project-4`.
-- `FEATURE_AI_PROVIDER_REGISTRY_V1` ; enables the versioned registry route policy. Missing or `0` keeps the existing route order while adapters use the registry contracts.
 - The real Plan 002 probe requires all four staging key slots, never prints key values, and refuses a request cap above 40. The mock probe makes zero network calls.
 
 ### Optional ; Canonical Vectorize
 - `VECTORIZE_WORKER_URL`, `VECTORIZE_SHARED_SECRET` ; authenticated canonical Vectorize worker
 - `RESTRICTED_SOLUTION_CAPABILITY` ; staging Worker capability required for published solution retrieval
-- `FEATURE_VECTORIZE_ONLY_V1` ; canonical 768-dimensional retrieval and outbox writes
-- `FEATURE_ZYRA_IDEA_RUNTIME_V1` ; canonical Zyra hydration and assessment safety
-- `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` ; admin and tutor content lifecycle
-- `FEATURE_MURID_IDEA_WORKFLOW_V1` ; murid Idea read model and compatibility adapters
+- Canonical Vectorize, Idea hydration, admin and tutor workflow, and murid read models are always-on. Legacy rows and URLs remain readable for compatibility.
 
 ### Optional ; Production Services
 - `DIKTAT_RENDERER_URL`, `DIKTAT_RENDERER_SECRET` ; Puppeteer PDF service
@@ -158,7 +154,7 @@ bun --env-file=.env.staging scripts/staging/smoke-zyra-pedagogy.ts --run-id <run
 bun scripts/staging/validate-zyra-pedagogy-review.ts --run-id <runId> --submission-file <downloaded-review.json>
 ```
 
-The harness feature flag is `FEATURE_ZYRA_PEDAGOGY_V3`; it is absent or `0` by default. Zyra and transitive tutor runtime flags are read through `lib/zyra/runtime-env.ts`, which validates only the runtime values used by the harness and does not require unrelated UploadThing or Resend credentials. Fixture mode and `--startup-diagnostics-only` make no provider calls. Startup diagnostics verify the staging guard, Plan 007 config, Turso connectivity, identity, active session presence, course mapping, current enrollment, canonical evidence, scoped runtime env contract, and canonical/tutor module imports in order. The artifact records only masked stage results and counts. The latest zero-provider diagnostic reached Turso but stopped at `session_context` with `PEDAGOGY_STARTUP_ACTIVE_SESSION_MISSING`; it made zero provider calls and writes. Remote mode requires `STAGING_ZYRA_PEDAGOGY_USER_ID` in `.env.staging`, verifies that the exact identity is an active murid with current legacy and canonical enrollment, and requires the explicit `--remote-shadow` switch. It keeps the legacy answer visible, suppresses learner summary and event writes, stores privacy-safe comparison traces, and creates `plan-007-pedagogy-human-review.html` plus a JSON draft from synthetic inputs. The maintainer opens the HTML file locally, scores every dimension from 1 to 5, downloads the submission JSON, then runs the validator command above. The result artifact stores only score aggregates, reason codes, and a reviewer identity hash; it does not retain answers or raw reviewer identity. Every dimension requires an average of at least 4, no score may be below 3, and any score below 4 requires reviewer notes. The current implementation budgets at most seven provider calls per shadow case, so a cap of 40 permits five cases. It never prints secrets or authenticated URLs. Current machine evidence is `artifacts/zyra-ai/20260807-plan007-pedagogy-eval/plan-007-pedagogy-eval.json`. The older all-stage startup evidence remains historical: `artifacts/staging-overhaul/20260808-plan007-startup-diagnostics-v3/plan-007-pedagogy-startup-diagnostics.json`.
+The primary Zyra pedagogy path is always-on. Zyra runtime values are read through `lib/zyra/runtime-env.ts`, which validates only the optional granular capabilities used by the runtime and does not require unrelated UploadThing or Resend credentials. Fixture mode and `--startup-diagnostics-only` make no provider calls. Shadow mode remains an explicit staging request for the exact configured identity, keeps the legacy answer visible, suppresses learner side effects, and stores privacy-safe comparison traces. The current implementation budgets at most seven provider calls per shadow case, so a cap of 40 permits five cases. It never prints secrets or authenticated URLs.
 
 Plan 008 local personalization checks are:
 
@@ -169,7 +165,7 @@ bun run typecheck
 bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course tutorial-pka
 ```
 
-`FEATURE_ZYRA_PERSONALIZATION_V1` is absent or `0` by default. The additive migration is `0067_zyra_continuation.sql`; staging schema reconciliation completed on 2026-08-12. The synthetic smoke uses no provider calls, database writes, trace writes, or learner side effects. Profile inference uses bounded allowlisted event fields, keeps explicit preferences separate, expires evidence, supports reset, and composes only after the shared profile-free scaffold. Functional staging verification and rollout remain separate gates.
+`FEATURE_ZYRA_PERSONALIZATION_V1` controls the optional personalization layer. The additive migration is `0067_zyra_continuation.sql`; staging schema reconciliation completed on 2026-08-12. The synthetic smoke uses no provider calls, database writes, trace writes, or learner side effects. Profile inference uses bounded allowlisted event fields, keeps explicit preferences separate, expires evidence, supports reset, and composes only after the shared profile-free scaffold. Functional staging verification and rollout remain separate gates.
 
 Plan 009 local canvas checks are:
 
@@ -179,7 +175,7 @@ bun run eval:zyra-canvas
 bun --env-file=.env.staging run staging:smoke-zyra-canvas -- --run-id <runId> --course tutorial-pka
 ```
 
-`FEATURE_ZYRA_LEARNING_CANVAS_V1` is absent or `0` by default. Canvas specs are typed, claim-scoped, profile-free, and rendered through application-owned components. Expression controls are evaluated locally through an allowlisted AST. Invalid expressions produce fallback points and table or text fallbacks remain available. The browser mirror `NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1` must also be `1` before the drawer renders a canvas from a response or chat history. The smoke makes zero provider calls and zero writes.
+`FEATURE_ZYRA_LEARNING_CANVAS_V1` controls the optional canvas layer. Canvas specs are typed, claim-scoped, profile-free, and rendered through application-owned components. Expression controls are evaluated locally through an allowlisted AST. Invalid expressions produce fallback points and table or text fallbacks remain available. The smoke makes zero provider calls and zero writes.
 
 ### Zyra Plans 010 through 014
 
@@ -193,7 +189,7 @@ bun --env-file=.env.staging run staging:smoke-zyra-images -- --run-id <runId> --
 
 The multimodal provider contract also requires `tests/contracts/ai-request-lifecycle.test.ts`, `tests/contracts/model-registry.test.ts`, and `tests/contracts/provider-adapters.test.ts`. These verify direct Interactions routing, the gateway-compatible image fallback, bounded fallback attempts, one allowance commit on success, and allowance refund when no provider returns an answer.
 
-`FEATURE_ZYRA_IMAGE_INPUT_V1` is absent or `0` by default. The server accepts only JPEG, PNG, and WebP, sanitizes them with bounded `sharp` decoding, writes only sanitized bytes to the private storage path, and rejects UploadThing for this feature. Image turns bypass shared caches. Expired rows are application-inaccessible and can be removed by `sweepExpiredZyraAttachments`. The local smoke makes zero provider calls and zero writes.
+`FEATURE_ZYRA_IMAGE_INPUT_V1` controls the optional image layer. The server accepts only JPEG, PNG, and WebP, sanitizes them with bounded `sharp` decoding, writes only sanitized bytes to the private storage path, and rejects UploadThing for this feature. Image turns bypass shared caches. Expired rows are application-inaccessible and can be removed by `sweepExpiredZyraAttachments`. The local smoke makes zero provider calls and zero writes.
 
 The controlled staging cleanup command is `bun --env-file=.env.staging run staging:sweep-zyra-attachments -- --run-id <runId> --limit 100`. It deletes only expired private attachment objects and then marks their rows expired. Storage failures remain retryable and never make an unexpired row inaccessible.
 
@@ -204,7 +200,7 @@ bun test tests/contracts/zyra-murid-client.test.ts tests/contracts/zyra-selectio
 bun --env-file=.env.staging run staging:smoke-zyra-murid -- --run-id <runId> --course tutorial-pka --synthetic-user
 ```
 
-The `FEATURE_ZYRA_MURID_V3`, `FEATURE_ZYRA_SELECTION_ASK_V1`, and `FEATURE_ZYRA_PET_V1` flags are off by default. Public mirrors use the corresponding `NEXT_PUBLIC_FEATURE_ZYRA_*` names. The allowance component reads only the authenticated user's summary, selection-to-ask sends a bounded quote, and the pet receives state from request, upload, response, quota, and error events.
+The integrated murid Zyra experience is foundational. `FEATURE_ZYRA_SELECTION_ASK_V1` and `FEATURE_ZYRA_PET_V1` remain optional granular controls. Public mirrors use the corresponding `NEXT_PUBLIC_FEATURE_ZYRA_*` names. The allowance component reads only the authenticated user's summary, selection-to-ask sends a bounded quote, and the pet receives state from request, upload, response, quota, and error events.
 
 Plan 012 copilot checks:
 
@@ -214,7 +210,7 @@ bun run eval:zyra-copilots
 bun --env-file=.env.staging run staging:smoke-zyra-copilots -- --run-id <runId> --course tutorial-pka --no-auto-apply
 ```
 
-`FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are off by default. Proposals use typed operations, scope and precondition snapshots, expiry, and audit events. The currently registered operation is read-only; unregistered mutation operations are rejected before persistence. Applying a proposal is intentionally blocked until the accepted Overhaul mutation boundary is available.
+`FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` control optional proposal surfaces. Proposals use typed operations, scope and precondition snapshots, expiry, and audit events. The currently registered operation is read-only; unregistered mutation operations are rejected before persistence. Applying a proposal is intentionally blocked until the accepted Overhaul mutation boundary is available.
 
 Plan 013 operations checks:
 
@@ -224,7 +220,7 @@ bun run eval:zyra-operations
 bun --env-file=.env.staging run staging:smoke-zyra-operations -- --run-id <runId> --synthetic-only
 ```
 
-`FEATURE_ZYRA_AI_OPS_V1` is off by default. Operational events use fixed columns and never store prompts, responses, raw keys, filenames, object keys, image descriptions, or raw identity. Provider usage outside the Zyx ledger is shown as unknown. The admin metrics response uses the Asia/Jakarta day boundary and emits deduplicated alert codes with rollback flags and references in `docs/operations/zyra-ops-runbooks.md`.
+`FEATURE_ZYRA_AI_OPS_V1` controls the optional operations dashboard. Operational events use fixed columns and never store prompts, responses, raw keys, filenames, object keys, image descriptions, or raw identity. Provider usage outside the Zyx ledger is shown as unknown. The admin metrics response uses the Asia/Jakarta day boundary and emits deduplicated alert codes with rollback instructions in `docs/operations/zyra-ops-runbooks.md`.
 
 Plan 014 is a release verifier, not a deployment command:
 
@@ -232,7 +228,7 @@ Plan 014 is a release verifier, not a deployment command:
 bun --env-file=.env.staging run staging:run-zyra-release-gate -- --run-id <runId> --max-provider-requests 40 --synthetic-users-only
 ```
 
-The verifier writes a masked result and returns `BLOCKED` until predecessor evidence, Plan 007 remote shadow and maintainer review, a clean reviewable worktree, and the separately approved live matrix are present. It never enables feature flags or performs a live provider run.
+The verifier writes a masked result and returns `BLOCKED` until predecessor evidence, Plan 007 remote shadow and maintainer review, a clean reviewable worktree, and the separately approved live matrix are present. It never changes retained rollout flags or performs a live provider run.
 
 ### Zyra control-plane worker
 
@@ -243,7 +239,7 @@ The Plan 001 Worker is independently typechecked with `workers/zyra-control-plan
 bun test workers/zyra-control-plane/tests/foundation.test.ts
 ```
 
-The dry-run is local compilation only. An authenticated deployment requires explicit staging authorization, the root Cloudflare token, and the operator-provided `ZYRA_CONTROL_PLANE_TOKEN`. No Plan 001 feature flag is enabled because this plan provisions infrastructure only; later user-visible Zyra capabilities remain behind their own `FEATURE_*` flags.
+The dry-run is local compilation only. An authenticated deployment requires explicit staging authorization, the root Cloudflare token, and the operator-provided `ZYRA_CONTROL_PLANE_TOKEN`. This plan provisions infrastructure only; optional user-visible Zyra capabilities remain behind their category 4 flags.
 
 Plan 003 extends the same Worker with the SQLite-backed `ZyraQuotaCoordinator` lease ledger. It keeps project aliases fixed to the four registry aliases, stores only a SHA-256 user hash, and records provider-safe outcome dimensions. Run its local suite with:
 
@@ -254,9 +250,9 @@ bun test workers/zyra-control-plane/tests/quota-clock.test.ts workers/zyra-contr
 
 The staging smoke uses synthetic leases only and does not call Gemini. The Worker deployment is staging-only and requires explicit approval. A real staging run requires the existing `ZYRA_CONTROL_PLANE_TOKEN` to be available to the local process and `ZYRA_CONTROL_PLANE_URL` or an explicit `--url`; neither value is printed or written to evidence. The latest staging run passed with 60 accepted reservations, 40 expected quota rejections, 60 committed transitions, fairness spread 0, and zero synthetic provider calls. Evidence is recorded in `artifacts/zyra-ai/20260807-plan003-final/plan-003-result.json`.
 
-`FEATURE_ASESMEN_IDE_V1`: stable option IDs, chapter-scoped assessment metadata, deterministic blueprint selection, and Plan 010 evidence and benchmark contracts. Absent or `0` keeps the legacy quiz path visible and authoritative.
+The canonical assessment path is always-on: stable option IDs, chapter-scoped assessment metadata, deterministic blueprint selection, and Plan 010 evidence and benchmark contracts. Legacy snapshots remain readable and authoritative for historical attempts.
 
-`FEATURE_PEMAHAMAN_IDE_V1`: append-only per-Idea evidence writers, deterministic mastery and confidence, compatibility reads, and flashcard recommendation priorities with suppression for mastery scores of 80 or higher. Absent or `0` keeps the additive learning loop invisible. It never enables an AI call.
+The canonical per-Idea learning loop is always-on: append-only evidence writers, deterministic mastery and confidence, compatibility reads, and flashcard recommendation priorities with suppression for mastery scores of 80 or higher. It never enables an AI call.
 
 Plan 010 local checks:
 
@@ -291,85 +287,47 @@ bun run typecheck
 git diff --check
 ```
 
-The live compatibility bridge uses the existing `FEATURE_ARSITEKTUR_IDE_V1`, `FEATURE_DUAL_WRITE_IDE`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` flags together. Keep any missing flag at `0` to preserve the legacy-only path.
+The live compatibility bridge always writes the canonical targets transactionally while preserving legacy rows and snapshots for compatibility. No migration rollout flag is required.
 
 ## Feature Flags
 
-All gated by `FEATURE_*` env vars. Absent or `"0"` = hidden/disabled.
+Only granular, non-foundational capabilities remain runtime configurable. A retained flag is active only when its value is `"1"` or `"true"`; an absent value keeps that optional capability hidden. Foundational behavior is always-on and intentionally has no env flag.
 
-`FEATURE_PERAN_V2` must remain absent or `0` until the Plan 002 identity backfill, parity checks, and active-session auth smoke all pass. The legacy `user.role` column remains a compatibility projection during this phase.
-
-`FEATURE_ARSITEKTUR_IDE_V1` remains absent or `0` after Plan 003. The schema and contracts are additive; no existing KO or source caller switches to `ide` until a later predecessor-gated plan.
-
-Plan 004 adds three disabled target-domain flags. They remain absent or `0` in staging until later plans prove mapping and runtime parity:
-
-* `FEATURE_PRODUK_IDE_V1`: normalized article, material, question, solution, and flashcard domain.
-* `FEATURE_ASESMEN_IDE_V1`: normalized assessment definition, attempt, answer, and snapshot domain.
-* `FEATURE_PEMAHAMAN_IDE_V1`: Idea-level evidence, mastery, history, and recommendation domain.
-* `FEATURE_ZYRA_ALLOWANCE_V2`: transactional role allowance leases and the current-user allowance summary route.
-* `FEATURE_ZYRA_PROVIDER_ROUTER_V2`: control-plane project leases, deterministic route classification, health-aware fallback, and single-dispatch Gemini requests.
-* `FEATURE_ZYRA_SEMANTIC_CACHE_V1`: privacy-safe exact and semantic teaching-scaffold cache.
-* `FEATURE_ZYRA_PERSONALIZATION_V1`: deterministic evidence-based learner adaptation after shared-cache retrieval.
-* `FEATURE_ZYRA_LEARNING_CANVAS_V1`: typed interactive visuals with safe local expression evaluation and accessible fallbacks.
-* `FEATURE_IDEA_BUNDLE_V2`: strict ZIP-based Idea import, review, and atomic publication.
-* `FEATURE_AUTHORING_CONTEXT_V1`: admin Authoring Job preparation plus deterministic redacted Authoring Context Pack export.
-* `FEATURE_PRODUCT_BUNDLE_V2`: typed Product Bundle analysis, in-place preview and editing, draft storage, atomic publication, and audited withdrawal.
-* `NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1`: admin origin labels and lower-right ITB source citations on student question surfaces.
+Retained category 4 flags:
 
 | Flag | Feature |
 |------|---------|
-| `FEATURE_MASTERY` | Mastery score tracking |
-| `FEATURE_TODAY` | Daily recommendations |
-| `FEATURE_EMBED` | Learning context fabric (EIF E0) |
-| `FEATURE_MISCONCEPTION` | Distractor analytics (EIF E1) |
-| `FEATURE_REMEDIATION` | Quiz remediation (EIF E2) |
-| `FEATURE_MATERIAL_LIVE` | Interactive material layer (EIF E3) |
-| `FEATURE_FC_DIFFICULTY` | Flashcard difficulty (EIF E4) |
-| `FEATURE_GRAPH` | Concept graph (EIF E5) |
-| `FEATURE_ARSITEKTUR_IDE_V1` | Canonical source and Idea domain rollout |
-| `FEATURE_PRODUK_IDE_V1` | Normalized product and Idea link domain |
-| `FEATURE_ASESMEN_IDE_V1` | Normalized assessment and historical snapshot domain |
-| `FEATURE_PEMAHAMAN_IDE_V1` | Idea evidence and mastery domain |
-| `FEATURE_IDEA_BUNDLE_V2` | Strict ZIP Idea Bundle upload, review, and publication |
-| `FEATURE_AUTHORING_CONTEXT_V1` | Authoring Job builder and deterministic redacted context export |
-| `FEATURE_PRODUCT_BUNDLE_V2` | Typed product bundle workflow and atomic publication |
-| `NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1` | Question origin labels and ITB event citations |
-| `FEATURE_ZYRA_PERSONALIZATION_V1` | Evidence-based learner presentation adaptation |
-| `FEATURE_ZYRA_LEARNING_CANVAS_V1` | Typed interactive Learning Canvas visuals |
-| `FEATURE_VECTORIZE_ONLY_V1` | Canonical 768-dimensional Vectorize-only indexing and retrieval |
-| `FEATURE_ZYRA_IDEA_RUNTIME_V1` | Course-scoped Zyra retrieval and approved-content hydration |
-| `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` | Admin and tutor content lifecycle with mutation audit |
-| `FEATURE_MURID_IDEA_WORKFLOW_V1` | Murid Idea-centered read model and Tutorial PKA adapters |
-| `FEATURE_TUTOR_RAG` | Grounded AI tutor pipeline (P3) |
-| `FEATURE_FEEDBACK` | Answer feedback |
-| `FEATURE_STUDY_PATH` | Personalized study paths |
+| `FEATURE_REMEDIATION` | Quiz remediation |
+| `FEATURE_MATERIAL_LIVE` | Interactive material layer |
+| `FEATURE_GRAPH` | Concept graph |
 | `FEATURE_TUTOR_ANALYTICS` | Tutor analytics dashboard |
-| `FEATURE_LIVE` | Real-time classroom (P9) |
+| `FEATURE_LIVE` | Real-time classroom |
 | `FEATURE_REFLECTION` | Weekly reflections |
 | `FEATURE_REFLECTION_EMAIL` | Reflection email delivery |
 | `FEATURE_ADAPTIVE_QUIZ` | Adaptive quiz difficulty |
 | `FEATURE_PKA` | Tutorial PKA campaign |
-| `FEATURE_PERAN_V2` | Indonesian domain identity and multi-role authorization |
-| `FEATURE_DRIVE_EDITOR_SYNC` | Auto-grant editor access to all active admin emails on every exported Google Spreadsheet and its Drive folder |
-| `FEATURE_MEDIA_LIBRARY` | Admin Media Library: R2-based shared media upload, organize, preview |
-| `FEATURE_LINK_LIBRARY` | Admin Tautan library and public `/tautan` links page |
-| `FEATURE_FORM_PRESETS` | Reusable Form Studio presets (questions + settings) |
-| `FEATURE_AI_CONTRACT_V2` | Versioned prompt contracts, policy composition, bounded repair, and provenance |
-| `FEATURE_ASSESSMENT_ASSISTANCE_POLICY` | Deterministic assessment assistance policy for AI tutor and mistake feedback |
-| `FEATURE_TUTOR_PIPELINE_V2` | V2 tutor cache isolation and query action routing |
-| `FEATURE_KO_PIPELINE_V2` | Staged KO extraction, deterministic chunking, cross-chunk reconciliation, and canonical review |
-| `FEATURE_QUESTION_GENERATOR_V2` | Question blueprint engine, application option shuffle, and machine-readable distractor provenance |
-| `FEATURE_ZYRA_IMAGE_INPUT_V1` | Private sanitized learner image input for multimodal tutoring |
-| `FEATURE_ZYRA_LEARNING_CANVAS_V1` | Typed interactive Learning Canvas visuals |
-| `FEATURE_ZYRA_MURID_V3` | Integrated murid Zyra experience and usage surface |
-| `FEATURE_ZYRA_SELECTION_ASK_V1` | Bounded lesson selection to ask flow |
-| `FEATURE_ZYRA_PET_V1` | Application-owned accessible Zyra pet states |
-| `FEATURE_ZYRA_TUTOR_COPILOT_V1` | Tutor proposal-first copilot |
-| `FEATURE_ZYRA_ADMIN_COPILOT_V1` | Admin proposal-first copilot |
-| `FEATURE_ZYRA_AI_OPS_V1` | Privacy-safe Zyra operations dashboard and telemetry |
-| `FEATURE_ANALYTICS` | Coaching analytics |
-| `FEATURE_LEADERBOARD` | Leaderboard |
-| `FEATURE_PUBLISHER` | Publisher features |
+| `FEATURE_QUESTION_GENERATOR_V2` | Question blueprint and distractor provenance |
+| `FEATURE_DIKTAT_AI` | Optional AI-assisted Diktat audit suggestions |
+| `FEATURE_IDEA_BUNDLE_V2` | Idea Bundle workflow |
+| `FEATURE_AUTHORING_CONTEXT_V1` | Authoring Context Pack export |
+| `FEATURE_PRODUCT_BUNDLE_V2` | Product Bundle workflow |
+| `FEATURE_ZYRA_ALLOWANCE_V2` | Zyra allowance ledger |
+| `FEATURE_ZYRA_PROVIDER_ROUTER_V2` | Zyra provider routing |
+| `FEATURE_ZYRA_SEMANTIC_CACHE_V1` | Zyra semantic cache |
+| `FEATURE_ZYRA_PERSONALIZATION_V1` | Zyra personalization |
+| `FEATURE_ZYRA_LEARNING_CANVAS_V1` | Zyra Learning Canvas |
+| `FEATURE_ZYRA_IMAGE_INPUT_V1` | Zyra image input |
+| `FEATURE_ZYRA_SELECTION_ASK_V1` | Selection-to-ask flow |
+| `FEATURE_ZYRA_PET_V1` | Zyra pet states |
+| `FEATURE_ZYRA_TUTOR_COPILOT_V1` | Tutor proposal copilot |
+| `FEATURE_ZYRA_ADMIN_COPILOT_V1` | Admin proposal copilot |
+| `FEATURE_ZYRA_AI_OPS_V1` | Zyra operations dashboard |
+| `FEATURE_DRIVE_EDITOR_SYNC` | Drive editor synchronization |
+| `FEATURE_MEDIA_LIBRARY` | Admin media library |
+| `FEATURE_LINK_LIBRARY` | Important links library |
+| `FEATURE_FORM_PRESETS` | Form Studio presets |
+
+The admin flag page reads this same catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. Legacy migration flags are removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
 
 ## Code Conventions
 

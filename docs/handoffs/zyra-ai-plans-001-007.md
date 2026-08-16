@@ -69,7 +69,7 @@ Non-secret configuration, although some values still identify private infrastruc
 - `GEMINI_PROJECT_ALIAS_3`
 - `GEMINI_PROJECT_ALIAS_4`
 - `STAGING_ZYRA_PEDAGOGY_USER_ID`
-- `FEATURE_ZYRA_PEDAGOGY_V3=0`, or leave it absent
+- The primary pedagogy path is always-on; use an explicit shadow request for comparison
 
 The dedicated identity must remain an active murid with a current legacy enrollment, current canonical enrollment, active session, and access to published canonical Tutorial PKA evidence.
 
@@ -104,7 +104,7 @@ The remote runner uses at most five synthetic non-assessment cases. Its hard cap
 
 1. Pull this branch without rebasing over unreviewed local work.
 2. Verify `.env*` is absent from `git status`, then confirm the required variable names exist without printing values.
-3. Keep `FEATURE_ZYRA_PEDAGOGY_V3` absent or `0` so the public primary path remains disabled.
+3. Keep the public primary path on its canonical always-on implementation; shadow remains opt-in for the exact staging identity.
 4. Run the zero-provider diagnostic first:
 
    ```powershell

@@ -360,10 +360,6 @@ export const ideaMasteryRecomputeWorker = inngest.createFunction(
     triggers: [{ event: "mastery/idea-recompute.requested.v1" }],
   },
   async ({ event, step }) => {
-    if (process.env.FEATURE_PEMAHAMAN_IDE_V1 !== "1") {
-      return { status: "disabled" as const };
-    }
-
     const { studentId, ideaId, idempotencyKey } = event.data as {
       studentId: string;
       ideaId: string;

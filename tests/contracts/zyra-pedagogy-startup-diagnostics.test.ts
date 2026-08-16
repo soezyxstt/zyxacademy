@@ -36,7 +36,7 @@ describe("Plan 007 masked startup diagnostics", () => {
     const result = await runMaskedPedagogyStartupDiagnostics([
       {
         stage: "config",
-        run: async () => { throw new Error("PEDAGOGY_STARTUP_FEATURE_FLAG_MUST_REMAIN_DISABLED"); },
+        run: async () => { throw new Error("PEDAGOGY_STARTUP_CONFIG_INVALID"); },
       },
       {
         stage: "tutor_runtime_import",
@@ -47,7 +47,7 @@ describe("Plan 007 masked startup diagnostics", () => {
       },
     ]);
 
-    expect(result.reasonCode).toBe("PEDAGOGY_STARTUP_FEATURE_FLAG_MUST_REMAIN_DISABLED");
+    expect(result.reasonCode).toBe("PEDAGOGY_STARTUP_CONFIG_INVALID");
     expect(providerInvoked).toBe(false);
   });
 
@@ -84,7 +84,6 @@ describe("Plan 007 masked startup diagnostics", () => {
   test("scoped Zyra runtime env does not require UploadThing or Resend", () => {
     const runtime = createZyraRuntimeEnv({
       ZYX_ENVIRONMENT: "staging",
-      FEATURE_ZYRA_PEDAGOGY_V3: "0",
       STAGING_ZYRA_PEDAGOGY_USER_ID: "shadow-user",
       GEMINI_API_KEY: "test-key",
       CF_AI_GATEWAY_URL: "https://gateway.example.test",

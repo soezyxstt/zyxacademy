@@ -6,7 +6,7 @@ Scope: phase 3 of the 18-use-case audit (student-facing, cluster 1 of 4). Status
 
 **Vision**: daily answer based on schedule, progress, weaknesses, deadlines, target grades, available time.
 
-**Reality**: real and wired. `app/api/student/today/route.ts` + `lib/recommendation-service.ts` build a daily plan from streak, weekly activity, due/new flashcards (capped at 20), a mastery-aware quiz pick (via `study-path-service.ts` when `FEATURE_STUDY_PATH=1`, else falls back to "any unpassed quiz"), and the next uncompleted chapter module. Entirely deterministic SQL, consistent with AGENT_CONTEXT.md's zero-AI-for-recommendations rule.
+**Reality**: real and wired. `app/api/student/today/route.ts` + `lib/recommendation-service.ts` build a daily plan from streak, weekly activity, due/new flashcards (capped at 20), a mastery-aware quiz pick via `study-path-service.ts`, and the next uncompleted chapter module. Entirely deterministic SQL, consistent with AGENT_CONTEXT.md's zero-AI-for-recommendations rule.
 
 **Gap**: of the six inputs the vision names, only progress and weaknesses are real. Schedule, deadlines, target grades, and available time are not modeled anywhere in the schema — there's no calendar/exam-date/target-grade/available-hours concept for a student at all. The quiz-selection fallback (no study path) is "any unpassed quiz," not a weakness-weighted choice, so "today" can degrade to generic in that mode.
 

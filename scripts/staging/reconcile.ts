@@ -15,6 +15,7 @@ import {
   writeEvidenceArtifact,
 } from "@/lib/staging/migration-ledger";
 import { unexpectedAddedTables, unexpectedChangedTables } from "@/lib/staging/reconciliation";
+import { getAllFeatureFlagsStatus } from "@/lib/feature-flags";
 
 type TableManifest = {
   name: string;
@@ -133,14 +134,14 @@ async function main(): Promise<void> {
           reconciliation: reconciliation.schemaHash,
         },
         featureFlags: Object.fromEntries(
-          Object.entries(process.env).filter(([key]) => key.startsWith("FEATURE_")).map(([key, value]) => [key, value]),
+          getAllFeatureFlagsStatus().map(({ key, rawValue }) => [key, rawValue]),
         ),
         rollback: {
           attempted: planNumber === "001",
           passed: planNumber === "001" && restore?.status === "passed",
           detail: planNumber === "001"
             ? "Encrypted export restored to a disposable target"
-            : "No legacy data was rewritten; new additive tables remain empty and the feature flag stays off",
+            : "No legacy data was rewritten; new additive tables remain isolated until their approved migration step",
         },
         operatorTimestamp: new Date().toISOString(),
       });

@@ -2,7 +2,7 @@
 
 > **Executor instructions**: This is a release gate, not an implementation catch-all. Begin only after AI Plans 001 through 013 and Idea-centered Overhaul Plan 016 are integrated. Use `.env.staging` and live staging services only. Do not deploy production.
 >
-> **Drift check**: record `git rev-parse HEAD`, `git status --short`, accepted plan evidence IDs, migration state, Worker versions, resource aliases, and feature flags. Any missing or invalid predecessor evidence is a STOP condition.
+> **Drift check**: record `git rev-parse HEAD`, `git status --short`, accepted plan evidence IDs, migration state, Worker versions, resource aliases, and retained category 4 flags. Any missing or invalid predecessor evidence is a STOP condition.
 
 ## Status
 
@@ -51,7 +51,7 @@ Keep independent flags for provider registry, distributed quota, allowances, rou
 
 ### Step 1: Validate identity, backups, and predecessor evidence
 
-Run staging guards before any remote action. Validate resource aliases and fingerprints without logging secrets. Export the approved database backup, schema manifest, Tutorial PKA invariants, R2 attachment inventory, Vectorize metadata, Worker versions, and feature flags.
+Run staging guards before any remote action. Validate resource aliases and fingerprints without logging secrets. Export the approved database backup, schema manifest, Tutorial PKA invariants, R2 attachment inventory, Vectorize metadata, Worker versions, and retained category 4 flags.
 
 **Verify**: restore validation succeeds in an isolated staging-compatible target and all baseline counts reconcile.
 

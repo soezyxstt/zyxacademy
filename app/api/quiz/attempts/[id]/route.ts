@@ -199,7 +199,7 @@ export async function POST(req: NextRequest, { params }: Context) {
     const indices = Array.isArray(submitted) ? submitted : [];
     const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
     if (correct.length === 0) return false;
-    if (env.FEATURE_ASESMEN_IDE_V1 === '1' && Array.isArray(q.stable_option_ids)) {
+    if (Array.isArray(q.stable_option_ids)) {
       return gradeStableOptionAnswer({
         stableOptionIds: q.stable_option_ids,
         correctIndices: correct,
@@ -283,7 +283,7 @@ export async function POST(req: NextRequest, { params }: Context) {
 
   const courseId = template?.courseId || "calc-1";
 
-  const canonicalEvidenceEnabled = isCanonicalIdeaEvidenceEnabled(env);
+  const canonicalEvidenceEnabled = isCanonicalIdeaEvidenceEnabled();
   let canonicalEvidencePlan: ReturnType<typeof mapLegacyQuizSnapshotToCanonicalIdeas> | null = null;
   if (canonicalEvidenceEnabled) {
     try {
@@ -433,7 +433,7 @@ export async function POST(req: NextRequest, { params }: Context) {
   }
 
   // E1: aggregate distractor analytics (once per attempt, deterministic)
-  if (env.FEATURE_MISCONCEPTION === "1") {
+  {
     const answered = snapshot.map((q) => {
       const rawSel = answers[q.id];
       const selectedOptions: number[] = Array.isArray(rawSel)
@@ -478,7 +478,7 @@ export async function POST(req: NextRequest, { params }: Context) {
     });
 
   // Auto-complete today's quiz recommendation when student passes
-  if (env.FEATURE_TODAY === "1" && score >= 70) {
+  if (score >= 70) {
     markRecommendationDone(attempt.templateId, attempt.studentId).catch(() => {});
   }
 

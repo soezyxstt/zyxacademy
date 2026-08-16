@@ -1,5 +1,4 @@
 import {
-  MODEL_IDS,
   ROUTE_POLICY,
   getRpdLimit as getRegistryRpdLimit,
   getRpmLimit as getRegistryRpmLimit,
@@ -47,28 +46,6 @@ export type ProviderRoutePlan = {
   readonly routeClass: ModelRouteClass;
   readonly models: readonly ModelId[];
   readonly premium: boolean;
-};
-
-const LEGACY_CHAINS: Record<string, ModelChain> = {
-  [USE_CASES.GROUNDED_RAG]: [MODEL_IDS.stableFlashLite, MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.premiumPedagogy],
-  [USE_CASES.EXPLAIN_CONCEPT]: [MODEL_IDS.stableFlashLite, MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.premiumPedagogy],
-  [USE_CASES.CHAPTER_SUMMARY]: [MODEL_IDS.stableFlashLite, MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.premiumPedagogy],
-  [USE_CASES.MISTAKE_FEEDBACK]: [MODEL_IDS.stableFlashLite, MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.premiumPedagogy],
-  [USE_CASES.FLASHCARD_GEN]: [MODEL_IDS.stableFlashLite, MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.premiumPedagogy],
-  [USE_CASES.MATERIAL_GEN]: [MODEL_IDS.stableFlashLite, MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.premiumPedagogy],
-  [USE_CASES.PRACTICE_QUESTION_GEN]: [MODEL_IDS.stableFlashLite, MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.premiumPedagogy],
-  [USE_CASES.UNGROUNDED_TUTOR]: [MODEL_IDS.stableFlash, MODEL_IDS.premiumPedagogy],
-  [USE_CASES.UNGROUNDED_TUTOR_GEMMA]: [MODEL_IDS.emergencyText],
-  [USE_CASES.KO_EXTRACTION]: [MODEL_IDS.premiumPedagogy, MODEL_IDS.stableFlash],
-  [USE_CASES.KO_VALIDATION]: [MODEL_IDS.premiumPedagogy, MODEL_IDS.stableFlash],
-  [USE_CASES.QUESTION_REVIEW]: [MODEL_IDS.premiumPedagogy, MODEL_IDS.stableFlash],
-  [USE_CASES.WEAK_CONCEPT_GUIDANCE]: [MODEL_IDS.premiumPedagogy, MODEL_IDS.stableFlash],
-  [USE_CASES.WEAK_CONCEPT_GUIDANCE_GEMMA]: [MODEL_IDS.emergencyText],
-  [USE_CASES.DIKTAT_AUDIT]: [MODEL_IDS.premiumPedagogy, MODEL_IDS.stableFlash],
-  [USE_CASES.DIKTAT_PDF_AUDIT]: [MODEL_IDS.premiumPedagogy, MODEL_IDS.stableFlash],
-  [USE_CASES.DIKTAT_EXAM_PATTERNS]: [MODEL_IDS.premiumPedagogy, MODEL_IDS.stableFlash],
-  [USE_CASES.DIKTAT_QUICK_METHODS]: [MODEL_IDS.premiumPedagogy, MODEL_IDS.stableFlash],
-  default: [MODEL_IDS.stableFlashLite, MODEL_IDS.default, MODEL_IDS.stableFlash, MODEL_IDS.premiumPedagogy],
 };
 
 const REGISTRY_CHAINS: Record<string, ModelChain> = {
@@ -123,16 +100,12 @@ export function classifyProviderRoute(input: ProviderRouteRequest = {}): Provide
   return { routeClass: "default", models: ROUTE_POLICY.default, premium: false };
 }
 
-function registryRoutingEnabled(): boolean {
-  return process.env.FEATURE_AI_PROVIDER_REGISTRY_V1 === "1";
-}
-
 export function providerRouterV2Enabled(): boolean {
   return process.env.FEATURE_ZYRA_PROVIDER_ROUTER_V2 === "1";
 }
 
 export function getModelChain(useCase?: string): string[] {
-  const chains = registryRoutingEnabled() ? REGISTRY_CHAINS : LEGACY_CHAINS;
+  const chains = REGISTRY_CHAINS;
   return [...(useCase && chains[useCase] ? chains[useCase] : chains.default)];
 }
 

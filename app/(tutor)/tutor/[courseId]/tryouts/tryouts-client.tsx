@@ -56,7 +56,7 @@ interface Props {
   }>;
 }
 
-const provenanceEnabled = process.env.NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1 === "1";
+const provenanceEnabled = true;
 
 export function TryoutsClient({ courseId, initialTryouts, initialQuestions, questionBank }: Props) {
   const router = useRouter();

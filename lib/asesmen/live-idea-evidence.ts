@@ -3,13 +3,6 @@ import { answerToStableOptionIds } from "@/lib/asesmen/attempt";
 
 export const LEGACY_IDEA_EVIDENCE_RUBRIC_VERSION = "legacy-quiz-idea.v1";
 
-const REQUIRED_CANONICAL_FLAGS = [
-  "FEATURE_ARSITEKTUR_IDE_V1",
-  "FEATURE_DUAL_WRITE_IDE",
-  "FEATURE_ASESMEN_IDE_V1",
-  "FEATURE_PEMAHAMAN_IDE_V1",
-] as const;
-
 export type LegacyQuizQuestionType =
   | "multiple_choice"
   | "multiple_choices"
@@ -108,10 +101,8 @@ export type LegacyAnswerEvidenceResult =
         | "AMBIGUOUS_IDEA_MAPPING";
     };
 
-export type LegacyFeatureEnvironment = Partial<Record<(typeof REQUIRED_CANONICAL_FLAGS)[number], string | undefined>>;
-
-export function isCanonicalIdeaEvidenceEnabled(environment: LegacyFeatureEnvironment): boolean {
-  return REQUIRED_CANONICAL_FLAGS.every((flag) => environment[flag] === "1");
+export function isCanonicalIdeaEvidenceEnabled(): true {
+  return true;
 }
 
 export function questionTypeOf(question: LegacyQuizQuestionSnapshot): LegacyQuizQuestionType | null {
