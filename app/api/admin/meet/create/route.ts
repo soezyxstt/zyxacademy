@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { env } from "@/lib/env";
 import { hasPeran } from "@/lib/auth/authorization";
 import { createGoogleMeetSpace, provisionGoogleMeetSpaceMembers } from "@/lib/google-meet";
 import { getAllAdminEmails } from "@/lib/google-drive-permissions";
@@ -30,10 +29,7 @@ export async function POST(req: Request) {
     if (!session?.user) {
       return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
-    const isAdmin =
-      env.FEATURE_PERAN_V2 === "1"
-        ? await hasPeran(session.user.id, "admin")
-        : session.user.role === "admin";
+    const isAdmin = await hasPeran(session.user.id, "admin");
     if (!isAdmin) {
       return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
     }

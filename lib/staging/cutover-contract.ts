@@ -1,39 +1,6 @@
 import { createHash } from "node:crypto";
 
-export const CUTOVER_FLAG_ORDER = [
-  "FEATURE_PERAN_V2",
-  "FEATURE_ARSITEKTUR_IDE_V1",
-  "FEATURE_PRODUK_IDE_V1",
-  "FEATURE_ASESMEN_IDE_V1",
-  "FEATURE_PEMAHAMAN_IDE_V1",
-  "FEATURE_VECTORIZE_ONLY_V1",
-  "FEATURE_ZYRA_IDEA_RUNTIME_V1",
-  "FEATURE_ADMIN_TUTOR_WORKFLOW_V1",
-  "FEATURE_MURID_IDEA_WORKFLOW_V1",
-] as const;
-
 export const STAGING_PINECONE_NOT_PROVISIONED = "not-provisioned" as const;
-
-export type CutoverRoute = "canonical-v2" | "legacy-rollback";
-
-export function rehearseFlagSequence(): {
-  enabled: Record<string, "1">;
-  rolledBack: Record<string, "0">;
-  reenabled: Record<string, "1">;
-  routeAfterEnable: CutoverRoute;
-  routeAfterRollback: CutoverRoute;
-} {
-  const enabled = Object.fromEntries(CUTOVER_FLAG_ORDER.map((flag) => [flag, "1" as const]));
-  const rolledBack = Object.fromEntries(CUTOVER_FLAG_ORDER.map((flag) => [flag, "0" as const]));
-  const reenabled = { ...enabled };
-  return {
-    enabled,
-    rolledBack,
-    reenabled,
-    routeAfterEnable: "canonical-v2",
-    routeAfterRollback: "legacy-rollback",
-  };
-}
 
 export function stagingPineconeFingerprint(indexName: string): string {
   const normalized = indexName.trim().toLowerCase();

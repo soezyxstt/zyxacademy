@@ -207,10 +207,7 @@ async function main(): Promise<void> {
           `bun --env-file=.env.staging run staging:backfill-overhaul -- --run-id ${runId} --apply`,
           `bun --env-file=.env.staging run staging:backfill-overhaul -- --run-id ${runId} --apply --expect-noop`,
         ],
-        featureFlags: {
-          FEATURE_ARSITEKTUR_IDE_V1: process.env.FEATURE_ARSITEKTUR_IDE_V1,
-          FEATURE_DUAL_WRITE_IDE: process.env.FEATURE_DUAL_WRITE_IDE,
-        },
+        runtimePolicy: { canonicalRepository: "always-on", legacyTablesPreserved: true },
         rollback: { attempted: false, passed: true, detail: "Legacy source tables were preserved." },
         operatorTimestamp: new Date().toISOString(),
       };

@@ -11,7 +11,6 @@ import { quizTemplates } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, desc } from 'drizzle-orm';
-import { env } from '@/lib/env';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
 
 const CreateTemplateSchema = z.object({
@@ -69,7 +68,7 @@ export async function POST(req: NextRequest) {
     manualStatus,
   } = parsed.data;
 
-  if (env.FEATURE_ASESMEN_IDE_V1 === '1' && selectionRules.assessmentType) {
+  if (selectionRules.assessmentType) {
     const scope = assessmentScopeSchema.safeParse({
       assessmentType: selectionRules.assessmentType,
       chapterIds: selectionRules.chapterIds ?? [],

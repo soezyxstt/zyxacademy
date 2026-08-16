@@ -20,7 +20,7 @@ describe("Feature Flags Registry Contract", () => {
 
   test("getAllFeatureFlagsStatus catalog completeness", () => {
     const statuses = getAllFeatureFlagsStatus();
-    expect(statuses.length).toBeGreaterThanOrEqual(KNOWN_FEATURE_FLAGS.length);
+    expect(statuses).toHaveLength(KNOWN_FEATURE_FLAGS.length);
 
     const keys = statuses.map((s) => s.key);
     for (const known of KNOWN_FEATURE_FLAGS) {

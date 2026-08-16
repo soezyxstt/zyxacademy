@@ -23,7 +23,7 @@ The legacy paths remain available as compatibility paths. This plan does not rew
   - `tests/fixtures/bundles/idea-v2/entities/source-materials.json`
   - `tests/fixtures/bundles/idea-v2/manifest.json`
 - Do not edit `db/schema.ts`, generated `drizzle/`, or run `db:generate`, `db:migrate`, or `db:push:prod` in this phase.
-- Prefer existing tables, dependency rows, hashes, and feature flags. A required schema migration is a STOP condition and must be planned separately.
+- Prefer existing tables, dependency rows, hashes, and retained category 4 rollout flags. A required schema migration is a STOP condition and must be planned separately.
 - Do not run staging or production writes, Vectorize backfills, R2 cleanup, or deployment commands.
 - New runtime behavior must remain disabled when its existing `FEATURE_*` flag is absent or `0`.
 - Use deterministic fixtures and contract tests before any environment-backed rehearsal.

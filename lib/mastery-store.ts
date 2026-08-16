@@ -4,7 +4,6 @@ import { studentConceptMastery, knowledgeObjects, knowledgeRelationships, studen
 import { AnalyticsService } from "@/lib/analytics-service";
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { evaluateInterventions } from "@/lib/intervention-service";
-import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { recomputeStudyPath } from "@/lib/study-path-service";
 export { getIdeaMasteryWithFallback } from "@/lib/pemahaman/compatibility";
 
@@ -105,16 +104,12 @@ export async function recomputeMastery(studentId: string, courseId: string): Pro
       });
   }
 
-  if (zyraRuntimeEnv.FEATURE_FEEDBACK === "1") {
-    await evaluateInterventions(studentId, courseId);
-  }
+  await evaluateInterventions(studentId, courseId);
 
-  if (zyraRuntimeEnv.FEATURE_STUDY_PATH === "1") {
-    try {
-      await recomputeStudyPath(studentId, courseId);
-    } catch (err) {
-      console.error("Error recomputing study path after mastery update:", err);
-    }
+  try {
+    await recomputeStudyPath(studentId, courseId);
+  } catch (err) {
+    console.error("Error recomputing study path after mastery update:", err);
   }
 }
 

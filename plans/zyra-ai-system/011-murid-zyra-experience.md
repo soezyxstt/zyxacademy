@@ -14,7 +14,7 @@
 - **Status**: IN PROGRESS, local journeys and zero-provider smoke pass; staging tester review remains pending
 - **Planned at**: commit `03b68ba0`, 2026-08-02
 
-Local evidence: `artifacts/staging-overhaul/20260812-plan011-audit/plan-011-murid.json`. The feature flags remain off. The allowance summary, bounded selection-to-ask, attachment path, Canvas local interaction, and pet states are wired to real application state in the local implementation.
+Local evidence: `artifacts/staging-overhaul/20260812-plan011-audit/plan-011-murid.json`. The optional category 4 flags remain off. The allowance summary, bounded selection-to-ask, attachment path, Canvas local interaction, and pet states are wired to real application state in the local implementation.
 
 ## Why this matters
 
@@ -41,7 +41,7 @@ Do not install an avatar or animation library. Reuse existing motion support, se
 
 - Final drawer composition, launcher, contextual selection popover, usage display, image controls from Plan 010, Canvas placement, pet states, mobile layout, and accessibility.
 - Authenticated usage summary endpoint backed by Plan 004.
-- Feature flags `FEATURE_ZYRA_MURID_V3`, `FEATURE_ZYRA_SELECTION_ASK_V1`, and `FEATURE_ZYRA_PET_V1`.
+- Foundational murid Zyra behavior is always-on; `FEATURE_ZYRA_SELECTION_ASK_V1` and `FEATURE_ZYRA_PET_V1` remain granular optional controls.
 - Tutorial PKA and representative math, physics, and chemistry staging journeys.
 
 **Out of scope**:
@@ -137,4 +137,4 @@ git diff --check
 
 ## Rollback and maintenance
 
-Disable the three feature flags independently. The accepted text-only drawer remains the fallback. Do not delete conversations, attachments, usage events, or local Canvas state during rollback. Any new pet state must map to a real application event, accessible label, reduced-motion rendering, and transition test.
+Disable the three retained capability flags independently. The accepted text-only drawer remains the fallback. Do not delete conversations, attachments, usage events, or local Canvas state during rollback. Any new pet state must map to a real application event, accessible label, reduced-motion rendering, and transition test.

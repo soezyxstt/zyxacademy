@@ -19,7 +19,6 @@ import {
   type AttemptState,
   type MatchState,
 } from "@/lib/assessment-assistance-policy";
-import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { vectorStore } from "@/lib/vector-store";
 import {
   CANONICAL_VECTOR_PROFILE,
@@ -601,13 +600,6 @@ export async function retrieveCanonicalEvidence(
   request: CanonicalRuntimeRequest,
   question: string,
 ): Promise<CanonicalHydrationResult> {
-  if (
-    zyraRuntimeEnv.FEATURE_ZYRA_IDEA_RUNTIME_V1 !== "1"
-    || zyraRuntimeEnv.FEATURE_VECTORIZE_ONLY_V1 !== "1"
-  ) {
-    return { sources: [], rejected: [] };
-  }
-
   return runCanonicalRuntimeFailClosed("retrieve", async () => {
     const canonicalCourseId = await resolveCanonicalCourseId(request.courseId);
     if (!canonicalCourseId) return { sources: [], rejected: [] };

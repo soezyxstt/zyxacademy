@@ -208,14 +208,12 @@ async function main(): Promise<void> {
      initial: initial.rowCountManifestHash ?? "missing",
      rerun: rerun.rowCountManifestHash ?? "missing",
     },
-    featureFlags: Object.fromEntries(
-     Object.entries(process.env).filter(([key]) => key.startsWith("FEATURE_")).map(([key, value]) => [key, value]),
-    ),
+    authorizationPolicy: "peran-membership-always-on",
     rollback: {
      attempted: false,
      passed: false,
      detail: reconciliation.status === "passed"
-      ? "Legacy user.role projection remains intact; FEATURE_PERAN_V2=0 preserves the legacy authorization path."
+      ? "Legacy user.role projection remains intact for compatibility; membership authorization is canonical."
      : "Not attempted because staging auth smoke did not pass every required role and multi-role session case.",
     },
     knownLimitations: reconciliation.status === "passed" ? undefined : reconciliation.violations,

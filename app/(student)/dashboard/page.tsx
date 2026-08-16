@@ -54,7 +54,6 @@ export default async function DashboardPage() {
   const user = session?.user;
   const userName = user?.name || "Siswa";
 
-  const featureToday = env.FEATURE_TODAY === "1";
   const firstName = userName.split(" ")[0];
 
   const [enrollments, progressList, submissionsList] = await Promise.all([
@@ -72,7 +71,7 @@ export default async function DashboardPage() {
     }
   }
 
-  // Fetch latest weekly reflection if feature is enabled
+  // Fetch the latest weekly reflection when the optional email and reflection workflow is active.
   let latestReflection = null;
   if (user?.id && env.FEATURE_REFLECTION === "1") {
     try {
@@ -97,7 +96,7 @@ export default async function DashboardPage() {
 
   // Fetch weak concepts
   let masteryConcepts: Awaited<ReturnType<typeof getMastery>> = [];
-  if (user?.id && env.FEATURE_MASTERY === "1") {
+  if (user?.id) {
     try {
       const firstCourseId = (await getStudentEnrollments())[0]?.id;
       if (firstCourseId) {
@@ -110,7 +109,7 @@ export default async function DashboardPage() {
 
   // Fetch next concepts from study paths
   const nextConcepts: Record<string, string> = {};
-  if (user?.id && env.FEATURE_STUDY_PATH === "1") {
+  if (user?.id) {
     try {
       const { getOrComputeStudyPath } = await import("@/lib/study-path-service");
       await Promise.all(
@@ -224,14 +223,14 @@ export default async function DashboardPage() {
   return (
     <div className="pb-16 pt-8 md:pt-12">
       <div className="marketing-container">
-        {env.FEATURE_FEEDBACK === "1" && user?.id && <InterventionBanner />}
+        {user?.id && <InterventionBanner />}
         {env.FEATURE_REFLECTION === "1" && latestReflection && (
           <WeeklyReflection reflection={latestReflection} />
         )}
-        {featureToday && user?.id ? (
+        {user?.id ? (
           <TodayPlan firstName={firstName} />
         ) : (
-          /* Welcome Header (shown when FEATURE_TODAY is off) */
+          /* Welcome Header for signed-out visitors */
           <Reveal duration="duration-500">
             <PageHeader
               title={
@@ -379,7 +378,7 @@ export default async function DashboardPage() {
                               <span className="text-body-xs text-muted-foreground">({doneCount} dari {materials.length} materi)</span>
                             </div>
 
-                            {env.FEATURE_STUDY_PATH === "1" && nextConcepts[course.id] && (
+                            {nextConcepts[course.id] && (
                               <div className="mt-2.5 text-body-xs font-medium text-muted-foreground">
                                 Langkah selanjutnya:{" "}
                                 <span className="text-brand-primary font-semibold group-hover:underline">

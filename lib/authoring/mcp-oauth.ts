@@ -1,0 +1,102 @@
+import { randomUUID } from "node:crypto";
+import { and, eq, gt } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { verification } from "@/db/schema";
+import { issueMcpClientId, issueMcpConnectionToken, readMcpClientId, type McpClientPayload } from "@/lib/authoring/mcp-workflows";
+
+export const MCP_OAUTH_SCOPES = ["authoring:read", "authoring:stage"] as const;
+export const MCP_OAUTH_RESOURCE_PATH = "/api/mcp/authoring";
+export const MCP_OAUTH_CODE_TTL_MS = 5 * 60 * 1000;
+
+export type McpAuthorizationCode = {
+  clientId: string;
+  redirectUri: string;
+  userId: string;
+  sessionId: string;
+  codeChallenge: string;
+  scope: string[];
+  resource: string;
+};
+
+export function resourceUrl(origin: string): string {
+  return `${origin}${MCP_OAUTH_RESOURCE_PATH}`;
+}
+
+export function isAllowedRedirectUri(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.hash || url.username || url.password) return false;
+    if (url.protocol === "https:") return true;
+    if (url.protocol !== "http:") return false;
+    return url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
+  } catch {
+    return false;
+  }
+}
+
+export function requestedScopes(raw: string | null): string[] {
+  const scopes = (raw?.trim() || MCP_OAUTH_SCOPES.join(" ")).split(/\s+/).filter(Boolean);
+  if (scopes.some((scope) => !MCP_OAUTH_SCOPES.includes(scope as typeof MCP_OAUTH_SCOPES[number]))) {
+    throw new Error("invalid_scope");
+  }
+  return [...new Set(scopes)];
+}
+
+export function issueClientRegistration(input: { clientName?: string; redirectUris: string[] }) {
+  return issueMcpClientId(input);
+}
+
+export function readClientRegistration(clientId: string): McpClientPayload {
+  const client = readMcpClientId(clientId);
+  if (client.redirectUris.length === 0 || client.redirectUris.some((uri) => !isAllowedRedirectUri(uri))) {
+    throw new Error("invalid_client");
+  }
+  return client;
+}
+
+export async function storeAuthorizationCode(input: McpAuthorizationCode): Promise<string> {
+  const code = randomUUID();
+  const now = new Date();
+  await db.insert(verification).values({
+    id: `mcp-oauth-code-${code}`,
+    identifier: `mcp:oauth:code:${code}`,
+    value: JSON.stringify(input),
+    expiresAt: new Date(now.getTime() + MCP_OAUTH_CODE_TTL_MS),
+    createdAt: now,
+    updatedAt: now,
+  });
+  return code;
+}
+
+export async function consumeAuthorizationCode(code: string): Promise<McpAuthorizationCode> {
+  const identifier = `mcp:oauth:code:${code}`;
+  const record = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ id: verification.id, value: verification.value, expiresAt: verification.expiresAt })
+      .from(verification)
+      .where(and(eq(verification.identifier, identifier), gt(verification.expiresAt, new Date())))
+      .limit(1);
+    if (!row) throw new Error("invalid_grant");
+    await tx.delete(verification).where(eq(verification.id, row.id));
+    return row;
+  });
+  try {
+    const parsed = JSON.parse(record.value) as McpAuthorizationCode;
+    if (!parsed.clientId || !parsed.redirectUri || !parsed.userId || !parsed.sessionId || !parsed.codeChallenge || !Array.isArray(parsed.scope)) {
+      throw new Error("invalid_grant");
+    }
+    return parsed;
+  } catch {
+    throw new Error("invalid_grant");
+  }
+}
+
+export function issueAccessToken(input: McpAuthorizationCode): string {
+  return issueMcpConnectionToken({
+    userId: input.userId,
+    sessionId: input.sessionId,
+    clientId: input.clientId,
+    resource: input.resource,
+    scopes: input.scope,
+  });
+}

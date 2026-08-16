@@ -16,6 +16,7 @@ export type ProductStageInput = {
   bytes: Uint8Array;
   requestedBy: string;
   bundle: Extract<ProductBundleValidation, { success: true }>["data"];
+  qualityReport?: Record<string, unknown>;
   filename?: string;
 };
 
@@ -71,9 +72,9 @@ export async function stageProductBundle(input: ProductStageInput) {
       if (conflict) {
         await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, conflict.id));
         await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, conflict.id));
-        await tx.update(imporBundle).set({ checksum: input.checksum, courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: 2, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length }, updatedAt: new Date() }).where(eq(imporBundle.id, conflict.id));
+        await tx.update(imporBundle).set({ checksum: input.checksum, courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: 2, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length, quality: input.qualityReport ?? null }, updatedAt: new Date() }).where(eq(imporBundle.id, conflict.id));
       } else {
-        await tx.insert(imporBundle).values({ id: targetImportId, bundleId: input.bundleId, checksum: input.checksum, bundleType: "product", courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: 2, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length } });
+        await tx.insert(imporBundle).values({ id: targetImportId, bundleId: input.bundleId, checksum: input.checksum, bundleType: "product", courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: 2, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length, quality: input.qualityReport ?? null } });
       }
       await tx.insert(itemImporBundle).values(items.map((item) => ({ id: stableId("impor-product-item", `${targetImportId}:${item.entityType}:${item.entityId}:${item.entityVersion}`), imporBundleId: targetImportId, entityType: item.entityType, entityId: item.entityId, entityVersion: item.entityVersion, entityHash: item.entityHash, status: "draft" as const })));
       await tx.insert(auditMutasi).values({ id: stableId("audit-product", `${targetImportId}:draft:${input.checksum}:${mutationAt.getTime()}`), actorId: input.requestedBy, entityType: "product_bundle", entityId: targetImportId, action: conflict ? "draft_replaced" : "draft_created", beforeSnapshot: conflict ? { checksum: conflict.checksum, status: productBundleLifecycleStatus(conflict.status) } : null, afterSnapshot: { status: "draft", bundleId: input.bundleId, checksum: input.checksum, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length }, correlationId: input.runId, createdAt: mutationAt });

@@ -64,10 +64,6 @@ interface SaveResult {
   compileError?: string;
 }
 
-function materialCompilerV2Enabled(): boolean {
-  return env.FEATURE_MATERIAL_COMPILER_V2 === "1";
-}
-
 function validateStoredArticleQuality(structuredContent: unknown): QualityGateResult {
   const articleCandidate = (structuredContent as { articleDocument?: unknown } | null)?.articleDocument;
   if (!articleCandidate) {
@@ -91,7 +87,6 @@ function validateStoredArticleQuality(structuredContent: unknown): QualityGateRe
 }
 
 function assertStoredArticleQuality(structuredContent: unknown): void {
-  if (!materialCompilerV2Enabled()) return;
   const quality = validateStoredArticleQuality(structuredContent);
   if (!quality.passed) {
     throw new Error(`Material Compiler V2 quality gates blocked publication: ${quality.issues.map((entry) => entry.code).join(",")}`);

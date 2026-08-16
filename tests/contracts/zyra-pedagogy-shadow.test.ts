@@ -14,14 +14,8 @@ import * as geminiModule from "@/lib/gemini";
 import { z } from "zod";
 
 describe("Zyra pedagogy staging shadow", () => {
-  it("uses the feature flag only for the normal primary path", () => {
+  it("uses the primary path by default", () => {
     expect(resolvePedagogyExecutionMode({
-      featureEnabled: false,
-      environment: "development",
-      userId: "student-1",
-    })).toBe("legacy");
-    expect(resolvePedagogyExecutionMode({
-      featureEnabled: true,
       environment: "development",
       userId: "student-1",
     })).toBe("primary");
@@ -30,7 +24,6 @@ describe("Zyra pedagogy staging shadow", () => {
   it("allows shadow mode only for the exact configured staging identity", () => {
     expect(resolvePedagogyExecutionMode({
       requestedMode: "shadow",
-      featureEnabled: false,
       environment: "staging",
       configuredShadowUserId: "student-shadow",
       userId: "student-shadow",
@@ -38,7 +31,6 @@ describe("Zyra pedagogy staging shadow", () => {
 
     expect(() => resolvePedagogyExecutionMode({
       requestedMode: "shadow",
-      featureEnabled: false,
       environment: "production",
       configuredShadowUserId: "student-shadow",
       userId: "student-shadow",
@@ -46,14 +38,12 @@ describe("Zyra pedagogy staging shadow", () => {
 
     expect(() => resolvePedagogyExecutionMode({
       requestedMode: "shadow",
-      featureEnabled: false,
       environment: "staging",
       userId: "student-shadow",
     })).toThrow("PEDAGOGY_SHADOW_IDENTITY_NOT_CONFIGURED");
 
     expect(() => resolvePedagogyExecutionMode({
       requestedMode: "shadow",
-      featureEnabled: false,
       environment: "staging",
       configuredShadowUserId: "student-shadow",
       userId: "another-student",

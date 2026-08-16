@@ -80,7 +80,7 @@ Assessment-specific (for type="assessment" MTDs):
 | `peran` | Stable access-role catalog: `admin`, `tutor`, `murid` |
 | `pengguna_peran` | Independent many-to-many identity membership with source and audit actor |
 
-`FEATURE_PERAN_V2=1` makes the admin and tutor layout gates read `pengguna_peran`. The legacy `user.role` column remains during expand and rollback; it is not the canonical authorization source when the flag is enabled.
+Admin and tutor layout gates read `pengguna_peran` as the canonical authorization source. The legacy `user.role` column remains as a compatibility projection during expand and rollback.
 
 ### Course & Enrollment
 | Table | Purpose |
@@ -110,7 +110,7 @@ Plan 003 adds an additive Indonesian learning-domain layer. `mata_kuliah` and `b
 | `ketergantungan_produk` | Polymorphic downstream dependency freshness state |
 | `peta_id_legacy` | Deterministic legacy-to-target identity mapping and checksums |
 
-The existing `concepts` and `concept_localizations` tables remain the global cross-course concept registry. `FEATURE_ARSITEKTUR_IDE_V1` stays off until a later plan switches callers; existing KOs and source pipelines are not backfilled or rewritten here.
+The existing `concepts` and `concept_localizations` tables remain the global cross-course concept registry. Canonical Idea callers are active; existing KOs and source pipelines remain readable through compatibility mappings.
 
 ### Canonical Vector Identity
 
@@ -130,7 +130,7 @@ Plan 004 adds the normalized Indonesian product and learner-state layer as empty
 | Evidence and mastery | `bukti_ide_jawaban`, `bukti_pembelajaran`, `pemahaman_ide`, `perubahan_pemahaman`, `rekomendasi_flashcard` | Score and confidence remain separate; ambiguous evidence cannot affect mastery; replay metadata makes the state reproducible. |
 | Bundle lifecycle | `impor_bundle`, `item_impor_bundle`, `review_bundle`, `publikasi_bundle`, `audit_mutasi` | Product bundles expose only draft, published, and withdrawn; review rows remain internal evidence. |
 
-Plan 005 backfills the supported legacy shapes into these targets without deleting or rewriting source rows. Exact evidence is copied to target links; ambiguous questions, unattributable learning events, legacy concept baselines, and compatibility-only history are preserved in the exception ledger. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` in staging until their later canary gates pass.
+Plan 005 backfills the supported legacy shapes into these targets without deleting or rewriting source rows. Exact evidence is copied to target links; ambiguous questions, unattributable learning events, legacy concept baselines, and compatibility-only history are preserved in the exception ledger. Product, assessment, and per-Idea learning callers are now canonical and always-on; legacy rows remain readable for compatibility.
 
 ### Per-Idea Mastery Learning Loop
 
@@ -142,19 +142,19 @@ Legacy concept mastery remains a compatibility fallback only when no Idea state 
 
 The migration uses `lib/migrasi/backfill-engine.ts` in bounded transactions and records every source-to-target identity in `peta_id_legacy`. Rows that cannot be represented without inventing semantics are kept in `legacy_backfill_exceptions` with a source checksum, reason code, preservation path, and cutover blocking flag. A second apply is a read-and-compare operation for mapped rows and writes zero changed rows.
 
-Current mutations remain legacy-first and are wrapped by one transaction when both `FEATURE_ARSITEKTUR_IDE_V1=1` and `FEATURE_DUAL_WRITE_IDE=1` are enabled:
+Current mutations write canonical targets transactionally while preserving legacy rows and snapshots for compatibility:
 
 ```mermaid
 flowchart LR
     L[Legacy mutation] --> T[One database transaction]
-    T --> LL[Legacy row remains authoritative]
+    T --> LL[Legacy row remains preserved]
     T --> C[Compatibility repository]
     C --> N[Additive Indonesian target]
     C --> A[audit_mutasi]
     R[Existing reads] --> LL
 ```
 
-The boundary covers material publication, flashcard review, quiz attempt start and submission, learning events with exact Idea identity, enrollment, tutor assignment, and Tutorial PKA progress. Target failures roll back the legacy mutation. With either flag disabled, the compatibility repository is a no-op and visible reads and writes stay on the legacy model.
+The boundary covers material publication, flashcard review, quiz attempt start and submission, learning events with exact Idea identity, enrollment, tutor assignment, and Tutorial PKA progress. Target failures roll back the transaction. Compatibility reads remain available for historical rows, while new writes use the canonical repository.
 
 Plan 005 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
 
@@ -212,6 +212,24 @@ The private download route resolves an audited pack ID to its exact R2 key, chec
 
 The Authoring Job Pack contract is documented in `docs/bundle/authoring-job-pack-v1.md`. Product authoring still requires a fresh Authoring Context Pack after official Idea publication; the initial job never substitutes local candidate Idea identities for canonical ones.
 
+### Provider-neutral Authoring MCP
+
+The first MCP boundary is a stateless Streamable HTTP adapter at `/api/mcp/authoring`. It creates a fresh MCP server per request and calls repository validators rather than duplicating bundle rules. Any MCP host can discover the same tools, including Gemini, Claude, and ChatGPT integrations.
+
+```mermaid
+flowchart LR
+    H[Gemini, Claude, or ChatGPT host] --> M[Authenticated MCP endpoint]
+    M --> W[Workflow registry]
+    W --> S[Source Pack validator and quality report]
+    W --> B[Idea and Product validators and quality gates]
+    W --> Q[Quiz draft validator]
+    B --> R[Existing admin review boundary]
+    Q --> R
+    R --> P[Admin publication]
+```
+
+`workflow.list` returns only `idea_product` and `quiz_bank`; there is no combined option and no product-family selection. The agent receives course and chapter choices as signed opaque keys. After `workflow.start`, the signed run token carries the locked scope and Source Pack checksum without exposing internal IDs. `source.ingest` requires original binaries outside the ZIP so the server can independently verify `originalSha256`. Canonical quality modules under `lib/authoring/quality/` produce structured technical and content reports. Idea validation checks source coverage and duplicate candidates; Product validation checks published Idea scope, fresh dependencies, Article and Diktat density, and provenance. Idea and Product submission tools revalidate and reuse `stageIdeaBundle` and `stageProductBundle`, so only green artifacts appear in the existing review inventory. MCP authentication is login-aware: Better Auth sessions are accepted directly for same-origin requests, while remote MCP clients use the OAuth discovery and PKCE authorization-code flow. The resulting short-lived access token contains the authenticated user and Better Auth session identity; every request rechecks that the session is live and the user is an active admin. A compatibility connection endpoint can issue a per-session bearer token after an admin login. Quiz submission validates each Knowledge Object and chapter scope, then inserts deterministic `zyx_original` rows into `ai_question_bank` with `reviewStatus=generated`; retries are idempotent by generation hash. MCP has no publication tool; the existing UI and publication services remain the source of truth for edits, review, and publication.
+
 ### Product Bundle V2
 
 Product Bundle V2 extends the additive product tables with a strict three-state lifecycle. `lib/bundle/product-validator.ts` validates the manifest and typed entity files without database writes. External authoring emits draft entities. The first admin upload returns a browser-held editable projection with full product previews and dependency mapping. `lib/bundle/product-draft.ts` applies only allowed editable fields to the original validated bundle, refreshes content hashes, Article to Diktat lineage, dependency hashes, file checksums, and the bundle checksum, then validates the reconstructed ZIP. `lib/bundle/product-staging.ts` stores the confirmed ZIP and inventory with status `draft`.
@@ -237,7 +255,7 @@ The public lifecycle is `draft -> published -> withdrawn`. A draft may be replac
 
 Question provenance crosses the compatibility boundary as data, not presentation-only state. `soal` and `ai_question_bank` store `origin`, `source_event_name`, and `source_reference_id`. Quiz attempts, tryout submissions, PKA attempts, and live quiz sessions carry the same fields in JSON snapshots. `QuestionSourceCitation` is the shared student renderer and shows a lower-right source line only for `itb_example`. The admin question bank exposes origin filtering, while the tutor tryout action copies a published bank question and its provenance into the per-exam question snapshot.
 
-External authoring is split into three bounded skills under `.temp/skill`: Source Pack translation, Idea authoring, and Product authoring. The Product skill requires both the original Authoring Job Pack and a fresh Authoring Context Pack, preventing unpublished candidate Idea identities from leaking into products. It copies ITB questions from the Source Pack, matches the exact event label to an allowed context reference, and never substitutes a benchmark ID for the dedicated source reference ID. Idea and Product skills maintain local preference-only Authoring Learning Profiles from explicit operator corrections. These profiles do not alter source truth, schemas, or quality gates and create no additional pack lifecycle.
+External authoring has three active MCP instruction skills under `.temp/skill`: `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, and `zyx-product-bundle-mcp`. They guide the agent through Source Pack, Idea, and Product workflows while MCP calls canonical repository quality modules. The prior `source-pack-translator`, `zyx-idea-authoring`, and `zyx-product-authoring` directories remain migration references only. Product authoring requires published Idea identity and fresh dependency checks, preventing unpublished candidate Ideas from leaking into products. It copies ITB questions from the Source Pack, matches the exact event label to an allowed context reference, and never substitutes a benchmark ID for the dedicated source reference ID. Preference profiles do not alter source truth, schemas, or quality gates and create no additional pack lifecycle.
 
 ### Article and Diktat Quality Compiler
 
@@ -258,7 +276,7 @@ flowchart LR
 
 `lib/materials/article-contract.ts` requires block purpose, covered Ideas, source references, generation hash, and reviewer state. `lib/materials/quality-gates.ts` returns stable reason codes and fails closed for missing coverage, stale dependencies, invalid math delimiters, missing traces, and rejected blocks. `lib/materials/diktat-contract.ts` accepts an approved `ArticleDocument` only; it records the source article ID, version, and hash and checks that every preserved core statement, formula, Idea, and source trace remains present.
 
-The new path is gated by `FEATURE_MATERIAL_COMPILER_V2`. `lib/material-storage.ts` applies the article quality gate to review and publication only when that flag is active, so the existing `website_materials` readers and rollback path remain unchanged when it is absent or `0`.
+The article quality gate is always applied by `lib/material-storage.ts` during review and publication. Existing `website_materials` readers and rollback data remain unchanged.
 
 ### Assessment Integrity V2
 
@@ -447,7 +465,7 @@ Upload PDF via direct R2 (structured object keys)
   │         ├── Validates KaTeX compilation
   │         └── Fails early if structure is malformed
   │
-  ├── type="learning" → KO Extraction Pipeline (lib/ko-extractor.ts, V2: FEATURE_KO_PIPELINE_V2, lib/knowledge/*)
+  ├── type="learning" → KO Extraction Pipeline (lib/ko-extractor.ts, lib/knowledge/*)
   │    ├── Stage 1: Source normalization & hashing (`lib/knowledge/chunker.ts`)
   │    ├── Stage 2: Deterministic semantic chunking preserving math, code, tables & headings without 30k char truncation
   │    ├── Stage 3: Per-chunk candidate KO & Learning Objective extraction (`lib/knowledge/candidate-extractor.ts`)
@@ -770,21 +788,14 @@ Cloudflare Workers (deployed via wrangler):
 |---|---|---|
 | **Database** | SQLite file (`dev.db`) | Turso (libsql, distributed SQLite) |
 | **Object Storage** | UploadThing (default) | R2 via `lib/storage/index.ts` (`STORAGE_PROVIDER_MODE`) |
-| **Vector Store** | Cloudflare Vectorize | `FEATURE_VECTORIZE_ONLY_V1=1`, canonical-content-v2, 768 dimensions |
+| **Vector Store** | Cloudflare Vectorize | canonical-content-v2, 768 dimensions |
 | **AI Gateway** | Direct Gemini API | Cloudflare AI Gateway (rate limit, caching, observability) |
 | **Auth URL** | `localhost:3000` | `BETTER_AUTH_URL` = production origin |
 | **Diktat Renderer** | Mock PDF | Railway Puppeteer service at `DIKTAT_RENDERER_URL` |
 | **Analytics** | None | Vercel Analytics + Speed Insights + Sentry |
 
-### Feature Flags (env `FEATURE_*`)
-Gradual rollout via env vars ; all default to off unless set to `"1"`:
-```
-FEATURE_MASTERY, FEATURE_TODAY, FEATURE_EMBED, FEATURE_MISCONCEPTION,
-FEATURE_REMEDIATION, FEATURE_MATERIAL_LIVE, FEATURE_FC_DIFFICULTY,
-FEATURE_GRAPH, FEATURE_TUTOR_RAG, FEATURE_FEEDBACK, FEATURE_STUDY_PATH,
-FEATURE_TUTOR_ANALYTICS, FEATURE_LIVE, FEATURE_REFLECTION,
-FEATURE_REFLECTION_EMAIL, FEATURE_ADAPTIVE_QUIZ, FEATURE_PKA
-```
+### Feature Flags
+Only granular, non-foundational capabilities remain runtime configurable. The retained category 4 catalog and activation semantics are documented in [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags). Canonical content, assessment, authorization, retrieval, pedagogy, and learning foundations are always-on.
 
 ---
 
@@ -863,7 +874,7 @@ Plan 002 keeps Gemini model identity, project-level limits, deadlines, capabilit
 
 Tutor math presentation is enforced at two boundaries. Versioned grounded, ungrounded, and image prompts require equation-first Markdown with valid `$...$` and `$$...$$` delimiters. The pure `lib/tutor/math-markdown.ts` normalizer adds delimiters only to bounded common raw equation shapes and is applied before persistence output composition and drawer rendering, including restored history. Existing LaTeX, inline code, and fenced code are protected from rewriting.
 
-The canonical `canonical-content-v2` profile and the separate `zyra-semantic-cache-v1` profile both use Gemini Embedding 2 at exactly 768 dimensions, but use different task instruction versions and index aliases. Neither profile can access the other index, and Embedding 001 is legacy provenance only. Preserved 1024-dimensional vectors remain rollback-only. `FEATURE_AI_PROVIDER_REGISTRY_V1` is off by default so existing route order remains compatible until a later routing plan enables the new policy.
+The canonical `canonical-content-v2` profile and the separate `zyra-semantic-cache-v1` profile both use Gemini Embedding 2 at exactly 768 dimensions, but use different task instruction versions and index aliases. Neither profile can access the other index, and Embedding 001 is legacy provenance only. Preserved 1024-dimensional vectors remain rollback-only. The model registry is the default provider route; route selection is controlled only by the retained provider-router capability flag.
 
 ### Zyra distributed quota coordinator
 
@@ -889,7 +900,7 @@ Validated shared scaffolds are stored in the staging Worker KV binding and may b
 
 Plan 007 makes teaching behavior application-owned. A deterministic planner selects one state from orientation, diagnosis, explanation, bounded hint sequence, teach-back, check, or clarification using the request mode, evidence sufficiency, assessment policy, learner response shape, and prior hint level. The model receives only the selected state and hydrated evidence. Its typed response separates observed facts from diagnosis hypotheses, requires canonical citations for substantive claims, allows at most one checkpoint, and records the next allowed action and assessment reason code.
 
-Active assessment policy is enforced before prompt composition and again during response validation. Invalid shape, citation, visual claim, unsupported diagnosis, pipeline-language, or answer-safety output becomes a typed rejection followed by deterministic safe composition. The prompt contract uses one total model attempt and disables the existing personalized second call while `FEATURE_ZYRA_PEDAGOGY_V3` is enabled. Shared cache payloads remain profile-free and canonical retrieval remains the source of truth.
+Active assessment policy is enforced before prompt composition and again during response validation. Invalid shape, citation, visual claim, unsupported diagnosis, pipeline-language, or answer-safety output becomes a typed rejection followed by deterministic safe composition. The prompt contract uses one total model attempt and keeps shared cache payloads profile-free. Canonical retrieval remains the source of truth.
 
 The legacy tutor route distinguishes evidence grounding from learning scope. Empty retrieval and deterministic `none` coverage invoke one uncited general-knowledge teaching call for school, university, technical, academic-skill, exam-preparation, and study-method questions. The response states the course-material boundary and remains subject to assessment output validation. Out-of-scope requests receive a short learning redirection. If the grounded model itself rejects weak evidence, its uncited general explanation is retained instead of being replaced by a hard refusal, without adding a second provider call.
 
@@ -941,4 +952,4 @@ Plan 013 stores fixed-column operational events and derives admin metrics from t
 
 ### Release verification boundary
 
-Plan 014 is a masked verifier that inventories predecessor artifacts, feature flags, staging fingerprints, worktree state, and the approved request cap. Synthetic-only execution writes a blocked result when any release gate is absent. It does not deploy, migrate, enable flags, call a provider, or authorize production.
+Plan 014 is a masked verifier that inventories predecessor artifacts, retained category 4 flags, staging fingerprints, worktree state, and the approved request cap. Synthetic-only execution writes a blocked result when any release gate is absent. It does not deploy, migrate, change rollout settings, call a provider, or authorize production.

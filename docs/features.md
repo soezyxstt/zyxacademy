@@ -6,7 +6,7 @@ Zyx Academy is an AI-powered learning management platform. It takes expert teach
 
 ## User Roles
 
-Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps the legacy `user.role` projection during the expand phase. `FEATURE_PERAN_V2` switches the admin and tutor layout gates to domain memberships without changing chat speaker values such as `student`.
+Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor layout gates use domain memberships as the canonical authorization source. Better Auth keeps the legacy `user.role` projection for compatibility without changing chat speaker values such as `student`.
 
 ### Student
 - Redeems enrollment tokens to access courses
@@ -42,7 +42,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Views coaching analytics dashboards
 - Accesses dedicated Quiz & Exam Analytics & Insight portal (`/admin/ai/quiz-insights`) for real-time item/distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV / Google Spreadsheet, and on-demand Gemini AI deep pedagogical insights
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
-- Monitors real-time feature flag statuses (`/admin/ops/flags`) across all 28+ `FEATURE_*` flags with status badges, category filters, and env key helpers
+- Monitors real-time statuses for the retained category 4 feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
 
 ## Core Pipelines
 
@@ -60,7 +60,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 2. Exact source spans are stored in `potongan_sumber` with offsets, checksums, and embedding eligibility.
 3. `ide` provides the future course and chapter learning atom with optional global `concepts` linkage, semantic hashes, and explicit source policy.
 4. `asal_ide`, `relasi_ide`, and `ketergantungan_produk` preserve provenance, typed relations, and freshness transitions.
-5. `FEATURE_ARSITEKTUR_IDE_V1` remains off; existing KOs and callers are unchanged until later plans.
+5. Canonical Idea callers are always-on; existing KOs remain readable through compatibility mappings.
 
 ### Product, Assessment, and Idea Mastery Domain
 1. Articles, diktat materials, questions, solutions, and flashcards have normalized versioned target records with source and generation hashes.
@@ -70,7 +70,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 5. Answer evidence records Idea attribution, contribution, weight, confidence, evidence source, rubric version, and derivation status. Ambiguous evidence is retained but cannot affect mastery.
 6. `pemahaman_ide` stores score and confidence as separate 0 to 100 values, with append-only change history, replay metadata, and deterministic flashcard recommendations. Cards for Ideas with mastery score 80 or higher are suppressed. Only attributable verified evidence contributes to the score; a legacy concept baseline is explicitly labelled and never copied to an Idea.
 7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
-8. `FEATURE_PRODUK_IDE_V1`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` remain absent or `0` until the later workflow canaries; current legacy records remain unchanged.
+8. Product, assessment, and per-Idea learning callers are always-on; current legacy records remain unchanged and readable for compatibility.
 
 ### Idea Bundle Workflow
 
@@ -91,6 +91,15 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 7. External agents use `$UPLOADER` and `$APPROVING_REVIEWER` for attribution without receiving private Zyx identity IDs. Publication resolves those sentinels to the accountable uploader and approving admin.
 8. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables both tabs and APIs when absent or `0`.
 
+### Provider-neutral Authoring MCP V1
+
+1. `/api/mcp/authoring` exposes a provider-neutral Streamable HTTP MCP endpoint. Its core does not depend on Gemini, Claude, or ChatGPT; each host discovers the same typed tools.
+2. `workflow.list` exposes exactly two choices: `idea_product` and `quiz_bank`. There is deliberately no combined workflow option. Both workflows ask only for a Source Pack, one course, and one chapter.
+3. `source.ingest` accepts a base64 Source Pack plus one ephemeral original binary per declared document. It runs secure ZIP validation, original binary checksum verification, deterministic Markdown counts, marker validation, structured visual checks, unresolved checks, and a quality report. Invalid archives or incomplete quality evidence return structured reason codes rather than a generic upload error.
+4. Course and chapter choices use short-lived signed keys, so agents and operators do not exchange raw internal IDs. `workflow.start` returns a scoped run token and a workflow contract.
+5. Idea Bundle and Product Bundle validation combines technical compatibility with repository content-quality gates. Idea checks include meaningful source coverage, provenance coverage, duplicate candidates, and formula trace warnings. Product checks include published Idea scope, dependency freshness, Article depth, Diktat coverage, examples, visuals, retrieval, traps, formulas, and ITB provenance. Valid submissions are staged into the existing bundle review inventory; valid quiz drafts are inserted into `ai_question_bank` with `reviewStatus=generated`. The staging actor is derived from the authenticated admin principal and no MCP tool can publish content.
+6. The three new instruction skills are `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, and `zyx-product-bundle-mcp`. They guide agents but do not duplicate or bypass MCP validators. MCP HTTP authorization uses the existing Better Auth admin session through MCP OAuth discovery, PKCE authorization code exchange, and short-lived audience-bound bearer tokens. A logged-in admin can also create a per-session connection token at `/api/mcp/authoring/connection` for clients without interactive OAuth. No static MCP token, manually configured actor ID, or feature flag is required. The transport is stateless and keeps run scope inside signed tokens; canonical publication continues through the authenticated admin review boundary.
+
 ### Product Bundle Workflow
 
 1. Admins upload typed ZIP bundles from `/admin/bundles/product`; the first request validates product schemas, checksums, Idea and source traceability, complete article quality coverage, assessment scope, atomic flashcards, deterministic question keys, one solution per question, draft status, consistent attribution, and holdout markers without a storage or database write.
@@ -108,14 +117,14 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 1. `ai_question_bank` and canonical `soal` classify each row as `zyx_original` or `itb_example`. Manual and generated bank questions default to `zyx_original`; Product Bundle publication always writes `itb_example`.
 2. The admin bank can filter and distinguish the two groups. The tryout editor can import either group directly from the published bank.
 3. Quiz, tryout, PKA, daily API, and live-quiz payloads preserve origin, source event, and source reference in immutable snapshots. Every student question surface renders `Sumber: <event>` at the lower right for ITB examples only.
-4. `NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1=1` exposes the origin labels and learner citations. When absent or `0`, provenance remains stored but the new labels are hidden.
+4. Origin labels and learner citations render whenever provenance metadata exists; provenance is no longer hidden behind a separate public flag.
 
 ### External Authoring Skills
 
-1. `source-pack-translator` converts each source document into complete Markdown and produces a Source Pack.
-2. `zyx-idea-authoring` consumes one Authoring Job Pack and stops after a validated Idea Bundle.
-3. `zyx-product-authoring` consumes the same Authoring Job Pack plus a fresh Authoring Context Pack after Idea publication, copies only direct ITB example questions whose event labels match an allowed reference, then produces a draft Product Bundle.
+1. The active MCP instruction skills are `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, and `zyx-product-bundle-mcp`. They guide agent extraction and authoring, call the provider-neutral MCP tools, and never duplicate or bypass repository quality gates.
+2. The legacy `source-pack-translator`, `zyx-idea-authoring`, and `zyx-product-authoring` directories remain as migration references only. Their JavaScript packaging and validation scripts are not the MCP runtime authority.
 4. Idea and Product skills keep a small local Authoring Learning Profile. An explicit operator correction updates the current artifact and adds a scoped lesson for later runs. Source facts, schemas, and quality gates always override learned preferences. No Revision Pack or separate training workflow is used.
+5. Legacy packagers and validators use JavaScript and run directly with Bun. The active MCP skills do not ship duplicate validators. All workflow enforcement lives in repository TypeScript modules called by MCP, while ZIP rules still prohibit generic archivers, scripts, symlinks, and executable permission bits.
 
 ### Article and Diktat Quality Compiler
 
@@ -123,7 +132,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 2. Required article coverage includes prior-knowledge activation, problem introduction, per-Idea teaching blocks, synthesis for multi-Idea articles, summary, and retrieval close. Conditional blocks must carry a typed inapplicability reason.
 3. Idea prerequisites are ordered deterministically and cycles are rejected before compilation. Quality gates reject stale dependencies, empty blocks, broken math delimiters, missing traceability, and rejected review states.
 4. Diktat material is compressed only from an approved article representation. The compression report records the source article version and hash, every removed block, preserved formulas, preserved Idea coverage, and source traces.
-5. Admin previews expose block-level Idea and source traceability plus stable quality-gate reason codes. `FEATURE_MATERIAL_COMPILER_V2` keeps the new publication gate disabled when absent or `0`.
+5. Admin previews expose block-level Idea and source traceability plus stable quality-gate reason codes. The material quality gate is always applied during review and publication.
 
 ### Website Material Generation
 1. All KOs for a chapter are collected in order
@@ -208,19 +217,19 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - `lib/asesmen/blueprint.ts` compiles quiz and tryout blueprints with exact largest-remainder dimension allocation, explicit chapter scope, reproducible seeds, and publication eligibility checks.
 - `lib/asesmen/evidence-rubric.ts` derives versioned per-Idea evidence from stable option IDs. Ambiguous evidence and misconception mappings never affect mastery, and free-response evidence requires a reviewed rubric or grading result.
 - `lib/asesmen/benchmark-policy.ts` rejects exact duplicates, applies versioned similarity thresholds, and keeps holdout content inside the benchmark boundary. Missing thresholds produce `needs_review`.
-- When `FEATURE_ASESMEN_IDE_V1=1`, quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
-- When `FEATURE_ARSITEKTUR_IDE_V1`, `FEATURE_DUAL_WRITE_IDE`, `FEATURE_ASESMEN_IDE_V1`, and `FEATURE_PEMAHAMAN_IDE_V1` are all `1`, a legacy quiz submission is bridged only when every snapshot question exactly matches a published canonical question and published Idea links. The bridge writes immutable canonical item and answer snapshots, per-Idea evidence, and deterministic mastery recompute events. Missing, stale, ambiguous, or unreviewed mappings leave the legacy submission intact and produce no canonical mastery evidence.
+- Quiz attempts include stable option IDs and grade through those IDs while accepting legacy numeric submissions for compatibility.
+- Legacy quiz submissions are bridged when every snapshot question exactly matches a published canonical question and published Idea links. The bridge writes immutable canonical item and answer snapshots, per-Idea evidence, and deterministic mastery recompute events. Missing, stale, ambiguous, or unreviewed mappings leave the legacy submission intact and produce no canonical mastery evidence.
 
 ### Canonical Vectorize Retrieval V2
 
 - Canonical content is indexed through the `canonical-content-v2` profile using Gemini Embedding 2, 768 dimensions, cosine distance, versioned IDs, and allowlisted metadata.
 - Turso remains the source of truth. `vector_sync_queue` is the retryable outbox, and the staging worker exposes only the authenticated `/v2/*` contract.
-- `FEATURE_VECTORIZE_ONLY_V1` is the read and write switch. When absent or `0`, the compatibility path is read-only. When `1`, active retrieval uses `zyx-vectors-staging-v2` in staging.
+- Canonical retrieval always uses `canonical-content-v2` through the authenticated Vectorize contract. Preserved legacy indexes remain rollback evidence only.
 - The old 1024-dimensional indexes are preserved as unbound rollback evidence. They are not active sources of truth.
 
 ### Zyra Canonical Runtime V1
 
-- `FEATURE_ZYRA_IDEA_RUNTIME_V1` enables course-scoped retrieval that rehydrates current approved content from Turso before it reaches the tutor response.
+- Course-scoped canonical retrieval rehydrates current approved content from Turso before it reaches the tutor response.
 - Enrollment, status, version, content hash, active-assessment, restricted-solution capability, and source attribution checks fail closed.
 - Shared cache payloads remain student-free and active attempts never receive answer-bearing content.
 
@@ -238,7 +247,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 
 ### Zyra Pedagogy V3
 
-- `FEATURE_ZYRA_PEDAGOGY_V3` enables the server-owned teaching state machine and typed response contract.
+- The server-owned teaching state machine and typed response contract are always-on. Shadow comparison remains an explicit staging request.
 - Zyra selects one teaching move, validates canonical citations and assessment safety, and asks at most one checkpoint question.
 - Invalid model output becomes a safe clarification or evidence-grounded composition. Active attempts remain capped at the approved hint boundary.
 - Reservations are idempotent and fail closed before provider dispatch. Terminal transitions preserve legacy usage history and repair derived compatibility events idempotently.
@@ -267,8 +276,8 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 
 ### Admin, Tutor, and Murid Workflows
 
-- `FEATURE_ADMIN_TUTOR_WORKFLOW_V1` enables the guarded `alur_konten` lifecycle from upload through tutor review, admin approval, publication, supersession, or withdrawal. Every mutation carries an actor, course, version, request, reason, and snapshot hash in `audit_mutasi`.
-- `FEATURE_MURID_IDEA_WORKFLOW_V1` enables the `/murid` read model and compatibility route adapters. It projects published Ideas and preserves Tutorial PKA and historical attempt snapshots without rewriting them.
+- The guarded `alur_konten` lifecycle is always-on from upload through tutor review, admin approval, publication, supersession, or withdrawal. Every mutation carries an actor, course, version, request, reason, and snapshot hash in `audit_mutasi`.
+- The `/murid` read model and compatibility route adapters are always-on. They project published Ideas and preserve Tutorial PKA and historical attempt snapshots without rewriting them.
 
 ### Structured Form Upload Storage System
 
@@ -316,7 +325,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 - Image and text are dispatched as one multimodal request. Gemini Interactions calls use the direct Google endpoint, while the stable `gemini-2.5-flash` image fallback uses Cloudflare AI Gateway through `generateContent`. Retryable provider failures move through this bounded model chain. One successful learner turn spends one allowance; a terminal provider failure refunds it.
 - Mathematical tutoring uses equation-first Markdown with inline and display LaTeX. The tutor prompt prefers symbolic derivations over verbal operation lists, while a bounded presentation normalizer repairs common raw equations in new responses and restored chat history without changing valid LaTeX or code.
 - A learner can paste an image from the clipboard into the chat input as well as select a file. Image turns treat the current attachment as the primary problem statement and bypass text-only course retrieval, preventing an unrelated published question and its source link from replacing the image content.
-- `FEATURE_ZYRA_MURID_V3` adds the personal allowance summary and the integrated murid Zyra surface. `FEATURE_ZYRA_SELECTION_ASK_V1` sends only a bounded explicit lesson quote, and `FEATURE_ZYRA_PET_V1` shows accessible application-owned request states.
+- The integrated murid Zyra surface is foundational. `FEATURE_ZYRA_SELECTION_ASK_V1` sends only a bounded explicit lesson quote, and `FEATURE_ZYRA_PET_V1` shows accessible application-owned request states.
 - Learning Canvas exploration remains local after render and spends no provider allowance. Image and Canvas behavior are independently gated.
 
 ### Zyra tutor and admin copilots

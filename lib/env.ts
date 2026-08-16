@@ -85,28 +85,12 @@ export const env = createEnv({
  CF_KV_NAMESPACE_ID: z.string().optional(),
  /** Cloudflare API token with Workers KV Storage: Edit permission */
  CF_API_TOKEN: z.string().optional(),
- FEATURE_MASTERY: z.string().optional(),
- FEATURE_TODAY: z.string().optional(),
- /** EIF E0 learning-context fabric and embedded surfaces. "1" enables. */
- FEATURE_EMBED: z.string().optional(),
- /** EIF E1 distractor analytics + deterministic misconception feedback. "1" enables. */
- FEATURE_MISCONCEPTION: z.string().optional(),
  /** EIF E2 quiz remediation surfacing (mastery delta + root cause). "1" enables. */
  FEATURE_REMEDIATION: z.string().optional(),
  /** EIF E3 interactive material layer (highlight to KO actions). "1" enables. */
  FEATURE_MATERIAL_LIVE: z.string().optional(),
- /** EIF E4 flashcard recall difficulty + SM-2 blend. "1" enables. */
- FEATURE_FC_DIFFICULTY: z.string().optional(),
  /** EIF E5 navigable concept graph + tutor root cause. "1" enables. */
  FEATURE_GRAPH: z.string().optional(),
- /** P3 grounded tutor pipeline (RAG + KV cache + learner memory). "1" enables. */
- FEATURE_TUTOR_RAG: z.string().optional(),
- /** P0 Tutor Pipeline V2: cache isolation, typed query action routing, student-free Tier 1 payload. "1" enables. */
- FEATURE_TUTOR_PIPELINE_V2: z.string().optional(),
- /** P0 Tutor Evidence, Citation, Conflict, and Abstention Pipeline V2. "1" enables. */
- FEATURE_TUTOR_EVIDENCE_V2: z.string().optional(),
- FEATURE_FEEDBACK: z.string().optional(),
- FEATURE_STUDY_PATH: z.string().optional(),
  /** P6A tutor analytics MVP. "1" enables /tutor area for teacher role. */
  FEATURE_TUTOR_ANALYTICS: z.string().optional(),
  /** P9 real-time classroom. "1" enables live quiz routes. */
@@ -121,69 +105,26 @@ export const env = createEnv({
  FEATURE_ADAPTIVE_QUIZ: z.string().optional(),
  /** Tutorial PKA campaign: free multi-stage PKA simulation course + auto-enroll link + admin announcements. "1" enables. */
  FEATURE_PKA: z.string().optional(),
- /** P0 Versioned AI Prompt Contracts & Provenance. "1" enables. */
- FEATURE_AI_CONTRACT_V2: z.string().optional(),
- /** P0 versioned Gemini model registry and provider adapters. "1" enables the registry route policy. */
- FEATURE_AI_PROVIDER_REGISTRY_V1: z.string().optional(),
- /** Assessment assistance policy: deterministic gating for AI tutor and mistake feedback. "1" enables. */
- FEATURE_ASSESSMENT_ASSISTANCE_POLICY: z.string().optional(),
- /** P0 Knowledge object provenance and stable identity pipeline. "1" enables. */
- FEATURE_KO_PIPELINE_V2: z.string().optional(),
  /** P1 Question generator V2: blueprint, option shuffle, and distractor provenance. "1" enables. */
  FEATURE_QUESTION_GENERATOR_V2: z.string().optional(),
- /** P1 Tutor Pedagogy V2: pedagogical strategy and context fabric. "1" enables. */
- FEATURE_TUTOR_PEDAGOGY_V2: z.string().optional(),
- /** P1 Material Compiler V2: semantic material compiler. "1" enables. */
- FEATURE_MATERIAL_COMPILER_V2: z.string().optional(),
- /** P2 Flashcard Generator V2: atomic active recall cards. "1" enables. */
- FEATURE_FLASHCARD_GENERATOR_V2: z.string().optional(),
- /** P1 Diktat QA V2: fail-closed diktat audit & PDF QA. "1" enables. */
- FEATURE_DIKTAT_QA_V2: z.string().optional(),
- /** P1 Analytics Diagnosis V2: evidence-calibrated analytics. "1" enables. */
- FEATURE_ANALYTICS_DIAGNOSIS_V2: z.string().optional(),
- /** Indonesian domain identity and multi-role authorization. "1" enables membership checks. */
- FEATURE_PERAN_V2: z.string().optional(),
- /** Canonical source and Idea domain contracts. "1" enables the additive Idea architecture. */
- FEATURE_ARSITEKTUR_IDE_V1: z.string().optional(),
- /** Migration-only transaction-scoped mirror for the additive Idea architecture. */
- FEATURE_DUAL_WRITE_IDE: z.string().optional(),
  /** Strict ZIP-based Idea Bundle V2 workflow. */
  FEATURE_IDEA_BUNDLE_V2: z.string().optional(),
  /** Deterministic and redacted Authoring Context Pack export. */
  FEATURE_AUTHORING_CONTEXT_V1: z.string().optional(),
  /** Strict ZIP-based Product Bundle V2 workflow. */
  FEATURE_PRODUCT_BUNDLE_V2: z.string().optional(),
- /** Question origin, ITB event provenance, and learner-facing source citations. */
- /** Product and Idea links domain contracts. "1" enables the additive product tables. */
- FEATURE_PRODUK_IDE_V1: z.string().optional(),
- /** Assessment and Idea coverage contracts. "1" enables the additive assessment tables. */
- FEATURE_ASESMEN_IDE_V1: z.string().optional(),
- /** Canonical 768-dimension Vectorize-only read and write path. "1" enables it. */
- FEATURE_VECTORIZE_ONLY_V1: z.string().optional(),
- /** Canonical Zyra retrieval and hydration over approved Idea content. "1" enables it. */
- FEATURE_ZYRA_IDEA_RUNTIME_V1: z.string().optional(),
- /** Admin and tutor content workflow with centralized transitions and audit. "1" enables it. */
- FEATURE_ADMIN_TUTOR_WORKFLOW_V1: z.string().optional(),
- /** Murid Idea-centered read model with Tutorial PKA compatibility adapters. "1" enables it. */
- FEATURE_MURID_IDEA_WORKFLOW_V1: z.string().optional(),
-  /** Idea evidence and mastery contracts. "1" enables the additive mastery tables. */
-  FEATURE_PEMAHAMAN_IDE_V1: z.string().optional(),
- /** Zyra transactional role allowance and usage lease ledger. "1" enables it. */
+   /** Zyra transactional role allowance and usage lease ledger. "1" enables it. */
   FEATURE_ZYRA_ALLOWANCE_V2: z.string().optional(),
    /** Health-aware four-project provider routing. "1" enables it. */
    FEATURE_ZYRA_PROVIDER_ROUTER_V2: z.string().optional(),
   /** Profile-free exact and semantic cache. "1" enables the semantic gate. */
   FEATURE_ZYRA_SEMANTIC_CACHE_V1: z.string().optional(),
-   /** Deterministic pedagogical state machine and typed Zyra teaching response. "1" enables the harness. */
-   FEATURE_ZYRA_PEDAGOGY_V3: z.string().optional(),
    /** Evidence-based learner presentation adaptation. "1" enables the profile controls. */
    FEATURE_ZYRA_PERSONALIZATION_V1: z.string().optional(),
    /** Typed local Learning Canvas visuals and safe expression evaluation. "1" enables the canvas. */
    FEATURE_ZYRA_LEARNING_CANVAS_V1: z.string().optional(),
    /** Authenticated private learner image input for Zyra. "1" enables the multimodal path. */
    FEATURE_ZYRA_IMAGE_INPUT_V1: z.string().optional(),
-   /** Integrated murid Zyra experience. "1" enables the additive UI surfaces. */
-   FEATURE_ZYRA_MURID_V3: z.string().optional(),
    /** Selection-to-ask context handoff. "1" enables the additive selection action. */
    FEATURE_ZYRA_SELECTION_ASK_V1: z.string().optional(),
    /** Application-owned Zyra pet state indicator. "1" enables the additive pet. */
@@ -204,6 +145,8 @@ export const env = createEnv({
   FEATURE_LINK_LIBRARY: z.string().optional(),
   /** Reusable Form Studio presets (questions + settings). "1" enables. */
   FEATURE_FORM_PRESETS: z.string().optional(),
+  /** Optional AI-assisted Diktat audit suggestions. "1" enables. */
+  FEATURE_DIKTAT_AI: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
@@ -239,10 +182,8 @@ export const env = createEnv({
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional().default("https://us.i.posthog.com"),
   NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: z.enum(["0", "1"]).optional(),
   NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1: z.enum(["0", "1"]).optional(),
-  NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3: z.enum(["0", "1"]).optional(),
   NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1: z.enum(["0", "1"]).optional(),
   NEXT_PUBLIC_FEATURE_ZYRA_PET_V1: z.enum(["0", "1"]).optional(),
-  NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1: z.enum(["0", "1"]).optional(),
   },
  runtimeEnv: {
  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
@@ -255,10 +196,8 @@ export const env = createEnv({
  NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
  NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1,
  NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1,
- NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3: process.env.NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3,
  NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1,
  NEXT_PUBLIC_FEATURE_ZYRA_PET_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_PET_V1,
- NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1: process.env.NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1,
  DATABASE_URL: process.env.DATABASE_URL,
  TURSO_CONNECTION_URL: process.env.TURSO_CONNECTION_URL,
  TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN,
@@ -297,19 +236,9 @@ export const env = createEnv({
  CF_API_TOKEN: process.env.CF_API_TOKEN,
  CF_KV_NAMESPACE_ID: process.env.CF_KV_NAMESPACE_ID,
  CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
- FEATURE_MASTERY: process.env.FEATURE_MASTERY,
- FEATURE_TODAY: process.env.FEATURE_TODAY,
- FEATURE_EMBED: process.env.FEATURE_EMBED,
- FEATURE_MISCONCEPTION: process.env.FEATURE_MISCONCEPTION,
  FEATURE_REMEDIATION: process.env.FEATURE_REMEDIATION,
  FEATURE_MATERIAL_LIVE: process.env.FEATURE_MATERIAL_LIVE,
- FEATURE_FC_DIFFICULTY: process.env.FEATURE_FC_DIFFICULTY,
  FEATURE_GRAPH: process.env.FEATURE_GRAPH,
- FEATURE_TUTOR_RAG: process.env.FEATURE_TUTOR_RAG,
- FEATURE_TUTOR_PIPELINE_V2: process.env.FEATURE_TUTOR_PIPELINE_V2,
- FEATURE_TUTOR_EVIDENCE_V2: process.env.FEATURE_TUTOR_EVIDENCE_V2,
- FEATURE_FEEDBACK: process.env.FEATURE_FEEDBACK,
- FEATURE_STUDY_PATH: process.env.FEATURE_STUDY_PATH,
  FEATURE_TUTOR_ANALYTICS: process.env.FEATURE_TUTOR_ANALYTICS,
  FEATURE_LIVE: process.env.FEATURE_LIVE,
  LIVE_HMAC_SECRET: process.env.LIVE_HMAC_SECRET,
@@ -318,37 +247,16 @@ export const env = createEnv({
  FEATURE_NOTIFICATION_PREFERENCES: process.env.FEATURE_NOTIFICATION_PREFERENCES,
  FEATURE_ADAPTIVE_QUIZ: process.env.FEATURE_ADAPTIVE_QUIZ,
  FEATURE_PKA: process.env.FEATURE_PKA,
- FEATURE_AI_CONTRACT_V2: process.env.FEATURE_AI_CONTRACT_V2,
- FEATURE_AI_PROVIDER_REGISTRY_V1: process.env.FEATURE_AI_PROVIDER_REGISTRY_V1,
- FEATURE_ASSESSMENT_ASSISTANCE_POLICY: process.env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY,
- FEATURE_KO_PIPELINE_V2: process.env.FEATURE_KO_PIPELINE_V2,
  FEATURE_QUESTION_GENERATOR_V2: process.env.FEATURE_QUESTION_GENERATOR_V2,
- FEATURE_TUTOR_PEDAGOGY_V2: process.env.FEATURE_TUTOR_PEDAGOGY_V2,
- FEATURE_MATERIAL_COMPILER_V2: process.env.FEATURE_MATERIAL_COMPILER_V2,
- FEATURE_FLASHCARD_GENERATOR_V2: process.env.FEATURE_FLASHCARD_GENERATOR_V2,
- FEATURE_DIKTAT_QA_V2: process.env.FEATURE_DIKTAT_QA_V2,
- FEATURE_ANALYTICS_DIAGNOSIS_V2: process.env.FEATURE_ANALYTICS_DIAGNOSIS_V2,
- FEATURE_PERAN_V2: process.env.FEATURE_PERAN_V2,
- FEATURE_ARSITEKTUR_IDE_V1: process.env.FEATURE_ARSITEKTUR_IDE_V1,
- FEATURE_DUAL_WRITE_IDE: process.env.FEATURE_DUAL_WRITE_IDE,
  FEATURE_IDEA_BUNDLE_V2: process.env.FEATURE_IDEA_BUNDLE_V2,
  FEATURE_AUTHORING_CONTEXT_V1: process.env.FEATURE_AUTHORING_CONTEXT_V1,
  FEATURE_PRODUCT_BUNDLE_V2: process.env.FEATURE_PRODUCT_BUNDLE_V2,
- FEATURE_PRODUK_IDE_V1: process.env.FEATURE_PRODUK_IDE_V1,
- FEATURE_ASESMEN_IDE_V1: process.env.FEATURE_ASESMEN_IDE_V1,
- FEATURE_VECTORIZE_ONLY_V1: process.env.FEATURE_VECTORIZE_ONLY_V1,
- FEATURE_ZYRA_IDEA_RUNTIME_V1: process.env.FEATURE_ZYRA_IDEA_RUNTIME_V1,
- FEATURE_ADMIN_TUTOR_WORKFLOW_V1: process.env.FEATURE_ADMIN_TUTOR_WORKFLOW_V1,
- FEATURE_MURID_IDEA_WORKFLOW_V1: process.env.FEATURE_MURID_IDEA_WORKFLOW_V1,
-  FEATURE_PEMAHAMAN_IDE_V1: process.env.FEATURE_PEMAHAMAN_IDE_V1,
    FEATURE_ZYRA_ALLOWANCE_V2: process.env.FEATURE_ZYRA_ALLOWANCE_V2,
    FEATURE_ZYRA_PROVIDER_ROUTER_V2: process.env.FEATURE_ZYRA_PROVIDER_ROUTER_V2,
    FEATURE_ZYRA_SEMANTIC_CACHE_V1: process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
-   FEATURE_ZYRA_PEDAGOGY_V3: process.env.FEATURE_ZYRA_PEDAGOGY_V3,
    FEATURE_ZYRA_PERSONALIZATION_V1: process.env.FEATURE_ZYRA_PERSONALIZATION_V1,
    FEATURE_ZYRA_LEARNING_CANVAS_V1: process.env.FEATURE_ZYRA_LEARNING_CANVAS_V1,
    FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.FEATURE_ZYRA_IMAGE_INPUT_V1,
-   FEATURE_ZYRA_MURID_V3: process.env.FEATURE_ZYRA_MURID_V3,
    FEATURE_ZYRA_SELECTION_ASK_V1: process.env.FEATURE_ZYRA_SELECTION_ASK_V1,
    FEATURE_ZYRA_PET_V1: process.env.FEATURE_ZYRA_PET_V1,
    FEATURE_ZYRA_TUTOR_COPILOT_V1: process.env.FEATURE_ZYRA_TUTOR_COPILOT_V1,
@@ -359,6 +267,7 @@ export const env = createEnv({
   FEATURE_MEDIA_LIBRARY: process.env.FEATURE_MEDIA_LIBRARY,
   FEATURE_LINK_LIBRARY: process.env.FEATURE_LINK_LIBRARY,
   FEATURE_FORM_PRESETS: process.env.FEATURE_FORM_PRESETS,
+  FEATURE_DIKTAT_AI: process.env.FEATURE_DIKTAT_AI,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,

@@ -19,7 +19,6 @@ export interface TutorCapabilities {
 
 const IMAGE_INPUT_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1 === "1";
 const CANVAS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1 === "1";
-const MURID_EXPERIENCE_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_MURID_V3 === "1";
 const PET_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_PET_V1 === "1";
 
 const ALL_ON: TutorCapabilities = {
@@ -30,7 +29,7 @@ const ALL_ON: TutorCapabilities = {
   microApps: true,
   imageInput: IMAGE_INPUT_ENABLED,
   canvas: CANVAS_ENABLED,
-  muridExperience: MURID_EXPERIENCE_ENABLED,
+  muridExperience: true,
   pet: PET_ENABLED,
 };
 
@@ -42,7 +41,7 @@ const PKA_CAPS: TutorCapabilities = {
   microApps: false,
   imageInput: IMAGE_INPUT_ENABLED,
   canvas: CANVAS_ENABLED,
-  muridExperience: MURID_EXPERIENCE_ENABLED,
+  muridExperience: true,
   pet: PET_ENABLED,
 };
 

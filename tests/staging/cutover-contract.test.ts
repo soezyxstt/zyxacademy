@@ -3,20 +3,11 @@ import {
   assertExactStagingPineconeTarget,
   classifyPineconeCaller,
   isLegacyWriteCaller,
-  rehearseFlagSequence,
   stagingPineconeFingerprint,
   STAGING_PINECONE_NOT_PROVISIONED,
 } from "@/lib/staging/cutover-contract";
 
 describe("Plan 016 cutover contracts", () => {
-  it("rehearses canonical enable, full rollback, and re-enable", () => {
-    const sequence = rehearseFlagSequence();
-    expect(sequence.routeAfterEnable).toBe("canonical-v2");
-    expect(sequence.routeAfterRollback).toBe("legacy-rollback");
-    expect(sequence.enabled.FEATURE_VECTORIZE_ONLY_V1).toBe("1");
-    expect(sequence.rolledBack.FEATURE_VECTORIZE_ONLY_V1).toBe("0");
-  });
-
   it("accepts only exact staging Pinecone targets", () => {
     expect(() => assertExactStagingPineconeTarget("zyx-staging-index")).not.toThrow();
     expect(stagingPineconeFingerprint("zyx-staging-index")).toHaveLength(16);

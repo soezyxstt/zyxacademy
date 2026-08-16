@@ -5,7 +5,7 @@ type AlertRule = {
   severity: ZyraOpsAlert["severity"];
   dedupKey: ZyraOpsAlert["dedupKey"];
   runbook: ZyraOpsAlert["runbook"];
-  rollbackFlag: ZyraOpsAlert["rollbackFlag"];
+  rollbackFlag?: ZyraOpsAlert["rollbackFlag"];
   signals: readonly string[];
 };
 
@@ -87,7 +87,6 @@ const EVENT_ALERT_RULES: readonly AlertRule[] = [
     severity: "critical",
     dedupKey: "assessment-leak",
     runbook: "docs/operations/zyra-ops-runbooks.md#assessment-safety",
-    rollbackFlag: "FEATURE_ZYRA_PEDAGOGY_V3",
     signals: ["ASSESSMENT_LEAK", "DIRECT_ANSWER_LEAK"],
   },
   {
@@ -149,7 +148,6 @@ export function evaluateZyraOpsAlerts(metrics: ZyraOpsMetrics): ZyraOpsAlert[] {
       severity: "critical",
       dedupKey: "teaching-validation",
       runbook: "docs/operations/zyra-ops-runbooks.md#teaching-validation",
-      rollbackFlag: "FEATURE_ZYRA_PEDAGOGY_V3",
     });
   }
   if (metrics.projectSlots.every((slot) => slot.health === "degraded")) {

@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
  }
 
  // Fire mastery recompute for each distinct student
- if (env.FEATURE_MASTERY === "1") {
+ {
  const studentIds = [...new Set(leaderboard.map((e) => e.userId))];
  await Promise.allSettled(
  studentIds.map((studentId) =>

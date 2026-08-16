@@ -188,4 +188,4 @@ Keep existing function signatures temporarily, but require each caller to select
 
 ## Rollback and maintenance
 
-The compatibility exports allow traffic to stay on the old route policy. Roll back by disabling the new provider feature flag, not by restoring invalid model IDs. Update quota data through a versioned registry change plus contract tests; never silently edit a constant in a caller.
+The compatibility exports allow traffic to stay on the old route policy during a controlled provider-router rollout. Roll back by disabling `FEATURE_ZYRA_PROVIDER_ROUTER_V2`, not by restoring invalid model IDs. Update quota data through a versioned registry change plus contract tests; never silently edit a constant in a caller.

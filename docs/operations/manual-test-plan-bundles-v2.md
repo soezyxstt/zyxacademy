@@ -16,11 +16,11 @@ Contracts under test: `docs/bundle/idea-bundle-v2.md`, `docs/bundle/product-bund
 |---|---|
 | Branch | `staging` |
 | Flags | `FEATURE_IDEA_BUNDLE_V2=1`, `FEATURE_PRODUCT_BUNDLE_V2=1` |
-| Admin guard flag | `FEATURE_PERAN_V2` (when `1`, `/admin/*` redirects non-admin to `/`) |
+| Admin guard | Canonical `pengguna_peran` membership authorization |
 | Database | Local `dev.db`, or staging Turso. Never production. |
 | App | `bun run dev` |
 
-Restart the dev server after any flag change; flags are read through `lib/env.ts` and in route handlers through `process.env` at request time, but the page-level `notFound()` reads the validated `env` object.
+Restart the dev server after changing the retained bundle flags; they are read through `lib/env.ts` and route handlers. Canonical membership authorization is not flag-gated.
 
 ### 1.2 Accounts
 
@@ -301,7 +301,7 @@ After every case in 4.1, confirm nothing was written to a filesystem path: the r
 
 ### 4.2 Role matrix
 
-The panels live under `app/(admin)/layout.tsx`, which redirects any non-admin to `/` when `FEATURE_PERAN_V2=1`. So teacher review must be exercised against the API directly, not the UI.
+The panels live under `app/(admin)/layout.tsx`, which redirects any non-admin to `/` through canonical membership authorization. Teacher review can therefore be exercised through the UI and API according to the role matrix.
 
 | Case | Actor | Action | Expected |
 |---|---|---|---|

@@ -114,7 +114,7 @@ Keep local counters only as debug metrics. Admin-facing remaining quota, circuit
 
 **Verify**: cold-start simulation does not reset admin quota totals.
 
-### Step 7: Stage behind the feature flag
+### Step 7: Stage behind the retained provider-router flag
 
 Run offline tests, then a bounded real-provider suite across four projects. Enable only for dedicated staging identities. Rehearse off, on, injected failure, and rollback.
 

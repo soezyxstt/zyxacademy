@@ -61,7 +61,7 @@ const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" 
   retired: "error",
 };
 
-const provenanceEnabled = process.env.NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1 === "1";
+const provenanceEnabled = true;
 
 export function QuestionBankClient({ questions, courses, courseMap }: Props) {
   const router = useRouter();

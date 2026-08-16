@@ -10,7 +10,6 @@ import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { getCourse } from "@/lib/course-utils";
 import { StudyPathTimeline } from "@/components/course/study-path-timeline";
-import { env } from "@/lib/env";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -24,10 +23,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CoursePathPage({ params }: Props) {
-  if (env.FEATURE_STUDY_PATH !== "1") {
-    notFound();
-  }
-
   const { id } = await params;
   const course = await getCourse(id);
   if (!course) notFound();

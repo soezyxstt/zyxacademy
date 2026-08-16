@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   const { templateId } = parsed.data;
   const studentId = session.user.id;
-  const assessmentV2Enabled = env.FEATURE_ASESMEN_IDE_V1 === '1';
+  const assessmentV2Enabled = true;
 
  const [template] = await db
  .select()

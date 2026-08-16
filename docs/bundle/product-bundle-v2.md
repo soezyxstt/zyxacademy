@@ -49,7 +49,7 @@ The only public lifecycle is:
 draft -> published -> withdrawn
 ```
 
-The public API is feature gated by `FEATURE_PRODUCT_BUNDLE_V2`. Setting the flag to `0` hides the page and disables the routes. Learner and bank provenance labels are gated by `NEXT_PUBLIC_FEATURE_QUESTION_PROVENANCE_V1`. Legacy importers remain available as rollback paths.
+The public API remains gated by the retained category 4 flag `FEATURE_PRODUCT_BUNDLE_V2`. Setting the flag to `0` hides the page and disables the routes. Learner and bank provenance labels render whenever provenance metadata exists. Legacy importers remain available as rollback paths.
 
 ## ITB question source contract
 

@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { env } from "@/lib/env";
 import { getIdeaMasteryWithFallback } from "@/lib/pemahaman/compatibility";
 
 export async function GET(request: NextRequest) {
-  if (env.FEATURE_PEMAHAMAN_IDE_V1 !== "1") {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

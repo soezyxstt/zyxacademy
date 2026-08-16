@@ -129,7 +129,7 @@ async function main(): Promise<void> {
     rollback: {
      attempted: false,
      passed: false,
-     detail: "The staging-only membership may remain for Plan 002 smoke; FEATURE_PERAN_V2 remains off until reconciliation passes.",
+     detail: "The staging-only membership may remain for Plan 002 smoke; legacy user.role remains preserved for compatibility.",
     },
     operatorTimestamp: new Date().toISOString(),
    };

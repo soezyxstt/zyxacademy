@@ -2,19 +2,15 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasPeran } from "@/lib/auth/authorization";
-import { env } from "@/lib/env";
 import { getMuridDashboardReadModel } from "@/lib/murid/read-model";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ path: string[] }> },
 ): Promise<Response> {
-  if (env.FEATURE_MURID_IDEA_WORKFLOW_V1 !== "1") {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (env.FEATURE_PERAN_V2 === "1" && !(await hasPeran(session.user.id, "murid", { allowAdmin: true }))) {
+  if (!(await hasPeran(session.user.id, "murid", { allowAdmin: true }))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

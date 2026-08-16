@@ -1,7 +1,6 @@
 import { join } from "node:path";
 import { currentSourceCommit, parseCliArgs, requiredCliArg, readArtifact, writeArtifact } from "@/lib/staging/migration-ledger";
 import { assertStagingEnvironment, parseEnvFile, safeGuardError } from "@/lib/staging/staging-guard";
-import { CUTOVER_FLAG_ORDER, rehearseFlagSequence } from "@/lib/staging/cutover-contract";
 import { vectorStoreRoute } from "@/lib/vector-store";
 
 type RequiredArtifact = {
@@ -63,23 +62,9 @@ async function main(): Promise<void> {
     const plan013 = predecessorArtifact("013");
     const plan014 = predecessorArtifact("014");
     const plan015 = predecessorArtifact("015");
-    const sequence = rehearseFlagSequence();
-    const previous = new Map<string, string | undefined>();
-    for (const flag of CUTOVER_FLAG_ORDER) previous.set(flag, process.env[flag]);
-    for (const [flag, value] of Object.entries(sequence.enabled)) process.env[flag] = value;
-    const enabledRoute = vectorStoreRoute("1");
-    for (const [flag, value] of Object.entries(sequence.rolledBack)) process.env[flag] = value;
-    const rollbackRoute = vectorStoreRoute("0");
-    for (const [flag, value] of Object.entries(sequence.reenabled)) process.env[flag] = value;
-    const reenabledRoute = vectorStoreRoute("1");
-    for (const [flag, value] of previous) {
-      if (value === undefined) delete process.env[flag];
-      else process.env[flag] = value;
-    }
+    const route = vectorStoreRoute();
     const findings = [
-      ...(enabledRoute !== "canonical-v2" ? [{ code: "ENABLE_ROUTE_FAILED" }] : []),
-      ...(rollbackRoute !== "legacy-rollback" ? [{ code: "ROLLBACK_ROUTE_FAILED" }] : []),
-      ...(reenabledRoute !== "canonical-v2" ? [{ code: "REENABLE_ROUTE_FAILED" }] : []),
+      ...(route !== "canonical-v2" ? [{ code: "CANONICAL_ROUTE_FAILED" }] : []),
       ...(requiredArtifacts.some(({ artifact, plan }) => artifact.status !== "passed" || artifact.planNumber !== plan || artifact.runId !== predecessorRuns.find((predecessor) => predecessor.plan === plan)?.runId)
         ? [{ code: "REQUIRED_PREDECESSOR_ARTIFACT_MISSING" }]
         : []),
@@ -102,7 +87,7 @@ async function main(): Promise<void> {
       stagingResourceFingerprints: guard.resources,
       stagingOnly: true,
       withRollback,
-      rehearsal: { enabledRoute, rollbackRoute, reenabledRoute, flags: CUTOVER_FLAG_ORDER },
+      rehearsal: { route, canonicalAlwaysOn: true },
       zeroLossCounters: {
         rows: pkaDifferences,
         keys: vectorizeDiffCount,
@@ -121,7 +106,7 @@ async function main(): Promise<void> {
       operatorTimestamp: new Date().toISOString(),
     };
     await writeArtifact(runId, "plan-016-rehearsal.json", artifact);
-    console.log(JSON.stringify({ status: artifact.status, runId, enabledRoute, rollbackRoute, reenabledRoute, findings: findings.length }));
+    console.log(JSON.stringify({ status: artifact.status, runId, route, findings: findings.length }));
     if (artifact.status !== "passed") process.exitCode = 1;
   } catch (error) {
     const safe = safeGuardError(error);

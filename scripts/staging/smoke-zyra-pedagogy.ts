@@ -192,9 +192,6 @@ async function runStartupDiagnostics(
         if (missing.length > 0) {
           throw new Error(`PEDAGOGY_SHADOW_MISSING_CONFIG:${missing.join(",")}`);
         }
-        if (process.env.FEATURE_ZYRA_PEDAGOGY_V3 === "1") {
-          throw new Error("PEDAGOGY_STARTUP_FEATURE_FLAG_MUST_REMAIN_DISABLED");
-        }
         const maxCases = boundedPedagogyShadowCaseCount(maxProviderRequests);
         if (maxCases < 1) throw new Error("PEDAGOGY_SHADOW_PROVIDER_BUDGET_TOO_SMALL");
         return {

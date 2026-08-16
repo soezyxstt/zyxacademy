@@ -490,9 +490,6 @@ async function main() {
   // Gate 5.6: P2 Recommendation Rewire
   // ==========================================
   console.log("\n--- Running Gate 5.6: P2 Recommendation Rewire Check ---");
-  // Set FEATURE_STUDY_PATH=1
-  process.env.FEATURE_STUDY_PATH = "1";
-
   // Recompute path for Student A
   const path = await recomputeStudyPath(studentAId, courseId);
   const activeStep = path.find((s) => s.status === "available" || s.status === "in_progress");

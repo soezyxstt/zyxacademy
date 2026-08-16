@@ -13,12 +13,7 @@ export default async function TutorLayout({ children }: { children: ReactNode })
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/");
 
-  if (env.FEATURE_PERAN_V2 === "1") {
-    if (!(await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: true }))) redirect("/");
-  } else {
-    const role = (session.user as { role?: string | null }).role;
-    if (role !== "teacher" && role !== "admin") redirect("/");
-  }
+  if (!(await hasAnyPeran(session.user.id, ["tutor"], { allowAdmin: true }))) redirect("/");
 
   return (
     <div className="relative flex min-h-screen flex-row bg-background overflow-x-clip">

@@ -133,7 +133,6 @@ async function main(): Promise<void> {
     });
     if (fixture !== "dedicated") throw new Error("ASSESSMENT_FIXTURE_MUST_BE_DEDICATED");
     if (!guard.mutationAllowed) throw new Error("STAGING_MUTATION_NOT_ENABLED");
-    process.env.FEATURE_ASESMEN_IDE_V1 = "1";
 
     const [actor] = await db.select({ id: user.id }).from(user).where(eq(user.role, "admin")).limit(1);
     if (!actor) throw new Error("STAGING_ASSESSMENT_ADMIN_PREREQUISITE_MISSING");
@@ -418,7 +417,7 @@ async function main(): Promise<void> {
       fallbackReason: resolution.fallbackReason,
       requestedNormalizedMismatch: resolution.requestedNormalizedMismatch,
       resources: guard.resources,
-      featureFlags: { FEATURE_ASESMEN_IDE_V1: "1" },
+      runtimePolicy: { canonicalAssessment: "always-on" },
       stagingWrites: true,
       flow: ["create", "publish", "start", "answer", "submit", "summary"],
       createdIds: ids,

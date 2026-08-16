@@ -6,7 +6,6 @@ import { randomUUID } from "crypto";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { preprocessMarkdown, safeParseJson, slugify } from "./ko-utils";
-import { env } from "@/lib/env";
 import { generateStableKoKey, computeSemanticKoHash, reconcileKoExtractionRun } from "@/lib/knowledge/identity";
 
 // ─── UTILITIES FOR CONCEPT RESOLUTION & MATCHING ──────────────────────────────
@@ -745,7 +744,7 @@ export async function extractKnowledgeObjectsForChapter(
 
  // 2. Preprocess PDF-derived markdown
  const cleanedMarkdown = preprocessMarkdown(chapterMarkdown);
- const preprocessedMarkdown = env.FEATURE_KO_PIPELINE_V2 === "1" ? cleanedMarkdown : cleanedMarkdown.slice(0, 30_000);
+ const preprocessedMarkdown = cleanedMarkdown;
 
  // Cap existing concepts list sent to model ; too many concepts bloat the prompt
  const existingConceptsCapped = existingConcepts.slice(0, 300);
@@ -1113,10 +1112,7 @@ export async function extractKnowledgeObjectsForChapter(
     const nextVersion = existingMtd ? (derivedHashChanged ? existingMtd.version + 1 : existingMtd.version) : 1;
 
     await db.transaction(async (tx) => {
-      const isV2Enabled = env.FEATURE_KO_PIPELINE_V2 === '1';
-
-      if (isV2Enabled) {
-        // V2 Non-destructive KO Upsert & Provenance Reconciliation
+      // Non-destructive KO upsert and provenance reconciliation.
         const existingKos = await tx
           .select({
             id: knowledgeObjects.id,
@@ -1245,19 +1241,6 @@ export async function extractKnowledgeObjectsForChapter(
               }
             }
           }
-        }
-      } else {
-        // Legacy: Delete previous KOs for this chapter to prevent duplicates
-        await tx.delete(knowledgeObjects).where(eq(knowledgeObjects.chapterId, chapterId));
-
-        // Insert new registry concepts if any
-        if (newConceptsToRegister.length > 0) {
-          await tx.insert(concepts).values(newConceptsToRegister);
-          await tx.insert(conceptLocalizations).values(newLocalizationsToRegister);
-        }
-
-        // Insert new KOs
-        await tx.insert(knowledgeObjects).values(koValues);
       }
 
       // Update MTD record with new version and hashes

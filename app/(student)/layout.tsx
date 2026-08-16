@@ -8,8 +8,8 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
     <div className="relative flex min-h-screen flex-row bg-background overflow-x-clip">
       <PageOrnaments variant="about" />
       <StudentSidebar
-        showStudyPath={env.FEATURE_STUDY_PATH === "1"}
-        showMastery={env.FEATURE_MASTERY === "1"}
+        showStudyPath
+        showMastery
         showLive={env.FEATURE_LIVE === "1"}
         showNotificationPreferences={env.FEATURE_NOTIFICATION_PREFERENCES === "1"}
       />

@@ -126,11 +126,9 @@ async function main(): Promise<void> {
   const previousFlags = {
     FEATURE_ZYRA_ALLOWANCE_V2: process.env.FEATURE_ZYRA_ALLOWANCE_V2,
     FEATURE_ZYRA_PROVIDER_ROUTER_V2: process.env.FEATURE_ZYRA_PROVIDER_ROUTER_V2,
-    FEATURE_AI_PROVIDER_REGISTRY_V1: process.env.FEATURE_AI_PROVIDER_REGISTRY_V1,
   };
   process.env.FEATURE_ZYRA_ALLOWANCE_V2 = "1";
   process.env.FEATURE_ZYRA_PROVIDER_ROUTER_V2 = "1";
-  process.env.FEATURE_AI_PROVIDER_REGISTRY_V1 = "1";
 
   const projectAliasCounts: Record<string, number> = {};
   const modelCounts: Record<string, number> = {};

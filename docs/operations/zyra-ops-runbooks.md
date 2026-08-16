@@ -46,11 +46,11 @@ Disable `FEATURE_ZYRA_IMAGE_INPUT_V1` if sanitizer failures exceed the accepted 
 
 ## Assessment safety
 
-Disable `FEATURE_ZYRA_PEDAGOGY_V3` and image input for the affected canary, preserve the leak-scan artifact, and block active-assessment traffic until the policy and validator fixtures pass again.
+Roll back the deployment and disable image input for the affected canary, preserve the leak-scan artifact, and block active-assessment traffic until the policy and validator fixtures pass again.
 
 ## Teaching validation
 
-Keep the typed response boundary fail-closed, inspect stable violation codes, and disable `FEATURE_ZYRA_PEDAGOGY_V3` if deterministic safe composition is not available.
+Keep the typed response boundary fail-closed, inspect stable violation codes, and roll back the deployment if deterministic safe composition is not available.
 
 ## Telemetry loss
 

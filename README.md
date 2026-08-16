@@ -20,6 +20,100 @@ cp .env.example .env.local   # fill in secrets
 bun run dev                   # http://localhost:3000
 ```
 
+## Kontribusi fitur
+
+Gunakan branch turunan dari `staging`. Jangan push langsung ke branch `staging` atau `main`.
+
+### 1. Clone repository dan buat branch
+
+```bash
+git clone https://github.com/soezyxstt/zyx-edu.git
+cd zyx-edu
+git fetch origin staging
+git switch -c feature/nama-fitur origin/staging
+```
+
+Ganti `feature/nama-fitur` dengan nama branch yang menjelaskan perubahan.
+
+### 2. Install dependency
+
+```bash
+bun install
+cp .env.example .env.local
+```
+
+Isi `.env.local` dengan nilai lokal yang diperlukan. Jangan commit secret atau file `.env.local`.
+
+### 3. Tambahkan fitur
+
+- Baca `AGENTS.md` dan dokumentasi terkait sebelum mengubah kode.
+- Ikuti design system dan pola arsitektur yang sudah ada.
+- Jika fitur perlu feature flag, tambahkan flag tersebut melalui `lib/env.ts` dan gunakan nilai `1` untuk mengaktifkannya.
+- Jika fitur mengubah database, ikuti alur schema dan migration yang dijelaskan di `AGENTS.md`.
+- Perbarui dokumentasi yang terdampak.
+
+### 4. Jalankan validasi dan perbaiki error
+
+```bash
+bun run lint
+bun run build
+```
+
+Jika ada error, perbaiki perubahan di branch yang sama lalu ulangi `bun run lint` dan `bun run build` sampai keduanya berhasil. Jangan lanjut ke tahap berikutnya jika masih ada error.
+
+### 5. Sinkronkan branch dengan staging
+
+Setelah validasi lokal berhasil, ambil perubahan terbaru dari `staging` dan rebase branch fitur di atasnya:
+
+```bash
+git fetch origin staging
+git pull --rebase origin staging
+```
+
+Jika terjadi conflict, selesaikan conflict, jalankan `git add <file>`, lalu lanjutkan dengan `git rebase --continue`. Setelah rebase selesai, ulangi validasi:
+
+```bash
+bun run lint
+bun run build
+git diff --check
+```
+
+### 6. Push branch ke origin
+
+```bash
+git push -u origin feature/nama-fitur
+```
+
+### 7. Buat pull request
+
+Buat PR dengan target branch `staging`. Deskripsikan fitur dan perubahan yang dibuat. Sertakan hasil validasi serta daftar environment variable baru, atau tulis `Tidak ada` jika tidak ada env variable yang ditambahkan.
+
+Gunakan struktur berikut dalam deskripsi PR:
+
+```md
+## Ringkasan fitur
+- Jelaskan fitur dan masalah yang diselesaikan.
+
+## Perubahan utama
+- Jelaskan area kode, UI, API, database, atau dokumentasi yang berubah.
+
+## Validasi
+- [ ] `bun run lint`
+- [ ] `bun run build`
+- [ ] `git diff --check`
+
+## Environment variable
+- Tidak ada
+
+<!-- Jika ada, ganti bagian di atas dengan daftar berikut:
+- `NAMA_VARIABLE`: wajib atau opsional, tujuan, dan contoh nilai non-secret.
+- Sudah ditambahkan ke `.env.example` dan `lib/env.ts`.
+-->
+
+## Catatan tambahan
+- Jelaskan migration, feature flag, risiko, atau langkah manual yang diperlukan.
+```
+
 ## Reference
 
 - **[AGENT_CONTEXT.md](AGENT_CONTEXT.md)**; current development state, blockers, standing decisions

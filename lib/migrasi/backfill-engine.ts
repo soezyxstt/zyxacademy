@@ -1197,10 +1197,7 @@ export function reportToEvidence(report: Report, sourceCommit = currentSourceCom
       mappings: sha256Text(stableStringify(report.mappedRows)),
       exceptions: sha256Text(stableStringify(report.exceptionRows)),
     },
-    featureFlags: {
-      FEATURE_ARSITEKTUR_IDE_V1: process.env.FEATURE_ARSITEKTUR_IDE_V1,
-      FEATURE_DUAL_WRITE_IDE: process.env.FEATURE_DUAL_WRITE_IDE,
-    },
+    runtimePolicy: { canonicalRepository: "always-on", legacyTablesPreserved: true },
     rollback: { attempted: false, passed: true, detail: "Legacy tables were not deleted or rewritten." },
     operatorTimestamp: new Date().toISOString(),
     knownLimitations: report.warnings,

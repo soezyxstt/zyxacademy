@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { env } from "@/lib/env";
 import { getMuridDashboardReadModel } from "@/lib/murid/read-model";
 
 export default async function MuridHomePage() {
-  if (env.FEATURE_MURID_IDEA_WORKFLOW_V1 !== "1") notFound();
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/sign-in?next=%2Fmurid");
   const model = await getMuridDashboardReadModel(session.user.id);

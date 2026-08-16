@@ -11,11 +11,9 @@ import { grantAdminEditorAccessToDriveItems } from "@/lib/google-drive-permissio
 
 export async function GET() {
   try {
-    if (env.FEATURE_PERAN_V2 === "1") {
-      const session = await auth.api.getSession({ headers: await headers() });
-      if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
-        return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
-      }
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
+      return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
     }
 
     const formsList = await db
@@ -33,13 +31,11 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     let createdById: string | undefined;
-    if (env.FEATURE_PERAN_V2 === "1") {
-      const session = await auth.api.getSession({ headers: await headers() });
-      if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
-        return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
-      }
-      createdById = session.user.id;
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
+      return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
     }
+    createdById = session.user.id;
 
     const body = await req.json().catch(() => ({}));
     const title = (body.title || "").trim();

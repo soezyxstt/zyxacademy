@@ -12,38 +12,31 @@ import {
 } from "@/lib/staging/migration-ledger";
 import { vectorStoreRoute } from "@/lib/vector-store";
 
+/**
+ * Compatibility entry point for the legacy command name.
+ * Canonical Vectorize is always-on, so this validates one route only.
+ */
 async function main(): Promise<void> {
   const args = parseCliArgs();
-  const flag = requiredCliArg(args, "flag");
-  if (flag !== "FEATURE_VECTORIZE_ONLY_V1") throw new Error("Plan 012 rehearsal only supports FEATURE_VECTORIZE_ONLY_V1");
-  const runId = typeof args["run-id"] === "string" ? args["run-id"] : `plan012-flag-${Date.now()}`;
+  const runId = requiredCliArg(args, "run-id");
 
   try {
     assertStagingEnvironment({
       productionEnv: parseEnvFile(join(process.cwd(), ".env.prod")),
       requiredResources: ["database", "authUrl", "vectorizeWorker"],
     });
-    const previous = process.env[flag];
-    process.env[flag] = "1";
-    const enabledRoute = vectorStoreRoute();
-    process.env[flag] = "0";
-    const rollbackRoute = vectorStoreRoute();
-    if (previous === undefined) delete process.env[flag];
-    else process.env[flag] = previous;
-
+    const route = vectorStoreRoute();
     const artifact = {
-      status: enabledRoute === "canonical-v2" && rollbackRoute === "legacy-rollback" ? "passed" : "failed",
+      status: route === "canonical-v2" ? "passed" : "failed",
       runId,
-      flag,
-      enabledRoute,
-      rollbackRoute,
+      route,
+      policy: "canonical-always-on",
       enabledProfile: "canonical-content-v2",
       enabledDimensions: 768,
-      oldIndexWritesDuringEnabledRoute: 0,
-      rollbackWritesProduced: 0,
+      legacyIndexWrites: 0,
     };
-    await writeArtifact(runId, "plan-012-flag-rehearsal.json", artifact);
-    console.log(JSON.stringify({ ...artifact, artifact: artifactFile(runId, "plan-012-flag-rehearsal.json") }));
+    await writeArtifact(runId, "plan-012-route-rehearsal.json", artifact);
+    console.log(JSON.stringify({ ...artifact, artifact: artifactFile(runId, "plan-012-route-rehearsal.json") }));
     if (artifact.status !== "passed") process.exitCode = 1;
   } catch (error) {
     const safe = safeGuardError(error);

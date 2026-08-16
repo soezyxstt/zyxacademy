@@ -89,7 +89,7 @@ Create a read-only staging manifest for counts, primary-key hashes, per-user tot
 
 Add an expand-only table with opaque lease ID, idempotency key, user ID foreign key, resolved peran, feature, app-day, units, premium flag, status, control-plane lease ID, created, dispatched, resolved, and expiry timestamps. Use enums or checked application contracts for `reserved`, `dispatched`, `committed`, and `refunded`.
 
-Do not backfill one lease per legacy event. Legacy events remain historical reporting input; the new table becomes authoritative only after the feature flag switches.
+Do not backfill one lease per legacy event. Legacy events remain historical reporting input; the new table becomes authoritative when `FEATURE_ZYRA_ALLOWANCE_V2` is enabled.
 
 **Verify**: `bun run db:generate` produces only additive DDL. Inspect the generated migration. Then `bun run db:migrate` on the guarded staging target exits 0.
 
@@ -140,7 +140,7 @@ bun --env-file=.env.staging scripts/staging/reconcile-ai-usage.ts --run-id <runI
 git diff --check
 ```
 
-Pass when oversubscription is zero, all accepted requests have one authoritative lease, legacy row counts and hashes do not change, cache hits consume zero provider turns, terminal transitions are idempotent, and the feature flag rollback preserves old and new history.
+Pass when oversubscription is zero, all accepted requests have one authoritative lease, legacy row counts and hashes do not change, cache hits consume zero provider turns, terminal transitions are idempotent, and `FEATURE_ZYRA_ALLOWANCE_V2` rollback preserves old and new history.
 
 ## Test plan
 

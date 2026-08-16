@@ -27,7 +27,6 @@ export class PedagogyShadowGuardError extends Error {
 
 export interface ResolvePedagogyExecutionModeInput {
   requestedMode?: PedagogyExecutionMode;
-  featureEnabled: boolean;
   environment?: string;
   configuredShadowUserId?: string;
   userId: string;
@@ -36,7 +35,7 @@ export interface ResolvePedagogyExecutionModeInput {
 export function resolvePedagogyExecutionMode(
   input: ResolvePedagogyExecutionModeInput,
 ): PedagogyExecutionMode {
-  const mode = input.requestedMode ?? (input.featureEnabled ? "primary" : "legacy");
+  const mode = input.requestedMode ?? "primary";
   if (mode !== "shadow") return mode;
 
   if (input.environment?.trim().toLowerCase() !== "staging") {

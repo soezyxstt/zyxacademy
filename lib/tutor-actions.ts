@@ -7,7 +7,6 @@ import { ContextAssembly } from "./context-assembly";
 import { PromptExecutor } from "./prompt-executor";
 import { tutorExplainConcept, tutorAnalyzeMistake } from "@/prompts/tutor";
 import { generateQuestionsForKO } from "@/lib/question-generator";
-import { env } from "@/lib/env";
 import { askTutorRag } from "@/lib/tutor-rag";
 import { USE_CASES } from "@/lib/ai-router";
 import { z } from "zod";
@@ -202,24 +201,22 @@ export class TutorActionService {
         difficulty: ko.difficulty,
       };
 
-      if (env.FEATURE_TUTOR_RAG === "1") {
-        try {
-          const rag = await askTutorRag({
-            studentId: userId,
-            courseId: ko.courseId,
-            chapterId: ko.chapterId,
-            question: `Explain the concept: ${ko.conceptName}`,
-          });
-          data.sources = rag.sources;
-          data.grounded = rag.grounded;
-          data.matchedConcepts = rag.matchedConcepts;
-          data.addendum = rag.addendum;
-          data.personalized = rag.personalized;
-          data.budgetExhausted = rag.budgetExhausted;
-        } catch (err) {
-          // Grounding is additive; never block the deterministic content on failure.
-          console.warn("[Tutor RAG] grounding skipped:", (err as Error)?.message);
-        }
+      try {
+        const rag = await askTutorRag({
+          studentId: userId,
+          courseId: ko.courseId,
+          chapterId: ko.chapterId,
+          question: `Explain the concept: ${ko.conceptName}`,
+        });
+        data.sources = rag.sources;
+        data.grounded = rag.grounded;
+        data.matchedConcepts = rag.matchedConcepts;
+        data.addendum = rag.addendum;
+        data.personalized = rag.personalized;
+        data.budgetExhausted = rag.budgetExhausted;
+      } catch (err) {
+        // Grounding is additive; never block the deterministic content on failure.
+        console.warn("[Tutor RAG] grounding skipped:", (err as Error)?.message);
       }
 
       return { success: true, data, errors: [] };
