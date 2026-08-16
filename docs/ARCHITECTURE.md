@@ -211,6 +211,24 @@ The private download route resolves an audited pack ID to its exact R2 key, chec
 
 The Authoring Job Pack contract is documented in `docs/bundle/authoring-job-pack-v1.md`. Product authoring still requires a fresh Authoring Context Pack after official Idea publication; the initial job never substitutes local candidate Idea identities for canonical ones.
 
+### Provider-neutral Authoring MCP
+
+The first MCP boundary is a stateless Streamable HTTP adapter at `/api/mcp/authoring`. It creates a fresh MCP server per request and calls repository validators rather than duplicating bundle rules. Any MCP host can discover the same tools, including Gemini, Claude, and ChatGPT integrations.
+
+```mermaid
+flowchart LR
+    H[Gemini, Claude, or ChatGPT host] --> M[Authenticated MCP endpoint]
+    M --> W[Workflow registry]
+    W --> S[Source Pack validator and quality report]
+    W --> B[Idea and Product validators and quality gates]
+    W --> Q[Quiz draft validator]
+    B --> R[Existing admin review boundary]
+    Q --> R
+    R --> P[Admin publication]
+```
+
+`workflow.list` returns only `idea_product` and `quiz_bank`; there is no combined option and no product-family selection. The agent receives course and chapter choices as signed opaque keys. After `workflow.start`, the signed run token carries the locked scope and Source Pack checksum without exposing internal IDs. `source.ingest` requires original binaries outside the ZIP so the server can independently verify `originalSha256`. Canonical quality modules under `lib/authoring/quality/` produce structured technical and content reports. Idea validation checks source coverage and duplicate candidates; Product validation checks published Idea scope, fresh dependencies, Article and Diktat density, and provenance. Idea and Product submission tools revalidate and reuse `stageIdeaBundle` and `stageProductBundle`, so only green artifacts appear in the existing review inventory. MCP authentication is login-aware: Better Auth sessions are accepted directly for same-origin requests, while remote MCP clients use the OAuth discovery and PKCE authorization-code flow. The resulting short-lived access token contains the authenticated user and Better Auth session identity; every request rechecks that the session is live and the user is an active admin. A compatibility connection endpoint can issue a per-session bearer token after an admin login. Quiz submission validates each Knowledge Object and chapter scope, then inserts deterministic `zyx_original` rows into `ai_question_bank` with `reviewStatus=generated`; retries are idempotent by generation hash. MCP has no publication tool; the existing UI and publication services remain the source of truth for edits, review, and publication.
+
 ### Product Bundle V2
 
 Product Bundle V2 extends the additive product tables with a strict three-state lifecycle. `lib/bundle/product-validator.ts` validates the manifest and typed entity files without database writes. External authoring emits draft entities. The first admin upload returns a browser-held editable projection with full product previews and dependency mapping. `lib/bundle/product-draft.ts` applies only allowed editable fields to the original validated bundle, refreshes content hashes, Article to Diktat lineage, dependency hashes, file checksums, and the bundle checksum, then validates the reconstructed ZIP. `lib/bundle/product-staging.ts` stores the confirmed ZIP and inventory with status `draft`.
@@ -236,7 +254,7 @@ The public lifecycle is `draft -> published -> withdrawn`. A draft may be replac
 
 Question provenance crosses the compatibility boundary as data, not presentation-only state. `soal` and `ai_question_bank` store `origin`, `source_event_name`, and `source_reference_id`. Quiz attempts, tryout submissions, PKA attempts, and live quiz sessions carry the same fields in JSON snapshots. `QuestionSourceCitation` is the shared student renderer and shows a lower-right source line only for `itb_example`. The admin question bank exposes origin filtering, while the tutor tryout action copies a published bank question and its provenance into the per-exam question snapshot.
 
-External authoring is split into three bounded skills under `.temp/skill`: Source Pack translation, Idea authoring, and Product authoring. The Product skill requires both the original Authoring Job Pack and a fresh Authoring Context Pack, preventing unpublished candidate Idea identities from leaking into products. It copies ITB questions from the Source Pack, matches the exact event label to an allowed context reference, and never substitutes a benchmark ID for the dedicated source reference ID. Idea and Product skills maintain local preference-only Authoring Learning Profiles from explicit operator corrections. These profiles do not alter source truth, schemas, or quality gates and create no additional pack lifecycle.
+External authoring has three active MCP instruction skills under `.temp/skill`: `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, and `zyx-product-bundle-mcp`. They guide the agent through Source Pack, Idea, and Product workflows while MCP calls canonical repository quality modules. The prior `source-pack-translator`, `zyx-idea-authoring`, and `zyx-product-authoring` directories remain migration references only. Product authoring requires published Idea identity and fresh dependency checks, preventing unpublished candidate Ideas from leaking into products. It copies ITB questions from the Source Pack, matches the exact event label to an allowed context reference, and never substitutes a benchmark ID for the dedicated source reference ID. Preference profiles do not alter source truth, schemas, or quality gates and create no additional pack lifecycle.
 
 ### Article and Diktat Quality Compiler
 

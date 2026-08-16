@@ -91,6 +91,15 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 7. External agents use `$UPLOADER` and `$APPROVING_REVIEWER` for attribution without receiving private Zyx identity IDs. Publication resolves those sentinels to the accountable uploader and approving admin.
 8. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables both tabs and APIs when absent or `0`.
 
+### Provider-neutral Authoring MCP V1
+
+1. `/api/mcp/authoring` exposes a provider-neutral Streamable HTTP MCP endpoint. Its core does not depend on Gemini, Claude, or ChatGPT; each host discovers the same typed tools.
+2. `workflow.list` exposes exactly two choices: `idea_product` and `quiz_bank`. There is deliberately no combined workflow option. Both workflows ask only for a Source Pack, one course, and one chapter.
+3. `source.ingest` accepts a base64 Source Pack plus one ephemeral original binary per declared document. It runs secure ZIP validation, original binary checksum verification, deterministic Markdown counts, marker validation, structured visual checks, unresolved checks, and a quality report. Invalid archives or incomplete quality evidence return structured reason codes rather than a generic upload error.
+4. Course and chapter choices use short-lived signed keys, so agents and operators do not exchange raw internal IDs. `workflow.start` returns a scoped run token and a workflow contract.
+5. Idea Bundle and Product Bundle validation combines technical compatibility with repository content-quality gates. Idea checks include meaningful source coverage, provenance coverage, duplicate candidates, and formula trace warnings. Product checks include published Idea scope, dependency freshness, Article depth, Diktat coverage, examples, visuals, retrieval, traps, formulas, and ITB provenance. Valid submissions are staged into the existing bundle review inventory; valid quiz drafts are inserted into `ai_question_bank` with `reviewStatus=generated`. The staging actor is derived from the authenticated admin principal and no MCP tool can publish content.
+6. The three new instruction skills are `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, and `zyx-product-bundle-mcp`. They guide agents but do not duplicate or bypass MCP validators. MCP HTTP authorization uses the existing Better Auth admin session through MCP OAuth discovery, PKCE authorization code exchange, and short-lived audience-bound bearer tokens. A logged-in admin can also create a per-session connection token at `/api/mcp/authoring/connection` for clients without interactive OAuth. No static MCP token, manually configured actor ID, or feature flag is required. The transport is stateless and keeps run scope inside signed tokens; canonical publication continues through the authenticated admin review boundary.
+
 ### Product Bundle Workflow
 
 1. Admins upload typed ZIP bundles from `/admin/bundles/product`; the first request validates product schemas, checksums, Idea and source traceability, complete article quality coverage, assessment scope, atomic flashcards, deterministic question keys, one solution per question, draft status, consistent attribution, and holdout markers without a storage or database write.
@@ -112,10 +121,10 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Better Auth keeps
 
 ### External Authoring Skills
 
-1. `source-pack-translator` converts each source document into complete Markdown and produces a Source Pack.
-2. `zyx-idea-authoring` consumes one Authoring Job Pack and stops after a validated Idea Bundle.
-3. `zyx-product-authoring` consumes the same Authoring Job Pack plus a fresh Authoring Context Pack after Idea publication, copies only direct ITB example questions whose event labels match an allowed reference, then produces a draft Product Bundle.
+1. The active MCP instruction skills are `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, and `zyx-product-bundle-mcp`. They guide agent extraction and authoring, call the provider-neutral MCP tools, and never duplicate or bypass repository quality gates.
+2. The legacy `source-pack-translator`, `zyx-idea-authoring`, and `zyx-product-authoring` directories remain as migration references only. Their JavaScript packaging and validation scripts are not the MCP runtime authority.
 4. Idea and Product skills keep a small local Authoring Learning Profile. An explicit operator correction updates the current artifact and adds a scoped lesson for later runs. Source facts, schemas, and quality gates always override learned preferences. No Revision Pack or separate training workflow is used.
+5. Legacy packagers and validators use JavaScript and run directly with Bun. The active MCP skills do not ship duplicate validators. All workflow enforcement lives in repository TypeScript modules called by MCP, while ZIP rules still prohibit generic archivers, scripts, symlinks, and executable permission bits.
 
 ### Article and Diktat Quality Compiler
 

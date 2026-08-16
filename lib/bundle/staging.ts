@@ -31,6 +31,7 @@ export type IdeaBundleValidationReport = {
   sourceCount: number;
   relationCount: number;
   warnings: string[];
+  quality?: Record<string, unknown>;
 };
 
 export type IdeaBundleStageInput = {

@@ -2,7 +2,7 @@
 
 ## Tujuan
 
-Authoring Job Pack menyederhanakan handoff dari admin Zyx ke agent eksternal. Admin tidak perlu mencari ID mata kuliah, bab, author, snapshot, atau run. Halaman `/admin/authoring-context` menampilkan nama mata kuliah dan bab, memeriksa Source Pack tanpa penyimpanan, lalu menghasilkan satu ZIP yang siap dipakai skill `zyx-idea-authoring`.
+Authoring Job Pack adalah workflow legacy untuk handoff berbasis ZIP. Workflow aktif sekarang menggunakan tiga skill MCP baru (`zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, dan `zyx-product-bundle-mcp`) dan tidak memerlukan download Authoring Job Pack atau Authoring Context Pack sebagai langkah antar-agent. Dokumen ini dipertahankan untuk kompatibilitas dengan workflow lama dan kontrak ZIP yang masih dibaca validator.
 
 ## Alur admin
 
@@ -43,9 +43,11 @@ Attribution memakai sentinel `$UPLOADER` dan `$APPROVING_REVIEWER`. Zyx menyeles
 
 ## Hubungan dengan tiga skill
 
-`source-pack-translator` menghasilkan Source Pack. Authoring Job Pack kemudian menjadi satu-satunya input wajib `zyx-idea-authoring` untuk membuat Idea Bundle. Setelah Idea ditinjau dan dipublikasikan, admin membuat Authoring Context Pack dari tab `Lanjutkan setelah Idea`. Context Pack memakai mata kuliah yang dipilih melalui dropdown; snapshot ID dan run ID dibuat otomatis.
+Pada workflow legacy, `source-pack-translator` menghasilkan Source Pack dan `package-source-pack.js` menetapkan seluruh entry ke mode `0644`; generic archiver dan packaging direktori skill dilarang. Validator JavaScript memverifikasi binary asli, count Markdown, marker, blok visual, dan quality report. Pada workflow MCP aktif, pemeriksaan yang sama dipanggil oleh `source.ingest` dan binary asli dikirim sebagai input ephemeral `originals`. Course dan chapter dipilih melalui catalog MCP, bukan ID yang diketik operator.
 
-`zyx-product-authoring` menerima Authoring Job Pack asli dan Context Pack terbaru, lalu menghasilkan Product Bundle berstatus draft. Product Bundle hanya boleh memakai Idea resmi dari Context Pack. Authoring Job Pack tidak menghapus checkpoint publikasi Idea.
+Workflow legacy `zyx-product-authoring` menerima Authoring Job Pack dan Context Pack terbaru. Workflow MCP aktif melakukan pengecekan published Idea, version, semantic hash, dependency freshness, dan chapter scope langsung sebelum Product Bundle staging. Checkpoint publikasi Idea tetap wajib dan tidak dapat dilewati.
+
+Seluruh packager dan validator yang dibundel dalam ketiga skill memakai file `.js` dan dijalankan langsung oleh Bun. Packager menolak file tambahan dan symlink, menetapkan mode ZIP `0644`, lalu menjalankan validator kontrak sebelum menulis hasil. Import ke modul kontrak `.ts` repository tetap diizinkan karena modul tersebut adalah implementasi otoritatif aplikasi, bukan script skill.
 
 ## Validasi lokal
 

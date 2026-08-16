@@ -45,6 +45,7 @@ bun run dev                  # http://localhost:3000
 | `bun --env-file=.env.staging run staging:test-authoring-context -- --run-id <runId> --course tutorial-pka` | Export and round-trip one protected authoring context pack |
 | `bun --env-file=.env.staging run staging:scan-context-pack -- --run-id <runId>` | Rebuild and scan the Plan 007 context projection |
 | `bun --env-file=.env.staging run staging:test-product-bundle -- --run-id <runId> --fixture all` | Validate, stage, publish, and rollback-test all Product Bundle V2 types |
+| `bun test tests/contracts/authoring-mcp.test.ts` | Run provider-neutral MCP workflow and Source Pack boundary contracts |
 | `bun --env-file=.env.staging run staging:reconcile-bundle -- --run-id <runId> --type product` | Independently reconcile the Plan 008 product publication |
 | `bun --env-file=.env.staging run vectorize:prepare-index -- --run-id <runId> --env staging` | Validate the 768-dimensional canonical staging index and metadata indexes |
 | `bun --env-file=.env.staging run vectorize:backfill -- --run-id <runId> --source db --resume` | Rebuild canonical vectors from Turso through the fixed Gemini Embedding 2 profile |
@@ -84,6 +85,13 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 ### Optional ; AI Gateway
 - `CF_AI_GATEWAY_URL`, `CF_AI_GATEWAY_TOKEN` ; Cloudflare AI Gateway
 - `CF_ACCOUNT_ID`, `CF_KV_NAMESPACE_ID`, `CF_API_TOKEN` ; KV cache for tutor
+
+### Optional ; Authoring MCP
+The endpoint uses Streamable HTTP and returns JSON responses. MCP hosts discover the protected resource and authorization server metadata, then open the Zyx sign-in page. The authenticated principal must be an active admin. `source.ingest` accepts the Source Pack and ephemeral original binaries for independent checksum verification. Idea and Product tools return canonical technical and content quality reports and refuse staging when blocking issues remain. The instruction skills are `.temp/skill/zyx-source-pack-mcp`, `.temp/skill/zyx-idea-bundle-mcp`, and `.temp/skill/zyx-product-bundle-mcp`; they guide agents but MCP remains authoritative. For a host without interactive OAuth support, an authenticated admin can call `POST /api/mcp/authoring/connection` and configure the returned short-lived bearer token; the token is bound to the Better Auth session and cannot be issued by an unauthenticated caller.
+
+```text
+https://<zyx-origin>/api/mcp/authoring
+```
 
 ### Optional ; Zyra provider router
 - `ZYRA_CONTROL_PLANE_URL` ; staging control-plane Worker origin, no query string
