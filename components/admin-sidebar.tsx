@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
-  BookText,
+  ClipboardCheck,
   KeyRound,
   Zap,
   ListChecks,
@@ -19,9 +19,7 @@ import {
   Link as LinkIcon,
   Newspaper,
   Flag,
-  Layers,
-  Package,
-  ShieldCheck,
+  Upload,
   Video,
   FileText,
   BookOpen,
@@ -67,13 +65,12 @@ function AdminSidebarInner() {
     pathname === "/admin/ai/quizzes" && searchParams?.get("courseId") === "tutorial-pka";
   const pkaMaterialActive =
     pathname === "/admin/ai/materials" && searchParams?.get("courseId") === "tutorial-pka";
+  const materialsReviewActive = pathname === "/admin/materials" && searchParams?.get("tab") !== "manual";
+  const materialsManualActive = pathname === "/admin/materials" && searchParams?.get("tab") === "manual";
 
   const akademikActive =
     isPrefix("/admin/courses") ||
-    isPrefix("/admin/bundles/idea") ||
-    isPrefix("/admin/bundles/product") ||
-    isPrefix("/admin/authoring-context") ||
-    (isPrefix("/admin/ai/materials") && !pkaMaterialActive);
+    isPrefix("/admin/materials");
 
   const pkaActive =
     isPrefix("/admin/tutorial-pka") || pkaQuizActive || pkaMaterialActive;
@@ -183,10 +180,8 @@ function AdminSidebarInner() {
 
         <NavCollapsible icon={BookOpen} label="Akademik" collapsed={c} active={akademikActive}>
           <NavItem href="/admin/courses" icon={GraduationCap} label="Mata Kuliah" active={isPrefix("/admin/courses")} collapsed={c} isChild />
-          <NavItem href="/admin/bundles/idea" icon={Layers} label="Idea Bundle" active={isPrefix("/admin/bundles/idea")} collapsed={c} isChild />
-          <NavItem href="/admin/bundles/product" icon={Package} label="Product Bundle" active={isPrefix("/admin/bundles/product")} collapsed={c} isChild />
-          <NavItem href="/admin/authoring-context" icon={ShieldCheck} label="Authoring eksternal" active={isPrefix("/admin/authoring-context")} collapsed={c} isChild />
-          <NavItem href="/admin/ai/materials" icon={BookText} label="Materi & RAG" active={isPrefix("/admin/ai/materials") && !pkaMaterialActive} collapsed={c} isChild />
+          <NavItem href="/admin/materials?tab=review" icon={ClipboardCheck} label="Review Materi" active={materialsReviewActive} collapsed={c} isChild />
+          <NavItem href="/admin/materials?tab=manual" icon={Upload} label="Upload Manual" active={materialsManualActive} collapsed={c} isChild />
         </NavCollapsible>
 
         <NavCollapsible icon={GraduationCap} label="Tutorial PKA" collapsed={c} active={pkaActive}>

@@ -10,6 +10,8 @@ type MathTextProps = {
   children: string | null | undefined;
   className?: string;
   as?: "span" | "div" | "p";
+  /** Render a formula-only field that contains LaTeX without delimiters. */
+  bareMath?: boolean;
 };
 
 const katexOptions = {
@@ -72,8 +74,9 @@ function renderMath(value: string, displayMode: boolean) {
   return katex.renderToString(value, { ...katexOptions, displayMode });
 }
 
-export function MathText({ children, className, as = "span" }: MathTextProps) {
-  const text = children ?? "";
+export function MathText({ children, className, as = "span", bareMath = false }: MathTextProps) {
+  const rawText = children ?? "";
+  const text = bareMath && rawText.trim() ? `$$${rawText.trim()}$$` : rawText;
   const segments = parseMathText(text);
   const Component = as;
 

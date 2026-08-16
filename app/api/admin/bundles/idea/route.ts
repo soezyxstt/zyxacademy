@@ -44,6 +44,7 @@ export async function GET() {
         courseId: row.courseId,
         version: row.version,
         status: row.status,
+        requestedBy: row.requestedBy,
         validationReport: row.validationReport,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
