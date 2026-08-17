@@ -32,14 +32,12 @@ import {
   LineChart,
   Newspaper,
   Flag,
-  Layers,
-  Package,
-  ShieldCheck,
   Video,
   FileText,
   Image,
   Link as LinkIcon,
 } from "lucide-react";
+
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { LayoutDashboard } from "lucide-react";
@@ -175,37 +173,8 @@ export default async function AdminHomePage() {
           stat: courseStat,
         },
         {
-          title: "Idea Bundle",
-          description:
-            "Validasi, staging, review, dan publikasi bundle Idea berbasis ZIP dengan audit dan outbox.",
-          icon: Layers,
-          iconColor: "text-brand-primary",
-          href: "/admin/bundles/idea",
-          label: "Kelola Idea Bundle",
-          stat: null,
-        },
-        {
-          title: "Product Bundle",
-          description:
-            "Validasi, preview, review, dan publikasi produk artikel, diktat, soal, solusi, flashcard, dan asesmen.",
-          icon: Package,
-          iconColor: "text-brand-secondary",
-          href: "/admin/bundles/product",
-          label: "Kelola Product Bundle",
-          stat: null,
-        },
-        {
-          title: "Authoring Eksternal",
-          description:
-            "Siapkan pekerjaan agent dari Source Pack, lalu ekspor konteks Ideas resmi untuk penulisan produk.",
-          icon: ShieldCheck,
-          iconColor: "text-status-success",
-          href: "/admin/authoring-context",
-          label: "Siapkan authoring",
-          stat: null,
-        },
-        {
           title: "Materi & Dokumen",
+
           description:
             "Proses dan segmentasikan dokumen materi kuliah ke dalam basis pengetahuan untuk generasi soal.",
           icon: BookText,

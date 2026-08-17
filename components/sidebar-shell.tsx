@@ -18,8 +18,10 @@ import {
   Moon,
   Monitor,
   ChevronsUpDown,
+  Pin,
+  Archive,
 } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
+import { DropdownMenu, HoverCard } from "radix-ui";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
@@ -67,6 +69,9 @@ export function NavItem({
   isChild,
   prefetch = true,
   trailing,
+  onPin,
+  onArchive,
+  isPinned,
 }: {
   href?: string;
   icon: React.ElementType;
@@ -78,22 +83,66 @@ export function NavItem({
   isChild?: boolean;
   prefetch?: boolean;
   trailing?: ReactNode;
+  onPin?: (e: React.MouseEvent) => void;
+  onArchive?: (e: React.MouseEvent) => void;
+  isPinned?: boolean;
 }) {
   const baseClass = cn(
-    "group/item relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors w-full",
+    "group/item relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-sm font-medium transition-colors w-full",
     active
       ? "bg-brand-primary/10 text-brand-primary font-semibold"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
     collapsed && "justify-center px-0 size-10 mx-auto",
-    isChild && !collapsed && "pl-9",
+    isChild && !collapsed && "pl-8 text-body-xs py-1.5",
     className
   );
 
   const content = (
     <>
-      <Icon className={cn("shrink-0", isChild ? "size-4" : "size-5")} />
-      {!collapsed && <span className="truncate whitespace-nowrap flex-1 text-left">{label}</span>}
-      {!collapsed && trailing}
+      <Icon className={cn("shrink-0", isChild ? "size-3.5" : "size-4.5")} />
+      {!collapsed && (
+        <span className="truncate whitespace-nowrap flex-1 text-left min-w-0">
+          <span className="hover-marquee">{label}</span>
+        </span>
+      )}
+      {!collapsed && (
+        <div className="flex items-center gap-0.5 shrink-0">
+          {trailing}
+          {onPin && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onPin(e);
+              }}
+              title={isPinned ? "Lepas sematan" : "Sematkan tab"}
+              className={cn(
+                "p-1 rounded-md transition-all cursor-pointer",
+                isPinned
+                  ? "opacity-100 text-brand-primary hover:bg-brand-primary/10"
+                  : "opacity-0 group-hover/item:opacity-100 text-muted-foreground/60 hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Pin className="size-3.5 fill-current" />
+            </button>
+          )}
+          {onArchive && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onArchive(e);
+              }}
+              title="Arsipkan tab"
+              className="opacity-0 group-hover/item:opacity-100 p-1 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
+            >
+              <Archive className="size-3.5" />
+            </button>
+          )}
+        </div>
+      )}
     </>
   );
 
@@ -122,6 +171,7 @@ export function NavCollapsible({
   collapsed,
   children,
   trailing,
+  previewItems,
 }: {
   icon: React.ElementType;
   label: string;
@@ -130,6 +180,7 @@ export function NavCollapsible({
   collapsed: boolean;
   children: ReactNode;
   trailing?: ReactNode;
+  previewItems?: string[];
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen || active);
 
@@ -139,36 +190,86 @@ export function NavCollapsible({
     }
   }, [active]);
 
+  const triggerButton = (
+    <button
+      type="button"
+      onClick={() => {
+        if (!collapsed) setIsOpen(!isOpen);
+      }}
+      className={cn(
+        "group/collapsible flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-sm font-medium transition-colors w-full cursor-pointer",
+        active && !isOpen
+          ? "bg-brand-primary/10 text-brand-primary font-semibold"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        collapsed && "justify-center px-0 size-10 mx-auto"
+      )}
+    >
+      <Icon className="size-4.5 shrink-0" />
+      {!collapsed && (
+        <>
+          <span className="truncate whitespace-nowrap flex-1 text-left min-w-0">
+            <span className="hover-marquee">{label}</span>
+          </span>
+          {trailing}
+          {isOpen ? (
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
+          ) : (
+            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
+          )}
+        </>
+      )}
+    </button>
+  );
+
   return (
-    <div className="flex flex-col gap-1 w-full">
-      <SidebarTooltip label={label} collapsed={collapsed}>
-        <button
-          type="button"
-          onClick={() => {
-            if (!collapsed) setIsOpen(!isOpen);
-          }}
-          className={cn(
-            "group/collapsible flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors w-full cursor-pointer",
-            active && !isOpen
-              ? "bg-brand-primary/10 text-brand-primary font-semibold"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
-            collapsed && "justify-center px-0 size-10 mx-auto"
-          )}
-        >
-          <Icon className="size-5 shrink-0" />
-          {!collapsed && (
-            <>
-              <span className="truncate whitespace-nowrap flex-1 text-left">{label}</span>
-              {trailing}
-              {isOpen ? (
-                <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform" />
-              ) : (
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform" />
+    <div className="flex flex-col gap-0.5 w-full">
+      {collapsed ? (
+        <SidebarTooltip label={label} collapsed={collapsed}>
+          {triggerButton}
+        </SidebarTooltip>
+      ) : (
+        <HoverCard.Root openDelay={250} closeDelay={150}>
+          <HoverCard.Trigger asChild>
+            {triggerButton}
+          </HoverCard.Trigger>
+          <HoverCard.Portal>
+            <HoverCard.Content
+              side="right"
+              align="start"
+              sideOffset={14}
+              className="z-50 w-64 rounded-xl border border-border/80 bg-popover/95 p-3.5 text-popover-foreground shadow-lg backdrop-blur-md animate-in fade-in-0 zoom-in-95 data-[side=right]:slide-in-from-left-2"
+            >
+              <div className="flex items-center gap-2.5 pb-2.5 border-b border-border/60">
+                <div className="flex size-7 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary shrink-0">
+                  <Icon className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-body-sm font-semibold text-foreground truncate">{label}</p>
+                  <p className="text-[11px] text-muted-foreground">Kategori modul</p>
+                </div>
+              </div>
+              {previewItems && previewItems.length > 0 && (
+                <div className="mt-2.5 flex flex-col gap-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                    Modul di dalamnya:
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    {previewItems.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 text-[12px] text-foreground/80 px-1.5 py-1 rounded-md bg-muted/40"
+                      >
+                        <span className="size-1.5 rounded-full bg-brand-primary/70 shrink-0" />
+                        <span className="truncate">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
-            </>
-          )}
-        </button>
-      </SidebarTooltip>
+            </HoverCard.Content>
+          </HoverCard.Portal>
+        </HoverCard.Root>
+      )}
       {!collapsed && isOpen && (
         <div className="flex flex-col gap-0.5 w-full animate-in slide-in-from-top-1 fade-in-50 duration-150 pl-1 border-l border-border/50 ml-4 my-0.5">
           {children}
@@ -177,6 +278,7 @@ export function NavCollapsible({
     </div>
   );
 }
+
 
 export function NavGroup({ label, collapsed }: { label: string; collapsed: boolean }) {
   if (collapsed) {

@@ -569,18 +569,22 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center space-y-4">
-        <RefreshCw className="size-8 animate-spin text-brand-primary" />
-        <p className="text-body-sm font-medium text-muted-foreground animate-pulse">
-          Memuat formulir...
-        </p>
+      <div className="relative flex min-h-screen min-h-[100dvh] flex-col items-center justify-center space-y-4 overflow-hidden bg-background">
+        <PageOrnaments variant="plans" />
+        <div className="relative z-10 flex flex-col items-center justify-center space-y-4">
+          <RefreshCw className="size-8 animate-spin text-brand-primary" />
+          <p className="text-body-sm font-medium text-muted-foreground animate-pulse">
+            Memuat formulir...
+          </p>
+        </div>
       </div>
     );
   }
 
   if (loginRequired) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center p-4">
+      <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+        <PageOrnaments variant="plans" />
         <div className="mx-auto max-w-md w-full rounded-2xl border border-border bg-card p-8 shadow-sm text-center space-y-5">
           <div className="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
             <AlertCircle className="size-6" />
@@ -601,8 +605,9 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (errorMsg && !form) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center p-4">
-        <div className="mx-auto max-w-md w-full rounded-2xl border border-border bg-card p-8 shadow-sm text-center space-y-5">
+      <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+        <PageOrnaments variant="plans" />
+        <div className="relative z-10 mx-auto max-w-md w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 shadow-sm text-center space-y-5">
           <div className="size-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
             <AlertCircle className="size-6" />
           </div>
@@ -620,8 +625,9 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (isClosed && form) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center p-4">
-        <div className="mx-auto max-w-lg w-full rounded-2xl border border-border bg-card p-8 shadow-sm text-center space-y-5 border-t-4 border-t-status-warning">
+      <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
+        <PageOrnaments variant="plans" />
+        <div className="relative z-10 mx-auto max-w-lg w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 shadow-sm text-center space-y-5 border-t-4 border-t-status-warning">
           <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-status-warning">
             Formulir Ditutup
           </span>
@@ -639,7 +645,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (submittedMessage && form) {
     return (
-      <div className="relative flex min-h-[75vh] items-center justify-center p-4 overflow-hidden">
+      <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="testimonial" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -679,7 +685,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   if (!form) return null;
 
   return (
-    <div className="relative flex min-h-[88vh] flex-col justify-between overflow-hidden bg-background text-foreground selection:bg-brand-primary/20 pb-28 sm:pb-32">
+    <div className="relative flex min-h-screen min-h-[100dvh] flex-col justify-between overflow-hidden bg-background text-foreground selection:bg-brand-primary/20 pb-28 sm:pb-32">
       {/* Background Math Symbols, Radial Glows & Geometric Ornaments */}
       <PageOrnaments variant="plans" />
 
@@ -711,7 +717,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       </div>
 
       {/* Main Interactive Screen Area */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:py-12">
+      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:py-12 min-h-[calc(100vh-8rem)]">
         <div className="w-full max-w-2xl mx-auto">
           <AnimatePresence mode="wait" custom={direction}>
             {/* 1. COVER / WELCOME SCREEN */}
@@ -1476,33 +1482,19 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     )}
                   </div>
 
-                  {/* Primary OK / Lanjut Button & Clear Answer */}
-                  <div className="pt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Button
-                        size="lg"
-                        onClick={goToNextStep}
-                        className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer inline-flex items-center gap-2"
-                      >
-                        <span>OK</span>
-                        <Check className="size-4" />
-                      </Button>
-                      <span className="hidden sm:inline-flex items-center gap-1 text-body-2xs text-muted-foreground">
-                        Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
-                      </span>
-                    </div>
-
-                    {hasAnswer && (
-                      <button
-                        type="button"
-                        onClick={() => handleClearAnswer(qIdx)}
-                        title="Kosongkan pilihan jawaban ini"
-                        className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-body-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                      >
-                        <Eraser className="size-3.5" />
-                        <span>Hapus Jawaban</span>
-                      </button>
-                    )}
+                  {/* Primary OK / Lanjut Button */}
+                  <div className="pt-4 flex items-center gap-3">
+                    <Button
+                      size="lg"
+                      onClick={goToNextStep}
+                      className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <span>OK</span>
+                      <Check className="size-4" />
+                    </Button>
+                    <span className="hidden sm:inline-flex items-center gap-1 text-body-2xs text-muted-foreground">
+                      Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
+                    </span>
                   </div>
                 </motion.div>
               );
