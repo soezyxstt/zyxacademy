@@ -20,6 +20,7 @@ import {
   Sparkles,
   Check,
   Send,
+  Eraser,
 } from "lucide-react";
 import { MathText } from "@/components/course/math-text";
 import { Button } from "@/components/ui/button";
@@ -86,8 +87,10 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState<string | null>(null);
 
-  // Form input answers state
+  // Form input answers state (with ref to eliminate race conditions / stale closures)
   const [answers, setAnswers] = useState<Record<number, any>>({});
+  const answersRef = useRef<Record<number, any>>({});
+
   const [uploadingQIdx, setUploadingQIdx] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
 
@@ -97,6 +100,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   // "Lainnya" free text state
   const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
+  const otherTextsRef = useRef<Record<number, string>>({});
 
   // Lightbox Image Dialog State
   const [zoomImageUri, setZoomImageUri] = useState<{ url: string; title: string } | null>(null);
@@ -209,33 +213,51 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   const otherLabelFor = (qIdx: number) => form?.questions?.[qIdx]?.otherOption?.label || "Lainnya";
 
   const handleAnswerChange = (qIdx: number, val: any) => {
+    answersRef.current[qIdx] = val;
     setAnswers((prev) => ({ ...prev, [qIdx]: val }));
   };
 
-  const handleCheckboxToggle = (qIdx: number, opt: string) => {
+  const handleClearAnswer = (qIdx: number) => {
+    delete answersRef.current[qIdx];
+    delete otherTextsRef.current[qIdx];
     setAnswers((prev) => {
-      const currentList: string[] = Array.isArray(prev[qIdx]) ? prev[qIdx] : [];
-      const updated = currentList.includes(opt)
-        ? currentList.filter((item) => item !== opt)
-        : [...currentList, opt];
-      return { ...prev, [qIdx]: updated };
+      const copy = { ...prev };
+      delete copy[qIdx];
+      return copy;
     });
+    setOtherTexts((prev) => {
+      const copy = { ...prev };
+      delete copy[qIdx];
+      return copy;
+    });
+    toast.success("Pilihan jawaban telah dikosongkan.");
+  };
+
+  const handleCheckboxToggle = (qIdx: number, opt: string) => {
+    const currentList: string[] = Array.isArray(answersRef.current[qIdx]) ? answersRef.current[qIdx] : [];
+    const updated = currentList.includes(opt)
+      ? currentList.filter((item) => item !== opt)
+      : [...currentList, opt];
+    answersRef.current[qIdx] = updated;
+    setAnswers((prev) => ({ ...prev, [qIdx]: updated }));
   };
 
   const handleGridChoice = (qIdx: number, rowVal: string, colVal: string, isCheckbox = false) => {
-    setAnswers((prev) => {
-      const currentGridObj = typeof prev[qIdx] === "object" && !Array.isArray(prev[qIdx]) ? { ...prev[qIdx] } : {};
-      if (isCheckbox) {
-        const rowList: string[] = Array.isArray(currentGridObj[rowVal]) ? currentGridObj[rowVal] : [];
-        const updatedRowList = rowList.includes(colVal)
-          ? rowList.filter((c) => c !== colVal)
-          : [...rowList, colVal];
-        currentGridObj[rowVal] = updatedRowList;
-      } else {
-        currentGridObj[rowVal] = colVal;
-      }
-      return { ...prev, [qIdx]: currentGridObj };
-    });
+    const currentGridObj =
+      typeof answersRef.current[qIdx] === "object" && !Array.isArray(answersRef.current[qIdx])
+        ? { ...answersRef.current[qIdx] }
+        : {};
+    if (isCheckbox) {
+      const rowList: string[] = Array.isArray(currentGridObj[rowVal]) ? currentGridObj[rowVal] : [];
+      const updatedRowList = rowList.includes(colVal)
+        ? rowList.filter((c) => c !== colVal)
+        : [...rowList, colVal];
+      currentGridObj[rowVal] = updatedRowList;
+    } else {
+      currentGridObj[rowVal] = colVal;
+    }
+    answersRef.current[qIdx] = currentGridObj;
+    setAnswers((prev) => ({ ...prev, [qIdx]: currentGridObj }));
   };
 
   const handleFileUpload = async (qIdx: number, file: File) => {
@@ -297,11 +319,13 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       const q = form.questions[qIdx];
       if (!q) return true;
 
-      const userAns = answers[qIdx];
+      // Read from synchronous ref to avoid stale closure race conditions
+      const userAns = answersRef.current[qIdx];
+      const otherTextVal = otherTextsRef.current[qIdx] || otherTexts[qIdx];
       const isOtherEmpty =
         (userAns === OTHER_OPTION_MARKER ||
           (Array.isArray(userAns) && userAns.includes(OTHER_OPTION_MARKER))) &&
-        !(otherTexts[qIdx] && otherTexts[qIdx].trim().length > 0);
+        !(otherTextVal && otherTextVal.trim().length > 0);
 
       if (q.required) {
         const isEmpty =
@@ -332,6 +356,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     if (currentStepIndex < steps.length - 1) {
       setDirection(1);
       setCurrentStepIndex((prev) => prev + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -339,6 +364,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     if (currentStepIndex > 0) {
       setDirection(-1);
       setCurrentStepIndex((prev) => prev - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -346,6 +372,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     if (index >= 0 && index < steps.length) {
       setDirection(index > currentStepIndex ? 1 : -1);
       setCurrentStepIndex(index);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -356,11 +383,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     for (let qIdx = 0; qIdx < form.questions.length; qIdx += 1) {
       const question = form.questions[qIdx];
       if (question.type === "SECTION") continue;
-      const value = answers[qIdx];
+      const value = answersRef.current[qIdx] ?? answers[qIdx];
+      const otherTextVal = otherTextsRef.current[qIdx] ?? otherTexts[qIdx];
       const hasEmptyOther =
         (value === OTHER_OPTION_MARKER ||
           (Array.isArray(value) && value.includes(OTHER_OPTION_MARKER))) &&
-        !otherTexts[qIdx]?.trim();
+        !otherTextVal?.trim();
       const isEmpty =
         value === undefined ||
         value === null ||
@@ -396,13 +424,14 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     }
 
     const finalAnswers: Record<number, any> = {};
-    for (const [key, val] of Object.entries(answers)) {
+    for (const [key, val] of Object.entries(answersRef.current)) {
       const idx = Number(key);
+      const otherTextVal = otherTextsRef.current[idx] ?? otherTexts[idx];
       if (val === OTHER_OPTION_MARKER) {
-        finalAnswers[idx] = otherTexts[idx]?.trim() || otherLabelFor(idx);
+        finalAnswers[idx] = otherTextVal?.trim() || otherLabelFor(idx);
       } else if (Array.isArray(val) && val.includes(OTHER_OPTION_MARKER)) {
         finalAnswers[idx] = val.map((item) =>
-          item === OTHER_OPTION_MARKER ? otherTexts[idx]?.trim() || otherLabelFor(idx) : item
+          item === OTHER_OPTION_MARKER ? otherTextVal?.trim() || otherLabelFor(idx) : item
         );
       } else {
         finalAnswers[idx] = val;
@@ -423,6 +452,8 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
         setLoginRequired(true);
         setErrorMsg(data.error || "Anda harus login ke akun Zyx untuk mengisi formulir ini.");
       } else if (data.success) {
+        answersRef.current = {};
+        otherTextsRef.current = {};
         setAnswers({});
         setOtherTexts({});
         setResponderEmail("");
@@ -535,7 +566,6 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
     }),
   };
 
-
   if (loading) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center space-y-4">
@@ -647,7 +677,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
   if (!form) return null;
 
   return (
-    <div className="relative flex min-h-[88vh] flex-col justify-between overflow-hidden bg-background text-foreground selection:bg-brand-primary/20">
+    <div className="relative flex min-h-[88vh] flex-col justify-between overflow-hidden bg-background text-foreground selection:bg-brand-primary/20 pb-28 sm:pb-32">
       {/* Top Fixed Minimal Progress Header */}
       <div className="sticky top-0 z-40 w-full backdrop-blur-md bg-background/85 border-b border-border/40">
         <div className="h-1 w-full bg-muted/60">
@@ -863,6 +893,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
               const qNumber = questionNumberMap.get(qIdx) || 1;
               const answerVal = answers[qIdx];
+              const hasAnswer =
+                answerVal !== undefined &&
+                answerVal !== null &&
+                answerVal !== "" &&
+                (!Array.isArray(answerVal) || answerVal.length > 0) &&
+                (typeof answerVal !== "object" || Object.keys(answerVal).length > 0);
 
               return (
                 <motion.div
@@ -876,10 +912,25 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                 >
                   {/* Question Header */}
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-brand-primary font-mono text-body-sm font-bold">
-                      <span>{qNumber}</span>
-                      <ArrowRight className="size-3.5 inline" />
-                      {q.required && <span className="text-destructive font-bold">*</span>}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-brand-primary font-mono text-body-sm font-bold">
+                        <span>{qNumber}</span>
+                        <ArrowRight className="size-3.5 inline" />
+                        {q.required && <span className="text-destructive font-bold">*</span>}
+                      </div>
+
+                      {/* Clear Answer Button Header Link */}
+                      {hasAnswer && (
+                        <button
+                          type="button"
+                          onClick={() => handleClearAnswer(qIdx)}
+                          title="Kosongkan jawaban untuk pertanyaan ini"
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-body-2xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                        >
+                          <Eraser className="size-3" />
+                          <span>Kosongkan Pilihan</span>
+                        </button>
+                      )}
                     </div>
 
                     <h2 className="font-heading text-h4 sm:text-h3 font-semibold text-foreground leading-snug">
@@ -1022,7 +1073,10 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                 type="text"
                                 autoFocus
                                 value={otherTexts[qIdx] || ""}
-                                onChange={(e) => setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }))}
+                                onChange={(e) => {
+                                  otherTextsRef.current[qIdx] = e.target.value;
+                                  setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
+                                }}
                                 placeholder="Tuliskan rincian jawaban Anda..."
                                 className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-h6 text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                               />
@@ -1090,11 +1144,14 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const currentList: string[] = Array.isArray(answerVal) ? answerVal : [];
+                                      const currentList: string[] = Array.isArray(answersRef.current[qIdx])
+                                        ? answersRef.current[qIdx]
+                                        : [];
                                       const updated = currentList.includes(OTHER_OPTION_MARKER)
                                         ? currentList.filter((item) => item !== OTHER_OPTION_MARKER)
                                         : [...currentList, OTHER_OPTION_MARKER];
-                                      handleAnswerChange(qIdx, updated);
+                                      answersRef.current[qIdx] = updated;
+                                      setAnswers((prev) => ({ ...prev, [qIdx]: updated }));
                                     }}
                                     className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all cursor-pointer group ${
                                       isSelected
@@ -1132,7 +1189,10 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                       type="text"
                                       autoFocus
                                       value={otherTexts[qIdx] || ""}
-                                      onChange={(e) => setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }))}
+                                      onChange={(e) => {
+                                        otherTextsRef.current[qIdx] = e.target.value;
+                                        setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
+                                      }}
                                       placeholder="Tuliskan rincian jawaban lainnya..."
                                       className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-h6 text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                                     />
@@ -1179,7 +1239,10 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                             type="text"
                             autoFocus
                             value={otherTexts[qIdx] || ""}
-                            onChange={(e) => setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }))}
+                            onChange={(e) => {
+                              otherTextsRef.current[qIdx] = e.target.value;
+                              setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
+                            }}
                             placeholder="Tuliskan rincian jawaban Anda..."
                             className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-h6 text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                           />
@@ -1244,7 +1307,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={() => handleAnswerChange(qIdx, null)}
+                              onClick={() => handleClearAnswer(qIdx)}
                               className="shrink-0 text-body-xs"
                             >
                               Ganti Berkas
@@ -1408,19 +1471,33 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     )}
                   </div>
 
-                  {/* Primary OK / Lanjut Button */}
-                  <div className="pt-4 flex items-center gap-3">
-                    <Button
-                      size="lg"
-                      onClick={goToNextStep}
-                      className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer inline-flex items-center gap-2"
-                    >
-                      <span>OK</span>
-                      <Check className="size-4" />
-                    </Button>
-                    <span className="hidden sm:inline-flex items-center gap-1 text-body-2xs text-muted-foreground">
-                      Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
-                    </span>
+                  {/* Primary OK / Lanjut Button & Clear Answer */}
+                  <div className="pt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Button
+                        size="lg"
+                        onClick={goToNextStep}
+                        className="h-11 px-6 text-body-sm font-bold shadow-sm cursor-pointer inline-flex items-center gap-2"
+                      >
+                        <span>OK</span>
+                        <Check className="size-4" />
+                      </Button>
+                      <span className="hidden sm:inline-flex items-center gap-1 text-body-2xs text-muted-foreground">
+                        Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
+                      </span>
+                    </div>
+
+                    {hasAnswer && (
+                      <button
+                        type="button"
+                        onClick={() => handleClearAnswer(qIdx)}
+                        title="Kosongkan pilihan jawaban ini"
+                        className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-body-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                      >
+                        <Eraser className="size-3.5" />
+                        <span>Hapus Jawaban</span>
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               );
@@ -1473,7 +1550,8 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
                   {form.questions.map((q, qIdx) => {
                     if (q.type === "SECTION") return null;
-                    const ans = answers[qIdx];
+                    const ans = answersRef.current[qIdx] ?? answers[qIdx];
+                    const otherTextVal = otherTextsRef.current[qIdx] ?? otherTexts[qIdx];
                     const stepIdx = steps.findIndex(
                       (s) => s.kind === "question" && s.questionIndex === qIdx
                     );
@@ -1482,10 +1560,10 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     if (ans !== undefined && ans !== null && ans !== "") {
                       if (Array.isArray(ans)) {
                         displayAns = ans
-                          .map((a) => (a === OTHER_OPTION_MARKER ? otherTexts[qIdx] || otherLabelFor(qIdx) : a))
+                          .map((a) => (a === OTHER_OPTION_MARKER ? otherTextVal || otherLabelFor(qIdx) : a))
                           .join(", ");
                       } else if (ans === OTHER_OPTION_MARKER) {
-                        displayAns = otherTexts[qIdx] || otherLabelFor(qIdx);
+                        displayAns = otherTextVal || otherLabelFor(qIdx);
                       } else if (typeof ans === "object") {
                         displayAns = Object.entries(ans)
                           .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
@@ -1550,15 +1628,15 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
         </div>
       </div>
 
-      {/* Floating Bottom Navigation Dock */}
-      <div className="sticky bottom-0 z-30 w-full p-4 flex items-center justify-between pointer-events-none">
+      {/* Floating Bottom Navigation Dock (Fixed to viewport bottom edge) */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 w-full p-4 sm:p-6 flex items-center justify-between pointer-events-none">
         <div className="pointer-events-auto">
           {currentStepIndex > 0 && (
             <Button
               variant="outline"
               size="sm"
               onClick={goToPrevStep}
-              className="rounded-lg shadow-sm font-medium text-body-xs inline-flex items-center gap-1 bg-background/90 backdrop-blur-xs"
+              className="rounded-lg shadow-md font-medium text-body-xs inline-flex items-center gap-1 bg-background/95 backdrop-blur-md"
             >
               <ArrowLeft className="size-3.5" />
               <span>Kembali</span>
