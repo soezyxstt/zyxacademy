@@ -42,7 +42,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Views coaching analytics dashboards
 - Accesses dedicated Quiz & Exam Analytics & Insight portal (`/admin/ai/quiz-insights`) for real-time item/distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV / Google Spreadsheet, and on-demand Gemini AI deep pedagogical insights
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
-- Monitors real-time statuses for the retained category 4 feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
+- Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
 
 ## Core Pipelines
 

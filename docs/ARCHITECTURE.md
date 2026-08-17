@@ -802,7 +802,7 @@ Cloudflare Workers (deployed via wrangler):
 | **Analytics** | None | Vercel Analytics + Speed Insights + Sentry |
 
 ### Feature Flags
-Only granular, non-foundational capabilities remain runtime configurable. The retained category 4 catalog and activation semantics are documented in [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags). Canonical content, assessment, authorization, retrieval, pedagogy, and learning foundations are always-on.
+Only explicitly approved optional capabilities remain runtime configurable. The approved catalog and activation semantics are documented in [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags). New capabilities are not required to use a flag; the always-on versus flag-gated decision must be confirmed before implementation when it is not already specified. Canonical content, assessment, authorization, retrieval, pedagogy, and learning foundations are always-on.
 
 ---
 
@@ -959,4 +959,4 @@ Plan 013 stores fixed-column operational events and derives admin metrics from t
 
 ### Release verification boundary
 
-Plan 014 is a masked verifier that inventories predecessor artifacts, retained category 4 flags, staging fingerprints, worktree state, and the approved request cap. Synthetic-only execution writes a blocked result when any release gate is absent. It does not deploy, migrate, change rollout settings, call a provider, or authorize production.
+Plan 014 is a masked verifier that inventories predecessor artifacts, approved optional flags, staging fingerprints, worktree state, and the approved request cap. Synthetic-only execution writes a blocked result when any release gate is absent. It does not deploy, migrate, change rollout settings, call a provider, or authorize production.

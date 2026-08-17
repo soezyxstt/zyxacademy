@@ -145,7 +145,7 @@ The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
 
 ## Feature Flags
 
-Only the retained category 4 flags are runtime rollout controls. Foundational authorization, canonical retrieval, assessment, learning, and pedagogy behavior is always-on. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the full list.
+Feature flags are exception-based rollout controls, not a requirement for every new capability. Foundational authorization, canonical retrieval, assessment, learning, and pedagogy behavior is always-on. Before implementing a new capability or material behavior change, confirm whether it should be always-on or flag-gated. Any new flag needs a clear reason, default, scope, rollback behavior, owner, and removal condition. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the current approved list.
 ## Authoring Context Pack V1
 
 Keep `FEATURE_AUTHORING_CONTEXT_V1` absent or `0` until the local contract suite and staging round trip pass. The export API is admin-only by default, stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.
@@ -154,7 +154,7 @@ The artifact must use the private R2 staging bucket and must not use a public UR
 
 ## Zyra Plans 008 through 014 staging boundary
 
-Plans 008 through 013 are additive implementations in this checkpoint. Migration `0067_zyra_continuation.sql` was applied to remote staging on 2026-08-12 after encrypted export and disposable restore validation. Reconciliation recorded 164 tables, 7 additive tables, and zero foreign-key violations. It was not applied to production. Their optional category 4 rollout flags remain separately controlled.
+Plans 008 through 013 are additive implementations in this checkpoint. Migration `0067_zyra_continuation.sql` was applied to remote staging on 2026-08-12 after encrypted export and disposable restore validation. Reconciliation recorded 164 tables, 7 additive tables, and zero foreign-key violations. It was not applied to production. Their explicitly approved optional rollout flags remain separately controlled.
 
 Plan 010 requires the dedicated private attachment bucket and the normal R2 or staging Wrangler private adapter. Do not set `STORAGE_PROVIDER_MODE=uploadthing` for the multimodal path. Image source bytes are never sent directly from the browser to a provider and no public object URL is issued.
 
@@ -200,7 +200,7 @@ Plan 004 uses the guarded staging migration runner for the additive `ai_allowanc
 
 ## Zyra health-aware provider routing
 
-Plan 005 keeps the lease-aware provider router as an optional category 4 capability. Its server-only lifecycle reserves the application allowance first, then a staging Worker project-model lease, dispatches both before calling Gemini, and commits or refunds without a direct-after-Gateway duplicate. AI Gateway metadata is bounded and privacy-safe; personalized and active-assessment requests bypass Gateway cache and payload logging.
+Plan 005 keeps the lease-aware provider router as an explicitly approved optional capability. Its server-only lifecycle reserves the application allowance first, then a staging Worker project-model lease, dispatches both before calling Gemini, and commits or refunds without a direct-after-Gateway duplicate. AI Gateway metadata is bounded and privacy-safe; personalized and active-assessment requests bypass Gateway cache and payload logging.
 
 The bounded staging smoke is:
 

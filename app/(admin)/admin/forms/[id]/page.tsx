@@ -869,7 +869,6 @@ export default function DetailedFormAnalyticsPage({
                     id="accepting-responses"
                     checked={formSettings.acceptingResponses ?? true}
                     onCheckedChange={(checked) => setFormSettings({ ...formSettings, acceptingResponses: checked })}
-                    className="data-[state=checked]:bg-brand-primary"
                   />
                 </div>
 
@@ -981,7 +980,6 @@ export default function DetailedFormAnalyticsPage({
                     id="allow-editing"
                     checked={formSettings.allowResponseEditing ?? false}
                     onCheckedChange={(checked) => setFormSettings({ ...formSettings, allowResponseEditing: checked })}
-                    className="data-[state=checked]:bg-brand-primary"
                   />
                 </div>
 
@@ -998,7 +996,6 @@ export default function DetailedFormAnalyticsPage({
                     id="limit-one"
                     checked={formSettings.limitToOneResponse ?? false}
                     onCheckedChange={(checked) => setFormSettings({ ...formSettings, limitToOneResponse: checked })}
-                    className="data-[state=checked]:bg-brand-primary"
                   />
                 </div>
               </CardContent>

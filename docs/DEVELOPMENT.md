@@ -239,7 +239,7 @@ The Plan 001 Worker is independently typechecked with `workers/zyra-control-plan
 bun test workers/zyra-control-plane/tests/foundation.test.ts
 ```
 
-The dry-run is local compilation only. An authenticated deployment requires explicit staging authorization, the root Cloudflare token, and the operator-provided `ZYRA_CONTROL_PLANE_TOKEN`. This plan provisions infrastructure only; optional user-visible Zyra capabilities remain behind their category 4 flags.
+The dry-run is local compilation only. An authenticated deployment requires explicit staging authorization, the root Cloudflare token, and the operator-provided `ZYRA_CONTROL_PLANE_TOKEN`. This plan provisions infrastructure only; optional user-visible Zyra capabilities remain behind their explicitly approved flags.
 
 Plan 003 extends the same Worker with the SQLite-backed `ZyraQuotaCoordinator` lease ledger. It keeps project aliases fixed to the four registry aliases, stores only a SHA-256 user hash, and records provider-safe outcome dimensions. Run its local suite with:
 
@@ -291,9 +291,13 @@ The live compatibility bridge always writes the canonical targets transactionall
 
 ## Feature Flags
 
-Only granular, non-foundational capabilities remain runtime configurable. A retained flag is active only when its value is `"1"` or `"true"`; an absent value keeps that optional capability hidden. Foundational behavior is always-on and intentionally has no env flag.
+Feature flags are exception-based rollout controls, not a requirement for every new capability. Keep a capability always-on when it is foundational, stable, part of core authorization, retrieval, assessment, learning, or pedagogy, or when a flag would only mirror an implementation boundary. Consider a flag when the capability is optional, experimental, expensive or externally side-effectful, audience or environment specific, or needs a reversible kill switch.
 
-Retained category 4 flags:
+Before adding or removing a flag for a new capability or material behavior change, the agent or maintainer must ask the owner to choose always-on or flag-gated when the request has not already decided it. The decision records the proposed key, reason, default, scope, rollback behavior, owner, and removal condition. A temporary operational flag may protect a high-risk migration or provider boundary, but it is not automatically a product flag or an admin catalog entry.
+
+A retained flag is active only when its value is `"1"` or `"true"`; an absent value keeps that optional capability hidden. Foundational behavior is always-on and intentionally has no env flag.
+
+Current approved optional flags:
 
 | Flag | Feature |
 |------|---------|

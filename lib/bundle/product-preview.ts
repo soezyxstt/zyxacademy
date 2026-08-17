@@ -20,15 +20,30 @@ function titleOf(product: ProductEntity): string {
   return product.front.slice(0, 80);
 }
 
+function unwrapText(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed) as { content?: unknown };
+      if (typeof parsed.content === "string") return parsed.content;
+    } catch {
+      // Keep raw string on JSON parse error
+    }
+  }
+  return raw;
+}
+
 function sectionsOf(product: ProductEntity): ProductPreview["sections"] {
   switch (product.productType) {
     case "article":
-      return [...product.blocks].sort((left, right) => left.orderIndex - right.orderIndex).map((block) => ({ label: block.blockType, content: block.content }));
+      return [...product.blocks]
+        .sort((left, right) => left.orderIndex - right.orderIndex)
+        .map((block) => ({ label: block.blockType, content: unwrapText(block.content) }));
     case "diktat":
-      return [{ label: "content", content: product.contentMarkdown }];
+      return [{ label: "content", content: unwrapText(product.contentMarkdown) }];
     case "question":
       return [
-        { label: "prompt", content: product.prompt },
+        { label: "prompt", content: unwrapText(product.prompt) },
         { label: "options", content: JSON.stringify(product.options) },
         { label: "reasoning", content: product.reasoningPattern },
         { label: "ITB source", content: `${product.itbSource.eventName} (${product.itbSource.referenceId})` },
@@ -36,13 +51,20 @@ function sectionsOf(product: ProductEntity): ProductPreview["sections"] {
         { label: "ITB curation", content: product.itbCuration.map((entry) => `${entry.referenceId}: ${entry.curatorNote}`).join("\n") },
       ];
     case "solution":
-      return [{ label: "solution", content: product.content }];
+      return [{ label: "solution", content: unwrapText(product.content) }];
     case "flashcard_set":
       return [{ label: "cards", content: product.cards.join(", ") }];
     case "flashcard":
-      return [{ label: "front", content: product.front }, { label: "back", content: product.back }, ...(product.explanation ? [{ label: "explanation", content: product.explanation }] : [])];
+      return [
+        { label: "front", content: unwrapText(product.front) },
+        { label: "back", content: unwrapText(product.back) },
+        ...(product.explanation ? [{ label: "explanation", content: unwrapText(product.explanation) }] : []),
+      ];
     case "assessment_blueprint":
-      return [{ label: "scope", content: `${product.assessmentType}: ${product.chapterIds.join(", ")}` }, { label: "questions", content: product.questionIds.join(", ") }];
+      return [
+        { label: "scope", content: `${product.assessmentType}: ${product.chapterIds.join(", ")}` },
+        { label: "questions", content: product.questionIds.join(", ") },
+      ];
   }
 }
 

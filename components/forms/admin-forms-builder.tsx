@@ -135,6 +135,8 @@ export default function AdminFormsBuilder({
 
   const builderListRef = useRef<HTMLDivElement | null>(null);
 
+  const [confirmPresetDialogOpen, setConfirmPresetDialogOpen] = useState(false);
+
   const realQuestionNumbers = useMemo(() => {
     const map = new Map<number, number>();
     let n = 0;
@@ -148,14 +150,6 @@ export default function AdminFormsBuilder({
     });
     return map;
   }, [questions]);
-
-  useEffect(() => {
-    if (!builderListRef.current || activeQIndex < 0) return;
-    const el = builderListRef.current.querySelector(`[data-qidx="${activeQIndex}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [activeQIndex]);
 
   // Drag & Drop reorder state
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
@@ -210,8 +204,15 @@ export default function AdminFormsBuilder({
       type: "TEXT",
       required: true,
     };
+    const nextIdx = questions.length;
     setQuestions([...questions, newQ]);
-    setActiveQIndex(questions.length);
+    setActiveQIndex(nextIdx);
+    setTimeout(() => {
+      if (builderListRef.current) {
+        const el = builderListRef.current.querySelector(`[data-qidx="${nextIdx}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 50);
   };
 
   const handleAddSection = () => {
@@ -221,11 +222,18 @@ export default function AdminFormsBuilder({
       type: "SECTION",
       required: false,
     };
+    const nextIdx = questions.length;
     setQuestions([...questions, newSection]);
-    setActiveQIndex(questions.length);
+    setActiveQIndex(nextIdx);
+    setTimeout(() => {
+      if (builderListRef.current) {
+        const el = builderListRef.current.querySelector(`[data-qidx="${nextIdx}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 50);
   };
 
-  const handleLoadFull12TypePreset = () => {
+  const apply12TypePreset = () => {
     setQuestions([
       { title: "Nama Lengkap (Short Answer)", type: "TEXT", required: true, showDescription: true },
       { title: "Saran & Masukan (Paragraph)", type: "PARAGRAPH", required: false, showDescription: true },
@@ -241,6 +249,18 @@ export default function AdminFormsBuilder({
       { title: "Jam Kehadiran (Time)", type: "TIME", required: true, showDescription: true },
     ]);
     setActiveQIndex(0);
+    setConfirmPresetDialogOpen(false);
+  };
+
+  const handleLoadFull12TypePreset = () => {
+    const hasCustomInput =
+      questions.length > 1 ||
+      (questions.length === 1 && (questions[0].title.trim() !== "" || Boolean(questions[0].description?.trim())));
+    if (hasCustomInput) {
+      setConfirmPresetDialogOpen(true);
+    } else {
+      apply12TypePreset();
+    }
   };
 
   const handleDuplicateQuestion = (index: number) => {
@@ -409,6 +429,7 @@ export default function AdminFormsBuilder({
       setErrorMsg("Nama / Judul Formulir tidak boleh kosong.");
       return;
     }
+
     if (settings.openAt && settings.closeAt) {
       const openDate = new Date(settings.openAt);
       const closeDate = new Date(settings.closeAt);
@@ -417,6 +438,38 @@ export default function AdminFormsBuilder({
         return;
       }
     }
+
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const qNum = realQuestionNumbers.get(i) || i + 1;
+      const qLabel = q.type === "SECTION" ? `Bagian #${i + 1}` : `Pertanyaan #${qNum}`;
+
+      if (q.type !== "SECTION" && !q.title.trim()) {
+        setErrorMsg(`Teks pada ${qLabel} wajib diisi.`);
+        setActiveQIndex(i);
+        return;
+      }
+
+      if (q.type === "RADIO" || q.type === "CHECKBOX" || q.type === "DROP_DOWN") {
+        const validOptions = (q.options || []).filter((opt) => opt && opt.trim().length > 0);
+        if (validOptions.length === 0) {
+          setErrorMsg(`${qLabel} ("${q.title || "Tanpa Judul"}") harus memiliki minimal 1 opsi jawaban.`);
+          setActiveQIndex(i);
+          return;
+        }
+      }
+
+      if (q.type === "GRID_RADIO" || q.type === "GRID_CHECKBOX") {
+        const validRows = (q.gridRows || []).filter((r) => r && r.trim().length > 0);
+        const validCols = (q.gridColumns || []).filter((c) => c && c.trim().length > 0);
+        if (validRows.length === 0 || validCols.length === 0) {
+          setErrorMsg(`${qLabel} ("${q.title || "Tanpa Judul"}") harus memiliki minimal 1 baris dan 1 kolom.`);
+          setActiveQIndex(i);
+          return;
+        }
+      }
+    }
+
     setCreating(true);
     setErrorMsg(null);
     try {
@@ -1276,17 +1329,20 @@ export default function AdminFormsBuilder({
                 Menerima Tanggapan & Jadwal (Status Form)
               </p>
 
-              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+              <label
+                htmlFor="builder-setting-accepting"
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+              >
                 <div>
                   <p className="text-body-sm font-semibold text-foreground">Menerima Tanggapan</p>
                   <p className="text-body-xs text-muted-foreground">Aktifkan untuk mengizinkan responden mengisi formulir ini.</p>
                 </div>
                 <Switch
+                  id="builder-setting-accepting"
                   checked={settings.acceptingResponses}
                   onCheckedChange={(checked) => setSettings({ ...settings, acceptingResponses: Boolean(checked) })}
-                  className="data-[state=checked]:bg-brand-primary"
                 />
-              </div>
+              </label>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
@@ -1376,29 +1432,35 @@ export default function AdminFormsBuilder({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+              <label
+                htmlFor="builder-setting-allow-edit"
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+              >
                 <div>
                   <p className="text-body-sm font-semibold text-foreground">Izinkan pengeditan respons</p>
                   <p className="text-body-xs text-muted-foreground">Respon dapat diubah kembali setelah dikirimkan.</p>
                 </div>
                 <Switch
+                  id="builder-setting-allow-edit"
                   checked={settings.allowResponseEditing}
                   onCheckedChange={(checked) => setSettings({ ...settings, allowResponseEditing: Boolean(checked) })}
-                  className="data-[state=checked]:bg-brand-primary"
                 />
-              </div>
+              </label>
 
-              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4">
+              <label
+                htmlFor="builder-setting-limit-one"
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+              >
                 <div>
                   <p className="text-body-sm font-semibold text-foreground">Batasi 1 respons per pengguna</p>
                   <p className="text-body-xs text-muted-foreground">Membatasi responden hanya boleh mengisi 1 kali pengisian.</p>
                 </div>
                 <Switch
+                  id="builder-setting-limit-one"
                   checked={settings.limitToOneResponse}
                   onCheckedChange={(checked) => setSettings({ ...settings, limitToOneResponse: Boolean(checked) })}
-                  className="data-[state=checked]:bg-brand-primary"
                 />
-              </div>
+              </label>
             </div>
 
             {/* 3. File Upload Limits & Presentation */}
@@ -1681,6 +1743,34 @@ export default function AdminFormsBuilder({
               />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* SHADCN DIALOG: CONFIRM PRESET REPLACEMENT */}
+      <Dialog
+        open={confirmPresetDialogOpen}
+        onOpenChange={setConfirmPresetDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Muat Preset 12 Jenis Soal</DialogTitle>
+            <DialogDescription>
+              Memuat preset ini akan mengganti daftar pertanyaan yang saat ini sedang Anda susun. Apakah Anda yakin ingin melanjutkan?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmPresetDialogOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={apply12TypePreset}
+            >
+              Ya, Muat Preset
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

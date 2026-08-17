@@ -258,21 +258,13 @@ The admin Media page (`/admin/media`) hosts a read-only browser over these domai
 1. Before writing code, read `db/schema.ts` and `lib/env.ts` for current schema/env state.
 2. DB changes: edit `db/schema.ts` only, then `bun run db:generate` then `bun run db:migrate`. Never hand-edit `drizzle/`. Production push: `bun run db:push:prod`.
 3. After every meaningful edit batch: `bun run lint`. Do not run `bun run build` unless there are breaking changes or it is explicitly requested by the user. Both must pass with zero new errors before the next step when run.
-4. Only granular, non-foundational capabilities use the retained category 4 `FEATURE_*` env flags in `lib/env.ts`. Foundational behavior is always-on; an absent optional flag keeps that capability hidden.
+4. Feature flags are exception-based rollout controls, not a default requirement for new code. Use a retained `FEATURE_*` flag only when a capability is genuinely optional, experimental, risky to release, expensive or externally side-effectful, audience or environment specific, or needs a reversible kill switch. Foundational and stable behavior should remain always-on. A temporary operational flag for a high-risk migration or provider boundary is allowed only with an owner, an explicit rollback path, an expiry or removal issue, and a decision about whether it belongs in the admin catalog.
+   - Before implementing a new user-facing capability or material behavior change, ask the user whether it should be always-on or flag-gated unless the request already answers that question. Do not infer the choice from the fact that the code is new.
+   - When asking, state the proposed flag key if relevant, why the flag may be needed, its default, scope, rollback behavior, and removal condition. Do not add or remove a flag silently. Bug fixes, tests, documentation, refactors, and maintenance inside an already decided rollout boundary do not need this question unless their rollout semantics change.
 5. Already built, DO NOT REBUILD: KO extraction, RAG sync, question generation, quiz attempts, SM-2 flashcards, diktat PDFs, website materials, admin AI portal.
 6. AI quota is spent only on tutoring, mistake feedback, and content generation. Streaks, recommendations, study paths, reflections, analytics are deterministic SQL + rules.
 7. UI copy: short labels, sentence case, numbers over sentences. No exclamation marks, no filler, no em/en dashes.
-8. **Auto-update docs**: Every time you add a new feature, table, env flag, or change core architecture, you MUST update the relevant docs in `docs/`:
-   - `docs/features.md` for user-facing features and workflows
-   - `docs/ARCHITECTURE.md` for architecture, tables, data flow, and diagrams
-   - `docs/DB_SCHEMA.md` for new/removed tables and changed columns
-   - `docs/DEVELOPMENT.md` for new env vars, feature flags, or dev commands
-   - `docs/DEPLOYMENT.md` for deployment changes or new services
-   - `docs/bundle/*` for bundle spec changes
-   - `lib/env.ts` for new FEATURE_* flags
-   - `docs/operations/production-readiness-checklist.md` for new validation steps
-   - `AGENTS.md` Current State section for completed/verified/blocker items
-   Scan `docs/` for any file whose content is made incomplete or inaccurate by the change and update it.
+8. **Keep docs proportionate and accurate**: Update only the documents made relevant or inaccurate by a change. Use `docs/features.md` for user-facing features and workflows, `docs/ARCHITECTURE.md` for architecture and data flow, `docs/DB_SCHEMA.md` for schema changes, `docs/DEVELOPMENT.md` for new or changed env vars and dev commands, `docs/DEPLOYMENT.md` for deployment or rollout changes, `docs/bundle/*` for bundle spec changes, and `docs/operations/production-readiness-checklist.md` for new validation steps. Update `AGENTS.md` Current State only when the recorded project state changes. Add a new `FEATURE_*` flag to `lib/env.ts` and the approved catalog only after the rollout decision is explicit. Scan `docs/` for files made incomplete or inaccurate by the change, but do not update every listed document mechanically.
 
 ---
 

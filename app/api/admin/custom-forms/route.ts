@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { env } from "@/lib/env";
 import { hasPeran } from "@/lib/auth/authorization";
 import { db } from "@/db";
 import { customForms, customFormResponses, googleMeetSessions } from "@/db/schema";
 import { and, isNull, desc, eq, count } from "drizzle-orm";
-import { createCustomGoogleForm } from "@/lib/google-forms";
-import { grantAdminEditorAccessToDriveItems } from "@/lib/google-drive-permissions";
 
 function generateShortSlug(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -112,23 +109,6 @@ export async function POST(req: Request) {
       slug = `${slugBase}-${generateShortSlug().slice(0, 4)}`;
     }
 
-    // Optional Google Form Sync
-    let googleFormId: string | undefined;
-    let googleResponderUri: string | undefined;
-
-    try {
-      const gForm = await createCustomGoogleForm(title, description, questions);
-      if (gForm?.formId) {
-        googleFormId = gForm.formId;
-        googleResponderUri = gForm.responderUri;
-        if (env.FEATURE_DRIVE_EDITOR_SYNC === "1") {
-          await grantAdminEditorAccessToDriveItems([gForm.formId]);
-        }
-      }
-    } catch (gErr) {
-      console.warn("Optional Google Form Sync Warning:", gErr);
-    }
-
     const id = crypto.randomUUID();
     const [inserted] = await db
       .insert(customForms)
@@ -140,8 +120,6 @@ export async function POST(req: Request) {
         category,
         questions,
         settings,
-        googleFormId,
-        googleResponderUri,
         createdById,
       })
       .returning();

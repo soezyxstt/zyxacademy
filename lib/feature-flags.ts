@@ -44,8 +44,9 @@ function flag(
 }
 
 /**
- * Only granular, non-foundational capabilities remain runtime configurable.
- * Foundational product behavior is intentionally absent from this catalog.
+ * Explicitly approved optional capability catalog.
+ * New features are not required to use a flag; adding a flag requires an
+ * explicit rollout decision before it is added here.
  */
 export const KNOWN_FEATURE_FLAGS: FeatureFlagMeta[] = [
   flag("FEATURE_REMEDIATION", "Quiz Remediation Surfacing", "pedagogy_eif", "Remediasi kuis berbasis delta penguasaan dan diagnosa akar masalah."),
@@ -86,7 +87,7 @@ export function isFeatureFlagActive(value: string | undefined): boolean {
   return trimmed === "1" || trimmed === "true";
 }
 
-/** Returns statuses only for the retained category 4 catalog. */
+/** Returns statuses only for the approved optional capability catalog. */
 export function getAllFeatureFlagsStatus(): FeatureFlagStatus[] {
   const envObj = env as unknown as Record<string, string | undefined>;
   return KNOWN_FEATURE_FLAGS.map((meta) => {

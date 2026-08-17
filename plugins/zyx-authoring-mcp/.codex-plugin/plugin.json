@@ -1,0 +1,28 @@
+{
+  "name": "zyx-authoring-mcp",
+  "version": "0.1.0",
+  "description": "Author and validate Zyx Source Pack, Idea Bundle, and Product Bundle workflows through the Authoring MCP.",
+  "author": {
+    "name": "Zyx Academy"
+  },
+  "homepage": "https://staging.zyxacademy.com/",
+  "license": "UNLICENSED",
+  "keywords": ["zyx", "authoring", "mcp", "source-pack", "idea-bundle", "product-bundle"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Zyx Authoring MCP",
+    "shortDescription": "Author Zyx content through the MCP quality gates.",
+    "longDescription": "Provides three focused skills for Source Pack, Idea Bundle, and Product Bundle authoring. The remote MCP server remains the authority for authentication, schema validation, provenance, quality gates, and staging.",
+    "developerName": "Zyx Academy",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://staging.zyxacademy.com/",
+    "defaultPrompt": [
+      "Build a Source Pack and validate it through Zyx MCP.",
+      "Author an Idea Bundle from a validated Source Pack.",
+      "Author a Product Bundle from published Ideas."
+    ],
+    "brandColor": "#2563EB"
+  }
+}
