@@ -232,7 +232,7 @@ async function stageQuizDraft(principal: McpPrincipal, runToken: string, draft: 
 }
 
 function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void {
-  server.registerTool("workflow.list", {
+  (server as any).registerTool("workflow.list", {
     title: "List authoring workflows",
     description: "Mengembalikan pilihan workflow authoring. Pilihan sengaja tidak menyediakan opsi gabungan.",
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
@@ -241,7 +241,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     return toolResult({ version: "authoring-mcp.v1", workflows: listAuthoringWorkflows() });
   });
 
-  server.registerTool("catalog.list_courses", {
+  (server as any).registerTool("catalog.list_courses", {
     title: "List courses",
     description: "Mengembalikan pilihan mata kuliah dengan key sementara yang tidak mengekspos ID internal.",
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
@@ -250,17 +250,17 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     return { ok: true, choices: await listMcpCourseChoices() };
   }));
 
-  server.registerTool("catalog.list_chapters", {
+  (server as any).registerTool("catalog.list_chapters", {
     title: "List chapters",
     description: "Mengembalikan bab aktif untuk mata kuliah yang dipilih.",
     inputSchema: { courseKey: z.string().min(1) },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ courseKey }) => safeTool(async () => {
+  }, async ({ courseKey }: { courseKey: string }) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     return { ok: true, choices: await listMcpChapterChoices(courseKey) };
   }));
 
-  server.registerTool("source.ingest", {
+  (server as any).registerTool("source.ingest", {
     title: "Ingest Source Pack",
     description: "Menerima Source Pack sebagai base64 melalui MCP, menjalankan compatibility checking, dan mengembalikan token sumber tervalidasi.",
     inputSchema: {
@@ -269,12 +269,12 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
       originals: sourceOriginalSchema,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ filename, contentBase64, originals }) => safeTool(() => {
+  }, async ({ filename, contentBase64, originals }: any) => safeTool(() => {
     requireMcpScope(principal, "authoring:read");
     return ingestMcpSourcePack(filename, contentBase64, decodeSourceOriginals(originals));
   }));
 
-  server.registerTool("workflow.start", {
+  (server as any).registerTool("workflow.start", {
     title: "Start authoring workflow",
     description: "Mengunci Source Pack, mata kuliah, bab, dan salah satu dari dua workflow authoring.",
     inputSchema: {
@@ -284,7 +284,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
       chapterKey: z.string().min(1),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ workflow, sourcePackToken, courseKey, chapterKey }) => safeTool(async () => {
+  }, async ({ workflow, sourcePackToken, courseKey, chapterKey }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     return {
       ok: true,
@@ -292,29 +292,29 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     };
   }));
 
-  server.registerTool("workflow.get_run", {
+  (server as any).registerTool("workflow.get_run", {
     title: "Get authoring run",
     description: "Mengembalikan scope yang sudah dikunci tanpa membuka ID internal kepada agent.",
     inputSchema: { runToken: z.string().min(1) },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken }) => safeTool(() => {
+  }, async ({ runToken }: { runToken: string }) => safeTool(() => {
     requireMcpScope(principal, "authoring:read");
     return { ok: true, ...publicMcpRun(runToken) };
   }));
 
-  server.registerTool("workflow.get_contract", {
+  (server as any).registerTool("workflow.get_contract", {
     title: "Get workflow contract",
     description: "Mengembalikan aturan output dan compatibility gate untuk workflow yang dipilih.",
     inputSchema: { runToken: z.string().min(1) },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken }) => safeTool(() => {
+  }, async ({ runToken }: { runToken: string }) => safeTool(() => {
     requireMcpScope(principal, "authoring:read");
     return { ok: true, ...workflowContract(runToken) };
   }));
 }
 
 function registerValidationTools(server: McpServer, principal: McpPrincipal): void {
-  server.registerTool("authoring.validate_idea_bundle", {
+  (server as any).registerTool("authoring.validate_idea_bundle", {
     title: "Validate Idea Bundle",
     description: "Memeriksa ZIP Idea Bundle terhadap kontrak, checksum, provenance, dan scope run.",
     inputSchema: {
@@ -323,7 +323,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, filename, bundleBase64 }) => safeTool(async () => {
+  }, async ({ runToken, filename, bundleBase64 }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
@@ -348,7 +348,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     };
   }));
 
-  server.registerTool("authoring.submit_idea_bundle", {
+  (server as any).registerTool("authoring.submit_idea_bundle", {
     title: "Submit Idea Bundle for review",
     description: "Memvalidasi lalu menaruh Idea Bundle sebagai import tervalidasi untuk review admin. Tool ini tidak dapat mempublikasikan bundle.",
     inputSchema: {
@@ -357,7 +357,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, filename, bundleBase64 }) => safeTool(async () => {
+  }, async ({ runToken, filename, bundleBase64 }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
@@ -392,7 +392,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     return { ok: true, valid: true, staged: true, result, quality, next: "admin_review" };
   }));
 
-  server.registerTool("authoring.validate_product_bundle", {
+  (server as any).registerTool("authoring.validate_product_bundle", {
     title: "Validate Product Bundle",
     description: "Memeriksa ZIP Product Bundle terhadap kontrak, checksum, dependency, provenance, dan scope run.",
     inputSchema: {
@@ -401,7 +401,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, filename, bundleBase64 }) => safeTool(async () => {
+  }, async ({ runToken, filename, bundleBase64 }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
@@ -430,7 +430,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     };
   }));
 
-  server.registerTool("authoring.submit_product_bundle", {
+  (server as any).registerTool("authoring.submit_product_bundle", {
     title: "Submit Product Bundle for review",
     description: "Memvalidasi lalu menaruh Product Bundle sebagai draft untuk review admin. Tool ini tidak dapat mempublikasikan bundle.",
     inputSchema: {
@@ -439,7 +439,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       bundleBase64: z.string().min(1).max(48 * 1024 * 1024),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, filename, bundleBase64 }) => safeTool(async () => {
+  }, async ({ runToken, filename, bundleBase64 }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:stage");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
@@ -467,7 +467,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     return { ok: true, valid: true, staged: true, result, quality, next: "admin_review" };
   }));
 
-  server.registerTool("assessment.validate_quiz_draft", {
+  (server as any).registerTool("assessment.validate_quiz_draft", {
     title: "Validate quiz bank draft",
     description: "Memeriksa draft soal kuis secara terstruktur sebelum masuk ke review bank soal.",
     inputSchema: {
@@ -475,7 +475,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, draftJson }) => safeTool(async () => {
+  }, async ({ runToken, draftJson }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "quiz_bank") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
@@ -508,7 +508,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     };
   }));
 
-  server.registerTool("assessment.submit_quiz_draft", {
+  (server as any).registerTool("assessment.submit_quiz_draft", {
     title: "Submit quiz bank draft for review",
     description: "Memvalidasi lalu menaruh draft soal kuis sebagai generated di bank soal. Tool ini tidak dapat mempublikasikan soal.",
     inputSchema: {
@@ -516,7 +516,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ runToken, draftJson }) => safeTool(async () => {
+  }, async ({ runToken, draftJson }: any) => safeTool(async () => {
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "quiz_bank") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
     let parsed: unknown;

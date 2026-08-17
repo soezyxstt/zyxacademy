@@ -8,11 +8,12 @@ export type AdminTableProps = {
 
 export function AdminTable({ children, className }: AdminTableProps) {
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-border bg-card shadow-sm", className)}>
+    <div className={cn("overflow-x-auto rounded-xl border border-border bg-card shadow-sm", className)}>
       {children}
     </div>
   );
 }
+
 
 export type AdminTableHeadProps = {
   children: ReactNode;

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -10,12 +9,10 @@ import {
   Trophy,
   CheckSquare,
 } from "lucide-react";
-import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
-import { SidebarShell, NavItem, SidebarTooltip } from "@/components/sidebar-shell";
+import { SidebarShell, NavItem } from "@/components/sidebar-shell";
 
 export function TutorSidebar() {
-  const { data: session } = useSession();
   const pathname = usePathname();
 
   const parts = pathname.split("/");
@@ -26,46 +23,6 @@ export function TutorSidebar() {
     courseId = parts[2];
   }
 
-  const topSection = (c: boolean) => {
-    if (!session?.user) return null;
-
-    return (
-      <div className="shrink-0">
-        <SidebarTooltip label={`${session.user.name} (${session.user.email})`} collapsed={c}>
-          <div
-            className={cn(
-              "mx-3 mt-3 flex shrink-0 items-center gap-3 rounded-xl border border-border/70 bg-muted/40 p-2.5 transition-all duration-300",
-              c && "justify-center p-1.5 mx-auto size-10"
-            )}
-          >
-            {session.user.image ? (
-              <Image
-                src={session.user.image}
-                alt={session.user.name}
-                width={28}
-                height={28}
-                className="size-7 shrink-0 rounded-full object-cover ring-2 ring-brand-primary/20"
-              />
-            ) : (
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">
-                {session.user.name?.charAt(0)?.toUpperCase() ?? "?"}
-              </span>
-            )}
-            {!c && (
-              <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-body-xs font-semibold text-foreground">
-                  {session.user.name}
-                </p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {session.user.email}
-                </p>
-              </div>
-            )}
-          </div>
-        </SidebarTooltip>
-      </div>
-    );
-  };
 
   const navContent = (c: boolean) => {
     return (
@@ -158,7 +115,7 @@ export function TutorSidebar() {
       logoHref="/tutor"
       logoLabel="My courses"
       nav={navContent}
-      topSection={topSection}
     />
   );
 }
+

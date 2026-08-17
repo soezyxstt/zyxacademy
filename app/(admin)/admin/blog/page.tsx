@@ -54,15 +54,15 @@ export default async function AdminBlogDashboard() {
             ) : (
               articles.map((article) => (
                 <tr key={article.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4 font-medium text-foreground max-w-sm truncate">
+                  <td className="px-6 py-4 font-medium text-foreground max-w-[280px] md:max-w-xs truncate" title={article.title}>
                     {article.title}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <Badge variant="outline" className="rounded-md capitalize">
                       {article.category.replace("_", " ")}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <Badge 
                       variant={article.status === "published" ? "default" : "secondary"}
                       className={article.status === "published" ? "bg-status-success text-status-success-foreground hover:bg-status-success/90 rounded-md" : "rounded-md"}
@@ -70,33 +70,35 @@ export default async function AdminBlogDashboard() {
                       {article.status}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-muted-foreground">
+                  <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
                     {article.author?.name || "Anonim"}
                   </td>
-                  <td className="px-6 py-4 flex items-center gap-2">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/admin/blog/${article.id}/edit`}>
-                        <Edit className="size-4" />
-                        Sunting
-                      </Link>
-                    </Button>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/blog/${article.slug}`} target="_blank">
-                        <Eye className="size-4" />
-                        Lihat
-                      </Link>
-                    </Button>
-                    <ShareDialog
-                      slug={article.slug}
-                      title={article.title}
-                      description={article.summary || ""}
-                      trigger={
-                        <Button variant="ghost" size="sm">
-                          <Share2 className="size-4" />
-                          Bagikan
-                        </Button>
-                      }
-                    />
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/admin/blog/${article.id}/edit`}>
+                          <Edit className="size-4" />
+                          Sunting
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/blog/${article.slug}`} target="_blank">
+                          <Eye className="size-4" />
+                          Lihat
+                        </Link>
+                      </Button>
+                      <ShareDialog
+                        slug={article.slug}
+                        title={article.title}
+                        description={article.summary || ""}
+                        trigger={
+                          <Button variant="ghost" size="sm">
+                            <Share2 className="size-4" />
+                            Bagikan
+                          </Button>
+                        }
+                      />
+                    </div>
                   </td>
                 </tr>
               ))

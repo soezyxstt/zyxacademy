@@ -311,12 +311,12 @@ export function LinksManager() {
           <article
             key={link.id}
             className={cn(
-              "flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-opacity",
+              "flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-all overflow-hidden",
               moving && "opacity-60"
             )}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-start gap-3">
+            <div className="flex items-start justify-between gap-2.5 min-w-0">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
                 <span
                   className={cn(
                     "flex size-10 shrink-0 items-center justify-center rounded-lg text-lg",
@@ -325,14 +325,15 @@ export function LinksManager() {
                 >
                   {link.icon || DEFAULT_ICON}
                 </span>
-                <div className="min-w-0">
-                  <h3 className="truncate font-heading text-h6 font-semibold text-foreground">
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate font-heading text-h6 font-semibold text-foreground" title={link.title}>
                     {link.title}
                   </h3>
                   <a
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    title={link.url}
                     className="mt-0.5 inline-flex max-w-full items-center gap-1 text-body-xs text-muted-foreground transition-colors hover:text-brand-primary"
                   >
                     <span className="truncate">{displayUrl(link.url)}</span>
@@ -340,18 +341,18 @@ export function LinksManager() {
                   </a>
                 </div>
               </div>
-              <StatusBadge tone={link.isActive ? "success" : "muted"}>
+              <StatusBadge tone={link.isActive ? "success" : "muted"} className="shrink-0">
                 {link.isActive ? "Aktif" : "Nonaktif"}
               </StatusBadge>
             </div>
 
             {link.description && (
-              <p className="text-body-sm leading-normal text-muted-foreground">
+              <p className="text-body-sm leading-normal text-muted-foreground line-clamp-2">
                 {link.description}
               </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 mt-auto pt-1">
               {link.category && <CourseBadge>{link.category}</CourseBadge>}
               <span
                 className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
@@ -366,8 +367,8 @@ export function LinksManager() {
               </span>
             </div>
 
-            <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/60 pt-3">
-              <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
+              <div className="flex items-center gap-1 shrink-0">
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -389,27 +390,34 @@ export function LinksManager() {
                   <ArrowDown className="size-4" />
                 </Button>
               </div>
-              <div className="flex items-center gap-1">
+
+              <div className="flex items-center gap-1 flex-wrap shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="h-8 px-2 text-body-xs font-medium"
                   onClick={() => openEdit(link)}
                 >
                   <Pencil className="size-3.5" />
                   Edit
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => toggleActive(link)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-body-xs font-medium"
+                  onClick={() => toggleActive(link)}
+                >
                   {link.isActive ? (
                     <EyeOff className="size-3.5" />
                   ) : (
                     <Eye className="size-3.5" />
                   )}
-                  {link.isActive ? "Nonaktifkan" : "Aktifkan"}
+                  {link.isActive ? "Nonaktif" : "Aktif"}
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-status-error hover:text-status-error hover:bg-status-error/10"
+                  className="h-8 px-2 text-body-xs font-medium text-status-error hover:text-status-error hover:bg-status-error/10"
                   onClick={() => setConfirmDeleteId(link.id)}
                 >
                   <Trash2 className="size-3.5" />

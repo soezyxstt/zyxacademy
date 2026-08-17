@@ -162,63 +162,8 @@ export default async function AdminHomePage() {
 
   const categories = [
     {
-      name: "Media & Alat",
+      name: "Akademik & Konten",
       items: [
-        {
-          title: "Meet",
-          description:
-            "Buat dan akhiri ruang meeting Pro, lihat status live, serta pantau log kehadiran peserta, rekaman, dan transkrip.",
-          icon: Video,
-          iconColor: "text-brand-primary",
-          href: "/admin/meet",
-          label: "Buka studio temu",
-          stat: null,
-        },
-        {
-          title: "Form Studio & Visualizer",
-          description:
-            "Rancang survei, kuis, dan pendaftaran mandiri dengan 12 tipe soal, short link, dan visualisasi data real-time.",
-          icon: FileText,
-          iconColor: "text-brand-secondary",
-          href: "/admin/forms",
-          label: "Buka Form Studio",
-          stat: null,
-        },
-        {
-          title: "Media",
-          description:
-            "Unggah, rapikan, dan kelola file penting seperti logo dan aset lain di pustaka media bersama, plus browser read-only seluruh storage R2.",
-          icon: Image,
-          iconColor: "text-tertiary-1",
-          href: "/admin/media",
-          label: "Buka pustaka media",
-          stat: null,
-        },
-        {
-          title: "Tautan",
-          description:
-            "Simpan dan atur tautan penting yang sering digunakan tim Zyx dalam satu tempat.",
-          icon: LinkIcon,
-          iconColor: "text-status-success",
-          href: "/admin/tautan",
-          label: "Buka daftar tautan",
-          stat: null,
-        },
-      ],
-    },
-    {
-      name: "Konten & Publikasi",
-      items: [
-        {
-          title: "Kelola Blog",
-          description:
-            "Tulis, edit, dan publikasikan artikel, berita, dan tips untuk Zyx Blog.",
-          icon: Newspaper,
-          iconColor: "text-brand-primary",
-          href: "/admin/blog",
-          label: "Buka manajemen blog",
-          stat: blogStat,
-        },
         {
           title: "Mata Kuliah",
           description:
@@ -241,7 +186,8 @@ export default async function AdminHomePage() {
         },
         {
           title: "Product Bundle",
-          description: "Validasi, preview, review, dan publikasi produk artikel, diktat, soal, solusi, flashcard, dan asesmen.",
+          description:
+            "Validasi, preview, review, dan publikasi produk artikel, diktat, soal, solusi, flashcard, dan asesmen.",
           icon: Package,
           iconColor: "text-brand-secondary",
           href: "/admin/bundles/product",
@@ -249,7 +195,7 @@ export default async function AdminHomePage() {
           stat: null,
         },
         {
-          title: "Authoring eksternal",
+          title: "Authoring Eksternal",
           description:
             "Siapkan pekerjaan agent dari Source Pack, lalu ekspor konteks Ideas resmi untuk penulisan produk.",
           icon: ShieldCheck,
@@ -259,7 +205,7 @@ export default async function AdminHomePage() {
           stat: null,
         },
         {
-          title: "Materi",
+          title: "Materi & Dokumen",
           description:
             "Proses dan segmentasikan dokumen materi kuliah ke dalam basis pengetahuan untuk generasi soal.",
           icon: BookText,
@@ -278,21 +224,21 @@ export default async function AdminHomePage() {
           label: "Buka kompilator diktat",
           stat: diktatStat,
         },
+        {
+          title: "Kelola Blog",
+          description:
+            "Tulis, edit, dan publikasikan artikel, berita, dan tips untuk Zyx Blog.",
+          icon: Newspaper,
+          iconColor: "text-brand-primary",
+          href: "/admin/blog",
+          label: "Buka manajemen blog",
+          stat: blogStat,
+        },
       ],
     },
     {
       name: "Evaluasi & Asesmen",
       items: [
-        {
-          title: "Generasi Soal",
-          description:
-            "Jalankan pipeline generasi soal otomatis berbasis LLM dan pantau status job.",
-          icon: Zap,
-          iconColor: "text-status-warning",
-          href: "/admin/ai/jobs",
-          label: "Lihat job generasi",
-          stat: jobStat,
-        },
         {
           title: "Bank Soal",
           description:
@@ -313,6 +259,61 @@ export default async function AdminHomePage() {
           label: "Kelola kuis",
           stat: quizStat,
         },
+        {
+          title: "Generasi Soal",
+          description:
+            "Jalankan pipeline generasi soal otomatis berbasis LLM dan pantau status job.",
+          icon: Zap,
+          iconColor: "text-status-warning",
+          href: "/admin/ai/jobs",
+          label: "Lihat job generasi",
+          stat: jobStat,
+        },
+      ],
+    },
+    {
+      name: "Alat & Komunikasi",
+      items: [
+        {
+          title: "Form Studio & Visualizer",
+          description:
+            "Rancang survei, kuis, dan pendaftaran mandiri dengan 12 tipe soal, short link, dan visualisasi data real-time.",
+          icon: FileText,
+          iconColor: "text-brand-secondary",
+          href: "/admin/forms",
+          label: "Buka Form Studio",
+          stat: null,
+        },
+        {
+          title: "Meet",
+          description:
+            "Buat dan akhiri ruang meeting Pro, lihat status live, serta pantau log kehadiran peserta, rekaman, dan transkrip.",
+          icon: Video,
+          iconColor: "text-brand-primary",
+          href: "/admin/meet",
+          label: "Buka studio temu",
+          stat: null,
+        },
+        {
+          title: "Pustaka Media",
+          description:
+            "Unggah, rapikan, dan kelola file penting seperti logo dan aset lain di pustaka media bersama, plus browser read-only R2.",
+          icon: Image,
+          iconColor: "text-tertiary-1",
+          href: "/admin/media",
+          label: "Buka pustaka media",
+          stat: null,
+        },
+        {
+          title: "Tautan Publik",
+          description:
+            "Simpan dan atur tautan penting yang sering digunakan tim Zyx dalam satu tempat.",
+          icon: LinkIcon,
+          iconColor: "text-status-success",
+          href: "/admin/tautan",
+          label: "Buka daftar tautan",
+          stat: null,
+        },
       ],
     },
     {
@@ -328,11 +329,6 @@ export default async function AdminHomePage() {
           label: "Kelola token",
           stat: tokenStat,
         },
-      ],
-    },
-    {
-      name: "Sistem & Operasional",
-      items: [
         {
           title: "Push Notification",
           description:
@@ -343,25 +339,20 @@ export default async function AdminHomePage() {
           label: "Kelola notifikasi",
           stat: notifStat,
         },
+      ],
+    },
+    {
+      name: "Sistem & Operasional",
+      items: [
         {
-          title: "Key Diagnostics",
+          title: "Monitor Ops",
           description:
-            "Lihat status, kuota RPD, dan kesehatan tiap API key secara real-time.",
-          icon: KeyRound,
-          iconColor: "text-tertiary-1",
-          href: "/admin/ops/keys",
-          label: "Lihat key diagnostics",
-          stat: null,
-        },
-        {
-          title: "Web Analytics",
-          description:
-            "Pantau wawasan lalu lintas pengunjung Zyx Academy secara live (GA4).",
-          icon: LineChart,
-          iconColor: "text-brand-primary",
-          href: "/admin/ops/web-analytics",
-          label: "Buka web analytics",
-          stat: null,
+            "Pantau penggunaan API harian, kuota KV write, serta performa sistem.",
+          icon: Activity,
+          iconColor: "text-status-success",
+          href: "/admin/ops",
+          label: "Buka monitor ops",
+          stat: opsStat,
         },
         {
           title: "Feature Flags",
@@ -374,14 +365,34 @@ export default async function AdminHomePage() {
           stat: null,
         },
         {
-          title: "Ops",
+          title: "API Keys",
           description:
-            "Pantau penggunaan API harian, kuota KV write, serta performa sistem.",
-          icon: Activity,
-          iconColor: "text-status-success",
-          href: "/admin/ops",
-          label: "Buka monitor ops",
-          stat: opsStat,
+            "Lihat status, kuota RPD, dan kesehatan tiap API key secara real-time.",
+          icon: KeyRound,
+          iconColor: "text-tertiary-1",
+          href: "/admin/ops/keys",
+          label: "Lihat API keys",
+          stat: null,
+        },
+        {
+          title: "Short Links",
+          description:
+            "Kelola tautan pendek kustom (/s/slug) dan generate kode QR.",
+          icon: LinkIcon,
+          iconColor: "text-brand-secondary",
+          href: "/admin/ops/short-links",
+          label: "Buka short links",
+          stat: null,
+        },
+        {
+          title: "Web Analytics",
+          description:
+            "Pantau wawasan lalu lintas pengunjung Zyx Academy secara live (GA4).",
+          icon: LineChart,
+          iconColor: "text-brand-primary",
+          href: "/admin/ops/web-analytics",
+          label: "Buka web analytics",
+          stat: null,
         },
       ],
     },
@@ -411,7 +422,7 @@ export default async function AdminHomePage() {
 
       <div className="space-y-8">
         {categories.map((category) => (
-          <section key={category.name} className="space-y-3">
+          <section key={category.name} className="space-y-4">
             <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
               <h2 className="font-heading text-h5 font-bold text-foreground">
                 {category.name}
@@ -420,39 +431,41 @@ export default async function AdminHomePage() {
                 {category.items.length} area
               </span>
             </div>
-            <div className="divide-y divide-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {category.items.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group grid gap-4 py-4 transition-colors duration-150 hover:bg-muted/35 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-3"
+                  className="group flex flex-col justify-between rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm transition-all duration-200 hover:border-brand-primary/40 hover:shadow-md hover:bg-card/90"
                 >
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-background">
-                      <item.icon
-                        className={`size-5 ${item.iconColor}`}
-                        aria-hidden
-                      />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-heading text-h6 font-semibold text-foreground transition-colors group-hover:text-brand-primary">
-                          {item.title}
-                        </h3>
-                        {item.stat && (
-                          <span className="rounded-md bg-muted px-2 py-0.5 text-body-xs font-semibold text-muted-foreground">
-                            {item.stat}
-                          </span>
-                        )}
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-brand-primary/10">
+                        <item.icon
+                          className={`size-5 ${item.iconColor}`}
+                          aria-hidden
+                        />
                       </div>
-                      <p className="mt-1 max-w-3xl text-body-sm leading-relaxed text-muted-foreground">
+                      {item.stat && (
+                        <span className="rounded-md bg-muted px-2 py-0.5 text-body-xs font-semibold text-muted-foreground">
+                          {item.stat}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-3">
+                      <h3 className="font-heading text-h6 font-semibold text-foreground transition-colors group-hover:text-brand-primary">
+                        {item.title}
+                      </h3>
+                      <p className="mt-1.5 text-body-sm leading-relaxed text-muted-foreground line-clamp-3">
                         {item.description}
                       </p>
                     </div>
                   </div>
-                  <span className="inline-flex w-fit items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-body-sm font-semibold text-foreground transition-colors group-hover:border-brand-primary/35 group-hover:text-brand-primary">
-                    {item.label}
-                  </span>
+
+                  <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between text-body-xs font-semibold text-foreground group-hover:text-brand-primary transition-colors">
+                    <span>{item.label}</span>
+                    <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
+                  </div>
                 </Link>
               ))}
             </div>

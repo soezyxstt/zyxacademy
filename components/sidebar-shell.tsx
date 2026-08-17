@@ -3,13 +3,29 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Search, PanelLeftOpen, PanelLeftClose, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  LogOut,
+  Search,
+  PanelLeftOpen,
+  PanelLeftClose,
+  ChevronDown,
+  ChevronRight,
+  User,
+  LayoutDashboard,
+  ShieldCheck,
+  GraduationCap,
+  Sun,
+  Moon,
+  Monitor,
+  ChevronsUpDown,
+} from "lucide-react";
+import { DropdownMenu } from "radix-ui";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
 import { useCommandMenu } from "@/components/command-menu";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
-import { signOut } from "@/lib/auth-client";
+import { signOut, useSession } from "@/lib/auth-client";
 import { useSwipe } from "@/hooks/use-swipe";
 import {
   Tooltip,
@@ -32,7 +48,9 @@ export function SidebarTooltip({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent side="right">{label}</TooltipContent>
+        <TooltipContent side="right" sideOffset={8}>
+          {label}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
@@ -48,6 +66,7 @@ export function NavItem({
   collapsed,
   isChild,
   prefetch = true,
+  trailing,
 }: {
   href?: string;
   icon: React.ElementType;
@@ -58,21 +77,23 @@ export function NavItem({
   collapsed: boolean;
   isChild?: boolean;
   prefetch?: boolean;
+  trailing?: ReactNode;
 }) {
   const baseClass = cn(
-    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors w-full",
+    "group/item relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors w-full",
     active
       ? "bg-brand-primary/10 text-brand-primary font-semibold"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
     collapsed && "justify-center px-0 size-10 mx-auto",
-    isChild && !collapsed && "pl-11", // Indent children
+    isChild && !collapsed && "pl-9",
     className
   );
 
   const content = (
     <>
       <Icon className={cn("shrink-0", isChild ? "size-4" : "size-5")} />
-      {!collapsed && <span className="truncate whitespace-nowrap">{label}</span>}
+      {!collapsed && <span className="truncate whitespace-nowrap flex-1 text-left">{label}</span>}
+      {!collapsed && trailing}
     </>
   );
 
@@ -100,6 +121,7 @@ export function NavCollapsible({
   defaultOpen,
   collapsed,
   children,
+  trailing,
 }: {
   icon: React.ElementType;
   label: string;
@@ -107,12 +129,15 @@ export function NavCollapsible({
   defaultOpen?: boolean;
   collapsed: boolean;
   children: ReactNode;
+  trailing?: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen || active);
 
-  // If sidebar is collapsed, we hide children completely and clicking it could just expand the sidebar.
-  // But wait, the toggle function for sidebar is in SidebarShell, we don't have it here.
-  // We'll just let the user expand sidebar manually, or we can just ignore clicks if collapsed.
+  useEffect(() => {
+    if (active) {
+      setIsOpen(true);
+    }
+  }, [active]);
 
   return (
     <div className="flex flex-col gap-1 w-full">
@@ -123,7 +148,7 @@ export function NavCollapsible({
             if (!collapsed) setIsOpen(!isOpen);
           }}
           className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors w-full cursor-pointer",
+            "group/collapsible flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors w-full cursor-pointer",
             active && !isOpen
               ? "bg-brand-primary/10 text-brand-primary font-semibold"
               : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -134,17 +159,18 @@ export function NavCollapsible({
           {!collapsed && (
             <>
               <span className="truncate whitespace-nowrap flex-1 text-left">{label}</span>
+              {trailing}
               {isOpen ? (
-                <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform" />
               ) : (
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform" />
               )}
             </>
           )}
         </button>
       </SidebarTooltip>
       {!collapsed && isOpen && (
-        <div className="flex flex-col gap-1 w-full animate-in slide-in-from-top-1 fade-in-50 duration-150">
+        <div className="flex flex-col gap-0.5 w-full animate-in slide-in-from-top-1 fade-in-50 duration-150 pl-1 border-l border-border/50 ml-4 my-0.5">
           {children}
         </div>
       )}
@@ -154,14 +180,236 @@ export function NavCollapsible({
 
 export function NavGroup({ label, collapsed }: { label: string; collapsed: boolean }) {
   if (collapsed) {
-    return <div className="h-4 w-full" />; // Spacer
+    return <div className="h-2 w-full" />;
   }
   return (
-    <div className="px-3 pt-4 pb-1">
-      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+    <div className="px-3 pt-3 pb-1">
+      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase font-sans">
         {label}
       </p>
     </div>
+  );
+}
+
+function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
+  const { data: session } = useSession();
+  const { theme, setTheme } = useTheme();
+
+  if (!session?.user) return null;
+
+  const name = session.user.name?.trim() || "Pengguna";
+  const email = session.user.email || "";
+  const role = (session.user as { role?: string | null }).role;
+
+  const handleLogout = async () => {
+    await signOut();
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = "/";
+  };
+
+  const trigger = collapsed ? (
+    <button
+      type="button"
+      className="flex size-10 items-center justify-center rounded-xl hover:bg-muted/80 text-foreground transition-colors cursor-pointer mx-auto shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={`Akun (${name})`}
+    >
+      {session.user.image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={session.user.image}
+          alt={name}
+          className="size-8 rounded-full object-cover ring-1 ring-border"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">
+          {name.charAt(0).toUpperCase()}
+        </span>
+      )}
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-muted/80 transition-colors cursor-pointer group shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {session.user.image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={session.user.image}
+          alt={name}
+          className="size-8 rounded-full object-cover ring-1 ring-border shrink-0"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">
+          {name.charAt(0).toUpperCase()}
+        </span>
+      )}
+      <div className="min-w-0 flex-1 text-left">
+        <p className="truncate text-body-xs font-semibold text-foreground group-hover:text-foreground">
+          {name}
+        </p>
+        <p className="truncate text-[11px] text-muted-foreground">
+          {email}
+        </p>
+      </div>
+      <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
+    </button>
+  );
+
+  return (
+    <DropdownMenu.Root>
+      <SidebarTooltip label={name} collapsed={collapsed}>
+        <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
+      </SidebarTooltip>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          side="top"
+          align={collapsed ? "center" : "start"}
+          sideOffset={8}
+          className={cn(
+            "z-50 min-w-56 overflow-hidden rounded-xl border border-border bg-popover p-1.5 shadow-xl",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out",
+            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+            "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
+          )}
+        >
+          <div className="flex items-center gap-3 px-2 py-2">
+            {session.user.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={session.user.image}
+                alt={name}
+                className="size-9 rounded-full object-cover ring-1 ring-border shrink-0"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">
+                {name.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-body-sm font-semibold text-foreground">
+                {name}
+              </p>
+              <p className="truncate text-body-xs text-muted-foreground">
+                {email}
+              </p>
+            </div>
+          </div>
+
+          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
+
+          <DropdownMenu.Item asChild>
+            <Link
+              href="/profile"
+              prefetch={true}
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
+            >
+              <User className="size-4 shrink-0 text-muted-foreground" />
+              <span>Pengaturan Profil</span>
+            </Link>
+          </DropdownMenu.Item>
+
+          <DropdownMenu.Item asChild>
+            <Link
+              href="/dashboard"
+              prefetch={true}
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
+            >
+              <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" />
+              <span>Dashboard Siswa</span>
+            </Link>
+          </DropdownMenu.Item>
+
+          {(role === "teacher" || role === "admin") && (
+            <DropdownMenu.Item asChild>
+              <Link
+                href="/tutor"
+                prefetch={true}
+                className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
+              >
+                <GraduationCap className="size-4 shrink-0 text-muted-foreground" />
+                <span>Panel Pengajar</span>
+              </Link>
+            </DropdownMenu.Item>
+          )}
+
+          {role === "admin" && (
+            <DropdownMenu.Item asChild>
+              <Link
+                href="/admin"
+                prefetch={true}
+                className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
+              >
+                <ShieldCheck className="size-4 shrink-0 text-muted-foreground" />
+                <span>Panel Admin</span>
+              </Link>
+            </DropdownMenu.Item>
+          )}
+
+          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
+
+          <div className="px-2.5 py-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 font-sans">
+              Tema Tampilan
+            </p>
+            <div className="grid grid-cols-3 gap-1">
+              <button
+                type="button"
+                onClick={() => setTheme("light")}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
+                  theme === "light"
+                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
+                    : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Sun className="size-3.5" />
+                <span>Terang</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme("dark")}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
+                  theme === "dark"
+                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
+                    : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Moon className="size-3.5" />
+                <span>Gelap</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme("system")}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
+                  theme === "system"
+                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
+                    : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Monitor className="size-3.5" />
+                <span>Sistem</span>
+              </button>
+            </div>
+          </div>
+
+          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
+
+          <DropdownMenu.Item
+            onSelect={handleLogout}
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-status-error outline-none transition-colors hover:bg-status-error/10 data-[highlighted]:bg-status-error/10"
+          >
+            <LogOut className="size-4 shrink-0" />
+            <span className="font-semibold">Keluar</span>
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
@@ -200,7 +448,7 @@ export function SidebarShell({
     },
     onSwipeLeft: () => {
       if (isMobile && mobileOpen) setMobileOpen(false);
-    }
+    },
   });
 
   useEffect(() => {
@@ -230,7 +478,9 @@ export function SidebarShell({
   useEffect(() => {
     if (!mobileOpen) return;
     const handleOutsideClick = (e: MouseEvent) => {
-      const isPortal = (e.target as HTMLElement)?.closest?.('[data-radix-portal], [role="listbox"], [role="dialog"], [role="combobox"]');
+      const isPortal = (e.target as HTMLElement)?.closest?.(
+        '[data-radix-portal], [role="listbox"], [role="dialog"], [role="combobox"]'
+      );
       if (!isPortal && sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
         setMobileOpen(false);
       }
@@ -242,7 +492,9 @@ export function SidebarShell({
   useEffect(() => {
     if (!mounted) return;
     document.body.style.overflow = mobileOpen ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [mobileOpen, mounted]);
 
   const isCollapsed = isMobile ? false : collapsed;
@@ -254,12 +506,6 @@ export function SidebarShell({
       return next;
     });
   }, [collapsedKey]);
-
-  const handleLogout = async () => {
-    await signOut();
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.href = "/";
-  };
 
   return (
     <>
@@ -276,7 +522,7 @@ export function SidebarShell({
           type="button"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation"
-          className="flex size-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground shadow-sm fixed top-3 left-3 z-40 md:hidden"
+          className="flex size-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground shadow-sm fixed top-3 left-3 z-40 md:hidden cursor-pointer"
         >
           <PanelLeftOpen className="size-4" />
         </button>
@@ -300,76 +546,95 @@ export function SidebarShell({
           isCollapsed ? "md:w-[64px]" : "md:w-[248px]"
         )}
       >
-        <div className="flex h-14 shrink-0 items-center border-b border-border px-3 gap-2">
-          {!isCollapsed && (
-            <Link href={logoHref} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center">
-              <Logo className="[--logo-height:1.75rem]" />
-            </Link>
+        {/* Top Header Bar */}
+        <div
+          className={cn(
+            "flex h-14 shrink-0 items-center border-b border-border gap-1.5",
+            isCollapsed ? "justify-center px-1.5" : "px-3"
           )}
-          {isCollapsed && <div className="flex-1" />}
+        >
+          {!isCollapsed ? (
+            <>
+              <Link href={logoHref} aria-label={logoLabel} className="flex flex-1 min-w-0 items-center">
+                <Logo className="[--logo-height:1.75rem]" />
+              </Link>
 
-          <NotificationBell variant="sidebar" />
+              <NotificationBell variant="sidebar" />
 
-          <SidebarTooltip label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"} collapsed={isCollapsed}>
-            <button
-              type="button"
-              onClick={isMobile ? () => setMobileOpen(false) : toggleCollapsed}
-              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {isCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-            </button>
-          </SidebarTooltip>
+              <SidebarTooltip label={`Cari (${modKeyHint})`} collapsed={false}>
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  aria-label={`Cari (${modKeyHint})`}
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <Search className="size-4" />
+                </button>
+              </SidebarTooltip>
 
-          {!isCollapsed && <ThemeToggle mode="sidebar" />}
+              <SidebarTooltip label="Tutup sidebar" collapsed={false}>
+                <button
+                  type="button"
+                  onClick={isMobile ? () => setMobileOpen(false) : toggleCollapsed}
+                  aria-label="Tutup sidebar"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <PanelLeftClose className="size-4" />
+                </button>
+              </SidebarTooltip>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-1.5 py-1">
+              <SidebarTooltip label="Buka sidebar" collapsed={true}>
+                <button
+                  type="button"
+                  onClick={toggleCollapsed}
+                  aria-label="Buka sidebar"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <PanelLeftOpen className="size-4" />
+                </button>
+              </SidebarTooltip>
+            </div>
+          )}
         </div>
 
+        {/* Optional Top Section (e.g. Streak strip) */}
         {topSection?.(isCollapsed)}
 
-        <div className="px-3 pt-3 shrink-0">
-          <SidebarTooltip label={`Search ${modKeyHint}`} collapsed={isCollapsed}>
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              className={cn(
-                "flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-muted-foreground transition-all hover:bg-muted/70 hover:text-foreground cursor-pointer",
-                isCollapsed ? "size-10 mx-auto px-0" : "w-full"
-              )}
-            >
-              <Search className="size-4 shrink-0" />
-              {!isCollapsed && (
-                <kbd className="bg-muted px-1.5 py-0.5 rounded border border-border text-[10px] font-mono leading-none font-semibold">
-                  {modKeyHint}
-                </kbd>
-              )}
-            </button>
-          </SidebarTooltip>
-        </div>
-
-        {nav(isCollapsed)}
-
-        {bottomSection?.(isCollapsed)}
-
+        {/* Collapsed quick search button */}
         {isCollapsed && (
-          <div className="flex justify-center pb-2">
-            <ThemeToggle mode="sidebar" />
+          <div className="px-1 pt-2 shrink-0 flex justify-center">
+            <SidebarTooltip label={`Cari (${modKeyHint})`} collapsed={true}>
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                aria-label={`Cari (${modKeyHint})`}
+                className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+              >
+                <Search className="size-4" />
+              </button>
+            </SidebarTooltip>
           </div>
         )}
 
-        <SidebarTooltip label="Keluar" collapsed={isCollapsed}>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer shrink-0 mx-3 mb-3",
-              isCollapsed && "justify-center size-10 mx-auto px-0"
-            )}
-          >
-            <LogOut className="size-5 shrink-0" />
-            {!isCollapsed && <span>Keluar</span>}
-          </button>
-        </SidebarTooltip>
+        {/* Main Navigation */}
+        {nav(isCollapsed)}
+
+        {/* Optional Bottom Section */}
+        {bottomSection?.(isCollapsed)}
+
+        {/* Bottom User Profile Section (Gambar 3 style) */}
+        <div
+          className={cn(
+            "border-t border-border/70 p-2 shrink-0 bg-card/50",
+            isCollapsed && "flex justify-center p-1.5"
+          )}
+        >
+          <SidebarUserMenu collapsed={isCollapsed} />
+        </div>
       </aside>
     </>
   );
 }
+

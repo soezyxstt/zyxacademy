@@ -518,7 +518,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       opacity: 1,
       filter: "blur(0px)",
       transition: {
-        y: { type: "spring", stiffness: 350, damping: 30 },
+        y: { type: "spring" as const, stiffness: 350, damping: 30 },
         opacity: { duration: 0.25 },
         filter: { duration: 0.2 },
       },
@@ -528,12 +528,13 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       opacity: 0,
       filter: "blur(4px)",
       transition: {
-        y: { type: "spring", stiffness: 350, damping: 30 },
+        y: { type: "spring" as const, stiffness: 350, damping: 30 },
         opacity: { duration: 0.2 },
         filter: { duration: 0.15 },
       },
     }),
   };
+
 
   if (loading) {
     return (
