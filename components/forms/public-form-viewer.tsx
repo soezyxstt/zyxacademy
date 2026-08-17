@@ -38,6 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PageOrnaments } from "@/components/ui/page-ornaments";
 
 interface QuestionItem {
   title: string;
@@ -638,12 +639,13 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   if (submittedMessage && form) {
     return (
-      <div className="flex min-h-[75vh] items-center justify-center p-4">
+      <div className="relative flex min-h-[75vh] items-center justify-center p-4 overflow-hidden">
+        <PageOrnaments variant="testimonial" />
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="mx-auto max-w-lg w-full rounded-2xl border border-border bg-card p-8 sm:p-10 shadow-sm text-center space-y-6"
+          className="relative z-10 mx-auto max-w-lg w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 sm:p-10 shadow-sm text-center space-y-6"
         >
           <div className="size-16 rounded-2xl bg-status-success/15 text-status-success flex items-center justify-center mx-auto shadow-inner">
             <Check className="size-8 stroke-[2.5]" />
@@ -678,6 +680,9 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
 
   return (
     <div className="relative flex min-h-[88vh] flex-col justify-between overflow-hidden bg-background text-foreground selection:bg-brand-primary/20 pb-28 sm:pb-32">
+      {/* Background Math Symbols, Radial Glows & Geometric Ornaments */}
+      <PageOrnaments variant="plans" />
+
       {/* Top Fixed Minimal Progress Header */}
       <div className="sticky top-0 z-40 w-full backdrop-blur-md bg-background/85 border-b border-border/40">
         <div className="h-1 w-full bg-muted/60">
@@ -706,7 +711,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       </div>
 
       {/* Main Interactive Screen Area */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8 sm:py-12">
+      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-2xl mx-auto">
           <AnimatePresence mode="wait" custom={direction}>
             {/* 1. COVER / WELCOME SCREEN */}
