@@ -1,0 +1,403 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  saveChapter,
+  deleteChapter,
+  reorderChapters,
+} from "@/app/(admin)/admin/(academic)/courses/actions";
+import {
+  Layers,
+  Plus,
+  Edit2,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+  BookOpen,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+
+type Chapter = {
+  id: string;
+  courseId: string;
+  title: string;
+  orderIndex: number;
+  description?: string | null;
+  status?: string | null;
+};
+
+type Props = {
+  courseId: string;
+  courseTitle: string;
+  initialChapters: Chapter[];
+};
+
+export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapters }: Props) {
+  const router = useRouter();
+  const [chapters, setChapters] = useState<Chapter[]>(initialChapters);
+  const [loading, setLoading] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // New Chapter Form
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [addingChapter, setAddingChapter] = useState(false);
+
+  // Edit Chapter Modal
+  const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editOrder, setEditOrder] = useState(1);
+  const [editDescription, setEditDescription] = useState("");
+
+  // Delete Confirmation
+  const [deletingChapter, setDeletingChapter] = useState<Chapter | null>(null);
+
+  const handleAddChapter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) {
+      toast.error("Judul bab wajib diisi.");
+      return;
+    }
+
+    setAddingChapter(true);
+    const nextOrder = chapters.length + 1;
+    const res = await saveChapter(null, courseId, newTitle.trim(), nextOrder, newDescription.trim() || null);
+    setAddingChapter(false);
+
+    if (res.success) {
+      toast.success("Bab baru berhasil ditambahkan.");
+      setNewTitle("");
+      setNewDescription("");
+      router.refresh();
+    } else {
+      toast.error(res.error || "Gagal menambahkan bab.");
+    }
+  };
+
+  const startEditChapter = (ch: Chapter) => {
+    setEditingChapter(ch);
+    setEditTitle(ch.title);
+    setEditOrder(ch.orderIndex);
+    setEditDescription(ch.description || "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingChapter || !editTitle.trim()) {
+      toast.error("Judul bab wajib diisi.");
+      return;
+    }
+
+    setLoading(true);
+    const res = await saveChapter(
+      editingChapter.id,
+      courseId,
+      editTitle.trim(),
+      editOrder,
+      editDescription.trim() || null
+    );
+    setLoading(false);
+
+    if (res.success) {
+      toast.success("Perubahan bab disimpan.");
+      setEditingChapter(null);
+      router.refresh();
+    } else {
+      toast.error(res.error || "Gagal menyimpan perubahan bab.");
+    }
+  };
+
+  const handleDeleteChapter = async () => {
+    if (!deletingChapter) return;
+    setLoading(true);
+    const res = await deleteChapter(deletingChapter.id);
+    setLoading(false);
+    setDeletingChapter(null);
+
+    if (res.success) {
+      toast.success("Bab berhasil dihapus.");
+      router.refresh();
+    } else {
+      toast.error(res.error || "Gagal menghapus bab.");
+    }
+  };
+
+  const handleMove = async (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= chapters.length) return;
+
+    const newOrder = [...chapters];
+    const [moved] = newOrder.splice(index, 1);
+    newOrder.splice(targetIndex, 0, moved);
+
+    setChapters(newOrder);
+    setActionLoadingId(moved.id);
+
+    const reorderRes = await reorderChapters(courseId, newOrder.map((c) => c.id));
+    setActionLoadingId(null);
+
+    if (reorderRes.success) {
+      toast.success("Urutan bab diperbarui.");
+      router.refresh();
+    } else {
+      toast.error("Gagal memperbarui urutan bab.");
+      setChapters(initialChapters);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Add New Chapter Card */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <h3 className="font-heading text-body-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Plus className="size-4 text-brand-primary" />
+          Tambah Bab Baru
+        </h3>
+        <form onSubmit={handleAddChapter} className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1 md:col-span-1">
+              <Label className="text-body-sm font-semibold text-foreground">Judul Bab</Label>
+              <Input
+                placeholder="Contoh: Limit dan Kekontinuan"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                disabled={addingChapter}
+                className="rounded-lg"
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-body-sm font-semibold text-foreground">Deskripsi / Ruang Lingkup (Opsional)</Label>
+              <Input
+                placeholder="Contoh: Konsep limit intuitif, limit sepihak, dan definisi formal epsilon-delta"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                disabled={addingChapter}
+                className="rounded-lg"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={addingChapter || !newTitle.trim()}
+              className="gap-1.5 rounded-lg font-medium"
+            >
+              {addingChapter ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Menambahkan...
+                </>
+              ) : (
+                <>
+                  <Plus className="size-3.5" />
+                  Tambah Bab
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      {/* Chapters List */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
+              <Layers className="size-4 text-brand-primary" />
+              Daftar Silabus & Bab ({chapters.length})
+            </h3>
+            <p className="text-body-xs text-muted-foreground mt-0.5">
+              Urutan bab menentukan struktur belajar mahasiswa dan pengelompokan materi serta kuis.
+            </p>
+          </div>
+        </div>
+
+        {chapters.length === 0 ? (
+          <div className="text-center py-12 border border-dashed border-border rounded-xl">
+            <BookOpen className="size-8 text-muted-foreground/50 mx-auto mb-2" />
+            <p className="text-body-sm font-medium text-foreground">Belum ada bab yang terdaftar</p>
+            <p className="text-body-xs text-muted-foreground mt-1">
+              Gunakan formulir di atas untuk menambahkan bab pertama mata kuliah ini.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {chapters.map((ch, idx) => (
+              <div
+                key={ch.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border border-border/70 bg-card hover:bg-muted/10 transition-colors gap-3"
+              >
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary font-heading font-bold text-body-xs">
+                    {idx + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-body-sm font-semibold text-foreground truncate">
+                      {ch.title}
+                    </p>
+                    {ch.description && (
+                      <p className="text-body-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {ch.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-1.5 shrink-0">
+                  {/* Reorder Buttons */}
+                  <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-lg border border-border/40">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 rounded-md"
+                      disabled={idx === 0 || actionLoadingId === ch.id}
+                      onClick={() => handleMove(idx, "up")}
+                      title="Pindah ke Atas"
+                    >
+                      <ArrowUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 rounded-md"
+                      disabled={idx === chapters.length - 1 || actionLoadingId === ch.id}
+                      onClick={() => handleMove(idx, "down")}
+                      title="Pindah ke Bawah"
+                    >
+                      <ArrowDown className="size-3.5" />
+                    </Button>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="size-7 rounded-lg"
+                    onClick={() => startEditChapter(ch)}
+                    title="Edit Bab"
+                  >
+                    <Edit2 className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="size-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeletingChapter(ch)}
+                    title="Hapus Bab"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Edit Chapter Modal */}
+      <Dialog open={!!editingChapter} onOpenChange={(open) => !open && setEditingChapter(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Bab</DialogTitle>
+            <DialogDescription>
+              Perbarui judul, urutan, atau deskripsi bab pembelajaran.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Judul Bab</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                disabled={loading}
+                className="rounded-lg"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Nomor Urutan</Label>
+              <Input
+                type="number"
+                min={1}
+                value={editOrder}
+                onChange={(e) => setEditOrder(parseInt(e.target.value) || 1)}
+                disabled={loading}
+                className="rounded-lg"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Deskripsi (Opsional)</Label>
+              <Textarea
+                rows={3}
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                disabled={loading}
+                className="rounded-lg"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
+                Batal
+              </Button>
+            </DialogClose>
+            <Button
+              size="sm"
+              onClick={handleSaveEdit}
+              disabled={loading || !editTitle.trim()}
+              className="rounded-lg"
+            >
+              {loading ? "Menyimpan..." : "Simpan Perubahan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Chapter Dialog */}
+      <Dialog open={!!deletingChapter} onOpenChange={(open) => !open && setDeletingChapter(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Hapus Bab Pembelajaran</DialogTitle>
+            <DialogDescription>
+              Anda yakin ingin menghapus bab <strong>{deletingChapter?.title}</strong>? Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
+                Batal
+              </Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteChapter}
+              disabled={loading}
+              className="rounded-lg"
+            >
+              {loading ? "Menghapus..." : "Hapus Bab"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

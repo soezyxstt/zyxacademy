@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, Suspense, useMemo } from "react";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -76,11 +78,11 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "materials-manual", label: "Upload Manual", href: "/admin/materials/manual", icon: Upload, group: "akademik" },
 
   // Bank Soal & Asesmen
-  { id: "bank-soal", label: "Bank Soal", href: "/admin/ai/questions", icon: Library, group: "evaluasi" },
+  { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "evaluasi" },
   { id: "quizzes", label: "Kuis", href: "/admin/quizzes", icon: NotebookPen, group: "evaluasi" },
-  { id: "quiz-insights", label: "Analisis Kuis", href: "/admin/ai/quiz-insights", icon: BarChart3, group: "evaluasi" },
-  { id: "question-jobs", label: "Generasi Soal", href: "/admin/ai/jobs", icon: Zap, group: "evaluasi" },
-  { id: "distractors", label: "Analitik Distraktor", href: "/admin/ai/distractors", icon: Target, group: "evaluasi" },
+  { id: "quiz-insights", label: "Analisis Kuis", href: "/admin/quiz-insights", icon: BarChart3, group: "evaluasi" },
+  { id: "question-jobs", label: "Generasi Soal", href: "/admin/jobs", icon: Zap, group: "evaluasi" },
+  { id: "distractors", label: "Analitik Distraktor", href: "/admin/distractors", icon: Target, group: "evaluasi" },
 
   // Alat & Komunikasi
   { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
@@ -104,8 +106,8 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "pka-registrations", label: "Pendaftar PKA", href: "/admin/tutorial-pka/registrations", icon: UserCheck, group: "tutorial-pka" },
   { id: "pka-announcements", label: "Pengumuman PKA", href: "/admin/tutorial-pka/announcements", icon: Megaphone, group: "tutorial-pka" },
   { id: "pka-schedules", label: "Jadwal Live PKA", href: "/admin/tutorial-pka/schedules", icon: CalendarDays, group: "tutorial-pka" },
-  { id: "pka-quizzes", label: "Kuis PKA", href: "/admin/ai/quizzes?courseId=tutorial-pka", icon: ListChecks, group: "tutorial-pka" },
-  { id: "pka-materials", label: "Materi PKA", href: "/admin/ai/materials?courseId=tutorial-pka", icon: FileText, group: "tutorial-pka" },
+  { id: "pka-quizzes", label: "Kuis PKA", href: "/admin/quizzes?courseId=tutorial-pka", icon: ListChecks, group: "tutorial-pka" },
+  { id: "pka-materials", label: "Materi PKA", href: "/admin/materials?courseId=tutorial-pka", icon: FileText, group: "tutorial-pka" },
 ];
 
 function AdminSidebarInner() {
@@ -193,15 +195,14 @@ function AdminSidebarInner() {
   const isTabActive = useMemo(() => {
     return (tab: AdminTabDef) => {
       if (tab.id === "pka-quizzes") {
-        return pathname === "/admin/ai/quizzes" && searchParams?.get("courseId") === "tutorial-pka";
+        return (pathname === "/admin/quizzes" || pathname === "/admin/ai/quizzes") && searchParams?.get("courseId") === "tutorial-pka";
       }
       if (tab.id === "pka-materials") {
-        return pathname === "/admin/ai/materials" && searchParams?.get("courseId") === "tutorial-pka";
+        return (pathname === "/admin/materials" || pathname === "/admin/ai/materials") && searchParams?.get("courseId") === "tutorial-pka";
       }
       if (tab.id === "quizzes") {
         return (
-          (pathname === "/admin/quizzes" || pathname.startsWith("/admin/quizzes/")) ||
-          (pathname === "/admin/ai/quizzes" && searchParams?.get("courseId") !== "tutorial-pka")
+          (pathname === "/admin/quizzes" || pathname.startsWith("/admin/quizzes/")) && searchParams?.get("courseId") !== "tutorial-pka"
         );
       }
       if (tab.exact) {
@@ -404,17 +405,22 @@ function AdminSidebarInner() {
                   return (
                     <div
                       key={tab.id}
-                      className="group/item flex items-center justify-between gap-1 rounded-xl px-3 py-1.5 text-body-xs font-medium hover:bg-muted/70 text-muted-foreground transition-colors w-full"
+                      className="group/item flex items-center justify-between gap-1.5 rounded-xl px-2.5 py-1.5 text-body-xs font-medium hover:bg-muted/70 text-muted-foreground transition-colors w-full"
                     >
-                      <tab.icon className="size-3.5 shrink-0" />
-                      <span className={cn("truncate flex-1 text-left min-w-0 pl-1", active && "text-brand-primary font-semibold")}>
-                        {tab.label}
-                      </span>
+                      <Link
+                        href={tab.href}
+                        className="flex items-center gap-2 flex-1 min-w-0 text-left hover:text-foreground"
+                      >
+                        <tab.icon className="size-3.5 shrink-0" />
+                        <span className={cn("truncate", active && "text-brand-primary font-semibold")}>
+                          {tab.label}
+                        </span>
+                      </Link>
                       <button
                         type="button"
                         onClick={(e) => restoreTab(tab.id, tab.label, e)}
                         title={`Pulihkan tab ${tab.label}`}
-                        className="opacity-0 group-hover/item:opacity-100 p-1 hover:bg-brand-primary/10 rounded-md text-brand-primary transition-all cursor-pointer"
+                        className="opacity-0 group-hover/item:opacity-100 p-1 hover:bg-brand-primary/10 rounded-md text-brand-primary transition-all cursor-pointer shrink-0"
                       >
                         <ArchiveRestore className="size-3.5" />
                       </button>
@@ -423,6 +429,7 @@ function AdminSidebarInner() {
                 })}
               </div>
             </NavCollapsible>
+
           </>
         )}
 

@@ -53,10 +53,7 @@ export default async function ReflectionsArchivePage() {
     <div className="relative overflow-hidden min-h-screen">
       <PageOrnaments variant="about" />
       <div className="relative z-10">
-        <ShellPage
-          title="Weekly reflections"
-          description="Your weekly learning progress, completed activities, and mastery growth."
-        >
+        <ShellPage title="Weekly reflections">
           <div className="max-w-3xl mx-auto pb-16">
             {reflections.length > 0 ? (
               <div className="divide-y divide-border border-t border-border">

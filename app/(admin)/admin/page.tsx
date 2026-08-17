@@ -164,8 +164,6 @@ export default async function AdminHomePage() {
       items: [
         {
           title: "Mata Kuliah",
-          description:
-            "Kelola kurikulum, tambah kelas baru, dan edit info mata kuliah Zyx Academy.",
           icon: GraduationCap,
           iconColor: "text-brand-secondary",
           href: "/admin/courses",
@@ -174,29 +172,22 @@ export default async function AdminHomePage() {
         },
         {
           title: "Materi & Dokumen",
-
-          description:
-            "Proses dan segmentasikan dokumen materi kuliah ke dalam basis pengetahuan untuk generasi soal.",
           icon: BookText,
           iconColor: "text-tertiary-1",
-          href: "/admin/ai/materials",
+          href: "/admin/materials",
           label: "Kelola materi",
           stat: materialStat,
         },
         {
           title: "Kompilasi Diktat",
-          description:
-            "Gabungkan materi bab dan objek pengetahuan menjadi buku ajar PDF siap unduh.",
           icon: Archive,
           iconColor: "text-brand-primary",
-          href: "/admin/ai/diktats",
+          href: "/admin/diktats",
           label: "Buka kompilator diktat",
           stat: diktatStat,
         },
         {
           title: "Kelola Blog",
-          description:
-            "Tulis, edit, dan publikasikan artikel, berita, dan tips untuk Zyx Blog.",
           icon: Newspaper,
           iconColor: "text-brand-primary",
           href: "/admin/blog",
@@ -210,31 +201,25 @@ export default async function AdminHomePage() {
       items: [
         {
           title: "Bank Soal",
-          description:
-            "Tinjau, edit, setujui, dan publikasikan soal latihan hasil generasi sistem.",
           icon: ListChecks,
           iconColor: "text-status-success",
-          href: "/admin/ai/questions",
+          href: "/admin/questions",
           label: "Buka bank soal",
           stat: questionStat,
         },
         {
           title: "Template Kuis",
-          description:
-            "Buat template kuis baru dengan aturan seleksi materi dan tingkat kesulitan.",
           icon: ClipboardList,
           iconColor: "text-brand-primary",
-          href: "/admin/ai/quizzes",
+          href: "/admin/quizzes",
           label: "Kelola kuis",
           stat: quizStat,
         },
         {
           title: "Generasi Soal",
-          description:
-            "Jalankan pipeline generasi soal otomatis berbasis LLM dan pantau status job.",
           icon: Zap,
           iconColor: "text-status-warning",
-          href: "/admin/ai/jobs",
+          href: "/admin/jobs",
           label: "Lihat job generasi",
           stat: jobStat,
         },
@@ -245,8 +230,6 @@ export default async function AdminHomePage() {
       items: [
         {
           title: "Form Studio & Visualizer",
-          description:
-            "Rancang survei, kuis, dan pendaftaran mandiri dengan 12 tipe soal, short link, dan visualisasi data real-time.",
           icon: FileText,
           iconColor: "text-brand-secondary",
           href: "/admin/forms",
@@ -255,8 +238,6 @@ export default async function AdminHomePage() {
         },
         {
           title: "Meet",
-          description:
-            "Buat dan akhiri ruang meeting Pro, lihat status live, serta pantau log kehadiran peserta, rekaman, dan transkrip.",
           icon: Video,
           iconColor: "text-brand-primary",
           href: "/admin/meet",
@@ -265,8 +246,6 @@ export default async function AdminHomePage() {
         },
         {
           title: "Pustaka Media",
-          description:
-            "Unggah, rapikan, dan kelola file penting seperti logo dan aset lain di pustaka media bersama, plus browser read-only R2.",
           icon: Image,
           iconColor: "text-tertiary-1",
           href: "/admin/media",
@@ -275,8 +254,6 @@ export default async function AdminHomePage() {
         },
         {
           title: "Tautan Publik",
-          description:
-            "Simpan dan atur tautan penting yang sering digunakan tim Zyx dalam satu tempat.",
           icon: LinkIcon,
           iconColor: "text-status-success",
           href: "/admin/tautan",
@@ -290,8 +267,6 @@ export default async function AdminHomePage() {
       items: [
         {
           title: "Token Aktivasi Kelas",
-          description:
-            "Buat dan distribusikan token pendaftaran semester sekali pakai untuk mahasiswa.",
           icon: KeyRound,
           iconColor: "text-brand-secondary",
           href: "/admin/tokens",
@@ -300,8 +275,6 @@ export default async function AdminHomePage() {
         },
         {
           title: "Push Notification",
-          description:
-            "Kirim pesan siaran notifikasi push ke seluruh siswa atau kelas tertentu.",
           icon: Bell,
           iconColor: "text-tertiary-3",
           href: "/admin/notifications",
@@ -315,8 +288,6 @@ export default async function AdminHomePage() {
       items: [
         {
           title: "Monitor Ops",
-          description:
-            "Pantau penggunaan API harian, kuota KV write, serta performa sistem.",
           icon: Activity,
           iconColor: "text-status-success",
           href: "/admin/ops",
@@ -325,8 +296,6 @@ export default async function AdminHomePage() {
         },
         {
           title: "Feature Flags",
-          description:
-            "Pantau status keaktifan dan konfigurasi feature flag granular kategori 4 sistem.",
           icon: Flag,
           iconColor: "text-brand-primary",
           href: "/admin/ops/flags",
@@ -335,8 +304,6 @@ export default async function AdminHomePage() {
         },
         {
           title: "API Keys",
-          description:
-            "Lihat status, kuota RPD, dan kesehatan tiap API key secara real-time.",
           icon: KeyRound,
           iconColor: "text-tertiary-1",
           href: "/admin/ops/keys",
@@ -345,8 +312,6 @@ export default async function AdminHomePage() {
         },
         {
           title: "Short Links",
-          description:
-            "Kelola tautan pendek kustom (/s/slug) dan generate kode QR.",
           icon: LinkIcon,
           iconColor: "text-brand-secondary",
           href: "/admin/ops/short-links",
@@ -355,8 +320,6 @@ export default async function AdminHomePage() {
         },
         {
           title: "Web Analytics",
-          description:
-            "Pantau wawasan lalu lintas pengunjung Zyx Academy secara live (GA4).",
           icon: LineChart,
           iconColor: "text-brand-primary",
           href: "/admin/ops/web-analytics",
@@ -372,7 +335,6 @@ export default async function AdminHomePage() {
       <AdminPageHeader
         icon={LayoutDashboard}
         title="Admin Panel"
-        description="Statistik operasional langsung dan pengaturan situs Zyx Academy."
         actions={<RefreshAnalyticsButton />}
       />
 
@@ -422,12 +384,9 @@ export default async function AdminHomePage() {
                       )}
                     </div>
                     <div className="mt-3">
-                      <h3 className="font-heading text-h6 font-semibold text-foreground transition-colors group-hover:text-brand-primary">
+                      <h3 className="font-heading text-body-base font-semibold text-foreground transition-colors group-hover:text-brand-primary">
                         {item.title}
                       </h3>
-                      <p className="mt-1.5 text-body-sm leading-relaxed text-muted-foreground line-clamp-3">
-                        {item.description}
-                      </p>
                     </div>
                   </div>
 

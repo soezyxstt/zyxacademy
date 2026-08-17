@@ -284,7 +284,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
                 <tr key={source.id} className="group border-b border-border last:border-b-0 hover:bg-muted/50 transition-colors duration-150">
                   <td className="font-medium text-foreground px-4 py-3 align-middle">
                     <Link
-                      href={`/admin/ai/assessments/${source.id}`}
+                      href={`/admin/assessments/${source.id}`}
                       className="hover:underline flex items-center gap-2"
                     >
                       <FileText size={16} className="text-muted-foreground" />
@@ -345,7 +345,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
                   </td>
                   <td className="px-4 py-3 align-middle text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Link href={`/admin/ai/assessments/${source.id}`} className="text-muted-foreground hover:text-foreground inline-block">
+                      <Link href={`/admin/assessments/${source.id}`} className="text-muted-foreground hover:text-foreground inline-block">
                         <ExternalLink size={16} />
                       </Link>
                       <Button

@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -12,8 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { saveCourse, deleteCourse, getCourseChapters, saveChapter, deleteChapter } from "@/app/(admin)/admin/(academic)/courses/actions";
-import { Edit, Trash2, Check, X, Layers, Plus, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,530 +25,594 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  saveCourse,
+  deleteCourse,
+  allowedCategories,
+} from "@/app/(admin)/admin/(academic)/courses/actions";
+import {
+  Search,
+  Plus,
+  ArrowRight,
+  Edit2,
+  Trash2,
+  LayoutGrid,
+  List,
+  BookOpen,
+} from "lucide-react";
 
-const CATEGORY_OPTIONS = [
-  "TPB",
-  "Rekayasa Umum",
-  "Matematika",
-  "Fisika",
-  "Astronomi",
-  "Kimia",
-  "Aktuaria",
-  "Mikrobiologi",
-  "Biologi",
-  "Rekayasa Hayati",
-  "Rekayasa Pertanian",
-  "Rekayasa Kehutanan",
-  "Teknologi Pasca Panen",
-  "Sains dan Teknologi Farmasi",
-  "Farmasi Klinik dan Komunitas",
-  "Teknik Pertambangan",
-  "Teknik Perminyakan",
-  "Teknik Geofisika",
-  "Teknik Metalurgi",
-  "Teknik Geologi",
-  "Meteorologi",
-  "Oseanografi",
-  "Teknik Geodesi dan Geomatika",
-  "Teknik Kimia",
-  "Teknik Fisika",
-  "Teknik Industri",
-  "Teknik Pangan",
-  "Manajemen Rekayasa",
-  "Teknik Bioenergi dan Kemurgi",
-  "Teknik Industri (Kampus Cirebon)",
-  "Teknik Elektro",
-  "Teknik Informatika",
-  "Teknik Tenaga Listrik",
-  "Teknik Telekomunikasi",
-  "Sistem dan Teknologi Informasi",
-  "Teknik Biomedis",
-  "Teknik Mesin",
-  "Teknik Dirgantara",
-  "Teknik Material",
-  "Teknik Sipil",
-  "Teknik Lingkungan",
-  "Teknik Kelautan",
-  "Rekayasa Infrastruktur Lingkungan",
-  "Teknik dan Pengelolaan Sumber Daya Air",
-  "Arsitektur",
-  "Perencanaan Wilayah dan Kota",
-  "Perencanaan Wilayah dan Kota (Kampus Cirebon)",
-  "Seni Rupa",
-  "Kriya (Kampus Cirebon)",
-  "Kriya",
-  "Desain Interior",
-  "Desain Komunikasi Visual",
-  "Desain Produk",
-  "Manajemen",
-  "Kewirausahaan",
-] as const;
-
-type Course = {
+export type CourseWithStats = {
   id: string;
   title: string;
   category: string;
   description?: string | null;
+  chapterCount: number;
+  materialCount: number;
+  quizCount: number;
 };
 
 type Props = {
-  initialCourses: Course[];
+  initialCourses: CourseWithStats[];
 };
 
 export function CoursesDashboard({ initialCourses }: Props) {
   const router = useRouter();
-  const [courses, _setCourses] = useState<Course[]>(initialCourses);
-  const [newCourse, setNewCourse] = useState<Partial<Course>>({});
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editVals, setEditVals] = useState<Partial<Course>>({});
-  const [loading, setLoading] = useState(false);
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [courses] = useState<CourseWithStats[]>(initialCourses);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
-  // Chapters Management States
-  const [chaptersModalOpen, setChaptersModalOpen] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [chaptersList, setChaptersList] = useState<any[]>([]);
-  const [chaptersLoading, setChaptersLoading] = useState(false);
-  const [chapterActionLoading, setChapterActionLoading] = useState(false);
-  const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
-  const [chapterForm, setChapterForm] = useState({ title: "", orderIndex: 1, description: "" });
-  const [newChapterForm, setNewChapterForm] = useState({ title: "", description: "" });
+  // Create Modal State
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newId, setNewId] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [newCategory, setNewCategory] = useState<string>("");
+  const [newDescription, setNewDescription] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
 
-  const loadChapters = async (courseId: string) => {
-    setChaptersLoading(true);
-    try {
-      const data = await getCourseChapters(courseId);
-      setChaptersList(data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Gagal memuat daftar bab");
-    } finally {
-      setChaptersLoading(false);
-    }
-  };
+  // Edit Modal State
+  const [editingCourse, setEditingCourse] = useState<CourseWithStats | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
 
-  const openChaptersModal = (course: Course) => {
-    setSelectedCourse(course);
-    setEditingChapterId(null);
-    setNewChapterForm({ title: "", description: "" });
-    setChaptersModalOpen(true);
-    loadChapters(course.id);
-  };
+  // Delete Dialog State
+  const [deletingCourse, setDeletingCourse] = useState<CourseWithStats | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const handleSaveChapter = async (chapterId: string | null) => {
-    if (!selectedCourse) return;
-    setChapterActionLoading(true);
-
-    const isEdit = !!chapterId;
-    const title = isEdit ? chapterForm.title : newChapterForm.title;
-    const desc = isEdit ? chapterForm.description : newChapterForm.description;
-    const orderIndex = isEdit ? chapterForm.orderIndex : chaptersList.length + 1;
-
-    const res = await saveChapter(chapterId, selectedCourse.id, title, orderIndex, desc);
-    setChapterActionLoading(false);
-
-    if (res.success) {
-      toast.success(isEdit ? "Bab diperbarui" : "Bab ditambahkan");
-      if (isEdit) {
-        setEditingChapterId(null);
-      } else {
-        setNewChapterForm({ title: "", description: "" });
-      }
-      loadChapters(selectedCourse.id);
-    } else {
-      toast.error(res.error || "Gagal menyimpan bab");
-    }
-  };
-
-  const handleDeleteChapter = async (chapterId: string) => {
-    if (!selectedCourse) return;
-    if (!confirm("Apakah Anda yakin ingin menghapus bab ini?")) return;
-    
-    setChapterActionLoading(true);
-    const res = await deleteChapter(chapterId);
-    setChapterActionLoading(false);
-
-    if (res.success) {
-      toast.success("Bab dihapus");
-      loadChapters(selectedCourse.id);
-    } else {
-      toast.error(res.error || "Gagal menghapus bab");
-    }
-  };
-
-  const startEditChapter = (chapter: any) => {
-    setEditingChapterId(chapter.id);
-    setChapterForm({
-      title: chapter.title,
-      orderIndex: chapter.orderIndex,
-      description: chapter.description || "",
+  // Filter courses
+  const filteredCourses = useMemo(() => {
+    return courses.filter((c) => {
+      const matchSearch =
+        !search ||
+        c.title.toLowerCase().includes(search.toLowerCase()) ||
+        c.id.toLowerCase().includes(search.toLowerCase()) ||
+        (c.description && c.description.toLowerCase().includes(search.toLowerCase()));
+      const matchCat = categoryFilter === "all" || c.category === categoryFilter;
+      return matchSearch && matchCat;
     });
-  };
+  }, [courses, search, categoryFilter]);
 
-  const handleAdd = async (e: React.FormEvent) => {
+  // Unique categories list
+  const uniqueCategories = useMemo(() => {
+    return Array.from(new Set(courses.map((c) => c.category))).filter(Boolean);
+  }, [courses]);
+
+  const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCourse.id || !newCourse.title || !newCourse.category) {
-      toast.error("Semua field wajib diisi");
+    const cleanId = newId.trim().toLowerCase();
+    const cleanTitle = newTitle.trim();
+
+    if (!cleanId || !/^[a-z0-9-]+$/.test(cleanId)) {
+      toast.error("ID Mata Kuliah harus alfanumerik huruf kecil dan tanda strip (contoh: ma1101).");
       return;
     }
-    setLoading(true);
+    if (!cleanTitle) {
+      toast.error("Nama mata kuliah wajib diisi.");
+      return;
+    }
+    if (!newCategory) {
+      toast.error("Program studi / kategori wajib dipilih.");
+      return;
+    }
+
+    setCreateLoading(true);
     const res = await saveCourse(
-      newCourse.id,
-      newCourse.title,
-      newCourse.category,
-      newCourse.description ?? null,
+      cleanId,
+      cleanTitle,
+      newCategory,
+      newDescription.trim() || null,
       true
     );
-    setLoading(false);
+    setCreateLoading(false);
+
     if (res.success) {
-      toast.success("Mata kuliah berhasil ditambahkan");
-      setNewCourse({});
+      toast.success(`Mata kuliah ${cleanTitle} berhasil ditambahkan.`);
+      setCreateModalOpen(false);
+      setNewId("");
+      setNewTitle("");
+      setNewCategory("");
+      setNewDescription("");
       router.refresh();
     } else {
-      toast.error(res.error ?? "Gagal menambahkan");
+      toast.error(res.error || "Gagal menambahkan mata kuliah.");
     }
   };
 
-  const startEdit = (c: Course) => {
-    setEditId(c.id);
-    setEditVals({ title: c.title, category: c.category, description: c.description ?? "" });
+  const startEditCourse = (c: CourseWithStats, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditingCourse(c);
+    setEditTitle(c.title);
+    setEditCategory(c.category);
+    setEditDescription(c.description || "");
   };
 
-  const handleEditSave = async (id: string) => {
-    if (!editVals.title || !editVals.category) {
-      toast.error("Judul dan kategori wajib");
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCourse || !editTitle.trim() || !editCategory) {
+      toast.error("Semua field wajib diisi.");
       return;
     }
-    setLoading(true);
+
+    setEditLoading(true);
     const res = await saveCourse(
-      id,
-      editVals.title,
-      editVals.category,
-      editVals.description ?? null,
+      editingCourse.id,
+      editTitle.trim(),
+      editCategory,
+      editDescription.trim() || null,
       false
     );
-    setLoading(false);
+    setEditLoading(false);
+
     if (res.success) {
-      toast.success("Mata kuliah diperbarui");
-      setEditId(null);
+      toast.success("Informasi mata kuliah diperbarui.");
+      setEditingCourse(null);
       router.refresh();
     } else {
-      toast.error(res.error ?? "Gagal memperbarui");
+      toast.error(res.error || "Gagal memperbarui mata kuliah.");
     }
+  };
+
+  const startDeleteCourse = (c: CourseWithStats, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setDeletingCourse(c);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!pendingDeleteId) return;
-    setLoading(true);
-    const res = await deleteCourse(pendingDeleteId);
-    setLoading(false);
-    setPendingDeleteId(null);
+    if (!deletingCourse) return;
+    setDeleteLoading(true);
+    const res = await deleteCourse(deletingCourse.id);
+    setDeleteLoading(false);
+    setDeletingCourse(null);
+
     if (res.success) {
-      toast.success("Mata kuliah dihapus");
+      toast.success("Mata kuliah berhasil dihapus.");
       router.refresh();
     } else {
-      toast.error(res.error ?? "Gagal menghapus");
+      toast.error(res.error || "Gagal menghapus mata kuliah.");
     }
   };
 
   return (
-    <div className="space-y-8">
-      {/* Add New Course Form */}
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <h2 className="font-heading text-h5 font-semibold text-foreground mb-4">
-          Tambah Mata Kuliah Baru
-        </h2>
-        <form onSubmit={handleAdd} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Input
-            placeholder="ID (slug)"
-            value={newCourse.id ?? ""}
-            onChange={(e) => setNewCourse((prev) => ({ ...prev, id: e.target.value }))}
-            disabled={loading}
-          />
-          <Input
-            placeholder="Judul"
-            value={newCourse.title ?? ""}
-            onChange={(e) => setNewCourse((prev) => ({ ...prev, title: e.target.value }))}
-            disabled={loading}
-          />
-          <Select
-            value={newCourse.category ?? ""}
-            onValueChange={(v) => setNewCourse((prev) => ({ ...prev, category: v }))}
-            disabled={loading}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Program Studi" />
+    <div className="space-y-6">
+      {/* Search, Filter, and View Controls */}
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Cari mata kuliah atau kode slug..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 rounded-lg"
+            />
+          </div>
+
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full sm:w-[220px] rounded-lg">
+              <SelectValue placeholder="Semua Program Studi" />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORY_OPTIONS.map((opt) => (
-                <SelectItem key={opt} value={opt}>
-                  {opt}
+              <SelectItem value="all">Semua Program Studi ({courses.length})</SelectItem>
+              {uniqueCategories.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Input
-            placeholder="Deskripsi (opsional)"
-            value={newCourse.description ?? ""}
-            onChange={(e) => setNewCourse((prev) => ({ ...prev, description: e.target.value }))}
-            disabled={loading}
-          />
-          <Button type="submit" disabled={loading} className="col-span-full md:col-span-1 self-end">
-            {loading ? "Menyimpan…" : "Tambah"}
+        </div>
+
+        <div className="flex items-center justify-between sm:justify-end gap-2">
+          {/* View mode toggle */}
+          <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-lg border border-border/40">
+            <Button
+              type="button"
+              size="icon"
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              className="size-7 rounded-md"
+              onClick={() => setViewMode("grid")}
+              title="Tampilan Kartu"
+            >
+              <LayoutGrid className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              className="size-7 rounded-md"
+              onClick={() => setViewMode("table")}
+              title="Tampilan Tabel"
+            >
+              <List className="size-3.5" />
+            </Button>
+          </div>
+
+          <Button
+            onClick={() => setCreateModalOpen(true)}
+            size="sm"
+            className="gap-1.5 rounded-lg font-medium"
+          >
+            <Plus className="size-4" />
+            Tambah Mata Kuliah
           </Button>
-        </form>
+        </div>
       </div>
 
-      {/* Existing Courses List */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm overflow-x-auto">
-        <table className="w-full table-auto">
-          <thead className="bg-muted">
-            <tr>
-              <th className="px-4 py-2 text-left text-body-sm font-medium">ID</th>
-              <th className="px-4 py-2 text-left text-body-sm font-medium">Judul</th>
-              <th className="px-4 py-2 text-left text-body-sm font-medium">Program Studi</th>
-              <th className="px-4 py-2 text-left text-body-sm font-medium">Deskripsi</th>
-              <th className="px-4 py-2 text-center text-body-sm font-medium">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {courses.map((c) => (
-              <tr key={c.id} className="border-b border-border/30">
-                <td className="px-4 py-2 text-body-sm text-foreground">{c.id}</td>
-                <td className="px-4 py-2">
-                  {editId === c.id ? (
-                    <Input
-                      value={editVals.title ?? ""}
-                      onChange={(e) => setEditVals((p) => ({ ...p, title: e.target.value }))}
-                      disabled={loading}
-                    />
+      {/* Course Items Display */}
+      {filteredCourses.length === 0 ? (
+        <div className="text-center py-16 border border-dashed border-border rounded-xl bg-card">
+          <BookOpen className="size-10 text-muted-foreground/40 mx-auto mb-3" />
+          <p className="font-heading text-body-base font-semibold text-foreground">
+            Tidak ada mata kuliah ditemukan
+          </p>
+          <p className="text-body-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+            {search || categoryFilter !== "all"
+              ? "Coba sesuaikan kata kunci pencarian atau filter program studi Anda."
+              : "Belum ada mata kuliah yang terdaftar di Zyx Academy. Klik tombol 'Tambah Mata Kuliah' untuk memulai."}
+          </p>
+        </div>
+      ) : viewMode === "grid" ? (
+        /* Grid View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredCourses.map((c) => (
+            <div
+              key={c.id}
+              className="group rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:border-brand-primary/50 hover:shadow-md transition-all flex flex-col justify-between"
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[11px] font-bold rounded-md bg-muted/40 uppercase tracking-wider"
+                  >
+                    {c.id}
+                  </Badge>
+                  <Badge variant="secondary" className="text-[11px] rounded-md font-medium">
+                    {c.category}
+                  </Badge>
+                </div>
+
+                <div>
+                  <h3 className="font-heading text-body-base font-bold text-foreground group-hover:text-brand-primary transition-colors line-clamp-1">
+                    {c.title}
+                  </h3>
+                  {c.description ? (
+                    <p className="text-body-xs text-muted-foreground mt-1 line-clamp-2">
+                      {c.description}
+                    </p>
                   ) : (
-                    <span className="text-body-sm text-foreground">{c.title}</span>
+                    <p className="text-body-xs text-muted-foreground/60 italic mt-1">
+                      Belum ada deskripsi mata kuliah.
+                    </p>
                   )}
-                </td>
-                <td className="px-4 py-2">
-                  {editId === c.id ? (
-                    <Select
-                      value={editVals.category ?? ""}
-                      onValueChange={(v) => setEditVals((p) => ({ ...p, category: v }))}
-                      disabled={loading}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Program Studi" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CATEGORY_OPTIONS.map((opt) => (
-                          <SelectItem key={opt} value={opt}>
-                            {opt}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <span className="text-body-sm text-foreground">{c.category}</span>
-                  )}
-                </td>
-                <td className="px-4 py-2">
-                  {editId === c.id ? (
-                    <Input
-                      value={editVals.description ?? ""}
-                      onChange={(e) => setEditVals((p) => ({ ...p, description: e.target.value }))}
-                      disabled={loading}
-                    />
-                  ) : (
-                    <span className="text-body-sm text-muted-foreground">{c.description}</span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-center">
-                  {editId === c.id ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => handleEditSave(c.id)} disabled={loading}>
-                        <Check className="size-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setEditId(null)} disabled={loading}>
-                        <X className="size-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => startEdit(c)} disabled={loading}>
-                        <Edit className="size-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setPendingDeleteId(c.id)} disabled={loading}>
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => openChaptersModal(c)} disabled={loading} title="Kelola Bab">
-                        <Layers className="size-4 text-brand-primary" />
-                      </Button>
-                    </div>
-                  )}
-                </td>
+                </div>
+
+                {/* Counters */}
+                <div className="grid grid-cols-3 gap-2 py-2 border-y border-border/50 text-center">
+                  <div className="p-1 rounded-lg bg-muted/20">
+                    <p className="text-body-xs font-bold text-foreground">{c.chapterCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Bab</p>
+                  </div>
+                  <div className="p-1 rounded-lg bg-muted/20">
+                    <p className="text-body-xs font-bold text-foreground">{c.materialCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Materi PDF</p>
+                  </div>
+                  <div className="p-1 rounded-lg bg-muted/20">
+                    <p className="text-body-xs font-bold text-foreground">{c.quizCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Kuis</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Bar */}
+              <div className="flex items-center justify-between pt-4 mt-2">
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
+                    onClick={(e) => startEditCourse(c, e)}
+                    title="Edit Metadata"
+                  >
+                    <Edit2 className="size-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={(e) => startDeleteCourse(c, e)}
+                    title="Hapus Mata Kuliah"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+
+                <Link href={`/admin/courses/${c.id}`}>
+                  <Button size="sm" className="gap-1.5 rounded-lg text-body-xs font-medium">
+                    <span>Kelola Mata Kuliah</span>
+                    <ArrowRight className="size-3.5" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
+          <table className="w-full text-left text-body-sm">
+            <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3">ID (Slug)</th>
+                <th className="px-4 py-3">Nama Mata Kuliah</th>
+                <th className="px-4 py-3">Program Studi</th>
+                <th className="px-4 py-3 text-center">Silabus</th>
+                <th className="px-4 py-3 text-center">Materi PDF</th>
+                <th className="px-4 py-3 text-center">Kuis</th>
+                <th className="px-4 py-3 text-right">Aksi</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {filteredCourses.map((c) => (
+                <tr key={c.id} className="hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-3 font-mono text-body-xs font-bold text-foreground">
+                    {c.id}
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-foreground">{c.title}</p>
+                    {c.description && (
+                      <p className="text-body-xs text-muted-foreground truncate max-w-xs">
+                        {c.description}
+                      </p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant="secondary" className="rounded-md text-[11px] font-medium">
+                      {c.category}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-center font-medium text-foreground">
+                    {c.chapterCount} Bab
+                  </td>
+                  <td className="px-4 py-3 text-center font-medium text-foreground">
+                    {c.materialCount} PDF
+                  </td>
+                  <td className="px-4 py-3 text-center font-medium text-foreground">
+                    {c.quizCount} Kuis
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
+                        onClick={(e) => startEditCourse(c, e)}
+                        title="Edit Metadata"
+                      >
+                        <Edit2 className="size-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => startDeleteCourse(c, e)}
+                        title="Hapus Mata Kuliah"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                      <Link href={`/admin/courses/${c.id}`}>
+                        <Button size="sm" className="gap-1 rounded-lg text-body-xs font-medium">
+                          <span>Kelola</span>
+                          <ArrowRight className="size-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!pendingDeleteId} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
-        <DialogContent>
+      {/* Create Course Dialog */}
+      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Hapus Mata Kuliah</DialogTitle>
+            <DialogTitle>Tambah Mata Kuliah Baru</DialogTitle>
             <DialogDescription>
-              Anda yakin ingin menghapus mata kuliah ini? Tindakan ini tidak dapat dibatalkan.
+              Daftarkan mata kuliah baru ke kurikulum Zyx Academy.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" disabled={loading}>
-                Batal
+
+          <form onSubmit={handleCreateCourse} className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">ID / Slug Mata Kuliah</Label>
+              <Input
+                placeholder="Contoh: ma1101 atau fi1101"
+                value={newId}
+                onChange={(e) => setNewId(e.target.value)}
+                disabled={createLoading}
+                className="rounded-lg font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Gunakan huruf kecil dan angka tanpa spasi.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Nama Mata Kuliah</Label>
+              <Input
+                placeholder="Contoh: Matematika IA"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                disabled={createLoading}
+                className="rounded-lg"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Program Studi / Kategori</Label>
+              <Select value={newCategory} onValueChange={setNewCategory} disabled={createLoading}>
+                <SelectTrigger className="rounded-lg">
+                  <SelectValue placeholder="Pilih Program Studi" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allowedCategories.map((opt) => (
+                    <SelectItem key={opt} value={opt}>
+                      {opt}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Deskripsi (Opsional)</Label>
+              <Textarea
+                rows={3}
+                placeholder="Ringkasan mata kuliah..."
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                disabled={createLoading}
+                className="rounded-lg"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <DialogClose asChild>
+                <Button variant="outline" size="sm" disabled={createLoading} className="rounded-lg">
+                  Batal
+                </Button>
+              </DialogClose>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={createLoading || !newId.trim() || !newTitle.trim() || !newCategory}
+                className="rounded-lg"
+              >
+                {createLoading ? "Menyimpan..." : "Tambah Mata Kuliah"}
               </Button>
-            </DialogClose>
-            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={loading}>
-              {loading ? "Menghapus..." : "Hapus"}
-            </Button>
-          </DialogFooter>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
-      {/* Chapters Management Dialog */}
-      <Dialog open={chaptersModalOpen} onOpenChange={setChaptersModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      {/* Edit Course Dialog */}
+      <Dialog open={!!editingCourse} onOpenChange={(open) => !open && setEditingCourse(null)}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Layers className="size-5 text-brand-primary" />
-              Kelola Bab: {selectedCourse?.title}
-            </DialogTitle>
+            <DialogTitle>Edit Mata Kuliah: {editingCourse?.id}</DialogTitle>
             <DialogDescription>
-              Tambahkan bab baru, ubah urutan, atau edit judul bab untuk menyusun struktur pembelajaran.
+              Perbarui judul, kategori, atau deskripsi mata kuliah.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 my-4">
-            {/* Chapters List */}
-            <div className="space-y-2">
-              <h3 className="font-heading text-body-sm font-bold text-foreground">Daftar Bab Aktif</h3>
-              
-              {chaptersLoading ? (
-                <div className="flex items-center justify-center py-8 text-muted-foreground">
-                  <Loader2 className="size-5 animate-spin mr-2" />
-                  Memuat bab...
-                </div>
-              ) : chaptersList.length === 0 ? (
-                <div className="text-center py-6 text-body-sm text-muted-foreground border border-dashed border-border rounded-lg">
-                  Belum ada bab yang ditambahkan.
-                </div>
-              ) : (
-                <div className="border border-border rounded-lg divide-y divide-border/60">
-                  {chaptersList.map((chapter) => (
-                    <div key={chapter.id} className="p-3 flex items-start justify-between gap-4 bg-muted/10 hover:bg-muted/20">
-                      {editingChapterId === chapter.id ? (
-                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-[60px_1fr_2fr] gap-2 items-center">
-                          <Input
-                            type="number"
-                            value={chapterForm.orderIndex}
-                            onChange={(e) => setChapterForm(p => ({ ...p, orderIndex: parseInt(e.target.value) || 1 }))}
-                            disabled={chapterActionLoading}
-                            placeholder="No"
-                            title="Urutan"
-                          />
-                          <Input
-                            value={chapterForm.title}
-                            onChange={(e) => setChapterForm(p => ({ ...p, title: e.target.value }))}
-                            disabled={chapterActionLoading}
-                            placeholder="Judul Bab"
-                          />
-                          <Input
-                            value={chapterForm.description}
-                            onChange={(e) => setChapterForm(p => ({ ...p, description: e.target.value }))}
-                            disabled={chapterActionLoading}
-                            placeholder="Deskripsi (opsional)"
-                          />
-                        </div>
-                      ) : (
-                        <div className="min-w-0 flex-1">
-                          <p className="text-body-sm font-semibold text-foreground flex items-center gap-2">
-                            <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-bold">
-                              {chapter.orderIndex}
-                            </span>
-                            {chapter.title}
-                          </p>
-                          {chapter.description && (
-                            <p className="text-body-xs text-muted-foreground mt-0.5 ml-7">{chapter.description}</p>
-                          )}
-                        </div>
-                      )}
+          <form onSubmit={handleSaveEdit} className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Nama Mata Kuliah</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                disabled={editLoading}
+                className="rounded-lg"
+              />
+            </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {editingChapterId === chapter.id ? (
-                          <>
-                            <Button size="xs" variant="ghost" onClick={() => handleSaveChapter(chapter.id)} disabled={chapterActionLoading} title="Simpan">
-                              <Check className="size-4 text-status-success" />
-                            </Button>
-                            <Button size="xs" variant="ghost" onClick={() => setEditingChapterId(null)} disabled={chapterActionLoading} title="Batal">
-                              <X className="size-4 text-muted-foreground" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button size="xs" variant="ghost" onClick={() => startEditChapter(chapter)} disabled={chapterActionLoading} title="Edit">
-                              <Edit className="size-4" />
-                            </Button>
-                            <Button size="xs" variant="ghost" onClick={() => handleDeleteChapter(chapter.id)} disabled={chapterActionLoading} title="Hapus">
-                              <Trash2 className="size-4 text-destructive" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Program Studi / Kategori</Label>
+              <Select value={editCategory} onValueChange={setEditCategory} disabled={editLoading}>
+                <SelectTrigger className="rounded-lg">
+                  <SelectValue placeholder="Pilih Program Studi" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allowedCategories.map((opt) => (
+                    <SelectItem key={opt} value={opt}>
+                      {opt}
+                    </SelectItem>
                   ))}
-                </div>
-              )}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Add New Chapter Form */}
-            <div className="border border-border/80 rounded-xl p-4 bg-muted/5">
-              <h3 className="font-heading text-body-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
-                <Plus className="size-4 text-brand-secondary" />
-                Tambah Bab Baru
-              </h3>
-              <div className="grid gap-3">
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_2fr] gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-muted-foreground">JUDUL BAB</label>
-                    <Input
-                      placeholder="Contoh: Limit dan Kekontinuan"
-                      value={newChapterForm.title}
-                      onChange={(e) => setNewChapterForm(p => ({ ...p, title: e.target.value }))}
-                      disabled={chapterActionLoading}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-muted-foreground">DESKRIPSI (OPSIONAL)</label>
-                    <Input
-                      placeholder="Contoh: Konsep dasar limit fungsi satu variabel"
-                      value={newChapterForm.description}
-                      onChange={(e) => setNewChapterForm(p => ({ ...p, description: e.target.value }))}
-                      disabled={chapterActionLoading}
-                    />
-                  </div>
-                </div>
-                <Button 
-                  size="sm"
-                  className="w-fit self-end mt-2 rounded-lg font-semibold bg-gradient-to-r from-brand-secondary to-brand-secondary/90 text-white" 
-                  onClick={() => handleSaveChapter(null)}
-                  disabled={chapterActionLoading || !newChapterForm.title.trim()}
-                >
-                  {chapterActionLoading ? "Menambahkan..." : "Tambah Bab"}
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Deskripsi (Opsional)</Label>
+              <Textarea
+                rows={3}
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                disabled={editLoading}
+                className="rounded-lg"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <DialogClose asChild>
+                <Button variant="outline" size="sm" disabled={editLoading} className="rounded-lg">
+                  Batal
                 </Button>
-              </div>
-            </div>
-          </div>
+              </DialogClose>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={editLoading || !editTitle.trim() || !editCategory}
+                className="rounded-lg"
+              >
+                {editLoading ? "Menyimpan..." : "Simpan Perubahan"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
+      {/* Delete Course Dialog */}
+      <Dialog open={!!deletingCourse} onOpenChange={(open) => !open && setDeletingCourse(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Hapus Mata Kuliah</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus mata kuliah <strong>{deletingCourse?.title}</strong> ({deletingCourse?.id})? Tindakan ini permanen dan akan menghapus seluruh data bab dan materi terkait.
+            </DialogDescription>
+          </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Tutup</Button>
+              <Button variant="outline" size="sm" disabled={deleteLoading} className="rounded-lg">
+                Batal
+              </Button>
             </DialogClose>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteConfirm}
+              disabled={deleteLoading}
+              className="rounded-lg"
+            >
+              {deleteLoading ? "Menghapus..." : "Hapus Mata Kuliah"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

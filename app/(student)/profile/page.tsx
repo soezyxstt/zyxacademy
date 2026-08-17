@@ -141,10 +141,7 @@ export default async function ProfilePage() {
  }
 
  return (
- <ShellPage
- title="Profil Saya"
- description="Akun personal belajar Anda di Zyx Academy."
- >
+ <ShellPage title="Profil Saya">
  <div className="max-w-5xl mx-auto pb-12">
  {/* Profile Header */}
  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8">

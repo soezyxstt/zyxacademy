@@ -71,7 +71,6 @@ export default async function LeaderboardPage() {
     <Reveal className="marketing-container mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         title="Papan Peringkat"
-        description="Peringkat kuis berdasarkan rata-rata skor tiap kelas bimbingan."
         icon={Trophy}
       />
 
@@ -82,8 +81,7 @@ export default async function LeaderboardPage() {
             Kamu belum terdaftar di kelas manapun.{" "}
             <Link href="/courses" className="text-brand-primary hover:underline font-semibold">
               Jelajahi kelas
-            </Link>{" "}
-            untuk memulai perjalanan belajarmu.
+            </Link>
           </p>
         </div>
       ) : (

@@ -180,9 +180,9 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
       <div className="p-8 border border-status-error/30 bg-status-error/10 rounded-xl space-y-4 text-center">
         <AlertTriangle className="size-8 mx-auto text-status-error" />
         <p className="text-body-base font-semibold text-status-error">{errorMsg}</p>
-        <Link href="/admin/ai/quiz-insights">
+        <Link href="/admin/quiz-insights">
           <Button variant="outline" size="sm" className="rounded-lg">
-            Kembali ke Daftar Kuis
+            Kembali ke Ringkasan Kuis
           </Button>
         </Link>
       </div>
@@ -205,7 +205,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
     <div className="space-y-8">
       <AdminPageHeader
         icon={BarChart3}
-        backHref="/admin/ai/quiz-insights"
+        backHref="/admin/quiz-insights"
         backLabel="Analisis & Insight Kuis"
         title={
           <span className="flex flex-wrap items-center gap-2">

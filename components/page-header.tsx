@@ -1,54 +1,65 @@
-import { ReactNode } from "react";
+import type { ReactNode, ComponentType } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type PageHeaderProps = {
+export type PageHeaderProps = {
   title: ReactNode;
+  /**
+   * @deprecated Header descriptions have been removed to keep page headers compact and clean.
+   */
   description?: ReactNode;
-  icon?: React.ComponentType<{ className?: string }>;
+  icon?: ComponentType<{ className?: string }>;
   actions?: ReactNode;
+  backHref?: string;
+  backLabel?: string;
   divider?: boolean;
   className?: string;
 };
 
 export function PageHeader({
   title,
-  description,
   icon: Icon,
   actions,
+  backHref,
+  backLabel,
   divider = true,
   className,
 }: PageHeaderProps) {
   return (
     <header
       className={cn(
-        "flex flex-col md:flex-row md:items-center md:justify-between gap-6",
-        divider && "border-b border-border pb-6 mb-8",
-        className
+        "flex w-full min-w-0 flex-col items-stretch gap-2.5 text-left",
+        divider && "border-b border-border pb-3 mb-6",
+        className,
       )}
     >
-      <div className="flex items-start gap-4 min-w-0">
-        {Icon && (
-          <div className="flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary shrink-0 shadow-xs border border-brand-primary/5">
-            <Icon className="size-6 shrink-0" />
-          </div>
-        )}
-        <div className="min-w-0">
-          <h1 className="font-heading text-h3 font-bold tracking-tight text-foreground leading-tight">
+      {backHref && (
+        <Link
+          href={backHref}
+          className="inline-flex w-fit items-center gap-1.5 text-body-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" aria-hidden />
+          {backLabel ?? "Kembali"}
+        </Link>
+      )}
+      <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {Icon && (
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+              <Icon className="size-4" aria-hidden />
+            </span>
+          )}
+          <h1 className="font-heading text-h5 font-bold tracking-tight text-foreground leading-none">
             {title}
           </h1>
-          {description ? (
-            <p className="mt-1 text-body-sm text-muted-foreground leading-normal">
-              {description}
-            </p>
-          ) : null}
         </div>
+        {actions && (
+          <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
+            {actions}
+          </div>
+        )}
       </div>
-
-      {actions ? (
-        <div className="flex flex-wrap items-center gap-3 shrink-0 self-start md:self-center">
-          {actions}
-        </div>
-      ) : null}
     </header>
   );
 }

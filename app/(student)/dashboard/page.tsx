@@ -284,9 +284,6 @@ export default async function DashboardPage() {
             <h2 className="mt-6 font-heading text-h4 font-bold text-foreground">
               Mulai Perjalanan Belajarmu
             </h2>
-            <p className="mt-2 text-body-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Aktifkan kelas Anda menggunakan token pendaftaran satu kali pakai yang diberikan oleh admin/dosen.
-            </p>
 
             {/* Steps indicator */}
             <div className="mt-8 grid gap-4 text-left sm:grid-cols-3">
@@ -308,12 +305,9 @@ export default async function DashboardPage() {
             </div>
 
             <div className="mt-8 border-t border-border pt-6 text-left">
-              <h3 className="font-heading text-body-sm font-bold text-foreground mb-1">
+              <h3 className="font-heading text-body-sm font-bold text-foreground mb-4">
                 Masukkan Kode Aktivasi
               </h3>
-              <p className="text-body-xs text-muted-foreground mb-4">
-                Satu token berlaku untuk satu mata kuliah selama satu semester.
-              </p>
               <EnrollmentForm />
             </div>
             <DashboardPlanPreview />

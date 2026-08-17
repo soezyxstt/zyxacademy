@@ -152,6 +152,21 @@ Use the **`photo-*`** classes on `<img>` or `next/image` for consistent crop, ra
 
 ---
 
+## Universal Page Header & Copy Clarity
+
+- **Universal `PageHeader` Component**: Always use `PageHeader` from `@/components/page-header` for all page headers across Admin and Student pages (`AdminPageHeader` is an alias of `PageHeader`). Never hand-roll a separate page header.
+- **Compact Header Structure**:
+  - Title: `font-heading text-h5 font-bold tracking-tight text-foreground leading-none`.
+  - Icon: `size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary` with `size-4` icon.
+  - Border and spacing: `border-b border-border pb-3 mb-6`.
+  - Navigation and actions: optional `backHref`/`backLabel` on top-left, `actions` flex-wrap on right.
+- **No Nice-to-Have / Filler Descriptions**:
+  - Do NOT add verbose, nice-to-have, or obvious subtitle descriptions under page headers, card headings, or section titles (e.g. "Kelola kurikulum...", "Aktifkan kelas Anda menggunakan token...", "Lihat dan pesan jadwal kosong...").
+  - `PageHeader` deprecates and does not render the `description` prop to maintain visual lightness and high information density.
+  - Keep UI copy minimal, essential, and punchy. Labels should be short, sentence case, and informative without stating the obvious.
+
+---
+
 ## Quick checklist for new UI
 
 1. **Text**: Default to **`text-body-base`** / `font-sans`; headings **`font-heading`** + **`text-h*`** or semantic `h1`-`h6`.
@@ -159,7 +174,8 @@ Use the **`photo-*`** classes on `<img>` or `next/image` for consistent crop, ra
 3. **Images**: Pick **`photo-hero` | `photo-card` | `photo-banner` | `photo-thumb` | `photo-inline`** by layout role.
 4. **Dark mode**: Test with **`.dark`**; rely on semantic tokens so components stay consistent.
 5. **Standard Reusable Components**: Always use standard Shadcn components from `@/components/ui/` (`Card`, `Tabs`, `Input`, `Select`, `Switch`, `Label`, `Button`, `Badge`, `Textarea`, etc.) instead of hardcoded/ad-hoc styled containers or raw unstyled inputs/checkboxes. If a Shadcn primitive is missing in `@/components/ui/`, create it as a reusable component there.
-6. **Form & Layout Hierarchy**:
+6. **Page Header**: Always use universal `PageHeader` (`@/components/page-header`). Never include fluff descriptions.
+7. **Form & Layout Hierarchy**:
    - Field labels (`Label`) should be visually primary: `text-body-sm font-semibold text-foreground`.
    - Field descriptions and helper text must be distinctly smaller than labels and input content: `text-body-xs text-muted-foreground`.
    - Settings panels and main tab views must fill the container width (`w-full`) without arbitrary max-width constraints (e.g. `max-w-3xl`) unless explicitly needed for narrow dialogs.
@@ -340,7 +356,7 @@ All admin pages live under `app/(admin)/admin/` and must compose the shared comp
 
 | Component | Import | Replaces |
 |---|---|---|
-| `AdminPageHeader` | `components/admin/page-header` | Manual page `<h1>` + description + icon blocks. Every standalone admin page uses it; do not hand-roll a page header. |
+| `AdminPageHeader` / `PageHeader` | `components/page-header` / `components/admin/page-header` | Universal page header (`<h1>` + icon + actions + back button). Compact, no filler descriptions. Do not hand-roll a page header. |
 | `AdminTabs` / `AdminTabsList` / `AdminTabsTrigger` / `AdminTabsContent` | `components/admin/tabs` | Raw `Tabs` wiring for admin tab views (settings panels, detail pages). |
 | `AdminStatCard` | `components/admin/stat-card` | Local `Stat`/`StatCard` KPI cards. `size` = `sm` (p-4, `text-h5`) or `md` (p-5, `text-h4`); `tone` colors the value + icon (default/brand/brand-secondary/info/success/warning/error); `iconClassName` overrides the icon color when the value stays foreground. |
 | `AdminSectionTitle` | `components/admin/section-title` | Repeated heading markup: `font-heading text-h5/h6/lg ... flex items-center gap-2` with icon + optional micro-label/description. `size` = `h5`/`h6`/`lg`; `border` adds `border-b border-border pb-3`; `right` slots an action; `as` picks the heading level (default `h3`). |

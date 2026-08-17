@@ -69,9 +69,9 @@ export default async function TutorQuizAttemptsPage({ params }: Props) {
               </p>
             </div>
 
-            <Link href={`/admin/ai/quiz-insights/${templateId}`}>
+            <Link href={`/admin/quiz-insights/${templateId}`}>
               <Button variant="outline" size="sm" className="rounded-lg gap-2">
-                Buka Insight AI Detail
+                Buka Analisis Kuis
               </Button>
             </Link>
           </div>

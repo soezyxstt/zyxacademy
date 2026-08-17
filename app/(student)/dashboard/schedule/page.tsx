@@ -262,14 +262,7 @@ export default function SchedulePage() {
         
         {/* Welcome Header */}
         <Reveal duration="duration-500">
-          <PageHeader
-            title="Jadwal Kelas & Bimbingan"
-            description={
-              userRole === "teacher"
-                ? "Kelola ketersediaan jadwal tutorial Anda dan pantau sesi bimbingan mingguan bersama murid."
-                : "Lihat dan pesan jadwal kosong tutor kelompok bimbingan Anda dengan sistem First Come First Served (FCFS)."
-            }
-          />
+          <PageHeader title="Jadwal Kelas & Bimbingan" />
         </Reveal>
 
         {/* Calendar Timetable Section (Full Width) */}
@@ -544,9 +537,6 @@ export default function SchedulePage() {
                       <BookOpen className="size-4 text-brand-primary" />
                       Mata Kuliah Bimbingan Anda
                     </h3>
-                    <p className="text-body-xs text-muted-foreground mt-1">
-                      Pilih mata kuliah yang ingin Anda ajarkan. Jadwal kosong Anda hanya akan tampil pada siswa yang mengambil kelas ini.
-                    </p>
                   </div>
                   <div>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -598,9 +588,6 @@ export default function SchedulePage() {
                       <Clock className="size-4 text-brand-secondary" />
                       Tambah Ketersediaan Jadwal Baru
                     </h3>
-                    <p className="text-body-xs text-muted-foreground mt-1">
-                      Cantumkan jam kosong perpekan. Anda juga bisa mengklik tombol <strong>+</strong> pada kolom kalender di atas.
-                    </p>
                   </div>
                   <div>
                     <form onSubmit={handleAddSlot} className="flex flex-col gap-4">
@@ -666,9 +653,6 @@ export default function SchedulePage() {
                       <GraduationCap className="size-4 text-brand-primary" />
                       Tutor Bimbingan Kelompok Anda
                     </h3>
-                    <p className="text-body-xs text-muted-foreground mt-1">
-                      Tutor yang terdaftar di kelompok belajar Anda beserta sertifikasi mata kuliah yang mereka pegang.
-                    </p>
                   </div>
                   <div>
                     {data.relevantTutors?.length > 0 ? (
@@ -722,9 +706,6 @@ export default function SchedulePage() {
                       <CalendarCheck className="size-4 text-status-success" />
                       Daftar Pemesanan Bimbingan Saya
                     </h3>
-                    <p className="text-body-xs text-muted-foreground mt-1">
-                      Jadwal privat bimbingan mingguan yang berhasil Anda pesan. Harap hadir tepat waktu!
-                    </p>
                   </div>
                   <div>
                     {data.myBookings?.length > 0 ? (

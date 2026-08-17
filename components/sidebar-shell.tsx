@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import React, { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -183,12 +184,28 @@ export function NavCollapsible({
   previewItems?: string[];
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen || active);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (active) {
       setIsOpen(true);
     }
   }, [active]);
+
+  const expandedChildren = React.Children.map(children, (child) => {
+    if (React.isValidElement(child)) {
+      const childProps = child.props as { onClick?: (e: React.MouseEvent) => void };
+      return React.cloneElement(child, {
+        collapsed: false,
+        isChild: false,
+        onClick: (e: React.MouseEvent) => {
+          childProps.onClick?.(e);
+          setPopoverOpen(false);
+        },
+      } as Record<string, unknown>);
+    }
+    return child;
+  });
 
   const triggerButton = (
     <button
@@ -224,9 +241,45 @@ export function NavCollapsible({
   return (
     <div className="flex flex-col gap-0.5 w-full">
       {collapsed ? (
-        <SidebarTooltip label={label} collapsed={collapsed}>
-          {triggerButton}
-        </SidebarTooltip>
+        <DropdownMenu.Root open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <SidebarTooltip label={label} collapsed={!popoverOpen}>
+            <DropdownMenu.Trigger asChild>
+              <button
+                type="button"
+                aria-label={label}
+                className={cn(
+                  "group/collapsible flex items-center justify-center rounded-xl size-10 mx-auto text-body-sm font-medium transition-colors cursor-pointer",
+                  active
+                    ? "bg-brand-primary/10 text-brand-primary font-semibold"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Icon className="size-4.5 shrink-0" />
+              </button>
+            </DropdownMenu.Trigger>
+          </SidebarTooltip>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              side="right"
+              align="start"
+              sideOffset={12}
+              className="z-50 min-w-56 max-w-72 rounded-xl border border-border/80 bg-popover/95 p-2 text-popover-foreground shadow-xl backdrop-blur-md animate-in fade-in-0 zoom-in-95 data-[side=right]:slide-in-from-left-2 focus:outline-none"
+            >
+              <div className="flex items-center gap-2.5 px-2.5 py-2 pb-2.5 border-b border-border/60 mb-1.5">
+                <div className="flex size-7 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary shrink-0">
+                  <Icon className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-body-sm font-semibold text-foreground truncate">{label}</p>
+                  <p className="text-[11px] text-muted-foreground">Pilih modul</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-0.5 max-h-80 overflow-y-auto ds-scrollbar">
+                {expandedChildren}
+              </div>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       ) : (
         <HoverCard.Root openDelay={250} closeDelay={150}>
           <HoverCard.Trigger asChild>
@@ -278,6 +331,7 @@ export function NavCollapsible({
     </div>
   );
 }
+
 
 
 export function NavGroup({ label, collapsed }: { label: string; collapsed: boolean }) {

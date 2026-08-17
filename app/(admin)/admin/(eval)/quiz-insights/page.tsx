@@ -270,7 +270,7 @@ export default function AdminQuizInsightsOverviewPage() {
                       )}
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <Link href={`/admin/ai/quiz-insights/${item.id}`}>
+                      <Link href={`/admin/quiz-insights/${item.id}`}>
                         <Button size="sm" variant={item.lastAiInsight ? "default" : "outline"} className="gap-1.5 rounded-lg text-body-xs">
                           <span>Lihat Analisis</span>
                           <ArrowRight className="size-3.5" />

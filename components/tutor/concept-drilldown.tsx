@@ -32,7 +32,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
 
   if (!concept) return null;
 
-  const remediationHref = `/admin/ai/quizzes?courseId=${encodeURIComponent(courseId)}&tags=${encodeURIComponent(concept.conceptName)}`;
+  const remediationHref = `/admin/quizzes?courseId=${encodeURIComponent(courseId)}&tags=${encodeURIComponent(concept.conceptName)}`;
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>

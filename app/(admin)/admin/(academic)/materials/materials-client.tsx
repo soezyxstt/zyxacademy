@@ -738,7 +738,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
             </span>
           </div>
           <Link
-            href="/admin/ai/materials"
+            href="/admin/materials"
             className="text-body-xs font-bold text-brand-primary hover:underline transition-colors"
           >
             Tampilkan Semua
@@ -1840,7 +1840,7 @@ function InstanceRow({
 
           {/* Action Buttons (Always visible) */}
           <div className="flex gap-2 flex-wrap pt-4">
-            <Link href={`/admin/ai/materials/${instance.id}`}>
+            <Link href={`/admin/materials/${instance.id}`}>
               <Button size="sm" variant="outline" className="rounded-lg gap-2 cursor-pointer bg-background hover:bg-muted font-medium">
                 <Settings className="size-3.5" />
                 Kelola Bab &amp; KO

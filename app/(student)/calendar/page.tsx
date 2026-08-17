@@ -9,13 +9,10 @@ export const metadata: Metadata = {
 
 export default function CalendarPage() {
   return (
-    <ShellPage
-      title="Calendar"
-      description="Jadwal tryout, pertemuan, dan acara internal akan ditampilkan di sini setelah integrasi kalender aktif."
-    >
+    <ShellPage title="Calendar">
       <div className="rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
         <p className="text-body-md text-muted-foreground">
-          No events yet - this area will list schedules and Zyx internal events.
+          Belum ada jadwal kegiatan.
         </p>
       </div>
     </ShellPage>

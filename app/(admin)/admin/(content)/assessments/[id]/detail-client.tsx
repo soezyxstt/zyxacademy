@@ -121,8 +121,8 @@ export function AssessmentDetailClient({
         method: "DELETE",
       });
       if (res.ok) {
-        toast.success("Dokumen asesmen berhasil dihapus.");
-        router.push("/admin/ai/assessments");
+        toast.success("Dokumen sumber berhasil dihapus");
+        router.push("/admin/assessments");
       } else {
         const err = await res.json();
         toast.error("Gagal menghapus: " + (err.error ?? "Unknown error"));
@@ -211,11 +211,11 @@ export function AssessmentDetailClient({
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        icon={Archive}
+        icon={BookOpen}
         title={source.title}
         description={<>Mata kuliah: <span className="font-semibold text-foreground">{course.title}</span></>}
-        backHref="/admin/ai/assessments"
-        backLabel="Kembali ke asesmen historis"
+        backHref="/admin/assessments"
+        backLabel="Kembali ke Daftar Asesmen"
         actions={
           <>
           <Button
