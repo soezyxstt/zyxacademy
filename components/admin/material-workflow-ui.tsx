@@ -177,7 +177,7 @@ export function MaterialArtifactCard({
           {courseLabel ?? "Mata kuliah belum terpetakan"}
         </h3>
         <p className="text-body-sm text-muted-foreground">
-          Hasil generasi MCP · <FormattedDate date={row.createdAt} options={dateOptions} />
+          Diupload <FormattedDate date={row.createdAt} options={dateOptions} />
         </p>
         <p className="text-body-sm text-muted-foreground">
           Dibuat oleh {authorLabel ?? "admin yang belum teridentifikasi"} · {itemSummary(row, kind)}

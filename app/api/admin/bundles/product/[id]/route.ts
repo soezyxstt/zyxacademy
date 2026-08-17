@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { previewProducts } from "@/lib/bundle/product-preview";
-import { discardProductBundleDraft, getProductBundleImport, parseStagedProductBundle, productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
+import { discardProductBundleDraft, getProductBundleImport, parseStagedProductBundle, productBundleLifecycleStatus, stageProductBundle } from "@/lib/bundle/product-staging";
+import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
 
 export const runtime = "nodejs";
 
@@ -32,9 +33,41 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       issues: bundle.issues,
       dependencies: bundle.dependencies,
       previews: previewProducts(bundle.products),
+      draft: createProductBundleDraft(bundle),
     });
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "PRODUCT_BUNDLE_DETAIL_FAILED";
+    const status = code === "PRODUCT_BUNDLE_NOT_FOUND" ? 404 : 422;
+    return NextResponse.json({ error: code }, { status });
+  }
+}
+
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  if (process.env.FEATURE_PRODUCT_BUNDLE_V2 !== "1") return NextResponse.json({ error: "PRODUCT_BUNDLE_V2_DISABLED" }, { status: 404 });
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await context.params;
+  try {
+    const body = await request.json() as { draft?: ProductBundleDraft };
+    if (!body.draft) return NextResponse.json({ error: "PRODUCT_BUNDLE_DRAFT_REQUIRED" }, { status: 400 });
+    const stored = await getProductBundleImport(id);
+    if (!stored) return NextResponse.json({ error: "PRODUCT_BUNDLE_NOT_FOUND" }, { status: 404 });
+    const original = await parseStagedProductBundle(id);
+    const finalized = finalizeProductBundleDraft(original, body.draft);
+    const bundle = finalized.bundle;
+    const result = await stageProductBundle({
+      runId: request.headers.get("x-correlation-id") ?? `admin-edit-${Date.now()}`,
+      bundleId: bundle.manifest.bundleId,
+      courseId: bundle.manifest.courseId,
+      checksum: bundle.manifest.bundleChecksum,
+      bytes: finalized.bytes,
+      requestedBy: session.user.id,
+      bundle,
+      filename: "product-bundle-v2.zip",
+    });
+    return NextResponse.json({ result });
+  } catch (error) {
+    const code = error instanceof Error ? error.message.split(":", 1)[0] : "PRODUCT_BUNDLE_UPDATE_FAILED";
     const status = code === "PRODUCT_BUNDLE_NOT_FOUND" ? 404 : 422;
     return NextResponse.json({ error: code }, { status });
   }

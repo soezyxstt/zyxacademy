@@ -19,8 +19,11 @@ const explanations: Record<string, string> = {
   IDEA_DRAFT_IDENTITY_CHANGED: "Identitas Idea tidak boleh diganti dari editor.",
   IDEA_DRAFT_PROVENANCE_CHANGED: "Identitas bukti sumber tidak boleh diganti dari editor.",
   IDEA_DRAFT_RELATION_CHANGED: "Pasangan relasi Idea tidak boleh diganti dari editor.",
+  IDEA_BUNDLE_REPLACE_FORBIDDEN: "Artifact Idea yang sudah terbit tidak dapat diedit.",
+  IDEA_BUNDLE_UPDATE_FAILED: "Perubahan Idea belum dapat disimpan. Periksa kembali isi yang diedit.",
   PRODUCT_DRAFT_IDENTITY_CHANGED: "Identitas Product tidak boleh diganti dari editor.",
   PRODUCT_DRAFT_IDEA_LINK_CHANGED: "Idea yang ditautkan tidak boleh diganti dari editor ini.",
+  PRODUCT_BUNDLE_UPDATE_FAILED: "Perubahan Product belum dapat disimpan. Periksa kembali isi yang diedit.",
 };
 
 export function explainBundleError(value: string): string {

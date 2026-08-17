@@ -26,7 +26,7 @@ export const env = createEnv({
  GOOGLE_MEET_REFRESH_TOKEN: z.string().optional(),
  /** Dedicated Google OAuth Refresh Token for Google Forms REST API (optional fallback to GOOGLE_REFRESH_TOKEN / GOOGLE_MEET_REFRESH_TOKEN) */
  GOOGLE_FORMS_REFRESH_TOKEN: z.string().optional(),
- /** From https://uploadthing.com/dashboard ; replaces direct S3/Tigris uploads. */
+ /** Legacy UploadThing compatibility token; Cloudflare R2 is the default storage provider. */
  UPLOADTHING_TOKEN: z.string().min(1),
  /** Resend API Key for sending transactional emails. */
  RESEND_API_KEY: z.string().min(1),

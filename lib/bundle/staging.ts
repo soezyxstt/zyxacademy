@@ -45,6 +45,7 @@ export type IdeaBundleStageInput = {
   items: IdeaBundleStageItem[];
   validationReport: IdeaBundleValidationReport;
   filename?: string;
+  replaceImportId?: string;
 };
 
 export type IdeaBundleStageResult = {
@@ -110,6 +111,21 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
     .where(and(eq(imporBundle.bundleId, input.bundleId), eq(imporBundle.checksum, input.checksum)))
     .limit(1);
   if (sameBundle) {
+    if (input.replaceImportId && sameBundle.id === input.replaceImportId) {
+      const existingItems = await db
+        .select({ id: itemImporBundle.id })
+        .from(itemImporBundle)
+        .where(eq(itemImporBundle.imporBundleId, sameBundle.id));
+      return {
+        importId: sameBundle.id,
+        bundleId: sameBundle.bundleId,
+        checksum: sameBundle.checksum,
+        sourceKey: sameBundle.sourceUriOrKey,
+        created: false,
+        status: "existing",
+        itemCount: existingItems.length,
+      };
+    }
     const existingItems = await db
       .select({ id: itemImporBundle.id })
       .from(itemImporBundle)
@@ -126,30 +142,49 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
   }
 
   const [conflictingBundle] = await db
-    .select({ id: imporBundle.id, checksum: imporBundle.checksum })
+    .select({ id: imporBundle.id, checksum: imporBundle.checksum, status: imporBundle.status, sourceUriOrKey: imporBundle.sourceUriOrKey })
     .from(imporBundle)
     .where(eq(imporBundle.bundleId, input.bundleId))
     .limit(1);
-  if (conflictingBundle) throw new Error(`IDEA_BUNDLE_CONFLICT:${input.bundleId}`);
+  if (conflictingBundle && conflictingBundle.id !== input.replaceImportId) throw new Error(`IDEA_BUNDLE_CONFLICT:${input.bundleId}`);
 
-  const importId = stableId("impor-idea", `${input.bundleId}:${input.checksum}`);
+  const importId = input.replaceImportId ?? stableId("impor-idea", `${input.bundleId}:${input.checksum}`);
+  const previousSourceKey = conflictingBundle?.id === input.replaceImportId ? conflictingBundle.sourceUriOrKey : null;
+  if (input.replaceImportId && (!conflictingBundle || conflictingBundle.status === "published")) throw new Error("IDEA_BUNDLE_REPLACE_FORBIDDEN");
   const sourceKey = buildIdeaBundleKey(input);
   await uploadArtifact(input, sourceKey);
 
   try {
     await db.transaction(async (tx) => {
-      await tx.insert(imporBundle).values({
-        id: importId,
-        bundleId: input.bundleId,
-        checksum: input.checksum,
-        bundleType: "idea",
-        courseId: storedCourseId,
-        sourceUriOrKey: sourceKey,
-        version: input.schemaVersion,
-        status: "validated",
-        requestedBy: input.requestedBy,
-        validationReport: input.validationReport,
-      });
+      const mutationAt = new Date();
+      if (input.replaceImportId) {
+        await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, importId));
+        await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, importId));
+        await tx.update(imporBundle).set({
+          bundleId: input.bundleId,
+          checksum: input.checksum,
+          courseId: storedCourseId,
+          sourceUriOrKey: sourceKey,
+          version: input.schemaVersion,
+          status: "validated",
+          requestedBy: input.requestedBy,
+          validationReport: input.validationReport,
+          updatedAt: mutationAt,
+        }).where(eq(imporBundle.id, importId));
+      } else {
+        await tx.insert(imporBundle).values({
+          id: importId,
+          bundleId: input.bundleId,
+          checksum: input.checksum,
+          bundleType: "idea",
+          courseId: storedCourseId,
+          sourceUriOrKey: sourceKey,
+          version: input.schemaVersion,
+          status: "validated",
+          requestedBy: input.requestedBy,
+          validationReport: input.validationReport,
+        });
+      }
       await tx.insert(itemImporBundle).values(input.items.map((item) => ({
         id: stableId("impor-item", `${importId}:${item.entityType}:${item.entityId}:${item.entityVersion}`),
         imporBundleId: importId,
@@ -160,12 +195,12 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
         status: "validated" as const,
       })));
       await tx.insert(auditMutasi).values({
-        id: stableId("audit", `${importId}:imported`),
+        id: stableId("audit", `${importId}:${input.replaceImportId ? "replaced" : "imported"}:${input.checksum}`),
         actorId: input.requestedBy,
         entityType: "idea_bundle",
         entityId: importId,
-        action: "imported",
-        beforeSnapshot: null,
+        action: input.replaceImportId ? "draft_replaced" : "imported",
+        beforeSnapshot: input.replaceImportId ? { checksum: conflictingBundle?.checksum ?? null, sourceUriOrKey: previousSourceKey } : null,
         afterSnapshot: {
           bundleId: input.bundleId,
           checksum: input.checksum,
@@ -179,13 +214,14 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
     await deleteArtifact(sourceKey);
     throw error;
   }
+  if (previousSourceKey && previousSourceKey !== sourceKey) await deleteArtifact(previousSourceKey);
 
   return {
     importId,
     bundleId: input.bundleId,
     checksum: input.checksum,
     sourceKey,
-    created: true,
+    created: !input.replaceImportId,
     status: "validated",
     itemCount: input.items.length,
   };

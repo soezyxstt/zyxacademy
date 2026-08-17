@@ -18,8 +18,6 @@ import { Eye, EyeOff } from "lucide-react";
 interface HistoricalQuestion {
   id: string;
   difficulty: number;
-  applicationLevel: number;
-  pattern: string;
   questionMarkdown: string;
   answerMarkdown: string | null;
   sourceTitle: string;

@@ -1,6 +1,6 @@
 # Zyx Academy Architecture (vNext)
 
-**Stack:** Next.js 16 (App Router), Drizzle ORM + SQLite (dev) / Turso (prod), Better-Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), UploadThing / R2 (storage abstraction), Inngest (background jobs), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
+**Stack:** Next.js 16 (App Router), Drizzle ORM + SQLite (dev) / Turso (prod), Better-Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), Cloudflare R2 with UploadThing as a compatibility fallback (storage abstraction), Inngest (background jobs), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
 
 ---
 
@@ -131,6 +131,10 @@ Plan 004 adds the normalized Indonesian product and learner-state layer as empty
 
 Plan 005 backfills the supported legacy shapes into these targets without deleting or rewriting source rows. Exact evidence is copied to target links; ambiguous questions, unattributable learning events, legacy concept baselines, and compatibility-only history are preserved in the exception ledger. Product, assessment, and per-Idea learning callers are now canonical and always-on; legacy rows remain readable for compatibility.
 
+### Canonical question authoring boundary
+
+Manual and Markdown question authoring at `/admin/ai/questions` resolves the selected legacy or canonical course to `mata_kuliah`, validates the optional `bab`, and rejects missing, unpublished, cross-course, or cross-chapter Idea links. The authoring contract requires at least one `soal_ide` link and validates that all link weights sum to one. A single transaction writes the versioned `soal` row, weighted `soal_ide` rows, and `pembahasan_soal`; the same canonical ID is projected to `ai_question_bank` so existing quiz readers continue to work during the compatibility period. Draft, in-review, published, and retired transitions are synchronized when admins update the compatibility review status.
+
 ### Per-Idea Mastery Learning Loop
 
 Plan 011 computes mastery from verified, attributable evidence only. The pure engine applies evidence contribution, weight where available, confidence, evidence source policy, and recency to the score. Confidence is calculated independently from effective count, source diversity, recency, and agreement. Every stored state records `algorithmVersion` and `inputWatermark`; every changed state appends a `perubahan_pemahaman` row with the complete evidence ID list and reason code. Full and incremental replays use the same engine and are idempotent.
@@ -159,25 +163,25 @@ Plan 005 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan
 
 ### Idea Bundle V2 Workflow
 
-Plan 006 adds a strict ZIP boundary around the additive source and Idea domain. The upload path validates archive structure, manifest checksums, source spans, entity references, stable keys, provenance, and relation acyclicity before any canonical row is written. The admin workflow now also keeps the first analysis request fully non-persistent. Only an explicit save after in-place review creates the staged artifact and inventory.
+Plan 006 adds a strict ZIP boundary around the additive source and Idea domain. The upload path validates archive structure, manifest checksums, source spans, entity references, stable keys, provenance, and relation acyclicity before any canonical row is written. The compact upload dialog keeps the first analysis request non-persistent, then creates the staged artifact and inventory after the admin confirms the upload action.
 
 ```mermaid
 flowchart LR
-    U[Admin ZIP upload] --> V[Secure ZIP and contract validation]
-    V --> E[Editable Idea, evidence, and relation map]
-    E --> F[Server allowlist merge and checksum refresh]
-    F --> I[impor_bundle and item inventory]
-    I --> R[Tutor review]
+    U[Admin ZIP upload dialog] --> V[Secure ZIP and contract validation]
+    V --> I[impor_bundle and item inventory]
+    I --> L[Filtered review inventory]
+    L --> D[Dedicated Idea detail route]
+    D --> R[Tutor or admin review]
     R --> A[Admin approval]
     A --> P[One Turso publication transaction]
-    P --> D[Source, chunk, Idea, provenance, relation rows]
+    P --> M[Source, chunk, Idea, provenance, relation rows]
     P --> O[vector_sync_queue outbox]
     P --> X[audit_mutasi and publikasi_bundle]
 ```
 
 `impor_bundle` stores the checksum identity, legacy course association, and immutable validation report. `review_bundle` stores one immutable decision per reviewer. Publication is idempotent and compares existing target versions field by field; conflicts fail rather than overwrite. The transaction also inserts deterministic vector jobs for embedding-eligible source chunks and published Ideas. `FEATURE_IDEA_BUNDLE_V2` gates the admin API and panel, while the legacy importer remains the rollback path.
 
-The admin presentation boundary for this workflow is split into `/admin/materials/review` and `/admin/materials/manual`. The Review page contains separate `Source Pack + Idea` and `Product` tabs. Artifact cards use stored creation time, requested-by identity, and course association as the primary review context; bundle IDs and checksums remain secondary technical details. The client keeps pre-staging edits in memory and presents one Idea or Product at a time, with relations, dependencies, and product families separated into dedicated tabs. The Upload Manual page contains the paginated Source Pack handoff and the preserved Context Pack export as internal process choices.
+The admin presentation boundary for this workflow is split into `/admin/materials/review` and `/admin/materials/manual`. The Review page contains separate `Source Pack + Idea` and `Product` tabs, a filtered inventory, and a compact upload dialog. Artifact cards use stored creation time, requested-by identity, and course association as the primary review context; bundle IDs and checksums remain secondary technical details. Review actions navigate to dedicated `/admin/materials/review/idea/[slug]` or `/admin/materials/review/product/[slug]` pages, where the three-step indicator, focused one-item editing, product-family separation, relation and dependency context, KaTeX previews, reviewer notes, server-side draft reconstruction, and lifecycle actions live. The Upload Manual page contains the paginated Source Pack handoff and the preserved Context Pack export as internal process choices.
 
 Plan 006 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json`, with an independent database reconciliation at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-reconcile.json`.
 
@@ -256,7 +260,7 @@ flowchart LR
 
 The public lifecycle is `draft -> published -> withdrawn`. A draft may be replaced in place by the same bundle ID or deleted. Publishing creates or refreshes an internal approved review record as accountability evidence and commits canonical products atomically. Published bundles cannot be replaced or deleted. Withdrawal retains rows and audit history, marks learner-facing products inactive, and queues removal for vectorized article, question, and solution content. `FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
 
-The Product review UI uses `/admin/materials/review`. Product-family tabs prevent a generated Article, Diktat, question, or solution from being presented as one unstructured vertical stream. Preview content uses the shared `MathText` KaTeX renderer, including formula-only fields that arrive without delimiters.
+The Product review inventory uses `/admin/materials/review`, while detail review uses `/admin/materials/review/product/[slug]`. Product-family tabs prevent a generated Article, Diktat, question, or solution from being presented as one unstructured vertical stream. Preview content uses the shared `MathText` KaTeX renderer, including formula-only fields that arrive without delimiters.
 
 Question provenance crosses the compatibility boundary as data, not presentation-only state. `soal` and `ai_question_bank` store `origin`, `source_event_name`, and `source_reference_id`. Quiz attempts, tryout submissions, PKA attempts, and live quiz sessions carry the same fields in JSON snapshots. `QuestionSourceCitation` is the shared student renderer and shows a lower-right source line only for `itb_example`. The admin question bank exposes origin filtering, while the tutor tryout action copies a published bank question and its provenance into the per-exam question snapshot.
 

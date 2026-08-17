@@ -39,21 +39,21 @@ const variantStyles = {
 
 const sizeStyles = {
   sm: {
-    container: "h-9 px-3 rounded-lg text-body-xs",
+    container: "min-h-9 px-3 rounded-lg text-body-xs",
     icon: "size-3.5",
-    input: "pl-2.5 pr-1.5 text-body-xs",
+    input: "min-h-0 py-1 pl-2.5 pr-1.5 text-body-xs",
     clear: "p-0.5",
   },
   md: {
-    container: "h-10.5 px-3.5 rounded-xl text-body-sm",
+    container: "min-h-10 px-3.5 rounded-xl text-body-sm",
     icon: "size-4",
-    input: "pl-2.5 pr-2 text-body-sm",
+    input: "min-h-0 py-1.5 pl-2.5 pr-2 text-body-sm",
     clear: "p-1",
   },
   lg: {
-    container: "h-12 px-4 rounded-xl text-body-base",
+    container: "min-h-12 px-4 rounded-xl text-body-base",
     icon: "size-4.5",
-    input: "pl-3 pr-2.5 text-body-base",
+    input: "min-h-0 py-2 pl-3 pr-2.5 text-body-base",
     clear: "p-1.5",
   },
 };

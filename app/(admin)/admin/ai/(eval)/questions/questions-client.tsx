@@ -3,22 +3,34 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Square, ChevronDown, ChevronUp, Filter, Plus, Edit2, Trash2, Lock, Cpu, Upload } from "lucide-react";
+import { CheckSquare, Square, ChevronDown, ChevronUp, Filter, Plus, Edit2, Trash2, RotateCcw, Upload } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { DifficultyBadge, StatusBadge } from "@/components/admin/status-badges";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminTable } from "@/components/admin/table";
 
 type ReviewStatus = "generated" | "reviewed" | "published" | "flagged" | "retired";
 type Difficulty = "easy" | "medium" | "hard";
 type QuestionOrigin = "zyx_original" | "itb_example";
+type QuestionType = "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
+type CognitiveLevel = "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create";
+type IdeaRole = "primary" | "supporting" | "required";
+
+interface IdeaLink {
+  ideaId: string;
+  weight: number;
+  role: IdeaRole;
+}
 
 interface Question {
   id: string;
@@ -27,7 +39,7 @@ interface Question {
   sourceEventName: string | null;
   sourceReferenceId: string | null;
   difficulty: Difficulty;
-  questionType: string;
+  questionType: QuestionType;
   tags: unknown;
   prompt: string;
   options: unknown;
@@ -35,11 +47,13 @@ interface Question {
   acceptableAnswers?: unknown;
   explanation: string;
   reviewStatus: ReviewStatus;
-  qualityScore: number | null;
   useCount: number;
   createdAt: Date;
-  knowledgeObjectId?: string | null;
-  generationHash?: string | null;
+  chapterId?: string | null;
+  canonicalStatus?: "draft" | "in_review" | "published" | "retired" | null;
+  cognitiveLevel?: CognitiveLevel | null;
+  reasoningPattern?: string | null;
+  ideaLinks?: IdeaLink[];
 }
 
 interface Course {
@@ -47,10 +61,36 @@ interface Course {
   title: string;
 }
 
+interface AuthoringCourse {
+  id: string;
+  legacyCourseId: string | null;
+  code: string;
+  title: string;
+}
+
+interface AuthoringChapter {
+  id: string;
+  mataKuliahId: string;
+  code: string;
+  title: string;
+  orderIndex: number;
+}
+
+interface AuthoringIdea {
+  id: string;
+  mataKuliahId: string;
+  babId: string;
+  code: string;
+  statement: string;
+}
+
 interface Props {
   questions: Question[];
   courses: Course[];
   courseMap: Record<string, string>;
+  authoringCourses: AuthoringCourse[];
+  authoringChapters: AuthoringChapter[];
+  authoringIdeas: AuthoringIdea[];
 }
 
 const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" | "error"> = {
@@ -61,23 +101,59 @@ const statusTone: Record<ReviewStatus, "muted" | "info" | "success" | "warning" 
   retired: "error",
 };
 
-const provenanceEnabled = true;
+const cognitiveLevelLabel: Record<CognitiveLevel, string> = {
+  remember: "Mengingat",
+  understand: "Memahami",
+  apply: "Menerapkan",
+  analyze: "Menganalisis",
+  evaluate: "Mengevaluasi",
+  create: "Mencipta",
+};
 
-export function QuestionBankClient({ questions, courses, courseMap }: Props) {
+function reviewStatusFromSubmit(event: React.FormEvent<HTMLFormElement>): ReviewStatus {
+  const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+  return submitter?.value === "published" ? "published" : "generated";
+}
+
+function rebalanceIdeaLinks(current: IdeaLink[], ideaId: string, checked: boolean): IdeaLink[] {
+  const existing = new Map(current.map((link) => [link.ideaId, link]));
+  if (checked) existing.set(ideaId, { ideaId, weight: 1, role: current.length === 0 ? "primary" : "supporting" });
+  else existing.delete(ideaId);
+  const ids = [...existing.keys()];
+  if (ids.length === 0) return [];
+  const weight = 1 / ids.length;
+  return ids.map((id, index) => ({
+    ideaId: id,
+    weight,
+    role: existing.get(id)?.role ?? (index === 0 ? "primary" : "supporting"),
+  }));
+}
+
+function hasValidIdeaWeights(links: IdeaLink[]): boolean {
+  return links.length > 0 && Math.abs(links.reduce((sum, link) => sum + link.weight, 0) - 1) <= 0.000001;
+}
+
+export function QuestionBankClient({ questions, courses, courseMap, authoringCourses, authoringChapters, authoringIdeas }: Props) {
   const router = useRouter();
+
+  const chaptersForCourse = (courseId: string) => authoringChapters.filter((chapter) => chapter.mataKuliahId === courseId);
+  const ideasForSelection = (courseId: string, chapterId: string) => authoringIdeas.filter((idea) => idea.mataKuliahId === courseId && (!chapterId || idea.babId === chapterId));
+  const canonicalCourseForLegacy = (legacyCourseId: string) => authoringCourses.find((course) => course.legacyCourseId === legacyCourseId)?.id ?? legacyCourseId;
 
   // Bulk Upload State
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkCourseId, setBulkCourseId] = useState(courses[0]?.id || "");
+  const [bulkCourseId, setBulkCourseId] = useState(authoringCourses[0]?.id || "");
+  const [bulkChapterId, setBulkChapterId] = useState("");
+  const [bulkIdeaLinks, setBulkIdeaLinks] = useState<IdeaLink[]>([]);
   const [bulkMarkdown, setBulkMarkdown] = useState("");
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<ReviewStatus | "all">("all");
   const [filterCourse, setFilterCourse] = useState("all");
   const [filterOrigin, setFilterOrigin] = useState<QuestionOrigin | "all">("all");
-  const [filterKOId, setFilterKOId] = useState("");
-  const [filterBloom, setFilterBloom] = useState("all");
-  const [filterBlueprint, setFilterBlueprint] = useState("all");
+  const [filterQuestionType, setFilterQuestionType] = useState<QuestionType | "all">("all");
+  const [filterDifficulty, setFilterDifficulty] = useState<Difficulty | "all">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [updating, setUpdating] = useState(false);
   const [localQuestions, setLocalQuestions] = useState(questions);
@@ -90,42 +166,84 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
   const [deletingQuestion, setDeletingQuestion] = useState<Question | null>(null);
 
   // Create Form State
-  const [createCourseId, setCreateCourseId] = useState(courses[0]?.id || "");
+  const [createCourseId, setCreateCourseId] = useState(authoringCourses[0]?.id || "");
+  const [createChapterId, setCreateChapterId] = useState("");
+  const [createIdeaLinks, setCreateIdeaLinks] = useState<IdeaLink[]>([]);
   const [createPrompt, setCreatePrompt] = useState("");
-  const [createQuestionType, setCreateQuestionType] = useState<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">("multiple_choice");
-  const [createOptions, setCreateOptions] = useState<string[]>(["", "", "", "", ""]);
-  const [createCorrectIndex, setCreateCorrectIndex] = useState<number>(0);
+  const [createQuestionType, setCreateQuestionType] = useState<QuestionType>("multiple_choice");
+  const [createOptions, setCreateOptions] = useState<string[]>(["", "", "", ""]);
+  const [createCorrectIndices, setCreateCorrectIndices] = useState<number[]>([0]);
   const [createAcceptableAnswers, setCreateAcceptableAnswers] = useState("");
   const [createExplanation, setCreateExplanation] = useState("");
   const [createDifficulty, setCreateDifficulty] = useState<Difficulty>("medium");
+  const [createCognitiveLevel, setCreateCognitiveLevel] = useState<CognitiveLevel>("understand");
+  const [createReasoningPattern, setCreateReasoningPattern] = useState("manual_authoring");
   const [createTagsStr, setCreateTagsStr] = useState("");
   const [submittingCreate, setSubmittingCreate] = useState(false);
 
   // Edit Form State
   const [editPrompt, setEditPrompt] = useState("");
-  const [editQuestionType, setEditQuestionType] = useState<"multiple_choice" | "multiple_choices" | "short_answer" | "essay">("multiple_choice");
-  const [editOptions, setEditOptions] = useState<string[]>(["", "", "", "", ""]);
-  const [editCorrectIndex, setEditCorrectIndex] = useState<number>(0);
+  const [editQuestionType, setEditQuestionType] = useState<QuestionType>("multiple_choice");
+  const [editOptions, setEditOptions] = useState<string[]>(["", "", "", ""]);
+  const [editCorrectIndices, setEditCorrectIndices] = useState<number[]>([0]);
   const [editAcceptableAnswers, setEditAcceptableAnswers] = useState("");
   const [editExplanation, setEditExplanation] = useState("");
   const [editDifficulty, setEditDifficulty] = useState<Difficulty>("medium");
+  const [editCourseId, setEditCourseId] = useState(authoringCourses[0]?.id || "");
+  const [editChapterId, setEditChapterId] = useState("");
+  const [editIdeaLinks, setEditIdeaLinks] = useState<IdeaLink[]>([]);
+  const [editCognitiveLevel, setEditCognitiveLevel] = useState<CognitiveLevel>("understand");
+  const [editReasoningPattern, setEditReasoningPattern] = useState("manual_authoring");
   const [editTagsStr, setEditTagsStr] = useState("");
   const [submittingEdit, setSubmittingEdit] = useState(false);
 
   const filtered = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
     return localQuestions.filter((q) => {
+      const tagsList = Array.isArray(q.tags) ? (q.tags as string[]) : [];
+      if (normalizedSearch) {
+        const searchableText = [
+          q.prompt,
+          q.sourceEventName,
+          q.sourceReferenceId,
+          courseMap[q.courseId],
+          ...tagsList,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        if (!searchableText.includes(normalizedSearch)) return false;
+      }
       if (filterStatus !== "all" && q.reviewStatus !== filterStatus) return false;
       if (filterCourse !== "all" && q.courseId !== filterCourse) return false;
-      if (provenanceEnabled && filterOrigin !== "all" && q.origin !== filterOrigin) return false;
-      if (filterKOId && (!q.knowledgeObjectId || !q.knowledgeObjectId.toLowerCase().includes(filterKOId.toLowerCase()))) return false;
-      
-      const tagsList = Array.isArray(q.tags) ? (q.tags as string[]) : [];
-      if (filterBloom !== "all" && !tagsList.some(t => t.toLowerCase() === filterBloom.toLowerCase())) return false;
-      if (filterBlueprint !== "all" && !tagsList.some(t => t.toLowerCase().includes(filterBlueprint.toLowerCase()))) return false;
-      
+      if (filterOrigin !== "all" && q.origin !== filterOrigin) return false;
+      if (filterQuestionType !== "all" && q.questionType !== filterQuestionType) return false;
+      if (filterDifficulty !== "all" && q.difficulty !== filterDifficulty) return false;
+
       return true;
     });
-  }, [localQuestions, filterStatus, filterCourse, filterOrigin, filterKOId, filterBloom, filterBlueprint]);
+  }, [localQuestions, searchQuery, filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty, courseMap]);
+
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() ||
+      filterStatus !== "all" ||
+      filterCourse !== "all" ||
+      filterOrigin !== "all" ||
+      filterQuestionType !== "all" ||
+      filterDifficulty !== "all",
+  );
+
+  function resetFilters() {
+    setSearchQuery("");
+    setFilterStatus("all");
+    setFilterCourse("all");
+    setFilterOrigin("all");
+    setFilterQuestionType("all");
+    setFilterDifficulty("all");
+    setSelected(new Set());
+  }
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -137,7 +255,8 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
   }
 
   function toggleAll() {
-    if (selected.size === filtered.length) {
+    const allVisibleSelected = filtered.length > 0 && filtered.every((q) => selected.has(q.id));
+    if (allVisibleSelected) {
       setSelected(new Set());
     } else {
       setSelected(new Set(filtered.map((q) => q.id)));
@@ -173,13 +292,18 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
   const handleStartEdit = (q: Question) => {
     setEditingQuestion(q);
+    setEditCourseId(canonicalCourseForLegacy(q.courseId));
+    setEditChapterId(q.chapterId ?? "");
+    setEditIdeaLinks(q.ideaLinks ?? []);
+    setEditCognitiveLevel(q.cognitiveLevel ?? "understand");
+    setEditReasoningPattern(q.reasoningPattern ?? "manual_authoring");
     setEditPrompt(q.prompt);
     setEditQuestionType((q.questionType as any) || "multiple_choice");
     const opts = Array.isArray(q.options) ? [...q.options] : ["", "", "", "", ""];
-    while (opts.length < 5) opts.push("");
-    setEditOptions(opts.slice(0, 5));
+    while (opts.length < 4) opts.push("");
+    setEditOptions(opts.slice(0, 4));
     const correctIdxs = Array.isArray(q.correctIndices) ? q.correctIndices : [];
-    setEditCorrectIndex(correctIdxs[0] ?? 0);
+    setEditCorrectIndices(correctIdxs.length > 0 ? (correctIdxs as number[]) : [0]);
     const accAnswers = Array.isArray(q.acceptableAnswers) ? (q.acceptableAnswers as string[]) : [];
     setEditAcceptableAnswers(accAnswers.join(", "));
     setEditExplanation(q.explanation || "");
@@ -194,12 +318,16 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
     setDeleteOpen(true);
   };
 
-  const handleCreateSubmit = async (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!createPrompt.trim()) return toast.error("Prompt soal wajib diisi.");
-    
+
+    const reviewStatus = reviewStatusFromSubmit(e);
+    if (!hasValidIdeaWeights(createIdeaLinks)) return toast.error("Pilih minimal satu Idea dan pastikan total bobotnya 100%.");
     if (createQuestionType === "multiple_choice" || createQuestionType === "multiple_choices") {
-      if (createOptions.some(opt => !opt.trim())) return toast.error("Semua 5 pilihan opsi harus diisi.");
+      if (createOptions.some((opt) => !opt.trim())) return toast.error("Semua empat opsi harus diisi.");
+      if (createCorrectIndices.length === 0) return toast.error("Pilih minimal satu opsi yang benar.");
+      if (createQuestionType === "multiple_choice" && createCorrectIndices.length !== 1) return toast.error("Pilihan ganda harus memiliki tepat satu jawaban benar.");
     } else if (createQuestionType === "short_answer") {
       if (!createAcceptableAnswers.trim()) return toast.error("Jawaban benar yang diterima wajib diisi.");
     }
@@ -214,15 +342,19 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: createCourseId,
+          chapterId: createChapterId || null,
+          ideaLinks: createIdeaLinks,
           prompt: createPrompt,
           questionType: createQuestionType,
           options: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : createOptions,
-          correctIndices: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : [createCorrectIndex],
+          correctIndices: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : createCorrectIndices,
           acceptableAnswers,
           explanation: createExplanation,
           difficulty: createDifficulty,
+          cognitiveLevel: createCognitiveLevel,
+          reasoningPattern: createReasoningPattern,
           tags,
-          reviewStatus: "published",
+          reviewStatus,
         }),
       });
 
@@ -232,11 +364,11 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
       }
 
       const newQ = await res.json();
-      toast.success("Soal manual berhasil ditambahkan!");
+      toast.success(reviewStatus === "published" ? "Soal manual disimpan dan diterbitkan." : "Soal manual disimpan sebagai draft.");
       
       const createdQuestion: Question = {
         id: newQ.id,
-        courseId: createCourseId,
+        courseId: newQ.courseId ?? authoringCourses.find((course) => course.id === createCourseId)?.legacyCourseId ?? createCourseId,
         origin: "zyx_original",
         sourceEventName: null,
         sourceReferenceId: null,
@@ -245,21 +377,27 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         tags,
         prompt: createPrompt,
         options: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : createOptions,
-        correctIndices: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : [createCorrectIndex],
+        correctIndices: createQuestionType === "short_answer" || createQuestionType === "essay" ? [] : createCorrectIndices,
         acceptableAnswers,
         explanation: createExplanation,
-        reviewStatus: "published",
-        qualityScore: 1.0,
+        reviewStatus,
         useCount: 0,
         createdAt: new Date(),
+        chapterId: createChapterId || null,
+        canonicalStatus: reviewStatus === "published" ? "published" : "draft",
+        cognitiveLevel: createCognitiveLevel,
+        reasoningPattern: createReasoningPattern,
+        ideaLinks: createIdeaLinks,
       };
       
       setLocalQuestions(prev => [createdQuestion, ...prev]);
       setCreateOpen(false);
       
       setCreatePrompt("");
-      setCreateOptions(["", "", "", "", ""]);
-      setCreateCorrectIndex(0);
+      setCreateOptions(["", "", "", ""]);
+      setCreateCorrectIndices([0]);
+      setCreateChapterId("");
+      setCreateIdeaLinks([]);
       setCreateAcceptableAnswers("");
       setCreateExplanation("");
       setCreateTagsStr("");
@@ -270,10 +408,12 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
     }
   };
 
-  const handleBulkSubmit = async (e: React.FormEvent) => {
+  const handleBulkSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!bulkCourseId) return toast.error("Silakan pilih mata kuliah.");
+    if (!hasValidIdeaWeights(bulkIdeaLinks)) return toast.error("Pilih minimal satu Idea dan pastikan total bobotnya 100%.");
     if (!bulkMarkdown.trim()) return toast.error("Konten markdown tidak boleh kosong.");
+    const reviewStatus = reviewStatusFromSubmit(e);
 
     try {
       setBulkSubmitting(true);
@@ -284,7 +424,10 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         },
         body: JSON.stringify({
           courseId: bulkCourseId,
+          chapterId: bulkChapterId || null,
+          ideaLinks: bulkIdeaLinks,
           rawMarkdown: bulkMarkdown,
+          reviewStatus,
         }),
       });
 
@@ -293,6 +436,8 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         toast.success(data.message || "Berhasil mengimpor soal.");
         setBulkOpen(false);
         setBulkMarkdown("");
+        setBulkChapterId("");
+        setBulkIdeaLinks([]);
         // Reload page data to get the new questions in list
         router.refresh();
       } else {
@@ -318,13 +463,17 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
     reader.readAsText(file);
   };
 
-  const handleEditSubmit = async (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingQuestion) return;
     if (!editPrompt.trim()) return toast.error("Prompt soal wajib diisi.");
+    const reviewStatus = reviewStatusFromSubmit(e);
+    if (!hasValidIdeaWeights(editIdeaLinks)) return toast.error("Pilih minimal satu Idea dan pastikan total bobotnya 100%.");
 
     if (editQuestionType === "multiple_choice" || editQuestionType === "multiple_choices") {
-      if (editOptions.some(opt => !opt.trim())) return toast.error("Semua 5 pilihan opsi harus diisi.");
+      if (editOptions.some((opt) => !opt.trim())) return toast.error("Semua empat opsi harus diisi.");
+      if (editCorrectIndices.length === 0) return toast.error("Pilih minimal satu opsi yang benar.");
+      if (editQuestionType === "multiple_choice" && editCorrectIndices.length !== 1) return toast.error("Pilihan ganda harus memiliki tepat satu jawaban benar.");
     } else if (editQuestionType === "short_answer") {
       if (!editAcceptableAnswers.trim()) return toast.error("Jawaban benar yang diterima wajib diisi.");
     }
@@ -338,15 +487,20 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          courseId: editCourseId,
+          chapterId: editChapterId || null,
+          ideaLinks: editIdeaLinks,
           prompt: editPrompt,
           questionType: editQuestionType,
           options: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : editOptions,
-          correctIndices: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : [editCorrectIndex],
+          correctIndices: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : editCorrectIndices,
           acceptableAnswers,
           explanation: editExplanation,
           difficulty: editDifficulty,
+          cognitiveLevel: editCognitiveLevel,
+          reasoningPattern: editReasoningPattern,
           tags,
-          reviewStatus: "published",
+          reviewStatus,
         }),
       });
 
@@ -355,7 +509,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         throw new Error(data.error || "Gagal menyimpan perubahan");
       }
 
-      toast.success("Soal berhasil diperbarui dan dikunci!");
+      toast.success(reviewStatus === "published" ? "Soal diperbarui dan diterbitkan." : "Perubahan disimpan sebagai draft.");
       
       setLocalQuestions(prev =>
         prev.map(item =>
@@ -365,12 +519,17 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                 prompt: editPrompt,
                 questionType: editQuestionType,
                 options: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : editOptions,
-                correctIndices: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : [editCorrectIndex],
+                correctIndices: editQuestionType === "short_answer" || editQuestionType === "essay" ? [] : editCorrectIndices,
                 acceptableAnswers,
                 explanation: editExplanation,
                 difficulty: editDifficulty,
                 tags,
-                reviewStatus: "published",
+                reviewStatus,
+                chapterId: editChapterId || null,
+                canonicalStatus: reviewStatus === "published" ? "published" : "draft",
+                cognitiveLevel: editCognitiveLevel,
+                reasoningPattern: editReasoningPattern,
+                ideaLinks: editIdeaLinks,
               }
             : item
         )
@@ -403,21 +562,46 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
   return (
     <div className="font-sans space-y-6">
-      
-      {/* Filters and Action */}
-      <div className="space-y-4 pb-4 border-b border-border/80 text-left">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Filter className="size-4 shrink-0" />
-          <span className="text-body-sm font-semibold">Filter Pencarian &amp; Curation Grid</span>
+      {/* Search, filters, and actions */}
+      <div className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm text-left">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <Filter className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <div>
+              <p className="text-body-sm font-semibold text-foreground">Cari dan filter soal</p>
+              <p className="text-body-xs text-muted-foreground">Cari isi soal, tag, atau sumber. Gunakan filter seperlunya.</p>
+            </div>
+          </div>
+          {hasActiveFilters ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={resetFilters}
+              className="rounded-lg text-body-xs font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <RotateCcw className="size-3.5" />
+              Reset filter
+            </Button>
+          ) : null}
         </div>
 
-        <div className={cn("grid grid-cols-1 gap-3 md:grid-cols-3", provenanceEnabled ? "xl:grid-cols-6" : "xl:grid-cols-5")}>
-          <Select value={filterStatus} onValueChange={(val) => setFilterStatus(val as any)}>
-            <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
+        <SearchBar
+          size="md"
+          placeholder="Cari isi soal, tag, atau sumber..."
+          value={searchQuery}
+          onSearch={setSearchQuery}
+          onClear={() => setSearchQuery("")}
+          containerClassName="w-full"
+        />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ReviewStatus | "all")}>
+            <SelectTrigger aria-label="Filter status" className="border-border/80 bg-background/50 text-body-sm font-medium">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="all">Semua status</SelectItem>
               <SelectItem value="generated">Generated</SelectItem>
               <SelectItem value="reviewed">Reviewed</SelectItem>
               <SelectItem value="published">Published</SelectItem>
@@ -427,11 +611,11 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
           </Select>
 
           <Select value={filterCourse} onValueChange={setFilterCourse}>
-            <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
-              <SelectValue placeholder="Kursus" />
+            <SelectTrigger aria-label="Filter mata kuliah" className="border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectValue placeholder="Mata kuliah" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Kursus</SelectItem>
+              <SelectItem value="all">Semua mata kuliah</SelectItem>
               {courses.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.title}
@@ -440,8 +624,8 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
             </SelectContent>
           </Select>
 
-          {provenanceEnabled ? <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
-            <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
+          <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
+            <SelectTrigger aria-label="Filter asal soal" className="border-border/80 bg-background/50 text-body-sm font-medium">
               <SelectValue placeholder="Asal soal" />
             </SelectTrigger>
             <SelectContent>
@@ -449,63 +633,52 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
               <SelectItem value="zyx_original">Asli Zyx</SelectItem>
               <SelectItem value="itb_example">Contoh ITB</SelectItem>
             </SelectContent>
-          </Select> : null}
+          </Select>
 
-          <Select value={filterBloom} onValueChange={setFilterBloom}>
-            <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
-              <SelectValue placeholder="Tingkat Kognitif (Bloom)" />
+          <Select value={filterQuestionType} onValueChange={(value) => setFilterQuestionType(value as QuestionType | "all")}>
+            <SelectTrigger aria-label="Filter tipe soal" className="border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectValue placeholder="Tipe soal" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Kognitif</SelectItem>
-              <SelectItem value="remember">remember</SelectItem>
-              <SelectItem value="understand">understand</SelectItem>
-              <SelectItem value="apply">apply</SelectItem>
-              <SelectItem value="analyze">analyze</SelectItem>
-              <SelectItem value="evaluate">evaluate</SelectItem>
-              <SelectItem value="create">create</SelectItem>
+              <SelectItem value="all">Semua tipe soal</SelectItem>
+              <SelectItem value="multiple_choice">Pilihan ganda</SelectItem>
+              <SelectItem value="multiple_choices">PG kompleks</SelectItem>
+              <SelectItem value="short_answer">Isian singkat</SelectItem>
+              <SelectItem value="essay">Uraian</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={filterBlueprint} onValueChange={setFilterBlueprint}>
-            <SelectTrigger className="h-9 border-border/80 bg-background/50 text-body-sm font-medium">
-              <SelectValue placeholder="Tipe Blueprint" />
+          <Select value={filterDifficulty} onValueChange={(value) => setFilterDifficulty(value as Difficulty | "all")}>
+            <SelectTrigger aria-label="Filter tingkat kesulitan" className="border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectValue placeholder="Kesulitan" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Blueprint</SelectItem>
-              <SelectItem value="concept">Conceptual Check</SelectItem>
-              <SelectItem value="formula">Formula Application</SelectItem>
-              <SelectItem value="misconception">Misconception Rebuttal</SelectItem>
+              <SelectItem value="all">Semua kesulitan</SelectItem>
+              <SelectItem value="easy">Easy</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="hard">Hard</SelectItem>
             </SelectContent>
           </Select>
-
-          <SearchBar
-            size="sm"
-            placeholder="Cari ID KO..."
-            value={filterKOId}
-            onSearch={setFilterKOId}
-            onClear={() => setFilterKOId("")}
-            containerClassName="sm:w-48"
-          />
         </div>
 
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <span className="text-body-sm text-muted-foreground font-medium bg-muted/65 border border-border/30 px-2.5 py-0.5 rounded-md">
-            Menampilkan {filtered.length} Soal
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-3">
+          <span className="text-body-sm font-medium text-muted-foreground">
+            {filtered.length} soal ditampilkan
           </span>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => setBulkOpen(true)}
               variant="outline"
-              className="rounded-lg flex items-center gap-1.5 cursor-pointer text-body-sm font-bold shadow-sm px-4 py-2 border-border/80 hover:bg-muted transition-all"
+              className="rounded-lg flex items-center gap-1.5 cursor-pointer text-body-sm font-semibold border-border/80 hover:bg-muted"
             >
-              <Upload className="size-4" /> Impor via Markdown
+              <Upload className="size-4" /> Impor markdown
             </Button>
             <Button
               onClick={() => setCreateOpen(true)}
-              className="rounded-lg bg-brand-primary !text-white hover:bg-brand-primary/95 flex items-center gap-1.5 cursor-pointer text-body-sm font-bold shadow-sm px-4 py-2 interactive transition-all"
+              className="rounded-lg bg-brand-primary !text-white hover:bg-brand-primary/95 flex items-center gap-1.5 cursor-pointer text-body-sm font-semibold"
             >
-              <Plus className="size-4" /> Tambah Soal Manual
+              <Plus className="size-4" /> Tambah soal
             </Button>
           </div>
         </div>
@@ -533,39 +706,44 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
         </div>
       )}
 
-      {/* Header row */}
-      <div className="flex items-center gap-3 py-3 border border-border bg-muted px-4 rounded-t-xl">
-        <button onClick={toggleAll} className="text-muted-foreground hover:text-foreground cursor-pointer shrink-0 transition-colors">
-          {selected.size === filtered.length && filtered.length > 0 ? (
-            <CheckSquare className="size-4 text-brand-primary" />
-          ) : (
-            <Square className="size-4" />
-          )}
-        </button>
-        <span className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider">
-          Daftar Soal Pelajaran
-        </span>
-      </div>
+      {/* Question list */}
+      <AdminTable>
+        <div className="flex items-center gap-3 border-b border-border bg-muted/50 px-4 py-3">
+          <button
+            type="button"
+            onClick={toggleAll}
+            aria-label={filtered.length > 0 && filtered.every((q) => selected.has(q.id)) ? "Batalkan pilih semua" : "Pilih semua soal"}
+            className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {filtered.length > 0 && filtered.every((q) => selected.has(q.id)) ? (
+              <CheckSquare className="size-4 text-brand-primary" />
+            ) : (
+              <Square className="size-4" />
+            )}
+          </button>
+          <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Daftar soal
+          </span>
+        </div>
 
-      {filtered.length === 0 ? (
-        <div className="py-16 text-center text-muted-foreground text-body-sm border-x border-b border-border/60 rounded-b-xl bg-card">
-          Tidak ada soal yang cocok dengan filter.
-        </div>
-      ) : (
-        <div className="divide-y divide-border/60 border-x border-b border-border/60 rounded-b-xl overflow-hidden bg-card">
-          {filtered.map((q) => (
-            <QuestionRow
-              key={q.id}
-              question={q}
-              courseMap={courseMap}
-              selected={selected.has(q.id)}
-              onToggle={() => toggleSelect(q.id)}
-              onEdit={handleStartEdit}
-              onDelete={handleStartDelete}
-            />
-          ))}
-        </div>
-      )}
+        {filtered.length === 0 ? (
+          <AdminEmptyState compact title="Tidak ada soal yang cocok dengan filter." />
+        ) : (
+          <div className="divide-y divide-border/60 overflow-hidden">
+            {filtered.map((q) => (
+              <QuestionRow
+                key={q.id}
+                question={q}
+                courseMap={courseMap}
+                selected={selected.has(q.id)}
+                onToggle={() => toggleSelect(q.id)}
+                onEdit={handleStartEdit}
+                onDelete={handleStartDelete}
+              />
+            ))}
+          </div>
+        )}
+      </AdminTable>
 
       {/* CREATE DIALOG */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -576,23 +754,40 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1.5">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
-                  <Select value={createCourseId} onValueChange={setCreateCourseId}>
+                  <Select value={createCourseId} onValueChange={(value) => { setCreateCourseId(value); setCreateChapterId(""); setCreateIdeaLinks([]); }}>
                     <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
                       <SelectValue placeholder="Pilih Mata Kuliah" />
                     </SelectTrigger>
                     <SelectContent>
-                      {courses.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.title}
+                      {authoringCourses.map((course) => (
+                        <SelectItem key={course.id} value={course.id}>
+                          {course.code} · {course.title}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                
+
+                <div className="space-y-1.5">
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Bab</label>
+                  <Select value={createChapterId || "all"} onValueChange={(value) => { setCreateChapterId(value === "all" ? "" : value); setCreateIdeaLinks([]); }}>
+                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
+                      <SelectValue placeholder="Semua bab" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua bab</SelectItem>
+                      {chaptersForCourse(createCourseId).map((chapter) => (
+                        <SelectItem key={chapter.id} value={chapter.id}>
+                          {chapter.code} · {chapter.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipe Soal</label>
                   <Select value={createQuestionType} onValueChange={(val) => setCreateQuestionType(val as any)}>
@@ -623,9 +818,32 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Level kognitif</label>
+                  <Select value={createCognitiveLevel} onValueChange={(value) => setCreateCognitiveLevel(value as CognitiveLevel)}>
+                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(cognitiveLevelLabel) as CognitiveLevel[]).map((level) => <SelectItem key={level} value={level}>{cognitiveLevelLabel[level]}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pola penalaran</label>
+                  <Input value={createReasoningPattern} onChange={(event) => setCreateReasoningPattern(event.target.value)} placeholder="Contoh: direct_application" className="h-10 border-border/80 bg-background/50 text-body-sm font-medium" />
+                </div>
+              </div>
+
+              <IdeaAssignmentFields
+                idPrefix="create"
+                ideas={ideasForSelection(createCourseId, createChapterId)}
+                links={createIdeaLinks}
+                onChange={setCreateIdeaLinks}
+              />
+
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pertanyaan / Prompt (Mendukung LaTeX, contoh: $x^2$)</label>
-                <textarea
+                <Textarea
                   value={createPrompt}
                   onChange={(e) => setCreatePrompt(e.target.value)}
                   placeholder="Masukkan isi pertanyaan..."
@@ -636,39 +854,38 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
               {(createQuestionType === "multiple_choice" || createQuestionType === "multiple_choices") && (
                 <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
-                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi Pilihan (Isi Kelima Opsi & Pilih Opsi yang Benar)</label>
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi pilihan dan kunci jawaban</label>
+                  <p className="text-body-xs text-muted-foreground">Centang satu jawaban untuk Pilihan Ganda, atau beberapa jawaban untuk PG Kompleks.</p>
                   <div className="space-y-2.5">
-                    <RadioGroup
-                      value={String(createCorrectIndex)}
-                      onValueChange={(val) => setCreateCorrectIndex(Number(val))}
-                    >
-                      {createOptions.map((opt, idx) => (
-                        <div key={idx} className="flex items-center gap-3">
-                          <RadioGroupItem
-                            id={`create-correct-option-${idx}`}
-                            value={String(idx)}
-                            className="size-4 text-brand-primary cursor-pointer"
-                          />
-                          <label
-                            htmlFor={`create-correct-option-${idx}`}
-                            className="font-bold text-muted-foreground text-body-sm w-4 text-center cursor-pointer"
-                          >
-                            {String.fromCharCode(65 + idx)}
-                          </label>
-                          <Input
-                            type="text"
-                            value={opt}
-                            onChange={(e) => {
-                              const next = [...createOptions];
-                              next[idx] = e.target.value;
-                              setCreateOptions(next);
-                            }}
-                            placeholder={`Masukkan Opsi ${String.fromCharCode(65 + idx)}`}
-                            className="h-9 border-border/85 bg-background text-body-sm font-medium"
-                          />
-                        </div>
-                      ))}
-                    </RadioGroup>
+                    {createOptions.map((opt, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        <Checkbox
+                          id={`create-correct-option-${idx}`}
+                          checked={createCorrectIndices.includes(idx)}
+                          onCheckedChange={(checked) => {
+                            const next = createCorrectIndices.filter((value) => value !== idx);
+                            if (checked === true) {
+                              setCreateCorrectIndices(createQuestionType === "multiple_choice" ? [idx] : [...next, idx].sort((left, right) => left - right));
+                            } else setCreateCorrectIndices(next);
+                          }}
+                          className="size-4 text-brand-primary cursor-pointer"
+                        />
+                        <label htmlFor={`create-correct-option-${idx}`} className="font-bold text-muted-foreground text-body-sm w-4 text-center cursor-pointer">
+                          {String.fromCharCode(65 + idx)}
+                        </label>
+                        <Input
+                          type="text"
+                          value={opt}
+                          onChange={(e) => {
+                            const next = [...createOptions];
+                            next[idx] = e.target.value;
+                            setCreateOptions(next);
+                          }}
+                          placeholder={`Masukkan Opsi ${String.fromCharCode(65 + idx)}`}
+                          className="h-9 border-border/85 bg-background text-body-sm font-medium"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -696,7 +913,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Penjelasan Solusi / Rubrik (Mendukung LaTeX)</label>
-                <textarea
+                <Textarea
                   value={createExplanation}
                   onChange={(e) => setCreateExplanation(e.target.value)}
                   placeholder="Mengapa opsi ini benar atau rincian poin penilaian..."
@@ -719,8 +936,11 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
             <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
               <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCreateOpen(false)}>Batal</Button>
-              <Button type="submit" isLoading={submittingCreate} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
-                Simpan Soal
+              <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={submittingCreate} className="rounded-lg cursor-pointer font-bold">
+                Simpan draft
+              </Button>
+              <Button type="submit" name="reviewStatus" value="published" isLoading={submittingCreate} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
+                Simpan dan terbitkan
               </Button>
             </DialogFooter>
           </form>
@@ -737,7 +957,26 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
           {editingQuestion && (
             <form onSubmit={handleEditSubmit} className="flex-1 flex flex-col min-h-0">
               <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-1.5">
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
+                    <Select value={editCourseId} onValueChange={(value) => { setEditCourseId(value); setEditChapterId(""); setEditIdeaLinks([]); }}>
+                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder="Pilih Mata Kuliah" /></SelectTrigger>
+                      <SelectContent>
+                        {authoringCourses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Bab</label>
+                    <Select value={editChapterId || "all"} onValueChange={(value) => { setEditChapterId(value === "all" ? "" : value); setEditIdeaLinks([]); }}>
+                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder="Semua bab" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua bab</SelectItem>
+                        {chaptersForCourse(editCourseId).map((chapter) => <SelectItem key={chapter.id} value={chapter.id}>{chapter.code} · {chapter.title}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipe Soal</label>
                     <Select value={editQuestionType} onValueChange={(val) => setEditQuestionType(val as any)}>
@@ -768,9 +1007,32 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Level kognitif</label>
+                    <Select value={editCognitiveLevel} onValueChange={(value) => setEditCognitiveLevel(value as CognitiveLevel)}>
+                      <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(cognitiveLevelLabel) as CognitiveLevel[]).map((level) => <SelectItem key={level} value={level}>{cognitiveLevelLabel[level]}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pola penalaran</label>
+                    <Input value={editReasoningPattern} onChange={(event) => setEditReasoningPattern(event.target.value)} placeholder="Contoh: direct_application" className="h-10 border-border/80 bg-background/50 text-body-sm font-medium" />
+                  </div>
+                </div>
+
+                <IdeaAssignmentFields
+                  idPrefix="edit"
+                  ideas={ideasForSelection(editCourseId, editChapterId)}
+                  links={editIdeaLinks}
+                  onChange={setEditIdeaLinks}
+                />
+
                 <div className="space-y-1.5">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pertanyaan / Prompt (Mendukung LaTeX)</label>
-                  <textarea
+                  <Textarea
                     value={editPrompt}
                     onChange={(e) => setEditPrompt(e.target.value)}
                     placeholder="Masukkan isi pertanyaan..."
@@ -781,39 +1043,38 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
                 {(editQuestionType === "multiple_choice" || editQuestionType === "multiple_choices") && (
                   <div className="space-y-3 rounded-xl border border-border bg-muted/5 p-5">
-                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi Pilihan (Isi Kelima Opsi & Pilih Opsi yang Benar)</label>
+                    <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Opsi pilihan dan kunci jawaban</label>
+                    <p className="text-body-xs text-muted-foreground">Centang satu jawaban untuk Pilihan Ganda, atau beberapa jawaban untuk PG Kompleks.</p>
                     <div className="space-y-2.5">
-                      <RadioGroup
-                        value={String(editCorrectIndex)}
-                        onValueChange={(val) => setEditCorrectIndex(Number(val))}
-                      >
-                        {editOptions.map((opt, idx) => (
-                          <div key={idx} className="flex items-center gap-3">
-                            <RadioGroupItem
-                              id={`edit-correct-option-${idx}`}
-                              value={String(idx)}
-                              className="size-4 text-brand-primary cursor-pointer"
-                            />
-                            <label
-                              htmlFor={`edit-correct-option-${idx}`}
-                              className="font-bold text-muted-foreground text-body-sm w-4 text-center cursor-pointer"
-                            >
-                              {String.fromCharCode(65 + idx)}
-                            </label>
-                            <Input
-                              type="text"
-                              value={opt}
-                              onChange={(e) => {
-                                const next = [...editOptions];
-                                next[idx] = e.target.value;
-                                setEditOptions(next);
-                              }}
-                              placeholder={`Opsi ${String.fromCharCode(65 + idx)}`}
-                              className="h-9 border-border/85 bg-background text-body-sm font-medium"
-                            />
-                          </div>
-                        ))}
-                      </RadioGroup>
+                      {editOptions.map((opt, idx) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <Checkbox
+                            id={`edit-correct-option-${idx}`}
+                            checked={editCorrectIndices.includes(idx)}
+                            onCheckedChange={(checked) => {
+                              const next = editCorrectIndices.filter((value) => value !== idx);
+                              if (checked === true) {
+                                setEditCorrectIndices(editQuestionType === "multiple_choice" ? [idx] : [...next, idx].sort((left, right) => left - right));
+                              } else setEditCorrectIndices(next);
+                            }}
+                            className="size-4 text-brand-primary cursor-pointer"
+                          />
+                          <label htmlFor={`edit-correct-option-${idx}`} className="font-bold text-muted-foreground text-body-sm w-4 text-center cursor-pointer">
+                            {String.fromCharCode(65 + idx)}
+                          </label>
+                          <Input
+                            type="text"
+                            value={opt}
+                            onChange={(e) => {
+                              const next = [...editOptions];
+                              next[idx] = e.target.value;
+                              setEditOptions(next);
+                            }}
+                            placeholder={`Opsi ${String.fromCharCode(65 + idx)}`}
+                            className="h-9 border-border/85 bg-background text-body-sm font-medium"
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -840,7 +1101,7 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
                 <div className="space-y-1.5">
                   <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Penjelasan Solusi (Mendukung LaTeX)</label>
-                  <textarea
+                  <Textarea
                     value={editExplanation}
                     onChange={(e) => setEditExplanation(e.target.value)}
                     placeholder="Mengapa opsi ini benar..."
@@ -863,8 +1124,11 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
               <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
                 <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setEditOpen(false)}>Batal</Button>
-                <Button type="submit" isLoading={submittingEdit} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
-                  Simpan Perubahan &amp; Kunci
+                <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={submittingEdit} className="rounded-lg cursor-pointer font-bold">
+                  Simpan draft
+                </Button>
+                <Button type="submit" name="reviewStatus" value="published" isLoading={submittingEdit} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
+                  Simpan dan terbitkan
                 </Button>
               </DialogFooter>
             </form>
@@ -891,21 +1155,34 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
           </DialogHeader>
           <form onSubmit={handleBulkSubmit} className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto p-6 space-y-5 text-body-sm text-foreground">
-              <div className="space-y-1.5">
-                <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
-                <Select value={bulkCourseId} onValueChange={setBulkCourseId}>
-                  <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium">
-                    <SelectValue placeholder="Pilih Mata Kuliah" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Mata Kuliah</label>
+                  <Select value={bulkCourseId} onValueChange={(value) => { setBulkCourseId(value); setBulkChapterId(""); setBulkIdeaLinks([]); }}>
+                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder="Pilih Mata Kuliah" /></SelectTrigger>
+                    <SelectContent>
+                      {authoringCourses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Bab</label>
+                  <Select value={bulkChapterId || "all"} onValueChange={(value) => { setBulkChapterId(value === "all" ? "" : value); setBulkIdeaLinks([]); }}>
+                    <SelectTrigger className="h-10 border-border/80 bg-background/50 text-body-sm font-medium"><SelectValue placeholder="Semua bab" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua bab</SelectItem>
+                      {chaptersForCourse(bulkCourseId).map((chapter) => <SelectItem key={chapter.id} value={chapter.id}>{chapter.code} · {chapter.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              <IdeaAssignmentFields
+                idPrefix="bulk"
+                ideas={ideasForSelection(bulkCourseId, bulkChapterId)}
+                links={bulkIdeaLinks}
+                onChange={setBulkIdeaLinks}
+              />
 
               <div className="space-y-1.5">
                 <label className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Pilih File Markdown (.md) (Opsional)</label>
@@ -922,11 +1199,11 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
                   <span>Konten Markdown *</span>
                   <span className="text-[10px] text-muted-foreground lowercase normal-case">Pisahkan soal dengan ## Soal 1, ## Soal 2, dst.</span>
                 </label>
-                <textarea
+                <Textarea
                   required
                   value={bulkMarkdown}
                   onChange={(e) => setBulkMarkdown(e.target.value)}
-                  placeholder={`## Soal 1\n**Tipe:** Pilihan Ganda\n**Kesulitan:** Sedang\nTentukan hasil dari $2 + 2$.\n\nA. 3\nB. 4\nC. 5\nD. 6\n\n**Jawaban:** B\n**Pembahasan:** $2+2=4$.\n\n## Soal 2\n**Tipe:** Isian Singkat\n**Kesulitan:** Mudah\nBerapakah 5 + 7?\n\n**Jawaban:** 12, duabelas\n\n## Soal 3\n**Tipe:** Essay\n**Kesulitan:** Sulit\nJelaskan Hukum III Newton!\n\n**Kunci Jawaban:** Setiap aksi ada reaksi yang sama besar dan berlawanan arah.`}
+                  placeholder={`## Soal 1\n**Tipe:** Pilihan Ganda\n**Kesulitan:** Sedang\n**Level Kognitif:** Menerapkan\n**Pola Penalaran:** direct_application\nTentukan hasil dari $2 + 2$.\n\nA. 3\nB. 4\nC. 5\nD. 6\n\n**Jawaban:** B\n**Pembahasan:** $2+2=4$.`}
                   rows={12}
                   className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-mono text-xs leading-relaxed"
                 />
@@ -935,14 +1212,106 @@ export function QuestionBankClient({ questions, courses, courseMap }: Props) {
 
             <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
               <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkOpen(false)}>Batal</Button>
-              <Button type="submit" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
-                Impor Sekarang
+              <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer font-bold">
+                Simpan draft
+              </Button>
+              <Button type="submit" name="reviewStatus" value="published" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer bg-brand-primary !text-white hover:bg-brand-primary/95 font-bold px-6 shadow-sm">
+                Simpan dan terbitkan
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function IdeaAssignmentFields({
+  idPrefix,
+  ideas,
+  links,
+  onChange,
+}: {
+  idPrefix: string;
+  ideas: AuthoringIdea[];
+  links: IdeaLink[];
+  onChange: (links: IdeaLink[]) => void;
+}) {
+  const selected = new Map(links.map((link) => [link.ideaId, link]));
+  const totalWeight = links.reduce((sum, link) => sum + link.weight, 0);
+  const valid = hasValidIdeaWeights(links);
+
+  return (
+    <section className="space-y-3 rounded-xl border border-border bg-muted/5 p-5" aria-labelledby={`${idPrefix}-idea-heading`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 id={`${idPrefix}-idea-heading`} className="text-body-sm font-semibold text-foreground">Hubungkan ke Idea</h3>
+          <p className="mt-1 text-body-xs text-muted-foreground">Pilih Idea yang menjadi dasar soal. Bobot semua link harus berjumlah 100%.</p>
+        </div>
+        <span className={cn("text-body-xs font-semibold", valid ? "text-status-success" : "text-status-warning")}>
+          Bobot {Math.round(totalWeight * 100)}%
+        </span>
+      </div>
+
+      {ideas.length === 0 ? (
+        <p className="rounded-lg border border-status-warning/30 bg-status-warning/10 p-3 text-body-xs text-status-warning">
+          Belum ada Idea published untuk konteks mata kuliah dan bab ini.
+        </p>
+      ) : (
+        <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+          {ideas.map((idea) => {
+            const link = selected.get(idea.id);
+            return (
+              <div key={idea.id} className={cn("rounded-lg border p-3 transition-colors", link ? "border-brand-primary/40 bg-brand-primary/5" : "border-border bg-background/40")}>
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id={`${idPrefix}-idea-${idea.id}`}
+                    checked={Boolean(link)}
+                    onCheckedChange={(checked) => onChange(rebalanceIdeaLinks(links, idea.id, checked === true))}
+                    className="mt-0.5 size-4 shrink-0"
+                  />
+                  <label htmlFor={`${idPrefix}-idea-${idea.id}`} className="min-w-0 flex-1 cursor-pointer">
+                    <span className="block text-body-xs font-semibold text-foreground">{idea.code}</span>
+                    <span className="mt-1 block line-clamp-2 text-body-xs leading-relaxed text-muted-foreground">{idea.statement}</span>
+                  </label>
+                </div>
+                {link ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2 pl-7">
+                    <div className="space-y-1">
+                      <label htmlFor={`${idPrefix}-weight-${idea.id}`} className="text-body-xs font-medium text-muted-foreground">Bobot</label>
+                      <Input
+                        id={`${idPrefix}-weight-${idea.id}`}
+                        type="number"
+                        min="0.01"
+                        max="1"
+                        step="0.01"
+                        value={String(link.weight)}
+                        onChange={(event) => {
+                          const weight = Number(event.target.value);
+                          onChange(links.map((item) => item.ideaId === idea.id ? { ...item, weight } : item));
+                        }}
+                        className="h-8 bg-background text-body-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label htmlFor={`${idPrefix}-role-${idea.id}`} className="text-body-xs font-medium text-muted-foreground">Peran</label>
+                      <Select value={link.role} onValueChange={(role) => onChange(links.map((item) => item.ideaId === idea.id ? { ...item, role: role as IdeaRole } : item))}>
+                        <SelectTrigger id={`${idPrefix}-role-${idea.id}`} className="h-8 bg-background text-body-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="primary">Primary</SelectItem>
+                          <SelectItem value="supporting">Supporting</SelectItem>
+                          <SelectItem value="required">Required</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -979,28 +1348,8 @@ function QuestionRow({
     question.questionType === "essay" ? "Essay" :
     question.questionType === "multiple_choices" ? "PG Kompleks" : "Pilihan Ganda";
 
-  // Edit Lock determination
-  const isLocked = question.reviewStatus === "reviewed" || question.reviewStatus === "published";
-
-  // Dynamic QC Validation warnings calculated client-side
-  const qcWarnings = useMemo(() => {
-    const warnings: string[] = [];
-    if (!question.prompt.includes("$")) {
-      warnings.push("⚠️ Kualitas Rendah: Tidak menggunakan LaTeX ($)");
-    }
-    if (question.explanation.length < 50 && question.questionType !== "short_answer") {
-      warnings.push("⚠️ Kualitas Rendah: Penjelasan terlalu singkat (<50 karakter)");
-    }
-    const promptLower = question.prompt.toLowerCase();
-    if ((promptLower.includes("gaya") || promptLower.includes("massa") || promptLower.includes("kecepatan")) && 
-        (!question.prompt.includes("kg") && !question.prompt.includes("m/s") && !question.prompt.includes("N"))) {
-      warnings.push("⚠️ Kelengkapan: Soal fisika terdeteksi tanpa satuan standar SI (kg, m/s, N)");
-    }
-    return warnings;
-  }, [question]);
-
   return (
-    <div className={cn("py-4 transition-colors px-4 border-b border-border/55 last:border-b-0", selected ? "bg-muted/15" : "hover:bg-muted/5")}>
+    <div className={cn("px-4 py-4 transition-colors", selected ? "bg-muted/15" : "hover:bg-muted/5")}>
       <div className="flex items-start gap-3">
         <button
           onClick={onToggle}
@@ -1018,23 +1367,19 @@ function QuestionRow({
               {question.reviewStatus}
             </StatusBadge>
 
-            {provenanceEnabled ? <StatusBadge tone={question.origin === "itb_example" ? "info" : "brand"}>
+            <StatusBadge tone={question.origin === "itb_example" ? "info" : "brand"}>
               {question.origin === "itb_example" ? "Contoh ITB" : "Asli Zyx"}
-            </StatusBadge> : null}
+            </StatusBadge>
 
             <span className="rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-2 py-0.5 text-xs font-semibold">
               {qTypeLabel}
             </span>
-            
-            {/* Tutor edit lock badge */}
-            {isLocked && (
-              <span className="rounded-md bg-status-warning/10 text-status-warning border border-status-warning/20 px-2 py-0.5 text-xs font-semibold flex items-center gap-1">
-                <Lock className="size-3" /> Locked
-              </span>
-            )}
 
             <DifficultyBadge difficulty={question.difficulty} />
-            <span className="text-muted-foreground font-medium bg-muted/40 px-1.5 py-0.5 rounded-md">
+            <StatusBadge tone={question.ideaLinks && question.ideaLinks.length > 0 ? "success" : "warning"}>
+              {question.ideaLinks && question.ideaLinks.length > 0 ? `${question.ideaLinks.length} Idea` : "Tanpa Idea"}
+            </StatusBadge>
+            <span className="text-muted-foreground font-medium">
               {courseMap[question.courseId] ?? question.courseId}
             </span>
             
@@ -1043,7 +1388,7 @@ function QuestionRow({
             </span>
           </div>
 
-          {provenanceEnabled && question.origin === "itb_example" && question.sourceEventName ? (
+          {question.sourceEventName ? (
             <p className="mt-2 text-body-xs font-medium text-muted-foreground">Sumber: {question.sourceEventName}</p>
           ) : null}
 
@@ -1057,25 +1402,15 @@ function QuestionRow({
             </MathText>
           )}
 
-          {/* Tags list */}
-          <div className="flex gap-1.5 flex-wrap mt-2.5">
-            {tags.length > 0 && tags.map((t) => (
-              <span key={t} className="rounded bg-muted/65 border border-border/20 px-1.5 py-0.5 text-body-xs font-semibold text-muted-foreground/90">
-                #{t}
-              </span>
-            ))}
-          </div>
-
-          {/* QC warnings box if fails criteria */}
-          {qcWarnings.length > 0 && (
-            <div className="mt-2.5 space-y-1">
-              {qcWarnings.map((w, idx) => (
-                <div key={idx} className="text-body-xs text-status-error bg-status-error/5 px-2 py-0.5 rounded border border-status-error/10 font-medium inline-block mr-2">
-                  {w}
-                </div>
+          {tags.length > 0 ? (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {tags.map((t) => (
+                <span key={t} className="rounded-md border border-border/20 bg-muted/65 px-1.5 py-0.5 text-body-xs font-semibold text-muted-foreground/90">
+                  #{t}
+                </span>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
 
         <button
@@ -1132,31 +1467,6 @@ function QuestionRow({
             </div>
           )}
 
-          {/* AI Provenance details box */}
-          <div className="rounded-xl bg-muted/40 p-4 border border-border/50 space-y-2 text-xs text-muted-foreground">
-            <span className="font-bold text-foreground flex items-center gap-1.5 border-b border-border pb-1.5 mb-2">
-              <Cpu className="size-3.5 text-primary" /> Detail Provenansi Generasi (RAG)
-            </span>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-mono">
-              <div>
-                <span className="font-sans font-semibold text-foreground block">ID Objek Pengetahuan (KO)</span>
-                <span className="text-xs select-all">{question.knowledgeObjectId || "Tidak Terhubung (Input Manual)"}</span>
-              </div>
-              <div>
-                <span className="font-sans font-semibold text-foreground block">Model Generator</span>
-                <span>{question.knowledgeObjectId ? "gemini-2.5-flash" : "N/A (Tutor Created)"}</span>
-              </div>
-              <div>
-                <span className="font-sans font-semibold text-foreground block">Hash Keandalan</span>
-                <span className="text-xs select-all">{question.generationHash || "N/A"}</span>
-              </div>
-              <div>
-                <span className="font-sans font-semibold text-foreground block">Kualitas Penilaian</span>
-                <span>{question.qualityScore != null ? `${question.qualityScore.toFixed(2)} / 1.00` : "Belum diverifikasi"}</span>
-              </div>
-            </div>
-          </div>
-          
           <div className="flex gap-2 justify-end pt-3 border-t border-border/40">
             <Button size="sm" variant="outline" className="rounded-lg gap-1.5 cursor-pointer text-xs font-bold" onClick={() => onEdit(question)}>
               <Edit2 className="size-3.5" /> Edit Soal &amp; Kunci

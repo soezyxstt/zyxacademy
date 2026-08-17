@@ -325,7 +325,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
       {error && <p className="text-body-sm text-status-error">{error}</p>}
 
       <section className="space-y-3">
-        <AdminSectionTitle as="h2" size="h6" border title="Hasil generasi MCP" right={<span className="text-body-sm text-muted-foreground">{imports.length} artifact</span>} />
+        <AdminSectionTitle as="h2" size="h6" border title="Artifact tersimpan" right={<span className="text-body-sm text-muted-foreground">{imports.length} artifact</span>} />
         <AdminTable className="divide-y divide-border">
           {imports.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada hasil Source Pack + Idea.</p>}
           {imports.map((item) => <MaterialArtifactCard key={item.id} row={item} kind="idea" courseLabel={item.courseId ? courseLabels[item.courseId] : undefined} authorLabel={item.requestedBy ? authorLabels[item.requestedBy] : undefined} onInspect={() => void inspect(item.id)} loading={loading} />)}

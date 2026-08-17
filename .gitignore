@@ -64,3 +64,7 @@ pka_scores.csv
 .agents
 
 .temp
+
+# local Zyx authoring artifacts
+/source-pack-work/
+/source-pack-ma1101-bab-0-pertaksamaan-dan-fungsi.zip

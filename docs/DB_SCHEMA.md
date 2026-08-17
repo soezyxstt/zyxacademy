@@ -309,6 +309,8 @@ Plan 004 adds the normalized target tables below. Plan 005 owns deterministic ma
 
 Published article, material, question, solution, and flashcard records are required by the contract layer to reference at least one published Idea. `soal_ide.weight` has a database range check and the per-question sum is validated within `0.000001` by the domain contract.
 
+Manual and Markdown question authoring uses these canonical tables first. `ai_question_bank` remains the compatibility projection for the current quiz readers; its row uses the canonical question ID and mirrors the lifecycle, prompt, options, answer keys, explanation, and generation hash.
+
 ### Assessment tables
 * `blueprint_asesmen`, `asesmen`, `cakupan_asesmen`: Assessment definition, version, lifecycle, and chapter scope.
 * `item_asesmen`: Ordered question membership with rendered question, option order, grading policy, content version, and generation snapshots.

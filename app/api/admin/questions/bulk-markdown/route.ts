@@ -1,189 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { randomUUID } from "crypto";
-import { db } from "@/db";
-import { aiQuestionBank } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { questionIdeaLinkSchema, questionReviewStatusSchema } from "@/lib/question-authoring-contract";
+import { createCanonicalQuestionBatch, QuestionAuthoringError } from "@/lib/question-authoring";
+import { parseQuestionsMarkdown, validateExtractedQuestion } from "@/lib/question-markdown";
 
 const RequestSchema = z.object({
-  courseId: z.string().min(1),
+  courseId: z.string().trim().min(1),
+  chapterId: z.string().trim().min(1).nullable().optional(),
+  ideaLinks: z.array(questionIdeaLinkSchema).min(1),
   rawMarkdown: z.string().min(1),
+  reviewStatus: questionReviewStatusSchema.default("generated"),
 });
 
-export interface ExtractedQuestion {
-  prompt: string;
-  questionType: "multiple_choice" | "multiple_choices" | "short_answer" | "essay";
-  difficulty: "easy" | "medium" | "hard";
-  tags: string[];
-  options: string[];
-  correctIndices: number[];
-  acceptableAnswers: string[];
-  explanation: string;
-}
-
-function parseQuestionsMarkdown(markdown: string): ExtractedQuestion[] {
-  const normalized = markdown.replace(/\r\n/g, "\n").trim();
-  const lines = normalized.split("\n");
-  
-  const blocks: string[][] = [];
-  let currentBlock: string[] = [];
-
-  for (const line of lines) {
-    if (line.trim().startsWith("## ")) {
-      if (currentBlock.length > 0) {
-        blocks.push(currentBlock);
-      }
-      currentBlock = [line];
-    } else {
-      currentBlock.push(line);
-    }
+function errorResponse(error: unknown): NextResponse {
+  if (error instanceof QuestionAuthoringError) {
+    return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
   }
-  if (currentBlock.length > 0) {
-    blocks.push(currentBlock);
-  }
-
-  const questions: ExtractedQuestion[] = [];
-
-  for (const blockLines of blocks) {
-    const heading = blockLines[0]?.trim() || "";
-    if (!/^##\s+(soal|question|pertanyaan|\d+)/i.test(heading)) {
-      continue;
-    }
-
-    let promptLines: string[] = [];
-    let options: string[] = [];
-    let correctIndices: number[] = [];
-    let acceptableAnswers: string[] = [];
-    let difficulty: "easy" | "medium" | "hard" = "medium";
-    let questionType: "multiple_choice" | "multiple_choices" | "short_answer" | "essay" | null = null;
-    let tags: string[] = [];
-    let explanationLines: string[] = [];
-    let parsingExplanation = false;
-    let answerTextRaw: string = "";
-
-    for (let i = 1; i < blockLines.length; i++) {
-      const line = blockLines[i];
-      const trimmed = line.trim();
-
-      // Check for question type
-      if (/^\*\*(tipe|tipe soal|type):\*\*/i.test(trimmed)) {
-        const content = trimmed.replace(/^\*\*(tipe|tipe soal|type):\*\*/i, "").trim().toLowerCase();
-        if (content.includes("isian") || content.includes("short_answer") || content === "short") {
-          questionType = "short_answer";
-        } else if (content.includes("essay") || content.includes("uraian")) {
-          questionType = "essay";
-        } else if (content.includes("kompleks") || content.includes("multiple_choices")) {
-          questionType = "multiple_choices";
-        } else if (content.includes("pilihan ganda") || content.includes("multiple_choice")) {
-          questionType = "multiple_choice";
-        }
-        continue;
-      }
-
-      // Check for tags
-      if (/^\*\*tags?:\*\*/i.test(trimmed)) {
-        const content = trimmed.replace(/^\*\*tags?:\*\*/i, "").trim();
-        tags = content.split(",").map(t => t.trim()).filter(Boolean);
-        continue;
-      }
-
-      // Check for difficulty (supports Indonesian translations)
-      if (/^\*\*kesulitan:\*\*/i.test(trimmed)) {
-        const content = trimmed.replace(/^\*\*kesulitan:\*\*/i, "").trim().toLowerCase();
-        if (content === "easy" || content === "mudah") {
-          difficulty = "easy";
-        } else if (content === "medium" || content === "sedang" || content === "normal") {
-          difficulty = "medium";
-        } else if (content === "hard" || content === "sulit" || content === "susah") {
-          difficulty = "hard";
-        }
-        continue;
-      }
-
-      // Check for correct answer / answer key
-      if (/^\*\*(jawaban|kunci|kunci jawaban|rubrik):\*\*/i.test(trimmed)) {
-        const content = trimmed.replace(/^\*\*(jawaban|kunci|kunci jawaban|rubrik):\*\*/i, "").trim();
-        answerTextRaw = content;
-
-        // Try extracting A-E letters first for MC
-        const letters = content.toUpperCase().match(/[A-E]/g) || [];
-        if (letters.length > 0 && !questionType) {
-          correctIndices = letters.map(letter => letter.charCodeAt(0) - 65);
-        }
-        continue;
-      }
-
-      // Check for explanation start
-      if (/^\*\*(pembahasan|solusi):\*\*/i.test(trimmed)) {
-        parsingExplanation = true;
-        const firstLine = trimmed.replace(/^\*\*(pembahasan|solusi):\*\*/i, "").trim();
-        if (firstLine) {
-          explanationLines.push(firstLine);
-        }
-        continue;
-      }
-
-      // Check for options (e.g. A. or B. or A) or B))
-      const optionMatch = trimmed.match(/^([A-E])[\.\)]\s+(.*)/i);
-      if (optionMatch && !parsingExplanation) {
-        const letter = optionMatch[1].toUpperCase();
-        const optionText = optionMatch[2].trim();
-        const idx = letter.charCodeAt(0) - 65;
-        options[idx] = optionText;
-        continue;
-      }
-
-      // Collect prompt or explanation lines
-      if (parsingExplanation) {
-        explanationLines.push(line);
-      } else {
-        promptLines.push(line);
-      }
-    }
-
-    // Filter out undefined and trim options
-    const cleanedOptions: string[] = [];
-    for (let i = 0; i < 5; i++) {
-      if (options[i] !== undefined && options[i].trim() !== "") {
-        cleanedOptions.push(options[i]);
-      }
-    }
-
-    // Infer question type if not explicitly set
-    if (!questionType) {
-      if (cleanedOptions.length > 0) {
-        questionType = correctIndices.length > 1 ? "multiple_choices" : "multiple_choice";
-      } else if (answerTextRaw) {
-        questionType = "short_answer";
-      } else {
-        questionType = "multiple_choice";
-      }
-    }
-
-    // Parse answers for short_answer / essay
-    if (questionType === "short_answer" && answerTextRaw) {
-      acceptableAnswers = answerTextRaw.split(",").map(a => a.trim()).filter(Boolean);
-    } else if (questionType === "essay" && answerTextRaw) {
-      acceptableAnswers = [answerTextRaw];
-    }
-
-    const prompt = promptLines.join("\n").trim();
-    const explanation = explanationLines.join("\n").trim();
-
-    questions.push({
-      prompt,
-      questionType,
-      difficulty,
-      tags,
-      options: cleanedOptions,
-      correctIndices,
-      acceptableAnswers,
-      explanation,
-    });
-  }
-
-  return questions;
+  console.error("[Question Markdown Authoring] Database transaction failed:", error);
+  return NextResponse.json({ error: "Gagal menyimpan soal canonical." }, { status: 500 });
 }
 
 export async function POST(req: NextRequest) {
@@ -198,89 +34,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { courseId, rawMarkdown } = parsed.data;
-
-  const parsedQuestions = parseQuestionsMarkdown(rawMarkdown);
-
+  const parsedQuestions = parseQuestionsMarkdown(parsed.data.rawMarkdown);
   if (parsedQuestions.length === 0) {
     return NextResponse.json(
-      { error: "Tidak ada soal yang berhasil diurai. Pastikan format penulisan benar dengan pemisah '## Soal [Nomor]'." },
-      { status: 400 }
+      { error: "Tidak ada soal yang berhasil diurai. Gunakan heading seperti ## Soal 1 untuk setiap soal." },
+      { status: 400 },
     );
   }
 
-  // Syntax and content validation per question type
-  for (let i = 0; i < parsedQuestions.length; i++) {
-    const q = parsedQuestions[i];
-    const questionIndex = i + 1;
-    if (!q.prompt.trim()) {
-      return NextResponse.json(
-        { error: `Soal nomor ${questionIndex} tidak memiliki teks pertanyaan (prompt) yang valid.` },
-        { status: 400 }
-      );
-    }
-    if (q.questionType === "multiple_choice" || q.questionType === "multiple_choices") {
-      if (q.options.length < 2) {
-        return NextResponse.json(
-          { error: `Soal nomor ${questionIndex} (Pilihan Ganda) minimal harus memiliki 2 pilihan jawaban (A. ..., B. ...).` },
-          { status: 400 }
-        );
-      }
-      if (q.correctIndices.length === 0) {
-        return NextResponse.json(
-          { error: `Soal nomor ${questionIndex} (Pilihan Ganda) tidak memiliki kunci jawaban yang valid. Gunakan format '**Jawaban:** A' atau '**Jawaban:** B'.` },
-          { status: 400 }
-        );
-      }
-      for (const idx of q.correctIndices) {
-        if (idx < 0 || idx >= q.options.length) {
-          return NextResponse.json(
-            { error: `Soal nomor ${questionIndex} memiliki kunci jawaban yang di luar rentang pilihan yang disediakan.` },
-            { status: 400 }
-          );
-        }
-      }
-    } else if (q.questionType === "short_answer") {
-      if (q.acceptableAnswers.length === 0) {
-        return NextResponse.json(
-          { error: `Soal nomor ${questionIndex} (Isian Singkat) wajib memiliki kunci jawaban. Gunakan format '**Jawaban:** [kata kunci]'.` },
-          { status: 400 }
-        );
-      }
-    }
+  for (const question of parsedQuestions) {
+    const validationError = validateExtractedQuestion(question, question.sourceIndex);
+    if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
-  // Database transaction insertion
-  const createdIds: string[] = [];
   try {
-    await db.transaction(async (tx) => {
-      for (const q of parsedQuestions) {
-        const id = `q-bulk-${randomUUID()}`;
-        await tx.insert(aiQuestionBank).values({
-          id,
-          courseId,
-          difficulty: q.difficulty,
-          questionType: q.questionType,
-          tags: q.tags as unknown as Record<string, unknown>,
-          prompt: q.prompt,
-          options: q.options as unknown as Record<string, unknown>,
-          correctIndices: q.correctIndices as unknown as Record<string, unknown>,
-          acceptableAnswers: q.acceptableAnswers,
-          explanation: q.explanation,
-          status: "active",
-          reviewStatus: "published",
-        });
-        createdIds.push(id);
-      }
+    const results = await createCanonicalQuestionBatch({
+      courseId: parsed.data.courseId,
+      chapterId: parsed.data.chapterId,
+      ideaLinks: parsed.data.ideaLinks,
+      questions: parsedQuestions.map(({ sourceIndex: _sourceIndex, ...question }) => question),
+      reviewStatus: parsed.data.reviewStatus,
+      creatorId: session.user.id,
     });
-  } catch (err: any) {
-    console.error("[Deterministic Bulk Ingest] Database transaction failed:", err);
-    return NextResponse.json({ error: "Gagal menyimpan soal ke database." }, { status: 500 });
-  }
 
-  return NextResponse.json({
-    success: true,
-    count: createdIds.length,
-    message: `${createdIds.length} soal berhasil diimpor ke bank soal secara utuh.`,
-  });
+    return NextResponse.json({
+      success: true,
+      count: results.length,
+      ids: results.map((result) => result.id),
+      message: `${results.length} soal berhasil disimpan ke canonical bank dan projection kompatibilitas.`,
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
 }

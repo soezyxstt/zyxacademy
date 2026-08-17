@@ -1,0 +1,90 @@
+"use client";
+
+import { useState } from "react";
+import { Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { explainBundleError } from "@/lib/bundle/admin-errors";
+
+type Props = {
+  kind: "idea" | "product";
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onStaged: (importId: string) => void;
+};
+
+export function MaterialBundleUploadDialog({ kind, open, onOpenChange, onStaged }: Props) {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const label = kind === "idea" ? "Source Pack + Idea" : "Product";
+  const endpoint = kind === "idea" ? "/api/admin/bundles/idea" : "/api/admin/bundles/product";
+  const uploadError = kind === "idea" ? "IDEA_BUNDLE_UPLOAD_FAILED" : "PRODUCT_BUNDLE_UPLOAD_FAILED";
+
+  function close(openState: boolean) {
+    onOpenChange(openState);
+    if (!openState) {
+      setFile(null);
+      setError(null);
+    }
+  }
+
+  async function submit() {
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const previewForm = new FormData();
+      previewForm.set("file", file);
+      previewForm.set("intent", "preview");
+      const previewResponse = await fetch(endpoint, { method: "POST", body: previewForm });
+      const previewPayload = await previewResponse.json() as { draft?: unknown; error?: string; reasonCodes?: string[] };
+      if (!previewResponse.ok || !previewPayload.draft) throw new Error(previewPayload.reasonCodes?.join(", ") || previewPayload.error || uploadError);
+
+      const stageForm = new FormData();
+      stageForm.set("file", file);
+      stageForm.set("intent", "stage");
+      stageForm.set("draft", JSON.stringify(previewPayload.draft));
+      const stageResponse = await fetch(endpoint, { method: "POST", body: stageForm });
+      const stagePayload = await stageResponse.json() as { result?: { importId?: string }; error?: string; reasonCodes?: string[] };
+      if (!stageResponse.ok || !stagePayload.result?.importId) throw new Error(stagePayload.reasonCodes?.join(", ") || stagePayload.error || `${kind.toUpperCase()}_BUNDLE_STAGE_FAILED`);
+
+      close(false);
+      onStaged(stagePayload.result.importId);
+    } catch (uploadFailure) {
+      setError(explainBundleError(uploadFailure instanceof Error ? uploadFailure.message : uploadError));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={close}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Upload {label}</DialogTitle>
+          <DialogDescription>ZIP akan diperiksa lalu dimasukkan ke daftar review. Perubahan isi dilakukan di halaman detail.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor={`${kind}-bundle-upload`}>File ZIP</Label>
+          <Input id={`${kind}-bundle-upload`} type="file" accept=".zip,application/zip" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setError(null); }} />
+          <p className="text-body-xs text-muted-foreground">Maksimal 32 MB. Pastikan file berasal dari workflow MCP yang sesuai.</p>
+        </div>
+        {error && <p className="rounded-lg border border-status-error/30 bg-status-error/10 p-3 text-body-sm text-status-error">{error}</p>}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => close(false)} disabled={loading}>Batal</Button>
+          <Button type="button" onClick={() => void submit()} disabled={!file || loading} isLoading={loading}><Upload className="size-4" />Masukkan ke daftar review</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
