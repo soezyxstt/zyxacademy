@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
@@ -563,119 +564,132 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   return (
     <div className="font-sans space-y-6">
       {/* Search, filters, and actions */}
-      <div className="flex flex-col gap-2.5">
-        <div className="flex flex-col gap-2 xl:flex-row xl:items-center justify-between">
-          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-            <div className="w-full sm:w-64 lg:w-72">
-              <SearchBar
-                size="sm"
-                placeholder="Cari isi soal, tag, sumber..."
-                value={searchQuery}
-                onSearch={setSearchQuery}
-                onClear={() => setSearchQuery("")}
-                containerClassName="w-full"
-              />
-            </div>
+      <div className="flex items-center gap-2">
+        <SearchBar
+          size="sm"
+          placeholder="Cari isi soal, tag, sumber..."
+          value={searchQuery}
+          onSearch={setSearchQuery}
+          onClear={() => setSearchQuery("")}
+          containerClassName="flex-1 min-w-0"
+        />
 
-            <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ReviewStatus | "all")}>
-              <SelectTrigger aria-label="Filter status" className="w-[120px] h-9 text-body-xs rounded-lg">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua status</SelectItem>
-                <SelectItem value="generated">Generated</SelectItem>
-                <SelectItem value="reviewed">Reviewed</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="flagged">Flagged</SelectItem>
-                <SelectItem value="retired">Retired</SelectItem>
-              </SelectContent>
-            </Select>
+        <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ReviewStatus | "all")}>
+          <SelectTrigger aria-label="Filter status" className="w-[110px] sm:w-[120px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua status</SelectItem>
+            <SelectItem value="generated">Generated</SelectItem>
+            <SelectItem value="reviewed">Reviewed</SelectItem>
+            <SelectItem value="published">Published</SelectItem>
+            <SelectItem value="flagged">Flagged</SelectItem>
+            <SelectItem value="retired">Retired</SelectItem>
+          </SelectContent>
+        </Select>
 
-            <Select value={filterCourse} onValueChange={setFilterCourse}>
-              <SelectTrigger aria-label="Filter mata kuliah" className="w-[140px] h-9 text-body-xs rounded-lg">
-                <SelectValue placeholder="Mata kuliah" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua mata kuliah</SelectItem>
-                {courses.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <Select value={filterCourse} onValueChange={setFilterCourse}>
+          <SelectTrigger aria-label="Filter mata kuliah" className="w-[125px] sm:w-[145px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Mata kuliah" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua mata kuliah</SelectItem>
+            {courses.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-            <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
-              <SelectTrigger aria-label="Filter asal soal" className="w-[115px] h-9 text-body-xs rounded-lg">
-                <SelectValue placeholder="Asal soal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua asal</SelectItem>
-                <SelectItem value="zyx_original">Asli Zyx</SelectItem>
-                <SelectItem value="itb_example">Contoh ITB</SelectItem>
-              </SelectContent>
-            </Select>
+        <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
+          <SelectTrigger aria-label="Filter asal soal" className="w-[105px] sm:w-[115px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Asal soal" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua asal</SelectItem>
+            <SelectItem value="zyx_original">Asli Zyx</SelectItem>
+            <SelectItem value="itb_example">Contoh ITB</SelectItem>
+          </SelectContent>
+        </Select>
 
-            <Select value={filterQuestionType} onValueChange={(value) => setFilterQuestionType(value as QuestionType | "all")}>
-              <SelectTrigger aria-label="Filter tipe soal" className="w-[120px] h-9 text-body-xs rounded-lg">
-                <SelectValue placeholder="Tipe soal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua tipe soal</SelectItem>
-                <SelectItem value="multiple_choice">Pilihan ganda</SelectItem>
-                <SelectItem value="multiple_choices">PG kompleks</SelectItem>
-                <SelectItem value="short_answer">Isian singkat</SelectItem>
-                <SelectItem value="essay">Uraian</SelectItem>
-              </SelectContent>
-            </Select>
+        <Select value={filterQuestionType} onValueChange={(value) => setFilterQuestionType(value as QuestionType | "all")}>
+          <SelectTrigger aria-label="Filter tipe soal" className="w-[105px] sm:w-[115px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Tipe soal" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua tipe soal</SelectItem>
+            <SelectItem value="multiple_choice">Pilihan ganda</SelectItem>
+            <SelectItem value="multiple_choices">PG kompleks</SelectItem>
+            <SelectItem value="short_answer">Isian singkat</SelectItem>
+            <SelectItem value="essay">Uraian</SelectItem>
+          </SelectContent>
+        </Select>
 
-            <Select value={filterDifficulty} onValueChange={(value) => setFilterDifficulty(value as Difficulty | "all")}>
-              <SelectTrigger aria-label="Filter tingkat kesulitan" className="w-[110px] h-9 text-body-xs rounded-lg">
-                <SelectValue placeholder="Kesulitan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua kesulitan</SelectItem>
-                <SelectItem value="easy">Easy</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="hard">Hard</SelectItem>
-              </SelectContent>
-            </Select>
+        <Select value={filterDifficulty} onValueChange={(value) => setFilterDifficulty(value as Difficulty | "all")}>
+          <SelectTrigger aria-label="Filter tingkat kesulitan" className="w-[100px] sm:w-[110px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Kesulitan" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua kesulitan</SelectItem>
+            <SelectItem value="easy">Easy</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="hard">Hard</SelectItem>
+          </SelectContent>
+        </Select>
 
-            {hasActiveFilters ? (
+        {hasActiveFilters && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetFilters}
+                  aria-label="Reset filter"
+                  className="size-9 p-0 rounded-lg shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <RotateCcw className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Reset filter</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <Button
-                type="button"
-                variant="ghost"
+                onClick={() => setBulkOpen(true)}
+                variant="outline"
                 size="sm"
-                onClick={resetFilters}
-                className="h-9 px-2 rounded-lg text-body-xs font-semibold text-muted-foreground hover:text-foreground"
+                aria-label="Impor markdown"
+                className="size-9 p-0 rounded-lg shrink-0"
               >
-                <RotateCcw className="size-3.5" />
-                Reset
+                <Upload className="size-4" />
               </Button>
-            ) : null}
-          </div>
+            </TooltipTrigger>
+            <TooltipContent>Impor markdown</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-          <div className="flex items-center gap-2.5 shrink-0 self-end xl:self-center">
-            <span className="text-body-xs font-medium text-muted-foreground whitespace-nowrap">
-              {filtered.length} soal
-            </span>
-            <Button
-              onClick={() => setBulkOpen(true)}
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-lg flex items-center gap-1.5 cursor-pointer font-semibold border-border/80 hover:bg-muted"
-            >
-              <Upload className="size-3.5" /> Impor markdown
-            </Button>
-            <Button
-              onClick={() => setCreateOpen(true)}
-              size="sm"
-              className="h-9 rounded-lg bg-brand-primary !text-white hover:bg-brand-primary/95 flex items-center gap-1.5 cursor-pointer font-semibold shadow-2xs"
-            >
-              <Plus className="size-3.5" /> Tambah soal
-            </Button>
-          </div>
-        </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={() => setCreateOpen(true)}
+                size="sm"
+                aria-label="Tambah soal"
+                className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-2xs"
+              >
+                <Plus className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Tambah soal</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Bulk actions - Floating Overlay */}

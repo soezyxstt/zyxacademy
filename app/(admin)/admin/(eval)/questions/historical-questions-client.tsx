@@ -64,56 +64,54 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
   return (
     <div className="space-y-6">
       {/* Filters & Search Row */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+      <div className="flex items-center gap-2">
         <SearchBar
           size="sm"
           placeholder="Cari konten soal atau judul ujian..."
           value={searchTerm}
           onSearch={setSearchTerm}
           onClear={() => setSearchTerm("")}
-          containerClassName="flex-1 max-w-xl"
+          containerClassName="flex-1 min-w-0"
         />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={filterCourse} onValueChange={setFilterCourse}>
-            <SelectTrigger className="w-[170px] h-9 text-body-xs rounded-lg">
-              <SelectValue placeholder="Mata Kuliah" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-              {courses.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <Select value={filterCourse} onValueChange={setFilterCourse}>
+          <SelectTrigger className="w-[150px] sm:w-[170px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Mata Kuliah" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+            {courses.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-[130px] h-9 text-body-xs rounded-lg">
-              <SelectValue placeholder="Kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Kategori</SelectItem>
-              <SelectItem value="uts">UTS</SelectItem>
-              <SelectItem value="uas">UAS</SelectItem>
-              <SelectItem value="quiz">Quiz</SelectItem>
-              <SelectItem value="tutorial">Tutorial</SelectItem>
-            </SelectContent>
-          </Select>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Kategori" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kategori</SelectItem>
+            <SelectItem value="uts">UTS</SelectItem>
+            <SelectItem value="uas">UAS</SelectItem>
+            <SelectItem value="quiz">Quiz</SelectItem>
+            <SelectItem value="tutorial">Tutorial</SelectItem>
+          </SelectContent>
+        </Select>
 
-          <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
-            <SelectTrigger className="w-[130px] h-9 text-body-xs rounded-lg">
-              <SelectValue placeholder="Tingkat Kesulitan" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Kesulitan</SelectItem>
-              <SelectItem value="1">Easy</SelectItem>
-              <SelectItem value="2">Medium</SelectItem>
-              <SelectItem value="3">Hard</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
+          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Tingkat Kesulitan" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kesulitan</SelectItem>
+            <SelectItem value="1">Easy</SelectItem>
+            <SelectItem value="2">Medium</SelectItem>
+            <SelectItem value="3">Hard</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table Content */}

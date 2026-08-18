@@ -153,45 +153,43 @@ export default function AdminQuizInsightsOverviewPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+      <div className="flex items-center gap-2">
         <SearchBar
           size="sm"
           placeholder="Cari berdasarkan judul kuis atau mata kuliah..."
           value={search}
           onSearch={setSearch}
           onClear={() => setSearch("")}
-          containerClassName="flex-1 max-w-xl"
+          containerClassName="flex-1 min-w-0"
         />
 
-        <div className="flex flex-wrap sm:flex-nowrap gap-2">
-          <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-            <SelectTrigger className="w-[180px] h-9 text-body-xs rounded-lg">
-              <SelectValue placeholder="Mata Kuliah" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-              {uniqueCourses.map(([cId, cName]) => (
-                <SelectItem key={cId} value={cId}>
-                  {cName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+          <SelectTrigger className="w-[160px] sm:w-[180px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Mata Kuliah" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+            {uniqueCourses.map(([cId, cName]) => (
+              <SelectItem key={cId} value={cId}>
+                {cName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[160px] h-9 text-body-xs rounded-lg">
-              <SelectValue placeholder="Kategori Kuis" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Kategori</SelectItem>
-              <SelectItem value="daily">Daily Quiz</SelectItem>
-              <SelectItem value="weekly">Weekly Quiz</SelectItem>
-              <SelectItem value="chapter">Chapter Quiz</SelectItem>
-              <SelectItem value="simulation">Simulasi / Tryout</SelectItem>
-              <SelectItem value="premium">Premium</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Kategori Kuis" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kategori</SelectItem>
+            <SelectItem value="daily">Daily Quiz</SelectItem>
+            <SelectItem value="weekly">Weekly Quiz</SelectItem>
+            <SelectItem value="chapter">Chapter Quiz</SelectItem>
+            <SelectItem value="simulation">Simulasi / Tryout</SelectItem>
+            <SelectItem value="premium">Premium</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Quizzes Grid / Table */}

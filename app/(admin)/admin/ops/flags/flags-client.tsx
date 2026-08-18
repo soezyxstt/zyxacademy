@@ -20,6 +20,13 @@ import {
 import type { FeatureFlagStatus } from "@/lib/feature-flags";
 import { FEATURE_CATEGORIES, type FeatureCategory } from "@/lib/feature-flags";
 import { SearchBar } from "@/components/ui/search-bar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface FeatureFlagsApiResponse {
   checkedAt: string;
@@ -293,100 +300,69 @@ export function FlagsClient() {
       </div>
 
       {/* Control Panel: Search & Filters */}
-      <div className="space-y-2.5">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
-          {/* Search Field */}
-          <SearchBar
-            size="sm"
-            ref={searchInputRef}
-            value={search}
-            onSearch={setSearch}
-            onClear={() => setSearch("")}
-            shortcut="/"
-            placeholder="Cari kunci FEATURE_*, nama modul, atau deskripsi..."
-            containerClassName="flex-1 max-w-xl"
-          />
+      <div className="flex items-center gap-2">
+        {/* Search Field */}
+        <SearchBar
+          size="sm"
+          ref={searchInputRef}
+          value={search}
+          onSearch={setSearch}
+          onClear={() => setSearch("")}
+          shortcut="/"
+          placeholder="Cari kunci FEATURE_*, nama modul, atau deskripsi..."
+          containerClassName="flex-1 min-w-0"
+        />
 
-          {/* Status Tabs (Segmented Button Bar) */}
-          <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 self-start lg:self-auto shrink-0">
-            <button
-              type="button"
-              onClick={() => setStatusFilter("all")}
-              className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
-                statusFilter === "all"
-                  ? "bg-background text-foreground shadow-xs border border-border/60"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Semua ({data.total})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("active")}
-              className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
-                statusFilter === "active"
-                  ? "bg-status-success/15 text-status-success shadow-xs border border-status-success/30"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Aktif ({data.activeCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("inactive")}
-              className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
-                statusFilter === "inactive"
-                  ? "bg-background text-muted-foreground shadow-xs border border-border/60"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Nonaktif ({data.inactiveCount})
-            </button>
-          </div>
-        </div>
+        {/* Category Select */}
+        <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val as any)}>
+          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Semua Kategori" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kategori</SelectItem>
+            {(Object.keys(FEATURE_CATEGORIES) as FeatureCategory[]).map((catKey) => (
+              <SelectItem key={catKey} value={catKey}>
+                {FEATURE_CATEGORIES[catKey]} ({data.flags.filter((f) => f.category === catKey).length})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        {/* Category Chips Bar */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Status Tabs (Segmented Button Bar) */}
+        <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 shrink-0">
           <button
             type="button"
-            onClick={() => setCategoryFilter("all")}
-            className={`rounded-md border px-2.5 py-1 text-body-xs font-medium transition-colors cursor-pointer ${
-              categoryFilter === "all"
-                ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => setStatusFilter("all")}
+            className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
+              statusFilter === "all"
+                ? "bg-background text-foreground shadow-xs border border-border/60"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Semua Kategori
+            Semua ({data.total})
           </button>
-
-          {(Object.keys(FEATURE_CATEGORIES) as FeatureCategory[]).map((catKey) => {
-            const label = FEATURE_CATEGORIES[catKey];
-            const isSelected = categoryFilter === catKey;
-            const catCount = data.flags.filter((f) => f.category === catKey).length;
-            return (
-              <button
-                key={catKey}
-                type="button"
-                onClick={() => setCategoryFilter(catKey)}
-                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-body-xs font-medium transition-colors cursor-pointer ${
-                  isSelected
-                    ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
-                    : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <span>{label}</span>
-                <span
-                  className={`rounded px-1.5 py-0.2 text-[10px] font-mono ${
-                    isSelected
-                      ? "bg-brand-primary/20 text-brand-primary"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {catCount}
-                </span>
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            onClick={() => setStatusFilter("active")}
+            className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
+              statusFilter === "active"
+                ? "bg-status-success/15 text-status-success shadow-xs border border-status-success/30"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Aktif ({data.activeCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("inactive")}
+            className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
+              statusFilter === "inactive"
+                ? "bg-background text-muted-foreground shadow-xs border border-border/60"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Nonaktif ({data.inactiveCount})
+          </button>
         </div>
       </div>
 

@@ -13,6 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchBar } from "@/components/ui/search-bar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { RotateCcw } from "lucide-react";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import {
   Plus,
@@ -94,6 +102,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
   };
 
   // Filter states
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [filterCourse, setFilterCourse] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -109,15 +118,26 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
   const [pdfFileName, setPdfFileName] = useState<string | null>(null);
   const [pdfUploadState, setPdfUploadState] = useState<"idle" | "uploading" | "done" | "error">("idle");
 
+  const hasFilters = Boolean(searchQuery || filterCourse !== "all" || filterCategory !== "all" || filterStatus !== "all");
+
+  function resetFilters() {
+    setSearchQuery("");
+    setFilterCourse("all");
+    setFilterCategory("all");
+    setFilterStatus("all");
+  }
+
   // Filtered sources
   const filteredSources = useMemo(() => {
+    const needle = searchQuery.trim().toLowerCase();
     return sources.filter((source) => {
+      const matchSearch = !needle || source.title.toLowerCase().includes(needle);
       const matchCourse = filterCourse === "all" || source.courseId === filterCourse;
       const matchCategory = filterCategory === "all" || source.category === filterCategory;
       const matchStatus = filterStatus === "all" || source.ingestionStatus === filterStatus;
-      return matchCourse && matchCategory && matchStatus;
+      return matchSearch && matchCourse && matchCategory && matchStatus;
     });
-  }, [sources, filterCourse, filterCategory, filterStatus]);
+  }, [sources, searchQuery, filterCourse, filterCategory, filterStatus]);
 
   // Handle PDF upload
   const handlePdfFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,61 +218,92 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
   return (
     <div className="space-y-6">
       {/* Action Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-48">
-            <Select value={filterCourse} onValueChange={setFilterCourse}>
-              <SelectTrigger>
-                <SelectValue placeholder="Semua Mata Kuliah" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-                {courses.map((course) => (
-                  <SelectItem key={course.id} value={course.id}>
-                    {course.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="flex items-center gap-2">
+        <SearchBar
+          size="sm"
+          placeholder="Cari judul asesmen historis..."
+          value={searchQuery}
+          onSearch={setSearchQuery}
+          onClear={() => setSearchQuery("")}
+          containerClassName="flex-1 min-w-0"
+        />
 
-          <div className="w-40">
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Semua Kategori" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Kategori</SelectItem>
-                <SelectItem value="uts">UTS</SelectItem>
-                <SelectItem value="uas">UAS</SelectItem>
-                <SelectItem value="quiz">Quiz</SelectItem>
-                <SelectItem value="tutorial">Tutorial</SelectItem>
-                <SelectItem value="tryout">Tryout</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <Select value={filterCourse} onValueChange={setFilterCourse}>
+          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Semua Mata Kuliah" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+            {courses.map((course) => (
+              <SelectItem key={course.id} value={course.id}>
+                {course.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <div className="w-40">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Semua Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Semua Kategori" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Kategori</SelectItem>
+            <SelectItem value="uts">UTS</SelectItem>
+            <SelectItem value="uas">UAS</SelectItem>
+            <SelectItem value="quiz">Quiz</SelectItem>
+            <SelectItem value="tutorial">Tutorial</SelectItem>
+            <SelectItem value="tryout">Tryout</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <Button onClick={() => setShowUploadModal(true)} className="flex items-center gap-2">
-          <Plus size={16} />
-          Upload Asesmen
-        </Button>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Semua Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Status</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="processing">Processing</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {hasFilters && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetFilters}
+                  aria-label="Reset filter"
+                  className="size-9 p-0 rounded-lg shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <RotateCcw className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Reset filter</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={() => setShowUploadModal(true)}
+                size="sm"
+                aria-label="Upload Asesmen"
+                className="size-9 p-0 rounded-lg shrink-0 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-2xs"
+              >
+                <Plus className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Upload Asesmen</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Table Surface */}

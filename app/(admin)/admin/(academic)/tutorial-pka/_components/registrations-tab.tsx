@@ -185,26 +185,25 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
         <SearchBar
+          size="sm"
           value={query}
           onSearch={setQuery}
           onClear={() => setQuery("")}
           placeholder="Cari nama, fakultas, email, atau Instagram..."
-          containerClassName="w-full sm:max-w-md"
+          containerClassName="flex-1 min-w-0"
         />
-        <div className="flex items-center gap-2">
-          <Button onClick={handleExportGoogleSheets} disabled={exportingSheets} variant="outline" size="sm" className="gap-2 rounded-lg text-brand-primary border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10">
-            <RefreshCw className={`size-4 ${exportingSheets ? "animate-spin" : "hidden"}`} />
-            <FileText className="size-4" />
-            {exportingSheets ? "Mengekspor..." : "Ekspor Google Sheets"}
-          </Button>
+        <Button onClick={handleExportGoogleSheets} disabled={exportingSheets} variant="outline" size="sm" className="gap-2 rounded-lg text-brand-primary border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 h-9 shrink-0">
+          <RefreshCw className={`size-3.5 ${exportingSheets ? "animate-spin" : "hidden"}`} />
+          <FileText className="size-3.5" />
+          {exportingSheets ? "Mengekspor..." : "Ekspor Sheets"}
+        </Button>
 
-          <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 rounded-lg">
-            <Download className="size-4" />
-            Ekspor CSV
-          </Button>
-        </div>
+        <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 rounded-lg h-9 shrink-0">
+          <Download className="size-3.5" />
+          Ekspor CSV
+        </Button>
       </div>
 
       {/* Table */}

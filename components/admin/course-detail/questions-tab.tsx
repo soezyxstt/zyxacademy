@@ -17,6 +17,12 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { MathText } from "@/components/course/math-text";
 import { AdminOptionLetter } from "@/components/admin/option-letter";
 
@@ -70,37 +76,40 @@ export function QuestionsTab({
   return (
     <div className="space-y-4">
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex flex-1 items-center gap-2.5">
-          <div className="flex-1 max-w-sm">
-            <SearchBar
-              size="sm"
-              placeholder="Cari butir soal atau pembahasan..."
-              value={search}
-              onSearch={setSearch}
-              onClear={() => setSearch("")}
-            />
-          </div>
+      <div className="flex items-center gap-2">
+        <SearchBar
+          size="sm"
+          placeholder="Cari butir soal atau pembahasan..."
+          value={search}
+          onSearch={setSearch}
+          onClear={() => setSearch("")}
+          containerClassName="flex-1 min-w-0"
+        />
 
-          <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-            <SelectTrigger className="w-[140px] h-9 rounded-lg shrink-0">
-              <SelectValue placeholder="Tingkat Kesulitan" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Tingkat</SelectItem>
-              <SelectItem value="easy">Mudah</SelectItem>
-              <SelectItem value="medium">Sedang</SelectItem>
-              <SelectItem value="hard">Sulit</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
+          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectValue placeholder="Tingkat Kesulitan" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Tingkat</SelectItem>
+            <SelectItem value="easy">Mudah</SelectItem>
+            <SelectItem value="medium">Sedang</SelectItem>
+            <SelectItem value="hard">Sulit</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <Link href={`/admin/questions?courseId=${courseId}`} className="shrink-0">
-          <Button size="sm" variant="outline" className="gap-1.5 rounded-lg h-9">
-            <ExternalLink className="size-3.5" />
-            Buka Studio Bank Soal
-          </Button>
-        </Link>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href={`/admin/questions?courseId=${courseId}`} className="shrink-0">
+                <Button size="sm" variant="outline" className="size-9 p-0 rounded-lg shrink-0" aria-label="Buka Studio Bank Soal">
+                  <ExternalLink className="size-4" />
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>Buka Studio Bank Soal</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Questions List */}
