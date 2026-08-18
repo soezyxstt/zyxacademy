@@ -64,8 +64,9 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
   return (
     <div className="space-y-6">
       {/* Filters & Search Row */}
-      <div className="flex flex-col justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm lg:flex-row lg:items-center">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
         <SearchBar
+          size="sm"
           placeholder="Cari konten soal atau judul ujian..."
           value={searchTerm}
           onSearch={setSearchTerm}
@@ -73,51 +74,45 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
           containerClassName="flex-1 max-w-xl"
         />
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="w-44">
-            <Select value={filterCourse} onValueChange={setFilterCourse}>
-              <SelectTrigger>
-                <SelectValue placeholder="Mata Kuliah" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-                {courses.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={filterCourse} onValueChange={setFilterCourse}>
+            <SelectTrigger className="w-[170px] h-9 text-body-xs rounded-lg">
+              <SelectValue placeholder="Mata Kuliah" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+              {courses.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <div className="w-36">
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="Kategori" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Kategori</SelectItem>
-                <SelectItem value="uts">UTS</SelectItem>
-                <SelectItem value="uas">UAS</SelectItem>
-                <SelectItem value="quiz">Quiz</SelectItem>
-                <SelectItem value="tutorial">Tutorial</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-[130px] h-9 text-body-xs rounded-lg">
+              <SelectValue placeholder="Kategori" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Kategori</SelectItem>
+              <SelectItem value="uts">UTS</SelectItem>
+              <SelectItem value="uas">UAS</SelectItem>
+              <SelectItem value="quiz">Quiz</SelectItem>
+              <SelectItem value="tutorial">Tutorial</SelectItem>
+            </SelectContent>
+          </Select>
 
-          <div className="w-36">
-            <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
-              <SelectTrigger>
-                <SelectValue placeholder="Tingkat Kesulitan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Kesulitan</SelectItem>
-                <SelectItem value="1">Easy</SelectItem>
-                <SelectItem value="2">Medium</SelectItem>
-                <SelectItem value="3">Hard</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
+            <SelectTrigger className="w-[130px] h-9 text-body-xs rounded-lg">
+              <SelectValue placeholder="Tingkat Kesulitan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Kesulitan</SelectItem>
+              <SelectItem value="1">Easy</SelectItem>
+              <SelectItem value="2">Medium</SelectItem>
+              <SelectItem value="3">Hard</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -150,56 +145,39 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
                   : q.questionMarkdown;
 
                 return (
-                  <>
-                    <tr key={q.id} className="group border-b border-border hover:bg-muted/50 transition-colors duration-150">
-                      <td className="text-body-sm text-foreground max-w-md font-medium px-4 py-3 align-middle">
-                        {isExpanded ? (
-                          <div className="bg-background/40 p-3 rounded border border-border/50">
-                            <MarkdownRenderer content={q.questionMarkdown} className="space-y-3" />
-                          </div>
-                        ) : (
-                          <MathText className="line-clamp-2 block" as="div">{textExcerpt}</MathText>
-                        )}
-                      </td>
-                      <td className="text-body-sm text-muted-foreground whitespace-nowrap px-4 py-3 align-middle">
-                        {courseMap[q.courseId] || "Mata Kuliah"}
-                      </td>
-                      <td className="text-body-sm whitespace-nowrap px-4 py-3 align-middle">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-foreground">{q.sourceTitle}</span>
-                          <span className="text-[11px] text-muted-foreground uppercase">
-                            {q.sourceCategory} · {q.sourceYear}
-                          </span>
+                  <tr key={q.id} className="group border-b border-border hover:bg-muted/50 transition-colors duration-150">
+                    <td className="text-body-sm text-foreground max-w-md font-medium px-4 py-3 align-middle">
+                      {isExpanded ? (
+                        <div className="bg-background/40 p-3 rounded border border-border/50">
+                          <MarkdownRenderer content={q.questionMarkdown} className="space-y-3" />
                         </div>
-                      </td>
-                      <td className="px-4 py-3 align-middle">
-                        <DifficultyBadge difficulty={q.difficulty} />
-                      </td>
-                      <td className="text-center px-4 py-3 align-middle">
-                        <button
-                          onClick={() => setExpandedId(isExpanded ? null : q.id)}
-                          className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {isExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </td>
-                    </tr>
-
-                    {isExpanded && q.answerMarkdown && (
-                      <tr className="bg-muted/30">
-                        <td colSpan={5} className="p-4 border-t border-border/30">
-                          <div className="space-y-2">
-                            <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                              Solusi / Kunci Jawaban
-                            </h4>
-                            <div className="bg-status-success/5 p-4 rounded-lg border border-status-success/10 text-body-sm text-foreground">
-                              <MarkdownRenderer content={q.answerMarkdown} className="space-y-3" />
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
+                      ) : (
+                        <MathText className="line-clamp-2 block" as="div">{textExcerpt}</MathText>
+                      )}
+                    </td>
+                    <td className="text-body-sm text-muted-foreground whitespace-nowrap px-4 py-3 align-middle">
+                      {courseMap[q.courseId] || "Mata Kuliah"}
+                    </td>
+                    <td className="text-body-sm whitespace-nowrap px-4 py-3 align-middle">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-foreground">{q.sourceTitle}</span>
+                        <span className="text-[11px] text-muted-foreground uppercase">
+                          {q.sourceCategory} · {q.sourceYear}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 align-middle">
+                      <DifficultyBadge difficulty={q.difficulty} />
+                    </td>
+                    <td className="text-center px-4 py-3 align-middle">
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : q.id)}
+                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {isExpanded ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </td>
+                  </tr>
                 );
               })
             )}

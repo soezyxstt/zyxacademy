@@ -87,7 +87,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         <Loader2 className="size-8 animate-spin text-brand-primary" />
         <p className="font-heading text-body-base font-bold text-foreground">Menyiapkan Diagnosis Pembelajaran...</p>
         <p className="text-body-sm text-muted-foreground max-w-md">
-          Sistem backend dan AI sedang menganalisis penguasaan konsep, pola kesalahan, dan waktu pengerjaan Anda.
+          Sistem sedang menganalisis penguasaan konsep, pola kesalahan, dan waktu pengerjaan Anda.
         </p>
       </div>
     );
@@ -104,9 +104,9 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           <Sparkles className="size-7" />
         </div>
         <div className="space-y-2 max-w-lg mx-auto">
-          <h3 className="font-heading text-h4 font-bold text-foreground">Diagnosis Pembelajaran AI Belum Dihasilkan</h3>
+          <h3 className="font-heading text-h4 font-bold text-foreground">Diagnosis Pembelajaran Belum Dihasilkan</h3>
           <p className="text-body-sm text-muted-foreground leading-relaxed">
-            Kuis ini telah selesai dikerjakan. Klik tombol di bawah untuk mentrigger diagnosis pembelajaran terperinci, pemetaan konsep, dan rencana belajar personal secara otomatis.
+            Kuis ini telah selesai dikerjakan. Klik tombol di bawah untuk menjalankan diagnosis pembelajaran terperinci, pemetaan konsep, dan rencana belajar personal secara otomatis.
           </p>
         </div>
         <Button
@@ -115,7 +115,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold px-6 py-2.5 shadow-sm"
         >
           <Sparkles className={`mr-2 size-4 ${recomputing ? "animate-spin" : ""}`} />
-          {recomputing ? "Menghasilkan Diagnosis AI..." : "Hasilkan Diagnosis Pembelajaran AI Sekarang"}
+          {recomputing ? "Menghasilkan Diagnosis..." : "Hasilkan Diagnosis Pembelajaran Sekarang"}
         </Button>
       </div>
     );
@@ -123,13 +123,13 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
   return (
     <div className="space-y-8 font-sans">
-      {/* Processing Banner if AI is still running */}
+      {/* Processing Banner if analysis is still running */}
       {isProcessing && (
         <div className="flex items-center justify-between rounded-lg border border-brand-primary/30 bg-brand-primary/10 p-4 text-brand-primary">
           <div className="flex items-center gap-3">
             <Loader2 className="size-5 animate-spin shrink-0" />
             <div className="text-body-sm">
-              <span className="font-bold">Analisis AI Sedang Berjalan:</span> Menghasilkan diagnosis terperinci & pola kesalahan...
+              <span className="font-bold">Analisis Sedang Berjalan:</span> Menghasilkan diagnosis terperinci & pola kesalahan...
             </div>
           </div>
           <Button onClick={fetchAnalytics} variant="ghost" size="sm" className="text-brand-primary hover:bg-brand-primary/20 rounded-md">
@@ -148,7 +148,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="rounded-md border-brand-primary/40 bg-brand-primary/10 text-brand-primary text-body-xs font-semibold uppercase tracking-wider">
-                  <Sparkles className="mr-1 size-3" /> Learning Diagnosis Zyx AI
+                  <Sparkles className="mr-1 size-3" /> Diagnosis Pembelajaran Zyx
                 </Badge>
                 {metrics && (
                   <Badge variant="outline" className="rounded-md border-border bg-card text-muted-foreground text-body-xs">
@@ -163,7 +163,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   className="h-6 px-2 text-body-xs text-muted-foreground hover:text-foreground rounded-md ml-auto md:ml-0"
                 >
                   <RefreshCw className={`mr-1 size-3 ${recomputing ? "animate-spin" : ""}`} />
-                  {recomputing ? "Memproses..." : "Generasi Ulang AI"}
+                  {recomputing ? "Memproses..." : "Analisis Ulang"}
                 </Button>
               </div>
               <h2 className="font-heading text-h4 font-bold text-foreground">
@@ -246,7 +246,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             <Brain className="size-5 text-brand-primary" /> Diagnosis Pembelajaran Terperinci
           </h3>
           <p className="text-body-sm text-muted-foreground">
-            Pemetaan penguasaan konsep deterministik backend & interpretasi pedagogis AI.
+            Pemetaan penguasaan konsep &amp; interpretasi evaluasi belajar.
           </p>
         </div>
 
@@ -442,7 +442,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                 )}
                 {diagnosis?.time_insights && diagnosis.time_insights.length > 0 && (
                   <div className="text-body-xs text-muted-foreground leading-relaxed pt-1">
-                    <span className="font-semibold text-foreground block">Catatan Waktu AI:</span>
+                    <span className="font-semibold text-foreground block">Catatan Waktu:</span>
                     <MathText as="span">{`${diagnosis.time_insights[0].observation} ${diagnosis.time_insights[0].suggestion}`}</MathText>
                   </div>
                 )}
@@ -461,7 +461,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             <BookOpen className="size-5 text-brand-primary" /> Rencana Belajar Personal (3 Prioritas Utama)
           </h3>
           <p className="text-body-sm text-muted-foreground">
-            Langkah konkrit yang direkomendasikan AI untuk memperkuat pemahaman Anda setelah kuis ini.
+            Langkah konkrit yang direkomendasikan untuk memperkuat pemahaman Anda setelah kuis ini.
           </p>
         </div>
 

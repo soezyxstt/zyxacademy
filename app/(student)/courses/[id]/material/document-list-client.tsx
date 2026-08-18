@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   Archive,
@@ -69,6 +70,7 @@ const getCategoryStyle = (category?: DocCategory) => {
 };
 
 function DocumentThumbnailPreview({ material }: { material: CourseMaterial }) {
+  const [imageError, setImageError] = useState(false);
   const config = getCategoryStyle(material.docCategory);
   const cleanSnippet = material.body
     ? material.body
@@ -77,64 +79,81 @@ function DocumentThumbnailPreview({ material }: { material: CourseMaterial }) {
         .trim()
     : null;
 
+  const showImage = Boolean(material.thumbnailUrl) && !imageError;
+
   return (
     <div className="relative h-36 w-full bg-muted/40 dark:bg-muted/20 flex items-center justify-center p-3 overflow-hidden border-y border-border/50 select-none group-hover:bg-muted/60 transition-colors">
-      <div className="w-full h-full max-w-[200px] bg-background dark:bg-card rounded-sm border border-border/70 shadow-2xs p-2.5 flex flex-col justify-between overflow-hidden group-hover:scale-[1.02] transition-transform duration-200">
-        {/* Top mini header on sheet */}
-        <div className="flex items-center justify-between gap-1 border-b border-border/40 pb-1">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
-            {config.stamp}
-          </span>
-          <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
-            {material.kind === "pdf" ? "PDF" : "DOC"}
-          </span>
-        </div>
+      <div className="w-full h-full max-w-[200px] bg-background dark:bg-card rounded-sm border border-border/70 shadow-2xs overflow-hidden group-hover:scale-[1.02] transition-transform duration-200 relative flex flex-col justify-between p-2.5">
+        {showImage ? (
+          <div className="relative w-full h-full">
+            <Image
+              src={material.thumbnailUrl!}
+              alt={material.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              className="object-cover object-top rounded-xs"
+              onError={() => setImageError(true)}
+            />
+          </div>
+        ) : (
+          <>
+            {/* Top mini header on sheet */}
+            <div className="flex items-center justify-between gap-1 border-b border-border/40 pb-1">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
+                {config.stamp}
+              </span>
+              <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
+                {material.kind === "pdf" ? "PDF" : "DOC"}
+              </span>
+            </div>
 
-        {/* Middle content preview */}
-        <div className="my-auto py-1 space-y-1.5 overflow-hidden">
-          {cleanSnippet ? (
-            <p className="text-[10px] leading-relaxed text-muted-foreground line-clamp-3 font-sans break-words">
-              {cleanSnippet}
-            </p>
-          ) : material.docCategory === "soal" ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-1 py-0.5 rounded">Q1</span>
-                <div className="h-1.5 bg-muted rounded-full w-4/5" />
-              </div>
-              <div className="space-y-1 pl-2">
-                <div className="h-1 bg-muted/70 rounded-full w-3/4" />
-                <div className="h-1 bg-muted/70 rounded-full w-2/3" />
-                <div className="h-1 bg-muted/70 rounded-full w-4/5" />
-              </div>
+            {/* Middle content preview */}
+            <div className="my-auto py-1 space-y-1.5 overflow-hidden">
+              {cleanSnippet ? (
+                <p className="text-[10px] leading-relaxed text-muted-foreground line-clamp-3 font-sans break-words">
+                  {cleanSnippet}
+                </p>
+              ) : material.docCategory === "soal" ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-1 py-0.5 rounded">Q1</span>
+                    <div className="h-1.5 bg-muted rounded-full w-4/5" />
+                  </div>
+                  <div className="space-y-1 pl-2">
+                    <div className="h-1 bg-muted/70 rounded-full w-3/4" />
+                    <div className="h-1 bg-muted/70 rounded-full w-2/3" />
+                    <div className="h-1 bg-muted/70 rounded-full w-4/5" />
+                  </div>
+                </div>
+              ) : material.docCategory === "solusi" ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 px-1 py-0.5 rounded">SOLUSI</span>
+                    <div className="h-1.5 bg-muted rounded-full w-2/3" />
+                  </div>
+                  <div className="space-y-1 pl-2">
+                    <div className="h-1 bg-muted/70 rounded-full w-4/5" />
+                    <div className="h-1 bg-muted/70 rounded-full w-3/5" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="h-2 bg-muted rounded-full w-3/4" />
+                  <div className="h-1 bg-muted/70 rounded-full w-full" />
+                  <div className="h-1 bg-muted/70 rounded-full w-5/6" />
+                  <div className="h-1 bg-muted/70 rounded-full w-4/5" />
+                  <div className="h-1 bg-muted/70 rounded-full w-2/3" />
+                </div>
+              )}
             </div>
-          ) : material.docCategory === "solusi" ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 px-1 py-0.5 rounded">SOLUSI</span>
-                <div className="h-1.5 bg-muted rounded-full w-2/3" />
-              </div>
-              <div className="space-y-1 pl-2">
-                <div className="h-1 bg-muted/70 rounded-full w-4/5" />
-                <div className="h-1 bg-muted/70 rounded-full w-3/5" />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <div className="h-2 bg-muted rounded-full w-3/4" />
-              <div className="h-1 bg-muted/70 rounded-full w-full" />
-              <div className="h-1 bg-muted/70 rounded-full w-5/6" />
-              <div className="h-1 bg-muted/70 rounded-full w-4/5" />
-              <div className="h-1 bg-muted/70 rounded-full w-2/3" />
-            </div>
-          )}
-        </div>
 
-        {/* Bottom footer bar of sheet */}
-        <div className="flex items-center justify-between pt-1 border-t border-border/30 text-[10px] text-muted-foreground/60 font-mono">
-          <span className="truncate max-w-[120px]">{material.title}</span>
-          <span>1</span>
-        </div>
+            {/* Bottom footer bar of sheet */}
+            <div className="flex items-center justify-between pt-1 border-t border-border/30 text-[10px] text-muted-foreground/60 font-mono">
+              <span className="truncate max-w-[120px]">{material.title}</span>
+              <span>1</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -156,11 +156,11 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
         await fetchDetail();
       } else {
         const err = await res.json();
-        setErrorMsg(err.error || "Gagal menjalankan analisis AI.");
+        setErrorMsg(err.error || "Gagal menjalankan analisis performa.");
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg("Terjadi kesalahan saat menghubungi layanan AI.");
+      setErrorMsg("Terjadi kesalahan saat memproses analisis.");
     } finally {
       setAnalyzingAi(false);
     }
@@ -235,7 +235,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
             ) : (
               <Sparkles className="size-4 text-amber-300" />
             )}
-            <span>{analyzingAi ? "Menganalisis AI..." : "Jalankan Analisis AI Gemini"}</span>
+            <span>{analyzingAi ? "Menganalisis..." : "Jalankan Analisis Performa"}</span>
           </Button>
         }
       />
@@ -292,7 +292,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
         />
         <AdminStatCard
           size="sm"
-          label="Status AI Insight"
+          label="Status Insight"
           value={
             <div className="mt-1">
               {latestAiInsight ? (
@@ -303,7 +303,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
             </div>
           }
           caption={
-            latestAiInsight ? `Sampel: ${latestAiInsight.sampleSize} siswa` : "Klik tombol AI"
+            latestAiInsight ? `Sampel: ${latestAiInsight.sampleSize} siswa` : "Belum dianalisis"
           }
         />
       </div>
@@ -317,7 +317,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
           </AdminTabsTrigger>
           <AdminTabsTrigger value="ai-insights">
             <Sparkles className="size-4 text-amber-400" />
-            <span>Analisis AI Gemini</span>
+            <span>Analisis Performa & Rekomendasi</span>
           </AdminTabsTrigger>
           <AdminTabsTrigger value="questions">
             <FileSpreadsheet className="size-4 text-brand-primary" />
@@ -338,7 +338,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
           <QuizAttemptsSpreadsheet templateId={id} quizTitle={template.title} />
         </AdminTabsContent>
 
-        {/* TAB 1: ANALISIS AI GEMINI */}
+        {/* TAB 1: ANALISIS PERFORMA & REKOMENDASI */}
         <AdminTabsContent value="ai-insights" className="space-y-6">
           {!latestAiInsight ? (
             <div className="bg-card border border-border rounded-xl p-10 text-center space-y-4">
@@ -346,9 +346,9 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                 <Sparkles className="size-6 text-amber-400" />
               </div>
               <div className="max-w-md mx-auto space-y-2">
-                <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Analisis AI Gemini</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Analisis Performa</h3>
                 <p className="text-body-sm text-muted-foreground">
-                  Klik tombol di bawah ini untuk mengirimkan set data hasil pengerjaan kuis ke Gemini AI. Sistem akan mendiagnosis miskonsepsi siswa, jebakan distraktor, dan memberikan rekomendasi pengajaran.
+                  Klik tombol di bawah ini untuk menganalisis data pengerjaan kuis. Sistem akan mendiagnosis miskonsepsi siswa, jebakan distraktor, dan memberikan rekomendasi pengajaran.
                 </p>
               </div>
               <Button
@@ -357,11 +357,11 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                 className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
               >
                 {analyzingAi ? <RefreshCw className="size-4 animate-spin" /> : <Sparkles className="size-4 text-amber-300" />}
-                <span>{analyzingAi ? "Menganalisis AI..." : "Jalankan Analisis AI Gemini Sekarang"}</span>
+                <span>{analyzingAi ? "Menganalisis..." : "Jalankan Analisis Performa Sekarang"}</span>
               </Button>
               {summary.totalCompleted === 0 && (
                 <p className="text-body-xs text-status-warning">
-                  Analisis AI memerlukan minimal 1 hasil pengerjaan kuis yang sudah selesai oleh siswa.
+                  Analisis memerlukan minimal 1 hasil pengerjaan kuis yang sudah selesai oleh siswa.
                 </p>
               )}
             </div>
@@ -372,7 +372,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="size-4 text-status-success shrink-0" />
                   <span>
-                    Analisis AI ini dibuat berdasarkan sampel <strong className="text-foreground">{latestAiInsight.sampleSize} siswa</strong> pada <FormattedDate date={latestAiInsight.createdAt} options={{ day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }} /> WIB.
+                    Analisis ini dibuat berdasarkan sampel <strong className="text-foreground">{latestAiInsight.sampleSize} siswa</strong> pada <FormattedDate date={latestAiInsight.createdAt} options={{ day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }} /> WIB.
                   </span>
 
                 </div>
@@ -384,7 +384,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                   className="gap-1.5 rounded-lg self-start sm:self-auto text-body-xs"
                 >
                   <RefreshCw className={`size-3.5 ${analyzingAi ? "animate-spin" : ""}`} />
-                  <span>Perbarui Analisis AI</span>
+                  <span>Perbarui Analisis</span>
                 </Button>
               </div>
 

@@ -563,22 +563,22 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   return (
     <div className="font-sans space-y-6">
       {/* Search, filters, and actions */}
-      <div className="space-y-3 rounded-xl border border-border bg-card p-3 sm:p-4 shadow-sm text-left">
-        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
-          <div className="flex-1 min-w-0">
-            <SearchBar
-              size="sm"
-              placeholder="Cari isi soal, tag, atau sumber..."
-              value={searchQuery}
-              onSearch={setSearchQuery}
-              onClear={() => setSearchQuery("")}
-              containerClassName="w-full"
-            />
-          </div>
+      <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2 xl:flex-row xl:items-center justify-between">
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+            <div className="w-full sm:w-64 lg:w-72">
+              <SearchBar
+                size="sm"
+                placeholder="Cari isi soal, tag, sumber..."
+                value={searchQuery}
+                onSearch={setSearchQuery}
+                onClear={() => setSearchQuery("")}
+                containerClassName="w-full"
+              />
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2">
             <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ReviewStatus | "all")}>
-              <SelectTrigger aria-label="Filter status" className="w-[130px] h-9 border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectTrigger aria-label="Filter status" className="w-[120px] h-9 text-body-xs rounded-lg">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -592,7 +592,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
             </Select>
 
             <Select value={filterCourse} onValueChange={setFilterCourse}>
-              <SelectTrigger aria-label="Filter mata kuliah" className="w-[150px] h-9 border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectTrigger aria-label="Filter mata kuliah" className="w-[140px] h-9 text-body-xs rounded-lg">
                 <SelectValue placeholder="Mata kuliah" />
               </SelectTrigger>
               <SelectContent>
@@ -606,7 +606,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
             </Select>
 
             <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
-              <SelectTrigger aria-label="Filter asal soal" className="w-[130px] h-9 border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectTrigger aria-label="Filter asal soal" className="w-[115px] h-9 text-body-xs rounded-lg">
                 <SelectValue placeholder="Asal soal" />
               </SelectTrigger>
               <SelectContent>
@@ -617,7 +617,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
             </Select>
 
             <Select value={filterQuestionType} onValueChange={(value) => setFilterQuestionType(value as QuestionType | "all")}>
-              <SelectTrigger aria-label="Filter tipe soal" className="w-[130px] h-9 border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectTrigger aria-label="Filter tipe soal" className="w-[120px] h-9 text-body-xs rounded-lg">
                 <SelectValue placeholder="Tipe soal" />
               </SelectTrigger>
               <SelectContent>
@@ -630,7 +630,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
             </Select>
 
             <Select value={filterDifficulty} onValueChange={(value) => setFilterDifficulty(value as Difficulty | "all")}>
-              <SelectTrigger aria-label="Filter tingkat kesulitan" className="w-[120px] h-9 border-border/80 bg-background/50 text-body-sm font-medium">
+              <SelectTrigger aria-label="Filter tingkat kesulitan" className="w-[110px] h-9 text-body-xs rounded-lg">
                 <SelectValue placeholder="Kesulitan" />
               </SelectTrigger>
               <SelectContent>
@@ -647,33 +647,30 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
                 variant="ghost"
                 size="sm"
                 onClick={resetFilters}
-                className="h-9 rounded-lg text-body-xs font-semibold text-muted-foreground hover:text-foreground"
+                className="h-9 px-2 rounded-lg text-body-xs font-semibold text-muted-foreground hover:text-foreground"
               >
                 <RotateCcw className="size-3.5" />
                 Reset
               </Button>
             ) : null}
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-2.5">
-          <span className="text-body-xs font-medium text-muted-foreground">
-            {filtered.length} soal ditemukan
-          </span>
-
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2.5 shrink-0 self-end xl:self-center">
+            <span className="text-body-xs font-medium text-muted-foreground whitespace-nowrap">
+              {filtered.length} soal
+            </span>
             <Button
               onClick={() => setBulkOpen(true)}
               variant="outline"
               size="sm"
-              className="rounded-lg flex items-center gap-1.5 cursor-pointer font-semibold border-border/80 hover:bg-muted"
+              className="h-9 rounded-lg flex items-center gap-1.5 cursor-pointer font-semibold border-border/80 hover:bg-muted"
             >
               <Upload className="size-3.5" /> Impor markdown
             </Button>
             <Button
               onClick={() => setCreateOpen(true)}
               size="sm"
-              className="rounded-lg bg-brand-primary !text-white hover:bg-brand-primary/95 flex items-center gap-1.5 cursor-pointer font-semibold"
+              className="h-9 rounded-lg bg-brand-primary !text-white hover:bg-brand-primary/95 flex items-center gap-1.5 cursor-pointer font-semibold shadow-2xs"
             >
               <Plus className="size-3.5" /> Tambah soal
             </Button>

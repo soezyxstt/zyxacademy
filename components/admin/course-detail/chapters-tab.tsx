@@ -161,69 +161,53 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
 
   return (
     <div className="space-y-4">
-      {/* Add New Chapter Card */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
-        <h3 className="font-heading text-body-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Plus className="size-4 text-brand-primary" />
-          Tambah Bab Baru
-        </h3>
-        <form onSubmit={handleAddChapter} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1 md:col-span-1">
-              <Label className="text-body-sm font-semibold text-foreground">Judul Bab</Label>
-              <Input
-                placeholder="Contoh: Limit dan Kekontinuan"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                disabled={addingChapter}
-                className="h-9 text-body-xs rounded-lg"
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <Label className="text-body-sm font-semibold text-foreground">Deskripsi (Opsional)</Label>
-              <Input
-                placeholder="Contoh: Konsep limit intuitif, limit sepihak, dan definisi formal epsilon-delta"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                disabled={addingChapter}
-                className="h-9 text-body-xs rounded-lg"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              size="sm"
-              disabled={addingChapter || !newTitle.trim()}
-              className="gap-1.5 rounded-lg font-semibold h-9"
-            >
-              {addingChapter ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Menambahkan...
-                </>
-              ) : (
-                <>
-                  <Plus className="size-3.5" />
-                  Tambah Bab
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
-      </div>
+      {/* Add New Chapter Inline Form */}
+      <form onSubmit={handleAddChapter} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <Input
+          placeholder="Judul bab baru..."
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          disabled={addingChapter}
+          className="h-9 text-body-xs rounded-lg sm:w-1/3"
+        />
+        <Input
+          placeholder="Deskripsi bab (opsional)..."
+          value={newDescription}
+          onChange={(e) => setNewDescription(e.target.value)}
+          disabled={addingChapter}
+          className="h-9 text-body-xs rounded-lg flex-1"
+        />
+        <Button
+          type="submit"
+          size="sm"
+          disabled={addingChapter || !newTitle.trim()}
+          className="gap-1.5 rounded-lg font-semibold h-9 shrink-0"
+        >
+          {addingChapter ? (
+            <>
+              <Loader2 className="size-3.5 animate-spin" />
+              Menambahkan...
+            </>
+          ) : (
+            <>
+              <Plus className="size-3.5" />
+              Tambah Bab
+            </>
+          )}
+        </Button>
+      </form>
 
       {/* Chapters List */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="font-heading text-body-sm font-semibold text-foreground flex items-center gap-2">
             <Layers className="size-4 text-brand-primary" />
             Daftar Silabus & Bab ({chapters.length})
           </h3>
         </div>
 
         {chapters.length === 0 ? (
-          <div className="text-center py-8 border border-dashed border-border rounded-xl">
+          <div className="text-center py-8 border border-dashed border-border rounded-xl bg-card">
             <BookOpen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
             <p className="text-body-xs font-medium text-foreground">Belum ada bab yang terdaftar</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -231,24 +215,24 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
             </p>
           </div>
         ) : (
-          <div className="space-y-1.5">
+          <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden divide-y divide-border/50">
             {chapters.map((ch, idx) => (
               <div
                 key={ch.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border border-border/70 bg-card hover:bg-muted/10 transition-colors gap-2.5"
+                className="flex items-center justify-between p-2.5 sm:px-3.5 sm:py-2.5 hover:bg-muted/10 transition-colors gap-2.5"
               >
-                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-primary/10 text-brand-primary font-heading font-bold text-body-xs">
                     {idx + 1}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
                     <p className="text-body-xs font-semibold text-foreground truncate">
                       {ch.title}
                     </p>
                     {ch.description && (
-                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
-                        {ch.description}
-                      </p>
+                      <span className="text-[11px] text-muted-foreground truncate max-w-md hidden sm:inline">
+                        · {ch.description}
+                      </span>
                     )}
                   </div>
                 </div>

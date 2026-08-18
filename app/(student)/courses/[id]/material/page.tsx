@@ -84,6 +84,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       id: aiMaterialInstances.id,
       title: aiMaterialInstances.title,
       chapterIds: aiMaterialInstances.chapterIds,
+      thumbnailUrl: aiMaterialInstances.thumbnailUrl,
     })
     .from(aiMaterialInstances)
     .where(and(eq(aiMaterialInstances.courseId, id), notLike(aiMaterialInstances.title, "[DRAF]%")));
@@ -96,6 +97,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       fileUrl: diktats.fileUrl,
       updatedAt: diktats.updatedAt,
       chapterIds: diktats.chapterIds,
+      thumbnailUrl: diktats.thumbnailUrl,
     })
     .from(diktats)
     .where(and(eq(diktats.courseId, id), eq(diktats.status, "ready")));
@@ -107,6 +109,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       title: websiteMaterials.title,
       chapterId: websiteMaterials.chapterId,
       canonicalMarkdown: websiteMaterials.canonicalMarkdown,
+      thumbnailUrl: websiteMaterials.thumbnailUrl,
     })
     .from(websiteMaterials)
     .where(and(eq(websiteMaterials.courseId, id), eq(websiteMaterials.status, "published")));
@@ -120,6 +123,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       fileUrl: courseMaterials.fileUrl,
       chapterIds: courseMaterials.chapterIds,
       updatedAt: courseMaterials.updatedAt,
+      thumbnailUrl: courseMaterials.thumbnailUrl,
     })
     .from(courseMaterials)
     .where(eq(courseMaterials.courseId, id));
@@ -135,6 +139,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     isPastYear: false,
     isPreview: true,
     url: d.fileUrl ? storage.getUrl(d.fileUrl) : undefined,
+    thumbnailUrl: d.thumbnailUrl ? storage.getUrl(d.thumbnailUrl) : undefined,
     chapterIds: d.chapterIds as string[],
   }));
 
@@ -148,6 +153,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     completed: completedMaterialIds.has(m.id),
     isPastYear: false,
     isPreview: true,
+    thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
     chapterIds: m.chapterIds as string[],
   }));
 
@@ -162,6 +168,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     isPastYear: false,
     isPreview: true,
     url: storage.getUrl(m.fileUrl),
+    thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
     chapterIds: m.chapterIds as string[],
   }));
 
@@ -176,6 +183,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     completed: completedMaterialIds.has(m.id),
     isPastYear: false,
     isPreview: true,
+    thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
     chapterIds: [m.chapterId],
   }));
 

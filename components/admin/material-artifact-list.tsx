@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ListFilter, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -74,42 +74,43 @@ export function MaterialArtifactList({
 
   return (
     <section className="space-y-4">
-      <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="min-w-0 flex-1">
-            <SearchBar value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder={`Cari ${label.toLowerCase()}, mata kuliah, atau pembuat`} aria-label={`Cari ${label}`} />
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+          <div className="w-full sm:w-64 lg:w-72">
+            <SearchBar value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder={`Cari ${label.toLowerCase()}...`} aria-label={`Cari ${label}`} />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <ListFilter className="hidden size-4 text-muted-foreground sm:block" aria-hidden />
-            <Select value={courseFilter} onValueChange={setCourseFilter}>
-              <SelectTrigger className="w-[190px]" aria-label="Filter mata kuliah"><SelectValue placeholder="Semua mata kuliah" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua mata kuliah</SelectItem>
-                {courseOptions.map((courseId) => <SelectItem key={courseId} value={courseId}>{courseLabels[courseId] ?? courseId}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={authorFilter} onValueChange={setAuthorFilter}>
-              <SelectTrigger className="w-[170px]" aria-label="Filter pembuat"><SelectValue placeholder="Semua pembuat" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua pembuat</SelectItem>
-                {authorOptions.map((authorId) => <SelectItem key={authorId} value={authorId}>{authorLabels[authorId] ?? "Admin"}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px]" aria-label="Filter status"><SelectValue placeholder="Semua status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua status</SelectItem>
-                {statusOptions.map((status) => <SelectItem key={status} value={status}>{statusLabels[status] ?? status}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={courseFilter} onValueChange={setCourseFilter}>
+            <SelectTrigger className="w-[170px] h-9 text-body-xs rounded-lg" aria-label="Filter mata kuliah"><SelectValue placeholder="Semua mata kuliah" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua mata kuliah</SelectItem>
+              {courseOptions.map((courseId) => <SelectItem key={courseId} value={courseId}>{courseLabels[courseId] ?? courseId}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={authorFilter} onValueChange={setAuthorFilter}>
+            <SelectTrigger className="w-[150px] h-9 text-body-xs rounded-lg" aria-label="Filter pembuat"><SelectValue placeholder="Semua pembuat" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua pembuat</SelectItem>
+              {authorOptions.map((authorId) => <SelectItem key={authorId} value={authorId}>{authorLabels[authorId] ?? "Admin"}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px] h-9 text-body-xs rounded-lg" aria-label="Filter status"><SelectValue placeholder="Semua status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua status</SelectItem>
+              {statusOptions.map((status) => <SelectItem key={status} value={status}>{statusLabels[status] ?? status}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {hasFilters && <Button type="button" size="sm" variant="ghost" className="h-9 text-body-xs px-2" onClick={resetFilters}>Reset filter</Button>}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <p className="text-body-sm text-muted-foreground">Menampilkan {visibleRows.length} dari {rows.length} {label.toLowerCase()}</p>
-          <div className="flex flex-wrap gap-2">
-            {hasFilters && <Button type="button" size="sm" variant="ghost" onClick={resetFilters}>Reset filter</Button>}
-            <Button type="button" size="sm" variant="outline" onClick={onUpload} disabled={loading}><Upload className="size-4" />Upload ZIP</Button>
-          </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-body-xs text-muted-foreground whitespace-nowrap">
+            Menampilkan {visibleRows.length} dari {rows.length} {label.toLowerCase()}
+          </span>
+          <Button type="button" size="sm" variant="outline" className="gap-1.5 rounded-lg h-9" onClick={onUpload} disabled={loading}>
+            <Upload className="size-3.5" />
+            Upload ZIP
+          </Button>
         </div>
       </div>
 

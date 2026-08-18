@@ -658,6 +658,7 @@ export const aiMaterialInstances = sqliteTable(
  chapterIds: text("chapter_ids", { mode: "json" }).$type<string[]>().$defaultFn(() => []),
  pineconeSyncStatus: text("pinecone_sync_status").default("pending").notNull(),
  lastSyncError: text("last_sync_error"),
+ thumbnailUrl: text("thumbnail_url"),
  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  updatedAt: integer("updated_at", { mode: "timestamp" })
  .defaultNow()
@@ -2464,6 +2465,7 @@ export const websiteMaterials = sqliteTable(
       verifiedAt: ""
     }))
     .notNull(),
+ thumbnailUrl: text("thumbnail_url"),
  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  updatedAt: integer("updated_at", { mode: "timestamp" })
  .defaultNow()
@@ -2673,6 +2675,7 @@ export const diktats = sqliteTable(
  settings: text("settings", { mode: "json" }).$defaultFn(() => ({})).notNull(),
  status: text("status").default("draft").notNull(), // 'draft', 'generating', 'ready', 'failed'
  downloadCount: integer("download_count").default(0).notNull(),
+ thumbnailUrl: text("thumbnail_url"),
  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  updatedAt: integer("updated_at", { mode: "timestamp" })
  .defaultNow()
@@ -2892,6 +2895,7 @@ export const courseMaterials = sqliteTable(
 		type: text("type").$type<"materi_kelas" | "contoh_soal">().notNull(),
 		fileUrl: text("file_url").notNull(),
 		chapterIds: text("chapter_ids", { mode: "json" }).$type<string[]>().notNull(),
+		thumbnailUrl: text("thumbnail_url"),
 		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
 		updatedAt: integer("updated_at", { mode: "timestamp" })
 			.defaultNow()

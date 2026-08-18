@@ -70,7 +70,7 @@ export function QuestionsTab({
   return (
     <div className="space-y-4">
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-card p-3 rounded-xl border border-border shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div className="flex flex-1 items-center gap-2.5">
           <div className="flex-1 max-w-sm">
             <SearchBar
@@ -83,7 +83,7 @@ export function QuestionsTab({
           </div>
 
           <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-            <SelectTrigger className="w-[140px] h-9 rounded-lg">
+            <SelectTrigger className="w-[140px] h-9 rounded-lg shrink-0">
               <SelectValue placeholder="Tingkat Kesulitan" />
             </SelectTrigger>
             <SelectContent>
@@ -95,7 +95,7 @@ export function QuestionsTab({
           </Select>
         </div>
 
-        <Link href={`/admin/questions?courseId=${courseId}`}>
+        <Link href={`/admin/questions?courseId=${courseId}`} className="shrink-0">
           <Button size="sm" variant="outline" className="gap-1.5 rounded-lg h-9">
             <ExternalLink className="size-3.5" />
             Buka Studio Bank Soal
@@ -117,7 +117,7 @@ export function QuestionsTab({
             <HelpCircle className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
             <p className="text-body-xs font-medium text-foreground">Tidak ada butir soal ditemukan</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Gunakan Studio Bank Soal atau Generasi AI untuk menambahkan soal ke mata kuliah ini.
+              Gunakan Studio Bank Soal untuk menambahkan soal ke mata kuliah ini.
             </p>
           </div>
         ) : (

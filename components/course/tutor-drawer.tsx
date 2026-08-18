@@ -545,7 +545,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       if (res.budgetExhausted) {
         aiContent = "Zyra tidak dapat menjawab pertanyaan baru hari ini (batas harian tercapai). Silakan coba lagi besok, atau gunakan buku teks dan kartu hafalan untuk belajar mandiri.";
       } else if (res.failureCode === "provider_unavailable") {
-        aiContent = "Gambar dan pertanyaanmu sudah diterima, tetapi layanan AI sedang mengalami kendala. Permintaan ini bukan ditolak karena kuota. Coba kirim ulang beberapa saat lagi.";
+        aiContent = "Gambar dan pertanyaanmu sudah diterima, tetapi layanan sedang mengalami kendala. Permintaan ini bukan ditolak karena kuota. Coba kirim ulang beberapa saat lagi.";
       } else if (!res.answer) {
         aiContent = "Maaf, terjadi gangguan saat memproses jawaban. Silakan coba lagi dalam beberapa saat.";
       } else {

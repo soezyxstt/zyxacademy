@@ -50,8 +50,8 @@ export default async function GenerationJobsPage() {
     <div className="space-y-8">
       <AdminPageHeader
         icon={Zap}
-        title="Generasi Soal AI"
-        description="Pantau dan kelola background jobs untuk pembuatan soal berbasis AI."
+        title="Generasi Soal"
+        description="Pantau dan kelola background jobs untuk pembuatan dan kurasi soal."
       />
       <GenerationJobsClient
         jobs={jobs}

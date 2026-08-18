@@ -242,7 +242,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
               name="summary"
               value={formData.summary}
               onChange={handleInputChange}
-              placeholder="Dapat dikosongkan untuk menghasilkan ringkasan otomatis menggunakan AI..."
+              placeholder="Dapat dikosongkan untuk menghasilkan ringkasan otomatis..."
               rows={3}
             />
           </div>

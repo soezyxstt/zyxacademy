@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: pageTitle("Ops"),
-  description: "Monitoring operasional AI dan infrastruktur.",
+  description: "Monitoring operasional dan infrastruktur.",
 };
 
 export default function OpsPage() {
@@ -20,7 +20,7 @@ export default function OpsPage() {
       <AdminPageHeader
         icon={Activity}
         title="Monitor Ops"
-        description="Pantau metrik performa AI dan kesehatan infrastruktur sistem."
+        description="Pantau metrik performa dan kesehatan infrastruktur sistem."
       />
       <OpsClient />
       {zyraRuntimeEnv.FEATURE_ZYRA_AI_OPS_V1 === "1" && <ZyraOpsPanel />}

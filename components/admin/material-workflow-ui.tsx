@@ -74,7 +74,7 @@ export function WorkflowStepBar({ steps, currentStep }: { steps: WorkflowStep[];
   const columnClass = steps.length === 3 ? "lg:grid-cols-3" : steps.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-5";
 
   return (
-    <ol className={cn("grid gap-2 sm:grid-cols-2", columnClass)} aria-label="Tahapan proses">
+    <ol className={cn("grid gap-2 grid-cols-2", columnClass)} aria-label="Tahapan proses">
       {steps.map((step) => {
         const complete = step.number < currentStep;
         const active = step.number === currentStep;
@@ -82,25 +82,24 @@ export function WorkflowStepBar({ steps, currentStep }: { steps: WorkflowStep[];
           <li
             key={step.number}
             className={cn(
-              "flex min-w-0 items-start gap-3 rounded-xl border p-3",
+              "flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5",
               active ? "border-brand-primary/40 bg-brand-primary/5" : "border-border bg-card",
             )}
           >
             <span
               className={cn(
-                "flex size-8 shrink-0 items-center justify-center rounded-full border text-body-sm font-bold",
+                "flex size-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold",
                 complete && "border-status-success bg-status-success text-white",
                 active && "border-brand-primary bg-brand-primary text-white",
                 !complete && !active && "border-border bg-muted text-muted-foreground",
               )}
             >
-              {complete ? <Check className="size-4" aria-hidden /> : step.number}
+              {complete ? <Check className="size-3" aria-hidden /> : step.number}
             </span>
-            <span className="min-w-0">
-              <span className={cn("block text-body-sm font-semibold", active ? "text-foreground" : "text-muted-foreground")}>
+            <span className="min-w-0 flex-1 truncate">
+              <span className={cn("block truncate text-body-xs font-semibold", active ? "text-foreground" : "text-muted-foreground")}>
                 {step.title}
               </span>
-              <span className="mt-0.5 block text-body-xs text-muted-foreground">{step.description}</span>
             </span>
           </li>
         );

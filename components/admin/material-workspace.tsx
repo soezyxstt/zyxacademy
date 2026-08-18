@@ -84,34 +84,19 @@ export function MaterialWorkspace({
       ) : (
         <div className="space-y-6">
           {authoringEnabled ? (
-            <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
-              <AdminSectionIntro />
-              <AdminTabs defaultValue="source-pack">
-                <AdminTabsList>
-                  <AdminTabsTrigger value="source-pack"><FileArchive className="size-4" />Buat paket kerja</AdminTabsTrigger>
-                  <AdminTabsTrigger value="context-pack"><BookOpenCheck className="size-4" />Lanjutkan dari Idea terbit</AdminTabsTrigger>
-                </AdminTabsList>
-                <AdminTabsContent value="source-pack"><AuthoringJobBuilder courses={authoringCourses} /></AdminTabsContent>
-                <AdminTabsContent value="context-pack"><AuthoringContextExport initialExports={initialContextExports} courses={authoringCourses} /></AdminTabsContent>
-              </AdminTabs>
-            </div>
+            <AdminTabs defaultValue="source-pack">
+              <AdminTabsList>
+                <AdminTabsTrigger value="source-pack"><FileArchive className="size-4" />Buat paket kerja</AdminTabsTrigger>
+                <AdminTabsTrigger value="context-pack"><BookOpenCheck className="size-4" />Lanjutkan dari Idea terbit</AdminTabsTrigger>
+              </AdminTabsList>
+              <AdminTabsContent value="source-pack"><AuthoringJobBuilder courses={authoringCourses} /></AdminTabsContent>
+              <AdminTabsContent value="context-pack"><AuthoringContextExport initialExports={initialContextExports} courses={authoringCourses} /></AdminTabsContent>
+            </AdminTabs>
           ) : (
             <AdminEmptyState title="Upload manual belum tersedia" description="Workflow Source Pack manual belum diaktifkan di lingkungan ini." icon={Upload} />
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function AdminSectionIntro() {
-  return (
-    <div className="mb-6 flex items-start gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-4">
-      <FileArchive className="mt-0.5 size-5 shrink-0 text-brand-primary" aria-hidden />
-      <div>
-        <p className="text-body-sm font-semibold text-foreground">Siapkan paket kerja secara manual</p>
-        <p className="mt-1 text-body-sm text-muted-foreground">Unggah Source Pack, pilih mata kuliah dan bab dengan nama yang mudah dikenali, petakan bagian sumber, lalu unduh paket kerja untuk agent. Setiap tahap dapat diperiksa sebelum lanjut.</p>
-      </div>
     </div>
   );
 }

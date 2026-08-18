@@ -76,7 +76,7 @@ export function ZyraUsageCharts() {
             Penggunaan Zyra (Token & Request)
           </h2>
           <p className="mt-1 text-body-sm text-muted-foreground">
-            Laporan penggunaan AI per user dan harian.
+            Laporan penggunaan Zyra per user dan harian.
           </p>
         </div>
         <Select

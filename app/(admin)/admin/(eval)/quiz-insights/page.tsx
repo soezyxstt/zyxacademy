@@ -100,7 +100,7 @@ export default function AdminQuizInsightsOverviewPage() {
       <AdminPageHeader
         icon={BarChart3}
         title="Analisis & Insight Kuis / Exam"
-        description="Halaman khusus evaluasi performa kuis, simulasi, dan asesmen. Temukan konsep yang menyulitkan, distraktor jebakan, serta rekomendasi pengajaran AI Gemini untuk tutor."
+        description="Halaman khusus evaluasi performa kuis, simulasi, dan asesmen. Temukan konsep yang menyulitkan, distraktor jebakan, serta rekomendasi pengajaran untuk tutor."
         actions={
           <Button
             variant="outline"
@@ -139,59 +139,58 @@ export default function AdminQuizInsightsOverviewPage() {
           iconClassName="text-brand-secondary"
         />
         <AdminStatCard
-          label="Dianalisis AI"
+          label="Dianalisis"
           value={
             <>
               {analyzedWithAiCount}{" "}
               <span className="text-body-sm text-muted-foreground font-normal">/ {totalQuizzes}</span>
             </>
           }
-          caption="Kuis memiliki insight Gemini"
+          caption="Kuis memiliki laporan insight"
           icon={Sparkles}
           iconClassName="text-brand-primary"
         />
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <SearchBar
-            placeholder="Cari berdasarkan judul kuis atau mata kuliah..."
-            value={search}
-            onSearch={setSearch}
-            onClear={() => setSearch("")}
-            containerClassName="flex-1 max-w-xl"
-          />
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+        <SearchBar
+          size="sm"
+          placeholder="Cari berdasarkan judul kuis atau mata kuliah..."
+          value={search}
+          onSearch={setSearch}
+          onClear={() => setSearch("")}
+          containerClassName="flex-1 max-w-xl"
+        />
 
-          <div className="flex flex-wrap sm:flex-nowrap gap-3">
-            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-              <SelectTrigger className="w-[200px] rounded-lg">
-                <SelectValue placeholder="Mata Kuliah" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-                {uniqueCourses.map(([cId, cName]) => (
-                  <SelectItem key={cId} value={cId}>
-                    {cName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="flex flex-wrap sm:flex-nowrap gap-2">
+          <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+            <SelectTrigger className="w-[180px] h-9 text-body-xs rounded-lg">
+              <SelectValue placeholder="Mata Kuliah" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+              {uniqueCourses.map(([cId, cName]) => (
+                <SelectItem key={cId} value={cId}>
+                  {cName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-[180px] rounded-lg">
-                <SelectValue placeholder="Kategori Kuis" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Kategori</SelectItem>
-                <SelectItem value="daily">Daily Quiz</SelectItem>
-                <SelectItem value="weekly">Weekly Quiz</SelectItem>
-                <SelectItem value="chapter">Chapter Quiz</SelectItem>
-                <SelectItem value="simulation">Simulasi / Tryout</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-[160px] h-9 text-body-xs rounded-lg">
+              <SelectValue placeholder="Kategori Kuis" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Kategori</SelectItem>
+              <SelectItem value="daily">Daily Quiz</SelectItem>
+              <SelectItem value="weekly">Weekly Quiz</SelectItem>
+              <SelectItem value="chapter">Chapter Quiz</SelectItem>
+              <SelectItem value="simulation">Simulasi / Tryout</SelectItem>
+              <SelectItem value="premium">Premium</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -219,7 +218,7 @@ export default function AdminQuizInsightsOverviewPage() {
                   <th className="px-4 py-3 text-center">Pengerjaan</th>
                   <th className="px-4 py-3 text-center">Rata-rata Nilai</th>
                   <th className="px-4 py-3 text-center">Kelulusan (≥70)</th>
-                  <th className="px-4 py-3">Status Insight AI</th>
+                  <th className="px-4 py-3">Status Insight</th>
                   <th className="px-4 py-3 text-right">Aksi</th>
                 </tr>
               </AdminTableHead>
@@ -265,7 +264,7 @@ export default function AdminQuizInsightsOverviewPage() {
                       ) : (
                         <div className="flex items-center gap-1.5 text-muted-foreground text-body-xs">
                           <Sparkles className="size-3.5 text-muted-foreground/60 shrink-0" />
-                          <span>Belum dianalisis AI</span>
+                          <span>Belum dianalisis</span>
                         </div>
                       )}
                     </td>

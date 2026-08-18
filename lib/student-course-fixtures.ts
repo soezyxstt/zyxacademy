@@ -24,6 +24,8 @@ export type CourseMaterial = {
  /** Chapter this material belongs to, when known (enables P3 chapter summary). */
  chapterId?: string;
  chapterIds?: string[] | null;
+ /** Thumbnail image URL / R2 path for page-1 document preview */
+ thumbnailUrl?: string;
 };
 
 export type ExamType = "quiz" | "tryout";

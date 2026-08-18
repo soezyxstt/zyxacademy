@@ -16,8 +16,8 @@ export default async function AiAnalyticsPage() {
     <div className="space-y-8">
       <AdminPageHeader
         icon={LineChart}
-        title="Analitik AI"
-        description="Laporan penggunaan token dan performa model AI."
+        title="Analitik Zyra"
+        description="Laporan penggunaan kuota dan performa sistem."
       />
       <AiAnalyticsClient />
     </div>

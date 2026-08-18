@@ -42,12 +42,19 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
 import { AdminOptionLetter } from "@/components/admin/option-letter";
 import { DifficultyBadge } from "@/components/admin/status-badges";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 type Chapter = {
   id: string;
   courseId: string;
   title: string;
+  description?: string | null;
   orderIndex: number;
 };
 
@@ -58,14 +65,14 @@ export type CourseQuiz = {
   category: "daily" | "weekly" | "chapter" | "premium" | "simulation";
   visibility: "free" | "paid";
   status: "draft" | "published";
-  manualStatus: "open" | "closed" | "scheduled";
+  manualStatus?: "open" | "closed" | "scheduled";
   timeLimitSeconds: number | null;
   maxAttempts: number | null;
   openAt?: Date | null;
   closeAt?: Date | null;
-  selectionRules: unknown;
+  selectionRules?: unknown;
   showDiscussion?: boolean;
-  createdAt: Date;
+  createdAt: Date | string;
   totalAttempts?: number;
   avgScore?: number;
   passRate?: number;
@@ -75,7 +82,7 @@ export type CourseQuiz = {
 type Props = {
   courseId: string;
   courseSlug?: string;
-  courseTitle: string;
+  courseTitle?: string;
   chapters: Chapter[];
   initialQuizzes: CourseQuiz[];
 };
@@ -85,9 +92,8 @@ export function QuizzesTab({
   courseSlug,
   initialQuizzes,
 }: Props) {
-
   const router = useRouter();
-  const [quizzes] = useState<CourseQuiz[]>(initialQuizzes);
+  const [quizzes, setQuizzes] = useState<CourseQuiz[]>(initialQuizzes);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   // Preview Dialog State
@@ -102,10 +108,9 @@ export function QuizzesTab({
 
   const handlePreviewQuiz = async (quiz: CourseQuiz) => {
     setPreviewQuiz(quiz);
-    setPreviewOpen(true);
     setPreviewLoading(true);
     setPreviewQuestions([]);
-
+    setPreviewOpen(true);
     try {
       const res = await getQuizTemplatePreviewAction(courseId, quiz.id);
       if (res.success) {
@@ -132,14 +137,15 @@ export function QuizzesTab({
       const res = await deleteQuizTemplateAction(courseId, deletingQuiz.id);
       if (res.success) {
         toast.success("Kuis berhasil dihapus.");
+        setQuizzes((prev) => prev.filter((q) => q.id !== deletingQuiz.id));
         setDeleteOpen(false);
-        setDeletingQuiz(null);
         router.refresh();
       } else {
         toast.error("Gagal menghapus kuis.");
       }
-    } catch {
-      toast.error("Terjadi kesalahan saat menghapus kuis.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal menghapus kuis.";
+      toast.error(message);
     }
   };
 
@@ -155,7 +161,7 @@ export function QuizzesTab({
   return (
     <div className="space-y-4">
       {/* Header Controls & Create Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-card p-3 rounded-xl border border-border shadow-2xs">
+      <div className="flex items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-[170px] h-9 rounded-lg">
@@ -175,12 +181,18 @@ export function QuizzesTab({
           </span>
         </div>
 
-        <Button asChild size="sm" className="gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold shadow-2xs h-9">
-          <Link href={createQuizHref}>
-            <Plus className="size-3.5" />
-            Buat Kuis Baru
-          </Link>
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button asChild size="icon" className="size-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold shadow-2xs">
+                <Link href={createQuizHref} aria-label="Buat Kuis Baru">
+                  <Plus className="size-4" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Buat Kuis Baru</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Quizzes List */}
@@ -190,7 +202,7 @@ export function QuizzesTab({
             <NotebookPen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
             <p className="text-body-xs font-medium text-foreground">Belum ada kuis yang dibuat untuk kelas ini</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Klik tombol &ldquo;Buat Kuis Baru&rdquo; untuk menyusun kuis mandiri atau simulasi pada kelas ini.
+              Klik tombol tambah untuk menyusun kuis mandiri atau simulasi pada kelas ini.
             </p>
             <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
               <Link href={createQuizHref}>
@@ -203,13 +215,13 @@ export function QuizzesTab({
           <div className="divide-y divide-border/50">
             {filteredQuizzes.map((quiz) => {
               const editQuizHref = courseSlug
-                ? `/admin/quizzes/${quiz.id}/edit?returnUrl=${encodeURIComponent(`/admin/courses/${courseSlug}?tab=quizzes`)}&courseSlug=${encodeURIComponent(courseSlug)}`
+                ? `/admin/courses/${courseSlug}/quizzes/${quiz.id}/edit?returnUrl=${encodeURIComponent(`/admin/courses/${courseSlug}?tab=quizzes`)}&courseSlug=${encodeURIComponent(courseSlug)}`
                 : `/admin/quizzes/${quiz.id}/edit`;
 
               return (
                 <div
                   key={quiz.id}
-                  className="p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:bg-muted/10 transition-colors"
+                  className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-muted/10 transition-colors"
                 >
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -233,33 +245,32 @@ export function QuizzesTab({
                       </Badge>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="size-3" />
                         {quiz.timeLimitSeconds ? `${Math.round(quiz.timeLimitSeconds / 60)} Menit` : "Tanpa batas"}
                       </span>
+                      <span className="text-border/60">·</span>
                       <span className="flex items-center gap-1">
                         <Award className="size-3" />
                         Maks. {quiz.maxAttempts || "Bebas"} percobaan
                       </span>
+                      <span className="text-border/60">·</span>
                       <span>
-                        Dibuat pada <FormattedDate date={quiz.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
+                        Dibuat pada <FormattedDate date={new Date(quiz.createdAt)} options={{ day: "numeric", month: "short", year: "numeric" }} />
                       </span>
-                    </div>
-
-                    {/* Performance stats if attempts exist */}
-                    <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
+                      <span className="text-border/60">·</span>
                       <span className="font-medium text-foreground">
                         {quiz.totalAttempts || 0} pengerjaan siswa
                       </span>
                       {(quiz.totalAttempts || 0) > 0 && (
                         <>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-muted-foreground">
+                          <span className="text-border/60">·</span>
+                          <span>
                             Rata-rata: <strong className="text-foreground">{quiz.avgScore}/100</strong>
                           </span>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-muted-foreground">
+                          <span className="text-border/60">·</span>
+                          <span>
                             Kelulusan: <strong className="text-foreground">{quiz.passRate}%</strong>
                           </span>
                         </>
@@ -267,7 +278,7 @@ export function QuizzesTab({
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <Button
                       size="sm"
                       variant="outline"
@@ -292,24 +303,22 @@ export function QuizzesTab({
                       </Link>
                     </Button>
 
-
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDeleteStart(quiz)}
-                    title="Hapus Kuis"
-                  >
-                    <Trash2 className="size-3" />
-                  </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeleteStart(quiz)}
+                      title="Hapus Kuis"
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Delete Quiz Confirmation Dialog */}
       <AdminConfirmDialog

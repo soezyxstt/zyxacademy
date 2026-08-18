@@ -175,3 +175,20 @@ export function buildMediaKey(params: {
 export function isMediaKey(key: string): boolean {
   return key === "media" || key.startsWith("media/");
 }
+
+/**
+ * Course document thumbnail object key: `thumbnails/courses/{courseSlug}/{materialId}.{extension}`.
+ */
+export function buildCourseThumbnailKey(params: {
+  courseSlug: string;
+  materialId: string;
+  extension?: "webp" | "png" | "jpg";
+}): string {
+  const ext = params.extension || "webp";
+  return joinKey(
+    "thumbnails",
+    "courses",
+    slugifySegment(params.courseSlug, "general"),
+    `${slugifySegment(params.materialId, "material")}.${ext}`
+  );
+}

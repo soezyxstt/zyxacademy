@@ -61,7 +61,7 @@ export function AnalyticsTab({
           iconClassName="text-status-success"
         />
         <AdminStatCard
-          label="Dianalisis AI"
+          label="Dianalisis"
           value={
             <>
               {analyzedWithAiCount}{" "}
@@ -101,7 +101,7 @@ export function AnalyticsTab({
                   <th className="px-3.5 py-2 text-center">Pengerjaan</th>
                   <th className="px-3.5 py-2 text-center">Rata-rata Nilai</th>
                   <th className="px-3.5 py-2 text-center">Kelulusan</th>
-                  <th className="px-3.5 py-2">Status Insight AI</th>
+                  <th className="px-3.5 py-2">Status Insight</th>
                   <th className="px-3.5 py-2 text-right">Aksi</th>
                 </tr>
               </thead>

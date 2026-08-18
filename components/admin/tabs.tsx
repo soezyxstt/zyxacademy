@@ -3,9 +3,69 @@
 import * as React from "react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
+import { useUrlTab } from "@/hooks/use-url-tab";
 
-function AdminTabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Root>) {
-  return <TabsPrimitive.Root className={cn("space-y-6", className)} {...props} />;
+type AdminTabsProps = React.ComponentProps<typeof TabsPrimitive.Root> & {
+  paramKey?: string;
+  syncUrl?: boolean;
+};
+
+function AdminTabsInner({
+  value,
+  onValueChange,
+  defaultValue,
+  paramKey = "tab",
+  syncUrl = true,
+  className,
+  ...props
+}: AdminTabsProps) {
+  const isControlled = value !== undefined && onValueChange !== undefined;
+
+  const [urlTab, setUrlTab] = useUrlTab(
+    paramKey,
+    typeof defaultValue === "string" ? defaultValue : "default"
+  );
+
+  const activeValue = isControlled
+    ? value
+    : syncUrl && defaultValue
+    ? urlTab
+    : value;
+
+  const handleValueChange = isControlled
+    ? onValueChange
+    : syncUrl && defaultValue
+    ? (newVal: string) => {
+        setUrlTab(newVal);
+        onValueChange?.(newVal);
+      }
+    : onValueChange;
+
+  return (
+    <TabsPrimitive.Root
+      value={activeValue}
+      onValueChange={handleValueChange}
+      defaultValue={syncUrl && defaultValue ? undefined : defaultValue}
+      className={cn("space-y-6", className)}
+      {...props}
+    />
+  );
+}
+
+function AdminTabs(props: AdminTabsProps) {
+  if (!props.syncUrl && props.syncUrl !== undefined) {
+    return <TabsPrimitive.Root className={cn("space-y-6", props.className)} {...props} />;
+  }
+
+  if (props.value !== undefined && props.onValueChange !== undefined) {
+    return <TabsPrimitive.Root className={cn("space-y-6", props.className)} {...props} />;
+  }
+
+  return (
+    <React.Suspense fallback={<TabsPrimitive.Root className={cn("space-y-6", props.className)} {...props} />}>
+      <AdminTabsInner {...props} />
+    </React.Suspense>
+  );
 }
 
 function AdminTabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
@@ -24,7 +84,7 @@ function AdminTabsTrigger({ className, ...props }: React.ComponentProps<typeof T
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-body-sm font-semibold whitespace-nowrap text-muted-foreground transition-colors",
+        "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-body-xs font-semibold whitespace-nowrap text-muted-foreground transition-colors",
         "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs",
         className

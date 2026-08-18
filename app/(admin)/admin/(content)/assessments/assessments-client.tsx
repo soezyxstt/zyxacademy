@@ -375,7 +375,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
           <DialogHeader>
             <DialogTitle className="font-heading text-h6">Unggah Asesmen Historis</DialogTitle>
             <DialogDescription className="text-body-sm text-muted-foreground">
-              Unggah berkas asesmen canonical markdown. Konsep dan metadata soal akan diekstrak menggunakan AI.
+              Unggah berkas asesmen canonical markdown. Konsep dan metadata soal akan diekstrak secara otomatis.
             </DialogDescription>
           </DialogHeader>
 

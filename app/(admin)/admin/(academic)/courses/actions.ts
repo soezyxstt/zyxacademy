@@ -16,6 +16,7 @@ import { eq, asc, desc, and, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
+import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
 
 export async function getCourses() {
   await assertAdmin();
@@ -440,12 +441,20 @@ export async function saveCourseMaterial(
   try {
     const materialId = randomUUID();
     
+    // Generate page 1 thumbnail asynchronously
+    const thumbnailKey = await generateAndSavePdfThumbnail({
+      courseSlug: cleanCourseId,
+      materialId,
+      fileKey: cleanFileKey,
+    }).catch(() => null);
+
     await db.insert(courseMaterials).values({
       id: materialId,
       courseId: cleanCourseId,
       title: cleanTitle,
       type,
       fileUrl: cleanFileKey,
+      thumbnailUrl: thumbnailKey,
       chapterIds,
     });
 
@@ -479,6 +488,12 @@ export async function deleteCourseMaterial(id: string) {
     if (existing.fileUrl) {
       await storage.delete(existing.fileUrl).catch((e) => {
         console.error("Failed to delete from R2:", e);
+      });
+    }
+
+    if (existing.thumbnailUrl) {
+      await storage.delete(existing.thumbnailUrl).catch((e) => {
+        console.error("Failed to delete thumbnail from R2:", e);
       });
     }
 

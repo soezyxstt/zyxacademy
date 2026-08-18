@@ -94,8 +94,8 @@ export default async function AIMaterialsPage({ searchParams }: Props) {
     <div className="space-y-8">
       <AdminPageHeader
         icon={BookText}
-        title="Materi AI"
-        description="Kelola materi kuliah dan referensi RAG untuk AI tutor."
+        title="Materi Pembelajaran"
+        description="Kelola materi kuliah dan dokumen referensi pembelajaran."
       />
       <MaterialInstancesClient
         instances={formattedInstances}

@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   XCircle,
   Info,
-  SlidersHorizontal,
   X,
   Terminal,
   Layers,
@@ -294,10 +293,11 @@ export function FlagsClient() {
       </div>
 
       {/* Control Panel: Search & Filters */}
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div className="space-y-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
           {/* Search Field */}
           <SearchBar
+            size="sm"
             ref={searchInputRef}
             value={search}
             onSearch={setSearch}
@@ -308,11 +308,11 @@ export function FlagsClient() {
           />
 
           {/* Status Tabs (Segmented Button Bar) */}
-          <div className="flex items-center rounded-lg border border-border bg-muted/40 p-1 self-start lg:self-auto shrink-0">
+          <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 self-start lg:self-auto shrink-0">
             <button
               type="button"
               onClick={() => setStatusFilter("all")}
-              className={`rounded-md px-3 py-1.5 text-body-xs font-semibold transition-all cursor-pointer ${
+              className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
                 statusFilter === "all"
                   ? "bg-background text-foreground shadow-xs border border-border/60"
                   : "text-muted-foreground hover:text-foreground"
@@ -323,7 +323,7 @@ export function FlagsClient() {
             <button
               type="button"
               onClick={() => setStatusFilter("active")}
-              className={`rounded-md px-3 py-1.5 text-body-xs font-semibold transition-all cursor-pointer ${
+              className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
                 statusFilter === "active"
                   ? "bg-status-success/15 text-status-success shadow-xs border border-status-success/30"
                   : "text-muted-foreground hover:text-foreground"
@@ -334,7 +334,7 @@ export function FlagsClient() {
             <button
               type="button"
               onClick={() => setStatusFilter("inactive")}
-              className={`rounded-md px-3 py-1.5 text-body-xs font-semibold transition-all cursor-pointer ${
+              className={`rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer ${
                 statusFilter === "inactive"
                   ? "bg-background text-muted-foreground shadow-xs border border-border/60"
                   : "text-muted-foreground hover:text-foreground"
@@ -346,11 +346,7 @@ export function FlagsClient() {
         </div>
 
         {/* Category Chips Bar */}
-        <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border/60">
-          <span className="flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground mr-1">
-            <SlidersHorizontal className="size-3.5" /> Filter Kategori:
-          </span>
-
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => setCategoryFilter("all")}

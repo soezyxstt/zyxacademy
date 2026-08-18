@@ -48,7 +48,7 @@ export default async function AssessmentsPage() {
       <AdminPageHeader
         icon={Archive}
         title="Asesmen Historis"
-        description="Kelola pustaka soal ujian sebelumnya untuk diolah oleh AI."
+        description="Kelola pustaka soal ujian sebelumnya untuk bank soal dan evaluasi."
       />
       <AssessmentsClient
         sources={formattedSources}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, FileArchive, SearchCheck } from "lucide-react";
+import { ArrowLeft, Download, SearchCheck } from "lucide-react";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { AdminTable } from "@/components/admin/table";
 import { Badge } from "@/components/ui/badge";
@@ -205,7 +205,19 @@ export function AuthoringJobBuilder({ courses }: { courses: AuthoringCourseOptio
     <div className="space-y-6">
       <WorkflowStepBar steps={workflowSteps} currentStep={activeStep} />
 
-      {activeStep === 1 && <section className="space-y-4"><AdminSectionTitle as="h2" size="h6" icon={FileArchive} title="Pilih Source Pack" description="ZIP diperiksa di memori. Tahap ini tidak menulis R2 atau database." /><form className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center" onSubmit={(event) => { event.preventDefault(); void analyze(); }}><Label htmlFor="authoring-source-pack-file" className="sr-only">Pilih Source Pack ZIP</Label><Input id="authoring-source-pack-file" type="file" accept=".zip,application/zip" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setAnalysis(null); setMessage(null); setError(null); setActiveStep(1); }} /><Button type="submit" disabled={!file || loading} isLoading={loading}><SearchCheck className="size-4" />Analisis Source Pack</Button></form></section>}
+      {activeStep === 1 && (
+        <section className="space-y-2.5">
+          <form className="flex flex-col sm:flex-row sm:items-center gap-2" onSubmit={(event) => { event.preventDefault(); void analyze(); }}>
+            <Label htmlFor="authoring-source-pack-file" className="sr-only">Pilih Source Pack ZIP</Label>
+            <Input id="authoring-source-pack-file" type="file" accept=".zip,application/zip" className="h-9 text-body-xs rounded-lg flex-1" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setAnalysis(null); setMessage(null); setError(null); setActiveStep(1); }} />
+            <Button type="submit" size="sm" className="h-9 rounded-lg gap-1.5 shrink-0 font-semibold" disabled={!file || loading} isLoading={loading}>
+              <SearchCheck className="size-3.5" />
+              Analisis Source Pack
+            </Button>
+          </form>
+          <p className="text-body-xs text-muted-foreground">ZIP diperiksa di memori. Tahap ini tidak menulis R2 atau database.</p>
+        </section>
+      )}
 
       {activeStep === 2 && analysis && <section className="space-y-4"><AdminSectionTitle as="h2" size="h6" title="Tentukan tujuan di Zyx" description="Pilih berdasarkan nama mata kuliah dan bab. ID teknis dimasukkan otomatis." /><div className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"><div><p className="text-body-sm text-muted-foreground">Source Pack</p><p className="truncate font-semibold text-foreground">{analysis.manifest.name}</p></div><div><p className="text-body-sm text-muted-foreground">Dokumen</p><p className="font-semibold text-foreground">{analysis.summary.documentCount}</p></div><div><p className="text-body-sm text-muted-foreground">Unit sumber</p><p className="font-semibold text-foreground">{analysis.summary.unitCount}</p></div><div><p className="text-body-sm text-muted-foreground">Soal dan pembahasan asli</p><p className="font-semibold text-foreground">{analysis.summary.questionCount} soal · {analysis.summary.solutionCount} pembahasan</p></div></div><div className="space-y-2"><Label htmlFor="authoring-course">Mata kuliah</Label><Select value={courseId} onValueChange={selectCourse}><SelectTrigger id="authoring-course"><SelectValue placeholder="Pilih mata kuliah" /></SelectTrigger><SelectContent>{courses.map((item) => <SelectItem key={item.id} value={item.id}>{item.code} · {item.title}</SelectItem>)}</SelectContent></Select><p className="text-body-xs text-muted-foreground">Pilih nama yang paling sesuai dengan isi Source Pack.</p></div>{course && <div className="space-y-3"><p className="text-body-sm font-semibold text-foreground">Bab yang digunakan</p>{course.chapters.length === 0 ? <p className="text-body-sm text-status-warning">Mata kuliah ini belum memiliki bab aktif.</p> : <div className="grid gap-3 sm:grid-cols-2">{course.chapters.map((chapter) => <CheckboxField key={chapter.id} id={`chapter-${chapter.id}`} checked={selectedChapterIds.includes(chapter.id)} onCheckedChange={(checked) => toggleChapter(chapter.id, checked === true)} label={`${chapter.code} · ${chapter.title}`} description={`Urutan ${chapter.orderIndex + 1}`} />)}</div>}</div>}</section>}
 

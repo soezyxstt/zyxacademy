@@ -205,7 +205,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
   return (
     <div className="space-y-4">
       {/* Search, Filter, and View Controls */}
-      <div className="rounded-xl border border-border bg-card p-2 sm:p-2.5 shadow-2xs flex items-center gap-2">
+      <div className="flex items-center gap-2">
         <div className="flex-1 min-w-0">
           <SearchBar
             size="sm"
