@@ -627,7 +627,7 @@ export function QuizzesTab({
                   </div>
 
                   <div className="text-body-sm text-foreground">
-                    <MathText text={q.prompt || ""} />
+                    <MathText>{q.prompt || ""}</MathText>
                   </div>
 
                   {Array.isArray(q.options) && q.options.length > 0 && (
@@ -645,7 +645,7 @@ export function QuizzesTab({
                           >
                             <AdminOptionLetter index={optIdx} isCorrect={isCorrect} />
                             <div className="flex-1 min-w-0">
-                              <MathText text={opt} />
+                              <MathText>{opt}</MathText>
                             </div>
                             {isCorrect && (
                               <span className="text-[11px] font-bold text-status-success shrink-0">
@@ -661,7 +661,7 @@ export function QuizzesTab({
                   {q.explanation && (
                     <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50 text-body-xs text-muted-foreground space-y-1">
                       <strong className="text-foreground block">Pembahasan:</strong>
-                      <MathText text={q.explanation} />
+                      <MathText>{q.explanation}</MathText>
                     </div>
                   )}
                 </div>

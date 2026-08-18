@@ -167,7 +167,7 @@ export function QuestionsTab({
                   </div>
 
                   <div className="text-body-sm text-foreground">
-                    <MathText text={q.prompt} />
+                    <MathText>{q.prompt}</MathText>
                   </div>
 
                   {optionsArr.length > 0 && (
@@ -185,7 +185,7 @@ export function QuestionsTab({
                           >
                             <AdminOptionLetter index={optIdx} isCorrect={isCorrect} />
                             <div className="flex-1 min-w-0">
-                              <MathText text={opt} />
+                              <MathText>{opt}</MathText>
                             </div>
                             {isCorrect && (
                               <span className="text-[11px] font-bold text-status-success shrink-0">
@@ -201,7 +201,7 @@ export function QuestionsTab({
                   {q.explanation && (
                     <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40 text-body-xs text-muted-foreground space-y-1">
                       <strong className="text-foreground block">Pembahasan:</strong>
-                      <MathText text={q.explanation} />
+                      <MathText>{q.explanation}</MathText>
                     </div>
                   )}
                 </div>

@@ -36,7 +36,7 @@ type Course = {
   title: string;
   category: string;
   description?: string | null;
-  createdAt: Date;
+  createdAt?: Date;
 };
 
 type Chapter = {

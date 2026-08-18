@@ -28,8 +28,8 @@ import {
 import {
   saveCourse,
   deleteCourse,
-  allowedCategories,
 } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
 import {
   Search,
   Plus,
