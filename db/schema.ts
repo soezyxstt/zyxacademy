@@ -138,12 +138,13 @@ export const verification = sqliteTable(
 );
 
 export const userRelations = relations(user, ({ many, one }) => ({
- sessions: many(session),
- accounts: many(account),
- pengguna: one(pengguna, {
-  fields: [user.id],
-  references: [pengguna.id],
- }),
+  sessions: many(session),
+  accounts: many(account),
+  tutorCourses: many(tutorCourses),
+  pengguna: one(pengguna, {
+    fields: [user.id],
+    references: [pengguna.id],
+  }),
 }));
 
 export const penggunaRelations = relations(pengguna, ({ one, many }) => ({
@@ -437,97 +438,148 @@ export const submissions = sqliteTable("submissions", {
 
 // Groups Table
 export const groups = sqliteTable("groups", {
- id: text("id").primaryKey(),
- name: text("name").notNull(),
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- updatedAt: integer("updated_at", { mode: "timestamp" })
- .defaultNow()
- .$onUpdate(() => new Date())
- .notNull(),
+	id: text("id").primaryKey(),
+	name: text("name").notNull(),
+	packageType: text("package_type")
+		.$type<"reguler_15" | "intensif_30" | "super_intensif_45" | "custom">()
+		.default("reguler_15")
+		.notNull(),
+	packageName: text("package_name").notNull().default("Paket Reguler (15 Sesi)"),
+	totalQuotaSessions: integer("total_quota_sessions").default(15).notNull(),
+	usedQuotaSessions: integer("used_quota_sessions").default(0).notNull(),
+	academicYear: text("academic_year").default("2026/2027").notNull(),
+	semester: text("semester").default("Ganjil").notNull(),
+	startDate: integer("start_date", { mode: "timestamp" }),
+	endDate: integer("end_date", { mode: "timestamp" }),
+	status: text("status")
+		.$type<"active" | "completed" | "inactive" | "archived">()
+		.default("active")
+		.notNull(),
+	notes: text("notes"),
+	createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+	updatedAt: integer("updated_at", { mode: "timestamp" })
+		.defaultNow()
+		.$onUpdate(() => new Date())
+		.notNull(),
 });
+
+// Group Courses Table (Courses assigned to a study group)
+export const groupCourses = sqliteTable(
+	"group_courses",
+	{
+		id: text("id").primaryKey(),
+		groupId: text("group_id")
+			.notNull()
+			.references(() => groups.id, { onDelete: "cascade" }),
+		courseId: text("course_id")
+			.notNull()
+			.references(() => courses.id, { onDelete: "cascade" }),
+		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+	},
+	(table) => [
+		index("group_courses_group_idx").on(table.groupId),
+		index("group_courses_course_idx").on(table.courseId),
+	]
+);
 
 // Group Members Table (Many-to-Many between User and Groups)
 export const groupMembers = sqliteTable(
- "group_members",
- {
- id: text("id").primaryKey(),
- groupId: text("group_id")
- .notNull()
- .references(() => groups.id, { onDelete: "cascade" }),
- userId: text("user_id")
- .notNull()
- .references(() => user.id, { onDelete: "cascade" }),
- joinedAt: integer("joined_at", { mode: "timestamp" }).defaultNow().notNull(),
- },
- (table) => [
- index("group_members_group_idx").on(table.groupId),
- index("group_members_user_idx").on(table.userId),
- ]
+	"group_members",
+	{
+		id: text("id").primaryKey(),
+		groupId: text("group_id")
+			.notNull()
+			.references(() => groups.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		role: text("role").$type<"leader" | "member">().default("member").notNull(),
+		joinedAt: integer("joined_at", { mode: "timestamp" }).defaultNow().notNull(),
+	},
+	(table) => [
+		index("group_members_group_idx").on(table.groupId),
+		index("group_members_user_idx").on(table.userId),
+	]
 );
 
 // Enrollment Tokens Table
 export const enrollmentTokens = sqliteTable("enrollment_tokens", {
- id: text("id").primaryKey(),
- token: text("token").notNull().unique(),
- groupId: text("group_id")
- .notNull()
- .references(() => groups.id, { onDelete: "cascade" }),
- capacity: integer("capacity").default(1).notNull(), // Capacity from 1 to 5 people
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+	id: text("id").primaryKey(),
+	token: text("token").notNull().unique(),
+	groupId: text("group_id")
+		.notNull()
+		.references(() => groups.id, { onDelete: "cascade" }),
+	capacity: integer("capacity").default(1).notNull(), // Capacity from 1 to 5 people
+	createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+	expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
 });
 
 // Enrollment Token Courses Join Table (Many-to-Many between Token and Courses)
 export const enrollmentTokenCourses = sqliteTable(
- "enrollment_token_courses",
- {
- tokenId: text("token_id")
- .notNull()
- .references(() => enrollmentTokens.id, { onDelete: "cascade" }),
- courseId: text("course_id")
- .notNull()
- .references(() => courses.id, { onDelete: "cascade" }),
- },
- (table) => [
- index("token_courses_token_idx").on(table.tokenId),
- index("token_courses_course_idx").on(table.courseId),
- ]
+	"enrollment_token_courses",
+	{
+		tokenId: text("token_id")
+			.notNull()
+			.references(() => enrollmentTokens.id, { onDelete: "cascade" }),
+		courseId: text("course_id")
+			.notNull()
+			.references(() => courses.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		index("token_courses_token_idx").on(table.tokenId),
+		index("token_courses_course_idx").on(table.courseId),
+	]
 );
 
 // Relations definitions
 export const groupsRelations = relations(groups, ({ many }) => ({
- members: many(groupMembers),
- tokens: many(enrollmentTokens),
+	members: many(groupMembers),
+	courses: many(groupCourses),
+	tokens: many(enrollmentTokens),
+	bookings: many(bookings),
+	rescheduleTickets: many(bookingRescheduleTickets),
+	auditLogs: many(bookingAuditLogs),
+}));
+
+export const groupCoursesRelations = relations(groupCourses, ({ one }) => ({
+	group: one(groups, {
+		fields: [groupCourses.groupId],
+		references: [groups.id],
+	}),
+	course: one(courses, {
+		fields: [groupCourses.courseId],
+		references: [courses.id],
+	}),
 }));
 
 export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
- group: one(groups, {
- fields: [groupMembers.groupId],
- references: [groups.id],
- }),
- user: one(user, {
- fields: [groupMembers.userId],
- references: [user.id],
- }),
+	group: one(groups, {
+		fields: [groupMembers.groupId],
+		references: [groups.id],
+	}),
+	user: one(user, {
+		fields: [groupMembers.userId],
+		references: [user.id],
+	}),
 }));
 
 export const enrollmentTokensRelations = relations(enrollmentTokens, ({ one, many }) => ({
- group: one(groups, {
- fields: [enrollmentTokens.groupId],
- references: [groups.id],
- }),
- tokenCourses: many(enrollmentTokenCourses),
+	group: one(groups, {
+		fields: [enrollmentTokens.groupId],
+		references: [groups.id],
+	}),
+	tokenCourses: many(enrollmentTokenCourses),
 }));
 
 export const enrollmentTokenCoursesRelations = relations(enrollmentTokenCourses, ({ one }) => ({
- token: one(enrollmentTokens, {
- fields: [enrollmentTokenCourses.tokenId],
- references: [enrollmentTokens.id],
- }),
- course: one(courses, {
- fields: [enrollmentTokenCourses.courseId],
- references: [courses.id],
- }),
+	token: one(enrollmentTokens, {
+		fields: [enrollmentTokenCourses.tokenId],
+		references: [enrollmentTokens.id],
+	}),
+	course: one(courses, {
+		fields: [enrollmentTokenCourses.courseId],
+		references: [courses.id],
+	}),
 }));
 
 // Tutor Courses Table (Which courses a tutor can teach)
@@ -551,91 +603,334 @@ export const tutorCourses = sqliteTable(
 
 // Tutor Slots Table (Weekly empty slots listed by tutors)
 export const tutorSlots = sqliteTable(
- "tutor_slots",
- {
- id: text("id").primaryKey(),
- tutorId: text("tutor_id")
- .notNull()
- .references(() => user.id, { onDelete: "cascade" }),
- dayOfWeek: text("day_of_week").notNull(), // 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
- startTime: text("start_time").notNull(), // '09:00'
- endTime: text("end_time").notNull(), // '10:30'
- createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
- },
- (table) => [
- index("tutor_slots_tutor_idx").on(table.tutorId),
- ]
+  "tutor_slots",
+  {
+    id: text("id").primaryKey(),
+    tutorId: text("tutor_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    dayOfWeek: text("day_of_week").notNull(), // 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'
+    startTime: text("start_time").notNull(), // '09:00'
+    endTime: text("end_time").notNull(), // '10:30'
+    mode: text("mode").$type<"online" | "offline">().default("online").notNull(),
+    location: text("location"), // Physical room/branch when offline
+    sessionDate: text("session_date"), // Optional specific ISO date YYYY-MM-DD
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("tutor_slots_tutor_idx").on(table.tutorId),
+  ]
 );
 
 // Bookings Table (Appointments chosen by students)
 export const bookings = sqliteTable(
- "bookings",
- {
- id: text("id").primaryKey(),
- slotId: text("slot_id")
- .notNull()
- .references(() => tutorSlots.id, { onDelete: "cascade" })
- .unique(), // Ensure first-come first-served (only one booking per slot)
- studentId: text("student_id")
- .notNull()
- .references(() => user.id, { onDelete: "cascade" }),
- courseId: text("course_id")
- .notNull()
- .references(() => courses.id, { onDelete: "cascade" }),
- groupId: text("group_id")
- .notNull()
- .references(() => groups.id, { onDelete: "cascade" }),
- bookedAt: integer("booked_at", { mode: "timestamp" }).defaultNow().notNull(),
- },
- (table) => [
- index("bookings_slot_idx").on(table.slotId),
- index("bookings_student_idx").on(table.studentId),
- index("bookings_group_idx").on(table.groupId),
- ]
+  "bookings",
+  {
+    id: text("id").primaryKey(),
+    slotId: text("slot_id")
+      .notNull()
+      .references(() => tutorSlots.id, { onDelete: "cascade" })
+      .unique(), // Ensure first-come first-served (only one booking per slot)
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    status: text("status")
+      .$type<"scheduled" | "completed" | "cancelled" | "rescheduled">()
+      .default("scheduled")
+      .notNull(),
+    sessionDate: text("session_date"), // ISO date e.g. "2026-08-25"
+    startTime: text("start_time"), // e.g. "09:00"
+    endTime: text("end_time"), // e.g. "10:30"
+    mode: text("mode").$type<"online" | "offline">().default("online").notNull(),
+    location: text("location"),
+    googleMeetUrl: text("google_meet_url"),
+    googleMeetSpaceName: text("google_meet_space_name"),
+    lastModifiedBy: text("last_modified_by").references(() => user.id, { onDelete: "set null" }),
+    lastModifiedAt: integer("last_modified_at", { mode: "timestamp" }).defaultNow().notNull(),
+    topic: text("topic"), // Discussion topic entered by students before session
+    preSessionNotes: text("pre_session_notes"),
+    preSessionAttachments: text("pre_session_attachments", { mode: "json" }).$type<
+      Array<{
+        id: string;
+        name: string;
+        url: string;
+        size?: number;
+        type?: string;
+        uploadedBy: string;
+        uploadedByName: string;
+        uploadedAt: string;
+      }>
+    >(),
+    postSessionNotes: text("post_session_notes"), // Summary/notes written by tutor
+    postSessionAttachments: text("post_session_attachments", { mode: "json" }).$type<
+      Array<{
+        id: string;
+        name: string;
+        url: string;
+        size?: number;
+        type?: string;
+        uploadedBy: string;
+        uploadedByName: string;
+        uploadedAt: string;
+      }>
+    >(),
+    postSessionLinkUrl: text("post_session_link_url"),
+    postSessionLinkTitle: text("post_session_link_title"),
+    postSessionLinkDescription: text("post_session_link_description"),
+    postSessionLinkImage: text("post_session_link_image"),
+    completedAt: integer("completed_at", { mode: "timestamp" }),
+    completedById: text("completed_by_id").references(() => user.id, { onDelete: "set null" }),
+    bookedAt: integer("booked_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("bookings_slot_idx").on(table.slotId),
+    index("bookings_student_idx").on(table.studentId),
+    index("bookings_group_idx").on(table.groupId),
+    index("bookings_status_idx").on(table.status),
+    index("bookings_session_date_idx").on(table.sessionDate),
+  ]
+);
+
+// Audit Trail & Activity Log for Group Bookings
+export const bookingAuditLogs = sqliteTable(
+  "booking_audit_logs",
+  {
+    id: text("id").primaryKey(),
+    bookingId: text("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    groupId: text("group_id")
+      .references(() => groups.id, { onDelete: "cascade" }),
+    actorId: text("actor_id")
+      .references(() => user.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    summary: text("summary").notNull(),
+    metadata: text("metadata", { mode: "json" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_booking_audit_booking_id").on(table.bookingId),
+    index("idx_booking_audit_group_id").on(table.groupId),
+    index("idx_booking_audit_actor_id").on(table.actorId),
+  ]
+);
+
+// Reschedule & Cancellation Tickets
+export const bookingRescheduleTickets = sqliteTable(
+  "booking_reschedule_tickets",
+  {
+    id: text("id").primaryKey(),
+    bookingId: text("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    requestedById: text("requested_by_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    tutorId: text("tutor_id")
+      .references(() => user.id, { onDelete: "set null" }),
+    type: text("type").$type<"reschedule" | "cancellation">().default("reschedule").notNull(),
+    status: text("status").$type<"pending" | "approved" | "rejected">().default("pending").notNull(),
+    reason: text("reason").notNull(),
+    proposedSlotId: text("proposed_slot_id")
+      .references(() => tutorSlots.id, { onDelete: "set null" }),
+    proposedDate: text("proposed_date"),
+    decisionNotes: text("decision_notes"),
+    decidedAt: integer("decided_at", { mode: "timestamp" }),
+    decidedById: text("decided_by_id")
+      .references(() => user.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_reschedule_booking_id").on(table.bookingId),
+    index("idx_reschedule_group_id").on(table.groupId),
+    index("idx_reschedule_status").on(table.status),
+  ]
+);
+
+// Discussion Thread Messages inside Reschedule Tickets
+export const bookingTicketMessages = sqliteTable(
+  "booking_ticket_messages",
+  {
+    id: text("id").primaryKey(),
+    ticketId: text("ticket_id")
+      .notNull()
+      .references(() => bookingRescheduleTickets.id, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    message: text("message").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_ticket_messages_ticket_id").on(table.ticketId),
+    index("idx_ticket_messages_sender_id").on(table.senderId),
+  ]
+);
+
+// Academic Schedules Table (Ujian Resmi ITB, Tryout, Kuis)
+export const academicSchedules = sqliteTable(
+  "academic_schedules",
+  {
+    id: text("id").primaryKey(),
+    type: text("type").$type<"official_exam" | "tryout" | "quiz" | "general">().default("official_exam").notNull(),
+    title: text("title").notNull(),
+    courseId: text("course_id")
+      .references(() => courses.id, { onDelete: "set null" }),
+    description: text("description"),
+    startDate: integer("start_date", { mode: "timestamp" }).notNull(),
+    endDate: integer("end_date", { mode: "timestamp" }),
+    location: text("location"),
+    createdById: text("created_by_id")
+      .references(() => user.id, { onDelete: "set null" }),
+    status: text("status").$type<"published" | "draft" | "archived">().default("published").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_academic_sched_type").on(table.type),
+    index("idx_academic_sched_course_id").on(table.courseId),
+    index("idx_academic_sched_start_date").on(table.startDate),
+  ]
 );
 
 // Relations for tutorCourses
 export const tutorCoursesRelations = relations(tutorCourses, ({ one }) => ({
- tutor: one(user, {
- fields: [tutorCourses.tutorId],
- references: [user.id],
- }),
- course: one(courses, {
- fields: [tutorCourses.courseId],
- references: [courses.id],
- }),
+  tutor: one(user, {
+    fields: [tutorCourses.tutorId],
+    references: [user.id],
+  }),
+  course: one(courses, {
+    fields: [tutorCourses.courseId],
+    references: [courses.id],
+  }),
 }));
 
 // Relations for tutorSlots
-export const tutorSlotsRelations = relations(tutorSlots, ({ one }) => ({
- tutor: one(user, {
- fields: [tutorSlots.tutorId],
- references: [user.id],
- }),
- booking: one(bookings, {
- fields: [tutorSlots.id],
- references: [bookings.slotId],
- }),
+export const tutorSlotsRelations = relations(tutorSlots, ({ one, many }) => ({
+  tutor: one(user, {
+    fields: [tutorSlots.tutorId],
+    references: [user.id],
+  }),
+  booking: one(bookings, {
+    fields: [tutorSlots.id],
+    references: [bookings.slotId],
+  }),
+  proposedTickets: many(bookingRescheduleTickets),
 }));
 
 // Relations for bookings
-export const bookingsRelations = relations(bookings, ({ one }) => ({
- slot: one(tutorSlots, {
- fields: [bookings.slotId],
- references: [tutorSlots.id],
- }),
- student: one(user, {
- fields: [bookings.studentId],
- references: [user.id],
- }),
- course: one(courses, {
- fields: [bookings.courseId],
- references: [courses.id],
- }),
- group: one(groups, {
- fields: [bookings.groupId],
- references: [groups.id],
- }),
+export const bookingsRelations = relations(bookings, ({ one, many }) => ({
+  slot: one(tutorSlots, {
+    fields: [bookings.slotId],
+    references: [tutorSlots.id],
+  }),
+  student: one(user, {
+    fields: [bookings.studentId],
+    references: [user.id],
+  }),
+  lastModifier: one(user, {
+    fields: [bookings.lastModifiedBy],
+    references: [user.id],
+  }),
+  completedBy: one(user, {
+    fields: [bookings.completedById],
+    references: [user.id],
+  }),
+  course: one(courses, {
+    fields: [bookings.courseId],
+    references: [courses.id],
+  }),
+  group: one(groups, {
+    fields: [bookings.groupId],
+    references: [groups.id],
+  }),
+  auditLogs: many(bookingAuditLogs),
+  rescheduleTickets: many(bookingRescheduleTickets),
+}));
+
+// Relations for bookingAuditLogs
+export const bookingAuditLogsRelations = relations(bookingAuditLogs, ({ one }) => ({
+  booking: one(bookings, {
+    fields: [bookingAuditLogs.bookingId],
+    references: [bookings.id],
+  }),
+  group: one(groups, {
+    fields: [bookingAuditLogs.groupId],
+    references: [groups.id],
+  }),
+  actor: one(user, {
+    fields: [bookingAuditLogs.actorId],
+    references: [user.id],
+  }),
+}));
+
+// Relations for bookingRescheduleTickets
+export const bookingRescheduleTicketsRelations = relations(bookingRescheduleTickets, ({ one, many }) => ({
+  booking: one(bookings, {
+    fields: [bookingRescheduleTickets.bookingId],
+    references: [bookings.id],
+  }),
+  group: one(groups, {
+    fields: [bookingRescheduleTickets.groupId],
+    references: [groups.id],
+  }),
+  requestedBy: one(user, {
+    fields: [bookingRescheduleTickets.requestedById],
+    references: [user.id],
+  }),
+  tutor: one(user, {
+    fields: [bookingRescheduleTickets.tutorId],
+    references: [user.id],
+  }),
+  proposedSlot: one(tutorSlots, {
+    fields: [bookingRescheduleTickets.proposedSlotId],
+    references: [tutorSlots.id],
+  }),
+  decidedBy: one(user, {
+    fields: [bookingRescheduleTickets.decidedById],
+    references: [user.id],
+  }),
+  messages: many(bookingTicketMessages),
+}));
+
+// Relations for bookingTicketMessages
+export const bookingTicketMessagesRelations = relations(bookingTicketMessages, ({ one }) => ({
+  ticket: one(bookingRescheduleTickets, {
+    fields: [bookingTicketMessages.ticketId],
+    references: [bookingRescheduleTickets.id],
+  }),
+  sender: one(user, {
+    fields: [bookingTicketMessages.senderId],
+    references: [user.id],
+  }),
+}));
+
+// Relations for academicSchedules
+export const academicSchedulesRelations = relations(academicSchedules, ({ one }) => ({
+  course: one(courses, {
+    fields: [academicSchedules.courseId],
+    references: [courses.id],
+  }),
+  creator: one(user, {
+    fields: [academicSchedules.createdById],
+    references: [user.id],
+  }),
 }));
 
 // ───────────────────────────────────────────────────────────// Enums for AI domain
@@ -2912,6 +3207,7 @@ export const courseMaterials = sqliteTable(
 export const coursesRelations = relations(courses, ({ one, many }) => ({
 	courseMaterials: many(courseMaterials),
 	assessmentSources: many(assessmentSources),
+	groupCourses: many(groupCourses),
 	assessmentProfile: one(assessmentProfiles, {
 		fields: [courses.id],
 		references: [assessmentProfiles.courseId],

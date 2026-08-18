@@ -204,26 +204,26 @@ export function MaterialsTab({
         </h3>
 
         <form onSubmit={handleUpload} className="space-y-3">
-          <div className="flex flex-col md:flex-row md:items-end gap-2.5">
-            <div className="space-y-1 flex-1 min-w-[180px]">
+          <div className="flex flex-wrap sm:flex-nowrap items-end gap-2.5">
+            <div className="space-y-1 min-w-0 flex-1">
               <Label className="text-body-sm font-semibold text-foreground">Judul Dokumen</Label>
               <Input
                 placeholder="Contoh: Modul Kuliah Bab 1 - Limit Fungsi"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={loading}
-                className="h-9 text-body-xs rounded-lg"
+                className="h-9 text-body-sm rounded-lg"
               />
             </div>
 
-            <div className="space-y-1 w-full md:w-52 shrink-0">
+            <div className="space-y-1 w-full sm:w-48 shrink-0">
               <Label className="text-body-sm font-semibold text-foreground">Kategori</Label>
               <Select
                 value={type}
                 onValueChange={(v: "materi_kelas" | "contoh_soal") => setType(v)}
                 disabled={loading}
               >
-                <SelectTrigger className="h-9 text-body-xs rounded-lg">
+                <SelectTrigger className="h-9 text-body-sm rounded-lg">
                   <SelectValue placeholder="Pilih Kategori" />
                 </SelectTrigger>
                 <SelectContent>
@@ -233,7 +233,7 @@ export function MaterialsTab({
               </Select>
             </div>
 
-            <div className="space-y-1 w-full md:w-56 shrink-0">
+            <div className="space-y-1 w-full sm:w-60 shrink-0">
               <Label className="text-body-sm font-semibold text-foreground">Berkas PDF</Label>
               <Input
                 id="course-pdf-input"
@@ -241,29 +241,27 @@ export function MaterialsTab({
                 accept="application/pdf"
                 onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                 disabled={loading}
-                className="cursor-pointer file:rounded-md file:bg-muted file:border-0 file:px-2.5 file:py-0.5 file:text-body-xs file:font-semibold h-9 rounded-lg text-body-xs"
+                className="cursor-pointer file:rounded-md file:bg-muted file:border-0 file:px-2 file:py-0.5 file:text-body-xs file:font-semibold h-9 rounded-lg text-body-xs"
               />
             </div>
 
-            <div className="shrink-0 pt-1 md:pt-0">
+            <div className="shrink-0">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="inline-flex">
-                      <Button
-                        type="submit"
-                        size="icon"
-                        disabled={loading || !title.trim() || selectedChapters.size === 0 || !selectedFile}
-                        className="size-9 rounded-lg font-semibold"
-                        aria-label="Unggah Dokumen PDF"
-                      >
-                        {loading ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <SendHorizontal className="size-4" />
-                        )}
-                      </Button>
-                    </span>
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={loading || !title.trim() || selectedChapters.size === 0 || !selectedFile}
+                      className="size-9 rounded-lg font-semibold shrink-0"
+                      aria-label="Unggah Dokumen PDF"
+                    >
+                      {loading ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <SendHorizontal className="size-4" />
+                      )}
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
                     Unggah Dokumen PDF

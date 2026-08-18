@@ -97,31 +97,44 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 
 ### groups
 * `id`
-* `courseId`
-* `name`: Cohort or class name (e.g. Class A, Cohort 2026).
+* `name`: Study group name (e.g. Kelompok Belajar Alpha).
+* `packageType`: Package tier ("reguler_15", "intensif_30", "super_intensif_45", "custom").
+* `packageName`: Display package label (e.g. Paket Reguler (15 Sesi)).
+* `totalQuotaSessions`: Total meeting quota per semester (default 15).
+* `usedQuotaSessions`: Total meeting sessions used in the current semester (default 0).
+* `academicYear`: Academic year string (e.g. 2026/2027).
+* `semester`: Active semester label (e.g. Ganjil, Genap, Pendek).
+* `startDate`: Semester start timestamp.
+* `endDate`: Semester end timestamp.
+* `status`: Group lifecycle status ("active", "completed", "inactive", "archived").
+* `notes`: Administrative notes and context.
 * `createdAt`
 * `updatedAt`
 
+### groupCourses
+* `id`
+* `groupId`: Foreign key to `groups.id`.
+* `courseId`: Foreign key to `courses.id`.
+* `createdAt`
+
 ### groupMembers
 * `id`
-* `groupId`
-* `userId`
-* `createdAt`
+* `groupId`: Foreign key to `groups.id`.
+* `userId`: Foreign key to `user.id`.
+* `role`: Member role within the group ("leader", "member").
+* `joinedAt`
 
 ### enrollmentTokens
 * `id`
 * `groupId`
 * `token`: Pre-generated unique registration token.
 * `capacity`: Maximum number of times the token can be claimed.
-* `claimsCount`: Total claims made so far.
-* `expiresAt`: Date after which the token becomes invalid.
 * `createdAt`
-* `updatedAt`
+* `expiresAt`: Date after which the token becomes invalid.
 
 ### enrollmentTokenCourses
-* `id`
-* `token`
-* `courseId`
+* `tokenId`: Foreign key to `enrollment_tokens.id`.
+* `courseId`: Foreign key to `courses.id`.
 
 ---
 
@@ -135,17 +148,88 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 ### tutorSlots
 * `id`
 * `tutorId`
-* `dayOfWeek`: Day index (0 = Sunday, 6 = Saturday) of availability.
-* `startTime`: Time string representing session start (e.g. "09:00").
-* `endTime`: Time string representing session end (e.g. "10:00").
+* `dayOfWeek`: Day name ('Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu').
+* `startTime`: Session start time in HH:MM format (e.g. "09:00").
+* `endTime`: Session end time in HH:MM format (e.g. "10:30", 90 minutes).
+* `mode`: 'online' or 'offline'.
+* `location`: Physical room or branch location when offline.
+* `sessionDate`: Optional explicit ISO date string (YYYY-MM-DD).
+* `createdAt`
 
 ### bookings
 * `id`
-* `studentId`
-* `tutorId`
-* `slotId`
-* `bookingDate`: Target date string (yyyy-mm-dd) of the appointment.
+* `slotId`: Unique reference to booked tutor slot (FCFS per slot).
+* `studentId`: Student user ID who initiated the booking.
+* `courseId`: Course associated with the session.
+* `groupId`: Study group that owns the booking.
+* `status`: 'scheduled', 'completed', 'cancelled', or 'rescheduled'.
+* `sessionDate`: Exact session date (YYYY-MM-DD).
+* `startTime`: Session start time (HH:MM).
+* `endTime`: Session end time (HH:MM).
+* `mode`: 'online' or 'offline'.
+* `location`: Offline physical venue description.
+* `googleMeetUrl`: Automated Google Meet session URL for online sessions.
+* `googleMeetSpaceName`: Google Meet space resource identifier.
+* `lastModifiedBy`: User ID of the student/tutor who last modified the booking.
+* `lastModifiedAt`: Timestamp of last modification for audit banner.
+* `topic`: Discussion topic submitted by students before the session.
+* `preSessionNotes`: Question notes entered by group members.
+* `preSessionAttachments`: JSON array of problem files (PDF, images) with uploader identity and timestamp.
+* `postSessionNotes`: Tutor summary and recap notes.
+* `postSessionAttachments`: JSON array of tutor notes (handwritten photo notes or PDF files).
+* `postSessionLinkUrl`: External learning material link URL.
+* `postSessionLinkTitle`: External link title.
+* `postSessionLinkDescription`: External link summary description.
+* `postSessionLinkImage`: External link preview image.
+* `completedAt`: Timestamp when marked complete by tutor.
+* `completedById`: Tutor user ID who marked the session completed.
+* `bookedAt`: Initial creation timestamp.
+
+### bookingAuditLogs
+* `id`
+* `bookingId`: Reference to `bookings`.
+* `groupId`: Reference to `groups`.
+* `actorId`: Reference to `user` (student, tutor, or admin).
+* `action`: Action type ('BOOK_CREATED', 'SLOT_MOVED', 'TOPIC_UPDATED', 'ATTACHMENT_UPLOADED', 'RESCHEDULE_REQUESTED', 'RESCHEDULE_APPROVED', 'RESCHEDULE_REJECTED', 'BOOKING_CANCELLED', 'SESSION_COMPLETED', 'NOTES_ADDED').
+* `summary`: Human-readable activity sentence.
+* `metadata`: JSON payload containing action details.
 * `createdAt`
+
+### bookingRescheduleTickets
+* `id`
+* `bookingId`: Reference to `bookings`.
+* `groupId`: Reference to `groups`.
+* `requestedById`: Student user ID who requested the ticket.
+* `tutorId`: Tutor user ID.
+* `type`: 'reschedule' or 'cancellation'.
+* `status`: 'pending', 'approved', or 'rejected'.
+* `reason`: Reason submitted by the student group.
+* `proposedSlotId`: Target new slot requested.
+* `proposedDate`: Target new date requested.
+* `decisionNotes`: Notes provided by the tutor upon approval or rejection.
+* `decidedAt`: Timestamp of decision.
+* `decidedById`: User ID of the decider.
+* `createdAt`, `updatedAt`
+
+### bookingTicketMessages
+* `id`
+* `ticketId`: Reference to `bookingRescheduleTickets`.
+* `senderId`: Reference to `user`.
+* `message`: Text content of discussion message.
+* `createdAt`
+
+### academicSchedules
+* `id`
+* `type`: 'official_exam', 'tryout', 'quiz', or 'general'.
+* `title`: Title of the academic event (e.g. "UTS Kalkulus 1 ITB").
+* `courseId`: Optional reference to `courses`.
+* `description`: Academic event description.
+* `startDate`: Start timestamp.
+* `endDate`: End timestamp.
+* `location`: Venue or meeting link.
+* `createdById`: Admin user ID who created the event.
+* `status`: 'published', 'draft', or 'archived'.
+* `createdAt`, `updatedAt`
 
 ---
 

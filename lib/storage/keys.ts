@@ -192,3 +192,20 @@ export function buildCourseThumbnailKey(params: {
     `${slugifySegment(params.materialId, "material")}.${ext}`
   );
 }
+
+/**
+ * Schedule session attachment object key: `schedules/{bookingId}/{type}/{leaf}`.
+ * type is either 'pre_session' (student questions/materials) or 'post_session' (tutor notes/handouts).
+ */
+export function buildScheduleAttachmentKey(params: {
+  bookingId: string;
+  type: "pre_session" | "post_session";
+  filename: string;
+}): string {
+  return joinKey(
+    "schedules",
+    slugifySegment(params.bookingId, "booking"),
+    params.type,
+    userFileLeaf(params.filename)
+  );
+}

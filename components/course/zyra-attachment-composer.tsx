@@ -17,6 +17,7 @@ interface ZyraAttachmentComposerProps {
   courseId: string;
   sessionId: string;
   disabled?: boolean;
+  hideStandaloneTrigger?: boolean;
   onAttachmentIdsChange: (ids: string[]) => void;
   onAttachmentsChange?: (attachments: ZyraMessageAttachment[]) => void;
   onAttachmentsReadyChange?: (ready: boolean) => void;
@@ -24,6 +25,7 @@ interface ZyraAttachmentComposerProps {
 
 export interface ZyraAttachmentComposerHandle {
   addFiles: (files: readonly File[]) => void;
+  openFileDialog: () => void;
 }
 
 function setItemStatus(
@@ -38,6 +40,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
   courseId,
   sessionId,
   disabled = false,
+  hideStandaloneTrigger = false,
   onAttachmentIdsChange,
   onAttachmentsChange,
   onAttachmentsReadyChange,
@@ -114,7 +117,10 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
     newItems.forEach((item) => { void uploadItem(item); });
   }, [items, uploadItem]);
 
-  React.useImperativeHandle(ref, () => ({ addFiles }), [addFiles]);
+  React.useImperativeHandle(ref, () => ({
+    addFiles,
+    openFileDialog: () => inputRef.current?.click(),
+  }), [addFiles]);
 
   const removeItem = async (item: PendingZyraImage) => {
     if (item.attachmentId) {
@@ -144,72 +150,75 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
 
   return (
     <div
-      className="space-y-2"
+      className={cn("space-y-1.5", items.length === 0 && hideStandaloneTrigger && !composerError && "hidden")}
       onPaste={handlePaste}
       onDragOver={(event) => event.preventDefault()}
       onDrop={handleDrop}
     >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="environment"
+        multiple
+        className="sr-only"
+        onChange={(event) => {
+          addFiles(Array.from(event.target.files ?? []));
+          event.currentTarget.value = "";
+        }}
+        disabled={disabled}
+      />
+
       {items.length > 0 && (
-        <div className="flex flex-wrap gap-2" aria-label="Lampiran gambar">
+        <div className="flex flex-wrap gap-1.5" aria-label="Lampiran gambar">
           {items.map((item) => (
-            <div key={item.key} className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 p-1.5">
+            <div key={item.key} className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/60 px-2 py-1">
               {previews[item.key] ? (
                 <Image
                   src={previews[item.key]}
                   alt={`Pratinjau ${item.name}`}
-                  width={40}
-                  height={40}
+                  width={32}
+                  height={32}
                   unoptimized
-                  className="size-10 rounded-md object-cover"
+                  className="size-7 rounded object-cover"
                 />
               ) : (
-                <ImageIcon className="size-8 p-1 text-muted-foreground" aria-hidden="true" />
+                <ImageIcon className="size-6 p-0.5 text-muted-foreground" aria-hidden="true" />
               )}
-              <span className="max-w-32 truncate text-body-xs text-foreground">{item.name}</span>
-              {item.status === "uploading" && <span className="size-4 animate-pulse rounded-md bg-muted-foreground/35" aria-label="Mengunggah" />}
+              <span className="max-w-28 truncate text-body-xs font-medium text-foreground">{item.name}</span>
+              {item.status === "uploading" && <span className="size-3 animate-pulse rounded bg-muted-foreground/35" aria-label="Mengunggah" />}
               {item.status === "failed" && (
-                <Button type="button" variant="ghost" size="icon-xs" onClick={() => retryItem(item)} aria-label={`Coba lagi ${item.name}`}>
-                  <RotateCcw className="size-3.5" />
+                <Button type="button" variant="ghost" size="icon-xs" onClick={() => retryItem(item)} aria-label={`Coba lagi ${item.name}`} className="size-5">
+                  <RotateCcw className="size-3" />
                 </Button>
               )}
-              {item.status === "failed" && <span className="inline-flex items-center gap-1 text-body-xs text-status-error"><AlertCircle className="size-4" aria-hidden="true" />Gagal</span>}
-              <Button type="button" variant="ghost" size="icon-xs" onClick={() => void removeItem(item)} aria-label={`Hapus ${item.name}`}>
-                <X className="size-3.5" />
+              {item.status === "failed" && <span className="inline-flex items-center gap-0.5 text-[11px] text-status-error font-medium"><AlertCircle className="size-3" aria-hidden="true" />Gagal</span>}
+              <Button type="button" variant="ghost" size="icon-xs" onClick={() => void removeItem(item)} aria-label={`Hapus ${item.name}`} className="size-5 text-muted-foreground hover:text-foreground">
+                <X className="size-3" />
               </Button>
             </div>
           ))}
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          capture="environment"
-          multiple
-          className="sr-only"
-          onChange={(event) => {
-            addFiles(Array.from(event.target.files ?? []));
-            event.currentTarget.value = "";
-          }}
-          disabled={disabled}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => inputRef.current?.click()}
-          disabled={disabled || items.length >= 4}
-          className={cn("text-muted-foreground", items.length >= 4 && "hidden")}
-          aria-label="Tambahkan gambar"
-        >
-          <Paperclip className="size-4" />
-          Gambar
-        </Button>
-        <span className="text-body-xs text-muted-foreground">Unggah atau tempel gambar dengan Ctrl+V, maksimal 4</span>
-      </div>
-      {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-4 shrink-0" aria-hidden="true" />{composerError}</p>}
+      {!hideStandaloneTrigger && (
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+            disabled={disabled || items.length >= 4}
+            className={cn("text-muted-foreground", items.length >= 4 && "hidden")}
+            aria-label="Tambahkan gambar"
+          >
+            <Paperclip className="size-4" />
+            Gambar
+          </Button>
+          <span className="text-body-xs text-muted-foreground">Unggah atau tempel gambar dengan Ctrl+V, maksimal 4</span>
+        </div>
+      )}
+      {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />{composerError}</p>}
     </div>
   );
 });

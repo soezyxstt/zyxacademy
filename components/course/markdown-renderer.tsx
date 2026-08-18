@@ -96,7 +96,7 @@ function parseInline(text: string): ReactNode[] {
       result.push(
         <span
           key={`mathblk-${index}`}
-          className="my-3 block overflow-x-auto overflow-y-hidden py-1.5 text-center"
+          className="my-2 block overflow-x-auto overflow-y-hidden py-1 text-left"
           dangerouslySetInnerHTML={{ __html: renderMath(content, true) }}
         />
       );

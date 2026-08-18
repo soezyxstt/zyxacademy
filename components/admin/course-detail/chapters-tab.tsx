@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import {
   saveChapter,
   deleteChapter,
@@ -21,6 +23,8 @@ import {
   ArrowDown,
   Loader2,
   BookOpen,
+  FileText,
+  Library,
 } from "lucide-react";
 import {
   Dialog,
@@ -41,17 +45,39 @@ type Chapter = {
   status?: string | null;
 };
 
+type UploadedMaterial = {
+  id: string;
+  chapterIds: any;
+};
+
+type QuestionItem = {
+  id: string;
+  chapterId?: string | null;
+};
+
 type Props = {
   courseId: string;
   courseTitle: string;
   initialChapters: Chapter[];
+  materials?: UploadedMaterial[];
+  questions?: QuestionItem[];
 };
 
-export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapters }: Props) {
+export function ChaptersTab({
+  courseId,
+  courseTitle: _courseTitle,
+  initialChapters,
+  materials = [],
+  questions = [],
+}: Props) {
   const router = useRouter();
   const [chapters, setChapters] = useState<Chapter[]>(initialChapters);
   const [loading, setLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setChapters(initialChapters);
+  }, [initialChapters]);
 
   // New Chapter Form
   const [newTitle, setNewTitle] = useState("");
@@ -215,79 +241,135 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden divide-y divide-border/50">
-            {chapters.map((ch, idx) => (
-              <div
-                key={ch.id}
-                className="flex items-center justify-between p-2.5 sm:px-3.5 sm:py-2.5 hover:bg-muted/10 transition-colors gap-2.5"
-              >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-primary/10 text-brand-primary font-heading font-bold text-body-xs">
-                    {idx + 1}
-                  </div>
-                  <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
-                    <p className="text-body-xs font-semibold text-foreground truncate">
-                      {ch.title}
-                    </p>
-                    {ch.description && (
-                      <span className="text-body-xs text-muted-foreground truncate max-w-md hidden sm:inline">
-                        · {ch.description}
-                      </span>
-                    )}
-                  </div>
-                </div>
+          <AdminTable>
+            <table className="w-full text-left text-body-xs">
+              <AdminTableHead>
+                <tr>
+                  <th className="px-3.5 py-2 w-20 text-center">Urutan</th>
+                  <th className="px-3.5 py-2">Judul Silabus &amp; Bab</th>
+                  <th className="px-3.5 py-2 w-56">Konten Terkait</th>
+                  <th className="px-3.5 py-2 w-24 text-center">Posisi</th>
+                  <th className="px-3.5 py-2 w-20 text-right">Aksi</th>
+                </tr>
+              </AdminTableHead>
+              <tbody className="divide-y divide-border/50">
+                {chapters.map((ch, idx) => {
+                  const linkedMaterials = materials.filter((m) => {
+                    const ids = Array.isArray(m.chapterIds)
+                      ? m.chapterIds
+                      : typeof m.chapterIds === "string"
+                      ? JSON.parse(m.chapterIds || "[]")
+                      : [];
+                    return ids.includes(ch.id);
+                  }).length;
 
-                <div className="flex items-center justify-end gap-1 shrink-0">
-                  {/* Reorder Buttons */}
-                  <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-md border border-border/40">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="size-6 rounded"
-                      disabled={idx === 0 || actionLoadingId === ch.id}
-                      onClick={() => handleMove(idx, "up")}
-                      title="Pindah ke Atas"
-                    >
-                      <ArrowUp className="size-3" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="size-6 rounded"
-                      disabled={idx === chapters.length - 1 || actionLoadingId === ch.id}
-                      onClick={() => handleMove(idx, "down")}
-                      title="Pindah ke Bawah"
-                    >
-                      <ArrowDown className="size-3" />
-                    </Button>
-                  </div>
+                  const linkedQuestions = questions.filter((q) => q.chapterId === ch.id).length;
 
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="size-7 rounded-md"
-                    onClick={() => startEditChapter(ch)}
-                    title="Edit Bab"
-                  >
-                    <Edit2 className="size-3" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeletingChapter(ch)}
-                    title="Hapus Bab"
-                  >
-                    <Trash2 className="size-3" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+                  return (
+                    <tr key={ch.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-3.5 py-2.5 text-center">
+                        <Badge
+                          variant="outline"
+                          className="font-mono font-bold text-body-xs px-2 py-0.5 rounded-md bg-muted/40"
+                        >
+                          Bab {ch.orderIndex}
+                        </Badge>
+                      </td>
+                      <td className="px-3.5 py-2.5">
+                        <div className="space-y-0.5">
+                          <p className="font-semibold text-foreground text-body-sm">
+                            {ch.title}
+                          </p>
+                          {ch.description && (
+                            <p className="text-body-xs text-muted-foreground line-clamp-1">
+                              {ch.description}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3.5 py-2.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {linkedMaterials > 0 && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] gap-1 px-1.5 py-0.5 rounded-md font-medium"
+                            >
+                              <FileText className="size-3 text-brand-secondary" />
+                              <span>{linkedMaterials} Dokumen</span>
+                            </Badge>
+                          )}
+                          {linkedQuestions > 0 && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] gap-1 px-1.5 py-0.5 rounded-md font-medium"
+                            >
+                              <Library className="size-3 text-brand-primary" />
+                              <span>{linkedQuestions} Soal</span>
+                            </Badge>
+                          )}
+                          {linkedMaterials === 0 && linkedQuestions === 0 && (
+                            <span className="text-muted-foreground/60 text-body-xs">
+                              0 materi terkait
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-center">
+                        <div className="inline-flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-md border border-border/40">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-6 rounded"
+                            disabled={idx === 0 || actionLoadingId === ch.id}
+                            onClick={() => handleMove(idx, "up")}
+                            title="Pindah ke Atas"
+                          >
+                            <ArrowUp className="size-3" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-6 rounded"
+                            disabled={idx === chapters.length - 1 || actionLoadingId === ch.id}
+                            onClick={() => handleMove(idx, "down")}
+                            title="Pindah ke Bawah"
+                          >
+                            <ArrowDown className="size-3" />
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-7 rounded-md hover:bg-muted"
+                            onClick={() => startEditChapter(ch)}
+                            title="Edit Bab"
+                          >
+                            <Edit2 className="size-3" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeletingChapter(ch)}
+                            title="Hapus Bab"
+                          >
+                            <Trash2 className="size-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </AdminTable>
         )}
       </div>
 

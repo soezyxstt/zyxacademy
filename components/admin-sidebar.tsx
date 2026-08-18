@@ -27,6 +27,7 @@ import {
   Target,
   UserCheck,
   UserCog,
+  Users,
   FilePen,
   Settings,
   Gauge,
@@ -81,6 +82,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
 
   // Akademik & Konten
   { id: "courses", label: "Mata Kuliah", href: "/admin/courses", icon: GraduationCap, group: "akademik" },
+  { id: "schedules", label: "Jadwal & Kalender", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
   { id: "materials-review", label: "Review Materi", href: "/admin/materials/review", icon: ClipboardCheck, group: "akademik" },
   { id: "materials-manual", label: "Upload Manual", href: "/admin/materials/manual", icon: Upload, group: "akademik" },
 
@@ -98,6 +100,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "tautan", label: "Tautan Publik", href: "/admin/tautan", icon: LinkIcon, group: "alat" },
 
   // Pengguna & Akses
+  { id: "groups", label: "Kelompok Belajar", href: "/admin/groups", icon: Users, group: "pengguna" },
   { id: "tokens", label: "Token Aktivasi", href: "/admin/tokens", icon: KeyRound, group: "pengguna" },
   { id: "notifications", label: "Push Notification", href: "/admin/notifications", icon: Bell, group: "pengguna" },
 

@@ -173,6 +173,8 @@ export function CourseDetailClient({
             courseId={course.id}
             courseTitle={course.title}
             initialChapters={chapters}
+            materials={materials}
+            questions={questions}
           />
         </AdminTabsContent>
 

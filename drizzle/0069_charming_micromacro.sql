@@ -15,8 +15,4 @@ CREATE TABLE `search_documents` (
 CREATE INDEX `idx_search_documents_entity` ON `search_documents` (`entity_type`,`entity_id`);--> statement-breakpoint
 CREATE INDEX `idx_search_documents_synced` ON `search_documents` (`is_synced`);--> statement-breakpoint
 CREATE INDEX `idx_search_documents_min_role` ON `search_documents` (`min_role`);--> statement-breakpoint
-CREATE INDEX `idx_search_documents_course` ON `search_documents` (`course_id`);--> statement-breakpoint
-ALTER TABLE `ai_material_instances` ADD `thumbnail_url` text;--> statement-breakpoint
-ALTER TABLE `course_materials` ADD `thumbnail_url` text;--> statement-breakpoint
-ALTER TABLE `diktats` ADD `thumbnail_url` text;--> statement-breakpoint
-ALTER TABLE `website_materials` ADD `thumbnail_url` text;
+CREATE INDEX `idx_search_documents_course` ON `search_documents` (`course_id`);

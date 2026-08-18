@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
-import { enrollmentTokens, courses, groups, enrollmentTokenCourses } from "@/db/schema";
+import { enrollmentTokens, courses, groups, enrollmentTokenCourses, groupCourses } from "@/db/schema";
 import { assertAdmin } from "@/lib/uploadthing-admin";
 import { eq, desc, inArray } from "drizzle-orm";
 import { getSemesterEndDate } from "@/lib/utils";
+import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
 
 /**
  * Get all enrollment tokens for the admin panel
@@ -64,7 +65,11 @@ export async function getEnrollmentTokens() {
 /**
  * Generate a new enrollment token for multiple courses and group size capacity
  */
-export async function generateEnrollmentToken(courseIds: string[], capacity: number) {
+export async function generateEnrollmentToken(
+  courseIds: string[],
+  capacity: number,
+  packageType: PackageType = "reguler_15"
+) {
   await assertAdmin();
 
   if (!courseIds || courseIds.length === 0) {
@@ -84,8 +89,11 @@ export async function generateEnrollmentToken(courseIds: string[], capacity: num
     return { success: false, error: "Satu atau lebih course tidak ditemukan" };
   }
 
+  const now = new Date();
   // Calculate semester end date
-  const expiresAt = getSemesterEndDate(new Date());
+  const expiresAt = getSemesterEndDate(now);
+
+  const preset = PACKAGE_PRESETS[packageType] || PACKAGE_PRESETS.reguler_15;
 
   // Generate unique 8 alphanumeric characters
   const unique8 = randomUUID().split("-")[0].toUpperCase();
@@ -95,11 +103,21 @@ export async function generateEnrollmentToken(courseIds: string[], capacity: num
 
   try {
     await db.transaction(async (tx) => {
-      // 1. Create a dedicated group
+      // 1. Create a dedicated group with package configuration
       const groupId = randomUUID();
       await tx.insert(groups).values({
         id: groupId,
         name: `Kelompok Token ${token}`,
+        packageType,
+        packageName: preset.name,
+        totalQuotaSessions: preset.quota,
+        usedQuotaSessions: 0,
+        academicYear: "2026/2027",
+        semester: "Ganjil",
+        startDate: now,
+        endDate: expiresAt,
+        status: "active",
+        createdAt: now,
       });
 
       // 2. Create the token
@@ -110,18 +128,28 @@ export async function generateEnrollmentToken(courseIds: string[], capacity: num
         groupId,
         capacity,
         expiresAt,
+        createdAt: now,
       });
 
-      // 3. Link courses
+      // 3. Link courses to token and group
       for (const courseId of courseIds) {
         await tx.insert(enrollmentTokenCourses).values({
           tokenId,
           courseId,
         });
+
+        await tx.insert(groupCourses).values({
+          id: randomUUID(),
+          groupId,
+          courseId,
+          createdAt: now,
+        });
       }
     });
 
     revalidatePath("/admin/tokens");
+    revalidatePath("/admin/groups");
+    revalidatePath("/dashboard/groups");
     return { success: true, token };
   } catch (err: any) {
     console.error("Failed to generate enrollment token:", err);
@@ -141,11 +169,13 @@ export async function deleteEnrollmentToken(tokenId: string) {
     });
 
     if (tokenRecord) {
-      // Deleting the group will cascade to the token and course links
+      // Deleting the group will cascade to the token, courses, and bookings
       await db.delete(groups).where(eq(groups.id, tokenRecord.groupId));
     }
 
     revalidatePath("/admin/tokens");
+    revalidatePath("/admin/groups");
+    revalidatePath("/dashboard/groups");
     return { success: true };
   } catch (err: any) {
     console.error("Failed to delete token:", err);

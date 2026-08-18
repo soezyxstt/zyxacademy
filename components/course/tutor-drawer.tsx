@@ -28,7 +28,14 @@ import {
   GripVertical,
   HelpCircle,
   Lightbulb,
+  Paperclip,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   explainConceptAction,
   analyzeMistakeAction,
@@ -94,10 +101,8 @@ export function useTutor() {
   return context;
 }
 
-const MIN_SIDEBAR_WIDTH = 360;
-const DEFAULT_SIDEBAR_WIDTH = 500;
-const WIDE_SIDEBAR_WIDTH = 720;
-const COMPACT_SIDEBAR_WIDTH = 380;
+const MIN_SIDEBAR_WIDTH = 340;
+const DEFAULT_SIDEBAR_WIDTH = 520;
 const STORAGE_KEY_WIDTH = "zyra_tutor_sidebar_width";
 
 export function TutorProvider({ children }: { children: React.ReactNode }) {
@@ -236,14 +241,6 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
   const toggleExpand = React.useCallback(() => {
     setIsExpanded((prev) => !prev);
-  }, []);
-
-  const handleSetPresetWidth = React.useCallback((width: number) => {
-    setIsExpanded(false);
-    setSidebarWidth(width);
-    try {
-      localStorage.setItem(STORAGE_KEY_WIDTH, String(width));
-    } catch {}
   }, []);
 
   const openChat = React.useCallback(async () => {
@@ -644,17 +641,20 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           {/* Drag-to-Resize Handle */}
           <div
             onMouseDown={startResize}
-            onDoubleClick={() => handleSetPresetWidth(sidebarWidth > 600 ? DEFAULT_SIDEBAR_WIDTH : WIDE_SIDEBAR_WIDTH)}
+            onDoubleClick={toggleExpand}
             role="separator"
             aria-orientation="vertical"
             aria-label="Ubah lebar sidebar Zyra"
-            title="Seret untuk mengubah lebar atau klik dua kali untuk beralih mode lebar"
+            title="Seret ke kiri/kanan untuk mengubah lebar, atau klik dua kali untuk layar penuh"
             className={cn(
-              "absolute left-0 top-0 bottom-0 z-50 w-2 cursor-col-resize select-none group hidden md:flex items-center justify-center -translate-x-1 hover:bg-brand-primary/20 transition-colors",
-              isDragging && "bg-brand-primary/30"
+              "absolute left-0 top-0 bottom-0 z-50 w-3 cursor-col-resize select-none group hidden md:flex items-center justify-center -translate-x-1.5 hover:bg-brand-primary/20 transition-colors",
+              isDragging && "bg-brand-primary/30 w-4 -translate-x-2"
             )}
           >
-            <div className="h-8 w-1 rounded-full bg-border group-hover:bg-brand-primary transition-colors flex items-center justify-center">
+            <div className={cn(
+              "h-12 w-1 rounded-full bg-border/80 group-hover:bg-brand-primary transition-all flex items-center justify-center",
+              isDragging && "bg-brand-primary h-16 w-1.5"
+            )}>
               <GripVertical className="size-3 text-muted-foreground group-hover:text-white" />
             </div>
           </div>
@@ -662,7 +662,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           {/* Top Header & Ergonomic Activity Rail */}
           <div className="flex flex-col border-b border-border/80 bg-muted/30 shrink-0">
             {/* Top Row: Brand, Capabilities, Controls */}
-            <div className="flex items-center justify-between px-4 py-3 gap-2">
+            <div className="flex items-center justify-between px-3.5 py-2.5 gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 {caps.pet ? (
                   <ZyraPet state={petState} />
@@ -676,7 +676,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                     <span className="font-heading text-body-sm font-bold text-foreground truncate">
                       Zyra
                     </span>
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-sans font-medium rounded">
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 font-sans font-medium rounded-md bg-brand-primary/10 text-brand-primary border-brand-primary/25">
                       Asisten Belajar
                     </Badge>
                   </div>
@@ -688,43 +688,6 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
               {/* Window Controls */}
               <div className="flex items-center gap-1 shrink-0">
-                {/* Width Presets (Desktop) */}
-                <div className="hidden lg:flex items-center bg-background/80 border border-border rounded-lg p-0.5 mr-1 text-[10px] font-medium text-muted-foreground">
-                  <button
-                    type="button"
-                    onClick={() => handleSetPresetWidth(COMPACT_SIDEBAR_WIDTH)}
-                    title="Lebar Ramping (380px)"
-                    className={cn(
-                      "px-1.5 py-0.5 rounded transition-colors",
-                      !isExpanded && sidebarWidth <= 420 ? "bg-muted text-foreground font-bold" : "hover:text-foreground"
-                    )}
-                  >
-                    380
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetPresetWidth(DEFAULT_SIDEBAR_WIDTH)}
-                    title="Lebar Standar (500px)"
-                    className={cn(
-                      "px-1.5 py-0.5 rounded transition-colors",
-                      !isExpanded && sidebarWidth > 420 && sidebarWidth < 650 ? "bg-muted text-foreground font-bold" : "hover:text-foreground"
-                    )}
-                  >
-                    500
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetPresetWidth(WIDE_SIDEBAR_WIDTH)}
-                    title="Lebar Luas (720px)"
-                    className={cn(
-                      "px-1.5 py-0.5 rounded transition-colors",
-                      !isExpanded && sidebarWidth >= 650 ? "bg-muted text-foreground font-bold" : "hover:text-foreground"
-                    )}
-                  >
-                    720
-                  </button>
-                </div>
-
                 <Button
                   variant="ghost"
                   size="icon-xs"
@@ -770,105 +733,6 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                   <X className="size-4" />
                 </Button>
               </div>
-            </div>
-
-            {/* Socratic Learning Modes Activity Rail */}
-            <div className="flex items-center gap-1 px-3 pb-2 overflow-x-auto no-scrollbar">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveMode("chat");
-                  setActiveAction("none");
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body-xs font-medium transition-colors whitespace-nowrap",
-                  activeMode === "chat" && activeAction === "none"
-                    ? "bg-brand-primary text-white shadow-xs"
-                    : "bg-background/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60"
-                )}
-              >
-                <MessageSquare className="size-3.5" />
-                <span>Tanya</span>
-              </button>
-
-              {caps.explain && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveMode("explain");
-                    setActiveAction("none");
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body-xs font-medium transition-colors whitespace-nowrap",
-                    activeMode === "explain" && activeAction === "none"
-                      ? "bg-brand-primary text-white shadow-xs"
-                      : "bg-background/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60"
-                  )}
-                >
-                  <Lightbulb className="size-3.5" />
-                  <span>Konsep</span>
-                </button>
-              )}
-
-              {caps.mistake && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveMode("mistake");
-                    setActiveAction("none");
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body-xs font-medium transition-colors whitespace-nowrap",
-                    activeMode === "mistake" && activeAction === "none"
-                      ? "bg-brand-primary text-white shadow-xs"
-                      : "bg-background/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60"
-                  )}
-                >
-                  <Search className="size-3.5" />
-                  <span>Analisis</span>
-                </button>
-              )}
-
-              {caps.studyPlan && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveMode("study-plan");
-                    setActiveAction("none");
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body-xs font-medium transition-colors whitespace-nowrap",
-                    activeMode === "study-plan" && activeAction === "none"
-                      ? "bg-brand-primary text-white shadow-xs"
-                      : "bg-background/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60"
-                  )}
-                >
-                  <Target className="size-3.5" />
-                  <span>Rencana</span>
-                </button>
-              )}
-
-              {caps.microApps && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (koId) {
-                      handleLaunchFlashcards(koId);
-                    } else {
-                      toast.info("Pilih konsep atau mulai kuis untuk membuka modul hafalan.");
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body-xs font-medium transition-colors whitespace-nowrap",
-                    activeAction !== "none"
-                      ? "bg-brand-secondary text-white shadow-xs"
-                      : "bg-background/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60"
-                  )}
-                >
-                  <Layers className="size-3.5" />
-                  <span>Latihan Kilat</span>
-                </button>
-              )}
             </div>
           </div>
 
@@ -986,14 +850,11 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
                       {/* Socratic Accelerator Follow-up Chips on latest AI message */}
                       {isLatestAssistant && activeMode === "chat" && !chatLoading && (
-                        <div className="mt-3 pt-3 border-t border-border/50 flex flex-wrap gap-1.5" aria-label="Aksi belajar lanjutan">
-                          <span className="w-full text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                            Eksplorasi Lanjutan
-                          </span>
+                        <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar" aria-label="Aksi belajar lanjutan">
                           <button
                             type="button"
                             onClick={() => void handleSend("Berikan contoh soal serupa dan tuntun aku langkah demi langkah.")}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-xs font-medium text-foreground hover:bg-muted transition-colors"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/70 bg-background/90 px-2.5 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 hover:border-brand-primary/40 transition-colors shadow-2xs"
                           >
                             <Sparkles className="size-3 text-brand-primary" />
                             <span>Contoh Soal</span>
@@ -1001,7 +862,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                           <button
                             type="button"
                             onClick={() => void handleSend("Uji pemahamanku dengan 1 pertanyaan konsep singkat tanpa memberi kunci jawaban langsung.")}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-xs font-medium text-foreground hover:bg-muted transition-colors"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/70 bg-background/90 px-2.5 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 hover:border-brand-primary/40 transition-colors shadow-2xs"
                           >
                             <HelpCircle className="size-3 text-brand-secondary" />
                             <span>Uji Pemahaman</span>
@@ -1009,10 +870,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                           <button
                             type="button"
                             onClick={() => void handleSend("Jelaskan dengan analogi sehari-hari yang mudah dibayangkan.")}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-xs font-medium text-foreground hover:bg-muted transition-colors"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/70 bg-background/90 px-2.5 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 hover:border-brand-primary/40 transition-colors shadow-2xs"
                           >
                             <Compass className="size-3 text-brand-primary" />
-                            <span>Analogi Sederhana</span>
+                            <span>Analogi</span>
                           </button>
                         </div>
                       )}
@@ -1137,56 +998,91 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
           {/* Multiline Socratic Input Composer */}
           {messages.length > 0 && activeAction === "none" && (
-            <div className="p-3 md:p-4 border-t border-border/80 bg-background shrink-0 select-text space-y-2">
-              {imageInputEnabled && sessionId && courseIdFromPath && (
-                <ZyraAttachmentComposer
-                  key={attachmentComposerKey}
-                  ref={attachmentComposerRef}
-                  courseId={courseIdFromPath}
-                  sessionId={sessionId}
-                  disabled={chatLoading}
-                  onAttachmentIdsChange={setAttachmentIds}
-                  onAttachmentsChange={setReadyAttachments}
-                  onAttachmentsReadyChange={setAttachmentsReady}
-                />
-              )}
+            <div className="p-2.5 sm:p-3 border-t border-border/80 bg-background shrink-0 select-text">
+              <div className="relative flex flex-col gap-1.5 bg-muted/40 border border-border/80 focus-within:border-brand-primary/80 focus-within:ring-1 focus-within:ring-brand-primary/30 rounded-xl p-2 transition-all">
+                {imageInputEnabled && sessionId && courseIdFromPath && (
+                  <ZyraAttachmentComposer
+                    key={attachmentComposerKey}
+                    ref={attachmentComposerRef}
+                    courseId={courseIdFromPath}
+                    sessionId={sessionId}
+                    disabled={chatLoading}
+                    hideStandaloneTrigger
+                    onAttachmentIdsChange={setAttachmentIds}
+                    onAttachmentsChange={setReadyAttachments}
+                    onAttachmentsReadyChange={setAttachmentsReady}
+                  />
+                )}
 
-              <div className="relative flex items-end gap-2 bg-muted/40 border border-border/80 focus-within:border-brand-primary/80 focus-within:ring-1 focus-within:ring-brand-primary/30 rounded-xl p-2 transition-all">
-                <textarea
-                  ref={textareaRef}
-                  placeholder="Tanyakan rumus, konsep, atau paste screenshot soal..."
-                  value={inputVal}
-                  rows={1}
-                  onChange={(e) => setInputVal(e.target.value)}
-                  onPaste={(event) => {
-                    const files = zyraImageFilesFromClipboard(event.clipboardData.items);
-                    if (files.length === 0) return;
-                    event.preventDefault();
-                    attachmentComposerRef.current?.addFiles(files);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      void handleSend();
-                    }
-                  }}
-                  disabled={chatLoading}
-                  className="flex-1 max-h-[160px] min-h-[38px] resize-none bg-transparent px-2 py-1 text-body-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-hidden"
-                />
-                
-                <Button
-                  size="icon-sm"
-                  onClick={() => void handleSend()}
-                  disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)}
-                  className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 text-white shrink-0 size-8 transition-transform active:scale-95"
-                >
-                  <Send className="size-4" />
-                  <span className="sr-only">Kirim Pertanyaan</span>
-                </Button>
-              </div>
+                <div className="flex items-end gap-1.5">
+                  <textarea
+                    ref={textareaRef}
+                    placeholder="Tanyakan rumus, konsep, atau paste screenshot soal..."
+                    value={inputVal}
+                    rows={1}
+                    onChange={(e) => setInputVal(e.target.value)}
+                    onPaste={(event) => {
+                      const files = zyraImageFilesFromClipboard(event.clipboardData.items);
+                      if (files.length === 0) return;
+                      event.preventDefault();
+                      attachmentComposerRef.current?.addFiles(files);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void handleSend();
+                      }
+                    }}
+                    disabled={chatLoading}
+                    className="flex-1 max-h-[160px] min-h-[36px] resize-none bg-transparent px-2 py-1 text-body-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-hidden"
+                  />
 
-              <div className="flex items-center justify-between px-1 text-body-xs text-muted-foreground">
-                <span>Tekan <kbd className="font-mono bg-muted px-1 py-0.5 rounded text-[10px]">Enter</kbd> untuk kirim, <kbd className="font-mono bg-muted px-1 py-0.5 rounded text-[10px]">Shift+Enter</kbd> untuk baris baru</span>
+                  {/* Inline Composer Controls */}
+                  <div className="flex items-center gap-1 shrink-0 pb-0.5">
+                    {imageInputEnabled && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => attachmentComposerRef.current?.openFileDialog()}
+                              disabled={chatLoading || attachmentIds.length >= 4}
+                              className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background/80"
+                              aria-label="Lampirkan gambar (maks 4)"
+                            >
+                              <Paperclip className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            Lampirkan gambar (PNG/JPG, maks 4)
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            size="icon"
+                            onClick={() => void handleSend()}
+                            disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)}
+                            className="size-8 rounded-lg bg-brand-primary hover:bg-brand-primary/95 text-white shadow-xs transition-transform active:scale-95"
+                            aria-label="Kirim Pertanyaan (Enter)"
+                          >
+                            <Send className="size-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Kirim (Enter) • Baris baru (Shift+Enter)
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
               </div>
             </div>
           )}

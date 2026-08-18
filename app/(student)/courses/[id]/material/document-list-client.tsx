@@ -221,10 +221,10 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
 
   return (
     <div className="space-y-4 font-sans">
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <Select value={activeTab} onValueChange={setActiveTab}>
-            <SelectTrigger className="h-9 w-full sm:w-[170px] rounded-lg text-body-sm bg-background">
+            <SelectTrigger className="h-9 w-auto min-w-[130px] sm:w-[170px] rounded-lg text-body-sm bg-background">
               <SelectValue placeholder="Semua tipe" />
             </SelectTrigger>
             <SelectContent>
@@ -238,7 +238,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
 
           {chapters.length > 0 && (
             <Select value={activeChapterId} onValueChange={setActiveChapterId}>
-              <SelectTrigger className="h-9 w-full sm:w-[220px] rounded-lg text-body-sm bg-background">
+              <SelectTrigger className="h-9 w-auto min-w-[130px] sm:w-[220px] rounded-lg text-body-sm bg-background">
                 <SelectValue placeholder="Semua bab" />
               </SelectTrigger>
               <SelectContent>
@@ -253,7 +253,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 self-end sm:self-auto">
+        <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/60 bg-muted/40 p-0.5">
           <Button
             type="button"
             size="icon"

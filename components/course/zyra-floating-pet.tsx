@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Eye, EyeOff, GripVertical } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ZyraCharacter } from "@/components/course/zyra-character";
 import { ZyraPet, zyraPetLabels } from "@/components/course/zyra-pet";
@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 
 const POSITION_KEY = "zyx-zyra-pet-position-v1";
 const VISIBILITY_KEY = "zyx-zyra-pet-visible-v1";
-const PET_WIDTH = 188;
-const PET_HEIGHT = 80;
+const PET_WIDTH = 80;
+const PET_HEIGHT = 88;
 const EDGE_GAP = 16;
 
 type Point = { x: number; y: number };
@@ -25,7 +25,7 @@ export function clampZyraPetPosition(point: Point, viewport: { width: number; he
 
 function defaultPosition(): Point {
   return clampZyraPetPosition(
-    { x: window.innerWidth - PET_WIDTH - 32, y: window.innerHeight - PET_HEIGHT - 32 },
+    { x: window.innerWidth - PET_WIDTH - 24, y: window.innerHeight - PET_HEIGHT - 24 },
     { width: window.innerWidth, height: window.innerHeight },
   );
 }
@@ -123,12 +123,12 @@ export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen
         variant="outline"
         size="icon"
         onClick={() => setPetVisibility(true)}
-        className="fixed bottom-4 right-4 z-40 size-11 rounded-xl border-brand-primary/30 bg-card text-brand-primary shadow-md"
+        className="fixed bottom-6 right-6 z-40 size-12 rounded-full border-brand-primary/40 bg-card/90 text-brand-primary shadow-lg backdrop-blur-md transition-transform hover:scale-110 active:scale-95"
         aria-label="Tampilkan pet Zyra"
         title="Tampilkan Zyra"
       >
-        <ZyraCharacter state="idle" className="size-9" />
-        <Eye className="absolute -right-1 -top-1 size-3.5 rounded-full bg-card" aria-hidden="true" />
+        <ZyraCharacter state="idle" className="size-10" />
+        <Eye className="absolute -top-1 -right-1 size-4 rounded-full border border-border bg-card p-0.5 text-muted-foreground" aria-hidden="true" />
       </Button>
     );
   }
@@ -137,9 +137,33 @@ export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen
 
   return (
     <div
-      className="fixed z-40 animate-in fade-in slide-in-from-bottom-2 duration-300"
-      style={{ left: position.x, top: position.y, width: PET_WIDTH }}
+      className="fixed z-40 select-none group touch-none animate-in fade-in slide-in-from-bottom-3 duration-300"
+      style={{ left: position.x, top: position.y, width: PET_WIDTH, height: PET_HEIGHT }}
     >
+      {/* Speech Bubble / Status Tooltip */}
+      <div
+        className={cn(
+          "pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-xl border border-brand-primary/30 bg-card/95 px-2.5 py-1 shadow-lg backdrop-blur-md transition-all duration-200",
+          state !== "idle"
+            ? "opacity-100 translate-y-0 scale-100"
+            : "opacity-0 translate-y-1 scale-95 group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100"
+        )}
+      >
+        <span className="flex items-center gap-1.5 text-body-xs font-semibold text-foreground">
+          <span className={cn(
+            "size-1.5 rounded-full shrink-0",
+            state === "success" && "bg-status-success",
+            state === "error" && "bg-status-error",
+            state === "quota_resting" && "bg-status-warning",
+            (state === "thinking" || state === "uploading" || state === "listening" || state === "explaining" || state === "checking") && "bg-brand-primary animate-ping",
+            state === "idle" && "bg-brand-primary animate-pulse"
+          )} />
+          {zyraPetLabels[state]}
+        </span>
+        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-2 rotate-45 border-b border-r border-brand-primary/30 bg-card" />
+      </div>
+
+      {/* Main Pet Character Button */}
       <button
         type="button"
         onPointerDown={handlePointerDown}
@@ -147,31 +171,32 @@ export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen
         onPointerUp={handlePointerUp}
         onPointerCancel={() => { dragRef.current = null; }}
         onClick={handleClick}
-        className={cn(
-          "group flex h-20 w-full touch-none select-none items-center gap-2.5 rounded-2xl border border-brand-primary/25 bg-card/95 p-2.5 pr-10 text-left shadow-lg transition-colors duration-150",
-          "hover:border-brand-primary/50 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        )}
-        aria-label="Seret untuk memindahkan Zyra, atau klik untuk membuka"
-        title="Seret untuk memindahkan, klik untuk membuka"
+        className="relative flex flex-col items-center justify-end w-full h-full cursor-pointer focus-visible:outline-none"
+        aria-label={`Zyra - ${zyraPetLabels[state]}. Seret untuk memindahkan, klik untuk chat.`}
+        title="Klik untuk membuka Zyra AI"
       >
-        <ZyraPet state={state} className="shrink-0" />
-        <span className="min-w-0">
-          <span className="block font-heading text-body-sm font-semibold text-foreground">Zyra</span>
-          <span className="block truncate text-body-xs text-muted-foreground">{zyraPetLabels[state]}</span>
-        </span>
-        <GripVertical className="absolute right-2.5 size-4 text-muted-foreground" aria-hidden="true" />
+        {/* Floating Mascot Character */}
+        <div className="animate-zyra-float transition-transform duration-200 group-hover:scale-110 active:scale-95">
+          <ZyraPet state={state} />
+        </div>
+
+        {/* Soft Ground Shadow underneath */}
+        <div className="mt-0.5 h-1.5 w-10 rounded-[100%] bg-black/40 blur-[1.5px] animate-zyra-shadow" />
       </button>
-      <Button
+
+      {/* Discreet Hide Button on Hover */}
+      <button
         type="button"
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => setPetVisibility(false)}
-        className="absolute -right-2 -top-2 size-7 rounded-full border border-border bg-card text-muted-foreground shadow-sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          setPetVisibility(false);
+        }}
+        className="absolute -top-1 -right-1 size-5 rounded-full border border-border bg-card/90 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shadow-sm flex items-center justify-center hover:text-foreground hover:bg-muted cursor-pointer"
         aria-label="Sembunyikan pet Zyra"
         title="Sembunyikan Zyra"
       >
-        <EyeOff className="size-3.5" />
-      </Button>
+        <EyeOff className="size-3" />
+      </button>
     </div>
   );
 }

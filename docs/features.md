@@ -322,6 +322,53 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - The integrated murid Zyra surface is foundational. `FEATURE_ZYRA_SELECTION_ASK_V1` sends only a bounded explicit lesson quote, and `FEATURE_ZYRA_PET_V1` shows accessible application-owned request states.
 - Learning Canvas exploration remains local after render and spends no provider allowance. Image and Canvas behavior are independently gated.
 
+### Kelompok Belajar (Study Groups)
+
+- Students enroll in and access courses through Study Groups configured on the platform.
+- Study groups use a semester session quota model rather than pure calendar duration:
+  - Paket Reguler: 15 sessions per semester (target 1x per week).
+  - Paket Intensif: 30 sessions per semester (target 2x per week).
+  - Paket Super Intensif: 45 sessions per semester (target 3x per week).
+  - Paket Kustom: Configurable session quota.
+- Admin portal (`/admin/groups`) provides comprehensive management:
+  - KPI strip for total groups, active groups, enrolled students, and average quota usage.
+  - Interactive table filtering by status, package tier, and course.
+  - Create and edit dialogs with package selection, semester dates, and course assignments.
+  - Group detail modal with session quota gauges, student membership manager (search, add, remove, promote leader), linked activation tokens, and booked tutor session history.
+- Student portal (`/dashboard/groups`) provides a dedicated study group dashboard:
+  - Active group overview with status and semester badges.
+  - Quota and session tracker displaying completed sessions, remaining quota, target weekly frequency, and visual usage progress.
+  - Associated courses grid with direct navigation to class materials, quizzes, and tryouts.
+  - Peer study mates roster with roles (leader, member) and joined dates.
+  - Group session booking and schedule history integrated with the tutor scheduling calendar.
+  - 1-click token sharing for inviting group mates when capacity remains.
+  - Empty state with instant token redemption for new students.
+
+### Scheduling & Calendar System (Model Kelompok Belajar)
+
+- Group Ownership & Collaborative Booking:
+  - Tutoring sessions are booked on behalf of Study Groups.
+  - All group members have equal rights to choose, move, or cancel slots before the weekly lock cut-off.
+- Weekly Lock & Automated Cut-Off:
+  - Next week's scheduling selection opens throughout the current week and automatically locks every Saturday at 23:59 WIB (Asia/Jakarta).
+  - Post-lock schedule adjustments require formal Reschedule or Cancellation tickets.
+- Google Meet Automation:
+  - Online sessions automatically provision dedicated Google Meet spaces upon booking and lock cut-off, with meeting links immediately rendered for tutors and students.
+  - Offline sessions require tutors to specify explicit physical room or branch locations.
+- Pre-Session & Post-Session Workflows:
+  - Pre-Session: Any group member can define the discussion topic and upload question files (PDF/images), with uploader identity logged.
+  - Post-Session: Tutors mark sessions complete, upload handwritten photo notes or answer PDFs, and embed external links with automated OpenGraph metadata previews.
+- Reschedule, Cancellation, and Discussion Threads:
+  - Post-lock ticket requests open an integrated discussion chat between group members, the tutor, and administrators.
+  - The assigned tutor holds sole approval authority. Approval migrates the booking to the proposed slot and regenerates Meet links; cancellations forfeit the week's quota without refund.
+- Audit Trail & Activity Log:
+  - Every card displays a last-modified indicator: "Terakhir diubah oleh: [Nama Murid], [Hari, Tanggal, Jam]".
+  - A chronological audit trail records slot selections, migrations, pre-session uploads, and ticket decisions.
+- Multi-Level Filter System:
+  - Student: Filter by Course and Tutor.
+  - Tutor: Filter by Course or Study Group.
+  - Admin: Full filtering by Course, Tutor, Study Group, and Schedule Type (Ujian Resmi ITB, Tryout, Kuis, Sesi Tatap Muka).
+
 ### Zyra tutor and admin copilots
 
 - `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` expose scoped proposal-first workflows. They show evidence, preconditions, impact, warnings, and lifecycle state before any future mutation integration.

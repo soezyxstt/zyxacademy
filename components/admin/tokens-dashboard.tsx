@@ -55,7 +55,8 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>(
     coursesList[0] ? [coursesList[0].id] : []
   );
-  const [capacity, setCapacity] = useState<number>(3); // Default capacity is 3 people
+  const [capacity, setCapacity] = useState<number>(3);
+  const [packageType, setPackageType] = useState<"reguler_15" | "intensif_30" | "super_intensif_45">("reguler_15");
   const [loading, setLoading] = useState(false);
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; token: string } | null>(null);
@@ -69,11 +70,12 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
 
     setLoading(true);
     try {
-      const res = await generateEnrollmentToken(selectedCourseIds, capacity);
+      const res = await generateEnrollmentToken(selectedCourseIds, capacity, packageType);
       if (res.success) {
         toast.success(`Token berhasil dibuat: ${res.token}`);
         setSelectedCourseIds(coursesList[0] ? [coursesList[0].id] : []);
         setCapacity(3);
+        setPackageType("reguler_15");
         router.refresh();
       } else {
         toast.error(res.error || "Gagal membuat token");
@@ -165,8 +167,38 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
               )}
             </div>
 
-            {/* Group Size Selection */}
+            {/* Group Size & Package Selection */}
             <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-body-xs font-semibold text-muted-foreground block">
+                  Paket Kuota Pertemuan Semester
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "reguler_15" as const, label: "15 Sesi", sub: "1x / minggu" },
+                    { id: "intensif_30" as const, label: "30 Sesi", sub: "2x / minggu" },
+                    { id: "super_intensif_45" as const, label: "45 Sesi", sub: "3x / minggu" },
+                  ].map((p) => {
+                    const isActive = packageType === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setPackageType(p.id)}
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-left transition-all ${
+                          isActive
+                            ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
+                            : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        }`}
+                      >
+                        <span className="text-body-sm font-bold">{p.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{p.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-body-xs font-semibold text-muted-foreground block">
                   Kapasitas Kelompok (Jumlah Orang)
@@ -272,45 +304,25 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border">
                 {initialTokens.map((t) => {
-                  const now = new Date();
-                  const membersCount = t.group?.members.length || 0;
+                  const isExpired = new Date(t.expiresAt) < new Date();
+                  const membersCount = t.group?.members?.length || 0;
                   const isFull = membersCount >= t.capacity;
-                  const isExpired = !isFull && new Date(t.expiresAt) < now;
-
-                  let statusBadge = (
-                    <span className="inline-flex rounded-md bg-brand-primary/10 px-2.5 py-0.5 text-body-xs font-semibold text-brand-primary">
-                      Aktif
-                    </span>
-                  );
-
-                  if (isFull) {
-                    statusBadge = (
-                      <span className="inline-flex rounded-md bg-status-success/10 px-2.5 py-0.5 text-body-xs font-semibold text-status-success">
-                        Penuh
-                      </span>
-                    );
-                  } else if (isExpired) {
-                    statusBadge = (
-                      <span className="inline-flex rounded-md bg-muted px-2.5 py-0.5 text-body-xs font-semibold text-muted-foreground ring-1 ring-border">
-                        Kedaluwarsa
-                      </span>
-                    );
-                  }
 
                   return (
-                    <tr key={t.id} className="border-b border-border/60 last:border-0 hover:bg-muted/10">
+                    <tr key={t.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-4 font-mono font-bold text-foreground">
                         <div className="flex items-center gap-2">
                           <span>{t.token}</span>
                           <button
+                            type="button"
                             onClick={() => handleCopy(t.token, t.id)}
-                            className="text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                             title="Salin token"
                           >
                             {copiedTokenId === t.id ? (
-                              <Check className="size-3.5 text-status-success" />
+                              <Check className="size-3.5 text-emerald-500" />
                             ) : (
                               <Copy className="size-3.5" />
                             )}
@@ -318,83 +330,68 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1.5 text-body-sm font-semibold">
-                            <span className="text-foreground">{membersCount}</span>
-                            <span className="text-muted-foreground font-normal">/</span>
-                            <span className="text-muted-foreground font-normal">{t.capacity}</span>
-                          </div>
-                          {/* Visual slots representation */}
-                          <div className="flex gap-1.5">
-                            {Array.from({ length: t.capacity }).map((_, idx) => {
-                              const isFilled = idx < membersCount;
-                              return (
-                                <div
-                                  key={idx}
-                                  className={`size-2.5 rounded-full border transition-all ${
-                                    isFilled
-                                      ? "bg-status-success border-status-success/30 shadow-sm shadow-status-success/10"
-                                      : "bg-muted border-border"
-                                  }`}
-                                  title={isFilled ? "Slot Terisi" : "Slot Kosong"}
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
+                        <span className="inline-flex items-center gap-1 text-body-xs font-medium text-foreground bg-muted/60 px-2.5 py-1 rounded-md border border-border">
+                          <Users className="size-3 text-muted-foreground" />
+                          {t.capacity} Orang
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1.5 max-w-xs">
                           {t.courses.map((c) => (
                             <span
                               key={c.id}
-                              className="inline-flex rounded-md bg-brand-primary/5 dark:bg-brand-primary/10 px-2 py-0.5 text-body-xs font-semibold text-brand-primary border border-brand-primary/20"
-                              title={c.id}
+                              className="text-[10px] font-medium bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-2 py-0.5 rounded"
                             >
                               {c.title}
                             </span>
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-4 tabular-nums text-muted-foreground">
+                      <td className="px-6 py-4 text-body-xs text-muted-foreground">
                         {new Date(t.expiresAt).toLocaleDateString("id-ID", {
-                          dateStyle: "medium",
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
                         })}
                       </td>
-                      <td className="px-6 py-4">{statusBadge}</td>
                       <td className="px-6 py-4">
-                        {t.group && t.group.members.length > 0 ? (
-                          <div className="space-y-2 max-w-xs max-h-24 overflow-y-auto pr-1">
-                            {t.group.members.map((m) => (
-                              <div key={m.userId} className="border-b border-border/40 pb-1 last:border-0 last:pb-0">
-                                <p className="font-semibold text-foreground text-body-xs truncate">
-                                  {m.user.name}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground truncate">
-                                  {m.user.email}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground/80 tabular-nums">
-                                  {new Date(m.joinedAt).toLocaleDateString("id-ID", {
-                                    dateStyle: "short",
-                                  })}{" "}
-                                  {new Date(m.joinedAt).toLocaleTimeString("id-ID", {
-                                    timeStyle: "short",
-                                  })}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
+                        {isExpired ? (
+                          <span className="text-[10px] uppercase font-bold text-red-600 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+                            Kedaluwarsa
+                          </span>
+                        ) : isFull ? (
+                          <span className="text-[10px] uppercase font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                            Penuh
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground text-body-xs italic">-</span>
+                          <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                            Aktif
+                          </span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-body-xs">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-foreground">
+                            {membersCount} / {t.capacity} Mahasiswa
+                          </span>
+                          {membersCount > 0 && t.group?.members && (
+                            <div className="flex flex-col gap-0.5 text-muted-foreground text-[10px]">
+                              {t.group.members.map((m) => (
+                                <span key={m.userId} className="truncate max-w-[150px]">
+                                  • {m.user.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="xs"
                           onClick={() => setPendingDelete({ id: t.id, token: t.token })}
-                          className="size-8 rounded-full text-status-error hover:bg-status-error/10 hover:text-status-error focus:outline-none"
-                          title="Hapus token"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-md"
+                          title="Hapus / Cabut Token"
                         >
                           <Trash2 className="size-4" />
                         </Button>
@@ -410,19 +407,19 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Hapus Token</DialogTitle>
+            <DialogTitle>Hapus Token Aktivasi</DialogTitle>
             <DialogDescription>
-              Apakah Anda yakin ingin menghapus token <strong className="font-mono">{pendingDelete?.token}</strong>? Siswa yang sudah terdaftar tetap memiliki akses.
+              Apakah Anda yakin ingin menghapus token <strong className="text-foreground">{pendingDelete?.token}</strong>? Kelompok dan akses yang terkait akan dicabut.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <DialogClose asChild>
               <Button variant="outline">Batal</Button>
             </DialogClose>
             <Button variant="destructive" onClick={handleDeleteConfirm}>
-              Hapus
+              Hapus Token
             </Button>
           </DialogFooter>
         </DialogContent>

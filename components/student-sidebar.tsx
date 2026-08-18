@@ -23,6 +23,7 @@ import {
   Flame,
   Search,
   BarChart3,
+  Users,
 } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { useTutor } from "@/components/course/tutor-drawer";
@@ -246,6 +247,14 @@ export function StudentSidebar({
           icon={CalendarRange}
           label="Jadwal"
           active={pathname === "/dashboard/schedule"}
+          collapsed={c}
+        />
+
+        <NavItem
+          href="/dashboard/groups"
+          icon={Users}
+          label="Kelompok Belajar"
+          active={pathname === "/dashboard/groups" || pathname.startsWith("/dashboard/groups")}
           collapsed={c}
         />
 

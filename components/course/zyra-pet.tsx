@@ -20,14 +20,14 @@ export const zyraPetLabels: Record<ZyraPetState, string> = {
 export function ZyraPet({ state, className }: { state: ZyraPetState; className?: string }) {
   const safeState = ZyraPetStateSchema.parse(state);
   return (
-    <div className={cn("flex items-center gap-2", className)} aria-label={zyraPetLabels[safeState]}>
+    <div className={cn("relative flex items-center justify-center", className)} aria-label={zyraPetLabels[safeState]}>
       <div className={cn(
-        "relative flex size-14 items-center justify-center text-brand-primary",
+        "relative flex size-20 items-center justify-center",
         safeState === "quota_resting" && "text-status-warning",
         safeState === "error" && "text-status-error",
         safeState === "success" && "text-status-success",
       )}>
-        <ZyraCharacter state={safeState} className="size-14" />
+        <ZyraCharacter state={safeState} className="size-20" />
       </div>
       <span className="sr-only" aria-live="polite">{zyraPetLabels[safeState]}</span>
     </div>

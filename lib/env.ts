@@ -155,10 +155,25 @@ export const env = createEnv({
   DIKTAT_RENDERER_URL: z.string().url().optional(),
   /** Shared secret matching SHARED_SECRET set on the diktat-renderer service */
   DIKTAT_RENDERER_SECRET: z.string().optional(),
+  // ── Sentry Error Monitoring ───────────────────────────────────────────
+  /** Sentry auth token for source map uploads */
+  SENTRY_AUTH_TOKEN: z.string().optional(),
+  /** Sentry organization slug */
+  SENTRY_ORG: z.string().optional(),
+  /** Sentry project slug */
+  SENTRY_PROJECT: z.string().optional(),
+  /** Sentry public key */
+  SENTRY_PUBLIC_KEY: z.string().optional(),
+  /** Sentry OTLP traces ingest endpoint */
+  SENTRY_OTLP_TRACES_URL: z.string().url().optional(),
+  /** Sentry Vercel log drain endpoint */
+  SENTRY_VERCEL_LOG_DRAIN_URL: z.string().url().optional(),
   },
  client: {
  /** Absolute origin for better-auth client (e.g. https://app.example.com). Falls back for local dev. */
  NEXT_PUBLIC_APP_URL: publicAppUrlSchema,
+ /** Sentry DSN for client error reporting and tracing */
+ NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
  /** Desmos API key from https://www.desmos.com/my-api ; embeds the graphing calculator on the landing lab when set. */
  NEXT_PUBLIC_DESMOS_API_KEY: z.string().optional(),
  /**
@@ -185,6 +200,7 @@ export const env = createEnv({
   },
  runtimeEnv: {
  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+ NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
  NEXT_PUBLIC_DESMOS_API_KEY: process.env.NEXT_PUBLIC_DESMOS_API_KEY,
  NEXT_PUBLIC_WHATSAPP_NUMBER: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER,
  NEXT_PUBLIC_BRAND_EMAIL: process.env.NEXT_PUBLIC_BRAND_EMAIL,
@@ -271,5 +287,12 @@ export const env = createEnv({
   // Diktat PDF Renderer
   DIKTAT_RENDERER_URL: process.env.DIKTAT_RENDERER_URL,
   DIKTAT_RENDERER_SECRET: process.env.DIKTAT_RENDERER_SECRET,
+  // Sentry Error Monitoring
+  SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+  SENTRY_ORG: process.env.SENTRY_ORG,
+  SENTRY_PROJECT: process.env.SENTRY_PROJECT,
+  SENTRY_PUBLIC_KEY: process.env.SENTRY_PUBLIC_KEY,
+  SENTRY_OTLP_TRACES_URL: process.env.SENTRY_OTLP_TRACES_URL,
+  SENTRY_VERCEL_LOG_DRAIN_URL: process.env.SENTRY_VERCEL_LOG_DRAIN_URL,
   },
 });
