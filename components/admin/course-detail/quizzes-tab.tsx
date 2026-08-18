@@ -224,21 +224,34 @@ export function QuizzesTab({
                   >
                     <div className="space-y-1 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <p className="font-heading text-body-xs font-bold text-foreground">
+                        <p className="font-heading text-body-sm font-semibold text-foreground">
                           {quiz.title}
                         </p>
-                        <Badge variant="secondary" className="rounded-md text-[10px] px-1.5 py-0.5 capitalize font-medium">
+                        <Badge
+                          variant="outline"
+                          className="rounded-md text-[10px] px-1.5 py-0 font-normal capitalize text-muted-foreground border-border/60 bg-muted/20"
+                        >
                           {quiz.category}
                         </Badge>
                         <Badge
-                          variant={quiz.status === "published" ? "default" : "outline"}
-                          className="rounded-md text-[10px] px-1.5 py-0.5 font-medium"
+                          variant="outline"
+                          className={cn(
+                            "rounded-md text-[10px] px-1.5 py-0 font-normal",
+                            quiz.status === "published"
+                              ? "text-emerald-500/90 border-emerald-500/25 bg-emerald-500/5"
+                              : "text-muted-foreground/80 border-dashed border-border/60 bg-muted/10"
+                          )}
                         >
                           {quiz.status === "published" ? "Published" : "Draft"}
                         </Badge>
                         <Badge
                           variant="outline"
-                          className="rounded-md text-[10px] px-1.5 py-0.5 font-medium text-muted-foreground bg-muted/20"
+                          className={cn(
+                            "rounded-md text-[10px] px-1.5 py-0 font-normal",
+                            quiz.visibility === "paid"
+                              ? "text-amber-500/90 border-amber-500/25 bg-amber-500/5"
+                              : "text-muted-foreground/70 border-border/40 bg-muted/10"
+                          )}
                         >
                           {quiz.visibility === "paid" ? "Premium" : "Gratis"}
                         </Badge>

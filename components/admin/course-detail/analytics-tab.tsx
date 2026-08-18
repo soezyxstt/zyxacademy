@@ -113,7 +113,10 @@ export function AnalyticsTab({
                       <p className="text-[11px] text-muted-foreground">ID: {quiz.id}</p>
                     </td>
                     <td className="px-3.5 py-2.5">
-                      <Badge variant="secondary" className="rounded-md text-[10px] px-1.5 py-0.5 capitalize font-medium">
+                      <Badge
+                        variant="outline"
+                        className="rounded-md text-[10px] px-1.5 py-0 font-normal capitalize text-muted-foreground border-border/60 bg-muted/20"
+                      >
                         {quiz.category}
                       </Badge>
                     </td>
