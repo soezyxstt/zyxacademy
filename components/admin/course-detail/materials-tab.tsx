@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +25,6 @@ import {
   Trash2,
   ExternalLink,
   Loader2,
-  Info,
 } from "lucide-react";
 import { FormattedDate } from "@/components/ui/formatted-date";
 
@@ -175,57 +173,32 @@ export function MaterialsTab({
     }
   };
 
-  const renderChapterBadges = (chapterIds: any) => {
+  const getChapterLabels = (chapterIds: any) => {
     const ids: string[] = Array.isArray(chapterIds)
       ? chapterIds
       : typeof chapterIds === "string"
       ? JSON.parse(chapterIds)
       : [];
 
-    return (
-      <div className="flex flex-wrap gap-1 mt-1">
-        {ids.map((id) => {
-          const chap = chapters.find((c) => c.id === id);
-          return (
-            <Badge
-              key={id}
-              variant="outline"
-              className="text-[11px] font-medium rounded-md px-1.5 py-0 bg-muted/30"
-            >
-              {chap ? `Bab ${chap.orderIndex}: ${chap.title}` : "Bab tidak diketahui"}
-            </Badge>
-          );
-        })}
-      </div>
-    );
+    return ids
+      .map((id) => {
+        const chap = chapters.find((c) => c.id === id);
+        return chap ? `Bab ${chap.orderIndex}: ${chap.title}` : "Bab tidak diketahui";
+      })
+      .join(", ");
   };
 
   return (
-    <div className="space-y-6">
-      {/* Informational Callout */}
-      <div className="p-4 rounded-xl border border-brand-primary/20 bg-brand-primary/5 flex items-start gap-3">
-        <Info className="size-5 text-brand-primary shrink-0 mt-0.5" />
-        <div className="space-y-1 text-body-sm text-foreground">
-          <p className="font-semibold">Penyimpanan Dokumen PDF &amp; Materi Pembelajaran</p>
-          <p className="text-body-xs text-muted-foreground">
-            Dokumen PDF yang diunggah di sini ditujukan sebagai bahan bacaan langsung dan latihan mahasiswa pada mata kuliah <strong>{courseTitle}</strong>.
-            Untuk memproses pengetahuan menjadi kurikulum AI, ringkasan interaktif, dan bank soal otomatis, Anda juga dapat mengelola materi Markdown di{" "}
-            <Link href={`/admin/materials?courseId=${courseId}`} className="text-brand-primary font-semibold hover:underline">
-              Materi AI
-            </Link>.
-          </p>
-        </div>
-      </div>
-
+    <div className="space-y-4">
       {/* Direct PDF Upload Form */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-        <h3 className="font-heading text-body-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
+        <h3 className="font-heading text-body-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Upload className="size-4 text-brand-secondary" />
           Unggah Dokumen PDF untuk {courseTitle}
         </h3>
 
-        <form onSubmit={handleUpload} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleUpload} className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-body-sm font-semibold text-foreground">Judul Dokumen</Label>
               <Input
@@ -233,7 +206,7 @@ export function MaterialsTab({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={loading}
-                className="rounded-lg"
+                className="h-9 text-body-xs rounded-lg"
               />
             </div>
 
@@ -244,7 +217,7 @@ export function MaterialsTab({
                 onValueChange={(v: "materi_kelas" | "contoh_soal") => setType(v)}
                 disabled={loading}
               >
-                <SelectTrigger className="rounded-lg">
+                <SelectTrigger className="h-9 text-body-xs rounded-lg">
                   <SelectValue placeholder="Pilih Jenis" />
                 </SelectTrigger>
                 <SelectContent>
@@ -256,11 +229,11 @@ export function MaterialsTab({
           </div>
 
           {/* Chapter Selector */}
-          <div className="rounded-xl border border-border/80 bg-muted/5 p-4 space-y-3">
+          <div className="rounded-xl border border-border/70 bg-muted/10 p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Kaitkan dengan Bab Mata Kuliah ({selectedChapters.size} dipilih)
-              </Label>
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                Kaitkan dengan Bab ({selectedChapters.size} dipilih)
+              </span>
               {chapters.length > 0 && (
                 <button
                   type="button"
@@ -277,15 +250,15 @@ export function MaterialsTab({
                 Mata kuliah ini belum memiliki bab. Silakan tambahkan bab terlebih dahulu di tab <strong>Silabus &amp; Bab</strong>.
               </p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto">
                 {chapters.map((ch) => {
                   const isChecked = selectedChapters.has(ch.id);
                   return (
                     <label
                       key={ch.id}
-                      className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-body-xs font-semibold cursor-pointer transition-colors ${
+                      className={`flex items-start gap-2 p-2 rounded-lg border text-body-xs cursor-pointer select-none transition-colors ${
                         isChecked
-                          ? "border-brand-primary bg-brand-primary/10 text-foreground"
+                          ? "border-brand-primary bg-brand-primary/10 text-foreground font-medium"
                           : "border-border/60 hover:bg-muted/20 text-muted-foreground"
                       }`}
                     >
@@ -306,34 +279,34 @@ export function MaterialsTab({
             )}
           </div>
 
-          {/* File Input */}
-          <div className="space-y-1">
-            <Label className="text-body-sm font-semibold text-foreground">Berkas PDF</Label>
-            <Input
-              id="course-pdf-input"
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-              disabled={loading}
-              className="cursor-pointer file:rounded-md file:bg-muted file:border-0 file:px-3 file:py-1 file:text-body-xs file:font-semibold rounded-lg"
-            />
-            <p className="text-body-xs text-muted-foreground">Format PDF, maksimal 50 MB.</p>
-          </div>
+          {/* File Input and Submit */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-1">
+            <div className="space-y-1 flex-1 max-w-md">
+              <Label className="text-body-sm font-semibold text-foreground">Berkas PDF</Label>
+              <Input
+                id="course-pdf-input"
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                disabled={loading}
+                className="cursor-pointer file:rounded-md file:bg-muted file:border-0 file:px-2.5 file:py-0.5 file:text-body-xs file:font-semibold h-9 rounded-lg text-body-xs"
+              />
+            </div>
 
-          <div className="flex justify-end">
             <Button
               type="submit"
+              size="sm"
               disabled={loading || !title.trim() || selectedChapters.size === 0 || !selectedFile}
-              className="gap-1.5 rounded-lg font-medium"
+              className="gap-1.5 rounded-lg font-semibold h-9"
             >
               {loading ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Mengunggah PDF...
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Mengunggah...
                 </>
               ) : (
                 <>
-                  <Plus className="size-4" />
+                  <Plus className="size-3.5" />
                   Unggah PDF
                 </>
               )}
@@ -343,83 +316,93 @@ export function MaterialsTab({
       </div>
 
       {/* Materials List */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-        <h3 className="font-heading text-body-sm font-bold text-foreground mb-4 flex items-center gap-2">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs overflow-x-auto">
+        <h3 className="font-heading text-body-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <FileText className="size-4 text-brand-primary" />
           Daftar PDF Terunggah ({materials.length})
         </h3>
 
         {materials.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-border rounded-xl">
-            <FileText className="size-8 text-muted-foreground/50 mx-auto mb-2" />
-            <p className="text-body-sm font-medium text-foreground">Belum ada dokumen PDF terunggah</p>
-            <p className="text-body-xs text-muted-foreground mt-1">
-              Gunakan formulir di atas untuk mengunggah materi kelas atau contoh soal PDF untuk mata kuliah ini.
+          <div className="text-center py-8 border border-dashed border-border rounded-xl">
+            <FileText className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
+            <p className="text-body-xs font-medium text-foreground">Belum ada dokumen PDF terunggah</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Gunakan formulir di atas untuk mengunggah materi kelas atau contoh soal PDF.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border/60">
-            {materials.map((m) => {
-              const fileUrl = m.fileUrl.startsWith("http")
-                ? m.fileUrl
-                : `/api/storage/file/${m.fileUrl}`;
+          <table className="w-full text-left text-body-xs">
+            <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2">Judul Dokumen</th>
+                <th className="px-3 py-2">Jenis</th>
+                <th className="px-3 py-2">Kaitan Bab</th>
+                <th className="px-3 py-2">Diunggah</th>
+                <th className="px-3 py-2 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {materials.map((m) => {
+                const fileUrl = m.fileUrl.startsWith("http")
+                  ? m.fileUrl
+                  : `/api/storage/file/${m.fileUrl}`;
 
-              return (
-                <div
-                  key={m.id}
-                  className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-body-sm font-semibold text-foreground truncate">
+                return (
+                  <tr key={m.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-3 py-2.5 font-semibold text-foreground max-w-xs">
+                      <span className="truncate block" title={m.title}>
                         {m.title}
-                      </p>
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5">
                       <Badge
                         variant={m.type === "contoh_soal" ? "secondary" : "default"}
-                        className="rounded-md text-[11px]"
+                        className="rounded-md text-[10px] px-1.5 py-0.5"
                       >
                         {m.type === "contoh_soal" ? "Contoh Soal" : "Materi Kelas"}
                       </Badge>
-                    </div>
-
-                    {renderChapterBadges(m.chapterIds)}
-
-                    <p className="text-body-xs text-muted-foreground mt-1">
-                      Diunggah pada <FormattedDate date={m.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <a
-                      href={fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-muted/40 hover:bg-muted text-body-xs font-medium text-foreground transition-colors"
-                    >
-                      <ExternalLink className="size-3.5" />
-                      Lihat PDF
-                    </a>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDelete(m.id)}
-                      disabled={deleteLoadingId === m.id}
-                      title="Hapus Dokumen"
-                    >
-                      {deleteLoadingId === m.id ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="size-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground max-w-xs truncate" title={getChapterLabels(m.chapterIds)}>
+                      {getChapterLabels(m.chapterIds)}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap text-[11px]">
+                      <FormattedDate date={m.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors"
+                        >
+                          <ExternalLink className="size-3" />
+                          <span>PDF</span>
+                        </a>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(m.id)}
+                          disabled={deleteLoadingId === m.id}
+                          title="Hapus Dokumen"
+                        >
+                          {deleteLoadingId === m.id ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-3" />
+                          )}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
   );
 }
+

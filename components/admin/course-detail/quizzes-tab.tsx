@@ -146,12 +146,12 @@ export function QuizzesTab({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header Controls & Create Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-xl border border-border shadow-xs">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-card p-3 rounded-xl border border-border shadow-2xs">
+        <div className="flex items-center gap-2.5">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px] rounded-lg">
+            <SelectTrigger className="w-[170px] h-9 text-body-xs rounded-lg">
               <SelectValue placeholder="Semua Kategori" />
             </SelectTrigger>
             <SelectContent>
@@ -168,66 +168,66 @@ export function QuizzesTab({
           </span>
         </div>
 
-        <Button asChild size="sm" className="gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-bold shadow-xs">
+        <Button asChild size="sm" className="gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold shadow-2xs h-9">
           <Link href={`/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`}>
-            <Plus className="size-4" />
+            <Plus className="size-3.5" />
             Buat Kuis Baru
           </Link>
         </Button>
       </div>
 
       {/* Quizzes List */}
-      <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+      <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden">
         {filteredQuizzes.length === 0 ? (
-          <div className="text-center py-12 px-4">
-            <NotebookPen className="size-8 text-muted-foreground/50 mx-auto mb-2" />
-            <p className="text-body-sm font-medium text-foreground">Belum ada kuis yang dibuat untuk kelas ini</p>
-            <p className="text-body-xs text-muted-foreground mt-1">
+          <div className="text-center py-8 px-4">
+            <NotebookPen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
+            <p className="text-body-xs font-medium text-foreground">Belum ada kuis yang dibuat untuk kelas ini</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
               Klik tombol &ldquo;Buat Kuis Baru&rdquo; untuk menyusun kuis mandiri atau simulasi pada kelas ini.
             </p>
-            <Button asChild size="sm" className="mt-4 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold">
+            <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
               <Link href={`/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`}>
-                <Plus className="size-4" />
+                <Plus className="size-3.5" />
                 Buat Kuis Sekarang
               </Link>
             </Button>
           </div>
         ) : (
-          <div className="divide-y divide-border/60">
+          <div className="divide-y divide-border/50">
             {filteredQuizzes.map((quiz) => (
               <div
                 key={quiz.id}
-                className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-muted/10 transition-colors"
+                className="p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:bg-muted/10 transition-colors"
               >
-                <div className="space-y-1.5 min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-heading text-body-sm font-bold text-foreground">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="font-heading text-body-xs font-bold text-foreground">
                       {quiz.title}
                     </p>
-                    <Badge variant="secondary" className="rounded-md text-[11px] capitalize font-medium">
+                    <Badge variant="secondary" className="rounded-md text-[10px] px-1.5 py-0.5 capitalize font-medium">
                       {quiz.category}
                     </Badge>
                     <Badge
                       variant={quiz.status === "published" ? "default" : "outline"}
-                      className="rounded-md text-[11px] font-medium"
+                      className="rounded-md text-[10px] px-1.5 py-0.5 font-medium"
                     >
                       {quiz.status === "published" ? "Published" : "Draft"}
                     </Badge>
                     <Badge
                       variant="outline"
-                      className="rounded-md text-[11px] font-medium text-muted-foreground bg-muted/20"
+                      className="rounded-md text-[10px] px-1.5 py-0.5 font-medium text-muted-foreground bg-muted/20"
                     >
                       {quiz.visibility === "paid" ? "Premium" : "Gratis"}
                     </Badge>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4 text-body-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Clock className="size-3.5" />
+                      <Clock className="size-3" />
                       {quiz.timeLimitSeconds ? `${Math.round(quiz.timeLimitSeconds / 60)} Menit` : "Tanpa batas"}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Award className="size-3.5" />
+                      <Award className="size-3" />
                       Maks. {quiz.maxAttempts || "Bebas"} percobaan
                     </span>
                     <span>
@@ -236,7 +236,7 @@ export function QuizzesTab({
                   </div>
 
                   {/* Performance stats if attempts exist */}
-                  <div className="flex flex-wrap items-center gap-3 pt-1 text-body-xs">
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
                     <span className="font-medium text-foreground">
                       {quiz.totalAttempts || 0} pengerjaan siswa
                     </span>
@@ -255,27 +255,27 @@ export function QuizzesTab({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="gap-1.5 rounded-lg text-body-xs border-border"
+                    className="gap-1 rounded-md text-body-xs h-7 px-2.5 border-border"
                     onClick={() => handlePreviewQuiz(quiz)}
                   >
-                    <Eye className="size-3.5" />
+                    <Eye className="size-3" />
                     Pratinjau
                   </Button>
 
-                  <Button asChild size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs text-brand-primary border-brand-primary/30 hover:bg-brand-primary/10">
+                  <Button asChild size="sm" variant="outline" className="gap-1 rounded-md text-body-xs text-brand-primary border-brand-primary/30 hover:bg-brand-primary/10 h-7 px-2.5">
                     <Link href={`/admin/quiz-insights/${quiz.id}`}>
-                      <BarChart3 className="size-3.5" />
+                      <BarChart3 className="size-3" />
                       Analisis
                     </Link>
                   </Button>
 
-                  <Button asChild size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs border-border" title="Edit Kuis">
+                  <Button asChild size="sm" variant="outline" className="gap-1 rounded-md text-body-xs border-border h-7 px-2.5" title="Edit Kuis">
                     <Link href={`/admin/quizzes/${quiz.id}/edit`}>
-                      <Edit2 className="size-3.5" />
+                      <Edit2 className="size-3" />
                       Edit
                     </Link>
                   </Button>
@@ -283,11 +283,11 @@ export function QuizzesTab({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="size-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => handleDeleteStart(quiz)}
                     title="Hapus Kuis"
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className="size-3" />
                   </Button>
                 </div>
               </div>

@@ -307,6 +307,7 @@ function AdminSidebarInner() {
         {/* Akademik & Konten */}
         {akademikTabs.length > 0 && (
           <NavCollapsible
+            id="akademik"
             key="akademik"
             icon={BookOpen}
             label="Akademik & Konten"
@@ -321,6 +322,7 @@ function AdminSidebarInner() {
         {/* Bank Soal & Asesmen */}
         {evaluasiTabs.length > 0 && (
           <NavCollapsible
+            id="evaluasi"
             key="evaluasi"
             icon={Library}
             label="Bank Soal & Asesmen"
@@ -335,6 +337,7 @@ function AdminSidebarInner() {
         {/* Alat & Komunikasi */}
         {alatTabs.length > 0 && (
           <NavCollapsible
+            id="alat"
             key="alat"
             icon={FilePen}
             label="Alat & Komunikasi"
@@ -349,6 +352,7 @@ function AdminSidebarInner() {
         {/* Pengguna & Akses */}
         {penggunaTabs.length > 0 && (
           <NavCollapsible
+            id="pengguna"
             key="pengguna"
             icon={UserCog}
             label="Pengguna & Akses"
@@ -363,6 +367,7 @@ function AdminSidebarInner() {
         {/* Sistem & Ops */}
         {opsTabs.length > 0 && (
           <NavCollapsible
+            id="ops"
             key="ops"
             icon={Settings}
             label="Sistem & Ops"
@@ -377,6 +382,7 @@ function AdminSidebarInner() {
         {/* Tutorial PKA (if unarchived) */}
         {pkaTabs.length > 0 && (
           <NavCollapsible
+            id="tutorial-pka"
             key="tutorial-pka"
             icon={GraduationCap}
             label="Tutorial PKA"
@@ -393,6 +399,8 @@ function AdminSidebarInner() {
           <>
             <div className="h-px bg-border/60 my-2 shrink-0 w-full" />
             <NavCollapsible
+              id="archived"
+              key="archived"
               icon={Archive}
               label={`Tab Diarsipkan (${archivedTabItems.length})`}
               collapsed={c}
@@ -429,7 +437,6 @@ function AdminSidebarInner() {
                 })}
               </div>
             </NavCollapsible>
-
           </>
         )}
 

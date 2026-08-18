@@ -1435,7 +1435,7 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
 
                             {/* Prompt text */}
                             <div className="text-body-sm font-medium leading-relaxed text-foreground">
-                              <MathText text={q.prompt} />
+                              <MathText>{q.prompt}</MathText>
                             </div>
 
                             {/* Options count preview */}

@@ -264,18 +264,6 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const sorted = useMemo(
-    () => [...exam.questions].sort((a, b) => a.order - b.order),
-    [exam.questions],
-  );
-
-  function isQuestionAnswered(questionId: string) {
-    const val = answers[questionId];
-    if (val === undefined || val === null) return false;
-    if (typeof val === "string") return val.trim().length > 0;
-    return true;
-  }
-
   const q = sorted[index];
   const answeredCount = sorted.filter((question) => isQuestionAnswered(question.id)).length;
   const progress = sorted.length > 0 ? (answeredCount / sorted.length) * 100 : 0;

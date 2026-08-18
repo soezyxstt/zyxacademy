@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   GraduationCap,
   Layers,
@@ -11,12 +11,10 @@ import {
   BarChart3,
   Settings,
   ExternalLink,
-  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { AdminStatCard } from "@/components/admin/stat-card";
 import {
   AdminTabs,
   AdminTabsContent,
@@ -101,10 +99,18 @@ export function CourseDetailClient({
   stats,
   defaultTab = "chapters",
 }: Props) {
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") || defaultTab;
+
+  const handleTabChange = (val: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", val);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="space-y-4 font-sans">
       {/* Top Header */}
       <AdminPageHeader
         icon={GraduationCap}
@@ -120,7 +126,7 @@ export function CourseDetailClient({
               {course.category}
             </Badge>
             <Link href={`/courses/${course.id}`} target="_blank">
-              <Button size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs">
+              <Button size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs h-8">
                 <span>Lihat sebagai Siswa</span>
                 <ExternalLink className="size-3.5" />
               </Button>
@@ -131,80 +137,41 @@ export function CourseDetailClient({
 
       {/* Description Snippet if exists */}
       {course.description && (
-        <div className="rounded-xl border border-border/80 bg-card/60 p-4 text-body-sm text-muted-foreground">
+        <div className="rounded-xl border border-border/80 bg-card/60 p-3.5 text-body-xs text-muted-foreground">
           {course.description}
         </div>
       )}
 
-      {/* KPI Stats Ribbon */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        <AdminStatCard
-          label="Silabus & Bab"
-          value={stats.totalChapters}
-          caption="Bab aktif terstruktur"
-          icon={Layers}
-          iconClassName="text-brand-primary"
-        />
-        <AdminStatCard
-          label="Dokumen PDF"
-          value={stats.totalMaterials}
-          caption="Materi kelas & soal"
-          icon={FileText}
-          iconClassName="text-brand-secondary"
-        />
-        <AdminStatCard
-          label="Kuis & Tryout"
-          value={stats.totalQuizzes}
-          caption="Kuis aktif & draft"
-          icon={NotebookPen}
-          iconClassName="text-brand-primary"
-        />
-        <AdminStatCard
-          label="Bank Soal"
-          value={stats.totalQuestions}
-          caption="Butir soal kurasi"
-          icon={Library}
-          iconClassName="text-status-info"
-        />
-        <AdminStatCard
-          label="Pengerjaan Siswa"
-          value={stats.totalAttempts}
-          caption={`Rata-rata: ${stats.avgScore}/100`}
-          icon={TrendingUp}
-          iconClassName="text-status-success"
-        />
-      </div>
-
       {/* Tabs Navigation and Contents */}
-      <AdminTabs value={activeTab} onValueChange={setActiveTab}>
+      <AdminTabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <AdminTabsList className="w-full flex flex-wrap justify-start gap-1 p-1 bg-muted/60 border border-border rounded-xl">
-          <AdminTabsTrigger value="chapters" className="gap-1.5 rounded-lg">
-            <Layers className="size-4" />
+          <AdminTabsTrigger value="chapters" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+            <Layers className="size-3.5" />
             <span>Silabus &amp; Bab ({chapters.length})</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="materials" className="gap-1.5 rounded-lg">
-            <FileText className="size-4" />
+          <AdminTabsTrigger value="materials" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+            <FileText className="size-3.5" />
             <span>Materi &amp; PDF ({materials.length})</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="quizzes" className="gap-1.5 rounded-lg">
-            <NotebookPen className="size-4" />
+          <AdminTabsTrigger value="quizzes" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+            <NotebookPen className="size-3.5" />
             <span>Kuis &amp; Asesmen ({quizzes.length})</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="questions" className="gap-1.5 rounded-lg">
-            <Library className="size-4" />
+          <AdminTabsTrigger value="questions" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+            <Library className="size-3.5" />
             <span>Bank Soal ({questions.length})</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="analytics" className="gap-1.5 rounded-lg">
-            <BarChart3 className="size-4" />
+          <AdminTabsTrigger value="analytics" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+            <BarChart3 className="size-3.5" />
             <span>Analisis &amp; Hasil</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="settings" className="gap-1.5 rounded-lg">
-            <Settings className="size-4" />
+          <AdminTabsTrigger value="settings" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+            <Settings className="size-3.5" />
             <span>Pengaturan</span>
           </AdminTabsTrigger>
         </AdminTabsList>
@@ -264,3 +231,4 @@ export function CourseDetailClient({
     </div>
   );
 }
+

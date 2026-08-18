@@ -164,7 +164,26 @@ export function NavItem({
   );
 }
 
+interface SidebarContextValue {
+  isMobile: boolean;
+  collapsed: boolean;
+  activePopoverId: string | null;
+  setActivePopoverId: (id: string | null) => void;
+}
+
+const SidebarContext = React.createContext<SidebarContextValue>({
+  isMobile: false,
+  collapsed: false,
+  activePopoverId: null,
+  setActivePopoverId: () => {},
+});
+
+export function useSidebar() {
+  return React.useContext(SidebarContext);
+}
+
 export function NavCollapsible({
+  id,
   icon: Icon,
   label,
   active,
@@ -174,6 +193,7 @@ export function NavCollapsible({
   trailing,
   previewItems,
 }: {
+  id?: string;
   icon: React.ElementType;
   label: string;
   active?: boolean;
@@ -183,8 +203,11 @@ export function NavCollapsible({
   trailing?: ReactNode;
   previewItems?: string[];
 }) {
+  const { isMobile, activePopoverId, setActivePopoverId } = useSidebar();
   const [isOpen, setIsOpen] = useState(defaultOpen || active);
-  const [popoverOpen, setPopoverOpen] = useState(false);
+
+  const itemId = id || label.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const isPopoverOpen = activePopoverId === itemId;
 
   useEffect(() => {
     if (active) {
@@ -200,7 +223,7 @@ export function NavCollapsible({
         isChild: false,
         onClick: (e: React.MouseEvent) => {
           childProps.onClick?.(e);
-          setPopoverOpen(false);
+          setActivePopoverId(null);
         },
       } as Record<string, unknown>);
     }
@@ -241,15 +264,19 @@ export function NavCollapsible({
   return (
     <div className="flex flex-col gap-0.5 w-full">
       {collapsed ? (
-        <DropdownMenu.Root open={popoverOpen} onOpenChange={setPopoverOpen}>
-          <SidebarTooltip label={label} collapsed={!popoverOpen}>
+        <DropdownMenu.Root
+          open={isPopoverOpen}
+          onOpenChange={(open) => setActivePopoverId(open ? itemId : null)}
+          modal={false}
+        >
+          <SidebarTooltip label={label} collapsed={collapsed && !isPopoverOpen}>
             <DropdownMenu.Trigger asChild>
               <button
                 type="button"
                 aria-label={label}
                 className={cn(
                   "group/collapsible flex items-center justify-center rounded-xl size-10 mx-auto text-body-sm font-medium transition-colors cursor-pointer",
-                  active
+                  active || isPopoverOpen
                     ? "bg-brand-primary/10 text-brand-primary font-semibold"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
@@ -263,6 +290,12 @@ export function NavCollapsible({
               side="right"
               align="start"
               sideOffset={12}
+              onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (target.closest("a, button")) {
+                  setActivePopoverId(null);
+                }
+              }}
               className="z-50 min-w-56 max-w-72 rounded-xl border border-border/80 bg-popover/95 p-2 text-popover-foreground shadow-xl backdrop-blur-md animate-in fade-in-0 zoom-in-95 data-[side=right]:slide-in-from-left-2 focus:outline-none"
             >
               <div className="flex items-center gap-2.5 px-2.5 py-2 pb-2.5 border-b border-border/60 mb-1.5">
@@ -280,7 +313,7 @@ export function NavCollapsible({
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
-      ) : (
+      ) : !isOpen && !isMobile ? (
         <HoverCard.Root openDelay={250} closeDelay={150}>
           <HoverCard.Trigger asChild>
             {triggerButton}
@@ -322,6 +355,8 @@ export function NavCollapsible({
             </HoverCard.Content>
           </HoverCard.Portal>
         </HoverCard.Root>
+      ) : (
+        triggerButton
       )}
       {!collapsed && isOpen && (
         <div className="flex flex-col gap-0.5 w-full animate-in slide-in-from-top-1 fade-in-50 duration-150 pl-1 border-l border-border/50 ml-4 my-0.5">
@@ -594,6 +629,7 @@ export function SidebarShell({
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [modKeyHint, setModKeyHint] = useState("Ctrl + K");
+  const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
   const sidebarRef = useRef<HTMLElement>(null);
 
@@ -629,6 +665,7 @@ export function SidebarShell({
 
   useEffect(() => {
     setMobileOpen(false);
+    setActivePopoverId(null);
   }, [pathname]);
 
   useEffect(() => {
@@ -655,6 +692,10 @@ export function SidebarShell({
 
   const isCollapsed = isMobile ? false : collapsed;
 
+  useEffect(() => {
+    setActivePopoverId(null);
+  }, [isCollapsed]);
+
   const toggleCollapsed = useCallback(() => {
     setCollapsed((v) => {
       const next = !v;
@@ -664,7 +705,14 @@ export function SidebarShell({
   }, [collapsedKey]);
 
   return (
-    <>
+    <SidebarContext.Provider
+      value={{
+        isMobile,
+        collapsed: isCollapsed,
+        activePopoverId,
+        setActivePopoverId,
+      }}
+    >
       {mounted && mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden cursor-pointer"
@@ -790,7 +838,7 @@ export function SidebarShell({
           <SidebarUserMenu collapsed={isCollapsed} />
         </div>
       </aside>
-    </>
+    </SidebarContext.Provider>
   );
 }
 

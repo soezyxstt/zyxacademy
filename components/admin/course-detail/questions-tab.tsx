@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -14,10 +13,10 @@ import {
 } from "@/components/ui/select";
 import {
   Library,
-  Search,
   ExternalLink,
   HelpCircle,
 } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
 import { MathText } from "@/components/course/math-text";
 import { AdminOptionLetter } from "@/components/admin/option-letter";
 
@@ -69,22 +68,22 @@ export function QuestionsTab({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-xl border border-border shadow-sm">
-        <div className="flex flex-1 items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Cari kata kunci soal atau pembahasan..."
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-card p-3 rounded-xl border border-border shadow-2xs">
+        <div className="flex flex-1 items-center gap-2.5">
+          <div className="flex-1 max-w-sm">
+            <SearchBar
+              size="sm"
+              placeholder="Cari butir soal atau pembahasan..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 rounded-lg"
+              onSearch={setSearch}
+              onClear={() => setSearch("")}
             />
           </div>
 
           <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-            <SelectTrigger className="w-[150px] rounded-lg">
+            <SelectTrigger className="w-[140px] h-9 text-body-xs rounded-lg">
               <SelectValue placeholder="Tingkat Kesulitan" />
             </SelectTrigger>
             <SelectContent>
@@ -97,7 +96,7 @@ export function QuestionsTab({
         </div>
 
         <Link href={`/admin/questions?courseId=${courseId}`}>
-          <Button size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs">
+          <Button size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs h-9">
             <ExternalLink className="size-3.5" />
             Buka Studio Bank Soal
           </Button>
@@ -105,7 +104,7 @@ export function QuestionsTab({
       </div>
 
       {/* Questions List */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
             <Library className="size-4 text-brand-primary" />
@@ -114,15 +113,15 @@ export function QuestionsTab({
         </div>
 
         {filteredQuestions.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-border rounded-xl">
-            <HelpCircle className="size-8 text-muted-foreground/50 mx-auto mb-2" />
-            <p className="text-body-sm font-medium text-foreground">Tidak ada butir soal ditemukan</p>
-            <p className="text-body-xs text-muted-foreground mt-1">
+          <div className="text-center py-8 border border-dashed border-border rounded-xl">
+            <HelpCircle className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
+            <p className="text-body-xs font-medium text-foreground">Tidak ada butir soal ditemukan</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
               Gunakan Studio Bank Soal atau Generasi AI untuk menambahkan soal ke mata kuliah ini.
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredQuestions.map((q, idx) => {
               let optionsArr: string[] = [];
               if (Array.isArray(q.options)) {
@@ -149,7 +148,7 @@ export function QuestionsTab({
               return (
                 <div
                   key={q.id}
-                  className="p-4 rounded-xl border border-border/80 bg-card hover:border-brand-primary/40 transition-all space-y-3"
+                  className="p-3.5 rounded-xl border border-border/80 bg-card hover:border-brand-primary/40 transition-all space-y-2.5"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -160,7 +159,7 @@ export function QuestionsTab({
                     </div>
                     <Badge
                       variant="outline"
-                      className="rounded-md text-[11px] capitalize font-medium"
+                      className="rounded-md text-[10px] px-1.5 py-0.5 capitalize font-medium"
                     >
                       {q.difficulty}
                     </Badge>
@@ -171,7 +170,7 @@ export function QuestionsTab({
                   </div>
 
                   {optionsArr.length > 0 && (
-                    <div className="space-y-1.5 pt-1">
+                    <div className="space-y-1 pt-0.5">
                       {optionsArr.map((opt, optIdx) => {
                         const isCorrect = corrects.includes(optIdx);
                         return (
@@ -199,8 +198,8 @@ export function QuestionsTab({
                   )}
 
                   {q.explanation && (
-                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border/40 text-body-xs text-muted-foreground space-y-1">
-                      <strong className="text-foreground block">Pembahasan:</strong>
+                    <div className="p-2.5 rounded-lg bg-muted/20 border border-border/40 text-body-xs text-muted-foreground space-y-0.5">
+                      <strong className="text-foreground text-[11px] block">Pembahasan:</strong>
                       <MathText>{q.explanation}</MathText>
                     </div>
                   )}
@@ -213,3 +212,4 @@ export function QuestionsTab({
     </div>
   );
 }
+

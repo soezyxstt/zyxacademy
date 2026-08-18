@@ -31,7 +31,6 @@ import {
 } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { allowedCategories } from "@/app/(admin)/admin/(academic)/courses/constants";
 import {
-  Search,
   Plus,
   ArrowRight,
   Edit2,
@@ -40,6 +39,7 @@ import {
   List,
   BookOpen,
 } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
 
 export type CourseWithStats = {
   id: string;
@@ -197,22 +197,22 @@ export function CoursesDashboard({ initialCourses }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Search, Filter, and View Controls */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
+      <div className="rounded-xl border border-border bg-card p-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <div className="flex-1 max-w-md">
+            <SearchBar
+              size="sm"
               placeholder="Cari mata kuliah atau kode slug..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 rounded-lg"
+              onSearch={setSearch}
+              onClear={() => setSearch("")}
             />
           </div>
 
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-[220px] rounded-lg">
+            <SelectTrigger className="w-full sm:w-[200px] h-9 text-body-xs rounded-lg">
               <SelectValue placeholder="Semua Program Studi" />
             </SelectTrigger>
             <SelectContent>
@@ -228,7 +228,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
 
         <div className="flex items-center justify-between sm:justify-end gap-2">
           {/* View mode toggle */}
-          <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-lg border border-border/40">
+          <div className="flex items-center gap-0.5 bg-muted/50 p-0.5 rounded-lg border border-border/50">
             <Button
               type="button"
               size="icon"
@@ -254,9 +254,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
           <Button
             onClick={() => setCreateModalOpen(true)}
             size="sm"
-            className="gap-1.5 rounded-lg font-medium"
+            className="gap-1.5 rounded-lg text-body-xs font-semibold h-9"
           >
-            <Plus className="size-4" />
+            <Plus className="size-3.5" />
             Tambah Mata Kuliah
           </Button>
         </div>
@@ -264,9 +264,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
 
       {/* Course Items Display */}
       {filteredCourses.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-border rounded-xl bg-card">
-          <BookOpen className="size-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="font-heading text-body-base font-semibold text-foreground">
+        <div className="text-center py-12 border border-dashed border-border rounded-xl bg-card">
+          <BookOpen className="size-8 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="font-heading text-body-sm font-semibold text-foreground">
             Tidak ada mata kuliah ditemukan
           </p>
           <p className="text-body-xs text-muted-foreground mt-1 max-w-sm mx-auto">
@@ -277,51 +277,51 @@ export function CoursesDashboard({ initialCourses }: Props) {
         </div>
       ) : viewMode === "grid" ? (
         /* Grid View */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {filteredCourses.map((c) => (
             <div
               key={c.id}
-              className="group rounded-xl border border-border/80 bg-card p-5 shadow-sm hover:border-brand-primary/50 hover:shadow-md transition-all flex flex-col justify-between"
+              className="group rounded-xl border border-border/80 bg-card p-4 shadow-2xs hover:border-brand-primary/50 hover:shadow-xs transition-all flex flex-col justify-between"
             >
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div className="flex items-start justify-between gap-2">
                   <Badge
                     variant="outline"
-                    className="font-mono text-[11px] font-bold rounded-md bg-muted/40 uppercase tracking-wider"
+                    className="font-mono text-[11px] font-bold rounded-md bg-muted/40 uppercase tracking-wider px-2 py-0.5"
                   >
                     {c.id}
                   </Badge>
-                  <Badge variant="secondary" className="text-[11px] rounded-md font-medium">
+                  <Badge variant="secondary" className="text-[11px] rounded-md font-medium px-2 py-0.5">
                     {c.category}
                   </Badge>
                 </div>
 
                 <div>
-                  <h3 className="font-heading text-body-base font-bold text-foreground group-hover:text-brand-primary transition-colors line-clamp-1">
+                  <h3 className="font-heading text-body-sm font-bold text-foreground group-hover:text-brand-primary transition-colors line-clamp-1">
                     {c.title}
                   </h3>
                   {c.description ? (
-                    <p className="text-body-xs text-muted-foreground mt-1 line-clamp-2">
+                    <p className="text-body-xs text-muted-foreground mt-0.5 line-clamp-2">
                       {c.description}
                     </p>
                   ) : (
-                    <p className="text-body-xs text-muted-foreground/60 italic mt-1">
+                    <p className="text-body-xs text-muted-foreground/50 italic mt-0.5">
                       Belum ada deskripsi mata kuliah.
                     </p>
                   )}
                 </div>
 
                 {/* Counters */}
-                <div className="grid grid-cols-3 gap-2 py-2 border-y border-border/50 text-center">
-                  <div className="p-1 rounded-lg bg-muted/20">
+                <div className="grid grid-cols-3 gap-1.5 py-1.5 border-y border-border/50 text-center">
+                  <div className="p-1 rounded-md bg-muted/20">
                     <p className="text-body-xs font-bold text-foreground">{c.chapterCount}</p>
                     <p className="text-[10px] text-muted-foreground">Bab</p>
                   </div>
-                  <div className="p-1 rounded-lg bg-muted/20">
+                  <div className="p-1 rounded-md bg-muted/20">
                     <p className="text-body-xs font-bold text-foreground">{c.materialCount}</p>
-                    <p className="text-[10px] text-muted-foreground">Materi PDF</p>
+                    <p className="text-[10px] text-muted-foreground">PDF</p>
                   </div>
-                  <div className="p-1 rounded-lg bg-muted/20">
+                  <div className="p-1 rounded-md bg-muted/20">
                     <p className="text-body-xs font-bold text-foreground">{c.quizCount}</p>
                     <p className="text-[10px] text-muted-foreground">Kuis</p>
                   </div>
@@ -329,7 +329,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
               </div>
 
               {/* Action Bar */}
-              <div className="flex items-center justify-between pt-4 mt-2">
+              <div className="flex items-center justify-between pt-3 mt-1 border-t border-border/40">
                 <div className="flex items-center gap-1">
                   <Button
                     size="icon"
@@ -352,9 +352,9 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 </div>
 
                 <Link href={`/admin/courses/${c.id}`}>
-                  <Button size="sm" className="gap-1.5 rounded-lg text-body-xs font-medium">
-                    <span>Kelola Mata Kuliah</span>
-                    <ArrowRight className="size-3.5" />
+                  <Button size="sm" className="gap-1.5 rounded-lg text-body-xs font-medium h-7 px-2.5">
+                    <span>Kelola</span>
+                    <ArrowRight className="size-3" />
                   </Button>
                 </Link>
               </div>
@@ -363,49 +363,49 @@ export function CoursesDashboard({ initialCourses }: Props) {
         </div>
       ) : (
         /* Table View */
-        <div className="rounded-xl border border-border bg-card shadow-sm overflow-x-auto">
-          <table className="w-full text-left text-body-sm">
+        <div className="rounded-xl border border-border bg-card shadow-2xs overflow-x-auto">
+          <table className="w-full text-left text-body-xs">
             <thead className="bg-muted text-body-xs font-semibold text-muted-foreground">
               <tr>
-                <th className="px-4 py-3">ID (Slug)</th>
-                <th className="px-4 py-3">Nama Mata Kuliah</th>
-                <th className="px-4 py-3">Program Studi</th>
-                <th className="px-4 py-3 text-center">Silabus</th>
-                <th className="px-4 py-3 text-center">Materi PDF</th>
-                <th className="px-4 py-3 text-center">Kuis</th>
-                <th className="px-4 py-3 text-right">Aksi</th>
+                <th className="px-3.5 py-2.5">ID</th>
+                <th className="px-3.5 py-2.5">Nama Mata Kuliah</th>
+                <th className="px-3.5 py-2.5">Program Studi</th>
+                <th className="px-3.5 py-2.5 text-center">Silabus</th>
+                <th className="px-3.5 py-2.5 text-center">Materi PDF</th>
+                <th className="px-3.5 py-2.5 text-center">Kuis</th>
+                <th className="px-3.5 py-2.5 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
               {filteredCourses.map((c) => (
                 <tr key={c.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 font-mono text-body-xs font-bold text-foreground">
+                  <td className="px-3.5 py-2.5 font-mono font-bold text-foreground">
                     {c.id}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3.5 py-2.5">
                     <p className="font-semibold text-foreground">{c.title}</p>
                     {c.description && (
-                      <p className="text-body-xs text-muted-foreground truncate max-w-xs">
+                      <p className="text-[11px] text-muted-foreground truncate max-w-xs">
                         {c.description}
                       </p>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <Badge variant="secondary" className="rounded-md text-[11px] font-medium">
+                  <td className="px-3.5 py-2.5">
+                    <Badge variant="secondary" className="rounded-md text-[10px] font-medium px-1.5 py-0.5">
                       {c.category}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-center font-medium text-foreground">
+                  <td className="px-3.5 py-2.5 text-center font-medium text-foreground">
                     {c.chapterCount} Bab
                   </td>
-                  <td className="px-4 py-3 text-center font-medium text-foreground">
+                  <td className="px-3.5 py-2.5 text-center font-medium text-foreground">
                     {c.materialCount} PDF
                   </td>
-                  <td className="px-4 py-3 text-center font-medium text-foreground">
+                  <td className="px-3.5 py-2.5 text-center font-medium text-foreground">
                     {c.quizCount} Kuis
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
+                  <td className="px-3.5 py-2.5 text-right">
+                    <div className="flex items-center justify-end gap-1">
                       <Button
                         size="icon"
                         variant="ghost"
@@ -413,7 +413,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                         onClick={(e) => startEditCourse(c, e)}
                         title="Edit Metadata"
                       >
-                        <Edit2 className="size-3.5" />
+                        <Edit2 className="size-3" />
                       </Button>
                       <Button
                         size="icon"
@@ -422,10 +422,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
                         onClick={(e) => startDeleteCourse(c, e)}
                         title="Hapus Mata Kuliah"
                       >
-                        <Trash2 className="size-3.5" />
+                        <Trash2 className="size-3" />
                       </Button>
                       <Link href={`/admin/courses/${c.id}`}>
-                        <Button size="sm" className="gap-1 rounded-lg text-body-xs font-medium">
+                        <Button size="sm" className="gap-1 rounded-lg text-body-xs font-medium h-7 px-2.5">
                           <span>Kelola</span>
                           <ArrowRight className="size-3" />
                         </Button>

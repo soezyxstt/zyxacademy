@@ -160,9 +160,9 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Add New Chapter Card */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
         <h3 className="font-heading text-body-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Plus className="size-4 text-brand-primary" />
           Tambah Bab Baru
@@ -176,17 +176,17 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 disabled={addingChapter}
-                className="rounded-lg"
+                className="h-9 text-body-xs rounded-lg"
               />
             </div>
             <div className="space-y-1 md:col-span-2">
-              <Label className="text-body-sm font-semibold text-foreground">Deskripsi / Ruang Lingkup (Opsional)</Label>
+              <Label className="text-body-sm font-semibold text-foreground">Deskripsi (Opsional)</Label>
               <Input
                 placeholder="Contoh: Konsep limit intuitif, limit sepihak, dan definisi formal epsilon-delta"
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 disabled={addingChapter}
-                className="rounded-lg"
+                className="h-9 text-body-xs rounded-lg"
               />
             </div>
           </div>
@@ -195,7 +195,7 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
               type="submit"
               size="sm"
               disabled={addingChapter || !newTitle.trim()}
-              className="gap-1.5 rounded-lg font-medium"
+              className="gap-1.5 rounded-lg font-semibold h-9"
             >
               {addingChapter ? (
                 <>
@@ -214,74 +214,69 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
       </div>
 
       {/* Chapters List */}
-      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
-              <Layers className="size-4 text-brand-primary" />
-              Daftar Silabus & Bab ({chapters.length})
-            </h3>
-            <p className="text-body-xs text-muted-foreground mt-0.5">
-              Urutan bab menentukan struktur belajar mahasiswa dan pengelompokan materi serta kuis.
-            </p>
-          </div>
+      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
+            <Layers className="size-4 text-brand-primary" />
+            Daftar Silabus & Bab ({chapters.length})
+          </h3>
         </div>
 
         {chapters.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-border rounded-xl">
-            <BookOpen className="size-8 text-muted-foreground/50 mx-auto mb-2" />
-            <p className="text-body-sm font-medium text-foreground">Belum ada bab yang terdaftar</p>
-            <p className="text-body-xs text-muted-foreground mt-1">
+          <div className="text-center py-8 border border-dashed border-border rounded-xl">
+            <BookOpen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
+            <p className="text-body-xs font-medium text-foreground">Belum ada bab yang terdaftar</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
               Gunakan formulir di atas untuk menambahkan bab pertama mata kuliah ini.
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {chapters.map((ch, idx) => (
               <div
                 key={ch.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border border-border/70 bg-card hover:bg-muted/10 transition-colors gap-3"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border border-border/70 bg-card hover:bg-muted/10 transition-colors gap-2.5"
               >
-                <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary font-heading font-bold text-body-xs">
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-primary/10 text-brand-primary font-heading font-bold text-body-xs">
                     {idx + 1}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-body-sm font-semibold text-foreground truncate">
+                    <p className="text-body-xs font-semibold text-foreground truncate">
                       {ch.title}
                     </p>
                     {ch.description && (
-                      <p className="text-body-xs text-muted-foreground mt-0.5 line-clamp-2">
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
                         {ch.description}
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-1.5 shrink-0">
+                <div className="flex items-center justify-end gap-1 shrink-0">
                   {/* Reorder Buttons */}
-                  <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-lg border border-border/40">
+                  <div className="flex items-center gap-0.5 bg-muted/40 p-0.5 rounded-md border border-border/40">
                     <Button
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className="size-7 rounded-md"
+                      className="size-6 rounded"
                       disabled={idx === 0 || actionLoadingId === ch.id}
                       onClick={() => handleMove(idx, "up")}
                       title="Pindah ke Atas"
                     >
-                      <ArrowUp className="size-3.5" />
+                      <ArrowUp className="size-3" />
                     </Button>
                     <Button
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className="size-7 rounded-md"
+                      className="size-6 rounded"
                       disabled={idx === chapters.length - 1 || actionLoadingId === ch.id}
                       onClick={() => handleMove(idx, "down")}
                       title="Pindah ke Bawah"
                     >
-                      <ArrowDown className="size-3.5" />
+                      <ArrowDown className="size-3" />
                     </Button>
                   </div>
 
@@ -289,21 +284,21 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
                     type="button"
                     size="icon"
                     variant="ghost"
-                    className="size-7 rounded-lg"
+                    className="size-7 rounded-md"
                     onClick={() => startEditChapter(ch)}
                     title="Edit Bab"
                   >
-                    <Edit2 className="size-3.5" />
+                    <Edit2 className="size-3" />
                   </Button>
                   <Button
                     type="button"
                     size="icon"
                     variant="ghost"
-                    className="size-7 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => setDeletingChapter(ch)}
                     title="Hapus Bab"
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className="size-3" />
                   </Button>
                 </div>
               </div>
