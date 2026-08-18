@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArchiveX, FileCheck2, Package, Search, Trash2, Upload } from "lucide-react";
+import { ArchiveX, FileCheck2, Package, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -343,7 +344,7 @@ export function ProductBundleV2Panel({ initialImports, courseLabels = {}, author
               <AdminTabs value={typeFilter} onValueChange={selectProductType}>
                 <AdminTabsList className="max-w-full overflow-x-auto"><AdminTabsTrigger value="all">Semua ({analysis.summary.total})</AdminTabsTrigger>{typeCounts.map(([type, count]) => <AdminTabsTrigger key={type} value={type}>{humanProductLabel(type)} ({count})</AdminTabsTrigger>)}</AdminTabsList>
                 <AdminTabsContent value={typeFilter} className="space-y-4">
-                  <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari judul, isi, atau jenis produk" className="pl-9" /></div>
+                  <SearchBar value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder="Cari judul, isi, atau jenis produk" />
                   <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]"><div className="rounded-xl border border-border bg-card p-2 shadow-sm"><p className="px-2 pb-2 pt-1 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Daftar produk</p><div className="space-y-1">{visibleProducts.map((product) => { const preview = analysis.previews.find((item) => item.id === product.id); return <Button key={product.id} type="button" variant={activeProduct?.id === product.id ? "secondary" : "ghost"} className="h-auto w-full justify-start whitespace-normal px-2.5 py-2 text-left" onClick={() => setSelectedProductId(product.id)}><span className="min-w-0 flex-1"><span className="block truncate text-body-sm font-semibold">{preview?.title ?? productTitle(product)}</span><span className="mt-0.5 block text-body-xs font-normal text-muted-foreground">{humanProductLabel(product.productType)}</span></span></Button>; })}{visibleProducts.length === 0 && <p className="px-2 py-4 text-body-sm text-muted-foreground">Produk tidak ditemukan.</p>}</div></div>{activeProduct && <ProductDraftEditor product={activeProduct} index={analysis.draft.products.findIndex((product) => product.id === activeProduct.id)} preview={analysis.previews.find((item) => item.id === activeProduct.id)} onChange={(next) => updateProduct(activeProduct.id, () => next)} />}</div>
                 </AdminTabsContent>
               </AdminTabs>

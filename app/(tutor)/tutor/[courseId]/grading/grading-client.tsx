@@ -376,7 +376,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                     <p className="text-body-xs text-muted-foreground flex items-center gap-1.5">
                       <Calendar className="size-3.5" />
                       Status:{" "}
-                      <Badge variant="outline" className={`text-[9px] rounded-md ${
+                      <Badge variant="outline" className={`text-[10px] rounded-md ${
                         s.status === "graded" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                       }`}>
                         {s.status === "graded" ? "Sudah Dinilai" : "Menunggu Dinilai"}

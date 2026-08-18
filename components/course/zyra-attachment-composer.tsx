@@ -165,14 +165,14 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
               ) : (
                 <ImageIcon className="size-8 p-1 text-muted-foreground" aria-hidden="true" />
               )}
-              <span className="max-w-32 truncate text-body-2xs text-foreground">{item.name}</span>
+              <span className="max-w-32 truncate text-body-xs text-foreground">{item.name}</span>
               {item.status === "uploading" && <span className="size-4 animate-pulse rounded-md bg-muted-foreground/35" aria-label="Mengunggah" />}
               {item.status === "failed" && (
                 <Button type="button" variant="ghost" size="icon-xs" onClick={() => retryItem(item)} aria-label={`Coba lagi ${item.name}`}>
                   <RotateCcw className="size-3.5" />
                 </Button>
               )}
-              {item.status === "failed" && <span className="inline-flex items-center gap-1 text-body-2xs text-status-error"><AlertCircle className="size-4" aria-hidden="true" />Gagal</span>}
+              {item.status === "failed" && <span className="inline-flex items-center gap-1 text-body-xs text-status-error"><AlertCircle className="size-4" aria-hidden="true" />Gagal</span>}
               <Button type="button" variant="ghost" size="icon-xs" onClick={() => void removeItem(item)} aria-label={`Hapus ${item.name}`}>
                 <X className="size-3.5" />
               </Button>
@@ -207,7 +207,7 @@ export const ZyraAttachmentComposer = React.forwardRef<ZyraAttachmentComposerHan
           <Paperclip className="size-4" />
           Gambar
         </Button>
-        <span className="text-body-2xs text-muted-foreground">Unggah atau tempel gambar dengan Ctrl+V, maksimal 4</span>
+        <span className="text-body-xs text-muted-foreground">Unggah atau tempel gambar dengan Ctrl+V, maksimal 4</span>
       </div>
       {composerError && <p className="flex items-center gap-1.5 text-body-xs text-status-error" role="alert"><AlertCircle className="size-4 shrink-0" aria-hidden="true" />{composerError}</p>}
     </div>

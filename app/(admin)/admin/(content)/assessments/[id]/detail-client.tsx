@@ -260,7 +260,7 @@ export function AssessmentDetailClient({
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2 pt-1">
               {source.deletedAt && (
-                <Badge variant="outline" className="border-status-error/30 bg-status-error/5 text-[9px] uppercase tracking-wide text-status-error">
+                <Badge variant="outline" className="border-status-error/30 bg-status-error/5 text-[10px] uppercase tracking-wide text-status-error">
                   Archived
                 </Badge>
               )}
@@ -361,7 +361,7 @@ export function AssessmentDetailClient({
           >
             Diagnostik
             {diagnostics.length > 0 && (
-              <Badge variant="outline" className="border-status-error/30 text-status-error bg-status-error/5 ml-1.5 h-4 w-4 p-0 flex items-center justify-center rounded-full text-[9px]">
+              <Badge variant="outline" className="border-status-error/30 text-status-error bg-status-error/5 ml-1.5 h-4 w-4 p-0 flex items-center justify-center rounded-full text-[10px]">
                 {diagnostics.length}
               </Badge>
             )}
@@ -386,7 +386,7 @@ export function AssessmentDetailClient({
                     <Badge variant="secondary" className="font-heading font-semibold text-[11px]">
                       Soal {q.sourceQuestionNumber || q.questionOrder}
                     </Badge>
-                    <Badge variant="outline" className="text-[9px] font-mono select-all flex items-center gap-0.5">
+                    <Badge variant="outline" className="text-[10px] font-mono select-all flex items-center gap-0.5">
                       <Hash size={10} />
                       {q.canonicalQuestionHash.slice(0, 10)}
                     </Badge>

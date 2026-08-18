@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 export const sectionHeadingVariants = cva("font-heading", {
   variants: {
     tier: {
-      hero: "text-5xl md:text-6xl font-bold tracking-tight leading-tight",
-      primary: "text-3xl md:text-4xl font-semibold tracking-tight leading-snug",
-      secondary: "text-2xl md:text-3xl font-semibold leading-snug",
+      hero: "text-h2 md:text-h1 font-bold tracking-tight leading-tight",
+      primary: "text-h3 md:text-h2 font-semibold tracking-tight leading-snug",
+      secondary: "text-h5 md:text-h4 font-semibold leading-snug",
     },
   },
   defaultVariants: {

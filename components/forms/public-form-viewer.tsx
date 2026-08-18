@@ -628,7 +628,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
       <div className="relative flex min-h-screen min-h-[100dvh] items-center justify-center p-4 overflow-hidden bg-background">
         <PageOrnaments variant="plans" />
         <div className="relative z-10 mx-auto max-w-lg w-full rounded-2xl border border-border bg-card/95 backdrop-blur-md p-8 shadow-sm text-center space-y-5 border-t-4 border-t-status-warning">
-          <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-status-warning">
+          <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-status-warning">
             Formulir Ditutup
           </span>
           <h1 className="font-heading text-h4 font-bold text-foreground">{form.title}</h1>
@@ -705,11 +705,11 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
           </span>
           <div className="flex items-center gap-3 shrink-0">
             {currentStep?.kind === "question" && (
-              <span className="font-mono text-body-2xs text-muted-foreground">
+              <span className="font-mono text-body-xs text-muted-foreground">
                 {questionNumberMap.get(currentStep.questionIndex) || 1} / {totalQuestions}
               </span>
             )}
-            <span className="font-mono text-body-2xs font-bold text-brand-primary">
+            <span className="font-mono text-body-xs font-bold text-brand-primary">
               {progressPercent}%
             </span>
           </div>
@@ -731,7 +731,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                 exit="exit"
                 className="space-y-6 text-left"
               >
-                <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-primary">
+                <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
                   <Sparkles className="size-3.5" />
                   {form.category}
                 </div>
@@ -761,7 +761,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     <span>Mulai Isi Formulir</span>
                     <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
                   </Button>
-                  <span className="hidden sm:inline-flex items-center gap-1 text-body-2xs text-muted-foreground">
+                  <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
                     Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
                   </span>
                 </div>
@@ -822,7 +822,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     <span>Lanjut</span>
                     <Check className="size-4 ml-1.5" />
                   </Button>
-                  <span className="hidden sm:inline-flex items-center gap-1 text-body-2xs text-muted-foreground">
+                  <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
                     Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
                   </span>
                 </div>
@@ -844,7 +844,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                   exit="exit"
                   className="space-y-6 text-left"
                 >
-                  <div className="inline-flex items-center gap-2 rounded-md bg-brand-secondary/15 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-secondary">
+                  <div className="inline-flex items-center gap-2 rounded-md bg-brand-secondary/15 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-secondary">
                     <Layers className="size-3.5" />
                     Bagian Baru
                   </div>
@@ -871,7 +871,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                       <button
                         type="button"
                         onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title })}
-                        className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/75 px-2.5 py-1 text-body-2xs font-semibold text-white backdrop-blur-xs cursor-pointer"
+                        className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/75 px-2.5 py-1 text-body-xs font-semibold text-white backdrop-blur-xs cursor-pointer"
                       >
                         <ZoomIn className="size-3" />
                         Perbesar
@@ -888,7 +888,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                       <span>Lanjut ke Bagian Ini</span>
                       <ArrowRight className="size-4" />
                     </Button>
-                    <span className="hidden sm:inline-flex items-center gap-1 text-body-2xs text-muted-foreground">
+                    <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
                       Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
                     </span>
                   </div>
@@ -936,7 +936,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                           type="button"
                           onClick={() => handleClearAnswer(qIdx)}
                           title="Kosongkan jawaban untuk pertanyaan ini"
-                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-body-2xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-body-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                         >
                           <Eraser className="size-3" />
                           <span>Kosongkan Pilihan</span>
@@ -968,7 +968,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                       <button
                         type="button"
                         onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title })}
-                        className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/75 px-2.5 py-1 text-body-2xs font-semibold text-white backdrop-blur-xs cursor-pointer"
+                        className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/75 px-2.5 py-1 text-body-xs font-semibold text-white backdrop-blur-xs cursor-pointer"
                       >
                         <ZoomIn className="size-3" />
                         Perbesar
@@ -1005,7 +1005,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                           placeholder="Tuliskan jawaban lengkap Anda di sini..."
                           className="w-full rounded-xl border border-input bg-card/60 p-4 text-body-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground/40 resize-y leading-relaxed"
                         />
-                        <p className="text-body-2xs text-muted-foreground">
+                        <p className="text-body-xs text-muted-foreground">
                           Gunakan <strong className="font-semibold text-foreground">Shift + Enter</strong> untuk membuat baris baru.
                         </p>
                       </div>
@@ -1100,7 +1100,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     {/* 4. CHECKBOX (Multi-Select Cards) */}
                     {q.type === "CHECKBOX" && (
                       <div className="space-y-3">
-                        <p className="text-body-2xs text-muted-foreground uppercase tracking-wider font-semibold">
+                        <p className="text-body-xs text-muted-foreground uppercase tracking-wider font-semibold">
                           Pilih satu atau beberapa jawaban yang sesuai
                         </p>
                         {(q.options || []).map((opt, oIdx) => {
@@ -1358,7 +1358,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                             );
                           })}
                         </div>
-                        <p className="text-body-2xs text-muted-foreground">
+                        <p className="text-body-xs text-muted-foreground">
                           Tip: Anda juga dapat menekan angka <strong className="font-semibold text-foreground">1-5</strong> di keyboard.
                         </p>
                       </div>
@@ -1492,7 +1492,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                       <span>OK</span>
                       <Check className="size-4" />
                     </Button>
-                    <span className="hidden sm:inline-flex items-center gap-1 text-body-2xs text-muted-foreground">
+                    <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
                       Tekan <strong className="font-semibold text-foreground">Enter ↵</strong>
                     </span>
                   </div>
@@ -1512,7 +1512,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                 className="space-y-6 text-left"
               >
                 <div className="space-y-2">
-                  <span className="inline-block rounded-md bg-brand-primary/10 px-3 py-1 text-body-2xs font-bold uppercase tracking-wider text-brand-primary">
+                  <span className="inline-block rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
                     Tahap Akhir
                   </span>
                   <h2 className="font-heading text-h3 sm:text-h2 font-bold text-foreground">
@@ -1615,7 +1615,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                       </>
                     )}
                   </Button>
-                  <span className="hidden sm:inline-flex items-center gap-1 text-body-2xs text-muted-foreground">
+                  <span className="hidden sm:inline-flex items-center gap-1 text-body-xs text-muted-foreground">
                     Tekan <strong className="font-semibold text-foreground">Ctrl + Enter</strong> untuk kirim
                   </span>
                 </div>

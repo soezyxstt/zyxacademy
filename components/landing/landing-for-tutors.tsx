@@ -20,7 +20,7 @@ function LiveQuizVignette() {
  <span
  key={initials}
  className={cn(
- "flex size-7 items-center justify-center rounded-full border-2 border-black-3 text-[9px] font-bold text-white",
+ "flex size-7 items-center justify-center rounded-full border-2 border-black-3 text-[10px] font-bold text-white",
  index === 0 && "bg-primary",
  index === 1 && "bg-[var(--zx-accent)]",
  index === 2 && "bg-tertiary-1",

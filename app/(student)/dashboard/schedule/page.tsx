@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { toast } from "@/components/ui/toast";
 import { Reveal } from "@/components/ui/reveal";
@@ -284,7 +285,7 @@ export default function SchedulePage() {
                           : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30"
                       }`}
                     >
-                      {day} {count > 0 && <span className="ml-1.5 px-2 py-0.2 text-[9px] font-bold rounded bg-brand-primary text-white">{count}</span>}
+                      {day} {count > 0 && <span className="ml-1.5 px-2 py-0.2 text-[10px] font-bold rounded bg-brand-primary text-white">{count}</span>}
                     </button>
                   );
                 })}
@@ -344,7 +345,7 @@ export default function SchedulePage() {
                                   /* Booked state representation */
                                   <div className="mt-3 space-y-2.5 flex-1 flex flex-col justify-between">
                                     <div>
-                                      <Badge variant="outline" className={`text-[8px] font-bold uppercase tracking-wider ${cStyles?.badge}`}>
+                                      <Badge variant="outline" className={`text-[10px] font-bold uppercase tracking-wider ${cStyles?.badge}`}>
                                         {b.course?.title}
                                       </Badge>
                                       
@@ -385,8 +386,8 @@ export default function SchedulePage() {
                                     
                                     {userRole === "student" ? (
                                       <Button
-                                        size="xs"
-                                        className="mt-3 w-full rounded-lg font-bold text-[10px] py-1 h-7 bg-brand-primary hover:bg-brand-primary/95 text-white"
+                                        size="sm"
+                                        className="mt-3 w-full rounded-lg font-semibold text-body-xs py-1 h-7 bg-brand-primary hover:bg-brand-primary/95 text-white"
                                         onClick={() => {
                                           const tutor = data.relevantTutors?.find((t: any) => t.user.id === slot.tutorId);
                                           setBookingSlot({ ...slot, tutorGroups: tutor?.groups });
@@ -454,7 +455,7 @@ export default function SchedulePage() {
                               {isBooked ? (
                                 <>
                                   <div>
-                                    <Badge variant="outline" className={`text-[8px] uppercase tracking-wider ${cStyles?.badge}`}>
+                                    <Badge variant="outline" className={`text-[10px] uppercase tracking-wider ${cStyles?.badge}`}>
                                       {b.course?.title}
                                     </Badge>
                                   </div>
@@ -594,15 +595,19 @@ export default function SchedulePage() {
                       <div className="grid gap-4 sm:grid-cols-3">
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hari</label>
-                          <select
+                          <Select
                             value={newSlotDay}
-                            onChange={(e) => setNewSlotDay(e.target.value)}
-                            className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-body-sm text-foreground focus:ring-1 focus:ring-brand-primary"
+                            onValueChange={setNewSlotDay}
                           >
-                            {DAYS.map((d) => (
-                              <option key={d} value={d}>{d}</option>
-                            ))}
-                          </select>
+                            <SelectTrigger className="w-full rounded-xl">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DAYS.map((d) => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="space-y-1.5">
@@ -675,7 +680,7 @@ export default function SchedulePage() {
                                 const course = data.enrollments.find((e: any) => e.id === cid);
                                 const cStyles = getCourseStyles(cid);
                                 return (
-                                  <Badge key={cid} variant="outline" className={`text-[8px] px-1.5 py-0 rounded ${cStyles.badge}`}>
+                                  <Badge key={cid} variant="outline" className={`text-[10px] px-1.5 py-0 rounded ${cStyles.badge}`}>
                                     {course?.title || cid}
                                   </Badge>
                                 );
@@ -718,7 +723,7 @@ export default function SchedulePage() {
                               className="flex items-center justify-between p-3.5 rounded-xl border border-border/40 bg-muted/15"
                             >
                               <div>
-                                <span className={`inline-block rounded-md border px-2 py-0 text-[8px] font-semibold uppercase ${cStyles.badge}`}>
+                                <span className={`inline-block rounded-md border px-2 py-0 text-[10px] font-semibold uppercase ${cStyles.badge}`}>
                                   {b.course?.title}
                                 </span>
                                 <h4 className="mt-1 font-heading text-body-xs font-bold text-foreground">
@@ -779,26 +784,28 @@ export default function SchedulePage() {
 
               <div className="mt-4 space-y-1.5">
                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mata Kuliah Bimbingan</label>
-                <select
+                <Select
                   value={selectedCourseId}
-                  onChange={(e) => setSelectedCourseId(e.target.value)}
-                  className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-body-sm text-foreground focus:ring-1 focus:ring-brand-primary"
+                  onValueChange={setSelectedCourseId}
                 >
-                  <option value="" disabled>-- Pilih Mata Kuliah --</option>
-                  {bookingSlot.startTime && (
-                    // Map tutor's shared courses that student takes
-                    data.relevantTutors
-                      ?.find((t: any) => t.user.id === bookingSlot.tutorId)
-                      ?.sharedCourseIds.map((cid: string) => {
-                        const course = data.enrollments.find((e: any) => e.id === cid);
-                        return (
-                          <option key={cid} value={cid}>
-                            {course?.title || cid}
-                          </option>
-                        );
-                      })
-                  )}
-                </select>
+                  <SelectTrigger className="w-full rounded-xl">
+                    <SelectValue placeholder="Pilih Mata Kuliah" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bookingSlot.startTime && (
+                      data.relevantTutors
+                        ?.find((t: any) => t.user.id === bookingSlot.tutorId)
+                        ?.sharedCourseIds.map((cid: string) => {
+                          const course = data.enrollments.find((e: any) => e.id === cid);
+                          return (
+                            <SelectItem key={cid} value={cid}>
+                              {course?.title || cid}
+                            </SelectItem>
+                          );
+                        })
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="mt-6 flex justify-end gap-3">

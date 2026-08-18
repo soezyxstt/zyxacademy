@@ -348,7 +348,7 @@ export default function AdminMeetPage() {
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-2">
             <PlusCircle className="size-5 text-brand-primary" />
-            <h2 className="font-heading text-h5 font-semibold text-foreground">
+            <h2 className="font-heading text-body-base font-bold text-foreground">
               Buat Meeting Baru
             </h2>
           </div>
@@ -578,7 +578,7 @@ export default function AdminMeetPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="size-5 text-status-success" />
-                <h2 className="font-heading text-h5 font-semibold text-foreground">
+                <h2 className="font-heading text-body-base font-bold text-foreground">
                   Status Meeting Aktif
                 </h2>
               </div>
@@ -752,8 +752,8 @@ export default function AdminMeetPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
-            <h2 className="font-heading text-h5 font-bold text-foreground">
-              Daftar Log Meeting (Conference Records)
+            <h2 className="font-heading text-body-base font-bold text-foreground">
+              Riwayat Conference &amp; Rekaman
             </h2>
             <p className="text-body-sm text-muted-foreground">
               Riwayat sesi meeting yang telah selesai beserta metrik peak peserta, rekaman, transkrip, dan analisis kehadiran.

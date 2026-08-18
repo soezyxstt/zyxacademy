@@ -617,7 +617,7 @@ export default function AdminFormsBuilder({
                     className="font-mono font-semibold rounded-md px-2 py-0.5 text-body-xs h-7 w-36"
                   />
                 </div>
-                <span className="text-body-2xs text-muted-foreground">Responden dapat mengakses via /f/{slug || "slug"}</span>
+                <span className="text-body-xs text-muted-foreground">Responden dapat mengakses via /f/{slug || "slug"}</span>
               </div>
 
               <div className="flex items-center justify-between pt-2">
@@ -839,7 +839,7 @@ export default function AdminFormsBuilder({
                           <button
                             type="button"
                             onClick={() => setZoomImageUri({ url: q.imageUrl!, title: q.title })}
-                            className="absolute bottom-3 left-3 bg-black/75 hover:bg-black text-white px-2 py-1 rounded-md text-body-2xs font-semibold inline-flex items-center gap-1 transition-opacity cursor-pointer"
+                            className="absolute bottom-3 left-3 bg-black/75 hover:bg-black text-white px-2 py-1 rounded-md text-body-xs font-semibold inline-flex items-center gap-1 transition-opacity cursor-pointer"
                           >
                             <ZoomIn className="size-3" /> Perbesar
                           </button>
@@ -924,7 +924,7 @@ export default function AdminFormsBuilder({
                           <Layers className="size-4" />
                           Pembatas Bagian Baru (Section Break)
                         </div>
-                        <p className="text-body-2xs text-muted-foreground">
+                        <p className="text-body-xs text-muted-foreground">
                           Pertanyaan setelah pembatas ini akan ditampilkan pada halaman/bagian berikutnya di formulir responden.
                         </p>
                       </div>
@@ -1076,7 +1076,7 @@ export default function AdminFormsBuilder({
                           <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
                             <p className="font-bold text-foreground flex items-center justify-between">
                               <span>Baris (Pertanyaan)</span>
-                              <span className="text-muted-foreground font-mono text-body-2xs">({(q.gridRows || []).length} items)</span>
+                              <span className="text-muted-foreground font-mono text-body-xs">({(q.gridRows || []).length} items)</span>
                             </p>
                             {(q.gridRows || ["Baris 1", "Baris 2"]).map((rowVal, rIdx) => (
                               <div key={rIdx} className="flex items-center gap-2">
@@ -1111,7 +1111,7 @@ export default function AdminFormsBuilder({
                           <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
                             <p className="font-bold text-foreground flex items-center justify-between">
                               <span>Kolom (Skala Opsi)</span>
-                              <span className="text-muted-foreground font-mono text-body-2xs">({(q.gridColumns || []).length} items)</span>
+                              <span className="text-muted-foreground font-mono text-body-xs">({(q.gridColumns || []).length} items)</span>
                             </p>
                             {(q.gridColumns || ["Kolom 1", "Kolom 2"]).map((colVal, cIdx) => (
                               <div key={cIdx} className="flex items-center gap-2">
@@ -1145,7 +1145,7 @@ export default function AdminFormsBuilder({
 
                         {/* Live Matrix Table Preview Panel */}
                         <div className="space-y-2 pt-2">
-                          <p className="font-bold text-muted-foreground flex items-center gap-1.5 text-body-2xs uppercase tracking-wider">
+                          <p className="font-bold text-muted-foreground flex items-center gap-1.5 text-body-xs uppercase tracking-wider">
                             <TableIcon className="size-3.5 text-brand-primary" /> Pratinjau Tampilan Matriks Responden:
                           </p>
                           <div className="overflow-x-auto rounded-xl border border-border bg-background p-3">
@@ -1355,7 +1355,7 @@ export default function AdminFormsBuilder({
                     onChange={(e) => setSettings({ ...settings, openAt: e.target.value })}
                     className="w-full rounded-xl px-3 py-2 text-body-xs h-9"
                   />
-                  <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
+                  <p className="text-body-xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
                 </div>
 
                 <div>
@@ -1368,7 +1368,7 @@ export default function AdminFormsBuilder({
                     onChange={(e) => setSettings({ ...settings, closeAt: e.target.value })}
                     className="w-full rounded-xl px-3 py-2 text-body-xs h-9"
                   />
-                  <p className="text-body-2xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
+                  <p className="text-body-xs text-muted-foreground mt-1">Kosongkan jika selalu dibuka.</p>
                 </div>
               </div>
 
@@ -1586,11 +1586,11 @@ export default function AdminFormsBuilder({
                           <td className="px-4 py-3.5 whitespace-nowrap">
                             <div className="flex flex-col gap-1">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-body-2xs text-muted-foreground w-14">Short:</span>
+                                <span className="font-mono text-body-xs text-muted-foreground w-14">Short:</span>
                                 <button
                                   type="button"
                                   onClick={() => handleCopyLink(shortPath, `short_${f.id}`)}
-                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-body-2xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
                                 >
                                   {isShortCopied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
                                   {isShortCopied ? "Tersalin!" : shortPath}
@@ -1599,18 +1599,18 @@ export default function AdminFormsBuilder({
                                   href={shortPath}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="text-brand-primary hover:underline text-body-2xs"
+                                  className="text-brand-primary hover:underline text-body-xs"
                                 >
                                   <ExternalLink className="size-3 inline" />
                                 </a>
                               </div>
 
                               <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-body-2xs text-muted-foreground w-14">Full:</span>
+                                <span className="font-mono text-body-xs text-muted-foreground w-14">Full:</span>
                                 <button
                                   type="button"
                                   onClick={() => handleCopyLink(fullPath, `full_${f.id}`)}
-                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-body-2xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
                                 >
                                   {isFullCopied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
                                   {isFullCopied ? "Tersalin!" : fullPath}
@@ -1619,7 +1619,7 @@ export default function AdminFormsBuilder({
                                   href={fullPath}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="text-brand-primary hover:underline text-body-2xs"
+                                  className="text-brand-primary hover:underline text-body-xs"
                                 >
                                   <ExternalLink className="size-3 inline" />
                                 </a>

@@ -152,7 +152,7 @@ export function FormPresetsPanel({
 
   return (
     <div className="space-y-2">
-      <p className="text-body-2xs font-bold text-foreground uppercase tracking-wider">
+      <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
         Preset Formulir
       </p>
 
@@ -282,18 +282,18 @@ export function FormPresetsPanel({
                   <div className="min-w-0 space-y-1">
                     <p className="truncate text-body-sm font-semibold text-foreground">{preset.name}</p>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="secondary" className="bg-brand-primary/10 text-brand-primary text-body-2xs font-semibold uppercase tracking-wider">
+                      <Badge variant="secondary" className="bg-brand-primary/10 text-brand-primary text-[10px] font-semibold uppercase tracking-wider">
                         {CATEGORY_LABELS[preset.category] || preset.category}
                       </Badge>
-                      <span className="text-body-2xs text-muted-foreground">
+                      <span className="text-body-xs text-muted-foreground">
                         {(preset.questions || []).filter((q: any) => q && q.type !== "SECTION").length} pertanyaan
                       </span>
                       {preset.settings && Object.keys(preset.settings).length > 0 && (
-                        <span className="text-body-2xs text-muted-foreground">dengan pengaturan</span>
+                        <span className="text-body-xs text-muted-foreground">dengan pengaturan</span>
                       )}
                     </div>
                     {preset.description && (
-                      <p className="truncate text-body-2xs text-muted-foreground">{preset.description}</p>
+                      <p className="truncate text-body-xs text-muted-foreground">{preset.description}</p>
                     )}
                   </div>
 

@@ -5,9 +5,9 @@ import Link from "next/link";
 import {
   Archive,
   BookOpen,
+  CheckCircle2,
   ChevronRight,
   FileCode,
-  FileText,
   LayoutGrid,
   List,
 } from "lucide-react";
@@ -35,8 +35,113 @@ const categoryLabel: Record<string, string> = {
 
 const categories = ["all", "materi", "soal", "solusi", "diktat"] as const;
 
+const getCategoryStyle = (category?: DocCategory) => {
+  switch (category) {
+    case "soal":
+      return {
+        icon: FileCode,
+        badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20",
+        label: "Soal",
+        stamp: "SOAL",
+      };
+    case "solusi":
+      return {
+        icon: CheckCircle2,
+        badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20",
+        label: "Solusi",
+        stamp: "SOLUSI",
+      };
+    case "diktat":
+      return {
+        icon: Archive,
+        badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20",
+        label: "Diktat",
+        stamp: "PDF DIKTAT",
+      };
+    default:
+      return {
+        icon: BookOpen,
+        badgeClass: "bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-1 ring-sky-500/20",
+        label: "Materi",
+        stamp: "MATERI",
+      };
+  }
+};
+
+function DocumentThumbnailPreview({ material }: { material: CourseMaterial }) {
+  const config = getCategoryStyle(material.docCategory);
+  const cleanSnippet = material.body
+    ? material.body
+        .replace(/^#+\s+[^\n]+/gm, "")
+        .replace(/[*_`#~\[\]]/g, "")
+        .trim()
+    : null;
+
+  return (
+    <div className="relative h-36 w-full bg-muted/40 dark:bg-muted/20 flex items-center justify-center p-3 overflow-hidden border-y border-border/50 select-none group-hover:bg-muted/60 transition-colors">
+      <div className="w-full h-full max-w-[200px] bg-background dark:bg-card rounded-sm border border-border/70 shadow-2xs p-2.5 flex flex-col justify-between overflow-hidden group-hover:scale-[1.02] transition-transform duration-200">
+        {/* Top mini header on sheet */}
+        <div className="flex items-center justify-between gap-1 border-b border-border/40 pb-1">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
+            {config.stamp}
+          </span>
+          <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
+            {material.kind === "pdf" ? "PDF" : "DOC"}
+          </span>
+        </div>
+
+        {/* Middle content preview */}
+        <div className="my-auto py-1 space-y-1.5 overflow-hidden">
+          {cleanSnippet ? (
+            <p className="text-[10px] leading-relaxed text-muted-foreground line-clamp-3 font-sans break-words">
+              {cleanSnippet}
+            </p>
+          ) : material.docCategory === "soal" ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-1 py-0.5 rounded">Q1</span>
+                <div className="h-1.5 bg-muted rounded-full w-4/5" />
+              </div>
+              <div className="space-y-1 pl-2">
+                <div className="h-1 bg-muted/70 rounded-full w-3/4" />
+                <div className="h-1 bg-muted/70 rounded-full w-2/3" />
+                <div className="h-1 bg-muted/70 rounded-full w-4/5" />
+              </div>
+            </div>
+          ) : material.docCategory === "solusi" ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 px-1 py-0.5 rounded">SOLUSI</span>
+                <div className="h-1.5 bg-muted rounded-full w-2/3" />
+              </div>
+              <div className="space-y-1 pl-2">
+                <div className="h-1 bg-muted/70 rounded-full w-4/5" />
+                <div className="h-1 bg-muted/70 rounded-full w-3/5" />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="h-2 bg-muted rounded-full w-3/4" />
+              <div className="h-1 bg-muted/70 rounded-full w-full" />
+              <div className="h-1 bg-muted/70 rounded-full w-5/6" />
+              <div className="h-1 bg-muted/70 rounded-full w-4/5" />
+              <div className="h-1 bg-muted/70 rounded-full w-2/3" />
+            </div>
+          )}
+        </div>
+
+        {/* Bottom footer bar of sheet */}
+        <div className="flex items-center justify-between pt-1 border-t border-border/30 text-[10px] text-muted-foreground/60 font-mono">
+          <span className="truncate max-w-[120px]">{material.title}</span>
+          <span>1</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DocumentListClient({ courseId, materials, chapters }: DocumentListClientProps) {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [activeTab, setActiveTab] = useState<string>("all");
   const [activeChapterId, setActiveChapterId] = useState<string>("all");
 
@@ -74,15 +179,6 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
     { all: 0, materi: 0, soal: 0, solusi: 0, diktat: 0 }
   );
 
-  const getFileIcon = (category?: DocCategory, sizeClass = "size-5") => {
-    const className = cn("shrink-0 text-brand-primary", sizeClass);
-
-    if (category === "soal") return <FileText className={className} />;
-    if (category === "solusi") return <FileCode className={className} />;
-    if (category === "diktat") return <Archive className={className} />;
-    return <BookOpen className={className} />;
-  };
-
   return (
     <div className="space-y-3 font-sans">
       <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-card/70 p-3 backdrop-blur-sm">
@@ -93,7 +189,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
               type="button"
               onClick={() => setActiveTab(category)}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-body-xs font-semibold transition-colors",
                 activeTab === category
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground"
@@ -119,7 +215,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
             className={cn(
               "flex size-8 items-center justify-center rounded-md transition-colors",
               viewMode === "grid"
-                ? "bg-primary/10 text-brand-primary"
+                ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
             title="Grid"
@@ -134,7 +230,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
             className={cn(
               "flex size-8 items-center justify-center rounded-md transition-colors",
               viewMode === "list"
-                ? "bg-primary/10 text-brand-primary"
+                ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
             title="List"
@@ -152,9 +248,9 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
             type="button"
             onClick={() => setActiveChapterId("all")}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
+              "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-body-xs font-semibold transition-colors cursor-pointer",
               activeChapterId === "all"
-                ? "bg-brand-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground"
             )}
           >
@@ -166,9 +262,9 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
               type="button"
               onClick={() => setActiveChapterId(chapter.id)}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-body-xs font-semibold transition-colors cursor-pointer",
                 activeChapterId === chapter.id
-                  ? "bg-brand-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground"
               )}
             >
@@ -179,59 +275,94 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
       )}
 
       {viewMode === "grid" ? (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredMaterials.map((material) => (
-            <Link
-              key={material.id}
-              href={`/courses/${courseId}/material/${material.id}`}
-              className="group flex min-h-24 flex-col justify-between rounded-lg border border-border/70 bg-card/75 p-3 transition-colors hover:border-brand-primary hover:bg-muted/25"
-            >
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/8 ring-1 ring-primary/10">
-                  {getFileIcon(material.docCategory)}
-                </span>
-                <h3 className="line-clamp-2 text-body-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-brand-primary">
-                  {material.title}
-                </h3>
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                <span className="font-medium">
-                  {material.docCategory ? categoryLabel[material.docCategory] : "Materi"}
-                </span>
-                <span>{material.fileSize || "PDF"}</span>
-              </div>
-            </Link>
-          ))}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredMaterials.map((material) => {
+            const config = getCategoryStyle(material.docCategory);
+            const Icon = config.icon;
+            return (
+              <Link
+                key={material.id}
+                href={`/courses/${courseId}/material/${material.id}`}
+                className="group flex flex-col justify-between rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:shadow-xs transition-all overflow-hidden"
+              >
+                {/* Header */}
+                <div className="flex items-center gap-2.5 p-3 pb-2.5 bg-card min-w-0">
+                  <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", config.badgeClass)}>
+                    <Icon className="size-3.5" />
+                  </span>
+                  <span
+                    className="truncate text-body-sm font-semibold text-foreground group-hover:text-primary transition-colors flex-1"
+                    title={material.title}
+                  >
+                    {material.title}
+                  </span>
+                  {material.completed && (
+                    <span title="Selesai dipelajari" className="shrink-0 text-emerald-500">
+                      <CheckCircle2 className="size-4" />
+                    </span>
+                  )}
+                </div>
+
+                {/* Thumbnail Preview Area */}
+                <DocumentThumbnailPreview material={material} />
+
+                {/* Footer */}
+                <div className="flex items-center justify-between gap-2 p-2.5 px-3 bg-card text-body-xs text-muted-foreground">
+                  <span className="font-medium">
+                    {material.docCategory ? categoryLabel[material.docCategory] : "Materi"}
+                  </span>
+                  <span className="text-muted-foreground/80 font-mono text-[11px] truncate">
+                    {material.fileSize || (material.kind === "pdf" ? "PDF" : "Artikel")}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <div className="space-y-2">
           <ul className="divide-y divide-border/70 rounded-lg border border-border/70 bg-card/75 backdrop-blur-sm">
-            {filteredMaterials.map((material) => (
-              <li key={material.id}>
-                <Link
-                  href={`/courses/${courseId}/material/${material.id}`}
-                  className="group grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/35 md:grid-cols-[1fr_120px_84px_auto]"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    {getFileIcon(material.docCategory, "size-4")}
-                    <div className="min-w-0">
-                      <span className="block truncate text-body-sm font-semibold text-foreground group-hover:text-brand-primary">
-                        {material.title}
+            {filteredMaterials.map((material) => {
+              const config = getCategoryStyle(material.docCategory);
+              const Icon = config.icon;
+              return (
+                <li key={material.id}>
+                  <Link
+                    href={`/courses/${courseId}/material/${material.id}`}
+                    className="group grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/35 md:grid-cols-[1fr_120px_100px_auto]"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", config.badgeClass)}>
+                        <Icon className="size-3.5" />
                       </span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground md:hidden">
-                        {material.docCategory ? categoryLabel[material.docCategory] : "Materi"} -{" "}
-                        {material.fileSize || "PDF"}
-                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="block truncate text-body-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {material.title}
+                          </span>
+                          {material.completed && (
+                            <span title="Selesai dipelajari" className="shrink-0 text-emerald-500">
+                              <CheckCircle2 className="size-3.5" />
+                            </span>
+                          )}
+                        </div>
+                        <span className="mt-0.5 block text-body-xs text-muted-foreground md:hidden">
+                          {material.docCategory ? categoryLabel[material.docCategory] : "Materi"} ·{" "}
+                          {material.fileSize || (material.kind === "pdf" ? "PDF" : "Artikel")}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <span className="hidden text-xs font-medium text-muted-foreground md:block">
-                    {material.docCategory ? categoryLabel[material.docCategory] : "Materi"}
-                  </span>
-                  <span className="hidden text-xs text-muted-foreground md:block">{material.fileSize || "PDF"}</span>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-70 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-primary" />
-                </Link>
-              </li>
-            ))}
+                    <span className="hidden text-body-xs font-medium text-muted-foreground md:block">
+                      {material.docCategory ? categoryLabel[material.docCategory] : "Materi"}
+                    </span>
+                    <span className="hidden text-body-xs text-muted-foreground md:block font-mono text-[11px]">
+                      {material.fileSize || (material.kind === "pdf" ? "PDF" : "Artikel")}
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-70 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

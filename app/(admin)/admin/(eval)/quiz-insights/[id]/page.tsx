@@ -346,7 +346,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                 <Sparkles className="size-6 text-amber-400" />
               </div>
               <div className="max-w-md mx-auto space-y-2">
-                <h3 className="font-heading text-h5 font-bold text-foreground">Belum Ada Analisis AI Gemini</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Analisis AI Gemini</h3>
                 <p className="text-body-sm text-muted-foreground">
                   Klik tombol di bawah ini untuk mengirimkan set data hasil pengerjaan kuis ke Gemini AI. Sistem akan mendiagnosis miskonsepsi siswa, jebakan distraktor, dan memberikan rekomendasi pengajaran.
                 </p>
@@ -390,7 +390,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
 
               {/* 1. Ringkasan Eksekutif */}
               <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-brand-primary font-heading font-bold text-h5 border-b border-border pb-3">
+                <div className="flex items-center gap-2 text-brand-primary font-heading font-bold text-body-base border-b border-border pb-3">
                   <BookOpen className="size-5" />
                   <span>Ringkasan Eksekutif Hasil Kuis</span>
                 </div>
@@ -402,7 +402,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               {/* 2. Konsep & Miskonsepsi */}
               {latestAiInsight.insights.misconceptions && latestAiInsight.insights.misconceptions.length > 0 && (
                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 text-status-error font-heading font-bold text-h5 border-b border-border pb-3">
+                  <div className="flex items-center gap-2 text-status-error font-heading font-bold text-body-base border-b border-border pb-3">
                     <AlertTriangle className="size-5" />
                     <span>Konsep & Miskonsepsi yang Menyulitkan Siswa</span>
                   </div>
@@ -410,7 +410,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                     {latestAiInsight.insights.misconceptions.map((misc, idx) => (
                       <div key={idx} className="border border-border/80 bg-muted/20 rounded-xl p-4 space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-heading text-body-lg font-bold text-foreground">{misc.concept}</h4>
+                          <h4 className="font-heading text-body-sm font-bold text-foreground">{misc.concept}</h4>
                           <Badge
                             className={`rounded-md text-[11px] capitalize ${
                               misc.frequency === "high"
@@ -521,7 +521,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
           <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
-                <h3 className="font-heading text-h5 font-bold text-foreground">Detail Butir Soal & Pilihan Jawaban (Distraktor)</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground">Detail Butir Soal & Pilihan Jawaban (Distraktor)</h3>
                 <p className="text-body-xs text-muted-foreground mt-0.5">
                   Menampilkan pilihan jawaban siswa per opsi (A, B, C, D, E) untuk mendeteksi pilihan jebakan.
                 </p>
@@ -649,7 +649,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
         <AdminTabsContent value="concepts" className="space-y-6">
           <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
             <div className="border-b border-border pb-3">
-              <h3 className="font-heading text-h5 font-bold text-foreground">Analisis Tingkat Penguasaan Konsep</h3>
+              <h3 className="font-heading text-body-base font-bold text-foreground">Analisis Tingkat Penguasaan Konsep</h3>
               <p className="text-body-xs text-muted-foreground mt-0.5">
                 Persentase akurasi jawaban siswa dikelompokkan berdasarkan topik/konsep tag yang terhubung dengan bank soal.
               </p>
@@ -717,7 +717,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Rentang Nilai */}
             <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-              <h3 className="font-heading text-h5 font-bold text-foreground border-b border-border pb-3">
+              <h3 className="font-heading text-body-base font-bold text-foreground border-b border-border pb-3">
                 Distribusi Rentang Nilai Siswa
               </h3>
               <div className="space-y-3">
@@ -746,7 +746,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
 
             {/* Durasi & Ketuntasan */}
             <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-              <h3 className="font-heading text-h5 font-bold text-foreground border-b border-border pb-3">
+              <h3 className="font-heading text-body-base font-bold text-foreground border-b border-border pb-3">
                 Metrik Ketuntasan & Durasi
               </h3>
               <div className="space-y-4 text-body-sm">

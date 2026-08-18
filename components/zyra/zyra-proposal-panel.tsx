@@ -118,7 +118,7 @@ export function ZyraProposalPanel({ courseId, role }: { courseId?: string | null
               <div key={proposal.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="space-y-1">
                   <p className="text-body-sm font-semibold text-foreground">{proposal.proposalType}</p>
-                  <p className="font-mono text-body-2xs text-muted-foreground">diff {proposal.diffHash.slice(0, 12)} · versi {proposal.preconditionVersion}</p>
+                  <p className="font-mono text-body-xs text-muted-foreground">diff {proposal.diffHash.slice(0, 12)} · versi {proposal.preconditionVersion}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="rounded-md">{proposal.status}</Badge>
@@ -137,7 +137,7 @@ export function ZyraProposalPanel({ courseId, role }: { courseId?: string | null
             ))}
           </div>
         )}
-        <p className={cn("flex items-start gap-2 text-body-2xs text-muted-foreground")}>
+        <p className={cn("flex items-start gap-2 text-body-xs text-muted-foreground")}>
           <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           Konfirmasi hanya menyiapkan handoff; mutation service dan audit final tetap wajib tersedia.
         </p>

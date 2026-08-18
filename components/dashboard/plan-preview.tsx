@@ -53,7 +53,7 @@ export function DashboardPlanPreview() {
               <p className="text-body-xs text-muted-foreground">{tier.note}</p>
               <div className="pt-2">
                 <p className="font-heading text-body-md font-bold text-foreground">{tier.price}</p>
-                <p className="text-body-2xs text-muted-foreground">Total per semester</p>
+                <p className="text-body-xs text-muted-foreground">Total per semester</p>
               </div>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col p-5 pt-0">

@@ -538,7 +538,7 @@ export default async function DashboardPage() {
                         <li key={review.id} className="py-3 first:pt-0 last:pb-0 flex items-start justify-between gap-4">
                           <div className="min-w-0 flex-1">
                             <span className={cn(
-                              "inline-flex rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider shrink-0",
+                              "inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0",
                               gradeColors[review.grade] || "text-muted-foreground border-border bg-muted/40"
                             )}>
                               {gradeLabels[review.grade] || "Ulasan"}
@@ -546,7 +546,7 @@ export default async function DashboardPage() {
                             <p className="text-body-xs font-medium text-foreground mt-1.5 truncate">
                               {review.front}
                             </p>
-                            <p className="text-body-2xs text-muted-foreground mt-0.5">
+                            <p className="text-body-xs text-muted-foreground mt-0.5">
                               {review.courseTitle}, {new Date(review.reviewedAt).toLocaleDateString("id-ID")}
                             </p>
                           </div>

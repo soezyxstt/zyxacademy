@@ -9,6 +9,14 @@ import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, L
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type QuizPlayerProps = {
   courseId: string;
@@ -93,6 +101,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const [timeLeft, setTimeLeft] = useState<number>(durationSeconds);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const sorted = useMemo(
     () => [...exam.questions].sort((a, b) => a.order - b.order),
@@ -105,6 +114,21 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     if (typeof val === "string") return val.trim().length > 0;
     return true;
   }, [answers]);
+
+  const handleRequestSubmit = useCallback(() => {
+    if (isSubmitted || submitting) return;
+
+    if (requireAllAnswered) {
+      const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
+      if (unansweredIndex !== -1) {
+        toast.error("Harap jawab semua butir soal sebelum mengumpulkan kuis.");
+        setIndex(unansweredIndex);
+        return;
+      }
+    }
+
+    setShowConfirmModal(true);
+  }, [isSubmitted, submitting, requireAllAnswered, sorted, isQuestionAnswered]);
 
   // Per-question timer state
   const currentQuestionId = sorted[index]?.id;
@@ -266,6 +290,8 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
   const q = sorted[index];
   const answeredCount = sorted.filter((question) => isQuestionAnswered(question.id)).length;
+  const unansweredCount = sorted.length - answeredCount;
+  const flaggedCount = sorted.filter((question) => flags[question.id]).length;
   const progress = sorted.length > 0 ? (answeredCount / sorted.length) * 100 : 0;
 
   function selectOption(qId: string, optionIndex: number) {
@@ -474,7 +500,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                 type="button"
                 disabled={submitting || isSubmitted}
                 className="h-9 rounded-md bg-brand-primary px-4 text-[13px] font-bold text-white hover:bg-brand-primary/95 sm:px-8 sm:text-body-sm"
-                onClick={() => handleSubmit(false)}
+                onClick={handleRequestSubmit}
               >
                 {submitting ? (
                   <>
@@ -567,9 +593,113 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               </div>
             </div>
           </div>
+
+          {/* Sidebar Submit shortcut */}
+          <div className="border-t border-border pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting || isSubmitted}
+              onClick={handleRequestSubmit}
+              className="h-9 w-full rounded-md border-border/80 text-[13px] font-semibold text-foreground hover:bg-muted"
+            >
+              Kumpulkan Kuis
+            </Button>
+          </div>
         </div>
 
       </div>
+
+      {/* Confirmation Dialog before submitting */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+              Kumpulkan Lembar Jawaban Kuis?
+            </DialogTitle>
+            <DialogDescription className="text-body-sm text-muted-foreground mt-1.5">
+              Periksa kembali ringkasan pengerjaan sebelum mengumpulkan jawaban Anda.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="my-2 space-y-3">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+                <span className="block text-[11px] font-semibold text-muted-foreground uppercase">Total Soal</span>
+                <span className="font-heading text-body-base font-bold text-foreground">{sorted.length}</span>
+              </div>
+              <div className="rounded-xl border border-tertiary-1/30 bg-tertiary-1/10 p-2.5">
+                <span className="block text-[11px] font-semibold text-tertiary-1 uppercase">Terjawab</span>
+                <span className="font-heading text-body-base font-bold text-tertiary-1">{answeredCount}</span>
+              </div>
+              <div
+                className={cn(
+                  "rounded-xl border p-2.5",
+                  unansweredCount > 0
+                    ? "border-status-error/30 bg-status-error/10 text-status-error"
+                    : "border-border bg-muted/30 text-muted-foreground"
+                )}
+              >
+                <span className="block text-[11px] font-semibold uppercase">Kosong</span>
+                <span className="font-heading text-body-base font-bold">{unansweredCount}</span>
+              </div>
+            </div>
+
+            {flaggedCount > 0 && (
+              <div className="flex items-center gap-2 rounded-xl border border-brand-secondary/35 bg-brand-secondary/10 px-3.5 py-2.5 text-body-xs font-semibold text-brand-secondary">
+                <Flag className="size-4 shrink-0 fill-brand-secondary" />
+                <span>Masih ada {flaggedCount} butir soal yang ditandai ragu-ragu.</span>
+              </div>
+            )}
+
+            {unansweredCount > 0 && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-body-xs text-amber-700 dark:text-amber-300">
+                <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                <span>Terdapat {unansweredCount} butir soal belum diisi. Soal yang kosong akan dianggap bernilai nol.</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-body-xs text-muted-foreground">
+              <span>Sisa waktu pengerjaan:</span>
+              <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              Setelah dikumpulkan, lembar jawaban Anda akan dinilai dan tidak dapat diubah lagi.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              onClick={() => setShowConfirmModal(false)}
+              className="w-full sm:w-auto rounded-lg border-border"
+            >
+              Cek Kembali
+            </Button>
+            <Button
+              type="button"
+              disabled={submitting}
+              onClick={() => {
+                setShowConfirmModal(false);
+                handleSubmit(false);
+              }}
+              className="w-full sm:w-auto rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-bold"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                  Mengirim...
+                </>
+              ) : (
+                "Ya, Kumpulkan"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

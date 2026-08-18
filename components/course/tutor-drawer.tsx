@@ -993,7 +993,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                           <button
                             type="button"
                             onClick={() => void handleSend("Berikan contoh soal serupa dan tuntun aku langkah demi langkah.")}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-2xs font-medium text-foreground hover:bg-muted transition-colors"
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-xs font-medium text-foreground hover:bg-muted transition-colors"
                           >
                             <Sparkles className="size-3 text-brand-primary" />
                             <span>Contoh Soal</span>
@@ -1001,7 +1001,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                           <button
                             type="button"
                             onClick={() => void handleSend("Uji pemahamanku dengan 1 pertanyaan konsep singkat tanpa memberi kunci jawaban langsung.")}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-2xs font-medium text-foreground hover:bg-muted transition-colors"
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-xs font-medium text-foreground hover:bg-muted transition-colors"
                           >
                             <HelpCircle className="size-3 text-brand-secondary" />
                             <span>Uji Pemahaman</span>
@@ -1009,7 +1009,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                           <button
                             type="button"
                             onClick={() => void handleSend("Jelaskan dengan analogi sehari-hari yang mudah dibayangkan.")}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-2xs font-medium text-foreground hover:bg-muted transition-colors"
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-body-xs font-medium text-foreground hover:bg-muted transition-colors"
                           >
                             <Compass className="size-3 text-brand-primary" />
                             <span>Analogi Sederhana</span>
@@ -1205,7 +1205,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                   <Button 
                     variant="ghost" 
                     size="xs"
-                    className="h-7 text-body-2xs"
+                    className="h-7 text-body-xs"
                     onClick={() => setActiveAction("none")}
                   >
                     Tutup Latihan
@@ -1286,7 +1286,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                   <Button 
                     variant="ghost" 
                     size="xs"
-                    className="h-7 text-body-2xs"
+                    className="h-7 text-body-xs"
                     onClick={() => setActiveAction("none")}
                   >
                     Batal
@@ -1339,7 +1339,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {actionQuizSubmitted && (
-                  <div className="mt-4 p-3 bg-muted/50 border border-border rounded-xl text-body-2xs text-muted-foreground leading-normal max-h-[160px] overflow-y-auto">
+                  <div className="mt-4 p-3 bg-muted/50 border border-border rounded-xl text-body-xs text-muted-foreground leading-normal max-h-[160px] overflow-y-auto">
                     <span className="font-bold text-brand-primary block mb-1">Penjelasan Tutor:</span>
                     <MarkdownRenderer content={actionData[actionIndex].explanation} />
                   </div>

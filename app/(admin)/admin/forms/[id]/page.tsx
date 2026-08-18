@@ -162,7 +162,7 @@ function RenderFormattedAnswer({ val }: { val: any }) {
     return (
       <div className="flex flex-wrap gap-1.5">
         {val.map((item, idx) => (
-          <Badge key={idx} variant="secondary" className="text-body-2xs font-semibold">
+          <Badge key={idx} variant="secondary" className="text-body-xs font-semibold">
             {String(item)}
           </Badge>
         ))}
@@ -181,12 +181,12 @@ function RenderFormattedAnswer({ val }: { val: any }) {
           <div className="flex flex-wrap items-center gap-1">
             {Array.isArray(colVal) ? (
               colVal.map((c: any, cIdx: number) => (
-                <Badge key={cIdx} variant="secondary" className="bg-primary/15 text-primary text-body-2xs">
+                <Badge key={cIdx} variant="secondary" className="bg-primary/15 text-primary text-body-xs">
                   {String(c)}
                 </Badge>
               ))
             ) : (
-              <Badge variant="secondary" className="bg-primary/15 text-primary text-body-2xs">
+              <Badge variant="secondary" className="bg-primary/15 text-primary text-body-xs">
                 {String(colVal)}
               </Badge>
             )}
@@ -390,7 +390,7 @@ export default function DetailedFormAnalyticsPage({
           title={
             <span className="flex flex-wrap items-center gap-3">
               {form.title}
-              <Badge variant="secondary" className="bg-primary/10 text-primary uppercase font-bold text-body-2xs">
+              <Badge variant="secondary" className="bg-primary/10 text-primary uppercase font-bold text-[10px]">
                 {form.category}
               </Badge>
             </span>
@@ -664,7 +664,7 @@ export default function DetailedFormAnalyticsPage({
             <Card className="shadow-sm">
               <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex-1 space-y-1.5">
-                  <Label className="text-body-2xs font-bold text-primary uppercase tracking-wider">
+                  <Label className="text-body-xs font-bold text-primary uppercase tracking-wider">
                     Pertanyaan {selectedQIndex + 1} dari {visibleQuestions.length}
                   </Label>
                   <Select
@@ -732,7 +732,7 @@ export default function DetailedFormAnalyticsPage({
                   <CardContent className="p-6 space-y-3">
                     {responsesForQ.map((item, idx) => (
                       <div key={idx} className="rounded-lg border border-border bg-muted/20 p-4 space-y-1.5">
-                        <div className="flex items-center justify-between text-body-2xs font-medium text-muted-foreground">
+                        <div className="flex items-center justify-between text-body-xs font-medium text-muted-foreground">
                           <span>Responden: {item.responderEmail}</span>
                           <span className="font-mono">{formatIsoDate(new Date(item.submittedAt))}</span>
                         </div>
@@ -781,7 +781,7 @@ export default function DetailedFormAnalyticsPage({
 
                     <div className="text-right text-body-xs">
                       <p className="font-semibold text-foreground">{responses[individualIndex]?.responderEmail || "Anonim"}</p>
-                      <p className="text-muted-foreground font-mono text-body-2xs">
+                      <p className="text-muted-foreground font-mono text-body-xs">
                         {formatIsoDate(new Date(responses[individualIndex]?.submittedAt))}
                       </p>
                     </div>
@@ -851,7 +851,7 @@ export default function DetailedFormAnalyticsPage({
             {/* 1. Status & Schedule */}
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="text-h6 font-heading uppercase text-body-2xs text-primary tracking-wider">
+                <CardTitle className="font-heading text-body-sm font-bold uppercase text-primary tracking-wider">
                   Menerima Tanggapan & Jadwal (Status Form)
                 </CardTitle>
               </CardHeader>
@@ -922,7 +922,7 @@ export default function DetailedFormAnalyticsPage({
             {/* 2. Authentication & Response Rules */}
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="text-h6 font-heading uppercase text-body-2xs text-primary tracking-wider">
+                <CardTitle className="font-heading text-body-sm font-bold uppercase text-primary tracking-wider">
                   Pengumpulan Alamat Email & Autentikasi
                 </CardTitle>
               </CardHeader>
@@ -1004,7 +1004,7 @@ export default function DetailedFormAnalyticsPage({
             {/* 3. Storage & Presentation */}
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="text-h6 font-heading uppercase text-body-2xs text-primary tracking-wider">
+                <CardTitle className="font-heading text-body-sm font-bold uppercase text-primary tracking-wider">
                   Batas Ukuran File Upload & Tampilan
                 </CardTitle>
               </CardHeader>

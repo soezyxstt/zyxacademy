@@ -896,7 +896,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                     </div>
 
                     <div className="mt-3">
-                      <Button asChild variant="outline" size="xs" className="w-full rounded-md font-semibold text-body-xs border-border/80">
+                      <Button asChild variant="outline" size="sm" className="w-full rounded-md font-semibold text-body-xs border-border/80">
                         <Link href={`?attemptId=${attempt.id}`}>
                           Lihat Pembahasan
                         </Link>

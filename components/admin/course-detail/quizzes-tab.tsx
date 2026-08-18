@@ -158,7 +158,7 @@ export function QuizzesTab({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-card p-3 rounded-xl border border-border shadow-2xs">
         <div className="flex items-center gap-2.5">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[170px] h-9 text-body-xs rounded-lg">
+            <SelectTrigger className="w-[170px] h-9 rounded-lg">
               <SelectValue placeholder="Semua Kategori" />
             </SelectTrigger>
             <SelectContent>

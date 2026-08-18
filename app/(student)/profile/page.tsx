@@ -235,91 +235,91 @@ export default async function ProfilePage() {
  </div>
  </div>
 
- {/* Main Content Info Row */}
- <div className="grid gap-12 lg:grid-cols-12 mt-12">
- {/* Left Side: Learning and Bookings */}
- <div className="lg:col-span-7 space-y-10">
- {/* Active Classes list */}
- <div>
- <h3 className="font-heading text-h5 font-semibold text-foreground flex items-center gap-2 mb-5">
- <GraduationCap className="size-5 text-brand-primary shrink-0" />
- Kelas yang Diikuti
- </h3>
- {activeEnrollments.length > 0 ? (
- <div className="divide-y divide-border/60">
- {activeEnrollments.map((course) => (
- <div key={course.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4 border-b border-border/40 last:border-b-0 text-left">
- <div className="min-w-0 flex-1 text-left">
- <div className="flex items-center gap-2 flex-wrap text-left">
- <span className="inline-flex rounded-md bg-brand-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
- {course.category}
- </span>
- <span className="text-[11px] text-muted-foreground">
- Terdaftar: {new Date(course.enrolledAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
- </span>
- </div>
- <h4 className="font-heading text-body-md font-semibold text-foreground mt-1.5 truncate text-left">
- {course.title}
- </h4>
- </div>
- <Link
- href={`/courses/${course.id}`}
- className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-1.5 text-[12px] font-semibold text-foreground hover:bg-muted/70 hover:border-border-strong transition-colors h-9 shrink-0"
- >
- Buka Kelas
- </Link>
- </div>
- ))}
- </div>
- ) : (
- <p className="text-body-sm text-muted-foreground py-2 italic border-t border-border/40">
- Belum ada kelas aktif yang diikuti saat ini. Silakan hubungi dosen/admin Anda untuk token aktivasi kelas.
- </p>
- )}
- </div>
+      {/* Main Content Info Row */}
+      <div className="grid gap-8 lg:grid-cols-12 mt-8">
+        {/* Left Side: Learning and Bookings */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Active Classes list */}
+          <div>
+            <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-4">
+              <GraduationCap className="size-5 text-brand-primary shrink-0" />
+              Kelas yang Diikuti
+            </h3>
+            {activeEnrollments.length > 0 ? (
+              <div className="divide-y divide-border/60">
+                {activeEnrollments.map((course) => (
+                  <div key={course.id} className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-4 border-b border-border/40 last:border-b-0 text-left">
+                    <div className="min-w-0 flex-1 text-left">
+                      <div className="flex items-center gap-2 flex-wrap text-left">
+                        <span className="inline-flex rounded-md bg-brand-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
+                          {course.category}
+                        </span>
+                        <span className="text-body-xs text-muted-foreground">
+                          Terdaftar: {new Date(course.enrolledAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <h4 className="font-heading text-body-sm font-semibold text-foreground mt-1.5 truncate text-left">
+                        {course.title}
+                      </h4>
+                    </div>
+                    <Link
+                      href={`/courses/${course.id}`}
+                      className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-1.5 text-body-xs font-semibold text-foreground hover:bg-muted/70 hover:border-border-strong transition-colors h-8 shrink-0"
+                    >
+                      Buka Kelas
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-body-sm text-muted-foreground py-2 italic border-t border-border/40">
+                Belum ada kelas aktif yang diikuti saat ini. Silakan hubungi dosen/admin Anda untuk token aktivasi kelas.
+              </p>
+            )}
+          </div>
 
- {/* Bookings list */}
- <div className="border-t border-border/60 pt-8">
- <h3 className="font-heading text-h5 font-semibold text-foreground flex items-center gap-2 mb-5">
- <CalendarDays className="size-5 text-brand-secondary shrink-0" />
- Jadwal Tutorial Mendatang
- </h3>
- {studentBookings.length > 0 ? (
- <div className="grid gap-3 sm:grid-cols-2">
- {studentBookings.map((booking) => (
- <div key={booking.id} className="flex items-start gap-3 p-3.5 rounded-lg border border-border/50 bg-muted/15">
- <div className="size-8 shrink-0 flex items-center justify-center rounded bg-brand-secondary/10 text-brand-secondary">
- <User2 className="size-4" />
- </div>
- <div className="min-w-0 flex-1">
- <h4 className="text-body-sm font-semibold text-foreground truncate">
- Tutorial {booking.courseTitle}
- </h4>
- <p className="text-body-xs text-muted-foreground mt-0.5 truncate">
- Tutor: <span className="font-medium text-foreground">{booking.tutorName}</span>
- </p>
- <p className="text-body-xs font-semibold text-brand-secondary mt-2 flex items-center gap-1">
- <span className="capitalize">{booking.dayOfWeek}</span>, {booking.startTime} - {booking.endTime}
- </p>
- </div>
- </div>
- ))}
- </div>
- ) : (
- <p className="text-body-sm text-muted-foreground py-2 italic">
- Tidak ada jadwal tutorial terdaftar untuk minggu ini.
- </p>
- )}
- </div>
- </div>
+          {/* Bookings list */}
+          <div className="border-t border-border/60 pt-6">
+            <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-4">
+              <CalendarDays className="size-5 text-brand-secondary shrink-0" />
+              Jadwal Tutorial Mendatang
+            </h3>
+            {studentBookings.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {studentBookings.map((booking) => (
+                  <div key={booking.id} className="flex items-start gap-3 p-3.5 rounded-lg border border-border/50 bg-muted/15">
+                    <div className="size-8 shrink-0 flex items-center justify-center rounded bg-brand-secondary/10 text-brand-secondary">
+                      <User2 className="size-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-body-sm font-semibold text-foreground truncate">
+                        Tutorial {booking.courseTitle}
+                      </h4>
+                      <p className="text-body-xs text-muted-foreground mt-0.5 truncate">
+                        Tutor: <span className="font-medium text-foreground">{booking.tutorName}</span>
+                      </p>
+                      <p className="text-body-xs font-semibold text-brand-secondary mt-2 flex items-center gap-1">
+                        <span className="capitalize">{booking.dayOfWeek}</span>, {booking.startTime} - {booking.endTime}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-body-sm text-muted-foreground py-2 italic">
+                Tidak ada jadwal tutorial terdaftar untuk minggu ini.
+              </p>
+            )}
+          </div>
+        </div>
 
- {/* Right Side: Account details and groups */}
- <div className="lg:col-span-5 space-y-10">
- {/* Google Identity info */}
- <div>
- <h3 className="font-heading text-h5 font-semibold text-foreground mb-4">
- Google Identity Account
- </h3>
+        {/* Right Side: Account details and groups */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Google Identity info */}
+          <div>
+            <h3 className="font-heading text-body-base font-bold text-foreground mb-3">
+              Google Identity Account
+            </h3>
  <dl className="text-body-sm divide-y divide-border/40 border-t border-border/40">
  <div className="py-3 flex justify-between gap-4">
  <dt className="text-muted-foreground">Hubungan Akun</dt>

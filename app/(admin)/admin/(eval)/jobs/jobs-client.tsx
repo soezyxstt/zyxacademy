@@ -303,7 +303,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  </p>
  {params?.logs && Array.isArray(params.logs) && params.logs.length > 0 && (
  <div className="mt-2.5 rounded-lg border border-border bg-muted/20 p-3 text-xs font-mono space-y-1 text-muted-foreground max-h-36 overflow-y-auto">
- <p className="font-sans font-bold text-[9px] text-muted-foreground/80 tracking-wider uppercase mb-1">PROGRES DETAIL:</p>
+ <p className="font-sans font-bold text-[10px] text-muted-foreground/80 tracking-wider uppercase mb-1">PROGRES DETAIL:</p>
  {params.logs.map((log: string, idx: number) => (
  <div key={idx} className="leading-relaxed">
  {log}

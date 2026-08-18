@@ -237,7 +237,7 @@ export function StudentOnboardingView({
                         {tier.name}
                       </span>
                       {tier.highlighted && (
-                        <span className="rounded-md bg-brand-primary/10 px-1.5 py-0.2 text-[9px] font-bold text-brand-primary">
+                        <span className="rounded-md bg-brand-primary/10 px-1.5 py-0.2 text-[10px] font-bold text-brand-primary">
                           Populer
                         </span>
                       )}
@@ -246,7 +246,7 @@ export function StudentOnboardingView({
                       {tier.price}
                     </span>
                   </div>
-                  <p className="text-body-2xs text-muted-foreground mt-1 line-clamp-1">
+                  <p className="text-body-xs text-muted-foreground mt-1 line-clamp-1">
                     {tier.note}
                   </p>
                 </div>

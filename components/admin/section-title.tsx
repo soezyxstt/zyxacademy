@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 const sizeClasses = {
   h5: "font-heading text-h5 font-bold text-foreground",
   h6: "font-heading text-h6 font-semibold text-foreground",
+  base: "font-heading text-body-base font-bold text-foreground",
+  sm: "font-heading text-body-sm font-bold text-foreground",
   lg: "font-heading text-body-lg font-bold text-foreground",
 } as const;
 
@@ -26,7 +28,7 @@ export function AdminSectionTitle({
   icon: Icon,
   iconClassName,
   micro,
-  size = "h6",
+  size = "base",
   border = false,
   right,
   as: Tag = "h3",
@@ -46,7 +48,7 @@ export function AdminSectionTitle({
         </Tag>
         {right}
       </div>
-      {description && <p className="text-body-sm text-muted-foreground">{description}</p>}
+      {description && <p className="text-body-xs text-muted-foreground">{description}</p>}
     </div>
   );
 }

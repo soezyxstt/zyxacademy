@@ -206,7 +206,7 @@ export function MaterialsTab({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={loading}
-                className="h-9 text-body-xs rounded-lg"
+                className="h-9 rounded-lg"
               />
             </div>
 
@@ -217,7 +217,7 @@ export function MaterialsTab({
                 onValueChange={(v: "materi_kelas" | "contoh_soal") => setType(v)}
                 disabled={loading}
               >
-                <SelectTrigger className="h-9 text-body-xs rounded-lg">
+                <SelectTrigger className="h-9 rounded-lg">
                   <SelectValue placeholder="Pilih Jenis" />
                 </SelectTrigger>
                 <SelectContent>

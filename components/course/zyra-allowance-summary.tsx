@@ -32,7 +32,7 @@ export function ZyraAllowanceSummary({ refreshKey = 0 }: { refreshKey?: number }
   }).format(new Date(summary.nextResetAt));
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border/60 bg-muted/20 px-5 py-2 text-body-2xs text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border/60 bg-muted/20 px-5 py-2 text-body-xs text-muted-foreground">
       <span className="inline-flex items-center gap-1 font-semibold text-foreground">
         <Gauge className="size-3.5" aria-hidden="true" />
         {summary.providerTurnsRemaining} respons AI tersisa

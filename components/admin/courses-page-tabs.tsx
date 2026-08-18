@@ -50,21 +50,21 @@ export function CoursesPageTabs({
   return (
     <AdminTabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
       <AdminTabsList className="w-full flex flex-wrap justify-start gap-1 p-1 bg-muted/60 border border-border rounded-xl">
-        <AdminTabsTrigger value="courses" className="gap-1.5 px-3 py-1.5 text-body-xs font-semibold rounded-lg">
+        <AdminTabsTrigger value="courses" className="gap-1.5 px-3 py-1.5 font-semibold rounded-lg">
           <GraduationCap className="size-3.5" />
           <span>Direktori Mata Kuliah ({coursesList.length})</span>
         </AdminTabsTrigger>
-        <AdminTabsTrigger value="pdf-materials" className="gap-1.5 px-3 py-1.5 text-body-xs font-semibold rounded-lg">
+        <AdminTabsTrigger value="pdf-materials" className="gap-1.5 px-3 py-1.5 font-semibold rounded-lg">
           <FileText className="size-3.5" />
           <span>Unggah PDF Cepat ({materialsList.length})</span>
         </AdminTabsTrigger>
         {!ideaBundleV2Enabled && (
-          <AdminTabsTrigger value="bundle-importer" className="gap-1.5 px-3 py-1.5 text-body-xs font-semibold rounded-lg">
+          <AdminTabsTrigger value="bundle-importer" className="gap-1.5 px-3 py-1.5 font-semibold rounded-lg">
             <Layers className="size-3.5" />
             <span>Import Learning Bundle</span>
           </AdminTabsTrigger>
         )}
-        <AdminTabsTrigger value="assessment-bundle-importer" className="gap-1.5 px-3 py-1.5 text-body-xs font-semibold rounded-lg">
+        <AdminTabsTrigger value="assessment-bundle-importer" className="gap-1.5 px-3 py-1.5 font-semibold rounded-lg">
           <HelpCircle className="size-3.5" />
           <span>Import Assessment Bundle</span>
         </AdminTabsTrigger>

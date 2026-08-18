@@ -13,11 +13,11 @@ import {
   Lightbulb, 
   ListFilter, 
   RotateCcw, 
-  Search, 
   X 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -373,13 +373,13 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
           <SheetContent side="right" className="flex flex-col w-full sm:max-w-md p-4">
             <SheetHeader className="pb-3 border-b border-border">
               <SheetTitle className="text-body-base font-semibold">Daftar Idea ({ideasList.length})</SheetTitle>
-              <div className="relative mt-2">
-                <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                <Input
+              <div className="mt-2">
+                <SearchBar
+                  size="sm"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onSearch={setSearchQuery}
+                  onClear={() => setSearchQuery("")}
                   placeholder="Cari kode atau teks Idea..."
-                  className="h-8 pl-8 text-body-xs"
                 />
               </div>
             </SheetHeader>
@@ -1139,13 +1139,13 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
               <SheetContent side="right" className="flex flex-col w-full sm:max-w-md p-4">
                 <SheetHeader className="pb-3 border-b border-border">
                   <SheetTitle className="text-body-base font-semibold">Daftar Bagian ({visiblePreviews.length})</SheetTitle>
-                  <div className="relative mt-2">
-                    <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                    <Input
+                  <div className="mt-2">
+                    <SearchBar
+                      size="sm"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onSearch={setSearchQuery}
+                      onClear={() => setSearchQuery("")}
                       placeholder="Cari bagian..."
-                      className="h-8 pl-8 text-body-xs"
                     />
                   </div>
                 </SheetHeader>

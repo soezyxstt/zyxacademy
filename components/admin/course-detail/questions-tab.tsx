@@ -83,7 +83,7 @@ export function QuestionsTab({
           </div>
 
           <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-            <SelectTrigger className="w-[140px] h-9 text-body-xs rounded-lg">
+            <SelectTrigger className="w-[140px] h-9 rounded-lg">
               <SelectValue placeholder="Tingkat Kesulitan" />
             </SelectTrigger>
             <SelectContent>
@@ -96,7 +96,7 @@ export function QuestionsTab({
         </div>
 
         <Link href={`/admin/questions?courseId=${courseId}`}>
-          <Button size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs h-9">
+          <Button size="sm" variant="outline" className="gap-1.5 rounded-lg h-9">
             <ExternalLink className="size-3.5" />
             Buka Studio Bank Soal
           </Button>

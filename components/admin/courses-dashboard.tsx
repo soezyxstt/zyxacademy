@@ -217,7 +217,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
         </div>
 
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-[140px] sm:w-[170px] shrink-0 h-9 text-body-xs rounded-lg">
+          <SelectTrigger className="w-[140px] sm:w-[170px] shrink-0 h-9 rounded-lg">
             <SelectValue placeholder={`Semua (${courses.length})`} />
           </SelectTrigger>
           <SelectContent>
@@ -238,6 +238,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             variant={viewMode === "grid" ? "secondary" : "ghost"}
             className="size-7 rounded-md"
             onClick={() => setViewMode("grid")}
+            aria-label="Tampilan Kartu"
             title="Tampilan Kartu"
           >
             <LayoutGrid className="size-3.5" />
@@ -248,6 +249,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
             variant={viewMode === "table" ? "secondary" : "ghost"}
             className="size-7 rounded-md"
             onClick={() => setViewMode("table")}
+            aria-label="Tampilan Tabel"
             title="Tampilan Tabel"
           >
             <List className="size-3.5" />

@@ -3,15 +3,17 @@ import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { pageTitle } from "@/lib/site";
-// Fixture imports removed
 import { getCourse } from "@/lib/course-utils";
 import { DocumentListClient } from "./document-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
-import { aiMaterialInstances, websiteMaterials, diktats, courseMaterials, chapters } from "@/db/schema";
+import { aiMaterialInstances, websiteMaterials, diktats, courseMaterials, chapters, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { storage } from "@/lib/storage";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { FormattedDate } from "@/components/ui/formatted-date";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -31,6 +33,39 @@ export default async function CourseMaterialListPage({ params }: Props) {
   const { id } = await params;
   const course = await getCourse(id);
   if (!course) return null;
+
+  const session = await auth.api.getSession({ headers: await headers() });
+  const studentId = session?.user?.id;
+
+  const completedMaterialIds = new Set<string>();
+  if (studentId) {
+    try {
+      const userProgress = await db
+        .select({
+          materialId: studentMaterialProgress.materialId,
+          completionPercent: studentMaterialProgress.completionPercent,
+        })
+        .from(studentMaterialProgress)
+        .where(eq(studentMaterialProgress.studentId, studentId));
+
+      for (const p of userProgress) {
+        if (p.completionPercent >= 90) {
+          completedMaterialIds.add(p.materialId);
+        }
+      }
+
+      const legacyProgress = await db
+        .select({ materialId: progress.materialId })
+        .from(progress)
+        .where(and(eq(progress.userId, studentId), eq(progress.status, "completed")));
+
+      for (const p of legacyProgress) {
+        if (p.materialId) completedMaterialIds.add(p.materialId);
+      }
+    } catch (err) {
+      console.error("Error loading progress in materials list:", err);
+    }
+  }
 
   // Fetch chapters
   const courseChapters = await db
@@ -71,6 +106,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       id: websiteMaterials.id,
       title: websiteMaterials.title,
       chapterId: websiteMaterials.chapterId,
+      canonicalMarkdown: websiteMaterials.canonicalMarkdown,
     })
     .from(websiteMaterials)
     .where(and(eq(websiteMaterials.courseId, id), eq(websiteMaterials.status, "published")));
@@ -95,7 +131,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     kind: "pdf" as const,
     docCategory: "diktat" as const,
     fileSize: "PDF File",
-    completed: false,
+    completed: completedMaterialIds.has(d.id),
     isPastYear: false,
     isPreview: true,
     url: d.fileUrl ? storage.getUrl(d.fileUrl) : undefined,
@@ -109,7 +145,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     kind: "article" as const,
     docCategory: "materi" as const,
     fileSize: "Materi Zyx",
-    completed: false,
+    completed: completedMaterialIds.has(m.id),
     isPastYear: false,
     isPreview: true,
     chapterIds: m.chapterIds as string[],
@@ -122,7 +158,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     kind: "pdf" as const,
     docCategory: m.type === "contoh_soal" ? ("soal" as const) : ("materi" as const),
     fileSize: m.type === "contoh_soal" ? "Contoh Soal" : "Materi Kelas",
-    completed: false,
+    completed: completedMaterialIds.has(m.id),
     isPastYear: false,
     isPreview: true,
     url: storage.getUrl(m.fileUrl),
@@ -136,7 +172,8 @@ export default async function CourseMaterialListPage({ params }: Props) {
     kind: "article" as const,
     docCategory: "materi" as const,
     fileSize: "Disusun otomatis",
-    completed: false,
+    body: m.canonicalMarkdown ? m.canonicalMarkdown.slice(0, 600) : undefined,
+    completed: completedMaterialIds.has(m.id),
     isPastYear: false,
     isPreview: true,
     chapterIds: [m.chapterId],
@@ -169,7 +206,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
                   </div>
                   <div className="mt-4 flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground select-none">
-                      Diperbarui: {new Date(d.updatedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                      Diperbarui: <FormattedDate date={d.updatedAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
                     </span>
                     {d.fileUrl && (
                       <Button asChild size="xs" className="rounded-lg bg-gradient-to-r from-brand-secondary to-brand-secondary/90 hover:opacity-95 text-white font-semibold shadow-xs">

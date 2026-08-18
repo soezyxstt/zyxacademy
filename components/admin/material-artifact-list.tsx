@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ListFilter, Search, Upload } from "lucide-react";
+import { ListFilter, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminTable } from "@/components/admin/table";
 import { AdminEmptyState } from "@/components/admin/state-panels";
@@ -76,9 +76,8 @@ export function MaterialArtifactList({
     <section className="space-y-4">
       <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" aria-hidden />
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Cari ${label.toLowerCase()}, mata kuliah, atau pembuat`} className="pl-9" aria-label={`Cari ${label}`} />
+          <div className="min-w-0 flex-1">
+            <SearchBar value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder={`Cari ${label.toLowerCase()}, mata kuliah, atau pembuat`} aria-label={`Cari ${label}`} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ListFilter className="hidden size-4 text-muted-foreground sm:block" aria-hidden />

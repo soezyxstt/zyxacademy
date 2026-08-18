@@ -345,7 +345,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             Akses Kuis:
                           </span>
                           <span className={cn(
-                            "inline-flex rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                            "inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
                             t.manualStatus === "open"
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
                               : t.manualStatus === "closed"
@@ -524,7 +524,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     {Array.isArray(tagsArr) && tagsArr.length > 0 && (
                       <div className="mt-4 pt-3 border-t border-border/40 flex flex-wrap gap-1">
                         {tagsArr.map((t: string) => (
-                          <Badge key={t} variant="outline" className="text-[9px] text-muted-foreground rounded-md">
+                          <Badge key={t} variant="outline" className="text-[10px] text-muted-foreground rounded-md">
                             {t}
                           </Badge>
                         ))}

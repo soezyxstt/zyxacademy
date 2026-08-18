@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type UserUsage = {
   userId: string;
@@ -78,15 +79,19 @@ export function ZyraUsageCharts() {
             Laporan penggunaan AI per user dan harian.
           </p>
         </div>
-        <select
+        <Select
           value={dateRange}
-          onChange={(e) => setDateRange(e.target.value as any)}
-          className="rounded-lg border border-border bg-card px-3 py-1.5 text-body-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          onValueChange={(val) => setDateRange(val as any)}
         >
-          <option value="7">7 Hari Terakhir</option>
-          <option value="30">30 Hari Terakhir</option>
-          <option value="90">90 Hari Terakhir</option>
-        </select>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7">7 Hari Terakhir</SelectItem>
+            <SelectItem value="30">30 Hari Terakhir</SelectItem>
+            <SelectItem value="90">90 Hari Terakhir</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {loading ? (

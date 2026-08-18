@@ -137,32 +137,32 @@ export function CourseDetailClient({
       {/* Tabs Navigation and Contents */}
       <AdminTabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <AdminTabsList className="w-full flex flex-wrap justify-start gap-1 p-1 bg-muted/60 border border-border rounded-xl">
-          <AdminTabsTrigger value="chapters" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+          <AdminTabsTrigger value="chapters" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
             <Layers className="size-3.5" />
             <span>Silabus &amp; Bab ({chapters.length})</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="materials" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+          <AdminTabsTrigger value="materials" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
             <FileText className="size-3.5" />
             <span>Materi &amp; PDF ({materials.length})</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="quizzes" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+          <AdminTabsTrigger value="quizzes" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
             <NotebookPen className="size-3.5" />
             <span>Kuis &amp; Asesmen ({quizzes.length})</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="questions" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+          <AdminTabsTrigger value="questions" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
             <Library className="size-3.5" />
             <span>Bank Soal ({questions.length})</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="analytics" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+          <AdminTabsTrigger value="analytics" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
             <BarChart3 className="size-3.5" />
             <span>Analisis &amp; Hasil</span>
           </AdminTabsTrigger>
 
-          <AdminTabsTrigger value="settings" className="gap-1.5 px-2.5 py-1.5 text-body-xs font-semibold rounded-lg">
+          <AdminTabsTrigger value="settings" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
             <Settings className="size-3.5" />
             <span>Pengaturan</span>
           </AdminTabsTrigger>

@@ -21,7 +21,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "interactive inline-flex items-center justify-center rounded-md border-b-2 border-transparent px-3 py-1.5 text-sm font-medium whitespace-nowrap",
+        "interactive inline-flex items-center justify-center rounded-md border-b-2 border-transparent px-3 py-1.5 text-body-sm font-medium whitespace-nowrap",
         "data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border-primary",
         className
       )}

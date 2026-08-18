@@ -116,7 +116,7 @@ export function SettingsTab({ course }: Props) {
               <Input
                 value={course.id}
                 disabled
-                className="bg-muted text-muted-foreground font-mono rounded-lg h-9 text-body-xs"
+                className="bg-muted text-muted-foreground font-mono rounded-lg h-9"
               />
             </div>
 
@@ -126,7 +126,7 @@ export function SettingsTab({ course }: Props) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={loading}
-                className="rounded-lg h-9 text-body-xs"
+                className="rounded-lg h-9"
               />
             </div>
           </div>
@@ -134,7 +134,7 @@ export function SettingsTab({ course }: Props) {
           <div className="space-y-1">
             <Label className="text-body-sm font-semibold text-foreground">Program Studi / Kategori</Label>
             <Select value={category} onValueChange={setCategory} disabled={loading}>
-              <SelectTrigger className="rounded-lg h-9 text-body-xs">
+              <SelectTrigger className="rounded-lg h-9">
                 <SelectValue placeholder="Pilih Program Studi" />
               </SelectTrigger>
               <SelectContent>
@@ -155,7 +155,7 @@ export function SettingsTab({ course }: Props) {
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
               placeholder="Jelaskan ringkasan materi, capaian pembelajaran, atau informasi penting lainnya..."
-              className="rounded-lg text-body-xs"
+              className="rounded-lg text-body-sm"
             />
           </div>
 
@@ -187,10 +187,10 @@ export function SettingsTab({ course }: Props) {
         <div className="flex items-start gap-2.5">
           <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
           <div className="space-y-0.5">
-            <h4 className="font-heading text-body-xs font-bold text-destructive">
+            <h4 className="font-heading text-body-sm font-bold text-destructive">
               Zona Bahaya
             </h4>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-body-xs text-muted-foreground">
               Menghapus mata kuliah ini akan menghapus seluruh data bab, materi PDF, kuis, dan riwayat pengerjaan siswa yang terhubung.
             </p>
           </div>
@@ -202,7 +202,7 @@ export function SettingsTab({ course }: Props) {
           size="sm"
           onClick={() => setDeleteModalOpen(true)}
           disabled={loading}
-          className="gap-1.5 rounded-lg text-body-xs h-8 font-semibold"
+          className="gap-1.5 rounded-lg h-8 font-semibold"
         >
           <Trash2 className="size-3.5" />
           Hapus Mata Kuliah

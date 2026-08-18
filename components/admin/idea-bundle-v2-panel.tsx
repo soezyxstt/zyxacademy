@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, FileCheck2, Layers, Search, Upload, X } from "lucide-react";
+import { Check, FileCheck2, Layers, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -286,7 +287,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
             </AdminTabsList>
 
             <AdminTabsContent value="ideas" className="space-y-4">
-              <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari kode atau isi Idea" className="pl-9" /></div>
+              <SearchBar value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder="Cari kode atau isi Idea" />
               <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
                 <div className="rounded-xl border border-border bg-card p-2 shadow-sm">
                   <p className="px-2 pb-2 pt-1 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Daftar Idea</p>

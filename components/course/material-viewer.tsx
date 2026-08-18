@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
 import { 
+  ArrowLeft,
   Download, 
   ExternalLink, 
   ZoomIn, 
@@ -1181,8 +1183,8 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
         ) : (
           <Button
             type="button"
-            size="xs"
-            className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 shadow-md flex items-center gap-1.5 h-8 font-sans text-[11px] !text-white px-3 border border-brand-primary/20"
+            size="sm"
+            className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 shadow-md flex items-center gap-1.5 h-8 font-sans text-body-xs font-semibold !text-white px-3 border border-brand-primary/20"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -1214,7 +1216,19 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
           <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
           
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-mono font-semibold">
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
+            >
+              <Link href={`/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+                <ArrowLeft className="size-3.5 mr-1" />
+                <span>Kembali</span>
+              </Link>
+            </Button>
+            <span className="text-border">|</span>
+            <span className="text-body-xs text-muted-foreground font-mono font-semibold">
               {progressPercent}%
             </span>
           </div>
@@ -1361,7 +1375,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
-                    <span className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground/60">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/60">
                       Konsep {idx + 1}
                     </span>
                     <span className="line-clamp-2">{sec.title}</span>
@@ -1383,7 +1397,19 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
         <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
         
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground font-mono font-semibold">
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <Link href={`/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+              <ArrowLeft className="size-3.5 mr-1" />
+              <span>Kembali</span>
+            </Link>
+          </Button>
+          <span className="text-border">|</span>
+          <span className="text-body-xs text-muted-foreground font-mono font-semibold">
             {progressPercent}%
           </span>
         </div>
@@ -1543,7 +1569,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                         <NotebookPen className="size-3.5" />
                         <span>Catatan</span>
                         {(Object.keys(notes).length > 0 || bookmarks.length > 0) && (
-                          <span className="absolute top-1 right-2 bg-brand-secondary/90 text-white rounded-md px-1 text-[8px] font-mono leading-none scale-85">
+                          <span className="absolute top-1 right-2 bg-brand-secondary/90 text-white rounded-md px-1 text-[10px] font-mono leading-none">
                             {Object.keys(notes).length + bookmarks.length}
                           </span>
                         )}
@@ -1581,7 +1607,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                                         <IconComp className={cn("size-3.5 shrink-0", page === p.pageNum ? "text-accent-foreground" : "text-muted-foreground")} />
                                         <span className="truncate">{shortenSubbabLabel(p.title)}</span>
                                       </div>
-                                      <div className="flex items-center gap-1 text-[9px] shrink-0">
+                                      <div className="flex items-center gap-1 text-[10px] shrink-0">
                                         {hasBookmark && <Bookmark className="size-3 text-brand-secondary fill-brand-secondary shrink-0" />}
                                         {hasNote && <NotebookPen className="size-3 text-sky-500 shrink-0" />}
                                         <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-semibold">
@@ -1659,7 +1685,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                           {/* Search Matches list */}
                           {searchQuery.trim() ? (
                             <div className="space-y-2">
-                              <span className="text-[9px] font-semibold text-muted-foreground px-1 block">
+                              <span className="text-[10px] font-semibold text-muted-foreground px-1 block">
                                 Ditemukan {searchResults.length} halaman yang cocok:
                               </span>
                               {searchResults.length > 0 ? (
@@ -1680,7 +1706,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                                         <span className="text-foreground font-heading text-[11px] truncate max-w-[180px]">
                                           {r.title}
                                         </span>
-                                        <span className="font-mono text-[9px] bg-muted px-1 py-0.5 rounded text-muted-foreground">
+                                        <span className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded text-muted-foreground">
                                           Hal {r.pageNum}
                                         </span>
                                       </div>
