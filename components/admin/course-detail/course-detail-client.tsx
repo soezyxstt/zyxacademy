@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import {
   GraduationCap,
   Layers,
@@ -99,15 +99,7 @@ export function CourseDetailClient({
   stats,
   defaultTab = "chapters",
 }: Props) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const activeTab = searchParams.get("tab") || defaultTab;
-
-  const handleTabChange = (val: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", val);
-    router.replace(`?${params.toString()}`, { scroll: false });
-  };
+  const [activeTab, handleTabChange] = useUrlTab("tab", defaultTab);
 
   return (
     <div className="space-y-4 font-sans">

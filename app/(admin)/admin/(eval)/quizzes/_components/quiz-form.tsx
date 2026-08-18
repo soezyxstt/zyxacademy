@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import {
   Calendar,
   HelpCircle,
@@ -112,15 +113,9 @@ export function QuizForm({
   pageTitle: customPageTitle,
 }: QuizFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  // Tab State synced with URL query param ?tab=pengaturan | ?tab=soal
-  const currentTab = searchParams.get("tab") === "soal" ? "soal" : "pengaturan";
-  const handleTabChange = (val: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", val);
-    router.replace(`?${params.toString()}`, { scroll: false });
-  };
+  // Tab State synced with URL query param ?tab=pengaturan | ?tab=soal (instant switching)
+  const [currentTab, handleTabChange] = useUrlTab("tab", "pengaturan");
 
   // Basic Form States
   const [courseId, setCourseId] = useState<string>(

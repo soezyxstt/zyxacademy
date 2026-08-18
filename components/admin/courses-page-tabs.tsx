@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import {
   GraduationCap,
   FileText,
@@ -45,15 +45,7 @@ export function CoursesPageTabs({
   ideaBundleV2Enabled,
   defaultTab = "courses",
 }: Props) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const activeTab = searchParams.get("tab") || defaultTab;
-
-  const handleTabChange = (val: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", val);
-    router.replace(`?${params.toString()}`, { scroll: false });
-  };
+  const [activeTab, handleTabChange] = useUrlTab("tab", defaultTab);
 
   return (
     <AdminTabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">

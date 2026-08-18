@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import { 
   Download, 
   ExternalLink, 
@@ -596,7 +596,6 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
 
   // Navigation hooks
   const searchParams = useSearchParams();
-  const router = useRouter();
   const pathname = usePathname();
 
   // Article states
@@ -624,9 +623,11 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
       } else {
         params.set("section", activeSectionIdx.toString());
       }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      const newQuery = params.toString();
+      const newUrl = newQuery ? `${pathname}?${newQuery}` : pathname;
+      window.history.replaceState(null, "", newUrl);
     }
-  }, [activeSectionIdx, pathname, router, searchParams]);
+  }, [activeSectionIdx, pathname, searchParams]);
 
   const { chapterTitle, sections: articleSections } = useMemo(() => {
     return parseArticleSections(material.body || "", material.title);
@@ -649,9 +650,11 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
       } else {
         params.set("page", page.toString());
       }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      const newQuery = params.toString();
+      const newUrl = newQuery ? `${pathname}?${newQuery}` : pathname;
+      window.history.replaceState(null, "", newUrl);
     }
-  }, [page, pathname, router, searchParams]);
+  }, [page, pathname, searchParams]);
   
   // Interactive Sidebar states
   const [showSidebar, setShowSidebar] = useState(true);

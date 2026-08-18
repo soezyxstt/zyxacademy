@@ -40,6 +40,12 @@ import {
   BookOpen,
 } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export type CourseWithStats = {
   id: string;
@@ -199,67 +205,72 @@ export function CoursesDashboard({ initialCourses }: Props) {
   return (
     <div className="space-y-4">
       {/* Search, Filter, and View Controls */}
-      <div className="rounded-xl border border-border bg-card p-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          <div className="flex-1 max-w-md">
-            <SearchBar
-              size="sm"
-              placeholder="Cari mata kuliah atau kode slug..."
-              value={search}
-              onSearch={setSearch}
-              onClear={() => setSearch("")}
-            />
-          </div>
-
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-[200px] h-9 text-body-xs rounded-lg">
-              <SelectValue placeholder="Semua Program Studi" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Program Studi ({courses.length})</SelectItem>
-              {uniqueCategories.map((cat) => (
-                <SelectItem key={cat} value={cat}>
-                  {cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="rounded-xl border border-border bg-card p-2 sm:p-2.5 shadow-2xs flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <SearchBar
+            size="sm"
+            placeholder="Cari mata kuliah atau kode slug..."
+            value={search}
+            onSearch={setSearch}
+            onClear={() => setSearch("")}
+          />
         </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-2">
-          {/* View mode toggle */}
-          <div className="flex items-center gap-0.5 bg-muted/50 p-0.5 rounded-lg border border-border/50">
-            <Button
-              type="button"
-              size="icon"
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              className="size-7 rounded-md"
-              onClick={() => setViewMode("grid")}
-              title="Tampilan Kartu"
-            >
-              <LayoutGrid className="size-3.5" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant={viewMode === "table" ? "secondary" : "ghost"}
-              className="size-7 rounded-md"
-              onClick={() => setViewMode("table")}
-              title="Tampilan Tabel"
-            >
-              <List className="size-3.5" />
-            </Button>
-          </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-[140px] sm:w-[170px] shrink-0 h-9 text-body-xs rounded-lg">
+            <SelectValue placeholder={`Semua (${courses.length})`} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua ({courses.length})</SelectItem>
+            {uniqueCategories.map((cat) => (
+              <SelectItem key={cat} value={cat}>
+                {cat}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
+        {/* View mode toggle */}
+        <div className="flex shrink-0 items-center gap-0.5 bg-muted/50 p-0.5 rounded-lg border border-border/50">
           <Button
-            onClick={() => setCreateModalOpen(true)}
-            size="sm"
-            className="gap-1.5 rounded-lg text-body-xs font-semibold h-9"
+            type="button"
+            size="icon"
+            variant={viewMode === "grid" ? "secondary" : "ghost"}
+            className="size-7 rounded-md"
+            onClick={() => setViewMode("grid")}
+            title="Tampilan Kartu"
           >
-            <Plus className="size-3.5" />
-            Tambah Mata Kuliah
+            <LayoutGrid className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant={viewMode === "table" ? "secondary" : "ghost"}
+            className="size-7 rounded-md"
+            onClick={() => setViewMode("table")}
+            title="Tampilan Tabel"
+          >
+            <List className="size-3.5" />
           </Button>
         </div>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={() => setCreateModalOpen(true)}
+                size="icon"
+                className="size-9 shrink-0 rounded-lg"
+                aria-label="Tambah Mata Kuliah"
+              >
+                <Plus className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Tambah Mata Kuliah</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Course Items Display */}
