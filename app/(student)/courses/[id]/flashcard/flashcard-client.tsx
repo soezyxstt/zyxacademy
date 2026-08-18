@@ -160,7 +160,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
           <Check className="size-6" />
         </div>
-        <h3 className="mt-4 font-heading text-body-lg font-bold text-foreground">
+        <h3 className="mt-4 font-heading text-body-base font-bold text-foreground">
           Sesi Review Selesai! 🎉
         </h3>
         <p className="mt-2 text-body-sm text-muted-foreground">
@@ -278,7 +278,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             </div>
 
             <div className="flex-1 flex items-center justify-center py-4 overflow-y-auto">
-              <MathText className="font-heading text-body-lg font-bold text-foreground text-center" as="div">
+              <MathText className="font-sans text-body-base font-semibold text-foreground text-center" as="div">
                 {activeCard.front}
               </MathText>
             </div>

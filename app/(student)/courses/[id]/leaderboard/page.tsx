@@ -139,7 +139,7 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
             <div className="text-body-base font-semibold text-foreground">
               {myEntry ? (
                 <>
-                  Peringkat Anda: <span className="text-brand-primary font-bold text-body-lg">{myEntry.rank}</span> dari <span className="font-bold">{totalStudents}</span>
+                  Peringkat Anda: <span className="text-brand-primary font-bold text-body-base">{myEntry.rank}</span> dari <span className="font-bold">{totalStudents}</span>
                 </>
               ) : (
                 <>
@@ -153,14 +153,14 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
         {rankedRows.length === 0 ? (
           <div className="py-16 text-center max-w-md mx-auto bg-card/50 p-8 shadow-xs border border-border rounded-xl">
             <Trophy className="size-10 text-muted-foreground/30 mx-auto mb-4" />
-            <p className="text-body-md text-muted-foreground">
+            <p className="text-body-base text-muted-foreground">
               Belum ada skor kuis untuk kelas ini. Selesaikan kuis untuk muncul di papan peringkat.
             </p>
           </div>
         ) : (
           <div className={studentCardClass("bg-card/45 p-6 sm:p-8")}>
             <div className="text-center mb-8">
-              <h2 className="font-heading text-h5 font-bold text-foreground">
+              <h2 className="font-heading text-body-base font-bold text-foreground">
                 Podium Juara Kelas
               </h2>
               <p className="text-body-sm text-muted-foreground mt-1">
@@ -181,10 +181,10 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
                       <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
                         {p2.studentName}
                       </div>
-                      <div className="text-body-md font-bold text-slate-600 dark:text-slate-400 mt-1">
+                      <div className="text-h6 font-bold text-slate-600 dark:text-slate-400 mt-1">
                         {p2.avgScore}%
                       </div>
-                      <div className="text-[11px] text-muted-foreground mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
+                      <div className="text-body-xs text-muted-foreground mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
                         <div>{p2.attemptCount} kuis</div>
                         <div className="text-[10px]">⏱️ {formatDuration(p2.avgDuration)}</div>
                         <div className="text-[10px]">🔥 {p2.correctHardCount} Hard</div>
@@ -202,7 +202,7 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
                 {p1 ? (
                   <div className="w-full flex flex-col items-center">
                     <div className="relative flex flex-col items-center justify-end p-5 rounded-2xl border-2 border-brand-secondary/40 bg-card shadow-md w-full text-center min-h-[220px] hover:border-brand-secondary transition-all">
-                      <div className="absolute -top-7 flex size-11 items-center justify-center rounded-full bg-brand-secondary border-2 border-amber-300 text-white font-bold text-body-md shadow-md shrink-0">
+                      <div className="absolute -top-7 flex size-11 items-center justify-center rounded-full bg-brand-secondary border-2 border-amber-300 text-white font-bold text-body-base shadow-md shrink-0">
                         🥇
                       </div>
                       <div className="font-heading text-body-sm font-extrabold text-foreground line-clamp-1 w-full px-1">
@@ -211,7 +211,7 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
                       <div className="text-h6 font-extrabold text-brand-secondary mt-1">
                         {p1.avgScore}%
                       </div>
-                      <div className="text-[11px] text-muted-foreground mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
+                      <div className="text-body-xs text-muted-foreground mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
                         <div className="font-semibold text-foreground/80">{p1.attemptCount} kuis</div>
                         <div className="text-[10px]">⏱️ {formatDuration(p1.avgDuration)}</div>
                         <div className="text-[10px]">🔥 {p1.correctHardCount} Hard</div>
@@ -235,10 +235,10 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
                       <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
                         {p3.studentName}
                       </div>
-                      <div className="text-body-md font-bold text-amber-700 dark:text-amber-500 mt-1">
+                      <div className="text-h6 font-bold text-amber-700 dark:text-amber-500 mt-1">
                         {p3.avgScore}%
                       </div>
-                      <div className="text-[11px] text-muted-foreground mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
+                      <div className="text-body-xs text-muted-foreground mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
                         <div>{p3.attemptCount} kuis</div>
                         <div className="text-[10px]">⏱️ {formatDuration(p3.avgDuration)}</div>
                         <div className="text-[10px]">🔥 {p3.correctHardCount} Hard</div>

@@ -60,7 +60,7 @@ export default async function TutorQuizAttemptsPage({ params }: Props) {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-h3 font-heading font-bold text-foreground flex items-center gap-2">
+              <h1 className="text-h5 font-heading font-bold text-foreground flex items-center gap-2">
                 <FileSpreadsheet className="size-6 text-emerald-500" />
                 Sheet Attempt & Jawaban Siswa
               </h1>

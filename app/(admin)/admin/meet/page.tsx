@@ -593,7 +593,7 @@ export default function AdminMeetPage() {
             {activeSpace ? (
               <div className="mt-4 space-y-3">
                 <div className="rounded-xl border border-border/80 bg-muted/40 p-3">
-                  <p className="font-heading text-h6 font-bold text-foreground">
+                  <p className="font-heading text-body-base font-bold text-foreground">
                     {activeSpace.title}
                   </p>
                   <p className="mt-0.5 text-body-xs font-mono text-muted-foreground">

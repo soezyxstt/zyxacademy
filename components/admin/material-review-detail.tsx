@@ -416,7 +416,7 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
                 <Badge variant="outline" className="text-body-xs">{displayLabel(activeIdea.instructionalRole, roleLabels)}</Badge>
                 <span className="text-body-xs text-muted-foreground">Bab {activeIdea.chapterId}</span>
               </div>
-              <h3 className="mt-2 font-heading text-h5 font-bold text-foreground">{activeIdea.code || "Idea tanpa kode"}</h3>
+              <h3 className="mt-2 font-heading text-body-base font-bold text-foreground">{activeIdea.code || "Idea tanpa kode"}</h3>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline">{activeIdea.provenance.length} bukti sumber</Badge>
@@ -594,7 +594,7 @@ function ArticleProductView({ product }: { product: Extract<ProductEntity, { pro
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
         <div>
           <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Artikel Bab</span>
-          <h3 className="mt-0.5 font-heading text-h5 font-bold text-foreground">{product.title}</h3>
+          <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
         </div>
         <div className="flex items-center gap-1.5">
           <Button
@@ -675,7 +675,7 @@ function DiktatProductView({ product }: { product: Extract<ProductEntity, { prod
     <div className="space-y-4">
       <div className="border-b border-border pb-3">
         <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Diktat PDF Ringkas</span>
-        <h3 className="mt-0.5 font-heading text-h5 font-bold text-foreground">{product.title}</h3>
+        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
       </div>
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
         <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground">
@@ -697,7 +697,7 @@ function FlashcardProductView({ product }: { product: Extract<ProductEntity, { p
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Kartu Hafalan</span>
-          <h3 className="mt-0.5 font-heading text-h6 font-bold text-foreground">{product.id}</h3>
+          <h3 className="mt-0.5 font-heading text-body-sm font-bold text-foreground">{product.id}</h3>
         </div>
         <Button
           type="button"
@@ -733,7 +733,7 @@ function FlashcardProductView({ product }: { product: Extract<ProductEntity, { p
           </span>
         </div>
 
-        <div className="my-4 text-center text-body-lg font-semibold text-foreground">
+        <div className="my-4 text-center text-body-base font-semibold text-foreground">
           <MarkdownRenderer content={isFlipped ? parsedBack.content : parsedFront.content} />
         </div>
 
@@ -767,7 +767,7 @@ function FlashcardSetProductView({ product, allProducts, onSelectCard }: { produ
     <div className="space-y-4">
       <div className="border-b border-border pb-3">
         <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Set Flashcard</span>
-        <h3 className="mt-0.5 font-heading text-h5 font-bold text-foreground">{product.title}</h3>
+        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
         <p className="text-body-xs text-muted-foreground">{product.cards.length} kartu dalam set ini</p>
       </div>
 
@@ -844,7 +844,7 @@ function QuestionProductView({ product }: { product: Extract<ProductEntity, { pr
                 >
                   <span
                     className={cn(
-                      "flex size-5 shrink-0 items-center justify-center rounded text-[11px] font-bold",
+                      "flex size-5 shrink-0 items-center justify-center rounded text-body-xs font-bold",
                       opt.isCorrect
                         ? "bg-status-success text-white"
                         : "bg-muted text-muted-foreground"
@@ -877,7 +877,7 @@ function SolutionProductView({ product }: { product: Extract<ProductEntity, { pr
     <div className="space-y-4">
       <div className="border-b border-border pb-3">
         <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Pembahasan Soal</span>
-        <h3 className="mt-0.5 font-heading text-h5 font-bold text-foreground">{product.questionId}</h3>
+        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.questionId}</h3>
       </div>
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
         <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground">
@@ -893,7 +893,7 @@ function AssessmentBlueprintProductView({ product }: { product: Extract<ProductE
     <div className="space-y-4">
       <div className="border-b border-border pb-3">
         <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Blueprint Asesmen ({product.assessmentType.toUpperCase()})</span>
-        <h3 className="mt-0.5 font-heading text-h5 font-bold text-foreground">{product.title}</h3>
+        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-4 space-y-2">
@@ -1164,7 +1164,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
                         <span className="font-semibold text-foreground truncate">{preview.title || `Bagian ${index + 1}`}</span>
                         <Badge variant="outline" className="text-[10px] shrink-0">{productLabels[preview.productType] ?? preview.productType}</Badge>
                       </div>
-                      <span className="text-[11px] text-muted-foreground font-mono">{preview.id}</span>
+                      <span className="text-body-xs text-muted-foreground font-mono">{preview.id}</span>
                     </button>
                   ))}
                 </div>
@@ -1180,7 +1180,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
                 <div>
                   <Badge variant="secondary" className="text-body-xs font-semibold">{productLabels[activePreview.productType] ?? activePreview.productType}</Badge>
-                  <h3 className="mt-1.5 font-heading text-h5 font-bold text-foreground">{activePreview.title || "Bagian tanpa judul"}</h3>
+                  <h3 className="mt-1.5 font-heading text-body-base font-bold text-foreground">{activePreview.title || "Bagian tanpa judul"}</h3>
                   <span className="text-body-xs text-muted-foreground font-mono">ID: {activePreview.id} · Versi {activePreview.version}</span>
                 </div>
                 {!editing && payload.bundle.status === "draft" && (

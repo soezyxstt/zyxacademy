@@ -27,7 +27,7 @@ export function AuthMarketingCard({
  return (
  <div className="marketing-container flex min-h-[60vh] flex-col items-center justify-center py-16 motion-safe:[animation:landing-fade-up_0.65s_ease-out_both]">
  <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm transition-shadow duration-300 hover:shadow-md">
- <h1 className="text-center font-heading text-h3 font-bold text-foreground">
+ <h1 className="text-center font-heading text-h5 font-bold text-foreground">
  {title}
  </h1>
  <div className="mt-2 text-center text-body-sm text-muted-foreground">

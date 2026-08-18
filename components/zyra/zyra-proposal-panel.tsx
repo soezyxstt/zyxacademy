@@ -95,7 +95,7 @@ export function ZyraProposalPanel({ courseId, role }: { courseId?: string | null
   return (
     <Card className="rounded-xl border-border">
       <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-        <CardTitle className="flex items-center gap-2 text-h6 font-heading">
+        <CardTitle className="flex items-center gap-2 text-body-base font-heading">
           <ClipboardList className="size-5 text-brand-primary" aria-hidden="true" />
           Zyra proposal
         </CardTitle>

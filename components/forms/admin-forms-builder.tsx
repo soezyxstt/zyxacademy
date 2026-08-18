@@ -590,7 +590,7 @@ export default function AdminFormsBuilder({
                   placeholder="Judul Formulir"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full font-heading text-h5 font-bold text-foreground bg-transparent border-b border-border/40 pb-1.5 focus:border-brand-primary focus:outline-none transition-colors"
+                  className="w-full font-heading text-body-sm font-bold text-foreground bg-transparent border-b border-border/40 pb-1.5 focus:border-brand-primary focus:outline-none transition-colors"
                 />
               </div>
 
@@ -1538,7 +1538,7 @@ export default function AdminFormsBuilder({
           ) : forms.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
               <FileText className="size-10 text-muted-foreground/60" />
-              <p className="mt-3 font-heading text-h6 font-semibold text-foreground">
+              <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
                 Belum Ada Formulir Terbuat
               </p>
               <p className="mt-1 text-body-sm text-muted-foreground max-w-md">

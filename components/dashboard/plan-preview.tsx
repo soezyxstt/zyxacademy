@@ -18,7 +18,7 @@ export function DashboardPlanPreview() {
           <p className="text-body-xs font-semibold uppercase tracking-wide text-brand-primary">
             Pilihan paket
           </p>
-          <h3 id="dashboard-plan-title" className="mt-1 font-heading text-h5 font-semibold text-foreground">
+          <h3 id="dashboard-plan-title" className="mt-1 font-heading text-body-base font-semibold text-foreground">
             Pilih dukungan belajar yang cocok
           </h3>
           <p className="mt-1 max-w-xl text-body-sm text-muted-foreground">
@@ -52,7 +52,7 @@ export function DashboardPlanPreview() {
               </div>
               <p className="text-body-xs text-muted-foreground">{tier.note}</p>
               <div className="pt-2">
-                <p className="font-heading text-body-md font-bold text-foreground">{tier.price}</p>
+                <p className="font-heading text-body-base font-bold text-foreground">{tier.price}</p>
                 <p className="text-body-xs text-muted-foreground">Total per semester</p>
               </div>
             </CardHeader>

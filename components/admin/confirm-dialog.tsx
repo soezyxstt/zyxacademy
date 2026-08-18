@@ -44,14 +44,14 @@ export function AdminConfirmDialog({
         <DialogHeader>
           <DialogTitle
             className={cn(
-              "flex items-center gap-2 font-heading text-h6 font-bold",
+              "flex items-center gap-2 font-heading text-body-base font-bold",
               destructive && "text-status-error"
             )}
           >
             <Icon className="size-5 shrink-0" />
             {title}
           </DialogTitle>
-          <DialogDescription className="text-body-sm text-muted-foreground mt-2">
+          <DialogDescription className="text-body-xs text-muted-foreground mt-2">
             {description}
           </DialogDescription>
         </DialogHeader>

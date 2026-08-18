@@ -10,13 +10,13 @@ export function LandingClosingCta() {
       aria-labelledby="closing-heading"
     >
       <div className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
+        <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
           Mulai hari ini
         </p>
         <SectionHeading id="closing-heading" tier="primary" className="mt-2 text-foreground">
           Mulai semester ini dengan arah yang jelas.
         </SectionHeading>
-        <p className="mx-auto mt-4 max-w-prose text-body-lg text-muted-foreground">
+        <p className="mx-auto mt-4 max-w-prose text-body-base text-muted-foreground">
           Masuk dengan akun Google, kerjakan diagnosa singkat, dan lihat rencana belajar pertamamu
           hari ini juga.
         </p>

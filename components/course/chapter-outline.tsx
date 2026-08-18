@@ -14,7 +14,7 @@ export function ChapterOutline({ courseId, chapters }: ChapterOutlineProps) {
     return (
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
-          <h2 className="font-heading text-body-md font-bold text-foreground">Silabus kelas</h2>
+          <h2 className="font-heading text-body-base font-bold text-foreground">Silabus kelas</h2>
         </div>
         <div className="rounded-xl border border-dashed border-border bg-muted/15 py-10 text-center">
           <p className="text-body-sm text-muted-foreground">
@@ -30,7 +30,7 @@ export function ChapterOutline({ courseId, chapters }: ChapterOutlineProps) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
-        <h2 className="font-heading text-body-md font-bold text-foreground">Silabus kelas</h2>
+        <h2 className="font-heading text-body-base font-bold text-foreground">Silabus kelas</h2>
         <span className="text-body-sm text-muted-foreground">
           {doneCount}/{chapters.length} bab selesai
         </span>

@@ -684,7 +684,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
             <button
               onClick={() => setActiveDashboardTab("learning")}
               className={cn(
-                "rounded-lg font-semibold text-xs h-9 px-4 transition-colors cursor-pointer",
+                "rounded-lg font-semibold text-body-sm h-9 px-4 transition-colors cursor-pointer",
                 activeDashboardTab === "learning"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted"
@@ -695,7 +695,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
             <button
               onClick={() => setActiveDashboardTab("website")}
               className={cn(
-                "rounded-lg font-semibold text-xs h-9 px-4 transition-colors cursor-pointer",
+                "rounded-lg font-semibold text-body-sm h-9 px-4 transition-colors cursor-pointer",
                 activeDashboardTab === "website"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted"
@@ -706,7 +706,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
             <button
               onClick={() => setActiveDashboardTab("assessment")}
               className={cn(
-                "rounded-lg font-semibold text-xs h-9 px-4 transition-colors cursor-pointer",
+                "rounded-lg font-semibold text-body-sm h-9 px-4 transition-colors cursor-pointer",
                 activeDashboardTab === "assessment"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted"
@@ -751,7 +751,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
           {/* Header Workspace */}
           <div className="flex items-center justify-between border-b border-border pb-4 flex-wrap gap-2">
             <div>
-              <h2 className="font-heading text-h5 font-semibold text-foreground">
+              <h2 className="font-heading text-body-base font-semibold text-foreground">
                 {documentType === "learning"
                   ? "Material Ingestion Workspace"
                   : "Assessment Ingestion Workspace"}
@@ -762,7 +762,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                   : "Unggah PDF asli sebagai arsip dan Markdown kanonik untuk klasifikasi soal."}
               </p>
             </div>
-            <span className="rounded-md bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
               {ingestionState === "source" && "1. Sumber Dokumen"}
               {ingestionState === "analyzing" && "2. Menganalisis..."}
               {ingestionState === "reviewing" && "3. Kurasi & Pratinjau"}
@@ -831,7 +831,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                 {documentType === "learning" && form.courseId && (
                   <div className="border border-border/80 rounded-xl p-4 bg-muted/5 space-y-3 col-span-2 text-left">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-muted-foreground">
+                      <span className="text-body-xs font-bold text-muted-foreground">
                         KAITKAN DENGAN BAB (PILIH MINIMAL SATU)
                       </span>
                     </div>
@@ -842,7 +842,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                           <label
                             key={chapter.id}
                             className={cn(
-                              "flex items-start gap-2.5 p-2 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-all duration-155",
+                              "flex items-start gap-2.5 p-2 rounded-lg border text-body-sm font-semibold cursor-pointer select-none transition-all duration-155",
                               selectedChapters.has(chapter.id)
                                 ? "border-primary bg-primary/5 text-foreground"
                                 : "border-border hover:bg-muted/10 text-muted-foreground"
@@ -917,7 +917,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
               <div className="space-y-3 text-left">
                 <div className="flex items-center gap-2 mb-1">
                   <label className="text-body-sm font-semibold text-foreground">Dokumen</label>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-body-xs text-muted-foreground">
                     ; diperlukan dua berkas: PDF arsip + Markdown kanonik
                   </span>
                 </div>
@@ -931,7 +931,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                       </div>
                       <div>
                         <p className="text-body-sm font-bold text-foreground">Dokumen Asli (PDF)</p>
-                        <p className="text-xs text-muted-foreground leading-snug">
+                        <p className="text-body-xs text-muted-foreground leading-snug">
                           Disimpan di R2 sebagai arsip. Tidak diproses ke KO.
                         </p>
                       </div>
@@ -951,7 +951,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                         <span className="text-body-sm font-medium text-foreground">
                           {pdfUploadState === "error" ? "Coba Lagi; Pilih PDF" : "Pilih Berkas PDF"}
                         </span>
-                        <span className="text-xs text-muted-foreground">Opsional · Maks. 50 MB</span>
+                        <span className="text-body-xs text-muted-foreground">Opsional · Maks. 50 MB</span>
                         <input
                           id="pdf-upload-input"
                           type="file"
@@ -964,8 +964,8 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                       <div className="border border-border rounded-lg p-4 flex items-center gap-3 bg-muted/20">
                         <Loader2 className="size-4 animate-spin text-primary shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-foreground truncate">{pdfFileName}</p>
-                          <p className="text-xs text-muted-foreground">Mengunggah ke R2...</p>
+                          <p className="text-body-xs font-semibold text-foreground truncate">{pdfFileName}</p>
+                          <p className="text-body-xs text-muted-foreground">Mengunggah ke R2...</p>
                         </div>
                       </div>
                     ) : (
@@ -973,8 +973,8 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                       <div className="border border-status-success/30 rounded-lg p-3 flex items-center gap-3 bg-status-success/8">
                         <CheckCircle2 className="size-4 text-status-success shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-foreground truncate">{pdfFileName}</p>
-                          <p className="text-xs text-status-success">Berhasil diunggah ke arsip</p>
+                          <p className="text-body-xs font-semibold text-foreground truncate">{pdfFileName}</p>
+                          <p className="text-body-xs text-status-success">Berhasil diunggah ke arsip</p>
                         </div>
                         <button
                           type="button"
@@ -1002,7 +1002,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                         <p className="text-body-sm font-bold text-foreground">
                           Dokumen Kanonik (Markdown)
                         </p>
-                        <p className="text-xs text-muted-foreground leading-snug">
+                        <p className="text-body-xs text-muted-foreground leading-snug">
                           Sumber KO & RAG. Diproses LLM saat publikasi.
                         </p>
                       </div>
@@ -1014,7 +1014,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                         type="button"
                         onClick={() => setInputMethod("upload")}
                         className={cn(
-                          "flex-1 rounded text-xs font-semibold py-1.5 transition-colors cursor-pointer",
+                          "flex-1 rounded text-body-sm font-semibold py-1.5 transition-colors cursor-pointer",
                           inputMethod === "upload"
                             ? "bg-primary text-primary-foreground"
                             : "text-muted-foreground hover:bg-muted/50"
@@ -1026,7 +1026,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                         type="button"
                         onClick={() => setInputMethod("paste")}
                         className={cn(
-                          "flex-1 rounded text-xs font-semibold py-1.5 transition-colors cursor-pointer",
+                          "flex-1 rounded text-body-sm font-semibold py-1.5 transition-colors cursor-pointer",
                           inputMethod === "paste"
                             ? "bg-primary text-primary-foreground"
                             : "text-muted-foreground hover:bg-muted/50"
@@ -1047,7 +1047,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                             <span className="text-body-sm font-medium text-foreground">
                               Pilih Berkas Markdown (.md)
                             </span>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-body-xs text-muted-foreground">
                               Klik untuk menelusuri berkas lokal.
                             </span>
                             <input
@@ -1062,10 +1062,10 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                           <div className="border border-status-success/30 rounded-lg p-3 flex items-center gap-3 bg-status-success/8">
                             <CheckCircle2 className="size-4 text-status-success shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-foreground">
+                              <p className="text-body-xs font-semibold text-foreground">
                                 {form.rawText.split(/\s+/).filter(Boolean).length} kata dimuat
                               </p>
-                              <p className="text-xs text-status-success">Konten kanonik siap dianalisis</p>
+                              <p className="text-body-xs text-status-success">Konten kanonik siap dianalisis</p>
                             </div>
                             <button
                               type="button"
@@ -1086,7 +1086,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
 
                     {inputMethod === "paste" && (
                       <textarea
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-body-sm min-h-[120px] font-mono text-sm focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/50"
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-body-sm min-h-[120px] font-mono focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/50"
                         placeholder="Tempel teks Markdown Anda di sini..."
                         value={form.rawText}
                         onChange={(e) => setForm((f) => ({ ...f, rawText: e.target.value }))}
@@ -1096,7 +1096,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                 </div>
 
                 {/* Info callout explaining the two-doc model */}
-                <div className="flex gap-2 p-3 bg-muted/30 border border-border rounded-lg text-xs text-muted-foreground">
+                <div className="flex gap-2 p-3 bg-muted/30 border border-border rounded-lg text-body-xs text-muted-foreground">
                   <Info className="size-4 shrink-0 mt-0.5 text-primary" />
                   <span>
                     <strong className="text-foreground">Cara kerja dual-document:</strong> PDF disimpan sebagai arsip sumber asli dan tidak diproses. Markdown kanonik adalah satu-satunya input yang dianalisis LLM, diindeks ke canonical Vectorize (RAG), dan menghasilkan Knowledge Objects.
@@ -1168,7 +1168,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
               <Loader2 className="size-8 text-primary animate-spin" />
               <div className="space-y-1">
-                <p className="font-heading text-body-lg font-semibold text-foreground">
+                <p className="font-heading text-body-base font-semibold text-foreground">
                   Sedang Menganalisis Dokumen
                 </p>
                 <p className="text-body-sm text-muted-foreground max-w-sm">
@@ -1213,7 +1213,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     </div>
                   </div>
                   {pdfKey && (
-                    <div className="flex items-center gap-1.5 pt-1 text-xs text-status-success border-t border-border/40 mt-1">
+                    <div className="flex items-center gap-1.5 pt-1 text-body-xs text-status-success border-t border-border/40 mt-1">
                       <CheckCircle2 className="size-3.5" />
                       <span>PDF arsip terlampir</span>
                     </div>
@@ -1226,7 +1226,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     <Layers className="size-4 text-primary" />
                     Ekstraksi Objek Pengetahuan (KO)
                   </p>
-                  <div className="flex flex-wrap gap-2 text-xs">
+                  <div className="flex flex-wrap gap-2 text-body-xs">
                     <span className="bg-card px-2.5 py-1 rounded-md border border-border font-medium">
                       Concept: {stats.conceptsCount}
                     </span>
@@ -1244,7 +1244,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="rounded-md gap-1.5 text-xs h-8 cursor-pointer"
+                    className="rounded-md gap-1.5 text-body-sm h-8 cursor-pointer"
                     onClick={() => setShowReport(true)}
                   >
                     <ExternalLink className="size-3" />
@@ -1263,7 +1263,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                   {/* Progress Bars */}
                   <div className="space-y-3">
                     <div>
-                      <div className="flex justify-between text-xs font-medium mb-1">
+                      <div className="flex justify-between text-body-xs font-medium mb-1">
                         <span>Akurasi Struktur Bab</span>
                         <span
                           className={
@@ -1293,7 +1293,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     </div>
 
                     <div>
-                      <div className="flex justify-between text-xs font-medium mb-1">
+                      <div className="flex justify-between text-body-xs font-medium mb-1">
                         <span>Akurasi Rumus LaTeX</span>
                         <span
                           className={
@@ -1323,7 +1323,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     </div>
 
                     <div>
-                      <div className="flex justify-between text-xs font-medium mb-1">
+                      <div className="flex justify-between text-body-xs font-medium mb-1">
                         <span>Akurasi Ekstraksi Glosarium</span>
                         <span
                           className={
@@ -1368,7 +1368,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                       >
                         {parsedSuccessfully}%
                       </p>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                      <p className="text-body-xs text-muted-foreground uppercase tracking-wider">
                         Parsed Successfully
                       </p>
                     </div>
@@ -1385,7 +1385,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                       >
                         {unrecognized}%
                       </p>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                      <p className="text-body-xs text-muted-foreground uppercase tracking-wider">
                         Unrecognized
                       </p>
                     </div>
@@ -1393,7 +1393,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                       <p className="text-h4 font-heading font-bold text-muted-foreground">
                         {ignored}%
                       </p>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Ignored</p>
+                      <p className="text-body-xs text-muted-foreground uppercase tracking-wider">Ignored</p>
                     </div>
                   </div>
                 </div>
@@ -1412,7 +1412,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                         size="sm"
                         type="button"
                         variant="outline"
-                        className="rounded-md text-xs h-8 px-3 cursor-pointer bg-status-error/10 text-status-error border border-status-error/30 hover:bg-status-error/20 hover:text-status-error transition-colors"
+                        className="rounded-md text-body-sm h-8 px-3 cursor-pointer bg-status-error/10 text-status-error border border-status-error/30 hover:bg-status-error/20 hover:text-status-error transition-colors"
                         onClick={fixAllGlossaryWarnings}
                       >
                         Tambahkan Semua ke Keywords
@@ -1428,7 +1428,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                       >
                         <div className="space-y-1">
                           <p className="font-semibold text-body-sm">{warn.title}</p>
-                          <p className="text-xs text-status-error/80 leading-relaxed">{warn.desc}</p>
+                          <p className="text-body-xs text-status-error/80 leading-relaxed">{warn.desc}</p>
                         </div>
                         <div className="shrink-0 pt-0.5">
                           {warn.type === "glossary" && warn.target && (
@@ -1436,7 +1436,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                               size="sm"
                               type="button"
                               variant="destructive"
-                              className="rounded-md text-xs h-8 px-3 cursor-pointer"
+                              className="rounded-md text-body-sm h-8 px-3 cursor-pointer"
                               onClick={() => fixGlossaryWarning(warn.id, warn.target!)}
                             >
                               Tambahkan ke Keywords
@@ -1447,7 +1447,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                               size="sm"
                               type="button"
                               variant="destructive"
-                              className="rounded-md text-xs h-8 px-3 cursor-pointer"
+                              className="rounded-md text-body-sm h-8 px-3 cursor-pointer"
                               onClick={() => fixLaTeXWarning(warn.id)}
                             >
                               Tutup Delimiter
@@ -1458,7 +1458,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                               size="sm"
                               type="button"
                               variant="destructive"
-                              className="rounded-md text-xs h-8 px-3 cursor-pointer"
+                              className="rounded-md text-body-sm h-8 px-3 cursor-pointer"
                               onClick={() => fixDensityWarning(warn.id)}
                             >
                               Tambah Subbab Utama
@@ -1478,7 +1478,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     <Sparkles className="size-4 text-primary" />
                     Penyunting & Pratinjau Materi Pelajaran
                   </p>
-                  <span className="text-xs text-muted-foreground font-mono">
+                  <span className="text-body-xs text-muted-foreground font-mono">
                     Simbol matematika didukung ($ untuk inline, $$ untuk blok)
                   </span>
                 </div>
@@ -1521,7 +1521,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                   <h4 className="text-body-sm font-semibold text-foreground">
                     Daftar Pemeriksaan Publikasi:
                   </h4>
-                  <div className="space-y-1 text-xs text-muted-foreground">
+                  <div className="space-y-1 text-body-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
                       <Check className="size-3.5 text-status-success" />
                       <span>Dokumen kanonik telah dianalisis.</span>
@@ -1623,11 +1623,11 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
       <Dialog open={showReport} onOpenChange={setShowReport}>
         <DialogContent className="rounded-xl max-w-2xl max-h-[85vh] overflow-y-auto border border-border">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6 font-semibold flex items-center gap-2">
+            <DialogTitle className="font-heading text-body-base font-semibold flex items-center gap-2">
               <Layers className="size-5 text-primary" />
               Laporan Ekstraksi Objek Pengetahuan (KO)
             </DialogTitle>
-            <DialogDescription className="text-body-sm leading-relaxed mt-1">
+            <DialogDescription className="text-body-xs leading-relaxed mt-1">
               Visualisasi struktur dekomposisi teks materi pelajaran menjadi modul konsep pembelajaran
               Zyx Academy.
             </DialogDescription>
@@ -1652,7 +1652,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     >
                       <div className="font-medium text-foreground">{ko.title}</div>
                       <div>{ko.type}</div>
-                      <div className="font-mono text-xs">{ko.bloomLevel}</div>
+                      <div className="font-mono text-body-xs">{ko.bloomLevel}</div>
                     </div>
                   ))
                 ) : (
@@ -1660,7 +1660,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     <p className="font-semibold text-body-sm">
                       Tidak ada kontainer KO kustom terdeteksi.
                     </p>
-                    <p className="text-xs max-w-md mx-auto leading-relaxed">
+                    <p className="text-body-xs max-w-md mx-auto leading-relaxed">
                       Sistem akan mengekstrak objek secara otomatis saat materi diterbitkan. Anda juga
                       dapat menambahkannya secara manual di dalam dokumen menggunakan kontainer seperti:
                     </p>
@@ -1672,7 +1672,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
               </div>
             </div>
 
-            <div className="p-3 bg-muted/20 border border-border rounded-lg text-xs leading-relaxed text-muted-foreground flex gap-2">
+            <div className="p-3 bg-muted/20 border border-border rounded-lg text-body-xs leading-relaxed text-muted-foreground flex gap-2">
               <Info className="size-4 shrink-0 mt-0.5 text-primary" />
               <span>
                 Sistem RAG memetakan objek di atas untuk merakit konten penjelasan kuis, kartu
@@ -1783,12 +1783,12 @@ function InstanceRow({
                 Draf
               </span>
             )}
-            <h3 className="font-heading font-semibold text-foreground text-body-md tracking-tight leading-snug">
+            <h3 className="font-heading font-semibold text-foreground text-body-base tracking-tight leading-snug">
               {cleanTitle}
             </h3>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-3">
+          <div className="flex items-center gap-2 flex-wrap text-body-xs text-muted-foreground mb-3">
             <span className="font-medium text-foreground">
               {courseMap[instance.courseId] ?? instance.courseId}
             </span>
@@ -1884,7 +1884,7 @@ function InstanceRow({
 
       {expanded && (
         <div className="mt-4 pt-4 border-t border-border space-y-3.5 text-left bg-muted/10 -mx-5 -mb-5 p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-body-xs">
             <div>
               <span className="font-semibold text-foreground">ID Materi:</span>{" "}
               <span className="font-mono text-muted-foreground select-all">{instance.id}</span>
@@ -1901,7 +1901,7 @@ function InstanceRow({
           </div>
 
           {instance.lastSyncError && (
-            <div className="p-3 bg-status-error/5 border border-status-error/10 rounded-lg text-xs font-mono text-status-error space-y-1">
+            <div className="p-3 bg-status-error/5 border border-status-error/10 rounded-lg text-body-xs font-mono text-status-error space-y-1">
               <span className="font-bold block uppercase tracking-wider text-[10px]">Catatan Kesalahan (Error Log):</span>
               <p className="break-all">{instance.lastSyncError}</p>
             </div>
@@ -1987,11 +1987,11 @@ function AssessmentRow({
           <FileText className="size-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-heading font-semibold text-foreground text-body-md tracking-tight leading-snug mb-1">
+          <h3 className="font-heading font-semibold text-foreground text-body-base tracking-tight leading-snug mb-1">
             {assessment.title}
           </h3>
 
-          <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 flex-wrap text-body-xs text-muted-foreground">
             <span className="font-medium text-foreground">
               {courseMap[assessment.courseId] ?? assessment.courseId}
             </span>
@@ -2006,7 +2006,7 @@ function AssessmentRow({
           
           <p className="text-body-sm text-muted-foreground mt-2.5">
             Status:{" "}
-            <span className="font-medium text-foreground bg-muted px-2 py-0.5 rounded border border-border/80 text-xs">
+            <span className="font-medium text-foreground bg-muted px-2 py-0.5 rounded border border-border/80 text-body-xs">
               {assessment.status}
             </span>
           </p>
@@ -2023,7 +2023,7 @@ function AssessmentRow({
 
       {expanded && (
         <div className="mt-4 pt-4 border-t border-border space-y-3.5 text-left bg-muted/10 -mx-5 -mb-5 p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-body-xs">
             <div>
               <span className="font-semibold text-foreground">ID Asesmen:</span>{" "}
               <span className="font-mono text-muted-foreground select-all">{assessment.id}</span>
@@ -2138,11 +2138,11 @@ function WebMaterialRow({
           <BookText className="size-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-heading font-semibold text-foreground text-body-md tracking-tight leading-snug mb-1">
+          <h3 className="font-heading font-semibold text-foreground text-body-base tracking-tight leading-snug mb-1">
             {webMaterial.title}
           </h3>
 
-          <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mb-3">
+          <div className="flex items-center gap-2 flex-wrap text-body-xs text-muted-foreground mb-3">
             <span className="font-medium text-foreground">
               {courseTitle}
             </span>
@@ -2191,7 +2191,7 @@ function WebMaterialRow({
 
       {expanded && (
         <div className="mt-4 pt-4 border-t border-border space-y-3.5 text-left bg-muted/10 -mx-5 -mb-5 p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-body-xs">
             <div>
               <span className="font-semibold text-foreground">ID Materi:</span>{" "}
               <span className="font-mono text-muted-foreground select-all">{webMaterial.id}</span>
@@ -2217,11 +2217,11 @@ function WebMaterialRow({
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="rounded-xl max-w-4xl max-h-[85vh] overflow-y-auto border border-border">
           <DialogHeader className="border-b border-border pb-4">
-            <DialogTitle className="font-heading text-h5 font-semibold flex items-center gap-2">
+            <DialogTitle className="font-heading text-body-base font-semibold flex items-center gap-2">
               <BookText className="size-6 text-primary" />
               {webMaterial.title}
             </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-1">
+            <DialogDescription className="text-body-xs text-muted-foreground mt-1">
               Pratinjau konten dokumen kurikulum website untuk mata kuliah {courseTitle} ({chapter ? chapter.title : webMaterial.chapterId}).
             </DialogDescription>
           </DialogHeader>

@@ -35,7 +35,7 @@ export function ZyraOpsPanel() {
     <section className="space-y-4 border-y border-border py-6" aria-labelledby="zyra-ops-title">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 id="zyra-ops-title" className="flex items-center gap-2 font-heading text-h6 font-semibold">
+          <h2 id="zyra-ops-title" className="flex items-center gap-2 font-heading text-body-base font-semibold">
             <Activity className="size-5 text-brand-primary" aria-hidden="true" /> Zyra operations
           </h2>
           <p className="text-body-sm text-muted-foreground">Usage Zyx, health, cache, image, dan validation. Saldo provider eksternal tetap unknown.</p>

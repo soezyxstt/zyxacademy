@@ -58,7 +58,7 @@ export function FlashcardDemo({ cards }: FlashcardDemoProps) {
  Kartu {(index % cards.length) + 1} / {cards.length}
  </span>
  <span className="font-heading text-h5 font-semibold text-foreground">{card.front}</span>
- <span className="text-xs text-muted-foreground">klik untuk membalik</span>
+ <span className="text-body-xs text-muted-foreground">klik untuk membalik</span>
  </span>
  <span className="landing-flip-face landing-flip-back absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl border border-primary/35 bg-primary/5 px-6 text-center shadow-sm">
  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
@@ -104,7 +104,7 @@ export function FlashcardDemo({ cards }: FlashcardDemoProps) {
  </span>
  </p>
  ) : (
- <p className="text-xs text-muted-foreground">
+ <p className="text-body-xs text-muted-foreground">
  Nilai kartumu ; jadwal pengulangan menyesuaikan otomatis.
  </p>
  )}

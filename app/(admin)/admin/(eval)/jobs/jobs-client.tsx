@@ -244,7 +244,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
   </div>
 
  {form.chapterId && (
- <p className="text-xs text-muted-foreground">
+ <p className="text-body-xs text-muted-foreground">
  {form.koId === "all"
  ? `Menargetkan generasi kuis untuk ${filteredKOs.length} Objek Pengetahuan aktif dalam bab ini.`
  : "Menargetkan generasi kuis untuk 1 Objek Pengetahuan terpilih."}
@@ -302,7 +302,7 @@ export function GenerationJobsClient({ jobs, courses, chapters, knowledgeObjects
  {new Date(job.createdAt).toLocaleString("id-ID")}
  </p>
  {params?.logs && Array.isArray(params.logs) && params.logs.length > 0 && (
- <div className="mt-2.5 rounded-lg border border-border bg-muted/20 p-3 text-xs font-mono space-y-1 text-muted-foreground max-h-36 overflow-y-auto">
+ <div className="mt-2.5 rounded-lg border border-border bg-muted/20 p-3 text-body-xs font-mono space-y-1 text-muted-foreground max-h-36 overflow-y-auto">
  <p className="font-sans font-bold text-[10px] text-muted-foreground/80 tracking-wider uppercase mb-1">PROGRES DETAIL:</p>
  {params.logs.map((log: string, idx: number) => (
  <div key={idx} className="leading-relaxed">

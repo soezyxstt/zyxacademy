@@ -38,7 +38,7 @@ export default async function CoursePathPage({ params }: Props) {
       >
         <Reveal>
           <div className={studentCardClass("mx-auto max-w-xl text-center py-12")}>
-            <h3 className="font-heading text-body-lg font-bold text-foreground">Alur Belajar Terkunci</h3>
+            <h3 className="font-heading text-body-base font-bold text-foreground">Alur Belajar Terkunci</h3>
             <p className="mt-2 text-body-sm text-muted-foreground leading-relaxed">
               Anda perlu mendaftar kelas ini untuk melihat alur belajar personal Anda. Aktifkan kelas menggunakan token pendaftaran di bawah ini.
             </p>

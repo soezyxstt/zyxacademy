@@ -326,7 +326,7 @@ export function LinksManager() {
                   {link.icon || DEFAULT_ICON}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-heading text-h6 font-semibold text-foreground" title={link.title}>
+                    <h3 className="truncate font-heading text-body-base font-semibold text-foreground" title={link.title}>
                     {link.title}
                   </h3>
                   <a
@@ -502,10 +502,10 @@ export function LinksManager() {
       >
         <DialogContent className="max-w-lg rounded-xl border border-border p-6 shadow-lg text-left">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6 font-bold">
+            <DialogTitle className="font-heading text-body-base font-bold">
               {editing ? "Edit Tautan" : "Tambah Tautan"}
             </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-2">
+            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
               {editing
                 ? "Perbarui detail tautan di bawah ini."
                 : "Lengkapi detail tautan yang ingin ditambahkan."}

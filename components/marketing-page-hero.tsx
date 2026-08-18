@@ -37,7 +37,7 @@ export function MarketingPageHero({
           {title}
         </h1>
         {description && (
-          <p className="mx-auto max-w-2xl text-body-md text-muted-foreground md:text-body-lg leading-relaxed font-normal">
+          <p className="mx-auto max-w-2xl text-body-base text-muted-foreground leading-relaxed font-normal">
             {description}
           </p>
         )}
@@ -45,4 +45,3 @@ export function MarketingPageHero({
     </header>
   );
 }
-

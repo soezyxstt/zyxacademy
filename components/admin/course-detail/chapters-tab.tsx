@@ -210,7 +210,7 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
           <div className="text-center py-8 border border-dashed border-border rounded-xl bg-card">
             <BookOpen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
             <p className="text-body-xs font-medium text-foreground">Belum ada bab yang terdaftar</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-body-xs text-muted-foreground mt-0.5">
               Gunakan formulir di atas untuk menambahkan bab pertama mata kuliah ini.
             </p>
           </div>
@@ -230,7 +230,7 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
                       {ch.title}
                     </p>
                     {ch.description && (
-                      <span className="text-[11px] text-muted-foreground truncate max-w-md hidden sm:inline">
+                      <span className="text-body-xs text-muted-foreground truncate max-w-md hidden sm:inline">
                         · {ch.description}
                       </span>
                     )}

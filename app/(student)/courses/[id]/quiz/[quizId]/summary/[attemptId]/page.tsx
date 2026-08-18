@@ -67,7 +67,7 @@ export default async function QuizSummaryPage({ params }: Props) {
   return (
     <CoursePageShell
       eyebrow={
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground uppercase tracking-widest">
+        <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground uppercase tracking-widest">
           <Link href={`/courses/${id}/quiz`} className="hover:text-primary transition-colors">Kuis</Link>
           <ChevronRight className="size-3" />
           <span className="truncate max-w-[200px]">{template?.title || "Kuis"}</span>

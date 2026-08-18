@@ -217,7 +217,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
               <span>{category === "all" ? "Semua" : categoryLabel[category]}</span>
               <span
                 className={cn(
-                  "text-[11px]",
+                  "text-body-xs",
                   activeTab === category ? "text-primary-foreground/80" : "text-muted-foreground"
                 )}
               >
@@ -330,7 +330,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
                   <span className="font-medium">
                     {material.docCategory ? categoryLabel[material.docCategory] : "Materi"}
                   </span>
-                  <span className="text-muted-foreground/80 font-mono text-[11px] truncate">
+                  <span className="text-muted-foreground/80 font-mono text-body-xs truncate">
                     {material.fileSize || (material.kind === "pdf" ? "PDF" : "Artikel")}
                   </span>
                 </div>
@@ -374,7 +374,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
                     <span className="hidden text-body-xs font-medium text-muted-foreground md:block">
                       {material.docCategory ? categoryLabel[material.docCategory] : "Materi"}
                     </span>
-                    <span className="hidden text-body-xs text-muted-foreground md:block font-mono text-[11px]">
+                    <span className="hidden text-body-xs text-muted-foreground md:block font-mono">
                       {material.fileSize || (material.kind === "pdf" ? "PDF" : "Artikel")}
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-70 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />

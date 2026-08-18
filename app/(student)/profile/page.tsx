@@ -155,7 +155,7 @@ export default async function ProfilePage() {
  referrerPolicy="no-referrer"
  />
  ) : (
- <span className="flex size-full items-center justify-center rounded-full bg-brand-primary text-h4 font-bold text-white shadow-sm ring-4 ring-brand-primary/20 border-2 border-background">
+ <span className="flex size-full items-center justify-center rounded-full bg-brand-primary text-h5 font-bold text-white shadow-sm ring-4 ring-brand-primary/20 border-2 border-background">
  {user.name?.charAt(0)?.toUpperCase() ?? "?"}
  </span>
  )}
@@ -170,7 +170,7 @@ export default async function ProfilePage() {
  {user.role || "student"}
  </span>
 
- <h2 className="font-heading text-h3 md:text-h2 font-bold tracking-tight text-foreground mt-2 truncate bg-gradient-to-r from-brand-primary via-primary-hover to-brand-secondary bg-clip-text text-transparent">
+ <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground mt-2 truncate bg-gradient-to-r from-brand-primary via-primary-hover to-brand-secondary bg-clip-text text-transparent">
  {user.name}
  </h2>
 
@@ -202,7 +202,7 @@ export default async function ProfilePage() {
  <span className="font-heading text-h3 md:text-h2 font-bold text-brand-primary">
  {activeEnrollments.length}
  </span>
- <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
  Kelas Aktif
  </span>
  </div>
@@ -211,7 +211,7 @@ export default async function ProfilePage() {
  <span className="font-heading text-h3 md:text-h2 font-bold text-brand-primary">
  {completedCount}
  </span>
- <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
  Materi Selesai
  </span>
  </div>
@@ -220,7 +220,7 @@ export default async function ProfilePage() {
  <span className="font-heading text-h3 md:text-h2 font-bold text-brand-primary">
  {submissionCount}
  </span>
- <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
  Ujian Selesai
  </span>
  </div>
@@ -229,7 +229,7 @@ export default async function ProfilePage() {
  <span className="font-heading text-h3 md:text-h2 font-bold text-brand-secondary">
  {averageScore !== null ? `${averageScore}%` : ""}
  </span>
- <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
  Rata-rata Nilai
  </span>
  </div>
@@ -358,7 +358,7 @@ export default async function ProfilePage() {
 
  {/* Groups list */}
  <div>
- <h3 className="font-heading text-h5 font-semibold text-foreground mb-4">
+ <h3 className="font-heading text-body-base font-semibold text-foreground mb-4">
  Kelompok Belajar
  </h3>
  {userGroups.length > 0 ? (

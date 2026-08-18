@@ -67,7 +67,7 @@ export default async function CourseFlashcardPage({ params }: Props) {
       <Reveal>
         {!isEnrolled ? (
           <div className={studentCardClass("mx-auto max-w-2xl text-center")}>
-            <h3 className="font-heading text-body-lg font-bold text-foreground">
+            <h3 className="font-heading text-body-base font-bold text-foreground">
               Akses Terkunci
             </h3>
             <p className="mt-2 text-body-sm text-muted-foreground mb-6">

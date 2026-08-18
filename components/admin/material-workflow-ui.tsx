@@ -88,7 +88,7 @@ export function WorkflowStepBar({ steps, currentStep }: { steps: WorkflowStep[];
           >
             <span
               className={cn(
-                "flex size-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold",
+                "flex size-5 shrink-0 items-center justify-center rounded-full border text-body-xs font-bold",
                 complete && "border-status-success bg-status-success text-white",
                 active && "border-brand-primary bg-brand-primary text-white",
                 !complete && !active && "border-border bg-muted text-muted-foreground",
@@ -174,7 +174,7 @@ export function MaterialArtifactCard({
           </Badge>
           <StatusBadge tone={tone}>{statusLabel}</StatusBadge>
         </div>
-        <h3 className="truncate font-heading text-body-md font-semibold text-foreground">
+        <h3 className="truncate font-heading text-body-base font-semibold text-foreground">
           {courseLabel ?? "Mata kuliah belum terpetakan"}
         </h3>
         <p className="text-body-sm text-muted-foreground">

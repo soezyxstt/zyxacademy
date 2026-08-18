@@ -202,7 +202,7 @@ export default function DetailedMeetingLogPage({
                     {/* Participant Header Info */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary font-bold text-body-md">
+                        <div className="flex size-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary font-bold text-body-base">
                           {p.displayName.charAt(0).toUpperCase()}
                         </div>
                         <div>

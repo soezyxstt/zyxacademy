@@ -38,7 +38,7 @@ export function ConceptDrilldown({ open, onClose, concept, trends, mostMissed, c
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent side="right" className="sm:max-w-lg flex flex-col gap-0 p-0 overflow-y-auto">
         <SheetHeader className="px-5 pt-5 pb-4 border-b border-border">
-          <SheetTitle className="text-h6 font-heading">
+          <SheetTitle className="text-body-base font-heading">
             {concept.conceptName}
           </SheetTitle>
         </SheetHeader>

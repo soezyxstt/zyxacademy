@@ -141,7 +141,7 @@ export function PushPermissionInit() {
             <BellIcon className="size-6 text-primary" />
           </div>
           <DialogTitle>Aktifkan Notifikasi</DialogTitle>
-          <DialogDescription className="space-y-2 text-body-base">
+          <DialogDescription className="space-y-2 text-body-xs">
             <p>Dapatkan info terbaru seputar belajarmu dengan mengaktifkan notifikasi push. Kami akan memberitahumu tentang:</p>
             <ul className="list-disc pl-5 space-y-1 text-body-sm text-foreground">
               <li>Kuis baru yang siap dikerjakan</li>

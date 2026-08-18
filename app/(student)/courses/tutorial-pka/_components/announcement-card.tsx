@@ -37,7 +37,7 @@ export function AnnouncementCard({ id, title, body, createdAt, isPinned }: Annou
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 pr-8">
         <div className="flex items-center gap-2">
           {isPinned && <Pin className="size-4 text-brand-primary fill-brand-primary/20" aria-label="Pinned" />}
-          <h3 className="font-heading text-h6 font-bold text-foreground">
+          <h3 className="font-heading text-body-base font-bold text-foreground">
             {title}
           </h3>
         </div>

@@ -125,7 +125,7 @@ export function QuestionsTab({
           <div className="text-center py-8 border border-dashed border-border rounded-xl">
             <HelpCircle className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
             <p className="text-body-xs font-medium text-foreground">Tidak ada butir soal ditemukan</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-body-xs text-muted-foreground mt-0.5">
               Gunakan Studio Bank Soal untuk menambahkan soal ke mata kuliah ini.
             </p>
           </div>
@@ -164,7 +164,7 @@ export function QuestionsTab({
                       <span className="font-heading font-bold text-body-xs text-brand-primary">
                         Soal #{idx + 1}
                       </span>
-                      <span className="text-[11px] text-muted-foreground">ID: {q.id}</span>
+                      <span className="text-body-xs text-muted-foreground">ID: {q.id}</span>
                     </div>
                     <Badge
                       variant="outline"
@@ -196,7 +196,7 @@ export function QuestionsTab({
                               <MathText>{opt}</MathText>
                             </div>
                             {isCorrect && (
-                              <span className="text-[11px] font-bold text-status-success shrink-0">
+                              <span className="text-body-xs font-bold text-status-success shrink-0">
                                 Benar
                               </span>
                             )}
@@ -208,7 +208,7 @@ export function QuestionsTab({
 
                   {q.explanation && (
                     <div className="p-2.5 rounded-lg bg-muted/20 border border-border/40 text-body-xs text-muted-foreground space-y-0.5">
-                      <strong className="text-foreground text-[11px] block">Pembahasan:</strong>
+                      <strong className="text-foreground text-body-xs block">Pembahasan:</strong>
                       <MathText>{q.explanation}</MathText>
                     </div>
                   )}
@@ -221,4 +221,3 @@ export function QuestionsTab({
     </div>
   );
 }
-

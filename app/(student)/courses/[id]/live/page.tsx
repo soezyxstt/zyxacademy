@@ -85,9 +85,9 @@ export default function LiveStudentPage() {
     return (
       <CoursePageShell title={title} description="Ikuti kuis langsung bersama teman sekelas." icon={Play}>
         <div className="mx-auto flex max-w-xs flex-col items-center gap-6 px-4 py-20">
-          <h1 className="font-heading text-h4 font-semibold text-foreground">Gabung kuis langsung</h1>
+          <h1 className="font-heading text-h5 font-semibold text-foreground">Gabung kuis langsung</h1>
           <Input
-            className="rounded-lg text-center font-heading text-h5 tracking-widest uppercase"
+            className="rounded-lg text-center font-sans text-body-sm tracking-widest uppercase"
             placeholder="ABC123"
             maxLength={6}
             value={code}
@@ -194,7 +194,7 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
             )}
           </div>
 
-          <MathText className="font-heading text-h5 font-semibold text-foreground block" as="div">
+          <MathText className="font-sans text-body-base font-semibold text-foreground block" as="div">
             {currentQuestion.prompt}
           </MathText>
 
@@ -254,7 +254,7 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
       {sessionState === "ended" && (
         <div className="mx-auto max-w-lg space-y-6">
           <div className="text-center">
-            <p className="font-heading text-h4 font-bold text-foreground">Sesi berakhir</p>
+            <p className="font-heading text-body-base font-bold text-foreground">Sesi berakhir</p>
             <p className="mt-1 text-body-sm text-muted-foreground">
               Skor Anda: <span className="font-bold tabular-nums text-primary">{yourScore}</span>
               {yourRank ? ` · Peringkat ${yourRank}` : ""}
@@ -290,7 +290,7 @@ function Leaderboard({ top10, yourRank, yourScore, title }: LeaderboardProps) {
 
   return (
     <div className="mx-auto max-w-lg space-y-2">
-      <h2 className="font-heading text-h6 font-semibold text-foreground">{title}</h2>
+      <h2 className="font-heading text-body-base font-semibold text-foreground">{title}</h2>
       {yourRank && !top10.find((e) => e.rank === yourRank) && (
         <div className="mb-1 flex items-center gap-3 rounded-lg border-l-2 border-primary bg-primary/5 px-4 py-2">
           <span className="w-6 shrink-0 text-center text-body-sm font-bold tabular-nums text-primary">

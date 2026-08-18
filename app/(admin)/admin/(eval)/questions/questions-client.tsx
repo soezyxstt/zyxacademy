@@ -703,7 +703,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
                 key={s}
                 size="sm"
                 variant="outline"
-                className="rounded-lg text-xs cursor-pointer border-border/60 hover:bg-muted font-bold capitalize transition-all"
+                className="rounded-lg text-body-sm cursor-pointer border-border/60 hover:bg-muted font-bold capitalize transition-all"
                 onClick={() => bulkUpdate(s)}
                 disabled={updating}
               >
@@ -757,7 +757,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Tambah Soal Manual</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Tambah Soal Manual</DialogTitle>
             <DialogDescription>Tambahkan soal pilihan ganda, isian singkat, atau essay ke bank soal secara manual.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="flex-1 flex flex-col min-h-0">
@@ -908,12 +908,12 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
                     placeholder="Contoh: 12, duabelas, 12.0"
                     className="h-10 border-border/85 bg-background text-body-sm font-medium"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Siswa dianggap benar jika jawabannya cocok dengan salah satu kata kunci di atas (tidak peka huruf besar/kecil).</p>
+                  <p className="text-body-xs text-muted-foreground mt-1">Siswa dianggap benar jika jawabannya cocok dengan salah satu kata kunci di atas (tidak peka huruf besar/kecil).</p>
                 </div>
               )}
 
               {createQuestionType === "essay" && (
-                <div className="p-4 rounded-xl border border-border bg-muted/5 text-xs text-muted-foreground">
+                <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground">
                   <p className="font-semibold text-foreground mb-1">Soal Tipe Essay / Uraian</p>
                   Siswa akan menjawab dengan teks bebas. Tuliskan kunci jawaban referensi atau rubrik penilaian pada kolom Penjelasan Solusi di bawah.
                 </div>
@@ -959,7 +959,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Edit Soal &amp; Kunci</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Edit Soal &amp; Kunci</DialogTitle>
             <DialogDescription>Modifikasi detail pertanyaan. Menyimpan perubahan secara otomatis akan mengunci status peninjauan soal.</DialogDescription>
           </DialogHeader>
           {editingQuestion && (
@@ -1101,7 +1101,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
                 )}
 
                 {editQuestionType === "essay" && (
-                  <div className="p-4 rounded-xl border border-border bg-muted/5 text-xs text-muted-foreground">
+                  <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground">
                     <p className="font-semibold text-foreground mb-1">Soal Tipe Essay / Uraian</p>
                     Tuliskan rubrik atau kunci jawaban referensi pada kolom Penjelasan Solusi.
                   </div>
@@ -1158,7 +1158,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border/60 shrink-0">
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Impor Soal via Markdown</DialogTitle>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Impor Soal via Markdown</DialogTitle>
             <DialogDescription>Impor banyak soal (Pilihan Ganda, Isian Singkat, atau Essay) sekaligus menggunakan file Markdown (.md).</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleBulkSubmit} className="flex-1 flex flex-col min-h-0">
@@ -1213,7 +1213,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
                   onChange={(e) => setBulkMarkdown(e.target.value)}
                   placeholder={`## Soal 1\n**Tipe:** Pilihan Ganda\n**Kesulitan:** Sedang\n**Level Kognitif:** Menerapkan\n**Pola Penalaran:** direct_application\nTentukan hasil dari $2 + 2$.\n\nA. 3\nB. 4\nC. 5\nD. 6\n\n**Jawaban:** B\n**Pembahasan:** $2+2=4$.`}
                   rows={12}
-                  className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-mono text-xs leading-relaxed"
+                  className="w-full rounded-lg border border-border/80 bg-background/50 p-3 hover:border-border focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/30 focus:outline-none transition-all font-mono text-body-sm leading-relaxed"
                 />
               </div>
             </div>
@@ -1370,28 +1370,29 @@ function QuestionRow({
           <div className="flex items-center gap-2.5 flex-wrap text-body-xs font-semibold">
             <StatusBadge
               tone={statusTone[question.reviewStatus]}
+              subtle
               className={question.reviewStatus === "retired" ? "line-through" : undefined}
             >
               {question.reviewStatus}
             </StatusBadge>
 
-            <StatusBadge tone={question.origin === "itb_example" ? "info" : "brand"}>
+            <StatusBadge tone={question.origin === "itb_example" ? "info" : "brand"} subtle>
               {question.origin === "itb_example" ? "Contoh ITB" : "Asli Zyx"}
             </StatusBadge>
 
-            <span className="rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-2 py-0.5 text-xs font-semibold">
+            <StatusBadge tone="brand" subtle>
               {qTypeLabel}
-            </span>
+            </StatusBadge>
 
-            <DifficultyBadge difficulty={question.difficulty} />
-            <StatusBadge tone={question.ideaLinks && question.ideaLinks.length > 0 ? "success" : "warning"}>
+            <DifficultyBadge difficulty={question.difficulty} subtle />
+            <StatusBadge tone={question.ideaLinks && question.ideaLinks.length > 0 ? "success" : "warning"} subtle>
               {question.ideaLinks && question.ideaLinks.length > 0 ? `${question.ideaLinks.length} Idea` : "Tanpa Idea"}
             </StatusBadge>
             <span className="text-muted-foreground font-medium">
               {courseMap[question.courseId] ?? question.courseId}
             </span>
             
-            <span className="text-muted-foreground ml-auto font-medium text-xs normal-case">
+            <span className="text-muted-foreground ml-auto font-medium text-body-xs normal-case">
               digunakan {question.useCount}×
             </span>
           </div>
@@ -1476,10 +1477,10 @@ function QuestionRow({
           )}
 
           <div className="flex gap-2 justify-end pt-3 border-t border-border/40">
-            <Button size="sm" variant="outline" className="rounded-lg gap-1.5 cursor-pointer text-xs font-bold" onClick={() => onEdit(question)}>
+            <Button size="sm" variant="outline" className="rounded-lg gap-1.5 cursor-pointer text-body-sm font-bold" onClick={() => onEdit(question)}>
               <Edit2 className="size-3.5" /> Edit Soal &amp; Kunci
             </Button>
-            <Button size="sm" variant="destructive" className="rounded-lg gap-1.5 cursor-pointer text-xs font-bold animate-colors" onClick={() => onDelete(question)}>
+            <Button size="sm" variant="destructive" className="rounded-lg gap-1.5 cursor-pointer text-body-sm font-bold animate-colors" onClick={() => onDelete(question)}>
               <Trash2 className="size-3.5" /> Hapus Soal
             </Button>
           </div>

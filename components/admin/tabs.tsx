@@ -84,7 +84,7 @@ function AdminTabsTrigger({ className, ...props }: React.ComponentProps<typeof T
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-body-xs font-semibold whitespace-nowrap text-muted-foreground transition-colors",
+        "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-body-xs font-medium whitespace-nowrap text-muted-foreground transition-colors",
         "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs",
         className

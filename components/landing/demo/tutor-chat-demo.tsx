@@ -137,7 +137,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/80 pt-3">
-          <p className="text-xs text-muted-foreground">Percakapan contoh dari sesi nyata.</p>
+          <p className="text-body-xs text-muted-foreground">Percakapan contoh dari sesi nyata.</p>
           <button
             type="button"
             onClick={replay}

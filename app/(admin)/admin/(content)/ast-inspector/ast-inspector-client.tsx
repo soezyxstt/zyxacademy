@@ -206,7 +206,7 @@ export function ASTInspectorClient() {
           {/* LEFT PANE: EDITOR */}
           <div className="flex w-1/2 flex-col border-r border-border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-muted/40 border-b border-border">
-              <span className="text-xs font-mono font-semibold text-muted-foreground flex items-center gap-1.5">
+              <span className="text-body-xs font-mono font-semibold text-muted-foreground flex items-center gap-1.5">
                 <Terminal className="size-3.5" />
                 <span>canonical-markdown.md</span>
               </span>
@@ -352,14 +352,14 @@ export function ASTInspectorClient() {
                                 <MathText as="span">{getBlockSummary(block)}</MathText>
                               </span>
                             </div>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-body-xs text-muted-foreground">
                               {isExpanded ? "Sembunyikan" : "Tampilkan JSON"}
                             </span>
                           </div>
 
                           {isExpanded && (
                             <div className="border-t border-border bg-zinc-950 p-4 overflow-x-auto">
-                              <pre className="font-mono text-[11px] text-zinc-200">
+                              <pre className="font-mono text-body-xs text-zinc-200">
                                 {JSON.stringify(block, null, 2)}
                               </pre>
                             </div>
@@ -391,7 +391,7 @@ export function ASTInspectorClient() {
                       <div className="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl bg-card text-center">
                         <CheckCircle className="size-8 text-status-success mb-2" />
                         <h4 className="font-bold text-body-sm text-foreground">Dokumen Sempurna</h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">Tidak ada kesalahan struktural maupun kebocoran rumus.</p>
+                        <p className="text-body-xs text-muted-foreground mt-0.5">Tidak ada kesalahan struktural maupun kebocoran rumus.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -420,7 +420,7 @@ export function ASTInspectorClient() {
                                 )}>
                                   {diag.severity}
                                 </span>
-                                <span className="text-xs font-mono text-muted-foreground">
+                                <span className="text-body-xs font-mono text-muted-foreground">
                                   [{diag.code}]
                                 </span>
                               </div>
@@ -428,7 +428,7 @@ export function ASTInspectorClient() {
                                 {diag.message}
                               </p>
                               {diag.blockId && (
-                                <p className="text-[11px] text-muted-foreground font-mono mt-1">
+                              <p className="text-body-xs text-muted-foreground font-mono mt-1">
                                   Block ID: {diag.blockId}
                                 </p>
                               )}
@@ -460,7 +460,7 @@ export function ASTInspectorClient() {
                         Salin JSON
                       </button>
                     </div>
-                    <pre className="p-4 bg-zinc-950 text-zinc-100 dark:bg-zinc-900/40 rounded-xl border border-border overflow-x-auto text-[11px] font-mono leading-relaxed">
+                    <pre className="p-4 bg-zinc-950 text-zinc-100 dark:bg-zinc-900/40 rounded-xl border border-border overflow-x-auto text-body-xs font-mono leading-relaxed">
                       {JSON.stringify(result, null, 2)}
                     </pre>
                   </div>
@@ -532,7 +532,7 @@ export function ASTInspectorClient() {
                     {/* Quality Score Header */}
                     <div className="bg-card border border-border rounded-xl p-6 shadow-2xs flex flex-col md:flex-row items-center gap-6 justify-between">
                       <div className="space-y-1">
-                        <h4 className="font-heading text-body-lg font-bold text-foreground">Transparent Quality Score</h4>
+                        <h4 className="font-heading text-body-base font-bold text-foreground">Transparent Quality Score</h4>
                         <p className="text-body-sm text-muted-foreground">Representasi kepatuhan pedoman pedagogi visual Zyx.</p>
                       </div>
                       <div className="flex items-baseline gap-1 select-none">
@@ -557,7 +557,7 @@ export function ASTInspectorClient() {
                           <div className="mb-2 h-1.5 w-full overflow-hidden rounded-md bg-muted">
                             <div className="h-full rounded-md bg-brand-primary transition-[width] duration-500 ease-out" style={{ width: `${item.val}%` }} />
                           </div>
-                          <p className="text-[11px] text-muted-foreground leading-normal">{item.desc}</p>
+                          <p className="text-body-xs text-muted-foreground leading-normal">{item.desc}</p>
                         </div>
                       ))}
                     </div>

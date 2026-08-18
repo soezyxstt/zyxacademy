@@ -585,7 +585,7 @@ export function StorageBrowser() {
                       </Popover>
                     </div>
                     <p className="mt-2 line-clamp-2 text-body-sm font-medium leading-snug text-foreground">{domainLabel(f.name)}</p>
-                    <p className="text-muted-foreground mt-1 text-[11px]">Folder</p>
+                    <p className="text-muted-foreground mt-1 text-body-xs">Folder</p>
                   </div>
                 );
               })}
@@ -643,7 +643,7 @@ export function StorageBrowser() {
                       </Popover>
                     </div>
                     <p className="mt-2 line-clamp-2 text-body-sm font-medium leading-snug text-foreground">{file.name}</p>
-                    <p className="text-muted-foreground mt-1 text-[11px]">{formatBytes(file.size)}</p>
+                    <p className="text-muted-foreground mt-1 text-body-xs">{formatBytes(file.size)}</p>
                   </div>
                 );
               })}

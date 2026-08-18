@@ -32,12 +32,12 @@ export default function ErrorPage({
           </h1>
 
           {/* Heading */}
-          <h2 className="font-heading text-h3 md:text-h2 font-bold tracking-tight text-foreground -mt-2">
+          <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground -mt-2">
             Waduh, sistemnya lagi ngambek nih!
           </h2>
 
           {/* Subtext */}
-          <p className="text-body-md text-muted-foreground leading-relaxed max-w-sm">
+          <p className="text-body-base text-muted-foreground leading-relaxed max-w-sm">
             Ternyata ada sedikit masalah di server kita. Jangan panik, kamu bisa coba muat ulang halamannya atau balik ke dashboard.
           </p>
 

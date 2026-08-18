@@ -76,11 +76,11 @@ export default async function ReflectionsArchivePage() {
                       </div>
                       <div className="shrink-0 text-right">
                         {masteryGrowth > 0 ? (
-                          <span className="font-heading text-body-lg font-bold text-status-success">
+                          <span className="font-heading text-h6 font-bold text-status-success">
                             +{masteryGrowth}
                           </span>
                         ) : (
-                          <span className="font-heading text-body-lg font-bold text-muted-foreground">
+                          <span className="font-heading text-h6 font-bold text-muted-foreground">
                             {masteryGrowth}
                           </span>
                         )}

@@ -72,7 +72,7 @@ export function ZyraUsageCharts() {
     <div className="space-y-8 mt-12 border-t border-border pt-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-heading text-h5 font-semibold text-foreground">
+          <h2 className="font-heading text-body-base font-semibold text-foreground">
             Penggunaan Zyra (Token & Request)
           </h2>
           <p className="mt-1 text-body-sm text-muted-foreground">
@@ -132,7 +132,7 @@ export function ZyraUsageCharts() {
           </div>
 
           <div>
-            <h3 className="font-heading text-h6 font-semibold text-foreground mb-4">
+            <h3 className="font-heading text-body-base font-semibold text-foreground mb-4">
               Penggunaan per User
             </h3>
             <div className="overflow-x-auto rounded-xl border border-border">
@@ -165,7 +165,7 @@ export function ZyraUsageCharts() {
                       >
                         <td className="px-4 py-3 font-medium text-foreground">
                           {u.name || "Unknown"}
-                          {u.email && <span className="block text-muted-foreground font-normal text-xs">{u.email}</span>}
+                          {u.email && <span className="block text-muted-foreground font-normal text-body-xs">{u.email}</span>}
                         </td>
                         <td className="px-4 py-3 text-right text-foreground">
                           {u.requests.toLocaleString()}

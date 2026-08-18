@@ -113,9 +113,9 @@ function Heading({ level, children }: { level: 1 | 2 | 3; children: ReactNode })
     return <h1 className="font-heading text-h5 mb-2 mt-3 font-bold text-foreground first:mt-0">{children}</h1>;
   }
   if (level === 2) {
-    return <h2 className="font-heading text-h6 mb-2 mt-3 font-bold text-foreground first:mt-0">{children}</h2>;
+    return <h2 className="font-heading text-body-base mb-2 mt-3 font-bold text-foreground first:mt-0">{children}</h2>;
   }
-  return <h3 className="font-heading text-body-lg mb-1.5 mt-3 font-semibold text-foreground first:mt-0">{children}</h3>;
+    return <h3 className="font-heading text-body-sm mb-1.5 mt-3 font-semibold text-foreground first:mt-0">{children}</h3>;
 }
 
 function MarkdownRenderer({ source }: { source: string }) {
@@ -451,7 +451,7 @@ export function DocumentViewer({ file, onClose }: DocumentViewerProps) {
     }}>
       <DialogContent className="max-w-4xl rounded-xl border border-border p-6 shadow-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 pr-8 font-heading text-h6 font-bold text-foreground">
+          <DialogTitle className="flex items-center gap-2 pr-8 font-heading text-body-base font-bold text-foreground">
             <span className="min-w-0 truncate">{file.name}</span>
             <Badge variant="secondary" className="shrink-0">
               {KIND_LABELS[file.kind]}

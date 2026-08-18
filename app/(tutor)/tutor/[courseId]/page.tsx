@@ -74,7 +74,7 @@ export default async function TutorCoursePage({ params }: Props) {
       {/* Section 1: headline stats */}
       <Reveal>
         <section aria-labelledby="course-title">
-          <h1 id="course-title" className="text-h4 font-heading font-bold mb-4">
+          <h1 id="course-title" className="text-h5 font-heading font-bold mb-4">
             {analytics.courseTitle}
           </h1>
           <div className="flex gap-8">

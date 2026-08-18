@@ -12,18 +12,30 @@ const statusToneClasses: Record<StatusTone, string> = {
   brand: "bg-brand-primary/10 text-brand-primary border border-brand-primary/10",
 };
 
+const subtleStatusToneClasses: Record<StatusTone, string> = {
+  muted: "bg-muted/35 text-muted-foreground border border-border/60",
+  info: "bg-status-info/5 text-status-info/80 border border-status-info/10",
+  success: "bg-status-success/5 text-status-success/80 border border-status-success/10",
+  warning: "bg-status-warning/5 text-status-warning/80 border border-status-warning/10",
+  error: "bg-status-error/5 text-status-error/80 border border-status-error/10",
+  brand: "bg-brand-primary/5 text-brand-primary/80 border border-brand-primary/10",
+};
+
 export type StatusBadgeProps = {
   tone?: StatusTone;
+  subtle?: boolean;
   className?: string;
   children: ReactNode;
 };
 
-export function StatusBadge({ tone = "muted", className, children }: StatusBadgeProps) {
+export function StatusBadge({ tone = "muted", subtle = false, className, children }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-        statusToneClasses[tone],
+        subtle
+          ? "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-normal"
+          : "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        subtle ? subtleStatusToneClasses[tone] : statusToneClasses[tone],
         className
       )}
     >
@@ -34,6 +46,7 @@ export function StatusBadge({ tone = "muted", className, children }: StatusBadge
 
 export type DifficultyBadgeProps = {
   difficulty: string | number;
+  subtle?: boolean;
   className?: string;
   title?: string;
   prefix?: string;
@@ -45,7 +58,7 @@ const difficultyTone: Record<string, StatusTone> = {
   hard: "error",
 };
 
-export function DifficultyBadge({ difficulty, className, title, prefix }: DifficultyBadgeProps) {
+export function DifficultyBadge({ difficulty, subtle = false, className, title, prefix }: DifficultyBadgeProps) {
   const normalized =
     typeof difficulty === "number"
       ? difficulty >= 3
@@ -59,8 +72,10 @@ export function DifficultyBadge({ difficulty, className, title, prefix }: Diffic
     <span
       title={title}
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide border",
-        statusToneClasses[tone],
+        subtle
+          ? "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-normal"
+          : "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide border",
+        subtle ? subtleStatusToneClasses[tone] : statusToneClasses[tone],
         className
       )}
     >
@@ -78,7 +93,7 @@ export function CourseBadge({ className, children }: CourseBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-brand-primary/8 border border-brand-primary/10 text-brand-primary",
+        "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-brand-primary/8 border border-brand-primary/10 text-brand-primary",
         className
       )}
     >

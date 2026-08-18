@@ -304,7 +304,7 @@ export function NavCollapsible({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-body-sm font-semibold text-foreground truncate">{label}</p>
-                  <p className="text-[11px] text-muted-foreground">Pilih modul</p>
+                  <p className="text-body-xs text-muted-foreground">Pilih modul</p>
                 </div>
               </div>
               <div className="flex flex-col gap-0.5 max-h-80 overflow-y-auto ds-scrollbar">
@@ -331,7 +331,7 @@ export function NavCollapsible({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-body-sm font-semibold text-foreground truncate">{label}</p>
-                  <p className="text-[11px] text-muted-foreground">Kategori modul</p>
+                  <p className="text-body-xs text-muted-foreground">Kategori modul</p>
                 </div>
               </div>
               {previewItems && previewItems.length > 0 && (
@@ -343,7 +343,7 @@ export function NavCollapsible({
                     {previewItems.map((item, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center gap-2 text-[12px] text-foreground/80 px-1.5 py-1 rounded-md bg-muted/40"
+                        className="flex items-center gap-2 text-body-xs text-foreground/80 px-1.5 py-1 rounded-md bg-muted/40"
                       >
                         <span className="size-1.5 rounded-full bg-brand-primary/70 shrink-0" />
                         <span className="truncate">{item}</span>
@@ -375,7 +375,7 @@ export function NavGroup({ label, collapsed }: { label: string; collapsed: boole
   }
   return (
     <div className="px-3 pt-3 pb-1">
-      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase font-sans">
+      <p className="text-body-xs font-semibold tracking-wider text-muted-foreground uppercase font-sans">
         {label}
       </p>
     </div>
@@ -413,7 +413,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
           referrerPolicy="no-referrer"
         />
       ) : (
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-primary text-body-xs font-bold text-white">
           {name.charAt(0).toUpperCase()}
         </span>
       )}
@@ -432,7 +432,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
           referrerPolicy="no-referrer"
         />
       ) : (
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-primary text-body-xs font-bold text-white">
           {name.charAt(0).toUpperCase()}
         </span>
       )}
@@ -440,7 +440,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
         <p className="truncate text-body-xs font-semibold text-foreground group-hover:text-foreground">
           {name}
         </p>
-        <p className="truncate text-[11px] text-muted-foreground">
+        <p className="truncate text-body-xs text-muted-foreground">
           {email}
         </p>
       </div>
@@ -476,7 +476,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-primary text-xs font-bold text-white">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-primary text-body-xs font-bold text-white">
                 {name.charAt(0).toUpperCase()}
               </span>
             )}
@@ -543,7 +543,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
           <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
 
           <div className="px-2.5 py-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 font-sans">
+            <p className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 font-sans">
               Tema Tampilan
             </p>
             <div className="grid grid-cols-3 gap-1">
@@ -551,7 +551,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 type="button"
                 onClick={() => setTheme("light")}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
+                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-body-xs font-medium border transition-colors cursor-pointer",
                   theme === "light"
                     ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
                     : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -564,7 +564,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 type="button"
                 onClick={() => setTheme("dark")}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
+                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-body-xs font-medium border transition-colors cursor-pointer",
                   theme === "dark"
                     ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
                     : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -577,7 +577,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 type="button"
                 onClick={() => setTheme("system")}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
+                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-body-xs font-medium border transition-colors cursor-pointer",
                   theme === "system"
                     ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
                     : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"

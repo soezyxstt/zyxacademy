@@ -104,7 +104,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           <Sparkles className="size-7" />
         </div>
         <div className="space-y-2 max-w-lg mx-auto">
-          <h3 className="font-heading text-h4 font-bold text-foreground">Diagnosis Pembelajaran Belum Dihasilkan</h3>
+          <h3 className="font-heading text-body-base font-bold text-foreground">Diagnosis Pembelajaran Belum Dihasilkan</h3>
           <p className="text-body-sm text-muted-foreground leading-relaxed">
             Kuis ini telah selesai dikerjakan. Klik tombol di bawah untuk menjalankan diagnosis pembelajaran terperinci, pemetaan konsep, dan rencana belajar personal secara otomatis.
           </p>
@@ -166,7 +166,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   {recomputing ? "Memproses..." : "Analisis Ulang"}
                 </Button>
               </div>
-              <h2 className="font-heading text-h4 font-bold text-foreground">
+              <h2 className="font-heading text-body-base font-bold text-foreground">
                 <MathText as="span">{diagnosis?.headline || `Hasil Kuis: ${metrics?.score}% (${metrics?.correctCount}/${metrics?.totalQuestions} Benar)`}</MathText>
               </h2>
               <p className="text-body-base text-muted-foreground leading-relaxed">
@@ -179,7 +179,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
               <div className="flex flex-col items-center justify-center shrink-0 rounded-xl border border-border/80 bg-card p-5 text-center shadow-xs min-w-[150px]">
                 <span className="text-body-xs uppercase font-semibold text-muted-foreground tracking-wider">Skor Total</span>
                 <div className="font-heading text-h2 font-bold text-brand-primary mt-1">
-                  {metrics.score}<span className="text-body-lg text-muted-foreground font-normal">%</span>
+                  {metrics.score}<span className="text-body-base text-muted-foreground font-normal">%</span>
                 </div>
                 <Badge className={`mt-2 rounded-md ${getPerformanceBadgeClass(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}`}>
                   {getPerformanceLabel(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}
@@ -242,7 +242,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="space-y-6">
         <div className="border-b border-border pb-3">
-          <h3 className="font-heading text-h4 font-bold text-foreground flex items-center gap-2">
+          <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <Brain className="size-5 text-brand-primary" /> Diagnosis Pembelajaran Terperinci
           </h3>
           <p className="text-body-sm text-muted-foreground">
@@ -255,7 +255,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+                <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                   <Target className="size-4 text-brand-primary" /> Penguasaan Konsep Utama
                 </h4>
                 <p className="text-body-xs text-muted-foreground">
@@ -320,7 +320,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Strengths Card */}
           <div className="rounded-xl border border-status-success/30 bg-status-success/5 p-5 space-y-4">
-            <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2 text-status-success">
+            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-success">
               <ShieldCheck className="size-5" /> Kekuatan & Keunggulan Anda
             </h4>
             {diagnosis?.strengths && diagnosis.strengths.length > 0 ? (
@@ -346,7 +346,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
           {/* Focus Areas Card */}
           <div className="rounded-xl border border-status-warning/30 bg-status-warning/5 p-5 space-y-4">
-            <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2 text-status-warning">
+            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-warning">
               <Target className="size-5" /> Area yang Perlu Diperkuat
             </h4>
             {diagnosis?.focus_areas && diagnosis.focus_areas.length > 0 ? (
@@ -372,7 +372,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         {/* SECTION C: POLA KESALAHAN (ERROR PATTERNS) */}
         {diagnosis?.error_patterns && diagnosis.error_patterns.length > 0 && (
           <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
-            <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <Lightbulb className="size-5 text-brand-secondary" /> Analisis Pola Kesalahan (Error Pattern Detection)
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -400,7 +400,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cognitive Skills Matrix */}
             <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
-              <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+              <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <BarChart3 className="size-5 text-brand-primary" /> Performa Kemampuan Kognitif
               </h4>
               <div className="space-y-3">
@@ -423,7 +423,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
             {/* Time & Speed Insights */}
             <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
-              <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+              <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <Zap className="size-5 text-tertiary-1" /> Efisiensi & Kecepatan Pengerjaan
               </h4>
               <div className="space-y-3 text-body-sm">
@@ -457,7 +457,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="space-y-4 pt-4 border-t border-border">
         <div>
-          <h3 className="font-heading text-h4 font-bold text-foreground flex items-center gap-2">
+          <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <BookOpen className="size-5 text-brand-primary" /> Rencana Belajar Personal (3 Prioritas Utama)
           </h3>
           <p className="text-body-sm text-muted-foreground">
@@ -480,7 +480,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                     <span className="text-body-xs text-muted-foreground font-semibold">Langkah {idx + 1}</span>
                   </div>
 
-                  <h4 className="font-heading text-body-lg font-bold text-foreground group-hover:text-brand-primary transition-colors">
+                  <h4 className="font-heading text-body-base font-bold text-foreground group-hover:text-brand-primary transition-colors">
                     <MathText as="span">{step.focus}</MathText>
                   </h4>
 

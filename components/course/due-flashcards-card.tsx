@@ -54,7 +54,7 @@ export function DueFlashcardsCard({
           <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="rounded-lg bg-muted/40 p-3 border border-border/40">
               <p className="text-body-sm text-foreground">
-                Ada <span className="font-bold text-brand-primary text-body-md">{data.dueCount}</span> flashcard yang perlu diulas hari ini.
+                Ada <span className="font-bold text-brand-primary text-body-base">{data.dueCount}</span> flashcard yang perlu diulas hari ini.
               </p>
             </div>
             <p className="text-body-xs text-muted-foreground leading-relaxed" title={data.nextReviewRecommendation}>

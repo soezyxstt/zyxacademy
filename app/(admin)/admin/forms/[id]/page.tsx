@@ -422,7 +422,7 @@ export default function DetailedFormAnalyticsPage({
       ) : !form ? (
         <Card className="flex flex-col items-center justify-center p-12 text-center">
           <AlertCircle className="size-10 text-muted-foreground" />
-          <CardTitle className="mt-3 text-h6 font-heading">Data Formulir Tidak Ditemukan</CardTitle>
+          <CardTitle className="mt-3 text-body-base font-heading">Data Formulir Tidak Ditemukan</CardTitle>
         </Card>
       ) : (
         <AdminTabs
@@ -434,7 +434,7 @@ export default function DetailedFormAnalyticsPage({
           <Card className="shadow-sm">
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
               <div>
-                <CardTitle className="text-h3 font-heading">
+                <CardTitle className="text-body-base font-heading">
                   {responses.length} tanggapan
                 </CardTitle>
                 <CardDescription className="mt-1">
@@ -543,7 +543,7 @@ export default function DetailedFormAnalyticsPage({
                 <Card key={qIdx} className="shadow-sm">
                   <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
                     <div>
-                      <CardTitle className="text-h6 font-heading">
+                      <CardTitle className="text-body-sm font-heading">
                         {num}. {questionTitle}
                       </CardTitle>
                       <CardDescription className="text-body-xs font-medium mt-1">
@@ -722,7 +722,7 @@ export default function DetailedFormAnalyticsPage({
               return (
                 <Card className="shadow-sm">
                   <CardHeader className="border-b border-border pb-3">
-                    <CardTitle className="text-h5 font-heading">
+                    <CardTitle className="text-body-sm font-heading">
                       {questionNumber}. {qTitle}
                     </CardTitle>
                     <CardDescription className="text-body-xs font-semibold">
@@ -802,7 +802,7 @@ export default function DetailedFormAnalyticsPage({
                         return (
                           <Card key={qIdx} className="shadow-sm">
                             <CardHeader className="pb-2">
-                              <CardTitle className="text-h6 font-heading">
+                              <CardTitle className="text-body-sm font-heading">
                                 <MathText as="span">{`${questionNumber}. ${qTitle}`}</MathText>
                               </CardTitle>
                               {q.description && (
@@ -828,7 +828,7 @@ export default function DetailedFormAnalyticsPage({
             <Card className="shadow-sm">
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <CardTitle className="text-h5 font-heading">
+                  <CardTitle className="text-body-base font-heading">
                     Pengaturan Tanggapan & Akses
                   </CardTitle>
                   <CardDescription className="text-body-xs mt-1">

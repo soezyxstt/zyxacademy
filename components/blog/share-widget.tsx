@@ -123,7 +123,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
     <div className={cn("space-y-4", inline && "border border-border bg-card p-6 rounded-xl shadow-xs")}>
       {inline && (
         <div className="space-y-1">
-          <h4 className="font-heading font-bold text-foreground text-body-md">
+          <h4 className="font-heading font-bold text-foreground text-body-base">
             Bagikan Artikel Ini
           </h4>
           <p className="text-body-sm text-muted-foreground">
@@ -134,7 +134,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
 
       {/* Direct Copy Block */}
       <div className="space-y-1.5">
-        <label className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider block">
+        <label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider block">
           Salin Tautan
         </label>
         <div className="flex gap-2">
@@ -168,7 +168,7 @@ export function ShareBlock({ slug, title, description, inline = false }: ShareBl
 
       {/* Social Media Sharing */}
       <div className="space-y-1.5 pt-2">
-        <label className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider block">
+        <label className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider block">
           Bagikan Ke
         </label>
         <div className="flex flex-wrap gap-2.5 items-center">

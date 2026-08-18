@@ -111,7 +111,7 @@ function DialogTitle({
   return (
     <DialogNs.Title
       data-slot="dialog-title"
-      className={cn("font-heading text-h5 font-bold text-foreground", className)}
+      className={cn("font-heading text-body-base font-bold text-foreground", className)}
       {...props}
     />
   );

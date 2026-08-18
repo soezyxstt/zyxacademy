@@ -129,7 +129,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
                 </div>
                 
                 {article.status !== "published" && (
-                  <div className="inline-block px-3 py-1 bg-status-warning/20 text-status-warning border border-status-warning/40 rounded-md text-sm font-semibold">
+                  <div className="inline-block px-3 py-1 bg-status-warning/20 text-status-warning border border-status-warning/40 rounded-md text-body-sm font-semibold">
                     Mode Pratinjau (Status: {article.status})
                   </div>
                 )}
@@ -165,7 +165,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
 
           {/* Right Column: Sidebar (Sticky on desktop) */}
           <aside className="lg:col-span-3 lg:sticky lg:top-24 space-y-6">
-            <h3 className="text-body-lg font-heading font-bold text-foreground mb-4 border-b border-border pb-2">
+            <h3 className="text-body-base font-heading font-bold text-foreground mb-4 border-b border-border pb-2">
               Artikel Lainnya
             </h3>
             
@@ -183,7 +183,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
                       <h4 className="text-body-sm font-semibold text-foreground group-hover:text-brand-primary transition-colors line-clamp-2 leading-snug">
                         {other.title}
                       </h4>
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
                         {other.publishedAt && (
                           <span>
                             {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(other.publishedAt))}

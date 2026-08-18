@@ -148,23 +148,23 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
                       {tryout.title}
                     </h3>
                     {!accessible ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground ring-1 ring-border">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-body-xs font-semibold text-muted-foreground ring-1 ring-border">
                         <Lock className="size-3" />
                         Premium
                       </span>
                     ) : null}
                     {isBlocked ? (
-                      <span className="rounded-md bg-status-error/12 px-2 py-0.5 text-xs font-semibold text-status-error ring-1 ring-status-error/20">
+                      <span className="rounded-md bg-status-error/12 px-2 py-0.5 text-body-xs font-semibold text-status-error ring-1 ring-status-error/20">
                         Batas habis
                       </span>
                     ) : null}
                     {!isOpen && openDate ? (
-                      <span className="rounded-md bg-status-warning/12 px-2 py-0.5 text-xs font-semibold text-status-warning ring-1 ring-status-warning/20">
+                      <span className="rounded-md bg-status-warning/12 px-2 py-0.5 text-body-xs font-semibold text-status-warning ring-1 ring-status-warning/20">
                         Akan dibuka: {openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
                       </span>
                     ) : null}
                     {isClosed && closeDate ? (
-                      <span className="rounded-md bg-status-error/12 px-2 py-0.5 text-xs font-semibold text-status-error ring-1 ring-status-error/20">
+                      <span className="rounded-md bg-status-error/12 px-2 py-0.5 text-body-xs font-semibold text-status-error ring-1 ring-status-error/20">
                         Telah ditutup: {closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
                       </span>
                     ) : null}

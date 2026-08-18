@@ -692,7 +692,7 @@ export function QuizForm({
                       </div>
                       <div>
                         <div className="text-body-xs sm:text-body-sm font-bold text-foreground">Terjadwal</div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                        <div className="text-body-xs text-muted-foreground mt-0.5">
                           Otomatis buka dan tutup sesuai waktu
                         </div>
                       </div>
@@ -725,7 +725,7 @@ export function QuizForm({
                       </div>
                       <div>
                         <div className="text-body-xs sm:text-body-sm font-bold text-foreground">Manual</div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                        <div className="text-body-xs text-muted-foreground mt-0.5">
                           Buka atau tutup kuis kapan saja instan
                         </div>
                       </div>
@@ -859,7 +859,7 @@ export function QuizForm({
                         <Label htmlFor="showScoreImmediate" className="text-body-xs sm:text-body-sm font-semibold text-foreground cursor-pointer">
                           Tampilkan Skor Instan
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-body-xs text-muted-foreground">
                           Siswa langsung melihat nilai total setelah submit
                         </p>
                       </div>
@@ -927,7 +927,7 @@ export function QuizForm({
                         <span className="text-body-xs text-muted-foreground font-medium">Menit total</span>
                       </div>
                     ) : (
-                      <p className="text-[11px] text-muted-foreground">Kuis tidak memiliki batas waktu keseluruhan.</p>
+                      <p className="text-body-xs text-muted-foreground">Kuis tidak memiliki batas waktu keseluruhan.</p>
                     )}
                   </div>
 
@@ -938,7 +938,7 @@ export function QuizForm({
                         <Label htmlFor="perQuestionTimerEnabled" className="text-body-sm font-semibold text-foreground cursor-pointer">
                           Timer Per Butir Soal
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-body-xs text-muted-foreground">
                           Setiap soal memiliki timer mundur tersendiri
                         </p>
                       </div>
@@ -987,7 +987,7 @@ export function QuizForm({
                       <Label htmlFor="canGoBack" className="text-body-sm font-semibold text-foreground cursor-pointer">
                         Navigasi Mundur (Kembali)
                       </Label>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-body-xs text-muted-foreground">
                         {canGoBack
                           ? "Siswa bebas kembali ke nomor sebelumnya"
                           : "Mode linier satu arah"}
@@ -1006,7 +1006,7 @@ export function QuizForm({
                       <Label htmlFor="requireAllAnswered" className="text-body-sm font-semibold text-foreground cursor-pointer">
                         Wajib Jawab Semua Soal
                       </Label>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-body-xs text-muted-foreground">
                         {requireAllAnswered
                           ? "Semua soal harus dijawab sebelum submit"
                           : "Boleh submit meski ada soal kosong"}
@@ -1074,7 +1074,7 @@ export function QuizForm({
               <div className="rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-3.5 flex items-center justify-between">
                 <div>
                   <div className="text-body-sm font-bold text-brand-primary">Lanjut Pilih Soal</div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-body-xs text-muted-foreground">
                     {selectedQIds.length > 0
                       ? `${selectedQIds.length} butir soal telah dipilih`
                       : "Tentukan soal dari bank soal kelas"}
@@ -1194,7 +1194,7 @@ export function QuizForm({
                   </Label>
                   <div className="grid grid-cols-3 gap-2.5">
                     <div>
-                      <span className="text-[11px] font-semibold text-status-success uppercase">Mudah</span>
+                      <span className="text-body-xs font-semibold text-status-success uppercase">Mudah</span>
                       <Input
                         type="number"
                         min={0}
@@ -1204,7 +1204,7 @@ export function QuizForm({
                       />
                     </div>
                     <div>
-                      <span className="text-[11px] font-semibold text-status-warning uppercase">Sedang</span>
+                      <span className="text-body-xs font-semibold text-status-warning uppercase">Sedang</span>
                       <Input
                         type="number"
                         min={0}
@@ -1214,7 +1214,7 @@ export function QuizForm({
                       />
                     </div>
                     <div>
-                      <span className="text-[11px] font-semibold text-status-error uppercase">Sulit</span>
+                      <span className="text-body-xs font-semibold text-status-error uppercase">Sulit</span>
                       <Input
                         type="number"
                         min={0}
@@ -1488,7 +1488,7 @@ export function QuizForm({
 
                             {/* Options count preview */}
                             {optionsList.length > 0 && (
-                              <div className="text-[11px] text-muted-foreground">
+                              <div className="text-body-xs text-muted-foreground">
                                 {optionsList.length} Pilihan Jawaban
                               </div>
                             )}
@@ -1500,16 +1500,16 @@ export function QuizForm({
                                 className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-background p-2 w-fit"
                               >
                                 <Timer className="size-3.5 text-brand-primary" />
-                                <span className="text-[11px] font-semibold text-foreground">Timer Soal Ini:</span>
+                                <span className="text-body-xs font-semibold text-foreground">Timer Soal Ini:</span>
                                 <Input
                                   type="number"
                                   min={5}
                                   max={600}
                                   value={qDuration}
                                   onChange={(e) => updateQuestionTimer(q.id, Number(e.target.value))}
-                                  className="h-6 w-16 rounded-md border-border text-[11px]"
+                                  className="h-7 w-16 rounded-md border-border text-body-sm"
                                 />
-                                <span className="text-[11px] text-muted-foreground">Detik</span>
+                                <span className="text-body-xs text-muted-foreground">Detik</span>
                               </div>
                             )}
                           </div>
@@ -1526,4 +1526,3 @@ export function QuizForm({
     </div>
   );
 }
-

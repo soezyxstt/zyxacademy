@@ -355,7 +355,7 @@ export default async function AdminHomePage() {
         {categories.map((category) => (
           <section key={category.name} className="space-y-4">
             <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
-              <h2 className="font-heading text-h5 font-bold text-foreground">
+              <h2 className="font-heading text-body-base font-bold text-foreground">
                 {category.name}
               </h2>
               <span className="text-body-xs font-semibold text-muted-foreground">

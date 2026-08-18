@@ -141,7 +141,7 @@ export function AssessmentBundleImporterTab() {
         <div className="space-y-6 lg:col-span-2">
           <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
             <CardHeader className="border-b border-border bg-muted/20 py-4">
-              <CardTitle className="font-heading text-body-lg font-semibold text-foreground flex items-center gap-2">
+              <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <Upload className="size-5 text-brand-primary" />
                 Input Assessment Bundle JSON
               </CardTitle>
@@ -206,7 +206,7 @@ export function AssessmentBundleImporterTab() {
         <div className="space-y-6">
           <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
             <CardHeader className="border-b border-border bg-muted/20 py-4">
-              <CardTitle className="font-heading text-body-lg font-semibold text-foreground">
+              <CardTitle className="font-heading text-body-base font-semibold text-foreground">
                 Pengaturan Importir
               </CardTitle>
               <p className="text-body-sm text-muted-foreground">
@@ -303,7 +303,7 @@ export function AssessmentBundleImporterTab() {
         <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
           <CardHeader className="border-b border-border bg-muted/20 py-4 flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="font-heading text-body-lg font-semibold text-foreground flex items-center gap-2">
+              <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <TerminalIcon className="size-5 text-muted-foreground" />
                 Console Logs Ingesti
               </CardTitle>
@@ -361,7 +361,7 @@ export function AssessmentBundleImporterTab() {
           {result.stats.sourceDiffs.length > 0 && (
             <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
               <CardHeader className="border-b border-border bg-muted/20 py-4">
-                <CardTitle className="font-heading text-body-md font-semibold text-foreground">
+                <CardTitle className="font-heading text-body-base font-semibold text-foreground">
                   Detail per Sumber Ujian
                 </CardTitle>
               </CardHeader>

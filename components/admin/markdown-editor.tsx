@@ -325,7 +325,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
                             onChange={handleFileUpload}
                             disabled={isUploading}
                           />
-                          {isUploading && <p className="text-sm text-muted-foreground flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin"/> Mengunggah...</p>}
+                          {isUploading && <p className="text-body-sm text-muted-foreground flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin"/> Mengunggah...</p>}
                           {mediaUrl && (
                             <div className="mt-2">
                               <Label>URL Berkas (Otomatis)</Label>
@@ -414,7 +414,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
                         Status: {formData.status}
                       </span>
                     </div>
-                    <h2 className="text-h4 md:text-h3 font-heading font-bold text-foreground">
+                    <h2 className="text-body-base font-heading font-bold text-foreground">
                       {formData.title || "Judul Artikel (Akan diekstrak dari baris pertama jika kosong)"}
                     </h2>
                     {formData.summary && (
@@ -441,7 +441,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
 
         <div className="space-y-6">
           <div className="p-5 border border-border rounded-xl bg-card space-y-4 shadow-sm">
-            <h3 className="font-heading font-semibold text-h6">Pengaturan Publikasi</h3>
+            <h3 className="font-heading font-semibold text-body-base">Pengaturan Publikasi</h3>
             
             <div className="space-y-2">
               <Label>Status</Label>

@@ -59,7 +59,7 @@ function AnalyticsVignette() {
  <span className="text-white/85">
  {row.rank}. {row.name}
  </span>
- <span className="font-mono text-xs font-semibold text-white/60">
+ <span className="font-mono text-body-xs font-semibold text-white/60">
  rata-rata {row.score}
  </span>
  </div>
@@ -72,7 +72,7 @@ function AnalyticsVignette() {
  </div>
  ))}
  </div>
- <p className="mt-4 text-xs text-white/50">
+ <p className="mt-4 text-body-xs text-white/50">
  Klik konsep untuk membuat kuis remedial dari tag-nya.
  </p>
  </DemoFrame>
@@ -92,7 +92,7 @@ function DiktatVignette() {
  <p className="font-heading text-body-base font-semibold text-white">
  Diktat Kalkulus IA ; Bab 1-5
  </p>
- <p className="mt-1 text-xs text-white/60">Tersusun otomatis dari materi · 48 halaman</p>
+ <p className="mt-1 text-body-xs text-white/60">Tersusun otomatis dari materi · 48 halaman</p>
  </div>
  </div>
  <div className="mt-4 space-y-1.5" aria-hidden>
@@ -131,7 +131,7 @@ export function LandingForTutors() {
  return (
  <SectionContainer className="bg-black-2" aria-labelledby="landing-tutors-heading">
  <div className="mx-auto max-w-2xl text-center">
- <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
+ <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
  Untuk tutor &amp; kelas
  </p>
  <SectionHeading as="h2" id="landing-tutors-heading" className="mt-3 text-white">

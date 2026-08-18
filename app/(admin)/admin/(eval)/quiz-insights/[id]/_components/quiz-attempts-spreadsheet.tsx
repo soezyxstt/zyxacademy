@@ -566,11 +566,11 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
       <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h5 font-semibold flex items-center gap-2">
+            <DialogTitle className="font-heading text-body-base font-semibold flex items-center gap-2">
               <FileSpreadsheet className="size-5 text-brand-primary" />
               Export to CSV / Google Spreadsheet
             </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Pilih format file CSV yang ingin diunduh untuk kuis <strong>{quizTitle}</strong>. File CSV ini kompatibel 100% dengan Google Sheets dan Microsoft Excel.
             </DialogDescription>
           </DialogHeader>

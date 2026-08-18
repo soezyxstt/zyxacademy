@@ -68,7 +68,7 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
   return (
     <section className="border-y border-border py-5 my-8 relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex items-center justify-between">
-        <h2 className="text-h6 font-heading font-semibold text-foreground">Your week</h2>
+        <h2 className="text-body-base font-heading font-semibold text-foreground">Your week</h2>
         <Button
           variant="ghost"
           size="icon"

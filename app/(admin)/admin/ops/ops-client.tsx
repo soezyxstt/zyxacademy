@@ -63,7 +63,7 @@ function SectionHead({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <h2 className="font-heading text-h6 font-semibold text-foreground">{title}</h2>
+        <h2 className="font-heading text-body-base font-semibold text-foreground">{title}</h2>
         <StatusWord level={status} />
       </div>
       <span className="text-body-sm text-muted-foreground">

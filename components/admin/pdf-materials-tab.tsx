@@ -246,7 +246,7 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
           {form.courseId && (
             <div className="border border-border/70 rounded-xl p-3 bg-muted/10 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                <span className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Kaitkan dengan Bab ({selectedChapters.size} dipilih)
                 </span>
                 {courseChapters.length > 0 && (
@@ -374,7 +374,7 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
                           href={fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted text-body-sm font-medium text-foreground transition-colors"
                         >
                           <ExternalLink className="size-3" />
                           <span>PDF</span>

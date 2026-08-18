@@ -87,7 +87,7 @@ export function AnalyticsTab({
           <div className="text-center py-8 px-4">
             <HelpCircle className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
             <p className="text-body-xs font-medium text-foreground">Belum ada kuis untuk dianalisis</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-body-xs text-muted-foreground mt-0.5">
               Buat kuis terlebih dahulu pada tab Kuis &amp; Asesmen untuk mulai mengumpulkan data pengerjaan siswa.
             </p>
           </div>
@@ -110,7 +110,7 @@ export function AnalyticsTab({
                   <tr key={quiz.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-3.5 py-2.5 font-medium text-foreground">
                       <p className="font-semibold">{quiz.title}</p>
-                      <p className="text-[11px] text-muted-foreground">ID: {quiz.id}</p>
+                      <p className="text-body-xs text-muted-foreground">ID: {quiz.id}</p>
                     </td>
                     <td className="px-3.5 py-2.5">
                       <Badge
@@ -129,26 +129,26 @@ export function AnalyticsTab({
                           {quiz.avgScore || 0} / 100
                         </span>
                       ) : (
-                        <span className="text-muted-foreground text-[11px]">Belum ada</span>
+                        <span className="text-muted-foreground text-body-xs">Belum ada</span>
                       )}
                     </td>
                     <td className="px-3.5 py-2.5 text-center font-medium">
                       {(quiz.totalAttempts || 0) > 0 ? (
                         <span>{quiz.passRate || 0}%</span>
                       ) : (
-                        <span className="text-muted-foreground text-[11px]">Belum ada</span>
+                        <span className="text-muted-foreground text-body-xs">Belum ada</span>
                       )}
                     </td>
                     <td className="px-3.5 py-2.5">
                       {quiz.lastAiInsight ? (
-                        <div className="flex items-center gap-1 text-status-success text-[11px] font-medium">
+                        <div className="flex items-center gap-1 text-status-success text-body-xs font-medium">
                           <CheckCircle2 className="size-3.5 shrink-0" />
                           <span>
                             Dianalisis (<FormattedDate date={quiz.lastAiInsight.createdAt} options={{ day: "numeric", month: "short" }} />)
                           </span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1 text-muted-foreground text-[11px]">
+                        <div className="flex items-center gap-1 text-muted-foreground text-body-xs">
                           <Sparkles className="size-3 text-muted-foreground/60 shrink-0" />
                           <span>Belum dianalisis</span>
                         </div>
@@ -176,4 +176,3 @@ export function AnalyticsTab({
     </div>
   );
 }
-

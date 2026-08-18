@@ -270,7 +270,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ===================================================================== */}
         <TabsContent value="templates" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-body-lg font-semibold text-foreground">Daftar Kuis ({initialTemplates.length})</h2>
+            <h2 className="font-heading text-body-base font-semibold text-foreground">Daftar Kuis ({initialTemplates.length})</h2>
             <Button asChild className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
               <Link href={`/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`}>
                 <Plus className="size-4" />
@@ -379,7 +379,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
                             Daftar Soal Terpilih:
                           </span>
-                          <ol className="list-decimal pl-4 space-y-1 text-[11px] text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
+                          <ol className="list-decimal pl-4 space-y-1 text-body-xs text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
                             {rules.fixedQuestionIds.map((qId: string) => {
                               const question = initialQuestionBank.find((q) => q.id === qId);
                               return (
@@ -426,7 +426,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ===================================================================== */}
         <TabsContent value="questionbank" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-body-lg font-semibold text-foreground">Kumpulan Bank Soal ({initialQuestionBank.length})</h2>
+            <h2 className="font-heading text-body-base font-semibold text-foreground">Kumpulan Bank Soal ({initialQuestionBank.length})</h2>
             <Button onClick={handleOpenAddQ} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
               <Plus className="size-4" />
               Tambah Soal Baru
@@ -544,7 +544,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       <Dialog open={isQOpen} onOpenChange={setIsQOpen}>
         <DialogContent className="max-w-2xl rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {editingQ ? "Edit Soal Bank" : "Tambah Soal Baru ke Bank"}
             </DialogTitle>
           </DialogHeader>
@@ -648,13 +648,13 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                   placeholder="Contoh: 12, duabelas, 12.0"
                   className="rounded-lg border-input bg-background"
                 />
-                <p className="text-xs text-muted-foreground">Siswa dianggap benar jika jawaban teks mereka cocok dengan salah satu kata kunci di atas.</p>
+                <p className="text-body-xs text-muted-foreground">Siswa dianggap benar jika jawaban teks mereka cocok dengan salah satu kata kunci di atas.</p>
               </div>
             )}
 
             {/* Input Block for Essay */}
             {qType === "essay" && (
-              <div className="p-4 rounded-xl border border-border bg-muted/5 text-xs text-muted-foreground space-y-1">
+              <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground space-y-1">
                 <p className="font-semibold text-foreground">Soal Tipe Essay / Uraian</p>
                 <p>Siswa akan mengetikkan jawaban teks uraian bebas. Tuliskan rubrik penilaian atau kunci jawaban referensi pada kolom Pembahasan di bawah.</p>
               </div>
@@ -699,8 +699,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       <Dialog open={deleteTplId !== null} onOpenChange={(open) => !open && setDeleteTplId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Hapus Kuis?</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Kuis?</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Apakah Anda yakin ingin menghapus template kuis ini? Percobaan pengerjaan siswa yang terkait juga dapat terpengaruh.
             </DialogDescription>
           </DialogHeader>
@@ -718,8 +718,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       <Dialog open={deleteQId !== null} onOpenChange={(open) => !open && setDeleteQId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Hapus Soal?</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Soal?</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Apakah Anda yakin ingin menghapus soal ini dari bank soal? Soal tidak akan terpilih lagi untuk kuis baru.
             </DialogDescription>
           </DialogHeader>
@@ -738,7 +738,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               Pratinjau Kuis: {previewTpl?.title}
             </DialogTitle>
             <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">

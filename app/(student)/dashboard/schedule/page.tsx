@@ -594,7 +594,7 @@ export default function SchedulePage() {
                     <form onSubmit={handleAddSlot} className="flex flex-col gap-4">
                       <div className="grid gap-4 sm:grid-cols-3">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hari</label>
+                          <label className="text-body-sm font-semibold text-muted-foreground uppercase tracking-wider">Hari</label>
                           <Select
                             value={newSlotDay}
                             onValueChange={setNewSlotDay}
@@ -611,7 +611,7 @@ export default function SchedulePage() {
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Jam Mulai</label>
+                          <label className="text-body-sm font-semibold text-muted-foreground uppercase tracking-wider">Jam Mulai</label>
                           <input
                             type="text"
                             value={newSlotStart}
@@ -622,7 +622,7 @@ export default function SchedulePage() {
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Jam Selesai</label>
+                          <label className="text-body-sm font-semibold text-muted-foreground uppercase tracking-wider">Jam Selesai</label>
                           <input
                             type="text"
                             value={newSlotEnd}
@@ -764,7 +764,7 @@ export default function SchedulePage() {
         {bookingSlot && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
             <Reveal duration="duration-200" className="w-full max-w-md rounded-2xl border border-border/80 bg-background p-6 shadow-xl">
-              <h3 className="font-heading text-body-lg font-bold text-foreground">
+              <h3 className="font-heading text-body-base font-bold text-foreground">
                 Konfirmasi Pemesanan Jadwal
               </h3>
               <p className="text-body-xs text-muted-foreground mt-1">
@@ -783,7 +783,7 @@ export default function SchedulePage() {
               </div>
 
               <div className="mt-4 space-y-1.5">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mata Kuliah Bimbingan</label>
+                <label className="text-body-sm font-semibold text-muted-foreground uppercase tracking-wider">Mata Kuliah Bimbingan</label>
                 <Select
                   value={selectedCourseId}
                   onValueChange={setSelectedCourseId}

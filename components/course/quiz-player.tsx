@@ -336,7 +336,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         {/* Progress Bar & Header */}
         <div className="flex flex-col gap-2.5 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 md:pb-4">
           <div className="flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:text-[11px]">
+            <div className="flex items-center justify-between gap-3 text-body-xs font-bold uppercase tracking-wider text-muted-foreground">
               <span>PROGRES PENGERJAAN</span>
               <span>{Math.round(progress)}% ({answeredCount} / {sorted.length} Terisi)</span>
             </div>
@@ -350,12 +350,12 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
           <div className="flex items-center gap-2">
             {perQuestionTimerEnabled && (
-              <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-primary/35 bg-brand-primary/10 px-2.5 py-1 font-mono text-[13px] font-bold text-brand-primary sm:px-3 sm:py-1.5 sm:text-body-sm" title="Batas waktu untuk nomor ini">
+              <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-primary/35 bg-brand-primary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-primary sm:px-3 sm:py-1.5" title="Batas waktu untuk nomor ini">
                 <Timer className="size-3.5 animate-pulse sm:size-4" />
                 <span>Soal: {questionTimeLeft}s</span>
               </div>
             )}
-            <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-[13px] font-bold text-brand-secondary sm:px-3 sm:py-1.5 sm:text-body-sm" title="Total sisa waktu kuis">
+            <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-secondary sm:px-3 sm:py-1.5" title="Total sisa waktu kuis">
               <Clock className="size-3.5 sm:size-4" />
               <span>{formatTime(timeLeft)}</span>
             </div>
@@ -376,7 +376,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               {index + 1}
             </span>
             <div className="space-y-1 flex-1 leading-relaxed text-foreground">
-              <div className="font-heading text-body-base font-bold leading-normal md:text-body-lg">
+              <div className="font-sans text-body-base font-bold leading-normal">
                 <MarkdownRenderer content={q.prompt} className="space-y-3" />
               </div>
             </div>
@@ -454,7 +454,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                 className="size-4 rounded-sm border-border text-brand-secondary accent-brand-secondary focus:ring-brand-secondary cursor-pointer"
               />
               <span className={cn(
-                "flex items-center gap-1 text-[11px] font-semibold transition-colors sm:text-body-xs",
+                "flex items-center gap-1 text-body-xs font-semibold transition-colors",
                 currentFlagged ? "text-brand-secondary" : "text-muted-foreground hover:text-foreground"
               )}>
                 <Flag className={cn("size-3.5", currentFlagged ? "fill-brand-secondary text-brand-secondary" : "")} />
@@ -462,7 +462,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               </span>
             </label>
 
-            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
               <AlertCircle className="size-3 text-brand-primary" />
               Progress tersimpan otomatis
             </span>
@@ -476,7 +476,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             <Button
               type="button"
               variant="outline"
-              className="h-9 gap-1 rounded-md border-border/80 px-3 text-[13px] sm:text-body-sm"
+              className="h-9 gap-1 rounded-md border-border/80 px-3 text-body-sm"
               onClick={goPrev}
               disabled={index === 0}
             >
@@ -484,14 +484,14 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               Sebelumnya
             </Button>
           ) : (
-            <span className="text-[11px] font-medium text-muted-foreground italic">
+            <span className="text-body-xs font-medium text-muted-foreground italic">
               Mode linier (navigasi satu arah)
             </span>
           )}
 
           <div className="flex gap-2">
             {index < sorted.length - 1 ? (
-              <Button type="button" className="h-9 gap-1 rounded-md bg-foreground px-4 text-[13px] text-background hover:bg-foreground/90 sm:px-6 sm:text-body-sm" onClick={goNext}>
+              <Button type="button" className="h-9 gap-1 rounded-md bg-foreground px-4 text-body-sm text-background hover:bg-foreground/90 sm:px-6" onClick={goNext}>
                 Lanjut
                 <ChevronRight className="size-4" />
               </Button>
@@ -499,7 +499,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               <Button
                 type="button"
                 disabled={submitting || isSubmitted}
-                className="h-9 rounded-md bg-brand-primary px-4 text-[13px] font-bold text-white hover:bg-brand-primary/95 sm:px-8 sm:text-body-sm"
+                className="h-9 rounded-md bg-brand-primary px-4 text-body-sm font-bold text-white hover:bg-brand-primary/95 sm:px-8"
                 onClick={handleRequestSubmit}
               >
                 {submitting ? (
@@ -527,7 +527,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               <BookOpen className="size-4 text-brand-primary" />
               Navigasi Pertanyaan
             </h3>
-            <p className="mt-1 text-[11px] text-muted-foreground md:text-body-xs">
+            <p className="mt-1 text-body-xs text-muted-foreground">
               {canGoBack
                 ? "Lompat langsung ke butir soal dengan klik tombol angka di bawah:"
                 : "Klik butir soal berikutnya untuk berpindah (soal sebelumnya terkunci):"}
@@ -551,7 +551,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                     if (isAllowed) setIndex(idx);
                   }}
                   className={cn(
-                    "flex size-8 items-center justify-center rounded-lg border font-heading text-[11px] font-bold transition-all md:size-9 md:text-body-xs",
+                    "flex size-8 items-center justify-center rounded-lg border font-heading text-body-xs font-bold transition-all md:size-9",
                     !isAllowed && "opacity-40 cursor-not-allowed",
                     isAllowed && "cursor-pointer",
                     active
@@ -572,7 +572,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
           </div>
 
           {/* Legend indicator */}
-          <div className="space-y-2 border-t border-border pt-3 text-[11px] md:pt-4 md:text-body-xs">
+          <div className="space-y-2 border-t border-border pt-3 text-body-xs md:pt-4">
             <span className="font-semibold text-foreground block">Keterangan Warna:</span>
             <div className="grid grid-cols-2 gap-2 text-muted-foreground">
               <div className="flex items-center gap-1.5">
@@ -601,7 +601,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               variant="outline"
               disabled={submitting || isSubmitted}
               onClick={handleRequestSubmit}
-              className="h-9 w-full rounded-md border-border/80 text-[13px] font-semibold text-foreground hover:bg-muted"
+              className="h-9 w-full rounded-md border-border/80 text-body-sm font-semibold text-foreground hover:bg-muted"
             >
               Kumpulkan Kuis
             </Button>
@@ -614,10 +614,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
         <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               Kumpulkan Lembar Jawaban Kuis?
             </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-1.5">
+            <DialogDescription className="text-body-xs text-muted-foreground mt-1.5">
               Periksa kembali ringkasan pengerjaan sebelum mengumpulkan jawaban Anda.
             </DialogDescription>
           </DialogHeader>
@@ -625,11 +625,11 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
           <div className="my-2 space-y-3">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-xl border border-border bg-muted/30 p-2.5">
-                <span className="block text-[11px] font-semibold text-muted-foreground uppercase">Total Soal</span>
+                <span className="block text-body-xs font-semibold text-muted-foreground uppercase">Total Soal</span>
                 <span className="font-heading text-body-base font-bold text-foreground">{sorted.length}</span>
               </div>
               <div className="rounded-xl border border-tertiary-1/30 bg-tertiary-1/10 p-2.5">
-                <span className="block text-[11px] font-semibold text-tertiary-1 uppercase">Terjawab</span>
+                <span className="block text-body-xs font-semibold text-tertiary-1 uppercase">Terjawab</span>
                 <span className="font-heading text-body-base font-bold text-tertiary-1">{answeredCount}</span>
               </div>
               <div
@@ -640,7 +640,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                     : "border-border bg-muted/30 text-muted-foreground"
                 )}
               >
-                <span className="block text-[11px] font-semibold uppercase">Kosong</span>
+                <span className="block text-body-xs font-semibold uppercase">Kosong</span>
                 <span className="font-heading text-body-base font-bold">{unansweredCount}</span>
               </div>
             </div>
@@ -664,7 +664,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
             </div>
 
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-body-xs text-muted-foreground">
               Setelah dikumpulkan, lembar jawaban Anda akan dinilai dan tidak dapat diubah lagi.
             </p>
           </div>

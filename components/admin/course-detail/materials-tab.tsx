@@ -231,7 +231,7 @@ export function MaterialsTab({
           {/* Chapter Selector */}
           <div className="rounded-xl border border-border/70 bg-muted/10 p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+              <span className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider">
                 Kaitkan dengan Bab ({selectedChapters.size} dipilih)
               </span>
               {chapters.length > 0 && (
@@ -326,7 +326,7 @@ export function MaterialsTab({
           <div className="text-center py-8 border border-dashed border-border rounded-xl">
             <FileText className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
             <p className="text-body-xs font-medium text-foreground">Belum ada dokumen PDF terunggah</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-body-xs text-muted-foreground mt-0.5">
               Gunakan formulir di atas untuk mengunggah materi kelas atau contoh soal PDF.
             </p>
           </div>
@@ -365,7 +365,7 @@ export function MaterialsTab({
                     <td className="px-3 py-2.5 text-muted-foreground max-w-xs truncate" title={getChapterLabels(m.chapterIds)}>
                       {getChapterLabels(m.chapterIds)}
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap text-[11px]">
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap text-body-xs">
                       <FormattedDate date={m.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
                     </td>
                     <td className="px-3 py-2.5 text-right">
@@ -374,7 +374,7 @@ export function MaterialsTab({
                           href={fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted text-[11px] font-medium text-foreground transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted text-body-sm font-medium text-foreground transition-colors"
                         >
                           <ExternalLink className="size-3" />
                           <span>PDF</span>
@@ -405,4 +405,3 @@ export function MaterialsTab({
     </div>
   );
 }
-

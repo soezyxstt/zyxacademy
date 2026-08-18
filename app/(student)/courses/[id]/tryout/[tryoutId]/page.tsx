@@ -94,7 +94,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
       <CoursePageShell title="Tryout Belum Dibuka" description={exam.title} hideHeader>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-            <h3 className="font-heading text-body-lg font-bold text-foreground">Tryout Belum Dibuka</h3>
+            <h3 className="font-heading text-body-base font-bold text-foreground">Tryout Belum Dibuka</h3>
             <p className="mt-2 text-body-sm text-muted-foreground">
               Tryout ini dijadwalkan untuk dibuka pada tanggal{" "}
               <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
@@ -115,7 +115,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
       <CoursePageShell title="Tryout Sudah Ditutup" description={exam.title} hideHeader>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-            <h3 className="font-heading text-body-lg font-bold text-foreground">Tryout Sudah Ditutup</h3>
+            <h3 className="font-heading text-body-base font-bold text-foreground">Tryout Sudah Ditutup</h3>
             <p className="mt-2 text-body-sm text-muted-foreground">
               Akses tryout ini telah berakhir sejak tanggal{" "}
               <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.

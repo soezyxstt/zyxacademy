@@ -11,7 +11,7 @@ export function DiktatPreview({ diktat, report, quality }: DiktatPreviewProps) {
     <section className="space-y-6" aria-labelledby={`${diktat.id}-preview-title`}>
       <div className="border-b border-border pb-4">
         <p className="text-body-sm text-muted-foreground">Diktat preview</p>
-        <h2 id={`${diktat.id}-preview-title`} className="font-heading text-h4">{diktat.title}</h2>
+        <h2 id={`${diktat.id}-preview-title`} className="font-heading text-body-base font-bold">{diktat.title}</h2>
         <p className="text-body-sm text-muted-foreground">
           Source article {diktat.sourceArticleId}, version {diktat.sourceArticleVersion}
         </p>

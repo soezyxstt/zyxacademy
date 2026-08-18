@@ -295,7 +295,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
             Kembali
           </Button>
           <div>
-            <h2 className="font-heading text-body-lg font-bold text-foreground">Kelola Soal: {activeExam.title}</h2>
+            <h2 className="font-heading text-body-base font-bold text-foreground">Kelola Soal: {activeExam.title}</h2>
             <p className="text-body-xs text-muted-foreground">Total: {activeQuestions.length} Soal</p>
           </div>
         </div>
@@ -403,7 +403,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         <Dialog open={bankOpen} onOpenChange={setBankOpen}>
           <DialogContent className="max-w-2xl rounded-2xl border-border bg-card">
             <DialogHeader>
-              <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Ambil soal dari bank soal</DialogTitle>
+              <DialogTitle className="font-heading text-body-base font-bold text-foreground">Ambil soal dari bank soal</DialogTitle>
               <DialogDescription>Pilih soal asli Zyx atau contoh ITB. Sitasi sumber ITB akan ikut dibawa ke tryout murid.</DialogDescription>
             </DialogHeader>
             <div className="max-h-[55vh] divide-y divide-border overflow-y-auto border-y border-border">
@@ -448,8 +448,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         <Dialog open={deleteQId !== null} onOpenChange={(open) => !open && setDeleteQId(null)}>
           <DialogContent className="max-w-md rounded-2xl border-border bg-card">
             <DialogHeader>
-              <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Hapus Pertanyaan?</DialogTitle>
-              <DialogDescription className="text-body-sm text-muted-foreground">
+              <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Pertanyaan?</DialogTitle>
+              <DialogDescription className="text-body-xs text-muted-foreground">
                 Apakah Anda yakin ingin menghapus pertanyaan ini? Ujian yang sedang dikerjakan siswa mungkin terganggu.
               </DialogDescription>
             </DialogHeader>
@@ -468,7 +468,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
         <Dialog open={isQOpen} onOpenChange={setIsQOpen}>
           <DialogContent className="max-w-xl rounded-2xl border-border bg-card">
             <DialogHeader>
-              <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+              <DialogTitle className="font-heading text-body-base font-bold text-foreground">
                 {editingQ ? "Edit Pertanyaan Tryout" : "Tambah Pertanyaan Baru"}
               </DialogTitle>
             </DialogHeader>
@@ -601,7 +601,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
     <div className="space-y-6">
       {/* Header action */}
       <div className="flex justify-between items-center">
-        <h2 className="text-body-lg font-semibold text-foreground">Daftar Tryout ({initialTryouts.length})</h2>
+        <h2 className="font-heading text-body-base font-semibold text-foreground">Daftar Tryout ({initialTryouts.length})</h2>
         <Button onClick={handleOpenAddT} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
           <Plus className="size-4" />
           Tambah Tryout Baru
@@ -671,7 +671,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       <Dialog open={isTOpen} onOpenChange={setIsTOpen}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {editingT ? "Edit Tryout" : "Buat Tryout Baru"}
             </DialogTitle>
           </DialogHeader>
@@ -768,8 +768,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
       <Dialog open={deleteTId !== null} onOpenChange={(open) => !open && setDeleteTId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Hapus Tryout?</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Tryout?</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Apakah Anda yakin ingin menghapus tryout ini? Seluruh soal di dalamnya dan riwayat pengumpulan siswa juga akan ikut terhapus.
             </DialogDescription>
           </DialogHeader>

@@ -115,7 +115,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
     <div className="space-y-8">
       {/* Generate Form */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <h2 className="font-heading text-body-lg font-bold text-foreground flex items-center gap-2 mb-4">
+        <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-4">
           <KeyRound className="size-5 text-brand-primary" />
           Buat Token Baru
         </h2>
@@ -223,7 +223,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
       {/* Tokens List */}
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center justify-between border-b border-border bg-muted/20 px-6 py-4">
-          <h2 className="font-heading text-body-md font-bold text-foreground">
+          <h2 className="font-heading text-body-base font-bold text-foreground">
             Daftar Token ({initialTokens.length})
           </h2>
           <Button
@@ -249,25 +249,25 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
             <table className="w-full min-w-3xl text-left text-body-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/10">
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Token String
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Kapasitas Kelompok
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Mata Kuliah
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Tanggal Kedaluwarsa
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Status
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Anggota Terdaftar
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-center">
+                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-center">
                     Aksi
                   </th>
                 </tr>

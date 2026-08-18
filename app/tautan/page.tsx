@@ -112,7 +112,7 @@ export default async function TautanPage() {
           <div className="flex size-16 items-center justify-center rounded-2xl border border-border bg-card shadow-sm">
             <Logo disableAnimation className="[--logo-height:2.25rem]" />
           </div>
-          <h1 className="mt-4 font-heading text-h3 font-bold tracking-tight text-foreground">
+          <h1 className="mt-4 font-heading text-h5 font-bold tracking-tight text-foreground">
             Tautan Zyx Academy
           </h1>
           <p className="mt-1.5 max-w-sm text-body-sm leading-normal text-muted-foreground">
@@ -125,7 +125,7 @@ export default async function TautanPage() {
             <div className="flex size-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary">
               <LinkIcon className="size-7" aria-hidden />
             </div>
-            <h2 className="font-heading text-h5 font-semibold text-foreground">
+            <h2 className="font-heading text-body-base font-semibold text-foreground">
               Belum ada tautan
             </h2>
             <p className="max-w-xs text-body-sm leading-normal text-muted-foreground">

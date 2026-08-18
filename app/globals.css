@@ -818,4 +818,20 @@
  .katex-display > .katex {
  white-space: nowrap;
  }
+
+ /* Zebra rhythm for data tables and row-based lists. Keep this selector
+ low-specificity so explicit status and selected-state backgrounds win. */
+ :where(
+  table:not(.zebra-no-rows) > tbody > tr:nth-child(even),
+  .divide-y:not(.zebra-no-rows) > :nth-child(even)
+ ) {
+  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
+ }
+
+ :where(
+  table:not(.zebra-no-rows) > tbody > tr:nth-child(even):hover,
+  .divide-y:not(.zebra-no-rows) > :nth-child(even):hover
+ ) {
+  background-color: color-mix(in oklch, var(--muted) 42%, transparent);
+ }
 }

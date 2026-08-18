@@ -293,7 +293,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
 
   return (
     <div className="my-6 overflow-hidden rounded-2xl border border-border/80 bg-zinc-950 dark:bg-zinc-900/60 shadow-md">
-      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 dark:bg-zinc-950/40 border-b border-zinc-800 text-zinc-400 text-[11px] font-mono select-none">
+      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 dark:bg-zinc-950/40 border-b border-zinc-800 text-zinc-400 text-body-xs font-mono select-none">
         <span className="font-semibold tracking-wider uppercase text-zinc-400/80">{language}</span>
         <button
           onClick={handleCopy}
@@ -313,7 +313,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
           )}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-zinc-200 font-mono text-[13px] sm:text-body-sm leading-relaxed text-left">
+      <pre className="p-4 overflow-x-auto text-zinc-200 font-mono text-body-sm leading-relaxed text-left">
         <code>{code}</code>
       </pre>
     </div>
@@ -593,7 +593,7 @@ function BoxPlotChart({ data, xLabel, yLabel }: { data: any[]; xLabel?: string; 
             x={15}
             y={height / 2}
             textAnchor="middle"
-            className="fill-foreground text-[11px] font-heading font-bold"
+            className="fill-foreground text-body-xs font-heading font-bold"
           >
             {yLabel}
           </text>
@@ -656,7 +656,7 @@ function BoxPlotChart({ data, xLabel, yLabel }: { data: any[]; xLabel?: string; 
             x={padding.left + plotWidth / 2}
             y={height - 10}
             textAnchor="middle"
-            className="fill-foreground text-[11px] font-heading font-bold"
+            className="fill-foreground text-body-xs font-heading font-bold"
           >
             {xLabel}
           </text>
@@ -986,7 +986,7 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
 
         {hoverPoint && (
           <div
-            className="absolute z-10 pointer-events-none bg-zinc-900/90 text-white rounded-lg px-2.5 py-1.5 text-xs font-mono shadow-md border border-zinc-700/50"
+            className="absolute z-10 pointer-events-none bg-zinc-900/90 text-white rounded-lg px-2.5 py-1.5 text-body-xs font-mono shadow-md border border-zinc-700/50"
             style={{
               left: `${hoverPoint.clientX + 10}px`,
               top: `${hoverPoint.clientY - 40}px`,
@@ -1090,12 +1090,12 @@ function FlowchartDiagramRenderer({ data, title, caption }: { data: any; title?:
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-destructive/5 text-destructive border border-destructive/20 rounded-lg">
             <AlertTriangle className="size-8 mb-2 text-destructive" />
             <span className="font-semibold text-body-sm">Diagram Parsing Failed</span>
-            <span className="text-xs text-muted-foreground mt-1 text-center max-w-[80%]">
+            <span className="text-body-xs text-muted-foreground mt-1 text-center max-w-[80%]">
               {error}
             </span>
           </div>
         ) : loading ? (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm font-sans">
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-body-sm font-sans">
             Menghitung tata letak...
           </div>
         ) : (
@@ -1240,11 +1240,11 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "h": {
       const hLvl = block.level || 2;
       const headingClasses = {
-        1: "text-h4 md:text-h3 font-heading font-bold mt-14 mb-4 border-b border-border/60 pb-2.5 tracking-tight",
-        2: "text-h5 md:text-h4 font-heading font-bold mt-12 mb-4 tracking-tight",
-        3: "text-h6 md:text-h5 font-heading font-bold mt-10 mb-3 tracking-tight",
-        4: "text-body-lg md:text-h6 font-heading font-semibold mt-8 mb-3 tracking-tight",
-        5: "text-body-base md:text-body-lg font-heading font-semibold mt-6 mb-2.5 tracking-tight",
+        1: "text-h5 font-heading font-bold mt-14 mb-4 border-b border-border/60 pb-2.5 tracking-tight",
+        2: "text-body-base font-heading font-bold mt-12 mb-4 tracking-tight",
+        3: "text-body-sm font-heading font-bold mt-10 mb-3 tracking-tight",
+        4: "text-body-sm font-heading font-semibold mt-8 mb-3 tracking-tight",
+        5: "text-body-sm font-heading font-semibold mt-6 mb-2.5 tracking-tight",
         6: "text-body-sm md:text-body-base font-heading font-semibold text-muted-foreground mt-6 mb-2 tracking-tight",
       };
       const cls = headingClasses[hLvl as 1 | 2 | 3 | 4 | 5 | 6] || headingClasses[2];
@@ -1278,7 +1278,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "blockquote":
       return (
         <blockquote
-          className="my-5 pl-5 border-l-4 border-primary/50 text-muted-foreground italic bg-muted/20 py-2.5 pr-4 rounded-r-xl leading-relaxed text-body-md"
+          className="my-5 pl-5 border-l-4 border-primary/50 text-muted-foreground italic bg-muted/20 py-2.5 pr-4 rounded-r-xl leading-relaxed text-body-base"
         >
           {renderRichText(block.content)}
         </blockquote>
@@ -1444,7 +1444,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "concept":
       return (
         <div id={block.id} className="p-5 border border-border bg-card shadow-xs rounded-xl text-left my-6">
-          <h3 className="text-h4 font-heading font-bold text-foreground mb-3">{renderRichText(block.content.title)}</h3>
+          <h3 className="text-body-base font-heading font-bold text-foreground mb-3">{renderRichText(block.content.title)}</h3>
           <MarkdownRenderer content={block.content.bodyMarkdown} />
         </div>
       );
@@ -1453,7 +1453,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
       const formulaHtml = katex.renderToString(block.content.latex, { throwOnError: false, displayMode: true });
       return (
         <div id={block.id} className="p-5 border border-border bg-card shadow-xs rounded-xl text-left my-6">
-          <h4 className="text-h5 font-heading font-bold text-foreground mb-3">{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
+          <h4 className="text-body-base font-heading font-bold text-foreground mb-3">{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
           <div className="my-4 overflow-x-auto text-center w-full max-w-full" dangerouslySetInnerHTML={{ __html: formulaHtml }} />
           {block.content.interpretation && (
             <div className="mt-3 text-body-sm text-muted-foreground leading-relaxed">
@@ -1666,7 +1666,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     return (
       <div className="p-4 bg-status-error/10 border border-status-error/25 text-status-error rounded-xl text-body-sm font-sans">
         <strong>Visual Compiler Error:</strong>
-        <p className="mt-1 font-mono text-xs">{err instanceof Error ? err.message : String(err)}</p>
+        <p className="mt-1 font-mono text-body-xs">{err instanceof Error ? err.message : String(err)}</p>
       </div>
     );
   }

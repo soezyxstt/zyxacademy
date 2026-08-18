@@ -200,7 +200,7 @@ export function QuizzesTab({
             <div className="text-center py-8 px-4">
               <NotebookPen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
               <p className="text-body-xs font-medium text-foreground">Belum ada kuis yang dibuat untuk kelas ini</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-body-xs text-muted-foreground mt-0.5">
                 Klik tombol tambah untuk menyusun kuis mandiri atau simulasi pada kelas ini.
               </p>
               <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
@@ -257,7 +257,7 @@ export function QuizzesTab({
                         </Badge>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-body-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="size-3 shrink-0" />
                           {quiz.timeLimitSeconds ? `${Math.round(quiz.timeLimitSeconds / 60)} Menit` : "Tanpa batas"}
@@ -374,7 +374,7 @@ export function QuizzesTab({
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               Pratinjau Kuis: {previewQuiz?.title}
             </DialogTitle>
             <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">

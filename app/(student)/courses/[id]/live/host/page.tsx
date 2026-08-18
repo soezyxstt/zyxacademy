@@ -133,7 +133,7 @@ export default function LiveHostPage() {
         <div className="border-b border-border pb-4">
           <div className="flex items-center gap-2">
             <Radio className="size-4 text-brand-primary" />
-            <h1 className="font-heading text-h4 font-semibold text-foreground">
+            <h1 className="font-heading text-h5 font-semibold text-foreground">
               Kuis Langsung
             </h1>
           </div>
@@ -235,7 +235,7 @@ export default function LiveHostPage() {
             </span>
           </div>
 
-          <MathText className="font-heading text-h5 font-semibold text-foreground block" as="div">
+          <MathText className="font-sans text-body-base font-semibold text-foreground block" as="div">
             {currentQuestion.prompt}
           </MathText>
 
@@ -271,7 +271,7 @@ export default function LiveHostPage() {
       {/* ── Reveal / Leaderboard ── */}
       {(sessionState === "reveal" || sessionState === "ended") && top10.length > 0 && (
         <div className="mx-auto max-w-lg space-y-3">
-          <h2 className="font-heading text-h6 font-semibold text-foreground">
+          <h2 className="font-heading text-body-base font-semibold text-foreground">
             {sessionState === "ended" ? "Papan skor akhir" : "Papan Skor"}
           </h2>
           <div className="divide-y divide-border rounded-xl border border-border">

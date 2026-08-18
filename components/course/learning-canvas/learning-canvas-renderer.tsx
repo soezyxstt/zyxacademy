@@ -345,7 +345,7 @@ function ChemistryReaction({ spec }: { spec: ChemistryCanvas }) {
   const format = (items: ChemistryCanvas["reactants"]) => items.map((item) => `${item.coefficient === 1 ? "" : `${item.coefficient} `}${item.formula}`).join(" + ");
   return (
     <div className="space-y-3">
-      <p className="rounded-lg border border-border bg-background p-4 text-center font-mono text-body-md text-foreground" aria-label={spec.altText}>{format(spec.reactants)} → {format(spec.products)}</p>
+      <p className="rounded-lg border border-border bg-background p-4 text-center font-mono text-body-base text-foreground" aria-label={spec.altText}>{format(spec.reactants)} → {format(spec.products)}</p>
       <FallbackTable spec={spec} />
     </div>
   );
@@ -356,7 +356,7 @@ export function LearningCanvasRenderer({ spec }: { spec: CanvasSpec }) {
   return (
     <section aria-labelledby={titleId} className="my-6 w-full min-w-0 space-y-4 rounded-xl border border-border bg-card p-4 md:p-5">
       <div>
-        <h3 id={titleId} className="font-heading text-h5 text-foreground">{spec.title}</h3>
+        <h3 id={titleId} className="font-heading text-body-base font-semibold text-foreground">{spec.title}</h3>
         <p className="mt-1 text-body-sm text-muted-foreground">{spec.purpose}</p>
       </div>
       {spec.type === "function_plot" ? <FunctionPlot spec={spec} />

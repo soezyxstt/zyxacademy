@@ -209,11 +209,11 @@ export default async function CourseMaterialListPage({ params }: Props) {
                     </span>
                     <div>
                       <h3 className="font-heading text-body-sm font-bold text-foreground line-clamp-1">{d.title}</h3>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">Dikompilasi otomatis dari materi terbaru</p>
+                      <p className="text-body-xs text-muted-foreground mt-0.5">Dikompilasi otomatis dari materi terbaru</p>
                     </div>
                   </div>
                   <div className="mt-4 flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground select-none">
+                    <span className="text-body-xs text-muted-foreground select-none">
                       Diperbarui: <FormattedDate date={d.updatedAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
                     </span>
                     {d.fileUrl && (

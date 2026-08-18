@@ -412,7 +412,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                         <div className="flex items-start justify-between gap-2">
                           <h4 className="font-heading text-body-sm font-bold text-foreground">{misc.concept}</h4>
                           <Badge
-                            className={`rounded-md text-[11px] capitalize ${
+                            className={`rounded-md text-body-xs capitalize ${
                               misc.frequency === "high"
                                 ? "bg-status-error/15 text-status-error border-status-error/30 font-semibold"
                                 : misc.frequency === "medium"
@@ -433,7 +433,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               {/* 3. Rekomendasi Pengajaran untuk Tutor */}
               {latestAiInsight.insights.teachingRecommendations && latestAiInsight.insights.teachingRecommendations.length > 0 && (
                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 text-brand-secondary font-heading font-bold text-h5 border-b border-border pb-3">
+                  <div className="flex items-center gap-2 text-brand-secondary font-heading font-bold text-body-base border-b border-border pb-3">
                     <Lightbulb className="size-5" />
                     <span>Rekomendasi Pengajaran & Pengayaan (Tutor & Admin)</span>
                   </div>
@@ -460,7 +460,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               {/* 4. Diagnosis Soal Tersulit & Distraktor */}
               {latestAiInsight.insights.hardestQuestionsAnalysis && latestAiInsight.insights.hardestQuestionsAnalysis.length > 0 && (
                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 text-status-warning font-heading font-bold text-h5 border-b border-border pb-3">
+                  <div className="flex items-center gap-2 text-status-warning font-heading font-bold text-body-base border-b border-border pb-3">
                     <Target className="size-5" />
                     <span>Diagnosis Soal Tersulit & Jebakan Distraktor</span>
                   </div>
@@ -496,14 +496,14 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               {/* 5. Langkah Konkret Selanjutnya */}
               {latestAiInsight.insights.actionableNextSteps && latestAiInsight.insights.actionableNextSteps.length > 0 && (
                 <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-3">
-                  <div className="flex items-center gap-2 text-foreground font-heading font-bold text-h5 border-b border-border pb-3">
+                  <div className="flex items-center gap-2 text-foreground font-heading font-bold text-body-base border-b border-border pb-3">
                     <Zap className="size-5 text-brand-primary" />
                     <span>Rekomendasi Langkah Konkret</span>
                   </div>
                   <ul className="space-y-2 text-body-sm text-foreground">
                     {latestAiInsight.insights.actionableNextSteps.map((step, idx) => (
                       <li key={idx} className="flex items-start gap-2.5">
-                        <span className="size-5 rounded-full bg-brand-primary/10 text-brand-primary font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="size-5 rounded-full bg-brand-primary/10 text-brand-primary font-bold text-body-xs flex items-center justify-center shrink-0 mt-0.5">
                           {idx + 1}
                         </span>
                         <span>{step}</span>
@@ -550,7 +550,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                             Kesulitan: {q.difficulty}
                           </Badge>
                           {q.tags.map((tag) => (
-                            <Badge key={tag} variant="secondary" className="rounded-md text-[11px]">
+                            <Badge key={tag} variant="secondary" className="rounded-md text-body-xs">
                               {tag}
                             </Badge>
                           ))}
@@ -593,7 +593,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                                 <div className="flex items-center justify-between text-body-xs">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <span
-                                      className={`size-5 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                                      className={`size-5 rounded-md text-body-xs font-bold flex items-center justify-center shrink-0 ${
                                         isCorrect
                                           ? "bg-status-success text-white"
                                           : "bg-muted text-muted-foreground"

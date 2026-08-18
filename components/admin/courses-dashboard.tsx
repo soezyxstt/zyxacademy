@@ -300,11 +300,11 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 <div className="flex items-start justify-between gap-2">
                   <Badge
                     variant="outline"
-                    className="font-mono text-[11px] font-bold rounded-md bg-muted/40 uppercase tracking-wider px-2 py-0.5"
+                    className="font-mono text-body-xs font-bold rounded-md bg-muted/40 uppercase tracking-wider px-2 py-0.5"
                   >
                     {c.id}
                   </Badge>
-                  <Badge variant="secondary" className="text-[11px] rounded-md font-medium px-2 py-0.5">
+                    <Badge variant="secondary" className="text-body-xs rounded-md font-medium px-2 py-0.5">
                     {c.category}
                   </Badge>
                 </div>
@@ -398,7 +398,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                   <td className="px-3.5 py-2.5">
                     <p className="font-semibold text-foreground">{c.title}</p>
                     {c.description && (
-                      <p className="text-[11px] text-muted-foreground truncate max-w-xs">
+                      <p className="text-body-xs text-muted-foreground truncate max-w-xs">
                         {c.description}
                       </p>
                     )}
@@ -472,7 +472,7 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 disabled={createLoading}
                 className="rounded-lg font-mono"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-body-xs text-muted-foreground">
                 Gunakan huruf kecil dan angka tanpa spasi.
               </p>
             </div>

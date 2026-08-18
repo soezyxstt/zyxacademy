@@ -159,7 +159,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
                     <td className="text-body-sm whitespace-nowrap px-4 py-3 align-middle">
                       <div className="flex flex-col">
                         <span className="font-semibold text-foreground">{q.sourceTitle}</span>
-                        <span className="text-[11px] text-muted-foreground uppercase">
+                        <span className="text-body-xs text-muted-foreground uppercase">
                           {q.sourceCategory} · {q.sourceYear}
                         </span>
                       </div>

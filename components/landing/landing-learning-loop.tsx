@@ -36,7 +36,7 @@ function StepCopy({
  <p className="font-heading text-4xl font-bold text-border md:text-5xl" aria-hidden>
  0{index}
  </p>
- <h3 className="mt-2 font-heading text-h5 font-semibold text-foreground md:text-h4">
+ <h3 className="mt-2 font-heading text-body-base font-semibold text-foreground">
  {title}
  </h3>
  <p className="mt-3 max-w-prose text-body-base text-muted-foreground">{body}</p>
@@ -75,7 +75,7 @@ function MasteryPane() {
  {row.name}
  <TrendIcon trend={row.trend} />
  </span>
- <span className="font-mono text-xs font-semibold text-muted-foreground">{row.score}</span>
+ <span className="font-mono text-body-xs font-semibold text-muted-foreground">{row.score}</span>
  </div>
  <div className="mt-1.5 h-2 overflow-hidden rounded-md bg-muted">
  <div
@@ -85,7 +85,7 @@ function MasteryPane() {
  </div>
  </div>
  ))}
- <p className="mt-1 text-xs text-muted-foreground">
+ <p className="mt-1 text-body-xs text-muted-foreground">
  Diperbarui otomatis dari 3 kuis dan 2 sesi flashcard terakhir.
  </p>
  </DemoFrame>
@@ -104,8 +104,8 @@ function DailyPlanPane() {
  return (
  <DemoFrame title="Rencana Hari Ini" className="h-full" bodyClassName="flex h-[calc(100%-2.25rem)] flex-col justify-center">
  <div className="flex items-center justify-between gap-3">
- <p className="font-heading text-body-md font-semibold text-foreground">Halo, Salsa 👋</p>
- <span className="rounded-md border border-[var(--zx-accent)]/40 bg-[var(--zx-accent)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--zx-accent)]">
+ <p className="font-heading text-body-base font-semibold text-foreground">Halo, Salsa 👋</p>
+ <span className="rounded-md border border-[var(--zx-accent)]/40 bg-[var(--zx-accent)]/10 px-2 py-0.5 text-body-xs font-semibold text-[var(--zx-accent)]">
  🔥 6 hari beruntun
  </span>
  </div>
@@ -132,11 +132,11 @@ function DailyPlanPane() {
  >
  {item.label}
  </span>
- <span className="shrink-0 text-xs text-muted-foreground">{item.meta}</span>
+ <span className="shrink-0 text-body-xs text-muted-foreground">{item.meta}</span>
  </div>
  ))}
  </div>
- <p className="mt-4 text-xs text-muted-foreground">
+ <p className="mt-4 text-body-xs text-muted-foreground">
  1 dari 3 selesai ; rencana disusun ulang setiap pagi dari peta penguasaanmu.
  </p>
  </DemoFrame>
@@ -175,7 +175,7 @@ function PracticePane() {
  </div>
  </li>
  </ul>
- <p className="mt-4 text-xs text-muted-foreground">
+ <p className="mt-4 text-body-xs text-muted-foreground">
  Soal dipilih dari konsep terlemahmu minggu ini: <span className="font-semibold text-foreground">aturan hasil kali</span>.
  </p>
  </DemoFrame>
@@ -227,12 +227,12 @@ function UnlockPane() {
  >
  {node.name}
  </p>
- <p className="mt-0.5 text-xs text-muted-foreground">{node.note}</p>
+ <p className="mt-0.5 text-body-xs text-muted-foreground">{node.note}</p>
  </div>
  </div>
  ))}
  </div>
- <p className="text-xs text-muted-foreground">
+ <p className="text-body-xs text-muted-foreground">
  Skor stabil di atas 70 membuka konsep berikutnya secara otomatis.
  </p>
  </DemoFrame>
@@ -311,7 +311,7 @@ export function LandingLearningLoop() {
  aria-labelledby="landing-loop-heading"
  >
  <div className="mx-auto max-w-2xl text-center">
- <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
+ <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
  Satu lingkaran belajar
  </p>
  <SectionHeading as="h2" id="landing-loop-heading" className="mt-3 text-foreground">

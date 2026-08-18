@@ -945,7 +945,7 @@ export function MediaLibrary() {
               className="mt-2 block w-full cursor-pointer text-left"
             >
               <p className="line-clamp-2 text-body-sm font-medium leading-snug text-foreground">{item.name}</p>
-              <p className="text-muted-foreground mt-1 text-[11px]">Folder</p>
+              <p className="text-muted-foreground mt-1 text-body-xs">Folder</p>
             </button>
           </div>
         ) : (
@@ -997,7 +997,7 @@ export function MediaLibrary() {
               className="mt-2 block w-full cursor-pointer text-left"
             >
               <p className="line-clamp-2 text-body-sm font-medium leading-snug text-foreground">{item.file.name}</p>
-              <p className="text-muted-foreground mt-1 text-[11px]">
+              <p className="text-muted-foreground mt-1 text-body-xs">
                 {formatBytes(item.file.size)} · {KIND_LABELS[item.file.kind]}
               </p>
             </button>
@@ -1232,8 +1232,8 @@ export function MediaLibrary() {
       <Dialog open={mkdirOpen} onOpenChange={setMkdirOpen}>
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Buat folder baru</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-2">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Buat folder baru</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
               Folder dibuat di dalam lokasi saat ini.
             </DialogDescription>
           </DialogHeader>
@@ -1278,8 +1278,8 @@ export function MediaLibrary() {
       >
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Ubah nama</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-2">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Ubah nama</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
               {renameTarget?.kind === "folder" ? "Ubah nama folder." : "Ubah nama file. Ekstensi file dipertahankan."}
             </DialogDescription>
           </DialogHeader>
@@ -1318,8 +1318,8 @@ export function MediaLibrary() {
       >
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Pindahkan</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-2">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Pindahkan</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
               Pilih folder tujuan untuk {moveTarget?.name}.
             </DialogDescription>
           </DialogHeader>
@@ -1347,8 +1347,8 @@ export function MediaLibrary() {
       >
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Duplikat</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-2">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Duplikat</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
               Pilih folder tujuan salinan {copyTarget?.name}.
             </DialogDescription>
           </DialogHeader>
@@ -1379,8 +1379,8 @@ export function MediaLibrary() {
       >
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Ganti file</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-2">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Ganti file</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
               Ganti isi {replaceTarget?.name} dengan file baru. Nama file tetap sama.
             </DialogDescription>
           </DialogHeader>
@@ -1424,8 +1424,8 @@ export function MediaLibrary() {
       <Dialog open={bulkMoveOpen} onOpenChange={setBulkMoveOpen}>
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">Pindahkan item</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-2">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Pindahkan item</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground mt-2">
               Pilih folder tujuan untuk {selected.length} item.
             </DialogDescription>
           </DialogHeader>

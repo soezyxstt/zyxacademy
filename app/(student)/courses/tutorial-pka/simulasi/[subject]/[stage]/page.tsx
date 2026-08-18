@@ -71,7 +71,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
             <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-5 shadow-sm">
               <AlertTriangle className="size-5 shrink-0 text-status-warning" />
               <div>
-                <h1 className="font-heading text-h6 font-bold text-foreground">Stage {stage} masih terkunci</h1>
+                <h1 className="font-heading text-h5 font-bold text-foreground">Stage {stage} masih terkunci</h1>
                 <p className="mt-1 text-body-sm text-muted-foreground">Selesaikan stage sebelumnya terlebih dahulu untuk membuka stage ini.</p>
               </div>
             </div>
@@ -132,7 +132,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
 
             <Reveal>
               <div className="space-y-4">
-                <h2 className="font-heading text-h6 font-bold text-foreground">Pembahasan</h2>
+                <h2 className="font-heading text-body-base font-bold text-foreground">Pembahasan</h2>
                 {snapshot.map((q, idx) => {
                   const rawSel = answers[q.id];
                   const qType = (q as any).question_type || (q as any).questionType || (q as any).type;

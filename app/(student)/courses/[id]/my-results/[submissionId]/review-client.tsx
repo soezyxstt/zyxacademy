@@ -53,7 +53,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
         <div className="flex items-center gap-6">
           <div className="text-left md:text-right">
             <span className="text-body-xs font-semibold text-muted-foreground uppercase">Skor Akhir</span>
-            <p className="font-heading text-h4 font-bold text-foreground">
+            <p className="font-heading text-h5 font-bold text-foreground">
               {listItem.score != null ? `${listItem.score}%` : "Pending"}
             </p>
           </div>
@@ -76,7 +76,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
               className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm backdrop-blur-xs md:p-8"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <h3 className="font-heading text-body-md font-bold text-foreground md:text-h6 max-w-xl leading-snug">
+                <h3 className="font-heading text-body-base font-bold text-foreground max-w-xl leading-snug">
                   <span className="text-muted-foreground mr-1">{idx + 1}.</span>
                   <MathText>{item.prompt}</MathText>
                 </h3>

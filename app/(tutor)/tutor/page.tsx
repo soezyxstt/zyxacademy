@@ -26,7 +26,7 @@ export default async function TutorPage() {
   return (
     <div className="max-w-4xl px-6 py-8">
       <div className="border-b border-border pb-6">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Teaching</h1>
+        <h1 className="font-heading text-h5 font-bold text-foreground">Teaching</h1>
         <p className="mt-1 text-body-sm text-muted-foreground">
           Select a course to view cohort analytics.
         </p>

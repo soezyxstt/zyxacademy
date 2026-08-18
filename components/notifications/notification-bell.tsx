@@ -217,7 +217,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <h3 className="font-heading text-h6 font-semibold text-foreground">Notifikasi</h3>
+          <h3 className="font-heading text-body-base font-semibold text-foreground">Notifikasi</h3>
           {unread > 0 ? (
             <button
               type="button"

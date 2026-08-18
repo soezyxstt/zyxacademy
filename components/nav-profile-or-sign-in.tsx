@@ -80,7 +80,7 @@ export function NavProfileOrSignIn({
  </span>
  )}
  <div className="min-w-0 flex-1 text-left">
- <p className="font-heading text-base font-semibold leading-tight tracking-tight text-foreground">
+ <p className="font-heading text-body-base font-semibold leading-tight tracking-tight text-foreground">
  {label}
  </p>
  {email ? (

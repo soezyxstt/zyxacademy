@@ -680,7 +680,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                       Asisten Belajar
                     </Badge>
                   </div>
-                  <span className="text-[11px] text-muted-foreground truncate">
+                  <span className="text-body-xs text-muted-foreground truncate">
                     {courseIdFromPath ? `Konteks: ${courseIdFromPath}` : "Pedagogi Socratic ITB"}
                   </span>
                 </div>
@@ -899,7 +899,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                     ? "Anda telah mencapai batas interaksi harian dengan Zyra. Zyra tersedia kembali besok."
                     : errors[0]}
                 </p>
-                <div className="border-t border-status-error/20 pt-3 text-[11px] text-status-error font-mono">
+                <div className="border-t border-status-error/20 pt-3 text-body-xs text-status-error font-mono">
                   <b>Pilihan Belajar Mandiri:</b>
                   <ul className="mt-1.5 list-disc list-inside space-y-1">
                     <li>Gunakan menu buku teks dan catatan materi secara mandiri.</li>
@@ -970,7 +970,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                               <a
                                 key={`${src.id}-${i}`}
                                 href={src.href}
-                                className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-muted/40 transition-colors"
+                                className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-background px-2.5 py-1 text-body-sm font-medium text-foreground hover:bg-muted/40 transition-colors"
                               >
                                 {src.type === "question" ? (
                                   <FileQuestion className="size-3 text-brand-primary" />
@@ -1185,7 +1185,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+              <div className="flex items-center justify-between px-1 text-body-xs text-muted-foreground">
                 <span>Tekan <kbd className="font-mono bg-muted px-1 py-0.5 rounded text-[10px]">Enter</kbd> untuk kirim, <kbd className="font-mono bg-muted px-1 py-0.5 rounded text-[10px]">Shift+Enter</kbd> untuk baris baru</span>
               </div>
             </div>
@@ -1230,7 +1230,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                     <MarkdownRenderer content={actionFlipped ? actionData[actionIndex].back : actionData[actionIndex].front} />
                   </div>
 
-                  <span className="text-[11px] text-muted-foreground/60 select-none mt-6 italic">
+                  <span className="text-body-xs text-muted-foreground/60 select-none mt-6 italic">
                     Klik kartu untuk membalikkan
                   </span>
                 </div>

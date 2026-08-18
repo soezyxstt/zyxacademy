@@ -279,7 +279,7 @@ export function DiktatCompilerClient({
               type="button"
               onClick={() => setCoverStyle("academic")}
               className={cn(
-                "p-3 rounded-lg border text-xs font-semibold text-center transition-all",
+                "p-3 rounded-lg border text-body-sm font-semibold text-center transition-all",
                 coverStyle === "academic"
                   ? "bg-primary/5 border-primary text-primary"
                   : "border-border text-muted-foreground hover:bg-muted/50"
@@ -291,7 +291,7 @@ export function DiktatCompilerClient({
               type="button"
               onClick={() => setCoverStyle("modern")}
               className={cn(
-                "p-3 rounded-lg border text-xs font-semibold text-center transition-all",
+                "p-3 rounded-lg border text-body-sm font-semibold text-center transition-all",
                 coverStyle === "modern"
                   ? "bg-primary/5 border-primary text-primary"
                   : "border-border text-muted-foreground hover:bg-muted/50"
@@ -310,7 +310,7 @@ export function DiktatCompilerClient({
               <button
                 type="button"
                 onClick={handleSelectAllChapters}
-                className="text-xs text-primary hover:underline lowercase font-sans font-bold"
+                className="text-body-sm text-primary hover:underline lowercase font-sans font-bold"
               >
                 {selectedChapters.size === courseChapters.length ? "uncheck all" : "check all"}
               </button>
@@ -318,7 +318,7 @@ export function DiktatCompilerClient({
           </div>
 
           {courseChapters.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-4 italic">Belum ada bab yang dibuat untuk kelas ini.</p>
+            <p className="text-body-xs text-muted-foreground py-4 italic">Belum ada bab yang dibuat untuk kelas ini.</p>
           ) : (
             <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
               {courseChapters.map((chapter) => (
@@ -332,8 +332,8 @@ export function DiktatCompilerClient({
                     onChange={() => handleToggleChapter(chapter.id)}
                     className="size-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
                   />
-                  <div className="text-xs text-left min-w-0">
-                    <span className="font-mono text-muted-foreground uppercase font-bold block text-xs mb-0.5">
+                  <div className="text-body-xs text-left min-w-0">
+                    <span className="font-mono text-muted-foreground uppercase font-bold block text-body-xs mb-0.5">
                       Bab {chapter.orderIndex}
                     </span>
                     <span className="font-semibold text-foreground truncate block">
@@ -368,7 +368,7 @@ export function DiktatCompilerClient({
             <div className="py-16 text-center text-muted-foreground text-body-sm border border-dashed border-border rounded-xl bg-muted/5 flex flex-col items-center justify-center">
               <Compass className="size-8 text-muted-foreground/60 mb-2" />
               <p className="font-semibold">Belum Ada Diktat Buku</p>
-              <p className="text-xs mt-0.5 max-w-xs leading-normal">
+              <p className="text-body-xs mt-0.5 max-w-xs leading-normal">
                 Pilih bab-bab materi di menu samping lalu tekan tombol kompilasi untuk merakit buku diktat belajar.
               </p>
             </div>
@@ -394,11 +394,11 @@ export function DiktatCompilerClient({
                         </StatusBadge>
                       </div>
 
-                      <h3 className="font-heading text-body-md font-bold text-foreground leading-snug">
+                      <h3 className="font-heading text-body-base font-bold text-foreground leading-snug">
                         {diktat.title}
                       </h3>
 
-                      <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                      <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
                         <Layers className="size-3.5" />
                         <span>Kompilasi dari <span className="font-semibold text-foreground">{chapterIdsArray.length} Bab</span></span>
                         <span>·</span>
@@ -417,7 +417,7 @@ export function DiktatCompilerClient({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="rounded-lg text-xs font-semibold gap-1.5 h-9 bg-background/50 hover:bg-muted"
+                            className="rounded-lg text-body-sm font-semibold gap-1.5 h-9 bg-background/50 hover:bg-muted"
                           >
                             <Download className="size-3.5" />
                             Unduh PDF
@@ -428,7 +428,7 @@ export function DiktatCompilerClient({
                           variant="outline"
                           size="sm"
                           isLoading={true}
-                          className="rounded-lg text-xs font-semibold gap-1.5 h-9"
+                          className="rounded-lg text-body-sm font-semibold gap-1.5 h-9"
                         >
                           Proses Compiler
                         </Button>

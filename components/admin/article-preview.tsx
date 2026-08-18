@@ -12,7 +12,7 @@ export function ArticlePreview({ article, quality }: ArticlePreviewProps) {
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
         <div>
           <p className="text-body-sm text-muted-foreground">Article preview</p>
-          <h2 id={`${article.id}-preview-title`} className="font-heading text-h4">
+          <h2 id={`${article.id}-preview-title`} className="font-heading text-body-base font-bold">
             {article.title}
           </h2>
           <p className="text-body-sm text-muted-foreground">
@@ -38,7 +38,7 @@ export function ArticlePreview({ article, quality }: ArticlePreviewProps) {
         {article.blocks.map((block) => (
           <li key={block.id} className="space-y-2 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="font-heading text-h6">{block.blockType.replaceAll("_", " ")}</h3>
+              <h3 className="font-heading text-body-sm font-semibold">{block.blockType.replaceAll("_", " ")}</h3>
               <span className="text-body-sm text-muted-foreground">{block.reviewerState}</span>
             </div>
             <MathText className="whitespace-pre-wrap text-body-base block" as="div">{block.content}</MathText>

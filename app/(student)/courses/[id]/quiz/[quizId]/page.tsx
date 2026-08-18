@@ -173,7 +173,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
         <CoursePageShell title="Kuis Sudah Ditutup" description={template.title} hideHeader>
           <Reveal>
             <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-              <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Ditutup</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground">Kuis Ditutup</h3>
               <p className="mt-2 text-body-sm text-muted-foreground">
                 Kuis ini telah ditutup secara manual oleh admin/tutor.
               </p>
@@ -199,7 +199,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           <CoursePageShell title="Kuis Belum Dibuka" description={template.title} hideHeader>
             <Reveal>
               <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-                <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Belum Dibuka</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground">Kuis Belum Dibuka</h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Kuis ini dijadwalkan untuk dibuka pada tanggal{" "}
                   <strong className="text-foreground">{openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
@@ -220,7 +220,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           <CoursePageShell title="Kuis Sudah Ditutup" description={template.title} hideHeader>
             <Reveal>
               <div className="rounded-lg border border-border/70 bg-card/75 p-5 backdrop-blur-sm text-center">
-                <h3 className="font-heading text-body-lg font-bold text-foreground">Kuis Sudah Ditutup</h3>
+                <h3 className="font-heading text-body-base font-bold text-foreground">Kuis Sudah Ditutup</h3>
                 <p className="mt-2 text-body-sm text-muted-foreground">
                   Akses kuis ini telah berakhir sejak tanggal{" "}
                   <strong className="text-foreground">{closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</strong>.
@@ -433,7 +433,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     return (
       <CoursePageShell
         eyebrow={
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground uppercase tracking-widest">
+          <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground uppercase tracking-widest">
             <Link href={`/courses/${id}/quiz`} className="hover:text-primary transition-colors">Kuis</Link>
             <ChevronRight className="size-3" />
             <span className="truncate max-w-[200px]">{template.title}</span>
@@ -509,7 +509,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
 
             {!targetAttempt && (
               <div className="rounded-xl border border-brand-primary/30 bg-brand-primary/5 p-5 backdrop-blur-md text-center">
-                <h3 className="font-heading text-body-lg font-bold text-brand-primary">Pembahasan Keseluruhan</h3>
+                <h3 className="font-heading text-body-base font-bold text-brand-primary">Pembahasan Keseluruhan</h3>
                 <p className="mt-1 text-body-sm text-brand-primary/80">
                   Anda tidak mengerjakan kuis ini. Berikut adalah seluruh kumpulan soal yang mungkin muncul pada kuis ini beserta penjelasannya.
                 </p>
@@ -519,7 +519,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             {/* Answered Questions */}
             {snapshot.length > 0 && (
               <div className="space-y-6">
-                <h2 className="font-heading text-h4 font-bold text-foreground border-b border-border/60 pb-2">
+                <h2 className="font-heading text-body-base font-bold text-foreground border-b border-border/60 pb-2">
                   Soal yang Anda Kerjakan
                 </h2>
                 {snapshot.map((q, idx) => {
@@ -577,7 +577,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                           <div>
                             <div className="flex items-center gap-2">
                               <span className={cn(
-                                "text-[11px] font-semibold uppercase tracking-wider",
+                                "text-body-xs font-semibold uppercase tracking-wider",
                                 q.difficulty === "easy" && "text-status-success",
                                 q.difficulty === "medium" && "text-status-warning",
                                 q.difficulty === "hard" && "text-status-error"
@@ -585,11 +585,11 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                                 {q.difficulty}
                               </span>
                               {isCorrect ? (
-                                <span className="inline-flex items-center gap-0.5 text-xs text-status-success font-semibold">
+                                  <span className="inline-flex items-center gap-0.5 text-body-xs text-status-success font-semibold">
                                   <CheckCircle2 className="size-3.5" /> Benar
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-0.5 text-xs text-status-error font-semibold">
+                                  <span className="inline-flex items-center gap-0.5 text-body-xs text-status-error font-semibold">
                                   <XCircle className="size-3.5" /> Salah
                                 </span>
                               )}
@@ -671,7 +671,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             {/* Unseen Questions */}
             {unseenSnapshot.length > 0 && (
               <div className="space-y-6 mt-10">
-                <h2 className="font-heading text-h4 font-bold text-foreground border-b border-border/60 pb-2">
+                <h2 className="font-heading text-body-base font-bold text-foreground border-b border-border/60 pb-2">
                   Soal Lainnya dalam Bank Soal <span className="text-body-sm font-medium text-muted-foreground ml-2">(Tidak Didapatkan)</span>
                 </h2>
                 {unseenSnapshot.map((q, idx) => {
@@ -690,7 +690,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                           <div>
                             <div className="flex items-center gap-2">
                               <span className={cn(
-                                "text-[11px] font-semibold uppercase tracking-wider",
+                                "text-body-xs font-semibold uppercase tracking-wider",
                                 q.difficulty === "easy" && "text-status-success",
                                 q.difficulty === "medium" && "text-status-warning",
                                 q.difficulty === "hard" && "text-status-error"
@@ -720,7 +720,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                             >
                               <span
                                 className={cn(
-                                  "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                                  "flex size-6 shrink-0 items-center justify-center rounded-full text-body-xs font-bold",
                                   isCorrectChoice
                                     ? "bg-status-success text-white"
                                     : "bg-muted text-muted-foreground border border-border/60"
@@ -737,7 +737,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                                 <MarkdownRenderer content={opt} className="inline-block" />
                               </span>
                               {isCorrectChoice && (
-                                <div className="ml-auto flex items-center text-status-success text-xs font-bold gap-1 uppercase tracking-wider">
+                                  <div className="ml-auto flex items-center text-status-success text-body-xs font-bold gap-1 uppercase tracking-wider">
                                   <CheckCircle2 className="size-4" />
                                   Kunci
                                 </div>
@@ -780,7 +780,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   return (
     <CoursePageShell
       eyebrow={
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground uppercase tracking-widest">
+        <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground uppercase tracking-widest">
           <Link href={`/courses/${id}/quiz`} className="hover:text-primary transition-colors">Kuis</Link>
           <ChevronRight className="size-3" />
           <span className="truncate max-w-[200px]">{template.title}</span>
@@ -796,7 +796,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           {/* Details Column */}
           <div className="space-y-5 lg:col-span-8">
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <h2 className="font-heading text-h5 font-bold text-foreground">Instruksi Kuis</h2>
+              <h2 className="font-heading text-body-base font-bold text-foreground">Instruksi Kuis</h2>
               
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 border-y border-border/60 py-4 text-center">
                 <div>

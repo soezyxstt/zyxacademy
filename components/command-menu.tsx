@@ -197,7 +197,7 @@ export function CommandMenuProvider({ children }: { children: React.ReactNode })
                   onValueChange={setSearch}
                   className="placeholder:text-muted-foreground flex h-10 w-full bg-transparent text-body-sm outline-none"
                 />
-                <kbd className="bg-muted text-muted-foreground pointer-events-none hidden shrink-0 select-none rounded border border-border px-1.5 py-0.5 font-mono text-[11px] sm:inline-block">
+                <kbd className="bg-muted text-muted-foreground pointer-events-none hidden shrink-0 select-none rounded border border-border px-1.5 py-0.5 font-mono text-body-xs sm:inline-block">
                   {modKeyHint}
                 </kbd>
               </div>
@@ -205,7 +205,7 @@ export function CommandMenuProvider({ children }: { children: React.ReactNode })
                 {!trimmed && (
                   <Command.Group
                     heading="Akses cepat"
-                    className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
+                    className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                   >
                     {shortcutDocs.map((doc) => {
                       const Icon = groupIcon(doc.group);
@@ -249,7 +249,7 @@ export function CommandMenuProvider({ children }: { children: React.ReactNode })
                       <Command.Group
                         key={g}
                         heading={g}
-                        className="mt-2 first:mt-0 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:pt-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
+                        className="mt-2 first:mt-0 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:pt-1 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                       >
                         {items.map((doc) => (
                           <Command.Item
@@ -270,7 +270,7 @@ export function CommandMenuProvider({ children }: { children: React.ReactNode })
                     );
                   })}
               </Command.List>
-              <p className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
+              <p className="border-t border-border px-3 py-2 text-body-xs text-muted-foreground">
                 Pencarian fuzzy berbobot pada judul, isi materi &amp; teks soal.{" "}
                 <span className="text-foreground/80">Enter</span> untuk membuka.
               </p>

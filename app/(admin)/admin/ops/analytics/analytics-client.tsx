@@ -103,7 +103,7 @@ export function AiAnalyticsClient() {
     return (
       <div className="space-y-8">
         <div className="rounded-xl border border-border bg-muted/40 p-10 text-center">
-          <p className="text-h6 font-heading font-semibold text-foreground">
+          <p className="text-body-base font-heading font-semibold text-foreground">
             No model requests recorded yet
           </p>
           <p className="mt-2 text-body-sm text-muted-foreground">
@@ -227,7 +227,7 @@ export function AiAnalyticsClient() {
 
       {/* Recent request log ───────────────────────────────────────────────── */}
       <div>
-        <h2 className="font-heading text-h6 font-semibold text-foreground mb-4">
+        <h2 className="font-heading text-body-base font-semibold text-foreground mb-4">
           Recent Requests
         </h2>
         <div className="overflow-x-auto rounded-xl border border-border">

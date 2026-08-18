@@ -86,7 +86,7 @@ export default async function CoursesPage() {
                       </span>
                     )}
                   </div>
-                  <h2 className="mt-2 font-heading text-h5 font-bold text-foreground transition-colors group-hover:text-brand-primary">
+                  <h2 className="mt-2 font-heading text-body-base font-bold text-foreground transition-colors group-hover:text-brand-primary">
                     {c.title}
                   </h2>
                   <p className="mt-1.5 max-w-3xl text-body-sm leading-relaxed text-muted-foreground">

@@ -631,7 +631,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
           <span className="inline-block rounded-md bg-status-warning/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-status-warning">
             Formulir Ditutup
           </span>
-          <h1 className="font-heading text-h4 font-bold text-foreground">{form.title}</h1>
+          <h1 className="font-heading text-h5 font-bold text-foreground">{form.title}</h1>
           <p className="text-body-sm text-muted-foreground whitespace-pre-line border-t border-border/40 pt-4">
             {closedReason || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan baru."}
           </p>
@@ -657,7 +657,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
             <Check className="size-8 stroke-[2.5]" />
           </div>
           <div className="space-y-2">
-            <h1 className="font-heading text-h4 font-bold text-foreground">Terima Kasih!</h1>
+            <h1 className="font-heading text-h5 font-bold text-foreground">Terima Kasih!</h1>
             <p className="text-body-sm text-muted-foreground whitespace-pre-line">
               {submittedMessage}
             </p>
@@ -736,12 +736,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                   {form.category}
                 </div>
 
-                <h1 className="font-heading text-h3 sm:text-h2 font-bold text-foreground tracking-tight leading-tight">
+                <h1 className="font-heading text-h5 font-bold text-foreground tracking-tight leading-tight">
                   <MathText as="span">{form.title}</MathText>
                 </h1>
 
                 {form.description && (
-                  <div className="text-body-base sm:text-body-md text-muted-foreground whitespace-pre-line leading-relaxed">
+                  <div className="text-body-base text-muted-foreground whitespace-pre-line leading-relaxed">
                     <MathText as="div">{form.description}</MathText>
                   </div>
                 )}
@@ -784,7 +784,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     <span>*</span>
                     <span>Identifikasi Responden</span>
                   </div>
-                  <h2 className="font-heading text-h4 sm:text-h3 font-semibold text-foreground leading-snug">
+                  <h2 className="font-heading text-body-base font-semibold text-foreground leading-snug">
                     Alamat Email Anda
                   </h2>
                   <p className="text-body-sm text-muted-foreground">
@@ -803,7 +803,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                       if (emailError) setEmailError(null);
                     }}
                     placeholder="nama@email.com"
-                    className="w-full bg-transparent border-b-2 border-border/80 focus:border-brand-primary pb-3 font-heading text-h5 sm:text-h4 text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
+                    className="w-full bg-transparent border-b-2 border-border/80 focus:border-brand-primary pb-3 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                   />
                   {emailError && (
                     <p className="flex items-center gap-1.5 text-body-xs font-semibold text-destructive pt-1">
@@ -849,12 +849,12 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                     Bagian Baru
                   </div>
 
-                  <h2 className="font-heading text-h3 sm:text-h2 font-bold text-foreground tracking-tight leading-tight">
+                  <h2 className="font-heading text-body-base font-bold text-foreground tracking-tight leading-tight">
                     <MathText as="span">{q.title || "Bagian Formulir"}</MathText>
                   </h2>
 
                   {q.description && (
-                    <div className="text-body-base sm:text-body-md text-muted-foreground whitespace-pre-line leading-relaxed">
+                    <div className="text-body-base text-muted-foreground whitespace-pre-line leading-relaxed">
                       <MathText as="div">{q.description}</MathText>
                     </div>
                   )}
@@ -944,7 +944,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                       )}
                     </div>
 
-                    <h2 className="font-heading text-h4 sm:text-h3 font-semibold text-foreground leading-snug">
+                    <h2 className="font-heading text-body-base font-semibold text-foreground leading-snug">
                       <MathText as="span">{q.title}</MathText>
                     </h2>
 
@@ -988,7 +988,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
                           placeholder="Ketik jawaban Anda di sini..."
-                          className="w-full bg-transparent border-b-2 border-border/80 focus:border-brand-primary pb-3 font-heading text-h5 sm:text-h4 text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
+                          className="w-full bg-transparent border-b-2 border-border/80 focus:border-brand-primary pb-3 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                         />
                       </div>
                     )}
@@ -1003,7 +1003,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
                           placeholder="Tuliskan jawaban lengkap Anda di sini..."
-                          className="w-full rounded-xl border border-input bg-card/60 p-4 text-body-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground/40 resize-y leading-relaxed"
+                          className="w-full rounded-xl border border-input bg-card/60 p-4 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground/40 resize-y leading-relaxed"
                         />
                         <p className="text-body-xs text-muted-foreground">
                           Gunakan <strong className="font-semibold text-foreground">Shift + Enter</strong> untuk membuat baris baru.
@@ -1044,7 +1044,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                 >
                                   {letter}
                                 </span>
-                                <span className="text-body-base font-medium">{opt}</span>
+                                <span className="text-body-sm font-medium">{opt}</span>
                               </div>
                               {isSelected && <Check className="size-5 text-brand-primary shrink-0" />}
                             </button>
@@ -1072,7 +1072,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                 >
                                   {OPTION_LETTERS[q.options?.length || 0] || "•"}
                                 </span>
-                                <span className="text-body-base font-medium">
+                                <span className="text-body-sm font-medium">
                                   {q.otherOption.label || "Lainnya"}
                                 </span>
                               </div>
@@ -1089,7 +1089,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                   setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
                                 }}
                                 placeholder="Tuliskan rincian jawaban Anda..."
-                                className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-h6 text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
+                                className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                               />
                             )}
                           </div>
@@ -1129,7 +1129,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                 >
                                   {letter}
                                 </span>
-                                <span className="text-body-base font-medium">{opt}</span>
+                                <span className="text-body-sm font-medium">{opt}</span>
                               </div>
                               <div
                                 className={`size-5 rounded-md border flex items-center justify-center transition-colors ${
@@ -1180,7 +1180,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                       >
                                         {OPTION_LETTERS[q.options?.length || 0] || "•"}
                                       </span>
-                                      <span className="text-body-base font-medium">
+                                      <span className="text-body-sm font-medium">
                                         {q.otherOption?.label || "Lainnya"}
                                       </span>
                                     </div>
@@ -1205,7 +1205,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                         setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
                                       }}
                                       placeholder="Tuliskan rincian jawaban lainnya..."
-                                      className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-h6 text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
+                                      className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                                     />
                                   )}
                                 </>
@@ -1228,7 +1228,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                             }
                           }}
                         >
-                          <SelectTrigger className="w-full h-12 text-body-base font-medium rounded-xl">
+                          <SelectTrigger className="w-full h-12 text-body-sm font-medium rounded-xl">
                             <SelectValue placeholder="Pilih salah satu opsi..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -1255,7 +1255,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                               setOtherTexts((prev) => ({ ...prev, [qIdx]: e.target.value }));
                             }}
                             placeholder="Tuliskan rincian jawaban Anda..."
-                            className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-h6 text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
+                            className="w-full bg-transparent border-b-2 border-brand-primary pb-2 font-heading text-body-sm text-foreground focus:outline-none placeholder:text-muted-foreground/40 transition-colors"
                           />
                         )}
                       </div>
@@ -1287,7 +1287,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                 <div className="size-12 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                                   <UploadCloud className="size-6" />
                                 </div>
-                                <p className="text-body-base font-semibold text-foreground">
+                                <p className="text-body-sm font-semibold text-foreground">
                                   Klik atau Seret Berkas ke Sini
                                 </p>
                                 <p className="text-body-xs text-muted-foreground">
@@ -1347,7 +1347,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                                   handleAnswerChange(qIdx, num.toString());
                                   setTimeout(() => goToNextStep(), 180);
                                 }}
-                                className={`h-14 rounded-xl border font-heading text-h5 font-bold transition-all cursor-pointer flex items-center justify-center ${
+                                className={`h-14 rounded-xl border font-heading text-body-sm font-bold transition-all cursor-pointer flex items-center justify-center ${
                                   isSelected
                                     ? "border-brand-primary bg-brand-primary text-white shadow-sm scale-105"
                                     : "border-border bg-card hover:border-brand-primary/60 hover:bg-muted text-foreground"
@@ -1461,7 +1461,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                           required={q.required}
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
-                          className="w-full rounded-xl border border-input bg-card px-4 py-3 text-body-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="w-full rounded-xl border border-input bg-card px-4 py-3 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                       </div>
                     )}
@@ -1476,7 +1476,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                           required={q.required}
                           value={answerVal || ""}
                           onChange={(e) => handleAnswerChange(qIdx, e.target.value)}
-                          className="w-full rounded-xl border border-input bg-card px-4 py-3 text-body-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="w-full rounded-xl border border-input bg-card px-4 py-3 text-body-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                       </div>
                     )}
@@ -1515,7 +1515,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                   <span className="inline-block rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
                     Tahap Akhir
                   </span>
-                  <h2 className="font-heading text-h3 sm:text-h2 font-bold text-foreground">
+                  <h2 className="font-heading text-body-base font-bold text-foreground">
                     Tinjau Jawaban Anda
                   </h2>
                   <p className="text-body-sm text-muted-foreground">

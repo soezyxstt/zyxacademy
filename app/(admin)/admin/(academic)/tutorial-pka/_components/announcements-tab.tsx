@@ -193,7 +193,7 @@ export function AnnouncementsTab({ history }: { history: PkaAnnouncementRow[] })
           <div className="p-5">
             {title || body ? (
               <div className="space-y-3">
-                <h4 className="font-heading text-h6 text-foreground">{title || "Judul pengumuman"}</h4>
+                <h4 className="font-heading text-body-base text-foreground">{title || "Judul pengumuman"}</h4>
                 {body ? (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <MarkdownRenderer content={body} />

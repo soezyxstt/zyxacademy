@@ -51,13 +51,13 @@ export default function SignOutPage() {
   return (
     <Reveal className="marketing-container flex min-h-[50vh] flex-col items-center justify-center py-16">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
-        <h1 className="font-heading text-h3 font-bold text-foreground">
+        <h1 className="font-heading text-h5 font-bold text-foreground">
           Sign out
         </h1>
         <div
           id={liveId}
           aria-live="polite"
-          className="mt-3 min-h-6 text-body-md text-muted-foreground"
+          className="mt-3 min-h-6 text-body-base text-muted-foreground"
         >
           <p className={status === "error" ? "text-status-error" : undefined}>
             {statusMessage}

@@ -234,7 +234,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-body-sm font-bold text-white shadow-xs">
               {index + 1}
             </span>
-            <h2 className="font-heading text-body-lg font-bold text-foreground leading-snug md:text-h5">
+            <h2 className="font-sans text-body-base font-bold text-foreground leading-snug">
               <MathText>{q.prompt}</MathText>
             </h2>
           </div>
@@ -360,7 +360,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                       />
                       <UploadCloud className="size-8 text-muted-foreground mb-2" />
                       <p className="text-body-xs font-bold text-foreground">Klik atau Seret Berkas di sini</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Mendukung PDF, PNG, JPG (Maks. 10 MB)</p>
+                      <p className="text-body-xs text-muted-foreground mt-1">Mendukung PDF, PNG, JPG (Maks. 10 MB)</p>
                     </div>
                   ) : null}
 
@@ -377,7 +377,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                           style={{ width: `${uploadProgress[q.id]}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-muted-foreground">Menyimpan langsung ke Cloudflare R2 Object Storage...</p>
+                      <p className="text-body-xs text-muted-foreground">Menyimpan langsung ke Cloudflare R2 Object Storage...</p>
                     </div>
                   ) : null}
 
@@ -426,7 +426,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               </span>
             </label>
 
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <span className="text-body-xs text-muted-foreground flex items-center gap-1">
               <CheckCircle2 className="size-3 text-status-success" />
               Progress ujian tersimpan aman
             </span>
@@ -543,7 +543,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               variant="outline"
               disabled={isSubmitting}
               onClick={() => setShowConfirmModal(true)}
-              className="h-9 w-full rounded-md border-border/80 text-[13px] font-semibold text-foreground hover:bg-muted"
+              className="h-9 w-full rounded-md border-border/80 text-body-sm font-semibold text-foreground hover:bg-muted"
             >
               Kumpulkan Ujian
             </Button>
@@ -555,7 +555,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
           <AlertCircle className="size-5 text-brand-secondary shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h4 className="text-body-xs font-bold text-foreground">Kumpulkan Sesuai Waktu</h4>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
+            <p className="text-body-xs text-muted-foreground leading-relaxed">
               Pastikan Anda mengklik <b>Kumpulkan Jawaban</b> sebelum sisa waktu habis. Sistem akan mengumpulkan lembar jawaban otomatis saat waktu habis.
             </p>
           </div>
@@ -567,10 +567,10 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
         <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               Kumpulkan Lembar Jawaban Tryout?
             </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground mt-1.5">
+            <DialogDescription className="text-body-xs text-muted-foreground mt-1.5">
               Periksa kembali ringkasan pengerjaan sebelum mengumpulkan lembar jawaban Anda.
             </DialogDescription>
           </DialogHeader>
@@ -578,11 +578,11 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
           <div className="my-2 space-y-3">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-xl border border-border bg-muted/30 p-2.5">
-                <span className="block text-[11px] font-semibold text-muted-foreground uppercase">Total Soal</span>
+                <span className="block text-body-xs font-semibold text-muted-foreground uppercase">Total Soal</span>
                 <span className="font-heading text-body-base font-bold text-foreground">{sorted.length}</span>
               </div>
               <div className="rounded-xl border border-tertiary-1/30 bg-tertiary-1/10 p-2.5">
-                <span className="block text-[11px] font-semibold text-tertiary-1 uppercase">Terjawab</span>
+                <span className="block text-body-xs font-semibold text-tertiary-1 uppercase">Terjawab</span>
                 <span className="font-heading text-body-base font-bold text-tertiary-1">{answeredCount}</span>
               </div>
               <div
@@ -593,7 +593,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                     : "border-border bg-muted/30 text-muted-foreground"
                 )}
               >
-                <span className="block text-[11px] font-semibold uppercase">Kosong</span>
+                <span className="block text-body-xs font-semibold uppercase">Kosong</span>
                 <span className="font-heading text-body-base font-bold">{unansweredCount}</span>
               </div>
             </div>
@@ -617,7 +617,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
             </div>
 
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-body-xs text-muted-foreground">
               Setelah dikumpulkan, lembar jawaban akan diserahkan untuk dinilai dan tidak dapat disunting kembali.
             </p>
           </div>

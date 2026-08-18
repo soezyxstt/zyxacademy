@@ -42,7 +42,7 @@ export default async function AdminNotificationsPage() {
  <div className="lg:col-span-3">
  <div className="mb-3 flex items-center gap-2">
  <Bell className="size-4 text-brand-primary" aria-hidden />
- <h2 className="font-heading text-h6 font-semibold text-foreground">
+ <h2 className="font-heading text-body-base font-semibold text-foreground">
  Kirim Notifikasi
  </h2>
  </div>
@@ -87,7 +87,7 @@ export default async function AdminNotificationsPage() {
  <div className="mt-10">
  <div className="mb-3 flex items-center gap-2">
  <History className="size-4 text-muted-foreground" aria-hidden />
- <h2 className="font-heading text-h6 font-semibold text-foreground">
+ <h2 className="font-heading text-body-base font-semibold text-foreground">
  Riwayat Notifikasi
  </h2>
  </div>

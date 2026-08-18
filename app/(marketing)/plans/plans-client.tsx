@@ -105,7 +105,7 @@ export default function PlansClient() {
               <h2 className="font-heading text-body-base font-bold text-foreground">
                 Sesuaikan Rencana Belajar
               </h2>
-              <p className="hidden md:block text-xs text-muted-foreground mt-0.5">
+              <p className="hidden md:block text-body-xs text-muted-foreground mt-0.5">
                 Sesuaikan anggota kelompok & mata kuliah secara real-time
               </p>
             </div>
@@ -176,7 +176,7 @@ export default function PlansClient() {
               {/* Subject Toggle Button */}
               <button
                 onClick={() => setShowSubjects(!showSubjects)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-body-xs font-semibold border transition-all ${
                   showSubjects
                     ? "bg-primary text-primary-foreground border-primary shadow-xs"
                     : "bg-muted/80 hover:bg-muted text-foreground border-border/80"
@@ -197,12 +197,12 @@ export default function PlansClient() {
         <div className="relative z-20 w-full border-b border-border bg-card p-4 shadow-inner animate-in fade-in slide-in-from-top-3 duration-200">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <h3 className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Mata Kuliah Yang Dicover ({courses}/{MAX_COURSES})
               </h3>
               <button 
                 onClick={() => setShowSubjects(false)}
-                className="text-xs text-primary font-semibold hover:underline"
+                className="text-body-xs text-primary font-semibold hover:underline"
               >
                 Tutup
               </button>
@@ -217,7 +217,7 @@ export default function PlansClient() {
                     return (
                       <div
                         key={subject}
-                        className="inline-flex items-center rounded-md border border-[var(--zx-accent)]/20 bg-[var(--zx-accent)]/10 text-[var(--zx-accent)] text-xs font-medium overflow-hidden shadow-xs transition-all duration-300"
+                        className="inline-flex items-center rounded-md border border-[var(--zx-accent)]/20 bg-[var(--zx-accent)]/10 text-[var(--zx-accent)] text-body-xs font-medium overflow-hidden shadow-xs transition-all duration-300"
                       >
                         <button
                           onClick={() => {
@@ -256,7 +256,7 @@ export default function PlansClient() {
                           setOtherCoursesCount(1);
                         }}
                         disabled={courses >= MAX_COURSES}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all duration-300 border border-transparent bg-muted/30 text-muted-foreground/50 hover:bg-muted/60 hover:text-foreground hover:border-border/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-body-xs font-medium transition-all duration-300 border border-transparent bg-muted/30 text-muted-foreground/50 hover:bg-muted/60 hover:text-foreground hover:border-border/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
                       >
                         {subject}
                       </button>
@@ -279,7 +279,7 @@ export default function PlansClient() {
                       }
                     }}
                     disabled={!isActive && courses >= MAX_COURSES}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all duration-300 border focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-body-xs font-medium transition-all duration-300 border focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ${
                       isActive
                         ? "bg-[var(--zx-accent)]/10 text-[var(--zx-accent)] border-[var(--zx-accent)]/20 hover:bg-[var(--zx-accent)]/20 shadow-xs"
                         : "bg-muted/30 text-muted-foreground/50 border-transparent hover:bg-muted/60 hover:text-foreground hover:border-border/50"
@@ -336,11 +336,11 @@ export default function PlansClient() {
                   ) : null}
 
                   <div className="flex-1">
-                    <SectionHeading as="h3" tier="secondary" className="text-card-foreground text-xl font-bold font-heading">
+                    <SectionHeading as="h3" tier="secondary" className="text-card-foreground font-bold font-heading">
                       {tier.name}
                     </SectionHeading>
                     
-                    <p className="mt-2 text-xs text-muted-foreground min-h-[32px]">
+                    <p className="mt-2 text-body-xs text-muted-foreground min-h-[32px]">
                       {tier.note}
                     </p>
 

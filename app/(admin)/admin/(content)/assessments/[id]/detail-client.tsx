@@ -313,7 +313,7 @@ export function AssessmentDetailClient({
               )}
             </div>
             {source.originalFilename && (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-body-xs text-muted-foreground">
                 File Asli: <span className="font-semibold">{source.originalFilename}</span>
               </span>
             )}
@@ -326,7 +326,7 @@ export function AssessmentDetailClient({
             <AlertTriangle size={18} className="text-status-error mt-0.5" />
             <div>
               <p className="text-body-sm font-semibold text-status-error">Kesalahan Penguraian Ingest:</p>
-              <p className="text-body-sm text-muted-foreground mt-1 font-mono text-[12px] bg-background/50 p-2 rounded">
+                    <p className="text-body-sm text-muted-foreground mt-1 font-mono bg-background/50 p-2 rounded">
                 {source.ingestionError}
               </p>
             </div>
@@ -383,7 +383,7 @@ export function AssessmentDetailClient({
                 {/* Question Metadata Header */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 mb-4">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="font-heading font-semibold text-[11px]">
+                    <Badge variant="secondary" className="font-heading font-semibold text-body-xs">
                       Soal {q.sourceQuestionNumber || q.questionOrder}
                     </Badge>
                     <Badge variant="outline" className="text-[10px] font-mono select-all flex items-center gap-0.5">
@@ -444,12 +444,12 @@ export function AssessmentDetailClient({
                   {/* Tagged Concepts */}
                   {questionConcepts[q.id] && (
                     <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/40 mt-4">
-                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <span className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                         <Tag size={12} />
                         Konsep Terpaut:
                       </span>
                       {questionConcepts[q.id].map((concept, idx) => (
-                        <Badge key={idx} className="bg-primary/10 text-primary hover:bg-primary/20 border-0 font-medium text-[11px]">
+                        <Badge key={idx} className="bg-primary/10 text-primary hover:bg-primary/20 border-0 font-medium text-body-xs">
                           {concept}
                         </Badge>
                       ))}
@@ -464,11 +464,11 @@ export function AssessmentDetailClient({
         {/* Tab content: Raw Markdown view */}
         <TabsContent value="markdown">
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="font-heading text-h6 font-semibold mb-4 flex items-center gap-2">
+            <h3 className="font-heading text-body-base font-semibold mb-4 flex items-center gap-2">
               <FileText size={18} className="text-muted-foreground" />
               Konten Canonical Markdown Asli
             </h3>
-            <div className="bg-background border border-border/80 rounded-lg p-4 font-mono text-[12px] overflow-auto max-h-[500px] whitespace-pre-wrap leading-relaxed select-all">
+            <div className="bg-background border border-border/80 rounded-lg p-4 font-mono text-body-xs overflow-auto max-h-[500px] whitespace-pre-wrap leading-relaxed select-all">
               {source.sourceMarkdown}
             </div>
           </div>
@@ -477,7 +477,7 @@ export function AssessmentDetailClient({
         {/* Tab content: Resolved Chapters */}
         <TabsContent value="chapters">
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="font-heading text-h6 font-semibold mb-4 flex items-center gap-2">
+            <h3 className="font-heading text-body-base font-semibold mb-4 flex items-center gap-2">
               <BookOpen size={18} className="text-muted-foreground" />
               Daftar Bab Mata Kuliah Terkait
             </h3>
@@ -501,7 +501,7 @@ export function AssessmentDetailClient({
         {/* Tab content: Ingest Diagnostics */}
         <TabsContent value="diagnostics">
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
-            <h3 className="font-heading text-h6 font-semibold flex items-center gap-2">
+            <h3 className="font-heading text-body-base font-semibold flex items-center gap-2">
               <AlertTriangle size={18} className="text-status-warning" />
               Analisis Peringatan Diagnostik
             </h3>

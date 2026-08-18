@@ -96,7 +96,7 @@ export default async function LeaderboardPage() {
             return (
               <section key={course.id} className={studentCardClass("bg-card/45")}>
                 <div className="mb-6 flex items-center justify-between">
-                  <h2 className="font-heading text-h5 font-bold text-foreground">
+                  <h2 className="font-heading text-body-base font-bold text-foreground">
                     {course.title}
                   </h2>
                   <Link
@@ -128,10 +128,10 @@ export default async function LeaderboardPage() {
                               <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
                                 {p2.name}
                               </div>
-                              <div className="text-body-md font-bold text-slate-600 dark:text-slate-400 mt-1">
+                              <div className="font-heading text-h6 font-bold text-slate-600 dark:text-slate-400 mt-1">
                                 {p2.avgScore}%
                               </div>
-                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                              <div className="text-body-xs text-muted-foreground mt-0.5">
                                 {p2.attempts} kuis
                               </div>
                             </div>
@@ -146,7 +146,7 @@ export default async function LeaderboardPage() {
                         {p1 ? (
                           <div className="w-full flex flex-col items-center">
                             <div className="relative flex flex-col items-center justify-end p-5 rounded-2xl border-2 border-brand-secondary/40 bg-card shadow-md w-full text-center min-h-[170px] hover:border-brand-secondary transition-all">
-                              <div className="absolute -top-7 flex size-11 items-center justify-center rounded-full bg-brand-secondary border-2 border-amber-300 text-white font-bold text-body-md shadow-md shrink-0">
+                              <div className="absolute -top-7 flex size-11 items-center justify-center rounded-full bg-brand-secondary border-2 border-amber-300 text-white font-bold text-body-base shadow-md shrink-0">
                                 🥇
                               </div>
                               <div className="font-heading text-body-sm font-extrabold text-foreground line-clamp-1 w-full px-1">
@@ -155,7 +155,7 @@ export default async function LeaderboardPage() {
                               <div className="text-h6 font-extrabold text-brand-secondary mt-1">
                                 {p1.avgScore}%
                               </div>
-                              <div className="text-[10px] text-muted-foreground font-medium mt-0.5">
+                              <div className="text-body-xs text-muted-foreground font-medium mt-0.5">
                                 {p1.attempts} kuis
                               </div>
                             </div>
@@ -176,10 +176,10 @@ export default async function LeaderboardPage() {
                               <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
                                 {p3.name}
                               </div>
-                              <div className="text-body-md font-bold text-amber-700 dark:text-amber-500 mt-1">
+                              <div className="font-heading text-h6 font-bold text-amber-700 dark:text-amber-500 mt-1">
                                 {p3.avgScore}%
                               </div>
-                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                              <div className="text-body-xs text-muted-foreground mt-0.5">
                                 {p3.attempts} kuis
                               </div>
                             </div>
@@ -196,16 +196,16 @@ export default async function LeaderboardPage() {
                         <table className="w-full text-left text-body-sm">
                           <thead>
                             <tr className="border-b border-border bg-muted/20">
-                              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground w-14">
+                              <th className="px-4 py-3 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground w-14">
                                 #
                               </th>
-                              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              <th className="px-4 py-3 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                 Nama
                               </th>
-                              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">
+                              <th className="px-4 py-3 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">
                                 Rata-rata
                               </th>
-                              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">
+                              <th className="px-4 py-3 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">
                                 Kuis
                               </th>
                             </tr>

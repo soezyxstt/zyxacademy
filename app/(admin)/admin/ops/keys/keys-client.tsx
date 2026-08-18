@@ -133,7 +133,7 @@ export function KeysClient() {
           <div className="flex items-center justify-between border-b border-border bg-muted/50 px-5 py-3">
             <div className="flex items-center gap-3">
               <span className={`size-2.5 rounded-full ${healthy ? "bg-status-success" : "bg-status-error"}`} />
-              <h2 className="font-heading text-h6 font-semibold text-foreground">{keyId}</h2>
+              <h2 className="font-heading text-body-base font-semibold text-foreground">{keyId}</h2>
               <span className={`text-body-sm ${healthy ? "text-status-success" : "text-status-error"}`}>
                 {healthy ? "healthy" : "degraded"}
               </span>
@@ -197,7 +197,7 @@ export function KeysClient() {
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="border-b border-border bg-muted/50 px-5 py-3">
-          <h2 className="font-heading text-h6 font-semibold text-foreground">RPD Limits</h2>
+          <h2 className="font-heading text-body-base font-semibold text-foreground">RPD Limits</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-body-sm">

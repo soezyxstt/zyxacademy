@@ -205,7 +205,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  <div className="space-y-8 font-sans">
  {/* Header */}
  <div>
- <h2 className="font-heading text-h3 font-bold text-foreground">
+ <h2 className="font-heading text-h5 font-bold text-foreground">
  {score}
  <span className="text-body-sm font-normal text-muted-foreground ml-1">/100</span>
  </h2>
@@ -251,7 +251,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  {attempt.remediation && attempt.remediation.concepts.length > 0 && (
  <div className="border-t border-border pt-8 space-y-6">
  <div>
- <h3 className="font-heading text-h6 font-bold text-foreground">Perubahan Penguasaan</h3>
+ <h3 className="font-heading text-body-base font-bold text-foreground">Perubahan Penguasaan</h3>
  <ul className="mt-3 space-y-3">
  {attempt.remediation.concepts.map((c) => (
  <li key={c.conceptName} className="space-y-1">
@@ -285,7 +285,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
 
  {attempt.remediation.rootCauses.length > 0 && (
  <div>
- <h3 className="font-heading text-h6 font-bold text-foreground">Kemungkinan Akar Masalah</h3>
+ <h3 className="font-heading text-body-base font-bold text-foreground">Kemungkinan Akar Masalah</h3>
  <ul className="mt-3 space-y-2 text-body-sm">
  {attempt.remediation.rootCauses.map((rc) => (
  <li key={rc.conceptName}>
@@ -347,7 +347,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  </div>
  <span
  className={cn(
- "text-xs font-semibold px-2 py-0.5 rounded-md border",
+            "text-body-xs font-semibold px-2 py-0.5 rounded-md border",
  isCorrect
  ? "bg-status-success/10 text-status-success border-status-success/20"
  : "bg-status-error/10 text-status-error border-status-error/20"
@@ -459,7 +459,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  {/* Recommended Next Steps */}
  {recommendedNextSteps && recommendedNextSteps.length > 0 && (
  <div className="border-t border-border pt-8">
- <h3 className="font-heading text-h6 font-bold text-foreground">Rekomendasi Langkah Selanjutnya</h3>
+ <h3 className="font-heading text-body-base font-bold text-foreground">Rekomendasi Langkah Selanjutnya</h3>
  <ul className="divide-y divide-border mt-3">
  {recommendedNextSteps.map((item, index) => {
  const Icon = KIND_ICON[item.kind] || BookOpen;

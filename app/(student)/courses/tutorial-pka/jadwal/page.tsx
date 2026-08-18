@@ -31,7 +31,7 @@ export default async function PkaJadwalPage() {
         <Reveal>
           <section className="space-y-3">
           <div className="border-b border-border pb-2">
-            <h2 className="font-heading text-h6 font-bold text-foreground">Sesi tutorial</h2>
+            <h2 className="font-heading text-body-base font-bold text-foreground">Sesi tutorial</h2>
           </div>
 
           {schedules.length === 0 ? (

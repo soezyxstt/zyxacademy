@@ -194,7 +194,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
           <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary mb-5 border border-brand-primary/20">
             <BookOpen className="size-6" />
           </div>
-          <h3 className="font-heading text-body-lg font-bold text-foreground">Belum Ada Kuis</h3>
+          <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Kuis</h3>
           <p className="text-body-sm text-muted-foreground max-w-sm mx-auto mt-2 leading-relaxed">
             Mulai susun kuis evaluasi untuk menguji pemahaman mahasiswa.
           </p>
@@ -255,7 +255,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     </div>
                   </div>
 
-                  <h3 className="mt-3.5 font-heading text-body-md font-bold text-foreground leading-snug group-hover:text-brand-primary transition-colors">
+                  <h3 className="mt-3.5 font-heading text-body-base font-bold text-foreground leading-snug group-hover:text-brand-primary transition-colors">
                     {template.title}
                   </h3>
 
@@ -313,7 +313,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                   {/* Schedule & Manual Status Section */}
                   <div className="mt-3 pt-3 border-t border-border/40 space-y-2 text-body-sm">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <span className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider">
                         Akses Kuis:
                       </span>
                       <span
@@ -335,7 +335,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     </div>
 
                     {template.manualStatus === "scheduled" && (template.openAt || template.closeAt) && (
-                      <div className="text-[11px] text-muted-foreground bg-muted/30 p-2 rounded-md border border-border/40 space-y-1">
+                      <div className="text-body-xs text-muted-foreground bg-muted/30 p-2 rounded-md border border-border/40 space-y-1">
                         {template.openAt && (
                           <div className="flex justify-between">
                             <span>Buka:</span>
@@ -409,12 +409,12 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border/40">
                       <Label
                         htmlFor={`quiz-discussion-${template.id}`}
-                        className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider cursor-pointer"
+                        className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider cursor-pointer"
                       >
                         Pembahasan:
                       </Label>
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-medium text-foreground">
+                        <span className="text-body-xs font-medium text-foreground">
                           {template.showDiscussion ? "Buka" : "Kunci"}
                         </span>
                         <Switch
@@ -438,7 +438,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1 font-semibold text-xs h-8 px-2 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary border-border/80"
+                      className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1 font-semibold text-body-sm h-8 px-2 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary border-border/80"
                       onClick={() => handleOpenPreviewTpl(template)}
                     >
                       <Eye className="size-3.5" />
@@ -448,7 +448,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                       asChild
                       variant="outline"
                       size="sm"
-                      className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1 font-semibold text-xs h-8 px-2.5 border-border/80 text-foreground hover:bg-muted"
+                      className="rounded-lg shrink-0 cursor-pointer shadow-xs gap-1 font-semibold text-body-sm h-8 px-2.5 border-border/80 text-foreground hover:bg-muted"
                     >
                       <Link href={`/admin/quizzes/${template.id}/edit`}>
                         <Edit className="size-3.5" />
@@ -487,7 +487,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               Pratinjau Kuis: {previewTpl?.title}
             </DialogTitle>
             <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">

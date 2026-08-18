@@ -30,7 +30,7 @@ export default async function WebAnalyticsPage() {
       {!metrics ? (
         <div className="rounded-xl border border-status-warning/20 bg-status-warning/10 p-6 flex flex-col items-center justify-center text-center">
           <AlertCircle className="size-8 text-status-warning mb-3" />
-          <h2 className="text-body-lg font-semibold text-foreground">Data Tidak Tersedia</h2>
+          <h2 className="font-heading text-body-base font-semibold text-foreground">Data Tidak Tersedia</h2>
           <p className="mt-1 text-body-sm text-muted-foreground max-w-md">
             Gagal mengambil data dari Google Analytics 4. Pastikan kredensial service account (GA_CLIENT_EMAIL, GA_PRIVATE_KEY) dan GA_PROPERTY_ID telah dikonfigurasi dengan benar di environment variables.
           </p>
@@ -86,7 +86,7 @@ export default async function WebAnalyticsPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="mb-6 font-heading text-h5 font-bold text-foreground">
+            <h2 className="mb-6 font-heading text-body-base font-bold text-foreground">
               Tren Pengunjung
             </h2>
             <WebAnalyticsCharts data={metrics.dailyData} />
@@ -94,7 +94,7 @@ export default async function WebAnalyticsPage() {
 
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6">
-              <h2 className="font-heading text-h5 font-bold text-foreground">
+              <h2 className="font-heading text-body-base font-bold text-foreground">
                 Halaman Terpopuler
               </h2>
             </div>

@@ -49,7 +49,7 @@ export function DemoFrame({
         {title ? (
           <span
             className={cn(
-              "ml-1 truncate text-[11px] font-semibold uppercase tracking-wider",
+              "ml-1 truncate text-body-xs font-semibold uppercase tracking-wider",
               dark ? "text-white/60" : "text-muted-foreground",
             )}
           >
@@ -59,7 +59,7 @@ export function DemoFrame({
         {meta ? (
           <span
             className={cn(
-              "ml-auto flex shrink-0 items-center gap-2 text-[11px] font-medium",
+              "ml-auto flex shrink-0 items-center gap-2 text-body-xs font-medium",
               dark ? "text-white/60" : "text-muted-foreground",
             )}
           >

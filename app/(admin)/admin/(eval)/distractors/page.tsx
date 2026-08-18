@@ -74,7 +74,7 @@ export default async function DistractorAnalyticsPage() {
             return (
               <div key={id} className="space-y-3 border-b border-border pb-6">
                 <div className="flex items-start justify-between gap-4">
-                  <MathText className="text-body-md font-semibold text-foreground block" as="div">{q.prompt}</MathText>
+                  <MathText className="text-body-base font-semibold text-foreground block" as="div">{q.prompt}</MathText>
                   <span className="shrink-0 text-body-sm text-muted-foreground">
                     {agg.total} jawaban
                   </span>

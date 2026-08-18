@@ -234,7 +234,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-body-sm font-semibold text-foreground">{r.fullName}</span>
-                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-body-xs font-medium text-muted-foreground">
                         {r.faculty}
                       </span>
                     </div>

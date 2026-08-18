@@ -424,8 +424,8 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6">Unggah Asesmen Historis</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogTitle className="font-heading text-body-base">Unggah Asesmen Historis</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Unggah berkas asesmen canonical markdown. Konsep dan metadata soal akan diekstrak secara otomatis.
             </DialogDescription>
           </DialogHeader>
@@ -465,7 +465,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
             <div className="space-y-2">
               <label className="text-body-sm font-medium text-foreground flex items-center justify-between">
                 <span>Original PDF File (Optional untuk Provenance)</span>
-                {pdfFileName && <span className="text-[11px] text-status-success">{pdfFileName}</span>}
+                {pdfFileName && <span className="text-body-xs text-status-success">{pdfFileName}</span>}
               </label>
               <div className="flex gap-2 items-center">
                 <Input

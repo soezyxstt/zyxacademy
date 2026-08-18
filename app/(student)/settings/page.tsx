@@ -11,7 +11,7 @@ export default function SettingsPage() {
   return (
     <ShellPage title="Settings">
       <div className="rounded-2xl border border-border bg-card p-10 shadow-sm">
-        <p className="text-body-md text-muted-foreground">
+        <p className="text-body-base text-muted-foreground">
           Pengaturan preferensi akun dan tema.
         </p>
       </div>

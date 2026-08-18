@@ -11,7 +11,7 @@ export default function CalendarPage() {
   return (
     <ShellPage title="Calendar">
       <div className="rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
-        <p className="text-body-md text-muted-foreground">
+        <p className="text-body-base text-muted-foreground">
           Belum ada jadwal kegiatan.
         </p>
       </div>

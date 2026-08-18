@@ -130,7 +130,7 @@ export function FlagsClient() {
         <div className="flex items-center gap-3">
           <XCircle className="size-6 shrink-0 text-status-error" />
           <div>
-            <p className="font-heading text-h6 font-semibold text-foreground">Gagal memuat data feature flag</p>
+          <p className="font-heading text-body-base font-semibold text-foreground">Gagal memuat data feature flag</p>
             <p className="mt-1 text-body-sm text-muted-foreground">
               {error instanceof Error ? error.message : "Terjadi kesalahan koneksi sistem"}
             </p>
@@ -371,7 +371,7 @@ export function FlagsClient() {
         <div className="border-b border-border bg-muted/30 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap className="size-4 text-brand-primary" />
-            <h2 className="font-heading text-h6 font-semibold text-foreground">
+            <h2 className="font-heading text-body-base font-semibold text-foreground">
               Daftar Feature Flag ({filteredFlags.length})
             </h2>
           </div>
@@ -430,7 +430,7 @@ export function FlagsClient() {
                   {/* Info Column */}
                   <div className="min-w-0 flex-1 space-y-2 text-left items-start">
                     <div className="flex flex-wrap items-center justify-start gap-2 text-left">
-                      <span className="font-heading text-h6 font-semibold text-foreground text-left">
+                      <span className="font-heading text-body-base font-semibold text-foreground text-left">
                         {flag.name}
                       </span>
                       <span className="rounded-md border border-border bg-muted/60 px-2 py-0.5 text-body-xs font-semibold text-muted-foreground">
@@ -464,7 +464,7 @@ export function FlagsClient() {
                   {/* Status & Value Column */}
                   <div className="flex shrink-0 items-center justify-start gap-4 self-start md:self-center border-t md:border-t-0 border-border/40 pt-3 md:pt-0 text-left">
                     <div className="text-left">
-                      <span className="text-[11px] font-medium text-muted-foreground block text-left">
+                      <span className="text-body-xs font-medium text-muted-foreground block text-left">
                         Nilai env:
                       </span>
                       <code className="font-mono text-body-xs font-semibold text-foreground">

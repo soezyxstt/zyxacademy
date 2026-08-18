@@ -49,7 +49,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
               type="button"
               onClick={() => setFilter(option.value)}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
+                "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-body-sm font-semibold transition-colors cursor-pointer",
                 filter === option.value
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground",
@@ -58,7 +58,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
               <span>{option.label}</span>
               <span
                 className={cn(
-                  "text-[11px]",
+                  "text-body-xs",
                   filter === option.value ? "text-primary-foreground/80" : "text-muted-foreground",
                 )}
               >
@@ -189,7 +189,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                     <h3 className="truncate font-heading text-body-base font-semibold text-foreground">
                       {template.title}
                     </h3>
-                    <span className="text-[11px] px-1.5 py-0.5 rounded-sm bg-muted text-muted-foreground capitalize">
+                    <span className="text-body-xs px-1.5 py-0.5 rounded-sm bg-muted text-muted-foreground capitalize">
                       {template.category}
                     </span>
                   </div>
@@ -208,7 +208,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
 
                   {/* Status indicators */}
                   {accessible && (
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    <div className="mt-2 flex flex-wrap gap-2 text-body-xs">
                       {activeAttempt && !isClosed && (
                         <span className="inline-flex items-center gap-1 text-amber-500 font-medium">
                           <AlertCircle className="size-3.5" />
@@ -247,7 +247,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
 
                 <span
                   className={cn(
-                    "inline-flex w-fit items-center gap-1 rounded-md px-2.5 py-0.5 text-xs font-semibold ring-1",
+                    "inline-flex w-fit items-center gap-1 rounded-md px-2.5 py-0.5 text-body-xs font-semibold ring-1",
                     isFree
                       ? "bg-status-success/10 text-status-success ring-status-success/20"
                       : "bg-brand-primary/10 text-brand-primary ring-brand-primary/20",
