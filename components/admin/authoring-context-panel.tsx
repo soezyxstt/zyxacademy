@@ -84,10 +84,8 @@ export function AuthoringContextPanel({ initialExports, courses }: { initialExpo
           <section className="space-y-4">
             <AdminSectionTitle
               as="h2"
-              size="h6"
               icon={ShieldCheck}
               title="Buat Authoring Context Pack"
-              description="Gunakan setelah Idea Bundle selesai ditinjau dan diterbitkan. Snapshot dan run ID dibuat otomatis."
             />
             <div className="space-y-2 rounded-xl border border-border bg-card p-4 shadow-sm">
               <Label htmlFor="context-course">Mata kuliah</Label>
@@ -97,7 +95,6 @@ export function AuthoringContextPanel({ initialExports, courses }: { initialExpo
                   {courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} ; {course.title}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="text-body-xs text-muted-foreground">Pack memuat Ideas terbit dan sumber aman untuk penulisan produk.</p>
             </div>
             <Button type="button" disabled={!courseId || loading} isLoading={loading} onClick={() => void exportPack()}>
               <Download className="size-4" />
@@ -113,7 +110,7 @@ export function AuthoringContextPanel({ initialExports, courses }: { initialExpo
           </section>
 
           <section className="space-y-3">
-            <AdminSectionTitle as="h2" size="h6" border title="Riwayat Context Pack" />
+            <AdminSectionTitle as="h2" border title="Riwayat Context Pack" right={<span className="text-body-xs text-muted-foreground">{exports.length} pack</span>} />
             <AdminTable className="divide-y divide-border">
               {exports.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada pack.</p>}
               {exports.map((item) => {
@@ -121,9 +118,9 @@ export function AuthoringContextPanel({ initialExports, courses }: { initialExpo
                 return (
                   <div key={item.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0 space-y-1">
-                      <p className="font-semibold text-foreground">{item.packId}</p>
-                      <p className="break-all font-mono text-body-sm text-muted-foreground">{item.artifactChecksum ?? "checksum tidak tersedia"}</p>
-                      <p className="text-body-sm text-muted-foreground">{course ? `${course.code} ; ${course.title}` : "Mata kuliah tidak tersedia"} ; berlaku sampai {item.retentionUntil ?? "tidak diketahui"}</p>
+                      <p className="text-body-sm font-semibold text-foreground">{item.packId}</p>
+                      <p className="break-all font-mono text-body-xs text-muted-foreground">{item.artifactChecksum ?? "checksum tidak tersedia"}</p>
+                      <p className="text-body-xs text-muted-foreground">{course ? `${course.code} ; ${course.title}` : "Mata kuliah tidak tersedia"} ; berlaku sampai {item.retentionUntil ?? "tidak diketahui"}</p>
                     </div>
                     <Button asChild size="sm" variant="outline">
                       <a href={`/api/admin/authoring-context/${encodeURIComponent(item.packId)}`}><Download className="size-4" />Unduh</a>

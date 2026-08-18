@@ -72,13 +72,12 @@ export default function DetailedMeetingLogPage({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <AdminPageHeader
         icon={Video}
-        title="Detail Log & Analytics Meeting"
-        description={`ID Record: conferenceRecords/${conferenceRecordId}`}
+        title="Detail log meeting"
         backHref="/admin/meet"
-        backLabel="Kembali ke Operational Meet"
+        backLabel="Kembali ke Meet"
         actions={
           <Button
             type="button"
@@ -88,7 +87,7 @@ export default function DetailedMeetingLogPage({
             disabled={loading}
           >
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-            Muat Ulang
+            Muat ulang
           </Button>
         }
       />
@@ -107,19 +106,19 @@ export default function DetailedMeetingLogPage({
       ) : !analytics ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
           <AlertCircle className="size-10 text-muted-foreground" />
-          <p className="mt-3 font-heading text-h6 font-semibold text-foreground">
-            Log Meeting Tidak Ditemukan
+          <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
+            Log meeting tidak ditemukan
           </p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Overview Metric Cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="size-4" />
                 <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Waktu & Durasi
+                  Waktu & durasi
                 </span>
               </div>
               <p className="mt-2 font-heading text-h5 font-bold text-foreground">
@@ -134,14 +133,11 @@ export default function DetailedMeetingLogPage({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <TrendingUp className="size-4 text-brand-primary" />
                 <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Peak Peserta
+                  Peak peserta
                 </span>
               </div>
               <p className="mt-2 font-heading text-h5 font-bold text-brand-primary">
-                {analytics.peakConcurrentParticipants} Peserta
-              </p>
-              <p className="mt-1 text-body-xs text-muted-foreground">
-                Maksimal bersamaan dalam 1 sesi
+                {analytics.peakConcurrentParticipants}
               </p>
             </div>
 
@@ -149,14 +145,11 @@ export default function DetailedMeetingLogPage({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Users className="size-4" />
                 <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Total Peserta
+                  Total peserta
                 </span>
               </div>
               <p className="mt-2 font-heading text-h5 font-bold text-foreground">
-                {analytics.participantCount} Orang
-              </p>
-              <p className="mt-1 text-body-xs text-muted-foreground">
-                Tercatat pernah masuk
+                {analytics.participantCount}
               </p>
             </div>
 
@@ -164,14 +157,11 @@ export default function DetailedMeetingLogPage({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <PlayCircle className="size-4" />
                 <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Rekaman Video
+                  Rekaman video
                 </span>
               </div>
               <p className="mt-2 font-heading text-h5 font-bold text-foreground">
-                {analytics.recordings.length} File
-              </p>
-              <p className="mt-1 text-body-xs text-muted-foreground">
-                Google Drive Cloud Recording
+                {analytics.recordings.length}
               </p>
             </div>
 
@@ -179,14 +169,11 @@ export default function DetailedMeetingLogPage({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <MessageSquare className="size-4" />
                 <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Transkrip Bicara
+                  Transkrip bicara
                 </span>
               </div>
               <p className="mt-2 font-heading text-h5 font-bold text-foreground">
-                {analytics.transcripts.reduce((acc, t) => acc + t.entries.length, 0)} Baris
-              </p>
-              <p className="mt-1 text-body-xs text-muted-foreground">
-                Teks percakapan otomatis
+                {analytics.transcripts.reduce((acc, t) => acc + t.entries.length, 0)} baris
               </p>
             </div>
           </div>
@@ -198,13 +185,12 @@ export default function DetailedMeetingLogPage({
               size="h5"
               border
               icon={Users}
-              title="Daftar & Timeline Kehadiran Peserta (Session Logs)"
-              description="Rincian timestamp menit masuk (hijau) dan menit keluar (merah) untuk setiap peserta."
+              title="Kehadiran peserta"
             />
 
             {analytics.participants.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
-                Tidak ada data peserta tercatat untuk sesi meeting ini.
+              <div className="rounded-2xl border border-border bg-card p-8 text-center text-body-xs text-muted-foreground">
+                Tidak ada data peserta tercatat.
               </div>
             ) : (
               <div className="space-y-4">
@@ -221,7 +207,7 @@ export default function DetailedMeetingLogPage({
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-heading text-h6 font-semibold text-foreground">
+                            <h3 className="font-heading text-body-base font-semibold text-foreground">
                               {p.displayName}
                             </h3>
                             <span className="rounded-md bg-muted px-2 py-0.5 text-body-xs font-semibold text-muted-foreground">
@@ -238,7 +224,7 @@ export default function DetailedMeetingLogPage({
 
                       <div className="flex items-center gap-3 text-body-xs font-semibold text-foreground">
                         <span className="rounded-lg border border-border bg-muted/40 px-3 py-1.5">
-                          Total Berada di Meeting:{" "}
+                          Durasi:{" "}
                           <strong className="text-brand-primary">
                             {formatDurationSec(p.totalDurationSeconds)}
                           </strong>
@@ -249,7 +235,7 @@ export default function DetailedMeetingLogPage({
                     {/* Join / Leave Sessions Visual Timeline */}
                     <div className="mt-4 space-y-3">
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Sesi Masuk & Keluar:
+                        Sesi:
                       </p>
 
                       <div className="grid gap-2.5 sm:grid-cols-1 md:grid-cols-2">
@@ -287,10 +273,10 @@ export default function DetailedMeetingLogPage({
 
           {/* Recordings Section */}
           <section className="space-y-4">
-            <AdminSectionTitle as="h2" size="h5" border icon={PlayCircle} title="Rekaman Video Sesi" />
+            <AdminSectionTitle as="h2" size="h5" border icon={PlayCircle} title="Rekaman video" />
             {analytics.recordings.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-sm text-muted-foreground">
-                Belum ada rekaman video yang tersedia untuk sesi ini (Google Drive Recording).
+              <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-xs text-muted-foreground">
+                Belum ada rekaman video untuk sesi ini.
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -301,9 +287,8 @@ export default function DetailedMeetingLogPage({
                   >
                     <div>
                       <p className="font-semibold text-body-sm text-foreground">
-                        Rekaman Video ({formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)})
+                        Rekaman ({formatTimeOnly(rec.startTime)} - {formatTimeOnly(rec.endTime)})
                       </p>
-                      <p className="text-body-xs text-muted-foreground">Google Drive Cloud Storage</p>
                     </div>
                     {rec.driveExportUri ? (
                       <Button variant="outline" size="sm" asChild>
@@ -313,7 +298,7 @@ export default function DetailedMeetingLogPage({
                       </Button>
                     ) : (
                       <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
-                        File Sedang Diproses
+                        Sedang diproses
                       </span>
                     )}
                   </div>
@@ -324,17 +309,17 @@ export default function DetailedMeetingLogPage({
 
           {/* Transcripts Section */}
           <section className="space-y-4">
-            <AdminSectionTitle as="h2" size="h5" border icon={MessageSquare} title="Transkrip Bicara Otomatis" />
+            <AdminSectionTitle as="h2" size="h5" border icon={MessageSquare} title="Transkrip" />
             {analytics.transcripts.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-sm text-muted-foreground">
-                Belum ada transkrip ucapan yang dihasilkan untuk sesi ini.
+              <div className="rounded-2xl border border-border bg-card p-6 text-center text-body-xs text-muted-foreground">
+                Belum ada transkrip ucapan untuk sesi ini.
               </div>
             ) : (
               analytics.transcripts.map((t) => (
                 <div key={t.transcriptId} className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-sm">
                   <div className="flex items-center justify-between border-b border-border/60 pb-3">
                     <p className="text-body-xs font-bold text-foreground">
-                      Dokumen Transkrip ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
+                      Dokumen transkrip ({formatTimeOnly(t.startTime)} - {formatTimeOnly(t.endTime)})
                     </p>
                     {t.docsExportUri ? (
                       <Button variant="outline" size="sm" asChild>
@@ -344,7 +329,7 @@ export default function DetailedMeetingLogPage({
                       </Button>
                     ) : (
                       <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
-                        Dokumen Sedang Diproses
+                        Sedang diproses
                       </span>
                     )}
                   </div>

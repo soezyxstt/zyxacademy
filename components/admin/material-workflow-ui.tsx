@@ -124,8 +124,8 @@ export function WorkflowFooter({
   nextLabel?: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap gap-2">
+    <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+      <div className="flex flex-wrap items-center gap-2">
         {onBack && (
           <Button type="button" variant="outline" onClick={onBack} disabled={backDisabled}>
             Kembali
@@ -134,10 +134,12 @@ export function WorkflowFooter({
         {children}
       </div>
       {onNext && (
-        <Button type="button" onClick={onNext} disabled={nextDisabled}>
-          {nextLabel}
-          <ArrowRight className="size-4" />
-        </Button>
+        <div className="ml-auto shrink-0">
+          <Button type="button" onClick={onNext} disabled={nextDisabled}>
+            {nextLabel}
+            <ArrowRight className="size-4" />
+          </Button>
+        </div>
       )}
     </div>
   );

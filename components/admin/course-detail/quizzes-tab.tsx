@@ -159,29 +159,29 @@ export function QuizzesTab({
     : `/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`;
 
   return (
-    <div className="space-y-4">
-      {/* Header Controls & Create Button */}
-      <div className="flex items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5">
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[170px] h-9 rounded-lg">
-              <SelectValue placeholder="Semua Kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Kategori</SelectItem>
-              <SelectItem value="daily">Latihan Harian</SelectItem>
-              <SelectItem value="weekly">Kuis Mingguan</SelectItem>
-              <SelectItem value="chapter">Kuis Per Bab</SelectItem>
-              <SelectItem value="simulation">Simulasi Ujian</SelectItem>
-              <SelectItem value="premium">Kuis Premium</SelectItem>
-            </SelectContent>
-          </Select>
-          <span className="text-body-xs text-muted-foreground">
-            {filteredQuizzes.length} dari {quizzes.length} kuis
-          </span>
-        </div>
+    <TooltipProvider>
+      <div className="space-y-4">
+        {/* Header Controls & Create Button */}
+        <div className="flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[170px] h-9 rounded-lg">
+                <SelectValue placeholder="Semua Kategori" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Kategori</SelectItem>
+                <SelectItem value="daily">Latihan Harian</SelectItem>
+                <SelectItem value="weekly">Kuis Mingguan</SelectItem>
+                <SelectItem value="chapter">Kuis Per Bab</SelectItem>
+                <SelectItem value="simulation">Simulasi Ujian</SelectItem>
+                <SelectItem value="premium">Kuis Premium</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-body-xs text-muted-foreground">
+              {filteredQuizzes.length} dari {quizzes.length} kuis
+            </span>
+          </div>
 
-        <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button asChild size="icon" className="size-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold shadow-2xs">
@@ -192,133 +192,160 @@ export function QuizzesTab({
             </TooltipTrigger>
             <TooltipContent>Buat Kuis Baru</TooltipContent>
           </Tooltip>
-        </TooltipProvider>
-      </div>
+        </div>
 
-      {/* Quizzes List */}
-      <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden">
-        {filteredQuizzes.length === 0 ? (
-          <div className="text-center py-8 px-4">
-            <NotebookPen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
-            <p className="text-body-xs font-medium text-foreground">Belum ada kuis yang dibuat untuk kelas ini</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Klik tombol tambah untuk menyusun kuis mandiri atau simulasi pada kelas ini.
-            </p>
-            <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
-              <Link href={createQuizHref}>
-                <Plus className="size-3.5" />
-                Buat Kuis Sekarang
-              </Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="divide-y divide-border/50">
-            {filteredQuizzes.map((quiz) => {
-              const editQuizHref = courseSlug
-                ? `/admin/courses/${courseSlug}/quizzes/${quiz.id}/edit?returnUrl=${encodeURIComponent(`/admin/courses/${courseSlug}?tab=quizzes`)}&courseSlug=${encodeURIComponent(courseSlug)}`
-                : `/admin/quizzes/${quiz.id}/edit`;
+        {/* Quizzes List */}
+        <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden">
+          {filteredQuizzes.length === 0 ? (
+            <div className="text-center py-8 px-4">
+              <NotebookPen className="size-6 text-muted-foreground/40 mx-auto mb-1.5" />
+              <p className="text-body-xs font-medium text-foreground">Belum ada kuis yang dibuat untuk kelas ini</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Klik tombol tambah untuk menyusun kuis mandiri atau simulasi pada kelas ini.
+              </p>
+              <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
+                <Link href={createQuizHref}>
+                  <Plus className="size-3.5" />
+                  Buat Kuis Sekarang
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="divide-y divide-border/50">
+              {filteredQuizzes.map((quiz) => {
+                const editQuizHref = courseSlug
+                  ? `/admin/courses/${courseSlug}/quizzes/${quiz.id}/edit?returnUrl=${encodeURIComponent(`/admin/courses/${courseSlug}?tab=quizzes`)}&courseSlug=${encodeURIComponent(courseSlug)}`
+                  : `/admin/quizzes/${quiz.id}/edit`;
 
-              return (
-                <div
-                  key={quiz.id}
-                  className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-muted/10 transition-colors"
-                >
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="font-heading text-body-xs font-bold text-foreground">
-                        {quiz.title}
-                      </p>
-                      <Badge variant="secondary" className="rounded-md text-[10px] px-1.5 py-0.5 capitalize font-medium">
-                        {quiz.category}
-                      </Badge>
-                      <Badge
-                        variant={quiz.status === "published" ? "default" : "outline"}
-                        className="rounded-md text-[10px] px-1.5 py-0.5 font-medium"
-                      >
-                        {quiz.status === "published" ? "Published" : "Draft"}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="rounded-md text-[10px] px-1.5 py-0.5 font-medium text-muted-foreground bg-muted/20"
-                      >
-                        {quiz.visibility === "paid" ? "Premium" : "Gratis"}
-                      </Badge>
+                return (
+                  <div
+                    key={quiz.id}
+                    className="p-3 sm:px-4 sm:py-3 flex items-center justify-between gap-3 hover:bg-muted/10 transition-colors"
+                  >
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="font-heading text-body-xs font-bold text-foreground">
+                          {quiz.title}
+                        </p>
+                        <Badge variant="secondary" className="rounded-md text-[10px] px-1.5 py-0.5 capitalize font-medium">
+                          {quiz.category}
+                        </Badge>
+                        <Badge
+                          variant={quiz.status === "published" ? "default" : "outline"}
+                          className="rounded-md text-[10px] px-1.5 py-0.5 font-medium"
+                        >
+                          {quiz.status === "published" ? "Published" : "Draft"}
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className="rounded-md text-[10px] px-1.5 py-0.5 font-medium text-muted-foreground bg-muted/20"
+                        >
+                          {quiz.visibility === "paid" ? "Premium" : "Gratis"}
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="size-3 shrink-0" />
+                          {quiz.timeLimitSeconds ? `${Math.round(quiz.timeLimitSeconds / 60)} Menit` : "Tanpa batas"}
+                        </span>
+                        <span className="text-border/60">·</span>
+                        <span className="flex items-center gap-1">
+                          <Award className="size-3 shrink-0" />
+                          Maks. {quiz.maxAttempts || "Bebas"} percobaan
+                        </span>
+                        <span className="text-border/60">·</span>
+                        <span>
+                          Dibuat pada <FormattedDate date={new Date(quiz.createdAt)} options={{ day: "numeric", month: "short", year: "numeric" }} />
+                        </span>
+                        <span className="text-border/60">·</span>
+                        <span className="font-medium text-foreground">
+                          {quiz.totalAttempts || 0} pengerjaan siswa
+                        </span>
+                        {(quiz.totalAttempts || 0) > 0 && (
+                          <>
+                            <span className="text-border/60">·</span>
+                            <span>
+                              Rata-rata: <strong className="text-foreground">{quiz.avgScore}/100</strong>
+                            </span>
+                            <span className="text-border/60">·</span>
+                            <span>
+                              Kelulusan: <strong className="text-foreground">{quiz.passRate}%</strong>
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="size-3" />
-                        {quiz.timeLimitSeconds ? `${Math.round(quiz.timeLimitSeconds / 60)} Menit` : "Tanpa batas"}
-                      </span>
-                      <span className="text-border/60">·</span>
-                      <span className="flex items-center gap-1">
-                        <Award className="size-3" />
-                        Maks. {quiz.maxAttempts || "Bebas"} percobaan
-                      </span>
-                      <span className="text-border/60">·</span>
-                      <span>
-                        Dibuat pada <FormattedDate date={new Date(quiz.createdAt)} options={{ day: "numeric", month: "short", year: "numeric" }} />
-                      </span>
-                      <span className="text-border/60">·</span>
-                      <span className="font-medium text-foreground">
-                        {quiz.totalAttempts || 0} pengerjaan siswa
-                      </span>
-                      {(quiz.totalAttempts || 0) > 0 && (
-                        <>
-                          <span className="text-border/60">·</span>
-                          <span>
-                            Rata-rata: <strong className="text-foreground">{quiz.avgScore}/100</strong>
-                          </span>
-                          <span className="text-border/60">·</span>
-                          <span>
-                            Kelulusan: <strong className="text-foreground">{quiz.passRate}%</strong>
-                          </span>
-                        </>
-                      )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="size-7 sm:size-8 rounded-lg border-border text-foreground hover:bg-muted"
+                            onClick={() => handlePreviewQuiz(quiz)}
+                            aria-label="Pratinjau Kuis"
+                          >
+                            <Eye className="size-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Pratinjau Kuis</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            asChild
+                            size="icon"
+                            variant="outline"
+                            className="size-7 sm:size-8 rounded-lg border-border text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary"
+                          >
+                            <Link href={`/admin/quiz-insights/${quiz.id}`} aria-label="Analisis Kuis">
+                              <BarChart3 className="size-3.5" />
+                            </Link>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Analisis Kuis</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            asChild
+                            size="icon"
+                            variant="outline"
+                            className="size-7 sm:size-8 rounded-lg border-border text-foreground hover:bg-muted"
+                          >
+                            <Link href={editQuizHref} aria-label="Edit Kuis">
+                              <Edit2 className="size-3.5" />
+                            </Link>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Edit Kuis</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-7 sm:size-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteStart(quiz)}
+                            aria-label="Hapus Kuis"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Hapus Kuis</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1 rounded-md text-body-xs h-7 px-2.5 border-border"
-                      onClick={() => handlePreviewQuiz(quiz)}
-                    >
-                      <Eye className="size-3" />
-                      Pratinjau
-                    </Button>
-
-                    <Button asChild size="sm" variant="outline" className="gap-1 rounded-md text-body-xs text-brand-primary border-brand-primary/30 hover:bg-brand-primary/10 h-7 px-2.5">
-                      <Link href={`/admin/quiz-insights/${quiz.id}`}>
-                        <BarChart3 className="size-3" />
-                        Analisis
-                      </Link>
-                    </Button>
-
-                    <Button asChild size="sm" variant="outline" className="gap-1 rounded-md text-body-xs border-border h-7 px-2.5" title="Edit Kuis">
-                      <Link href={editQuizHref}>
-                        <Edit2 className="size-3" />
-                        Edit
-                      </Link>
-                    </Button>
-
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDeleteStart(quiz)}
-                      title="Hapus Kuis"
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
       {/* Delete Quiz Confirmation Dialog */}
       <AdminConfirmDialog
@@ -422,6 +449,7 @@ export function QuizzesTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

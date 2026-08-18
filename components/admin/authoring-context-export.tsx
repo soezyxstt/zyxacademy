@@ -83,10 +83,8 @@ export function AuthoringContextExport({
     <div className="space-y-6">
       <AdminSectionTitle
         as="h2"
-        size="h6"
         icon={ShieldCheck}
-        title="Lanjutkan dari Idea yang sudah terbit"
-        description="Pilih mata kuliah untuk membuat Context Pack berisi Idea dan sumber yang sudah aman dipakai agent."
+        title="Lanjutkan dari Idea terbit"
       />
 
       <div className="grid gap-4 rounded-xl border border-border bg-card p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
@@ -98,7 +96,6 @@ export function AuthoringContextExport({
               {courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
             </SelectContent>
           </Select>
-          <p className="text-body-xs text-muted-foreground">Snapshot, run ID, dan masa berlaku dibuat otomatis.</p>
         </div>
         <Button type="button" disabled={!courseId || loading} isLoading={loading} onClick={() => void exportPack()}>
           <ShieldCheck className="size-4" />
@@ -111,7 +108,7 @@ export function AuthoringContextExport({
       {error && <p className="text-body-sm text-status-error">{error}</p>}
 
       <section className="space-y-3">
-        <AdminSectionTitle as="h3" size="h6" border title="Riwayat Context Pack" right={<span className="text-body-sm text-muted-foreground">{exports.length} pack</span>} />
+        <AdminSectionTitle as="h3" border title="Riwayat Context Pack" right={<span className="text-body-xs text-muted-foreground">{exports.length} pack</span>} />
         <AdminTable className="divide-y divide-border">
           {exports.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada Context Pack.</p>}
           {exports.map((item) => {
@@ -119,8 +116,8 @@ export function AuthoringContextExport({
             return (
               <div key={item.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 space-y-1">
-                  <p className="font-semibold text-foreground">{course ? `${course.code} · ${course.title}` : "Mata kuliah tidak tersedia"}</p>
-                  <p className="text-body-sm text-muted-foreground">Dibuat <FormattedDate date={item.createdAt} options={dateOptions} /> · berlaku sampai {item.retentionUntil ? <FormattedDate date={item.retentionUntil} options={dateOptions} /> : "tidak diketahui"}</p>
+                  <p className="text-body-sm font-semibold text-foreground">{course ? `${course.code} · ${course.title}` : "Mata kuliah tidak tersedia"}</p>
+                  <p className="text-body-xs text-muted-foreground">Dibuat <FormattedDate date={item.createdAt} options={dateOptions} /> · berlaku sampai {item.retentionUntil ? <FormattedDate date={item.retentionUntil} options={dateOptions} /> : "tidak diketahui"}</p>
                   <p className="break-all font-mono text-body-xs text-muted-foreground">Checksum: {item.artifactChecksum ?? "tidak tersedia"}</p>
                 </div>
                 <Button asChild size="sm" variant="outline"><a href={`/api/admin/authoring-context/${encodeURIComponent(item.packId)}`}><Download className="size-4" />Unduh</a></Button>

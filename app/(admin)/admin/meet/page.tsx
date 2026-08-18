@@ -328,11 +328,10 @@ export default function AdminMeetPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <AdminPageHeader
         icon={Video}
         title="Meet"
-        description="Buat dan kelola sesi Google Meet dengan link Zyx ber-slug, atur akses dan undangan peserta, tetapkan host dan co-host admin, serta pantau log, rekaman, dan metrik kehadiran."
       />
 
       {errorMsg && (
@@ -345,25 +344,22 @@ export default function AdminMeetPage() {
       {/* Top Action Section: Create & Manage Active Meeting */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Card 1: Start Meeting Controls */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center gap-2">
             <PlusCircle className="size-5 text-brand-primary" />
             <h2 className="font-heading text-body-base font-bold text-foreground">
-              Buat Meeting Baru
+              Buat meeting baru
             </h2>
           </div>
-          <p className="mt-2 text-body-sm text-muted-foreground">
-            Inisiasi ruang Google Meet baru dengan Master Host Pro. Beri nama dan slug link agar mudah diidentifikasi.
-          </p>
 
           <div className="mt-4 space-y-3">
             <div>
               <label className="mb-1 block text-body-xs font-semibold text-foreground">
-                Nama / Judul Meeting (Opsional)
+                Judul meeting (opsional)
               </label>
               <Input
                 type="text"
-                placeholder="Contoh: Tutorial Fisika Kinematika Bab 2"
+                placeholder="Tutorial Fisika Kinematika Bab 2"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
@@ -371,7 +367,7 @@ export default function AdminMeetPage() {
 
             <div>
               <label className="mb-1 block text-body-xs font-semibold text-foreground">
-                Slug Link Zyx
+                Slug tautan
               </label>
               <div className="flex items-center gap-2">
                 <span className="shrink-0 rounded-md bg-muted px-2 py-2 text-body-xs font-medium text-muted-foreground">
@@ -389,23 +385,23 @@ export default function AdminMeetPage() {
               </div>
               {createLink && (
                 <p className="mt-1.5 truncate text-body-xs text-muted-foreground">
-                  Link Zyx: <span className="font-medium text-brand-primary">{createLink}</span>
+                  Tautan: <span className="font-medium text-brand-primary">{createLink}</span>
                 </p>
               )}
             </div>
 
             <div>
               <label className="mb-1 block text-body-xs font-semibold text-foreground">
-                Aksesibilitas Ruang Meeting
+                Aksesibilitas
               </label>
               <Select value={accessType} onValueChange={(v) => setAccessType(v as any)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Pilih akses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="OPEN">OPEN (Siapa pun dapat langsung masuk)</SelectItem>
-                  <SelectItem value="TRUSTED">TRUSTED (Anggota organisasi / diundang)</SelectItem>
-                  <SelectItem value="RESTRICTED">RESTRICTED (Memerlukan izin host)</SelectItem>
+                  <SelectItem value="OPEN">Terbuka (siapa saja dapat masuk)</SelectItem>
+                  <SelectItem value="TRUSTED">Organisasi dan undangan</SelectItem>
+                  <SelectItem value="RESTRICTED">Perlu izin host</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -413,7 +409,7 @@ export default function AdminMeetPage() {
             {accessType !== "OPEN" && (
               <div>
                 <label className="mb-1 block text-body-xs font-semibold text-foreground">
-                  Undang Peserta ({selectedEmails.length} dipilih)
+                  Undang peserta ({selectedEmails.length})
                 </label>
                 <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
                   <PopoverTrigger asChild>
@@ -441,7 +437,7 @@ export default function AdminMeetPage() {
                             <SelectValue placeholder="Peran" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">Semua Peran</SelectItem>
+                            <SelectItem value="all">Semua peran</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="tutor">Tutor</SelectItem>
                             <SelectItem value="murid">Murid</SelectItem>
@@ -452,7 +448,7 @@ export default function AdminMeetPage() {
                             <SelectValue placeholder="Mata kuliah" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+                            <SelectItem value="all">Semua mata kuliah</SelectItem>
                             {meetCourses.map((c) => (
                               <SelectItem key={c.id} value={c.id}>
                                 {c.title}
@@ -464,16 +460,16 @@ export default function AdminMeetPage() {
                       <div className="flex flex-wrap gap-1.5">
                         <Button type="button" variant="outline" size="sm" onClick={() => toggleRoleBulk("admin")}>
                           {roleAllSelected("admin") ? <Check className="size-3.5 text-status-success" /> : <UserPlus className="size-3.5" />}
-                          Pilih semua Admin
+                          Admin
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => toggleRoleBulk("tutor")}>
                           {roleAllSelected("tutor") ? <Check className="size-3.5 text-status-success" /> : <UserPlus className="size-3.5" />}
-                          Pilih semua Tutor
+                          Tutor
                         </Button>
                         {selectedCourse && (
                           <Button type="button" variant="outline" size="sm" onClick={() => toggleCourseBulk(selectedCourse.id)}>
                             <UserPlus className="size-3.5" />
-                            Pilih semua di {selectedCourse.title}
+                            {selectedCourse.title}
                           </Button>
                         )}
                       </div>
@@ -560,12 +556,12 @@ export default function AdminMeetPage() {
               {creating ? (
                 <>
                   <RefreshCw className="size-4 animate-spin" />
-                  Membuat Ruang...
+                  Membuat ruang...
                 </>
               ) : (
                 <>
                   <Video className="size-4" />
-                  Mulai & Inisiasi Meeting
+                  Mulai meeting
                 </>
               )}
             </Button>
@@ -573,23 +569,23 @@ export default function AdminMeetPage() {
         </div>
 
         {/* Card 2: Active Meeting Card */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="size-5 text-status-success" />
                 <h2 className="font-heading text-body-base font-bold text-foreground">
-                  Status Meeting Aktif
+                  Status meeting
                 </h2>
               </div>
               {activeSpace ? (
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-status-success/15 px-2.5 py-1 text-body-xs font-semibold text-status-success">
                   <span className="size-2 rounded-full bg-status-success animate-pulse" />
-                  Live Aktif
+                  Aktif
                 </span>
               ) : (
                 <span className="rounded-md bg-muted px-2.5 py-1 text-body-xs font-medium text-muted-foreground">
-                  Tidak Ada Meeting Aktif
+                  Tidak aktif
                 </span>
               )}
             </div>
@@ -617,7 +613,7 @@ export default function AdminMeetPage() {
                           size="icon"
                           className="size-6 shrink-0"
                           onClick={() => handleCopy(activeZyxLink, "zyx")}
-                          title="Salin link Zyx"
+                          title="Salin tautan Zyx"
                         >
                           {copied === "zyx" ? (
                             <Check className="size-3.5 text-status-success" />
@@ -680,7 +676,7 @@ export default function AdminMeetPage() {
                         onClick={() => setShowAllCoHosts((v) => !v)}
                         className="text-body-xs font-medium text-brand-primary transition-colors hover:text-brand-primary/80"
                       >
-                        {showAllCoHosts ? "Sembunyikan" : `Lihat ${activeSpace.coHostEmails.length - 3} lainnya`}
+                        {showAllCoHosts ? "Sembunyikan" : `${activeSpace.coHostEmails.length - 3} lainnya`}
                       </button>
                     )}
                   </div>
@@ -715,14 +711,14 @@ export default function AdminMeetPage() {
                   >
                     <a href={hostMeetingUri} target="_blank" rel="noreferrer">
                       <ExternalLink className="size-3.5" />
-                      Buka sebagai Host
+                      Buka sebagai host
                     </a>
                   </Button>
                 </div>
               </div>
             ) : (
-              <p className="mt-4 text-body-sm text-muted-foreground">
-                Belum ada sesi meeting yang dibuat dari panel ini. Buat meeting baru menggunakan formulir di sebelah kiri.
+              <p className="mt-4 text-body-xs text-muted-foreground">
+                Belum ada sesi meeting aktif.
               </p>
             )}
           </div>
@@ -741,7 +737,7 @@ export default function AdminMeetPage() {
                 ) : (
                   <Square className="size-4 fill-current" />
                 )}
-                Akhiri Sesi Meeting Aktif
+                Akhiri meeting
               </Button>
             </div>
           )}
@@ -751,14 +747,9 @@ export default function AdminMeetPage() {
       {/* Conference Records / Log Section */}
       <section className="space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
-          <div>
-            <h2 className="font-heading text-body-base font-bold text-foreground">
-              Riwayat Conference &amp; Rekaman
-            </h2>
-            <p className="text-body-sm text-muted-foreground">
-              Riwayat sesi meeting yang telah selesai beserta metrik peak peserta, rekaman, transkrip, dan analisis kehadiran.
-            </p>
-          </div>
+          <h2 className="font-heading text-body-base font-bold text-foreground">
+            Riwayat meeting
+          </h2>
           <Button
             type="button"
             variant="outline"
@@ -767,7 +758,7 @@ export default function AdminMeetPage() {
             disabled={loadingRecords}
           >
             <RefreshCw className={`size-3.5 ${loadingRecords ? "animate-spin" : ""}`} />
-            Muat Ulang
+            Muat ulang
           </Button>
         </div>
 
@@ -778,11 +769,11 @@ export default function AdminMeetPage() {
         ) : records.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-12 text-center">
             <Clock className="size-10 text-muted-foreground/60" />
-            <p className="mt-3 font-heading text-h6 font-semibold text-foreground">
-              Belum Ada Log Sesi Meeting
+            <p className="mt-3 font-heading text-body-base font-semibold text-foreground">
+              Belum ada riwayat meeting
             </p>
-            <p className="mt-1 max-w-md text-body-sm text-muted-foreground">
-              Sesi meeting yang diselesaikan akan muncul di sini secara otomatis beserta metrik dan log partisipannya.
+            <p className="mt-1 max-w-md text-body-xs text-muted-foreground">
+              Sesi meeting yang telah selesai akan tercatat di sini.
             </p>
           </div>
         ) : (
@@ -791,11 +782,11 @@ export default function AdminMeetPage() {
               <table className="w-full text-left text-body-sm">
                 <thead className="border-b border-border bg-muted/50 text-body-xs font-semibold text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-3">Nama / Judul Meeting</th>
-                    <th className="px-4 py-3">Waktu Mulai & Selesai</th>
+                    <th className="px-4 py-3">Judul</th>
+                    <th className="px-4 py-3">Waktu</th>
                     <th className="px-4 py-3">Durasi</th>
-                    <th className="px-4 py-3">Peak & Total Peserta</th>
-                    <th className="px-4 py-3 text-right">Aksi & Log</th>
+                    <th className="px-4 py-3">Peserta</th>
+                    <th className="px-4 py-3 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -842,7 +833,7 @@ export default function AdminMeetPage() {
                             <Button variant="outline" size="sm" asChild>
                               <Link href={`/admin/meet/${recordId}`}>
                                 <Users className="size-3.5" />
-                                Detail Log Peserta
+                                Detail log
                                 <ChevronRight className="size-3.5" />
                               </Link>
                             </Button>

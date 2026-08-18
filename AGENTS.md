@@ -80,9 +80,9 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 | App section title | 16 px | `font-heading text-body-base font-bold`; follow the compact Student dashboard pattern |
 | Dense card or subsection title | 14 px | `font-heading text-body-sm` when a 16 px section title is too large |
 | Main body text | 16 px | `text-body-base` |
-| Tabs, primary sidebar items, inputs, selects, and buttons | 14 px | `text-body-sm`; use the semantic token instead of raw `text-sm` |
+| Primary sidebar items, inputs, selects, and buttons | 14 px | `text-body-sm`; use the semantic token instead of raw `text-sm` |
 | Field labels | 14 px | `text-body-sm font-semibold` |
-| Supportive text, descriptions, and helper text | 12 px | `text-body-xs` |
+| Tabs, supportive text, descriptions, and helper text | 12 px | `text-body-xs` |
 | Micro UI | 10 px | Only for compact status, badge, kbd, uppercase metadata, and similar non-prose elements. Add a named token before introducing another shared micro size. |
 
 - Marketing headings must follow the 48/56 px responsive scale. Do not use raw `text-5xl`, `text-6xl`, or arbitrary heading sizes for a standard marketing heading.

@@ -43,11 +43,18 @@ import {
   NavGroup,
   NavCollapsible,
 } from "@/components/sidebar-shell";
+import { useSession } from "@/lib/auth-client";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 const ARCHIVED_STORAGE_KEY = "zyx_admin_sidebar_archived_tabs";
 const PINNED_STORAGE_KEY = "zyx_admin_sidebar_pinned_tabs";
+
+const getArchivedStorageKey = (userId?: string | null) =>
+  userId ? `${ARCHIVED_STORAGE_KEY}_${userId}` : ARCHIVED_STORAGE_KEY;
+
+const getPinnedStorageKey = (userId?: string | null) =>
+  userId ? `${PINNED_STORAGE_KEY}_${userId}` : PINNED_STORAGE_KEY;
 
 // PKA tabs default archived per user request
 const DEFAULT_ARCHIVED = [
@@ -113,6 +120,8 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
 function AdminSidebarInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
 
   const [archivedTabs, setArchivedTabs] = useState<string[]>(DEFAULT_ARCHIVED);
   const [pinnedTabs, setPinnedTabs] = useState<string[]>([]);
@@ -120,7 +129,12 @@ function AdminSidebarInner() {
 
   useEffect(() => {
     setMounted(true);
-    const storedArchived = localStorage.getItem(ARCHIVED_STORAGE_KEY);
+    const archivedKey = getArchivedStorageKey(userId);
+    let storedArchived = localStorage.getItem(archivedKey);
+    // Fallback to legacy un-scoped key if user-scoped key is not yet set
+    if (storedArchived === null && userId) {
+      storedArchived = localStorage.getItem(ARCHIVED_STORAGE_KEY);
+    }
     if (storedArchived !== null) {
       try {
         const parsed = JSON.parse(storedArchived);
@@ -128,11 +142,18 @@ function AdminSidebarInner() {
           setArchivedTabs(parsed);
         }
       } catch {
-        // Fallback to default
+        setArchivedTabs(DEFAULT_ARCHIVED);
       }
+    } else {
+      setArchivedTabs(DEFAULT_ARCHIVED);
     }
 
-    const storedPinned = localStorage.getItem(PINNED_STORAGE_KEY);
+    const pinnedKey = getPinnedStorageKey(userId);
+    let storedPinned = localStorage.getItem(pinnedKey);
+    // Fallback to legacy un-scoped key if user-scoped key is not yet set
+    if (storedPinned === null && userId) {
+      storedPinned = localStorage.getItem(PINNED_STORAGE_KEY);
+    }
     if (storedPinned !== null) {
       try {
         const parsed = JSON.parse(storedPinned);
@@ -140,19 +161,21 @@ function AdminSidebarInner() {
           setPinnedTabs(parsed);
         }
       } catch {
-        // Fallback
+        setPinnedTabs([]);
       }
+    } else {
+      setPinnedTabs([]);
     }
-  }, []);
+  }, [userId]);
 
   const saveArchived = (tabs: string[]) => {
     setArchivedTabs(tabs);
-    localStorage.setItem(ARCHIVED_STORAGE_KEY, JSON.stringify(tabs));
+    localStorage.setItem(getArchivedStorageKey(userId), JSON.stringify(tabs));
   };
 
   const savePinned = (tabs: string[]) => {
     setPinnedTabs(tabs);
-    localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(tabs));
+    localStorage.setItem(getPinnedStorageKey(userId), JSON.stringify(tabs));
   };
 
   const togglePinTab = (id: string, name: string, e?: React.MouseEvent) => {

@@ -162,26 +162,26 @@ export function ChaptersTab({ courseId, courseTitle: _courseTitle, initialChapte
   return (
     <div className="space-y-4">
       {/* Add New Chapter Inline Form */}
-      <form onSubmit={handleAddChapter} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+      <form onSubmit={handleAddChapter} className="flex items-center gap-2">
         <Input
           placeholder="Judul bab baru..."
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           disabled={addingChapter}
-          className="h-9 text-body-xs rounded-lg sm:w-1/3"
+          className="h-9 w-64 shrink-0 rounded-lg text-body-sm sm:w-72"
         />
         <Input
           placeholder="Deskripsi bab (opsional)..."
           value={newDescription}
           onChange={(e) => setNewDescription(e.target.value)}
           disabled={addingChapter}
-          className="h-9 text-body-xs rounded-lg flex-1"
+          className="h-9 min-w-0 flex-1 rounded-lg text-body-sm"
         />
         <Button
           type="submit"
           size="sm"
           disabled={addingChapter || !newTitle.trim()}
-          className="gap-1.5 rounded-lg font-semibold h-9 shrink-0"
+          className="h-9 shrink-0 gap-1.5 rounded-lg text-body-sm font-semibold"
         >
           {addingChapter ? (
             <>
