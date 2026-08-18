@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -23,10 +20,9 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import {
-  saveQuizTemplateAction,
   deleteQuizTemplateAction,
   getQuizTemplatePreviewAction,
 } from "@/app/actions/tutor-management";
@@ -40,12 +36,13 @@ import {
   Eye,
   BarChart3,
   Loader2,
-  AlertCircle,
+  Check,
 } from "lucide-react";
 import { FormattedDate } from "@/components/ui/formatted-date";
-import { formatDatetimeLocal } from "@/lib/date-utils";
 import { MathText } from "@/components/course/math-text";
 import { AdminOptionLetter } from "@/components/admin/option-letter";
+import { DifficultyBadge } from "@/components/admin/status-badges";
+import { cn } from "@/lib/utils";
 
 type Chapter = {
   id: string;
@@ -84,30 +81,11 @@ type Props = {
 
 export function QuizzesTab({
   courseId,
-  courseTitle,
-  chapters,
   initialQuizzes,
 }: Props) {
   const router = useRouter();
   const [quizzes] = useState<CourseQuiz[]>(initialQuizzes);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [loading, setLoading] = useState(false);
-
-  // Create / Edit Modal State
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingQuiz, setEditingQuiz] = useState<CourseQuiz | null>(null);
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<CourseQuiz["category"]>("weekly");
-  const [visibility, setVisibility] = useState<CourseQuiz["visibility"]>("free");
-  const [timeLimitMinutes, setTimeLimitMinutes] = useState("30");
-  const [maxAttempts, setMaxAttempts] = useState("1");
-  const [openAt, setOpenAt] = useState("");
-  const [closeAt, setCloseAt] = useState("");
-  const [status, setStatus] = useState<"draft" | "published">("published");
-  const [manualStatus, setManualStatus] = useState<"open" | "closed" | "scheduled">("open");
-  const [showDiscussion, setShowDiscussion] = useState(true);
-  const [questionCount, setQuestionCount] = useState(10);
-  const [selectedChapterTag, setSelectedChapterTag] = useState<string>("all");
 
   // Preview Dialog State
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -116,98 +94,8 @@ export function QuizzesTab({
   const [previewLoading, setPreviewLoading] = useState(false);
 
   // Delete Dialog State
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingQuiz, setDeletingQuiz] = useState<CourseQuiz | null>(null);
-
-  const openCreateModal = () => {
-    setEditingQuiz(null);
-    setTitle("");
-    setCategory("weekly");
-    setVisibility("free");
-    setTimeLimitMinutes("30");
-    setMaxAttempts("1");
-    setOpenAt("");
-    setCloseAt("");
-    setStatus("published");
-    setManualStatus("open");
-    setShowDiscussion(true);
-    setQuestionCount(10);
-    setSelectedChapterTag("all");
-    setModalOpen(true);
-  };
-
-  const openEditModal = (quiz: CourseQuiz) => {
-    setEditingQuiz(quiz);
-    setTitle(quiz.title);
-    setCategory(quiz.category);
-    setVisibility(quiz.visibility);
-    setTimeLimitMinutes(quiz.timeLimitSeconds ? String(Math.round(quiz.timeLimitSeconds / 60)) : "");
-    setMaxAttempts(quiz.maxAttempts ? String(quiz.maxAttempts) : "");
-    setOpenAt(quiz.openAt ? formatDatetimeLocal(new Date(quiz.openAt)) : "");
-    setCloseAt(quiz.closeAt ? formatDatetimeLocal(new Date(quiz.closeAt)) : "");
-    setStatus(quiz.status);
-    setManualStatus(quiz.manualStatus);
-    setShowDiscussion(quiz.showDiscussion ?? true);
-
-    const rules = typeof quiz.selectionRules === "string"
-      ? JSON.parse(quiz.selectionRules)
-      : (quiz.selectionRules as any);
-    setQuestionCount(rules?.count || 10);
-    const tags = rules?.tags || [];
-    setSelectedChapterTag(tags[0] || "all");
-
-    setModalOpen(true);
-  };
-
-  const handleSaveQuiz = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) {
-      toast.error("Judul kuis wajib diisi.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const parsedTimeLimit = timeLimitMinutes ? parseInt(timeLimitMinutes, 10) * 60 : null;
-      const parsedMaxAttempts = maxAttempts ? parseInt(maxAttempts, 10) : null;
-
-      const tags = selectedChapterTag !== "all" ? [selectedChapterTag] : [];
-      const selectionRules = {
-        count: questionCount,
-        tags,
-      };
-
-      const res = await saveQuizTemplateAction(
-        courseId,
-        editingQuiz?.id || null,
-        {
-          title: title.trim(),
-          category,
-          visibility,
-          timeLimitSeconds: parsedTimeLimit,
-          maxAttempts: parsedMaxAttempts,
-          selectionRules,
-          openAt: openAt ? openAt : null,
-          closeAt: closeAt ? closeAt : null,
-          manualStatus,
-          status,
-          showDiscussion,
-        }
-      );
-
-      if (res.success) {
-        toast.success(editingQuiz ? "Kuis berhasil diperbarui." : "Kuis baru berhasil dibuat.");
-        setModalOpen(false);
-        router.refresh();
-      } else {
-        toast.error("Gagal menyimpan kuis.");
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Terjadi kesalahan saat menyimpan kuis.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePreviewQuiz = async (quiz: CourseQuiz) => {
     setPreviewQuiz(quiz);
@@ -222,29 +110,33 @@ export function QuizzesTab({
       } else {
         toast.error("Gagal memuat pratinjau soal kuis.");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Gagal memuat pratinjau soal kuis.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal memuat pratinjau soal kuis.";
+      toast.error(message);
     } finally {
       setPreviewLoading(false);
     }
   };
 
-  const handleDeleteQuiz = async () => {
+  const handleDeleteStart = (quiz: CourseQuiz) => {
+    setDeletingQuiz(quiz);
+    setDeleteOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
     if (!deletingQuiz) return;
-    setLoading(true);
     try {
       const res = await deleteQuizTemplateAction(courseId, deletingQuiz.id);
       if (res.success) {
         toast.success("Kuis berhasil dihapus.");
+        setDeleteOpen(false);
         setDeletingQuiz(null);
         router.refresh();
       } else {
         toast.error("Gagal menghapus kuis.");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Gagal menghapus kuis.");
-    } finally {
-      setLoading(false);
+    } catch {
+      toast.error("Terjadi kesalahan saat menghapus kuis.");
     }
   };
 
@@ -256,7 +148,7 @@ export function QuizzesTab({
   return (
     <div className="space-y-6">
       {/* Header Controls & Create Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-xl border border-border shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-xl border border-border shadow-xs">
         <div className="flex items-center gap-3">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-[180px] rounded-lg">
@@ -264,11 +156,11 @@ export function QuizzesTab({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Kategori</SelectItem>
-              <SelectItem value="daily">Daily Quiz</SelectItem>
-              <SelectItem value="weekly">Weekly Quiz</SelectItem>
-              <SelectItem value="chapter">Chapter Quiz</SelectItem>
-              <SelectItem value="simulation">Simulasi / Tryout</SelectItem>
-              <SelectItem value="premium">Premium</SelectItem>
+              <SelectItem value="daily">Latihan Harian</SelectItem>
+              <SelectItem value="weekly">Kuis Mingguan</SelectItem>
+              <SelectItem value="chapter">Kuis Per Bab</SelectItem>
+              <SelectItem value="simulation">Simulasi Ujian</SelectItem>
+              <SelectItem value="premium">Kuis Premium</SelectItem>
             </SelectContent>
           </Select>
           <span className="text-body-xs text-muted-foreground">
@@ -276,25 +168,29 @@ export function QuizzesTab({
           </span>
         </div>
 
-        <Button
-          onClick={openCreateModal}
-          size="sm"
-          className="gap-1.5 rounded-lg font-medium"
-        >
-          <Plus className="size-4" />
-          Buat Kuis Baru
+        <Button asChild size="sm" className="gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-bold shadow-xs">
+          <Link href={`/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`}>
+            <Plus className="size-4" />
+            Buat Kuis Baru
+          </Link>
         </Button>
       </div>
 
       {/* Quizzes List */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
         {filteredQuizzes.length === 0 ? (
           <div className="text-center py-12 px-4">
             <NotebookPen className="size-8 text-muted-foreground/50 mx-auto mb-2" />
-            <p className="text-body-sm font-medium text-foreground">Belum ada kuis yang dibuat</p>
+            <p className="text-body-sm font-medium text-foreground">Belum ada kuis yang dibuat untuk kelas ini</p>
             <p className="text-body-xs text-muted-foreground mt-1">
-              Klik tombol &ldquo;Buat Kuis Baru&rdquo; untuk merancang kuis atau tryout pada mata kuliah ini.
+              Klik tombol &ldquo;Buat Kuis Baru&rdquo; untuk menyusun kuis mandiri atau simulasi pada kelas ini.
             </p>
+            <Button asChild size="sm" className="mt-4 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold">
+              <Link href={`/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`}>
+                <Plus className="size-4" />
+                Buat Kuis Sekarang
+              </Link>
+            </Button>
           </div>
         ) : (
           <div className="divide-y divide-border/60">
@@ -315,7 +211,7 @@ export function QuizzesTab({
                       variant={quiz.status === "published" ? "default" : "outline"}
                       className="rounded-md text-[11px] font-medium"
                     >
-                      {quiz.status === "published" ? "Dipublikasikan" : "Draft"}
+                      {quiz.status === "published" ? "Published" : "Draft"}
                     </Badge>
                     <Badge
                       variant="outline"
@@ -332,7 +228,7 @@ export function QuizzesTab({
                     </span>
                     <span className="flex items-center gap-1">
                       <Award className="size-3.5" />
-                      Maks. {quiz.maxAttempts || 1}x coba
+                      Maks. {quiz.maxAttempts || "Bebas"} percobaan
                     </span>
                     <span>
                       Dibuat pada <FormattedDate date={quiz.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
@@ -363,39 +259,32 @@ export function QuizzesTab({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="gap-1.5 rounded-lg text-body-xs"
+                    className="gap-1.5 rounded-lg text-body-xs border-border"
                     onClick={() => handlePreviewQuiz(quiz)}
                   >
                     <Eye className="size-3.5" />
                     Pratinjau
                   </Button>
 
-                  <Link href={`/admin/quiz-insights/${quiz.id}`}>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5 rounded-lg text-body-xs text-brand-primary border-brand-primary/30 hover:bg-brand-primary/10"
-                    >
+                  <Button asChild size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs text-brand-primary border-brand-primary/30 hover:bg-brand-primary/10">
+                    <Link href={`/admin/quiz-insights/${quiz.id}`}>
                       <BarChart3 className="size-3.5" />
                       Analisis
-                    </Button>
-                  </Link>
+                    </Link>
+                  </Button>
 
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="size-8 rounded-lg"
-                    onClick={() => openEditModal(quiz)}
-                    title="Edit Kuis"
-                  >
-                    <Edit2 className="size-3.5" />
+                  <Button asChild size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs border-border" title="Edit Kuis">
+                    <Link href={`/admin/quizzes/${quiz.id}/edit`}>
+                      <Edit2 className="size-3.5" />
+                      Edit
+                    </Link>
                   </Button>
 
                   <Button
                     size="icon"
                     variant="ghost"
                     className="size-8 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeletingQuiz(quiz)}
+                    onClick={() => handleDeleteStart(quiz)}
                     title="Hapus Kuis"
                   >
                     <Trash2 className="size-3.5" />
@@ -407,301 +296,104 @@ export function QuizzesTab({
         )}
       </div>
 
-      {/* Create / Edit Quiz Dialog */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingQuiz ? "Edit Kuis" : "Buat Kuis Baru"} - {courseTitle}
-            </DialogTitle>
-            <DialogDescription>
-              Kuis ini akan terhubung langsung dengan mata kuliah <strong>{courseTitle}</strong> ({courseId}).
-            </DialogDescription>
-          </DialogHeader>
+      {/* Delete Quiz Confirmation Dialog */}
+      <AdminConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Hapus Kuis"
+        description={`Tindakan ini akan menghapus kuis "${deletingQuiz?.title}" secara permanen dari kelas ini. Data hasil pengerjaan terkait kuis ini mungkin ikut terpengaruh.`}
+        confirmLabel="Ya, Hapus Permanen"
+        onConfirm={handleDeleteConfirm}
+      />
 
-          <form onSubmit={handleSaveQuiz} className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Judul Kuis / Ujian</Label>
-              <Input
-                placeholder="Contoh: Kuis Pekanan 1 - Limit dan Kekontinuan"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={loading}
-                className="rounded-lg"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-body-sm font-semibold text-foreground">Kategori Kuis</Label>
-                <Select
-                  value={category}
-                  onValueChange={(v: CourseQuiz["category"]) => setCategory(v)}
-                  disabled={loading}
-                >
-                  <SelectTrigger className="rounded-lg">
-                    <SelectValue placeholder="Pilih Kategori" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Daily Quiz</SelectItem>
-                    <SelectItem value="weekly">Weekly Quiz</SelectItem>
-                    <SelectItem value="chapter">Chapter Quiz</SelectItem>
-                    <SelectItem value="simulation">Simulasi / Tryout</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-body-sm font-semibold text-foreground">Akses / Visibilitas</Label>
-                <Select
-                  value={visibility}
-                  onValueChange={(v: CourseQuiz["visibility"]) => setVisibility(v)}
-                  disabled={loading}
-                >
-                  <SelectTrigger className="rounded-lg">
-                    <SelectValue placeholder="Pilih Akses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="free">Gratis (Semua Siswa)</SelectItem>
-                    <SelectItem value="paid">Premium (Hanya Pembeli Token)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <Label className="text-body-sm font-semibold text-foreground">Durasi (Menit)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  placeholder="30"
-                  value={timeLimitMinutes}
-                  onChange={(e) => setTimeLimitMinutes(e.target.value)}
-                  disabled={loading}
-                  className="rounded-lg"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-body-sm font-semibold text-foreground">Maksimal Percobaan</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  placeholder="1"
-                  value={maxAttempts}
-                  onChange={(e) => setMaxAttempts(e.target.value)}
-                  disabled={loading}
-                  className="rounded-lg"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-body-sm font-semibold text-foreground">Jumlah Soal</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={questionCount}
-                  onChange={(e) => setQuestionCount(parseInt(e.target.value) || 10)}
-                  disabled={loading}
-                  className="rounded-lg"
-                />
-              </div>
-            </div>
-
-            {/* Scope / Chapter Tag Selection */}
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">
-                Cakupan Materi / Bab Terkait
-              </Label>
-              <Select
-                value={selectedChapterTag}
-                onValueChange={setSelectedChapterTag}
-                disabled={loading}
-              >
-                <SelectTrigger className="rounded-lg">
-                  <SelectValue placeholder="Pilih Bab" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Bab pada Mata Kuliah Ini</SelectItem>
-                  {chapters.map((ch) => (
-                    <SelectItem key={ch.id} value={`bab-${ch.orderIndex}`}>
-                      Bab {ch.orderIndex}: {ch.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground">
-                Soal akan ditarik secara otomatis dari bank soal mata kuliah ini yang sesuai dengan bab yang dipilih.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label className="text-body-sm font-semibold text-foreground">Status Publikasi</Label>
-                <Select
-                  value={status}
-                  onValueChange={(v: "draft" | "published") => setStatus(v)}
-                  disabled={loading}
-                >
-                  <SelectTrigger className="rounded-lg">
-                    <SelectValue placeholder="Pilih Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="published">Langsung Publikasikan</SelectItem>
-                    <SelectItem value="draft">Simpan sebagai Draft</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border mt-5">
-                <div className="space-y-0.5">
-                  <Label className="text-body-xs font-semibold text-foreground cursor-pointer">
-                    Tampilkan Pembahasan
-                  </Label>
-                  <p className="text-[11px] text-muted-foreground">
-                    Siswa dapat melihat kunci &amp; penjelasan setelah submit.
-                  </p>
-                </div>
-                <Switch
-                  checked={showDiscussion}
-                  onCheckedChange={setShowDiscussion}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <DialogFooter className="pt-4">
-              <DialogClose asChild>
-                <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
-                  Batal
-                </Button>
-              </DialogClose>
-              <Button type="submit" size="sm" disabled={loading || !title.trim()} className="rounded-lg">
-                {loading ? "Menyimpan..." : editingQuiz ? "Simpan Perubahan" : "Buat Kuis"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Preview Questions Dialog */}
+      {/* Preview Quiz Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Eye className="size-5 text-brand-primary" />
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
+          <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
+            <DialogTitle className="font-heading text-h6 font-bold text-foreground">
               Pratinjau Kuis: {previewQuiz?.title}
             </DialogTitle>
-            <DialogDescription>
-              Menampilkan {previewQuestions.length} butir soal yang di-render untuk kuis ini.
+            <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
+                Kategori: {previewQuiz?.category}
+              </span>
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
+                Batas Waktu: {previewQuiz?.timeLimitSeconds ? `${previewQuiz.timeLimitSeconds / 60} menit` : "Bebas"}
+              </span>
+              <span className="bg-muted px-2 py-0.5 rounded-md border border-border">
+                Percobaan: {previewQuiz?.maxAttempts ? `${previewQuiz.maxAttempts}x` : "Bebas"}
+              </span>
             </DialogDescription>
           </DialogHeader>
 
-          {previewLoading ? (
-            <div className="py-12 text-center text-body-sm text-muted-foreground space-y-2">
-              <Loader2 className="size-6 animate-spin mx-auto text-brand-primary" />
-              <p>Memuat butir soal dari bank...</p>
-            </div>
-          ) : previewQuestions.length === 0 ? (
-            <div className="py-8 text-center text-body-sm text-muted-foreground border border-dashed border-border rounded-xl">
-              <AlertCircle className="size-6 text-status-warning mx-auto mb-2" />
-              <p className="font-semibold text-foreground">Belum ada soal yang sesuai dengan aturan pemilihan.</p>
-              <p className="text-body-xs text-muted-foreground mt-1">
-                Pastikan terdapat soal dengan status terbit pada bank soal mata kuliah ini.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4 my-2">
-              {previewQuestions.map((q, idx) => (
-                <div key={q.id || idx} className="p-4 rounded-xl border border-border bg-card space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-heading font-bold text-body-xs text-brand-primary">
-                      Nomor {idx + 1}
-                    </span>
-                    <Badge variant="outline" className="rounded-md text-[11px] capitalize">
-                      {q.difficulty || "medium"}
-                    </Badge>
-                  </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 text-left">
+            {previewLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="size-8 animate-spin text-brand-primary" />
+                <p className="text-body-sm text-muted-foreground">Memilih dan meresolusi butir soal...</p>
+              </div>
+            ) : previewQuestions.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground text-body-sm">
+                Tidak ada butir soal yang tersedia untuk kuis ini.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {previewQuestions.map((q, idx) => (
+                  <div key={q.id} className="p-5 rounded-xl border border-border bg-card space-y-4">
+                    <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                      <span className="text-body-sm font-bold text-foreground">Soal {idx + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <DifficultyBadge difficulty={q.difficulty} />
+                        <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
+                          {q.questionType === "multiple_choice" ? "Single Choice" : "Multi Choice"}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="text-body-sm text-foreground">
-                    <MathText>{q.prompt || ""}</MathText>
-                  </div>
+                    <MathText className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed" as="p">
+                      {q.prompt}
+                    </MathText>
 
-                  {Array.isArray(q.options) && q.options.length > 0 && (
-                    <div className="space-y-1.5 pt-1">
+                    <div className="grid gap-2">
                       {q.options.map((opt: string, optIdx: number) => {
-                        const isCorrect = q.correctIndices?.includes(optIdx);
+                        const isCorrect = q.correctIndices.includes(optIdx);
                         return (
                           <div
                             key={optIdx}
-                            className={`flex items-start gap-2 p-2 rounded-lg text-body-xs border ${
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-lg border text-body-sm transition-colors",
                               isCorrect
-                                ? "border-status-success/40 bg-status-success/10 text-foreground font-medium"
-                                : "border-border/50 text-muted-foreground"
-                            }`}
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-medium"
+                                : "bg-background/50 border-border text-foreground/80"
+                            )}
                           >
                             <AdminOptionLetter index={optIdx} isCorrect={isCorrect} />
-                            <div className="flex-1 min-w-0">
-                              <MathText>{opt}</MathText>
-                            </div>
-                            {isCorrect && (
-                              <span className="text-[11px] font-bold text-status-success shrink-0">
-                                Kunci Benar
-                              </span>
-                            )}
+                            <MathText className="leading-normal" as="span">{opt}</MathText>
+                            {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
                           </div>
                         );
                       })}
                     </div>
-                  )}
 
-                  {q.explanation && (
-                    <div className="p-2.5 rounded-lg bg-muted/40 border border-border/50 text-body-xs text-muted-foreground space-y-1">
-                      <strong className="text-foreground block">Pembahasan:</strong>
-                      <MathText>{q.explanation}</MathText>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                    {q.explanation && (
+                      <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-lg p-3.5 space-y-1.5 text-body-sm">
+                        <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
+                          Pembahasan Jawaban:
+                        </span>
+                        <MathText className="text-muted-foreground leading-relaxed whitespace-pre-wrap" as="p">
+                          {q.explanation}
+                        </MathText>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" className="rounded-lg">
-                Tutup
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Quiz Confirmation Dialog */}
-      <Dialog open={!!deletingQuiz} onOpenChange={(open) => !open && setDeletingQuiz(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Hapus Kuis</DialogTitle>
-            <DialogDescription>
-              Anda yakin ingin menghapus kuis <strong>{deletingQuiz?.title}</strong>? Seluruh data pengerjaan siswa pada kuis ini akan ikut terhapus.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" size="sm" disabled={loading} className="rounded-lg">
-                Batal
-              </Button>
-            </DialogClose>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDeleteQuiz}
-              disabled={loading}
-              className="rounded-lg"
-            >
-              {loading ? "Menghapus..." : "Hapus Kuis"}
+          <DialogFooter className="p-4 border-t border-border bg-muted/10 shrink-0">
+            <Button onClick={() => setPreviewOpen(false)} className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90">
+              Tutup
             </Button>
           </DialogFooter>
         </DialogContent>

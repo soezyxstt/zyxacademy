@@ -64,7 +64,17 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       chapterIds: z.array(z.string().min(1)).optional(),
       blueprint: z.record(z.string(), z.unknown()).optional(),
       seed: z.number().int().optional(),
-    }).optional(),
+      canGoBack: z.boolean().optional(),
+      requireAllAnswered: z.boolean().optional(),
+      explanationRelease: z.enum(['immediate', 'after_close', 'never']).optional(),
+      perQuestionTimerEnabled: z.boolean().optional(),
+      perQuestionTimers: z.record(z.string(), z.number()).optional(),
+      defaultQuestionTimerSeconds: z.number().optional(),
+      shuffleQuestions: z.boolean().optional(),
+      shuffleOptions: z.boolean().optional(),
+      showScoreImmediate: z.boolean().optional(),
+      passingScore: z.number().nullable().optional(),
+    }).passthrough().optional(),
     showDiscussion: z.boolean().optional(),
   });
 
@@ -99,6 +109,9 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       }
     }
     updateData.selectionRules = parsed.data.selectionRules;
+    if (parsed.data.showDiscussion === undefined && parsed.data.selectionRules.explanationRelease !== undefined) {
+      updateData.showDiscussion = parsed.data.selectionRules.explanationRelease !== 'never';
+    }
   }
   if (parsed.data.showDiscussion !== undefined) {
     updateData.showDiscussion = parsed.data.showDiscussion;

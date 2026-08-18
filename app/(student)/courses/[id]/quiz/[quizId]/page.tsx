@@ -151,6 +151,10 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     }
   }
 
+  const parsedRules = typeof template.selectionRules === "string" 
+    ? (() => { try { return JSON.parse(template.selectionRules); } catch { return {}; } })()
+    : (template.selectionRules as Record<string, any>) || {};
+
   const now = new Date();
   const openDate = template.openAt ? new Date(template.openAt) : null;
   const closeDate = template.closeAt ? new Date(template.closeAt) : null;
@@ -159,7 +163,9 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const isOpenManually = template.manualStatus === "open";
   const isQuizClosed = isClosedManually || (!isOpenManually && closeDate && now > closeDate);
 
-  const isViewDiscussion = viewDiscussion === "true" && isQuizClosed && (template as any).showDiscussion;
+  const explanationRelease = parsedRules?.explanationRelease || ((template as any).showDiscussion === false ? "never" : "after_close");
+  const canViewDiscussion = explanationRelease === "immediate" || (explanationRelease === "after_close" && isQuizClosed);
+  const isViewDiscussion = viewDiscussion === "true" && canViewDiscussion && explanationRelease !== "never";
 
   if (!isReview && !isViewDiscussion) {
     if (isClosedManually) {
@@ -175,7 +181,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                 <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
                   <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
                 </Button>
-                {(template as any).showDiscussion && (
+                {canViewDiscussion && (
                   <Button asChild size="sm" className="rounded-md bg-brand-primary text-white">
                     <Link href={`?viewDiscussion=true`}>Lihat Pembahasan</Link>
                   </Button>
@@ -223,7 +229,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                   <Button asChild variant="outline" size="sm" className="rounded-md border-border/80">
                     <Link href={`/courses/${id}/quiz`}>Kembali ke Daftar Kuis</Link>
                   </Button>
-                  {(template as any).showDiscussion && (
+                  {canViewDiscussion && (
                     <Button asChild size="sm" className="rounded-md bg-brand-primary text-white">
                       <Link href={`?viewDiscussion=true`}>Lihat Pembahasan</Link>
                     </Button>
@@ -265,7 +271,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     targetAttempt = completedAttempts[0] || null;
   }
 
-  const isDiscussionOpen = isQuizClosed && (template as any).showDiscussion;
+  const isDiscussionOpen = canViewDiscussion && explanationRelease !== "never";
   const shouldShowUnifiedView = (targetAttempt?.status === "completed") || isViewDiscussion;
 
   // STATE B: Active player taking quiz
@@ -279,6 +285,13 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       settings: {
         timeLimitMinutes: template.timeLimitSeconds ? Math.round(template.timeLimitSeconds / 60) : 15,
         maxAttempts: template.maxAttempts ?? undefined,
+        canGoBack: parsedRules?.canGoBack ?? true,
+        requireAllAnswered: parsedRules?.requireAllAnswered ?? false,
+        perQuestionTimerEnabled: parsedRules?.perQuestionTimerEnabled ?? false,
+        perQuestionTimers: parsedRules?.perQuestionTimers,
+        defaultQuestionTimerSeconds: parsedRules?.defaultQuestionTimerSeconds,
+        shuffleQuestions: parsedRules?.shuffleQuestions,
+        shuffleOptions: parsedRules?.shuffleOptions,
       },
       questions: (targetAttempt.questionsSnapshot as unknown as Array<{
         id: string;

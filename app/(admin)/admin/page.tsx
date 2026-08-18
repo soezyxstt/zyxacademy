@@ -145,7 +145,7 @@ export default async function AdminHomePage() {
   const questionStat = `${pendingQuestions} pending review`;
 
   const totalQuizzes = quizCountRes[0]?.count ?? 0;
-  const quizStat = `${totalQuizzes} template aktif`;
+  const quizStat = `${totalQuizzes} kuis aktif`;
 
   const totalBroadcasts = notificationStatsRes[0][0]?.count ?? 0;
   const totalDevices = notificationStatsRes[1][0]?.count ?? 0;
@@ -208,7 +208,7 @@ export default async function AdminHomePage() {
           stat: questionStat,
         },
         {
-          title: "Template Kuis",
+          title: "Kuis",
           icon: ClipboardList,
           iconColor: "text-brand-primary",
           href: "/admin/quizzes",

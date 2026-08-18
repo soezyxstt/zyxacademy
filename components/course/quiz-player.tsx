@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Flag, Timer, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
@@ -28,6 +28,13 @@ type QuizPlayerProps = {
     }>;
     settings?: {
       timeLimitMinutes?: number;
+      canGoBack?: boolean;
+      requireAllAnswered?: boolean;
+      perQuestionTimerEnabled?: boolean;
+      perQuestionTimers?: Record<string, number>;
+      defaultQuestionTimerSeconds?: number;
+      shuffleQuestions?: boolean;
+      shuffleOptions?: boolean;
     };
   };
   attemptId: string;
@@ -47,6 +54,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const router = useRouter();
   const durationSeconds = (exam.settings?.timeLimitMinutes ?? 15) * 60;
   const timerStorageKey = useMemo(() => `zyx-quiz-timer-deadline-${attemptId}`, [attemptId]);
+
+  const canGoBack = exam.settings?.canGoBack ?? true;
+  const requireAllAnswered = exam.settings?.requireAllAnswered ?? false;
+  const perQuestionTimerEnabled = exam.settings?.perQuestionTimerEnabled ?? false;
   
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>(() => {
@@ -83,8 +94,42 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = useCallback(async () => {
+  const sorted = useMemo(
+    () => [...exam.questions].sort((a, b) => a.order - b.order),
+    [exam.questions],
+  );
+
+  const isQuestionAnswered = useCallback((questionId: string) => {
+    const val = answers[questionId];
+    if (val === undefined || val === null) return false;
+    if (typeof val === "string") return val.trim().length > 0;
+    return true;
+  }, [answers]);
+
+  // Per-question timer state
+  const currentQuestionId = sorted[index]?.id;
+  const currentQuestionDuration =
+    (currentQuestionId && exam.settings?.perQuestionTimers?.[currentQuestionId]) ||
+    exam.settings?.defaultQuestionTimerSeconds ||
+    60;
+  const [questionTimeLeft, setQuestionTimeLeft] = useState<number>(currentQuestionDuration);
+
+  useEffect(() => {
+    if (!perQuestionTimerEnabled) return;
+    setQuestionTimeLeft(currentQuestionDuration);
+  }, [index, currentQuestionDuration, perQuestionTimerEnabled]);
+
+  const handleSubmit = useCallback(async (isAutoSubmit = false) => {
     if (isSubmitted || submitting) return;
+
+    if (requireAllAnswered && !isAutoSubmit) {
+      const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
+      if (unansweredIndex !== -1) {
+        toast.error("Harap jawab semua butir soal sebelum mengumpulkan kuis.");
+        setIndex(unansweredIndex);
+        return;
+      }
+    }
 
     try {
       setSubmitting(true);
@@ -141,7 +186,31 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       toast.error(message);
       setSubmitting(false);
     }
-  }, [courseId, isSubmitted, submitting, router, timerStorageKey, attemptId, answers, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath, redirectBasePath]);
+  }, [courseId, isSubmitted, submitting, router, timerStorageKey, attemptId, answers, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath, redirectBasePath, requireAllAnswered, sorted, isQuestionAnswered]);
+
+  // Per-question timer interval
+  useEffect(() => {
+    if (!perQuestionTimerEnabled || isSubmitted || submitting) return;
+
+    const qTimer = setInterval(() => {
+      setQuestionTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(qTimer);
+          if (index < sorted.length - 1) {
+            toast.info("Waktu untuk butir soal ini telah habis. Beralih ke soal berikutnya.");
+            setIndex((i) => i + 1);
+          } else {
+            toast.warning("Waktu soal terakhir habis! Jawaban Anda otomatis terkirim.");
+            handleSubmit(true);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(qTimer);
+  }, [perQuestionTimerEnabled, isSubmitted, submitting, index, sorted.length, handleSubmit]);
 
   useEffect(() => {
     const rawDeadline = window.localStorage.getItem(timerStorageKey);
@@ -183,7 +252,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       if (remaining <= 0) {
         clearInterval(timer);
         toast.warning("Waktu habis! Jawaban Anda otomatis terkirim.");
-        handleSubmit();
+        handleSubmit(true);
       }
     }, 1000);
     return () => clearInterval(timer);
@@ -265,9 +334,17 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             </div>
           </div>
 
-          <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-[13px] font-bold text-brand-secondary sm:px-3 sm:py-1.5 sm:text-body-sm">
-            <Timer className="size-3.5 animate-pulse sm:size-4" />
-            <span>{formatTime(timeLeft)}</span>
+          <div className="flex items-center gap-2">
+            {perQuestionTimerEnabled && (
+              <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-primary/35 bg-brand-primary/10 px-2.5 py-1 font-mono text-[13px] font-bold text-brand-primary sm:px-3 sm:py-1.5 sm:text-body-sm" title="Batas waktu untuk nomor ini">
+                <Timer className="size-3.5 animate-pulse sm:size-4" />
+                <span>Soal: {questionTimeLeft}s</span>
+              </div>
+            )}
+            <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-[13px] font-bold text-brand-secondary sm:px-3 sm:py-1.5 sm:text-body-sm" title="Total sisa waktu kuis">
+              <Clock className="size-3.5 sm:size-4" />
+              <span>{formatTime(timeLeft)}</span>
+            </div>
           </div>
         </div>
 
@@ -381,16 +458,22 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
 
         {/* Navigation Action Buttons */}
         <div className="flex items-center justify-between gap-2 sm:gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9 gap-1 rounded-md border-border/80 px-3 text-[13px] sm:text-body-sm"
-            onClick={goPrev}
-            disabled={index === 0}
-          >
-            <ChevronLeft className="size-4" />
-            Sebelumnya
-          </Button>
+          {canGoBack ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 gap-1 rounded-md border-border/80 px-3 text-[13px] sm:text-body-sm"
+              onClick={goPrev}
+              disabled={index === 0}
+            >
+              <ChevronLeft className="size-4" />
+              Sebelumnya
+            </Button>
+          ) : (
+            <span className="text-[11px] font-medium text-muted-foreground italic">
+              Mode linier (navigasi satu arah)
+            </span>
+          )}
 
           <div className="flex gap-2">
             {index < sorted.length - 1 ? (
@@ -403,7 +486,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                 type="button"
                 disabled={submitting || isSubmitted}
                 className="h-9 rounded-md bg-brand-primary px-4 text-[13px] font-bold text-white hover:bg-brand-primary/95 sm:px-8 sm:text-body-sm"
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
               >
                 {submitting ? (
                   <>
@@ -431,7 +514,9 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               Navigasi Pertanyaan
             </h3>
             <p className="mt-1 text-[11px] text-muted-foreground md:text-body-xs">
-              Lompat langsung ke soal dengan klik tombol angka di bawah:
+              {canGoBack
+                ? "Lompat langsung ke butir soal dengan klik tombol angka di bawah:"
+                : "Klik butir soal berikutnya untuk berpindah (soal sebelumnya terkunci):"}
             </p>
           </div>
 
@@ -441,14 +526,20 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               const active = index === idx;
               const isAnswered = isQuestionAnswered(question.id);
               const isFlagged = !!flags[question.id];
+              const isAllowed = canGoBack || idx >= index;
 
               return (
                 <button
                   key={question.id}
                   type="button"
-                  onClick={() => setIndex(idx)}
+                  disabled={!isAllowed}
+                  onClick={() => {
+                    if (isAllowed) setIndex(idx);
+                  }}
                   className={cn(
-                    "flex size-8 items-center justify-center rounded-lg border font-heading text-[11px] font-bold transition-all cursor-pointer md:size-9 md:text-body-xs",
+                    "flex size-8 items-center justify-center rounded-lg border font-heading text-[11px] font-bold transition-all md:size-9 md:text-body-xs",
+                    !isAllowed && "opacity-40 cursor-not-allowed",
+                    isAllowed && "cursor-pointer",
                     active
                       ? "border-brand-primary ring-2 ring-brand-primary/20 scale-105"
                       : "border-transparent",
@@ -458,7 +549,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                       ? "bg-tertiary-1/15 text-tertiary-1 border-tertiary-1/50 hover:bg-tertiary-1/25"
                       : "bg-muted/40 text-muted-foreground border-border/50 hover:bg-muted/80 hover:text-foreground"
                   )}
-                  title={`Soal ${idx + 1}`}
+                  title={`Soal ${idx + 1}${!isAllowed ? " (Terkunci)" : ""}`}
                 >
                   {idx + 1}
                 </button>

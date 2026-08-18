@@ -172,14 +172,14 @@ const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
  keywords: "bank soal list filter edit approve",
  content: "Kurasi, edit, setujui dan publikasikan bank soal kecerdasan buatan",
  },
- {
- title: "Template Kuis",
- subtitle: "Admin",
- href: "/admin/quizzes",
- group: "Halaman",
- keywords: "quiz kuis template rule seleksi",
- content: "Manajemen aturan seleksi kuis dan batas waktu pengerjaan",
- },
+  {
+    title: "Kuis",
+    subtitle: "Admin",
+    href: "/admin/quizzes",
+    group: "Halaman",
+    keywords: "quiz kuis rule seleksi jadwal bank soal",
+    content: "Manajemen kuis, jadwal, aturan pengerjaan, dan butir soal",
+  },
 ];
 
 /** Mirrors landing bidang studi ; searchable even before opening /courses. */

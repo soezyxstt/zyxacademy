@@ -10,48 +10,56 @@ import { db } from '@/db';
 import { aiQuestionBank, auditMutasi, pembahasanSoal, soal } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { and, eq, inArray, desc } from 'drizzle-orm';
+import { and, eq, inArray, desc, sql } from 'drizzle-orm';
 import { questionAuthoringInputSchema, canonicalQuestionStatus } from '@/lib/question-authoring-contract';
 import { createCanonicalQuestion, QuestionAuthoringError } from '@/lib/question-authoring';
 
 export async function GET(req: NextRequest) {
- const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
- }
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
- const { searchParams } = new URL(req.url);
- const courseId = searchParams.get('courseId');
- const reviewStatus = searchParams.get('reviewStatus');
- const difficulty = searchParams.get('difficulty');
- const origin = searchParams.get('origin');
- const limit = Math.min(Number(searchParams.get('limit') ?? '50'), 200);
- const offset = Number(searchParams.get('offset') ?? '0');
+  const { searchParams } = new URL(req.url);
+  const courseId = searchParams.get('courseId');
+  const reviewStatus = searchParams.get('reviewStatus');
+  const difficulty = searchParams.get('difficulty');
+  const origin = searchParams.get('origin');
+  const search = searchParams.get('q') || searchParams.get('search');
+  const limit = Math.min(Math.max(Number(searchParams.get('limit') ?? '100'), 1), 500);
+  const offset = Math.max(Number(searchParams.get('offset') ?? '0'), 0);
 
- const conditions = [];
- if (courseId) conditions.push(eq(aiQuestionBank.courseId, courseId));
- if (reviewStatus)
- conditions.push(
- eq(
- aiQuestionBank.reviewStatus,
- reviewStatus as 'generated' | 'reviewed' | 'published' | 'flagged' | 'retired',
- ),
- );
- if (difficulty)
- conditions.push(
- eq(aiQuestionBank.difficulty, difficulty as 'easy' | 'medium' | 'hard'),
- );
- if (origin === 'zyx_original' || origin === 'itb_example') conditions.push(eq(aiQuestionBank.origin, origin));
+  const conditions = [];
+  if (courseId) conditions.push(eq(aiQuestionBank.courseId, courseId));
+  if (reviewStatus) {
+    conditions.push(
+      eq(
+        aiQuestionBank.reviewStatus,
+        reviewStatus as 'generated' | 'reviewed' | 'published' | 'flagged' | 'retired',
+      ),
+    );
+  }
+  if (difficulty) {
+    conditions.push(
+      eq(aiQuestionBank.difficulty, difficulty as 'easy' | 'medium' | 'hard'),
+    );
+  }
+  if (origin === 'zyx_original' || origin === 'itb_example') {
+    conditions.push(eq(aiQuestionBank.origin, origin));
+  }
+  if (search) {
+    conditions.push(sql`${aiQuestionBank.prompt} LIKE ${`%${search}%`}`);
+  }
 
- const questions = await db
- .select()
- .from(aiQuestionBank)
- .where(conditions.length > 0 ? and(...conditions) : undefined)
- .orderBy(desc(aiQuestionBank.createdAt))
- .limit(limit)
- .offset(offset);
+  const questions = await db
+    .select()
+    .from(aiQuestionBank)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(aiQuestionBank.createdAt))
+    .limit(limit)
+    .offset(offset);
 
- return NextResponse.json(questions);
+  return NextResponse.json(questions);
 }
 
 const BulkUpdateSchema = z.object({

@@ -9,7 +9,7 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { NotebookPen } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: pageTitle("Kelola Template Kuis"),
+  title: pageTitle("Kelola Kuis"),
 };
 
 type Props = {
@@ -32,11 +32,10 @@ export default async function AIQuizzesPage({ searchParams }: Props) {
   const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <AdminPageHeader
         icon={NotebookPen}
-        title="Template Kuis"
-        description="Kelola kuis mandiri dan kurasi soal-soal AI."
+        title="Kuis"
       />
       <QuizzesCurationClient
         initialTemplates={templates}
