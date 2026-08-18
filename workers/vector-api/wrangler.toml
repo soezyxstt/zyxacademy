@@ -16,4 +16,6 @@ RESTRICTED_SOLUTION_CAPABILITY = "read:published_solutions"
 binding = "VECTORIZE_V2"
 index_name = "zyx-vectors-staging-v2"
 
-
+[[env.staging.vectorize]]
+binding = "VECTORIZE_SEARCH"
+index_name = "zyx-site-search-staging"

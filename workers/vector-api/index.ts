@@ -37,38 +37,102 @@ import {
 } from "../../lib/vectorize/contracts";
 
 interface Env {
- VECTORIZE_V2?: VectorizeIndex;
- SHARED_SECRET: string;
- RESTRICTED_SOLUTION_CAPABILITY?: string;
+	VECTORIZE_V2?: VectorizeIndex;
+	VECTORIZE_SEARCH?: VectorizeIndex;
+	SHARED_SECRET: string;
+	RESTRICTED_SOLUTION_CAPABILITY?: string;
 }
 
 // ---------------------------------------------------------------------------
 
 function json(body: unknown, status = 200): Response {
- return new Response(JSON.stringify(body), {
- status,
- headers: { 'Content-Type': 'application/json' },
- });
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: { 'Content-Type': 'application/json' },
+	});
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
- return typeof value === 'object' && value !== null && !Array.isArray(value);
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function contractError(error: unknown): Response {
- const message = error instanceof Error ? error.message : String(error);
- const code = error && typeof error === 'object' && 'code' in error
-  ? String((error as { code: unknown }).code)
-  : 'INVALID_CONTRACT';
- const status = code === 'CAPABILITY_REQUIRED' ? 403 : 400;
- return json({ ok: false, error: { code, message } }, status);
+	const message = error instanceof Error ? error.message : String(error);
+	const code = error && typeof error === 'object' && 'code' in error
+		? String((error as { code: unknown }).code)
+		: 'INVALID_CONTRACT';
+	const status = code === 'CAPABILITY_REQUIRED' ? 403 : 400;
+	return json({ ok: false, error: { code, message } }, status);
 }
 
 function requireCanonicalIndex(env: Env): VectorizeIndex {
- if (!env.VECTORIZE_V2) {
-  throw new Error('VECTORIZE_V2 binding is not configured');
- }
- return env.VECTORIZE_V2;
+	if (!env.VECTORIZE_V2) {
+		throw new Error('VECTORIZE_V2 binding is not configured');
+	}
+	return env.VECTORIZE_V2;
+}
+
+function requireSearchIndex(env: Env): VectorizeIndex {
+	if (!env.VECTORIZE_SEARCH) {
+		throw new Error('VECTORIZE_SEARCH binding is not configured');
+	}
+	return env.VECTORIZE_SEARCH;
+}
+
+function parseSearchVector(value: unknown): { id: string; values: number[]; metadata?: Record<string, string | number | boolean> } {
+	if (!isRecord(value) || typeof value.id !== 'string' || !Array.isArray(value.values)) {
+		throw new Error('each search vector must contain id and values');
+	}
+	if (!value.values.every((v) => typeof v === 'number' && Number.isFinite(v))) {
+		throw new Error('search vector values must be finite numbers');
+	}
+	return {
+		id: value.id,
+		values: value.values,
+		metadata: isRecord(value.metadata) ? (value.metadata as Record<string, string | number | boolean>) : undefined,
+	};
+}
+
+function parseSearchUpsert(value: unknown): { vectors: Array<{ id: string; values: number[]; metadata?: Record<string, string | number | boolean> }> } {
+	if (!isRecord(value) || !Array.isArray(value.vectors) || value.vectors.length === 0) {
+		throw new Error('search upsert requires a non-empty vectors array');
+	}
+	return {
+		vectors: value.vectors.map(parseSearchVector),
+	};
+}
+
+function parseSearchDelete(value: unknown): { ids: string[] } {
+	if (!isRecord(value) || !Array.isArray(value.ids) || value.ids.length === 0 || !value.ids.every((id) => typeof id === 'string' && id.trim().length > 0)) {
+		throw new Error('search delete requires a non-empty string ids array');
+	}
+	return {
+		ids: value.ids,
+	};
+}
+
+function parseSearchQuery(value: unknown): {
+	vector: number[];
+	topK?: number;
+	min_role?: number;
+	course_id?: string;
+	entity_type?: string;
+	filter?: Record<string, unknown>;
+} {
+	if (!isRecord(value) || !Array.isArray(value.vector) || value.vector.length === 0) {
+		throw new Error('search query requires a non-empty vector array');
+	}
+	if (!value.vector.every((v) => typeof v === 'number' && Number.isFinite(v))) {
+		throw new Error('search query vector must contain finite numbers');
+	}
+	return {
+		vector: value.vector,
+		topK: typeof value.topK === 'number' ? value.topK : undefined,
+		min_role: typeof value.min_role === 'number' ? value.min_role : undefined,
+		course_id: typeof value.course_id === 'string' ? value.course_id : undefined,
+		entity_type: typeof value.entity_type === 'string' ? value.entity_type : undefined,
+		filter: isRecord(value.filter) ? value.filter : undefined,
+	};
 }
 
 function parseCanonicalVector(value: unknown): CanonicalVectorRecord {
@@ -244,11 +308,57 @@ const worker = {
 			});
 		}
 
+		if (pathname === '/v2/search/upsert') {
+			const requestBody = parseSearchUpsert(body);
+			const result = await requireSearchIndex(env).upsert(
+				requestBody.vectors.map((vector) => ({
+					id: vector.id,
+					values: vector.values,
+					metadata: vector.metadata ? { ...vector.metadata } : {},
+				})),
+			);
+			return json({ ok: true, count: result.count, mutationId: result.mutationId });
+		}
+
+		if (pathname === '/v2/search/query') {
+			const requestBody = parseSearchQuery(body);
+			const filter: Record<string, unknown> = {
+				...(requestBody.filter || {}),
+			};
+			if (typeof requestBody.min_role === 'number') {
+				filter.min_role = { $lte: requestBody.min_role };
+			} else if (filter.min_role !== undefined && typeof filter.min_role === 'number') {
+				filter.min_role = { $lte: filter.min_role };
+			}
+			if (typeof requestBody.course_id === 'string' && requestBody.course_id.trim().length > 0) {
+				filter.course_id = { $eq: requestBody.course_id };
+			}
+			if (typeof requestBody.entity_type === 'string' && requestBody.entity_type.trim().length > 0) {
+				filter.entity_type = { $eq: requestBody.entity_type };
+			}
+
+			const result = await requireSearchIndex(env).query(requestBody.vector, {
+				topK: typeof requestBody.topK === 'number' && requestBody.topK > 0 ? requestBody.topK : 20,
+				returnMetadata: 'all',
+				...(Object.keys(filter).length > 0 ? { filter } : {}),
+			});
+			return json(result);
+		}
+
+		if (pathname === '/v2/search/delete') {
+			const requestBody = parseSearchDelete(body);
+			const result = await requireSearchIndex(env).deleteByIds(requestBody.ids);
+			return json({ ok: true, count: result.count, mutationId: result.mutationId });
+		}
+
 		return new Response('Not found', { status: 404 });
 	} catch (err: unknown) {
 		if (pathname.startsWith('/v2/')) {
 			if (err instanceof Error && err.message === 'VECTORIZE_V2 binding is not configured') {
 				return json({ ok: false, error: { code: 'V2_BINDING_UNAVAILABLE', message: err.message } }, 503);
+			}
+			if (err instanceof Error && err.message === 'VECTORIZE_SEARCH binding is not configured') {
+				return json({ ok: false, error: { code: 'SEARCH_BINDING_UNAVAILABLE', message: err.message } }, 503);
 			}
 			return contractError(err);
 		}

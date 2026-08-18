@@ -19,7 +19,7 @@ export type SiteSearchDocument = {
  content: string;
 };
 
-const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
+export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
  {
  title: "Beranda",
  subtitle: "Landing",
@@ -183,7 +183,7 @@ const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
 ];
 
 /** Mirrors landing bidang studi ; searchable even before opening /courses. */
-const LANDING_SUBJECTS: Omit<SiteSearchDocument, "id">[] = [
+export const LANDING_SUBJECTS: Omit<SiteSearchDocument, "id">[] = [
  {
  title: "Kalkulus & metode numerik",
  subtitle: "Bidang studi - TPB",

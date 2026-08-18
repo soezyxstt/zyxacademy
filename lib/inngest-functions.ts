@@ -1,6 +1,6 @@
 import { inngest } from "@/lib/inngest";
 import { db } from "@/db";
-import { vectorSyncQueue, knowledgeObjects, chapters, masterTeachingDocuments, enrollments, studentConceptMasteryHistory, studentConceptMastery, user, aiGenerationJobs } from "@/db/schema";
+import { vectorSyncQueue, knowledgeObjects, chapters, masterTeachingDocuments, enrollments, studentConceptMasteryHistory, studentConceptMastery, user, aiGenerationJobs, searchDocuments } from "@/db/schema";
 import { computeSnapshotPayload } from "@/lib/cohort-analytics";
 import { recomputeTrends } from "@/lib/mastery-store";
 import { enqueueRecompute, processQueueBatch } from "@/lib/mastery-recompute";
@@ -869,6 +869,85 @@ export const studentQuizAnalyticsWorker = inngest.createFunction(
   }
 );
 
+/**
+ * Background worker synchronizing unsynced search documents into Vectorize.
+ */
+export const syncSearchDocuments = inngest.createFunction(
+  {
+    id: "sync-search-documents",
+    name: "Sync Search Documents",
+    triggers: [{ cron: "*/5 * * * *" }, { event: "search.documents.sync" }],
+  },
+  async ({ step }) => {
+    const pending = await step.run("fetch-unsynced-search-docs", async () => {
+      return await db
+        .select()
+        .from(searchDocuments)
+        .where(eq(searchDocuments.isSynced, false))
+        .limit(BATCH_SIZE);
+    });
 
+    if (pending.length === 0) {
+      return { synced: 0, message: "No unsynced search documents to process." };
+    }
 
+    await step.run("embed-and-upsert-search-docs", async () => {
+      const { embedSearchDocument, upsertSearchVectors } = await import("@/lib/search/service");
 
+      const vectors: Array<{
+        id: string;
+        values: number[];
+        metadata: Record<string, string | number | boolean>;
+      }> = [];
+
+      for (const doc of pending) {
+        const textContent = doc.searchableText?.trim() || doc.title;
+        const values = await embedSearchDocument(doc.title, textContent);
+
+        let category = "Navigasi";
+        if (doc.entityType === "course") {
+          category = "Course & Modul";
+        } else if (
+          doc.entityType === "chapter" ||
+          doc.entityType === "material" ||
+          doc.entityType === "blog"
+        ) {
+          category = "Materi & Artikel";
+        } else if (doc.entityType === "quiz" || doc.entityType === "exam") {
+          category = "Kuis & Evaluasi";
+        }
+
+        vectors.push({
+          id: doc.id,
+          values,
+          metadata: {
+            title: doc.title,
+            href: doc.path,
+            category,
+            entity_type: doc.entityType,
+            entity_id: doc.entityId ?? "",
+            course_id: doc.courseId ?? "",
+            min_role: doc.minRole ?? 0,
+          },
+        });
+      }
+
+      if (vectors.length > 0) {
+        await upsertSearchVectors(vectors);
+      }
+    });
+
+    await step.run("mark-search-docs-synced", async () => {
+      const ids = pending.map((doc) => doc.id);
+      await db
+        .update(searchDocuments)
+        .set({
+          isSynced: true,
+          updatedAt: new Date(),
+        })
+        .where(inArray(searchDocuments.id, ids));
+    });
+
+    return { synced: pending.length, message: `Successfully synced ${pending.length} search documents.` };
+  }
+);

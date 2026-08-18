@@ -5009,3 +5009,31 @@ export const exportSpreadsheets = sqliteTable(
     uniqueIndex("export_spreadsheets_entity_idx").on(table.entityType, table.entityId),
   ]
 );
+
+export const searchDocuments = sqliteTable(
+  "search_documents",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type")
+      .$type<"course" | "chapter" | "material" | "quiz" | "exam" | "blog" | "nav" | "form">()
+      .notNull(),
+    entityId: text("entity_id"),
+    courseId: text("course_id"),
+    title: text("title").notNull(),
+    searchableText: text("searchable_text").notNull(),
+    path: text("path").notNull(),
+    minRole: integer("min_role").default(0).notNull(),
+    isSynced: integer("is_synced", { mode: "boolean" }).default(false).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_search_documents_entity").on(table.entityType, table.entityId),
+    index("idx_search_documents_synced").on(table.isSynced),
+    index("idx_search_documents_min_role").on(table.minRole),
+    index("idx_search_documents_course").on(table.courseId),
+  ]
+);

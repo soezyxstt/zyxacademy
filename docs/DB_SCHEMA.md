@@ -1217,3 +1217,26 @@ Append-only lifecycle events for proposal creation, review, confirmation, reject
 Fixed-column privacy-safe operational events. Columns are version, event kind, route class, masked project slot, model, bounded latency and size buckets, result and reason codes, actor and course pseudohashes, feature version, and creation time. The table intentionally has no free-form payload column.
 
 Migration `0067_zyra_continuation.sql` also adds these Plan 010 through 013 records. Legacy chat, quiz, allowance, and analytics rows remain readable and are not backfilled by these plans.
+
+## 24. Search & Discovery Domain
+
+### `search_documents`
+
+Canonical unified search index table for site-wide and semantic search indexing across courses, chapters, materials, quizzes, exams, blog articles, forms, and static navigation routes.
+
+* `id`: Primary key text identifier formatted with entity prefix (e.g. `course_123`, `chapter_456`, `material_789`, `quiz_abc`, `exam_def`, `blog_ghi`, `nav_dashboard`, `form_jkl`).
+* `entityType`: Discriminated entity type string (`course` | `chapter` | `material` | `quiz` | `exam` | `blog` | `nav` | `form`).
+* `entityId`: Optional raw entity identifier.
+* `courseId`: Optional course identifier for course-scoped entities.
+* `title`: Human-readable title for search result display.
+* `searchableText`: Aggregated textual content including title, summary, body, tags, and keywords for lexical and semantic indexing.
+* `path`: Destination route or web path for navigation upon selection.
+* `minRole`: Minimum access level required to view the search document (0: public, 1: student, 2: tutor, 3: admin).
+* `isSynced`: Boolean flag indicating whether vector embedding synchronization is complete.
+* `createdAt` / `updatedAt`: Timestamps.
+
+Indexes:
+* `idx_search_documents_entity`: Composite index on `(entity_type, entity_id)`
+* `idx_search_documents_synced`: Index on `is_synced`
+* `idx_search_documents_min_role`: Index on `min_role`
+* `idx_search_documents_course`: Index on `course_id`
