@@ -80,26 +80,23 @@ export function AuthoringContextPanel({ initialExports, courses }: { initialExpo
           <AuthoringJobBuilder courses={courses} />
         </AdminTabsContent>
 
-        <AdminTabsContent value="continue" className="space-y-8">
+        <AdminTabsContent value="continue" className="space-y-6">
           <section className="space-y-4">
-            <AdminSectionTitle
-              as="h2"
-              icon={ShieldCheck}
-              title="Buat Authoring Context Pack"
-            />
-            <div className="space-y-2 rounded-xl border border-border bg-card p-4 shadow-sm">
-              <Label htmlFor="context-course">Mata kuliah</Label>
-              <Select value={courseId} onValueChange={setCourseId}>
-                <SelectTrigger id="context-course"><SelectValue placeholder="Pilih mata kuliah" /></SelectTrigger>
-                <SelectContent>
-                  {courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} ; {course.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1 space-y-1.5 min-w-0">
+                <Label htmlFor="context-course" className="text-body-sm font-semibold">Mata kuliah</Label>
+                <Select value={courseId} onValueChange={setCourseId}>
+                  <SelectTrigger id="context-course" className="h-9 text-body-xs rounded-lg"><SelectValue placeholder="Pilih mata kuliah" /></SelectTrigger>
+                  <SelectContent>
+                    {courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="button" size="sm" className="h-9 rounded-lg gap-1.5 shrink-0 font-semibold" disabled={!courseId || loading} isLoading={loading} onClick={() => void exportPack()}>
+                <Download className="size-4" />
+                Buat dan simpan Context Pack
+              </Button>
             </div>
-            <Button type="button" disabled={!courseId || loading} isLoading={loading} onClick={() => void exportPack()}>
-              <Download className="size-4" />
-              Buat dan simpan Context Pack
-            </Button>
             {message && <p className="text-body-sm text-status-success">{message}</p>}
             {latestDownloadHref && (
               <Button asChild size="sm" variant="outline">
@@ -110,7 +107,7 @@ export function AuthoringContextPanel({ initialExports, courses }: { initialExpo
           </section>
 
           <section className="space-y-3">
-            <AdminSectionTitle as="h2" border title="Riwayat Context Pack" right={<span className="text-body-xs text-muted-foreground">{exports.length} pack</span>} />
+            <AdminSectionTitle as="h2" size="h6" border title="Riwayat Context Pack" right={<span className="text-body-xs text-muted-foreground">{exports.length} pack</span>} />
             <AdminTable className="divide-y divide-border">
               {exports.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada pack.</p>}
               {exports.map((item) => {

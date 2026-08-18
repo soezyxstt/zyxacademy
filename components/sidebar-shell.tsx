@@ -543,7 +543,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
           <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
 
           <div className="px-2.5 py-1.5">
-            <p className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 font-sans">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 font-sans">
               Tema Tampilan
             </p>
             <div className="grid grid-cols-3 gap-1">
@@ -551,7 +551,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 type="button"
                 onClick={() => setTheme("light")}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-body-xs font-medium border transition-colors cursor-pointer",
+                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
                   theme === "light"
                     ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
                     : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -564,7 +564,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 type="button"
                 onClick={() => setTheme("dark")}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-body-xs font-medium border transition-colors cursor-pointer",
+                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
                   theme === "dark"
                     ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
                     : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -577,7 +577,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
                 type="button"
                 onClick={() => setTheme("system")}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-body-xs font-medium border transition-colors cursor-pointer",
+                  "flex flex-col items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-medium border transition-colors cursor-pointer",
                   theme === "system"
                     ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
                     : "border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground"

@@ -13,6 +13,14 @@ import {
   List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { CourseMaterial, DocCategory } from "@/lib/student-course-fixtures";
 
 type Chapter = {
@@ -71,6 +79,7 @@ const getCategoryStyle = (category?: DocCategory) => {
 
 function DocumentThumbnailPreview({ material }: { material: CourseMaterial }) {
   const [imageError, setImageError] = useState(false);
+  const [pdfFrameError, setPdfFrameError] = useState(false);
   const config = getCategoryStyle(material.docCategory);
   const cleanSnippet = material.body
     ? material.body
@@ -80,6 +89,7 @@ function DocumentThumbnailPreview({ material }: { material: CourseMaterial }) {
     : null;
 
   const showImage = Boolean(material.thumbnailUrl) && !imageError;
+  const showPdfFrame = !showImage && material.kind === "pdf" && Boolean(material.url) && !pdfFrameError;
 
   return (
     <div className="relative h-36 w-full bg-muted/40 dark:bg-muted/20 flex items-center justify-center p-3 overflow-hidden border-y border-border/50 select-none group-hover:bg-muted/60 transition-colors">
@@ -93,6 +103,17 @@ function DocumentThumbnailPreview({ material }: { material: CourseMaterial }) {
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               className="object-cover object-top rounded-xs"
               onError={() => setImageError(true)}
+            />
+          </div>
+        ) : showPdfFrame ? (
+          <div className="relative w-full h-full overflow-hidden bg-white dark:bg-zinc-950 rounded-xs pointer-events-none select-none">
+            <iframe
+              src={`${material.url}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
+              title={material.title}
+              className="w-[300%] h-[300%] origin-top-left scale-[0.333] border-0 absolute top-0 left-0 pointer-events-none select-none"
+              tabIndex={-1}
+              loading="lazy"
+              onError={() => setPdfFrameError(true)}
             />
           </div>
         ) : (
@@ -199,99 +220,64 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
   );
 
   return (
-    <div className="space-y-3 font-sans">
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-card/70 p-3 backdrop-blur-sm">
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
-          {categories.map((category) => (
-            <button
-              key={category}
-              type="button"
-              onClick={() => setActiveTab(category)}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-body-xs font-semibold transition-colors",
-                activeTab === category
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground"
-              )}
-            >
-              <span>{category === "all" ? "Semua" : categoryLabel[category]}</span>
-              <span
-                className={cn(
-                  "text-body-xs",
-                  activeTab === category ? "text-primary-foreground/80" : "text-muted-foreground"
-                )}
-              >
-                {categoryCounts[category]}
-              </span>
-            </button>
-          ))}
+    <div className="space-y-4 font-sans">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={activeTab} onValueChange={setActiveTab}>
+            <SelectTrigger className="h-9 w-full sm:w-[170px] rounded-lg text-body-sm bg-background">
+              <SelectValue placeholder="Semua tipe" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category} value={category}>
+                  {category === "all" ? "Semua tipe" : categoryLabel[category]} ({categoryCounts[category]})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {chapters.length > 0 && (
+            <Select value={activeChapterId} onValueChange={setActiveChapterId}>
+              <SelectTrigger className="h-9 w-full sm:w-[220px] rounded-lg text-body-sm bg-background">
+                <SelectValue placeholder="Semua bab" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua bab</SelectItem>
+                {chapters.map((chapter) => (
+                  <SelectItem key={chapter.id} value={chapter.id}>
+                    Bab {chapter.orderIndex}: {chapter.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1 border-l border-border pl-2">
-          <button
+        <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 self-end sm:self-auto">
+          <Button
             type="button"
+            size="icon"
+            variant={viewMode === "grid" ? "secondary" : "ghost"}
+            className="size-8 rounded-md"
             onClick={() => setViewMode("grid")}
-            className={cn(
-              "flex size-8 items-center justify-center rounded-md transition-colors",
-              viewMode === "grid"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-            title="Grid"
             aria-label="Tampilan grid"
-            aria-pressed={viewMode === "grid"}
+            title="Tampilan grid"
           >
             <LayoutGrid className="size-4" />
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            size="icon"
+            variant={viewMode === "list" ? "secondary" : "ghost"}
+            className="size-8 rounded-md"
             onClick={() => setViewMode("list")}
-            className={cn(
-              "flex size-8 items-center justify-center rounded-md transition-colors",
-              viewMode === "list"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-            title="List"
             aria-label="Tampilan daftar"
-            aria-pressed={viewMode === "list"}
+            title="Tampilan daftar"
           >
             <List className="size-4" />
-          </button>
+          </Button>
         </div>
       </div>
-
-      {chapters.length > 0 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 bg-card/45 border border-border/60 p-2.5 rounded-lg scrollbar-thin">
-          <button
-            type="button"
-            onClick={() => setActiveChapterId("all")}
-            className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-body-xs font-semibold transition-colors cursor-pointer",
-              activeChapterId === "all"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground"
-            )}
-          >
-            Semua Bab
-          </button>
-          {chapters.map((chapter) => (
-            <button
-              key={chapter.id}
-              type="button"
-              onClick={() => setActiveChapterId(chapter.id)}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-body-xs font-semibold transition-colors cursor-pointer",
-                activeChapterId === chapter.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground"
-              )}
-            >
-              Bab {chapter.orderIndex}: {chapter.title}
-            </button>
-          ))}
-        </div>
-      )}
 
       {viewMode === "grid" ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

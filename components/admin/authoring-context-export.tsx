@@ -81,23 +81,19 @@ export function AuthoringContextExport({
 
   return (
     <div className="space-y-6">
-      <AdminSectionTitle
-        as="h2"
-        icon={ShieldCheck}
-        title="Lanjutkan dari Idea terbit"
-      />
-
-      <div className="grid gap-4 rounded-xl border border-border bg-card p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div className="space-y-2">
-          <Label htmlFor="context-course">Mata kuliah</Label>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex-1 space-y-1.5 min-w-0">
+          <Label htmlFor="context-course" className="text-body-sm font-semibold">Mata kuliah</Label>
           <Select value={courseId} onValueChange={setCourseId}>
-            <SelectTrigger id="context-course"><SelectValue placeholder="Pilih mata kuliah" /></SelectTrigger>
+            <SelectTrigger id="context-course" className="h-9 text-body-xs rounded-lg">
+              <SelectValue placeholder="Pilih mata kuliah" />
+            </SelectTrigger>
             <SelectContent>
               {courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <Button type="button" disabled={!courseId || loading} isLoading={loading} onClick={() => void exportPack()}>
+        <Button type="button" size="sm" className="h-9 rounded-lg gap-1.5 shrink-0 font-semibold" disabled={!courseId || loading} isLoading={loading} onClick={() => void exportPack()}>
           <ShieldCheck className="size-4" />
           Buat Context Pack
         </Button>
@@ -108,7 +104,7 @@ export function AuthoringContextExport({
       {error && <p className="text-body-sm text-status-error">{error}</p>}
 
       <section className="space-y-3">
-        <AdminSectionTitle as="h3" border title="Riwayat Context Pack" right={<span className="text-body-xs text-muted-foreground">{exports.length} pack</span>} />
+        <AdminSectionTitle as="h2" size="h6" border title="Riwayat Context Pack" right={<span className="text-body-xs text-muted-foreground">{exports.length} pack</span>} />
         <AdminTable className="divide-y divide-border">
           {exports.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada Context Pack.</p>}
           {exports.map((item) => {

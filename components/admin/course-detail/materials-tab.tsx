@@ -21,11 +21,17 @@ import {
 import {
   FileText,
   Upload,
-  Plus,
+  SendHorizontal,
   Trash2,
   ExternalLink,
   Loader2,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { FormattedDate } from "@/components/ui/formatted-date";
 
 const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
@@ -198,33 +204,72 @@ export function MaterialsTab({
         </h3>
 
         <form onSubmit={handleUpload} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
+          <div className="flex flex-col md:flex-row md:items-end gap-2.5">
+            <div className="space-y-1 flex-1 min-w-[180px]">
               <Label className="text-body-sm font-semibold text-foreground">Judul Dokumen</Label>
               <Input
                 placeholder="Contoh: Modul Kuliah Bab 1 - Limit Fungsi"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={loading}
-                className="h-9 rounded-lg"
+                className="h-9 text-body-xs rounded-lg"
               />
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Kategori / Jenis Dokumen</Label>
+            <div className="space-y-1 w-full md:w-52 shrink-0">
+              <Label className="text-body-sm font-semibold text-foreground">Kategori</Label>
               <Select
                 value={type}
                 onValueChange={(v: "materi_kelas" | "contoh_soal") => setType(v)}
                 disabled={loading}
               >
-                <SelectTrigger className="h-9 rounded-lg">
-                  <SelectValue placeholder="Pilih Jenis" />
+                <SelectTrigger className="h-9 text-body-xs rounded-lg">
+                  <SelectValue placeholder="Pilih Kategori" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="materi_kelas">Materi Kelas / Diktat (PDF)</SelectItem>
                   <SelectItem value="contoh_soal">Contoh Soal &amp; Latihan (PDF)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-1 w-full md:w-56 shrink-0">
+              <Label className="text-body-sm font-semibold text-foreground">Berkas PDF</Label>
+              <Input
+                id="course-pdf-input"
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                disabled={loading}
+                className="cursor-pointer file:rounded-md file:bg-muted file:border-0 file:px-2.5 file:py-0.5 file:text-body-xs file:font-semibold h-9 rounded-lg text-body-xs"
+              />
+            </div>
+
+            <div className="shrink-0 pt-1 md:pt-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button
+                        type="submit"
+                        size="icon"
+                        disabled={loading || !title.trim() || selectedChapters.size === 0 || !selectedFile}
+                        className="size-9 rounded-lg font-semibold"
+                        aria-label="Unggah Dokumen PDF"
+                      >
+                        {loading ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <SendHorizontal className="size-4" />
+                        )}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    Unggah Dokumen PDF
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
 
@@ -247,7 +292,7 @@ export function MaterialsTab({
 
             {chapters.length === 0 ? (
               <p className="text-body-xs text-status-warning py-1">
-                Mata kuliah ini belum memiliki bab. Silakan tambahkan bab terlebih dahulu di tab <strong>Silabus &amp; Bab</strong>.
+                Mata kuliah ini belum memiliki bab. Silakan tambahkan bab terlebih dahulu di tab <strong>Bab</strong>.
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto">
@@ -277,40 +322,6 @@ export function MaterialsTab({
                 })}
               </div>
             )}
-          </div>
-
-          {/* File Input and Submit */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-1">
-            <div className="space-y-1 flex-1 max-w-md">
-              <Label className="text-body-sm font-semibold text-foreground">Berkas PDF</Label>
-              <Input
-                id="course-pdf-input"
-                type="file"
-                accept="application/pdf"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                disabled={loading}
-                className="cursor-pointer file:rounded-md file:bg-muted file:border-0 file:px-2.5 file:py-0.5 file:text-body-xs file:font-semibold h-9 rounded-lg text-body-xs"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              size="sm"
-              disabled={loading || !title.trim() || selectedChapters.size === 0 || !selectedFile}
-              className="gap-1.5 rounded-lg font-semibold h-9"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Mengunggah...
-                </>
-              ) : (
-                <>
-                  <Plus className="size-3.5" />
-                  Unggah PDF
-                </>
-              )}
-            </Button>
           </div>
         </form>
       </div>

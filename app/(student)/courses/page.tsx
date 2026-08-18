@@ -16,7 +16,7 @@ import { courses as coursesTable } from "@/db/schema";
 
 export const metadata: Metadata = {
   title: pageTitle("Courses"),
-  description: "Katalog course Zyx Academy - enrollment diaktifkan oleh admin sesuai paket.",
+  description: "Katalog course Zyx Academy, enrollment diaktifkan oleh admin sesuai paket.",
 };
 
 export default async function CoursesPage() {
@@ -62,62 +62,65 @@ export default async function CoursesPage() {
       description="Pilih kelas, buka dokumen gratis, lalu aktifkan token untuk fitur premium."
     >
       <Reveal>
-        <div className="divide-y divide-border border-y border-border">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {coursesWithStats.map((c) => {
             const isPka = c.id === PKA_COURSE_ID;
             return (
               <Link
                 key={c.id}
                 href={`/courses/${c.id}`}
-                className="group grid gap-4 py-5 transition-colors duration-150 hover:bg-muted/35 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-3"
+                className="group relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xs backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-brand-primary/40 hover:bg-card/90 hover:shadow-md hover:shadow-brand-primary/5"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
-                      {c.category}
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-md bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-primary ring-1 ring-brand-primary/20">
+                        {c.category}
+                      </span>
+                      {isPka ? (
+                        <span className="rounded-md bg-brand-secondary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-secondary ring-1 ring-brand-secondary/20">
+                          Maba ITB
+                        </span>
+                      ) : (
+                        <span className="rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          ITB TPB
+                        </span>
+                      )}
+                    </div>
+                    <span className="flex size-7 items-center justify-center rounded-lg border border-border/60 bg-background/50 text-muted-foreground transition-all duration-200 group-hover:border-brand-primary/30 group-hover:bg-brand-primary/10 group-hover:text-brand-primary shrink-0">
+                      <ArrowRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
                     </span>
-                    {isPka ? (
-                      <span className="rounded-md bg-brand-secondary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-secondary ring-1 ring-brand-secondary/20">
-                        Maba ITB
-                      </span>
-                    ) : (
-                      <span className="text-body-xs font-medium text-muted-foreground">
-                        ITB TPB
-                      </span>
-                    )}
                   </div>
-                  <h2 className="mt-2 font-heading text-body-base font-bold text-foreground transition-colors group-hover:text-brand-primary">
+
+                  <h2 className="mt-3.5 font-heading text-body-base font-bold text-foreground transition-colors group-hover:text-brand-primary">
                     {c.title}
                   </h2>
-                  <p className="mt-1.5 max-w-3xl text-body-sm leading-relaxed text-muted-foreground">
-                    {c.description}
+                  <p className="mt-1.5 line-clamp-2 text-body-xs leading-relaxed text-muted-foreground">
+                    {c.description || "Kelas persiapan dan modul terstruktur ITB TPB."}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between gap-4 sm:min-w-[220px]">
+                <div className="mt-5 border-t border-border/50 pt-3.5 text-body-xs text-muted-foreground">
                   {isPka ? (
-                    <div className="grid gap-1 text-body-xs text-muted-foreground">
-                      <span className="flex items-center gap-2">
-                        <Sparkles className="size-3.5 text-brand-secondary" />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-brand-secondary font-medium">
+                        <Sparkles className="size-3.5" />
                         Simulasi 3 stage x 3 mapel
                       </span>
-                      <span className="font-semibold text-brand-primary">Mulai belajar</span>
+                      <span className="font-semibold text-brand-primary">Mulai</span>
                     </div>
                   ) : (
-                    <div className="grid gap-1 text-body-xs text-muted-foreground">
-                      <span className="flex items-center gap-2">
-                        <BookOpen className="size-3.5 text-brand-primary" />
-                        {c.materialsCount} bahan belajar
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="flex items-center gap-1.5">
+                        <BookOpen className="size-3.5 text-brand-primary shrink-0" />
+                        <span>{c.materialsCount} materi</span>
                       </span>
-                      <span className="flex items-center gap-2">
-                        <ClipboardList className="size-3.5 text-tertiary-1" />
-                        {c.quizzesCount} kuis, {c.tryoutsCount} tryout
+                      <span className="flex items-center gap-1.5">
+                        <ClipboardList className="size-3.5 text-tertiary-1 shrink-0" />
+                        <span>{c.quizzesCount} kuis, {c.tryoutsCount} tryout</span>
                       </span>
                     </div>
                   )}
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors group-hover:border-brand-primary/40 group-hover:text-brand-primary">
-                    <ArrowRight className="size-4" />
-                  </span>
                 </div>
               </Link>
             );
