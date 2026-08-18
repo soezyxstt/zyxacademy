@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import {
@@ -568,17 +569,15 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions, ques
 
               {/* RENDER ESSAY OPTIONS */}
               {qType === "essay" && (
-                <div className="flex items-center gap-2 pt-2 select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    id="que-file"
-                    checked={qAcceptsFile}
-                    onChange={(e) => setQAcceptsFile(e.target.checked)}
-                    className="size-4 rounded-sm border-border text-brand-primary focus:ring-brand-primary"
-                  />
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-3 select-none">
                   <Label htmlFor="que-file" className="text-body-sm font-semibold cursor-pointer">
                     Izinkan siswa mengunggah berkas coretan pendukung (PDF/Gambar)
                   </Label>
+                  <Switch
+                    id="que-file"
+                    checked={qAcceptsFile}
+                    onCheckedChange={setQAcceptsFile}
+                  />
                 </div>
               )}
             </div>

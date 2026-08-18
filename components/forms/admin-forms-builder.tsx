@@ -51,8 +51,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -1221,14 +1221,19 @@ export default function AdminFormsBuilder({
 
                     <div className="flex items-center gap-2">
                       <div className="h-4 w-px bg-border" />
-                      <label className="inline-flex items-center gap-1.5 text-body-xs font-semibold text-foreground cursor-pointer">
-                        <Checkbox
+                      <div className="inline-flex items-center gap-2">
+                        <Label
+                          htmlFor={`question-required-${qIdx}`}
+                          className="text-body-xs font-semibold text-foreground cursor-pointer"
+                        >
+                          Wajib Diisi
+                        </Label>
+                        <Switch
+                          id={`question-required-${qIdx}`}
                           checked={q.required ?? true}
                           onCheckedChange={(checked) => handleQuestionChange(qIdx, { required: Boolean(checked) })}
-                          className="size-4 rounded-md border-input text-brand-primary data-[state=checked]:bg-brand-primary data-[state=checked]:border-brand-primary"
                         />
-                        Wajib Diisi
-                      </label>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1325,12 +1330,13 @@ export default function AdminFormsBuilder({
                 Status & Jadwal Formulir
               </p>
 
-              <label
-                htmlFor="builder-setting-accepting"
-                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+              <div
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3"
               >
                 <div>
-                  <p className="text-body-sm font-semibold text-foreground">Menerima Tanggapan</p>
+                  <Label htmlFor="builder-setting-accepting" className="text-body-sm font-semibold text-foreground cursor-pointer">
+                    Menerima Tanggapan
+                  </Label>
                   <p className="text-body-xs text-muted-foreground">Izinkan responden mengisi formulir ini.</p>
                 </div>
                 <Switch
@@ -1338,7 +1344,7 @@ export default function AdminFormsBuilder({
                   checked={settings.acceptingResponses}
                   onCheckedChange={(checked) => setSettings({ ...settings, acceptingResponses: Boolean(checked) })}
                 />
-              </label>
+              </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
@@ -1428,12 +1434,13 @@ export default function AdminFormsBuilder({
                 </div>
               </div>
 
-              <label
-                htmlFor="builder-setting-allow-edit"
-                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+              <div
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3"
               >
                 <div>
-                  <p className="text-body-sm font-semibold text-foreground">Izinkan pengeditan respons</p>
+                  <Label htmlFor="builder-setting-allow-edit" className="text-body-sm font-semibold text-foreground cursor-pointer">
+                    Izinkan pengeditan respons
+                  </Label>
                   <p className="text-body-xs text-muted-foreground">Respon dapat diubah kembali setelah dikirimkan.</p>
                 </div>
                 <Switch
@@ -1441,14 +1448,15 @@ export default function AdminFormsBuilder({
                   checked={settings.allowResponseEditing}
                   onCheckedChange={(checked) => setSettings({ ...settings, allowResponseEditing: Boolean(checked) })}
                 />
-              </label>
+              </div>
 
-              <label
-                htmlFor="builder-setting-limit-one"
-                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+              <div
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3"
               >
                 <div>
-                  <p className="text-body-sm font-semibold text-foreground">Batasi 1 respons per pengguna</p>
+                  <Label htmlFor="builder-setting-limit-one" className="text-body-sm font-semibold text-foreground cursor-pointer">
+                    Batasi 1 respons per pengguna
+                  </Label>
                   <p className="text-body-xs text-muted-foreground">Membatasi responden hanya boleh 1 kali pengisian.</p>
                 </div>
                 <Switch
@@ -1456,7 +1464,7 @@ export default function AdminFormsBuilder({
                   checked={settings.limitToOneResponse}
                   onCheckedChange={(checked) => setSettings({ ...settings, limitToOneResponse: Boolean(checked) })}
                 />
-              </label>
+              </div>
             </div>
 
             {/* 3. File Upload Limits & Presentation */}

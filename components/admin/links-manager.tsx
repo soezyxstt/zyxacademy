@@ -671,14 +671,15 @@ export function LinksManager() {
 
             <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
               <div>
-                <p className="text-body-sm font-semibold text-foreground">
+                <Label htmlFor="link-active-status" className="text-body-sm font-semibold text-foreground cursor-pointer">
                   Status aktif
-                </p>
+                </Label>
                 <p className="text-body-xs text-muted-foreground">
                   Tautan nonaktif tidak muncul di halaman publik.
                 </p>
               </div>
               <Switch
+                id="link-active-status"
                 checked={form.isActive}
                 onCheckedChange={(checked) =>
                   setForm((p) => ({ ...p, isActive: checked }))

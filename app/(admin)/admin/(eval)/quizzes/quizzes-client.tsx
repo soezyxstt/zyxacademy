@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getQuizTemplatePreviewAction } from "@/app/actions/tutor-management";
 import { MathText } from "@/components/course/math-text";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 type TemplateType = {
   id: string;
@@ -405,38 +407,21 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
                     </div>
 
                     <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border/40">
-                      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <Label
+                        htmlFor={`quiz-discussion-${template.id}`}
+                        className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider cursor-pointer"
+                      >
                         Pembahasan:
-                      </span>
-                      <div className="flex gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            "text-[10px] h-7 px-2.5 rounded-md cursor-pointer",
-                            template.showDiscussion
-                              ? "bg-brand-primary/15 text-brand-primary font-bold border-brand-primary/30"
-                              : "text-muted-foreground hover:bg-muted border-dashed"
-                          )}
-                          onClick={() => handleUpdateShowDiscussion(template.id, true)}
-                        >
-                          Buka
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            "text-[10px] h-7 px-2.5 rounded-md cursor-pointer",
-                            !template.showDiscussion
-                              ? "bg-muted text-muted-foreground font-bold border-border"
-                              : "text-muted-foreground hover:bg-muted border-dashed"
-                          )}
-                          onClick={() => handleUpdateShowDiscussion(template.id, false)}
-                        >
-                          Kunci
-                        </Button>
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-medium text-foreground">
+                          {template.showDiscussion ? "Buka" : "Kunci"}
+                        </span>
+                        <Switch
+                          id={`quiz-discussion-${template.id}`}
+                          checked={Boolean(template.showDiscussion)}
+                          onCheckedChange={(checked) => handleUpdateShowDiscussion(template.id, checked)}
+                        />
                       </div>
                     </div>
                   </div>

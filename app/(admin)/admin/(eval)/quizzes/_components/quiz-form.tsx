@@ -856,12 +856,18 @@ export function QuizForm({
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-1">
                     <div className="flex items-center justify-between rounded-lg border border-border p-3">
                       <div className="space-y-0.5 pr-2">
-                        <Label className="text-body-xs sm:text-body-sm font-semibold text-foreground">Tampilkan Skor Instan</Label>
+                        <Label htmlFor="showScoreImmediate" className="text-body-xs sm:text-body-sm font-semibold text-foreground cursor-pointer">
+                          Tampilkan Skor Instan
+                        </Label>
                         <p className="text-[11px] text-muted-foreground">
                           Siswa langsung melihat nilai total setelah submit
                         </p>
                       </div>
-                      <Switch checked={showScoreImmediate} onCheckedChange={setShowScoreImmediate} />
+                      <Switch
+                        id="showScoreImmediate"
+                        checked={showScoreImmediate}
+                        onCheckedChange={setShowScoreImmediate}
+                      />
                     </div>
 
                     <div className="rounded-lg border border-border p-3 space-y-1">
@@ -899,8 +905,14 @@ export function QuizForm({
                   {/* Global Duration */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-body-sm font-semibold text-foreground">Batas Waktu Keseluruhan</Label>
-                      <Switch checked={hasGlobalTimeLimit} onCheckedChange={setHasGlobalTimeLimit} />
+                      <Label htmlFor="hasGlobalTimeLimit" className="text-body-sm font-semibold text-foreground cursor-pointer">
+                        Batas Waktu Keseluruhan
+                      </Label>
+                      <Switch
+                        id="hasGlobalTimeLimit"
+                        checked={hasGlobalTimeLimit}
+                        onCheckedChange={setHasGlobalTimeLimit}
+                      />
                     </div>
                     {hasGlobalTimeLimit ? (
                       <div className="flex items-center gap-2 pt-0.5">
@@ -923,12 +935,15 @@ export function QuizForm({
                     {/* Per-Question Timer */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-0.5">
-                        <Label className="text-body-sm font-semibold text-foreground">Timer Per Butir Soal</Label>
+                        <Label htmlFor="perQuestionTimerEnabled" className="text-body-sm font-semibold text-foreground cursor-pointer">
+                          Timer Per Butir Soal
+                        </Label>
                         <p className="text-[11px] text-muted-foreground">
                           Setiap soal memiliki timer mundur tersendiri
                         </p>
                       </div>
                       <Switch
+                        id="perQuestionTimerEnabled"
                         checked={perQuestionTimerEnabled}
                         onCheckedChange={setPerQuestionTimerEnabled}
                       />
@@ -969,27 +984,39 @@ export function QuizForm({
                   {/* Can Go Back */}
                   <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2.5">
                     <div className="space-y-0.5">
-                      <Label className="text-body-sm font-semibold text-foreground">Navigasi Mundur (Kembali)</Label>
+                      <Label htmlFor="canGoBack" className="text-body-sm font-semibold text-foreground cursor-pointer">
+                        Navigasi Mundur (Kembali)
+                      </Label>
                       <p className="text-[11px] text-muted-foreground">
                         {canGoBack
                           ? "Siswa bebas kembali ke nomor sebelumnya"
                           : "Mode linier satu arah"}
                       </p>
                     </div>
-                    <Switch checked={canGoBack} onCheckedChange={setCanGoBack} />
+                    <Switch
+                      id="canGoBack"
+                      checked={canGoBack}
+                      onCheckedChange={setCanGoBack}
+                    />
                   </div>
 
                   {/* Require All Answered */}
                   <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2.5">
                     <div className="space-y-0.5">
-                      <Label className="text-body-sm font-semibold text-foreground">Wajib Jawab Semua Soal</Label>
+                      <Label htmlFor="requireAllAnswered" className="text-body-sm font-semibold text-foreground cursor-pointer">
+                        Wajib Jawab Semua Soal
+                      </Label>
                       <p className="text-[11px] text-muted-foreground">
                         {requireAllAnswered
                           ? "Semua soal harus dijawab sebelum submit"
                           : "Boleh submit meski ada soal kosong"}
                       </p>
                     </div>
-                    <Switch checked={requireAllAnswered} onCheckedChange={setRequireAllAnswered} />
+                    <Switch
+                      id="requireAllAnswered"
+                      checked={requireAllAnswered}
+                      onCheckedChange={setRequireAllAnswered}
+                    />
                   </div>
 
                   {/* Max Attempts */}
@@ -1017,19 +1044,27 @@ export function QuizForm({
                   {/* Shuffle Questions & Options */}
                   <div className="space-y-2.5 pt-0.5">
                     <div className="flex items-center justify-between">
-                      <Label className="text-body-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <Label htmlFor="shuffleQuestions" className="text-body-sm font-semibold text-foreground flex items-center gap-1.5 cursor-pointer">
                         <Shuffle className="size-3.5 text-muted-foreground" />
                         Acak Urutan Soal
                       </Label>
-                      <Switch checked={shuffleQuestions} onCheckedChange={setShuffleQuestions} />
+                      <Switch
+                        id="shuffleQuestions"
+                        checked={shuffleQuestions}
+                        onCheckedChange={setShuffleQuestions}
+                      />
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <Label className="text-body-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <Label htmlFor="shuffleOptions" className="text-body-sm font-semibold text-foreground flex items-center gap-1.5 cursor-pointer">
                         <Shuffle className="size-3.5 text-muted-foreground" />
                         Acak Opsi Pilihan Ganda
                       </Label>
-                      <Switch checked={shuffleOptions} onCheckedChange={setShuffleOptions} />
+                      <Switch
+                        id="shuffleOptions"
+                        checked={shuffleOptions}
+                        onCheckedChange={setShuffleOptions}
+                      />
                     </div>
                   </div>
                 </CardContent>
