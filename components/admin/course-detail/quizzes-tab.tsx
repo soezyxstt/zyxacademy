@@ -74,6 +74,7 @@ export type CourseQuiz = {
 
 type Props = {
   courseId: string;
+  courseSlug?: string;
   courseTitle: string;
   chapters: Chapter[];
   initialQuizzes: CourseQuiz[];
@@ -81,8 +82,10 @@ type Props = {
 
 export function QuizzesTab({
   courseId,
+  courseSlug,
   initialQuizzes,
 }: Props) {
+
   const router = useRouter();
   const [quizzes] = useState<CourseQuiz[]>(initialQuizzes);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -145,6 +148,10 @@ export function QuizzesTab({
     return q.category === categoryFilter;
   });
 
+  const createQuizHref = courseSlug
+    ? `/admin/courses/${courseSlug}/quizzes/new`
+    : `/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`;
+
   return (
     <div className="space-y-4">
       {/* Header Controls & Create Button */}
@@ -169,7 +176,7 @@ export function QuizzesTab({
         </div>
 
         <Button asChild size="sm" className="gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold shadow-2xs h-9">
-          <Link href={`/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`}>
+          <Link href={createQuizHref}>
             <Plus className="size-3.5" />
             Buat Kuis Baru
           </Link>
@@ -186,7 +193,7 @@ export function QuizzesTab({
               Klik tombol &ldquo;Buat Kuis Baru&rdquo; untuk menyusun kuis mandiri atau simulasi pada kelas ini.
             </p>
             <Button asChild size="sm" className="mt-3 gap-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold h-8 text-body-xs">
-              <Link href={`/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`}>
+              <Link href={createQuizHref}>
                 <Plus className="size-3.5" />
                 Buat Kuis Sekarang
               </Link>
@@ -194,91 +201,97 @@ export function QuizzesTab({
           </div>
         ) : (
           <div className="divide-y divide-border/50">
-            {filteredQuizzes.map((quiz) => (
-              <div
-                key={quiz.id}
-                className="p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:bg-muted/10 transition-colors"
-              >
-                <div className="space-y-1 min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p className="font-heading text-body-xs font-bold text-foreground">
-                      {quiz.title}
-                    </p>
-                    <Badge variant="secondary" className="rounded-md text-[10px] px-1.5 py-0.5 capitalize font-medium">
-                      {quiz.category}
-                    </Badge>
-                    <Badge
-                      variant={quiz.status === "published" ? "default" : "outline"}
-                      className="rounded-md text-[10px] px-1.5 py-0.5 font-medium"
-                    >
-                      {quiz.status === "published" ? "Published" : "Draft"}
-                    </Badge>
-                    <Badge
+            {filteredQuizzes.map((quiz) => {
+              const editQuizHref = courseSlug
+                ? `/admin/quizzes/${quiz.id}/edit?returnUrl=${encodeURIComponent(`/admin/courses/${courseSlug}?tab=quizzes`)}&courseSlug=${encodeURIComponent(courseSlug)}`
+                : `/admin/quizzes/${quiz.id}/edit`;
+
+              return (
+                <div
+                  key={quiz.id}
+                  className="p-3.5 sm:p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3 hover:bg-muted/10 transition-colors"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <p className="font-heading text-body-xs font-bold text-foreground">
+                        {quiz.title}
+                      </p>
+                      <Badge variant="secondary" className="rounded-md text-[10px] px-1.5 py-0.5 capitalize font-medium">
+                        {quiz.category}
+                      </Badge>
+                      <Badge
+                        variant={quiz.status === "published" ? "default" : "outline"}
+                        className="rounded-md text-[10px] px-1.5 py-0.5 font-medium"
+                      >
+                        {quiz.status === "published" ? "Published" : "Draft"}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="rounded-md text-[10px] px-1.5 py-0.5 font-medium text-muted-foreground bg-muted/20"
+                      >
+                        {quiz.visibility === "paid" ? "Premium" : "Gratis"}
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="size-3" />
+                        {quiz.timeLimitSeconds ? `${Math.round(quiz.timeLimitSeconds / 60)} Menit` : "Tanpa batas"}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Award className="size-3" />
+                        Maks. {quiz.maxAttempts || "Bebas"} percobaan
+                      </span>
+                      <span>
+                        Dibuat pada <FormattedDate date={quiz.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
+                      </span>
+                    </div>
+
+                    {/* Performance stats if attempts exist */}
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
+                      <span className="font-medium text-foreground">
+                        {quiz.totalAttempts || 0} pengerjaan siswa
+                      </span>
+                      {(quiz.totalAttempts || 0) > 0 && (
+                        <>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground">
+                            Rata-rata: <strong className="text-foreground">{quiz.avgScore}/100</strong>
+                          </span>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground">
+                            Kelulusan: <strong className="text-foreground">{quiz.passRate}%</strong>
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    <Button
+                      size="sm"
                       variant="outline"
-                      className="rounded-md text-[10px] px-1.5 py-0.5 font-medium text-muted-foreground bg-muted/20"
+                      className="gap-1 rounded-md text-body-xs h-7 px-2.5 border-border"
+                      onClick={() => handlePreviewQuiz(quiz)}
                     >
-                      {quiz.visibility === "paid" ? "Premium" : "Gratis"}
-                    </Badge>
-                  </div>
+                      <Eye className="size-3" />
+                      Pratinjau
+                    </Button>
 
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="size-3" />
-                      {quiz.timeLimitSeconds ? `${Math.round(quiz.timeLimitSeconds / 60)} Menit` : "Tanpa batas"}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Award className="size-3" />
-                      Maks. {quiz.maxAttempts || "Bebas"} percobaan
-                    </span>
-                    <span>
-                      Dibuat pada <FormattedDate date={quiz.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
-                    </span>
-                  </div>
+                    <Button asChild size="sm" variant="outline" className="gap-1 rounded-md text-body-xs text-brand-primary border-brand-primary/30 hover:bg-brand-primary/10 h-7 px-2.5">
+                      <Link href={`/admin/quiz-insights/${quiz.id}`}>
+                        <BarChart3 className="size-3" />
+                        Analisis
+                      </Link>
+                    </Button>
 
-                  {/* Performance stats if attempts exist */}
-                  <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px]">
-                    <span className="font-medium text-foreground">
-                      {quiz.totalAttempts || 0} pengerjaan siswa
-                    </span>
-                    {(quiz.totalAttempts || 0) > 0 && (
-                      <>
-                        <span className="text-muted-foreground">•</span>
-                        <span className="text-muted-foreground">
-                          Rata-rata: <strong className="text-foreground">{quiz.avgScore}/100</strong>
-                        </span>
-                        <span className="text-muted-foreground">•</span>
-                        <span className="text-muted-foreground">
-                          Kelulusan: <strong className="text-foreground">{quiz.passRate}%</strong>
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
+                    <Button asChild size="sm" variant="outline" className="gap-1 rounded-md text-body-xs border-border h-7 px-2.5" title="Edit Kuis">
+                      <Link href={editQuizHref}>
+                        <Edit2 className="size-3" />
+                        Edit
+                      </Link>
+                    </Button>
 
-                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 rounded-md text-body-xs h-7 px-2.5 border-border"
-                    onClick={() => handlePreviewQuiz(quiz)}
-                  >
-                    <Eye className="size-3" />
-                    Pratinjau
-                  </Button>
-
-                  <Button asChild size="sm" variant="outline" className="gap-1 rounded-md text-body-xs text-brand-primary border-brand-primary/30 hover:bg-brand-primary/10 h-7 px-2.5">
-                    <Link href={`/admin/quiz-insights/${quiz.id}`}>
-                      <BarChart3 className="size-3" />
-                      Analisis
-                    </Link>
-                  </Button>
-
-                  <Button asChild size="sm" variant="outline" className="gap-1 rounded-md text-body-xs border-border h-7 px-2.5" title="Edit Kuis">
-                    <Link href={`/admin/quizzes/${quiz.id}/edit`}>
-                      <Edit2 className="size-3" />
-                      Edit
-                    </Link>
-                  </Button>
 
                   <Button
                     size="icon"
@@ -291,10 +304,12 @@ export function QuizzesTab({
                   </Button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+
 
       {/* Delete Quiz Confirmation Dialog */}
       <AdminConfirmDialog

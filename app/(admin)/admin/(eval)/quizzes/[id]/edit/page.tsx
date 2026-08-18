@@ -5,8 +5,6 @@ import { db } from "@/db";
 import { quizTemplates, courses } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
-import { AdminPageHeader } from "@/components/admin/page-header";
-import { NotebookPen } from "lucide-react";
 import { QuizForm, InitialQuizData } from "../../_components/quiz-form";
 
 export const metadata: Metadata = {
@@ -15,12 +13,15 @@ export const metadata: Metadata = {
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ returnUrl?: string; courseSlug?: string }>;
 };
 
-export default async function EditQuizPage({ params }: Props) {
+export default async function EditQuizPage({ params, searchParams }: Props) {
   await assertTutorOrAdmin();
 
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const { returnUrl, courseSlug } = resolvedSearchParams;
 
   const [template, allCourses] = await Promise.all([
     db
@@ -71,19 +72,18 @@ export default async function EditQuizPage({ params }: Props) {
     },
   };
 
+  const matchingCourse = allCourses.find((c) => c.id === template.courseId);
+
   return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        icon={NotebookPen}
-        title={`Edit Kuis: ${template.title}`}
-        backHref="/admin/quizzes"
-        backLabel="Kembali ke Daftar Kuis"
-      />
-      <QuizForm
-        initialData={initialData}
-        courses={allCourses}
-        isEdit={true}
-      />
-    </div>
+    <QuizForm
+      initialData={initialData}
+      courses={allCourses}
+      isEdit={true}
+      returnUrl={returnUrl}
+      courseSlug={courseSlug}
+      backHref={returnUrl || (courseSlug ? `/admin/courses/${courseSlug}?tab=quizzes` : "/admin/quizzes")}
+      backLabel={courseSlug && matchingCourse ? `Kembali ke ${matchingCourse.title}` : "Kembali ke Daftar Kuis"}
+    />
   );
 }
+

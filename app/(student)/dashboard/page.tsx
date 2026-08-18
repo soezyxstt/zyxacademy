@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
-import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { auth } from "@/lib/auth";
 import {
@@ -36,8 +35,8 @@ import { getOrUpdateStreak } from "@/lib/streak-service";
 import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
 import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
-import { DashboardPlanPreview } from "@/components/dashboard/plan-preview";
-
+import { StudentOnboardingView } from "@/components/dashboard/student-onboarding-view";
+import { PKA_COURSE_ID } from "@/lib/pka-config";
 
 export const metadata: Metadata = {
   title: pageTitle("Dashboard Siswa"),
@@ -62,6 +61,64 @@ export default async function DashboardPage() {
     getStudentSubmissions(),
   ]);
 
+  const isEnrolledInAny = enrollments.length > 0;
+  const enrolledCourseIds = enrollments.map((e) => e.id);
+
+  // If not enrolled in any course, fetch catalog courses for onboarding preview
+  let catalogCourses: Array<{
+    id: string;
+    title: string;
+    category: string;
+    description: string;
+    materialsCount: number;
+    quizzesCount: number;
+    tryoutsCount: number;
+  }> = [];
+
+  if (!isEnrolledInAny) {
+    const dbCourses = await db.select().from(courses);
+    const TEST_COURSE_IDS = new Set([
+      "embed-test-course",
+      "miscon-test-course",
+      "remed-test-course",
+      "term-test-course",
+      "graph-test-course",
+    ]);
+    const activeCourses = dbCourses.filter(
+      (c) => !TEST_COURSE_IDS.has(c.id) && (c.id !== PKA_COURSE_ID || env.FEATURE_PKA === "1")
+    );
+
+    catalogCourses = await Promise.all(
+      activeCourses.map(async (c) => {
+        if (c.id === PKA_COURSE_ID) {
+          return {
+            id: c.id,
+            title: c.title,
+            category: c.category,
+            description: c.description || "",
+            materialsCount: 0,
+            quizzesCount: 0,
+            tryoutsCount: 0,
+          };
+        }
+        const [materials, quizzes, tryouts] = await Promise.all([
+          getCourseMaterials(c.id),
+          getCourseQuizzes(c.id),
+          getCourseTryouts(c.id),
+        ]);
+        return {
+          id: c.id,
+          title: c.title,
+          category: c.category,
+          description: c.description || "",
+          materialsCount: materials.length,
+          quizzesCount: quizzes.length,
+          tryoutsCount: tryouts.length,
+        };
+      })
+    );
+  }
+
   let streakInfo = null;
   if (user?.id) {
     try {
@@ -73,7 +130,7 @@ export default async function DashboardPage() {
 
   // Fetch the latest weekly reflection when the optional email and reflection workflow is active.
   let latestReflection = null;
-  if (user?.id && env.FEATURE_REFLECTION === "1") {
+  if (user?.id && env.FEATURE_REFLECTION === "1" && isEnrolledInAny) {
     try {
       const rows = await db
         .select()
@@ -93,12 +150,11 @@ export default async function DashboardPage() {
     }
   }
 
-
   // Fetch weak concepts
   let masteryConcepts: Awaited<ReturnType<typeof getMastery>> = [];
-  if (user?.id) {
+  if (user?.id && isEnrolledInAny) {
     try {
-      const firstCourseId = (await getStudentEnrollments())[0]?.id;
+      const firstCourseId = enrollments[0]?.id;
       if (firstCourseId) {
         masteryConcepts = await getMastery(user.id, firstCourseId);
       }
@@ -109,7 +165,7 @@ export default async function DashboardPage() {
 
   // Fetch next concepts from study paths
   const nextConcepts: Record<string, string> = {};
-  if (user?.id) {
+  if (user?.id && isEnrolledInAny) {
     try {
       const { getOrComputeStudyPath } = await import("@/lib/study-path-service");
       await Promise.all(
@@ -127,9 +183,6 @@ export default async function DashboardPage() {
       console.error("Error loading next concepts for dashboard:", e);
     }
   }
-
-  const isEnrolledInAny = enrollments.length > 0;
-  const enrolledCourseIds = enrollments.map((e) => e.id);
 
   // Resolve all materials, quizzes, and tryouts for enrolled courses
   const courseDataList = await Promise.all(
@@ -150,7 +203,7 @@ export default async function DashboardPage() {
   const courseDataMap = new Map(courseDataList.map((d) => [d.courseId, d]));
 
   // 1. In-progress documents (materials) from studentMaterialProgress
-  const inProgressMaterialProgress = user?.id ? await db
+  const inProgressMaterialProgress = user?.id && isEnrolledInAny ? await db
     .select({
       materialId: studentMaterialProgress.materialId,
       completionPercent: studentMaterialProgress.completionPercent,
@@ -184,9 +237,9 @@ export default async function DashboardPage() {
     })
     .filter((document) => document !== null);
 
-  const totalDueFlashcards = user?.id ? await getCardsDueToday(user.id) : 0;
+  const totalDueFlashcards = user?.id && isEnrolledInAny ? await getCardsDueToday(user.id) : 0;
 
-  const recentReviews = user?.id ? await db
+  const recentReviews = user?.id && isEnrolledInAny ? await db
     .select({
       id: flashcardReviews.id,
       grade: flashcardReviews.grade,
@@ -223,98 +276,67 @@ export default async function DashboardPage() {
   return (
     <div className="pb-16 pt-8 md:pt-12">
       <div className="marketing-container">
-        {user?.id && <InterventionBanner />}
-        {env.FEATURE_REFLECTION === "1" && latestReflection && (
-          <WeeklyReflection reflection={latestReflection} />
-        )}
-        {user?.id ? (
-          <TodayPlan firstName={firstName} />
-        ) : (
-          /* Welcome Header for signed-out visitors */
+        {!isEnrolledInAny ? (
           <Reveal duration="duration-500">
-            <PageHeader
-              title={
-                <>
-                  Halo, <span className="bg-linear-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent">{userName}</span>
-                </>
-              }
-              description="Mari lanjutkan aktivitas belajarmu hari ini."
-              actions={
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 rounded-lg bg-muted/55 px-3.5 py-1.5">
-                    <GraduationCap className="size-4 text-brand-primary" />
-                    <div className="text-left">
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Kelas</p>
-                      <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none">{enrollments.length} Aktif</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 rounded-lg bg-muted/55 px-3.5 py-1.5">
-                    <Bookmark className="size-4 text-brand-primary" />
-                    <div className="text-left">
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Materi</p>
-                      <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none">{inProgressDocuments.length} Dibaca</p>
-                    </div>
-                  </div>
-
-                  {streakInfo && (
-                    <div className="flex items-center gap-2 rounded-lg bg-muted/55 px-3.5 py-1.5">
-                      <Flame className={cn("size-4", streakInfo.current > 0 ? "text-brand-secondary fill-brand-secondary/10" : "text-muted-foreground")} />
-                      <div className="text-left">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Streak</p>
-                        <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none">
-                          {streakInfo.current > 0 ? `${streakInfo.current} Hari` : "Mulai Hari Ini"}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              }
+            <StudentOnboardingView
+              userName={userName}
+              catalogCourses={catalogCourses}
             />
           </Reveal>
-        )}
-
-        <Reveal duration="duration-700">
-        {!isEnrolledInAny ? (
-          /* Empty State: Step-by-step clean portal */
-          <div className="mx-auto max-w-3xl border-y border-border bg-background/45 px-6 py-10 text-center backdrop-blur-md md:px-10 md:py-12">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary ring-4 ring-brand-primary/5">
-              <GraduationCap className="size-8" />
-            </div>
-            <h2 className="mt-6 font-heading text-h4 font-bold text-foreground">
-              Mulai Perjalanan Belajarmu
-            </h2>
-
-            {/* Steps indicator */}
-            <div className="mt-8 grid gap-4 text-left sm:grid-cols-3">
-              <div className="border-l border-border bg-muted/25 p-4">
-                <span className="flex size-6 items-center justify-center rounded-full bg-brand-primary text-white font-heading text-body-xs font-bold">1</span>
-                <h4 className="mt-2 text-body-xs font-bold text-foreground">Buat Akun</h4>
-                <p className="text-body-2xs text-muted-foreground mt-0.5">Sudah aktif via Google</p>
-              </div>
-              <div className="border-l border-border bg-muted/25 p-4">
-                <span className="flex size-6 items-center justify-center rounded-full bg-brand-primary text-white font-heading text-body-xs font-bold">2</span>
-                <h4 className="mt-2 text-body-xs font-bold text-foreground">Token Unik</h4>
-                <p className="text-body-2xs text-muted-foreground mt-0.5">Minta pada dosen/admin</p>
-              </div>
-              <div className="border-l border-border bg-muted/25 p-4">
-                <span className="flex size-6 items-center justify-center rounded-full bg-brand-primary text-white font-heading text-body-xs font-bold">3</span>
-                <h4 className="mt-2 text-body-xs font-bold text-foreground">Aktivasi</h4>
-                <p className="text-body-2xs text-muted-foreground mt-0.5">Masukkan di form bawah</p>
-              </div>
-            </div>
-
-            <div className="mt-8 border-t border-border pt-6 text-left">
-              <h3 className="font-heading text-body-sm font-bold text-foreground mb-4">
-                Masukkan Kode Aktivasi
-              </h3>
-              <EnrollmentForm />
-            </div>
-            <DashboardPlanPreview />
-          </div>
         ) : (
-          /* Active Student Dashboard Flow */
-          <div className="grid gap-6 lg:grid-cols-12">
+          <>
+            {user?.id && <InterventionBanner />}
+            {env.FEATURE_REFLECTION === "1" && latestReflection && (
+              <WeeklyReflection reflection={latestReflection} />
+            )}
+            {user?.id ? (
+              <TodayPlan firstName={firstName} />
+            ) : (
+              /* Welcome Header for signed-out visitors */
+              <Reveal duration="duration-500">
+                <PageHeader
+                  title={
+                    <>
+                      Halo, <span className="bg-linear-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent">{userName}</span>
+                    </>
+                  }
+                  actions={
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-2 rounded-lg bg-muted/55 px-3.5 py-1.5">
+                        <GraduationCap className="size-4 text-brand-primary" />
+                        <div className="text-left">
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Kelas</p>
+                          <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none">{enrollments.length} Aktif</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 rounded-lg bg-muted/55 px-3.5 py-1.5">
+                        <Bookmark className="size-4 text-brand-primary" />
+                        <div className="text-left">
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Materi</p>
+                          <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none">{inProgressDocuments.length} Dibaca</p>
+                        </div>
+                      </div>
+
+                      {streakInfo && (
+                        <div className="flex items-center gap-2 rounded-lg bg-muted/55 px-3.5 py-1.5">
+                          <Flame className={cn("size-4", streakInfo.current > 0 ? "text-brand-secondary fill-brand-secondary/10" : "text-muted-foreground")} />
+                          <div className="text-left">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Streak</p>
+                            <p className="text-body-xs font-semibold text-foreground mt-0.5 leading-none">
+                              {streakInfo.current > 0 ? `${streakInfo.current} Hari` : "Mulai Hari Ini"}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  }
+                />
+              </Reveal>
+            )}
+
+            <Reveal duration="duration-700">
+              <div className="grid gap-6 lg:grid-cols-12">
             {/* Left Column (Main study track) - 7 cols */}
             <div className="space-y-6 lg:col-span-7">
               {/* Classes list Section */}
@@ -579,9 +601,10 @@ export default async function DashboardPage() {
               </section>
             </div>
           </div>
-        )}
         </Reveal>
-      </div>
-    </div>
-  );
+      </>
+    )}
+  </div>
+</div>
+);
 }

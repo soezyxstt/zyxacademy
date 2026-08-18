@@ -196,11 +196,13 @@ export function CourseDetailClient({
         <AdminTabsContent value="quizzes">
           <QuizzesTab
             courseId={course.id}
+            courseSlug={course.id}
             courseTitle={course.title}
             chapters={chapters}
             initialQuizzes={quizzes}
           />
         </AdminTabsContent>
+
 
         <AdminTabsContent value="questions">
           <QuestionsTab

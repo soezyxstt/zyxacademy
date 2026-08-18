@@ -2,13 +2,10 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
-  ArrowLeft,
   Calendar,
   HelpCircle,
   Save,
-  Search,
   Settings2,
   Sliders,
   Sparkles,
@@ -23,6 +20,7 @@ import {
   Lock,
   ChevronRight,
   Loader2,
+  NotebookPen,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -33,6 +31,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { SearchBar } from "@/components/ui/search-bar";
+import { PageHeader } from "@/components/page-header";
 import { MathText } from "@/components/course/math-text";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
@@ -86,13 +86,31 @@ export interface InitialQuizData {
   };
 }
 
-interface Props {
+export interface QuizFormProps {
   initialData?: InitialQuizData;
   courses: CourseOption[];
   isEdit?: boolean;
+  hideCourseSelect?: boolean;
+  courseTitle?: string;
+  courseSlug?: string;
+  backHref?: string;
+  backLabel?: string;
+  returnUrl?: string;
+  pageTitle?: string;
 }
 
-export function QuizForm({ initialData, courses, isEdit = false }: Props) {
+export function QuizForm({
+  initialData,
+  courses,
+  isEdit = false,
+  hideCourseSelect = false,
+  courseTitle,
+  courseSlug,
+  backHref,
+  backLabel,
+  returnUrl,
+  pageTitle: customPageTitle,
+}: QuizFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -473,7 +491,8 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
         );
       }
 
-      router.push("/admin/quizzes");
+      const targetDestination = returnUrl || (courseSlug ? `/admin/courses/${courseSlug}?tab=quizzes` : "/admin/quizzes");
+      router.push(targetDestination);
       router.refresh();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Terjadi kesalahan saat menyimpan kuis.";
@@ -483,67 +502,67 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Top Header Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
-        <div className="flex items-center gap-3">
-          <Button asChild variant="outline" size="sm" className="rounded-lg border-border">
-            <Link href="/admin/quizzes">
-              <ArrowLeft className="mr-1.5 size-4" /> Kembali
-            </Link>
-          </Button>
-          <div>
-            <h2 className="font-heading text-h5 font-bold text-foreground">
-              {isEdit ? "Edit Kuis" : "Buat Kuis Baru"}
-            </h2>
-          </div>
-        </div>
+  const currentCourseName = courses.find((c) => c.id === courseId)?.title || courseTitle;
+  const computedHeaderTitle = customPageTitle || (isEdit ? (title ? `Edit Kuis: ${title}` : "Edit Kuis") : (currentCourseName ? `Buat Kuis: ${currentCourseName}` : "Buat Kuis Baru"));
+  const computedBackHref = backHref || returnUrl || (courseSlug ? `/admin/courses/${courseSlug}?tab=quizzes` : "/admin/quizzes");
+  const computedBackLabel = backLabel || (currentCourseName ? `Kembali ke ${currentCourseName}` : "Kembali ke Daftar Kuis");
 
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={submitting}
-            onClick={() => handleSubmit(false)}
-            className="rounded-lg border-border font-medium"
-          >
-            <Save className="mr-1.5 size-4" />
-            {isEdit ? "Simpan Perubahan" : "Simpan Draf"}
-          </Button>
-          <Button
-            type="button"
-            disabled={submitting}
-            onClick={() => handleSubmit(true)}
-            className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-1.5 size-4 animate-spin" /> Menyimpan...
-              </>
-            ) : (
-              <>
-                <Send className="mr-1.5 size-4" />
-                {isEdit ? "Simpan & Publikasikan" : "Publikasikan Kuis"}
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+  return (
+    <div className="space-y-5">
+      {/* Universal Page Header with Integrated Actions */}
+      <PageHeader
+        icon={NotebookPen}
+        title={computedHeaderTitle}
+        backHref={computedBackHref}
+        backLabel={computedBackLabel}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={submitting}
+              onClick={() => handleSubmit(false)}
+              className="h-8 sm:h-9 rounded-lg border-border font-medium text-body-xs"
+            >
+              <Save className="mr-1.5 size-3.5" />
+              {isEdit ? "Simpan Perubahan" : "Simpan Draf"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={submitting}
+              onClick={() => handleSubmit(true)}
+              className="h-8 sm:h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 font-semibold text-body-xs shadow-2xs"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" /> Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-1.5 size-3.5" />
+                  {isEdit ? "Simpan & Publikasikan" : "Publikasikan Kuis"}
+                </>
+              )}
+            </Button>
+          </div>
+        }
+      />
 
       {/* 2-Tab Navigation */}
-      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full space-y-6">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full space-y-4">
         <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted p-1 sm:w-80">
           <TabsTrigger
             value="pengaturan"
-            className="flex items-center gap-2 rounded-lg text-body-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+            className="flex items-center gap-2 rounded-lg text-body-xs sm:text-body-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-2xs"
           >
             <Settings2 className="size-4" />
             Pengaturan Kuis
           </TabsTrigger>
           <TabsTrigger
             value="soal"
-            className="flex items-center gap-2 rounded-lg text-body-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+            className="flex items-center gap-2 rounded-lg text-body-xs sm:text-body-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-2xs"
           >
             <BookOpen className="size-4" />
             Pilihan Soal
@@ -556,37 +575,39 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
         </TabsList>
 
         {/* TAB 1: PENGATURAN KUIS */}
-        <TabsContent value="pengaturan" className="space-y-6 focus-visible:outline-none">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <TabsContent value="pengaturan" className="space-y-4 focus-visible:outline-none">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
             
             {/* LEFT COLUMN: Main Info & Schedule (7 cols) */}
-            <div className="space-y-6 lg:col-span-7">
+            <div className="space-y-4 lg:col-span-7">
               {/* General Information Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-xs">
-                <div className="border-b border-border/80 px-5 py-3.5">
-                  <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+              <Card className="rounded-xl border border-border bg-card shadow-2xs">
+                <div className="border-b border-border/80 px-4 py-3">
+                  <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <BookOpen className="size-4 text-brand-primary" />
                     Informasi Utama Kuis
                   </h3>
                 </div>
-                <CardContent className="p-5 space-y-4">
-                  <div>
-                    <Label htmlFor="courseId" className="text-body-sm font-semibold text-foreground">
-                      Mata Kuliah
-                    </Label>
-                    <Select value={courseId} onValueChange={setCourseId} disabled={isEdit}>
-                      <SelectTrigger id="courseId" className="mt-1.5 w-full rounded-lg border-border">
-                        <SelectValue placeholder="Pilih mata kuliah..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {courses.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <CardContent className="p-4 space-y-3.5">
+                  {!hideCourseSelect && (
+                    <div>
+                      <Label htmlFor="courseId" className="text-body-sm font-semibold text-foreground">
+                        Mata Kuliah
+                      </Label>
+                      <Select value={courseId} onValueChange={setCourseId} disabled={isEdit}>
+                        <SelectTrigger id="courseId" className="mt-1 w-full rounded-lg border-border h-9 text-body-sm">
+                          <SelectValue placeholder="Pilih mata kuliah..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {courses.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div>
                     <Label htmlFor="title" className="text-body-sm font-semibold text-foreground">
@@ -597,17 +618,17 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Contoh: Kuis 1 - Kalkulus & Aljabar Linear"
-                      className="mt-1.5 rounded-lg border-border font-medium"
+                      className="mt-1 rounded-lg border-border font-medium h-9 text-body-sm"
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <Label htmlFor="category" className="text-body-sm font-semibold text-foreground">
                         Kategori Kuis
                       </Label>
                       <Select value={category} onValueChange={(v: any) => setCategory(v)}>
-                        <SelectTrigger id="category" className="mt-1.5 rounded-lg border-border">
+                        <SelectTrigger id="category" className="mt-1 rounded-lg border-border h-9 text-body-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -625,7 +646,7 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                         Akses Siswa
                       </Label>
                       <Select value={visibility} onValueChange={(v: any) => setVisibility(v)}>
-                        <SelectTrigger id="visibility" className="mt-1.5 rounded-lg border-border">
+                        <SelectTrigger id="visibility" className="mt-1 rounded-lg border-border h-9 text-body-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -639,16 +660,16 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
               </Card>
 
               {/* Schedule Settings Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-xs">
-                <div className="border-b border-border/80 px-5 py-3.5">
-                  <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+              <Card className="rounded-xl border border-border bg-card shadow-2xs">
+                <div className="border-b border-border/80 px-4 py-3">
+                  <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <Calendar className="size-4 text-brand-primary" />
                     Jadwal Akses Kuis
                   </h3>
                 </div>
-                <CardContent className="p-5 space-y-4">
+                <CardContent className="p-4 space-y-3.5">
                   {/* Schedule Mode Selector */}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -658,26 +679,26 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                         }
                       }}
                       className={cn(
-                        "flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all cursor-pointer",
+                        "flex items-start gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer",
                         scheduleType === "scheduled"
                           ? "border-brand-primary bg-brand-primary/5 ring-1 ring-brand-primary/30"
-                          : "border-border bg-card hover:bg-muted/50"
+                          : "border-border bg-card hover:bg-muted/40"
                       )}
                     >
                       <div
                         className={cn(
-                          "flex size-5 shrink-0 items-center justify-center rounded-full border mt-0.5",
+                          "flex size-4 shrink-0 items-center justify-center rounded-full border mt-0.5",
                           scheduleType === "scheduled"
                             ? "border-brand-primary bg-brand-primary text-white"
                             : "border-muted-foreground"
                         )}
                       >
-                        {scheduleType === "scheduled" && <div className="size-2 rounded-full bg-white" />}
+                        {scheduleType === "scheduled" && <div className="size-1.5 rounded-full bg-white" />}
                       </div>
                       <div>
-                        <div className="text-body-sm font-bold text-foreground">Terjadwal</div>
-                        <div className="text-body-xs text-muted-foreground mt-0.5">
-                          Tentukan jadwal buka dan tutup secara otomatis
+                        <div className="text-body-xs sm:text-body-sm font-bold text-foreground">Terjadwal</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          Otomatis buka dan tutup sesuai waktu
                         </div>
                       </div>
                     </button>
@@ -691,26 +712,26 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                         if (manualStatus === "scheduled") setManualStatus("open");
                       }}
                       className={cn(
-                        "flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all cursor-pointer",
+                        "flex items-start gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer",
                         scheduleType === "manual"
                           ? "border-brand-primary bg-brand-primary/5 ring-1 ring-brand-primary/30"
-                          : "border-border bg-card hover:bg-muted/50"
+                          : "border-border bg-card hover:bg-muted/40"
                       )}
                     >
                       <div
                         className={cn(
-                          "flex size-5 shrink-0 items-center justify-center rounded-full border mt-0.5",
+                          "flex size-4 shrink-0 items-center justify-center rounded-full border mt-0.5",
                           scheduleType === "manual"
                             ? "border-brand-primary bg-brand-primary text-white"
                             : "border-muted-foreground"
                         )}
                       >
-                        {scheduleType === "manual" && <div className="size-2 rounded-full bg-white" />}
+                        {scheduleType === "manual" && <div className="size-1.5 rounded-full bg-white" />}
                       </div>
                       <div>
-                        <div className="text-body-sm font-bold text-foreground">Manual</div>
-                        <div className="text-body-xs text-muted-foreground mt-0.5">
-                          Buka atau tutup kuis kapan saja secara instan
+                        <div className="text-body-xs sm:text-body-sm font-bold text-foreground">Manual</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          Buka atau tutup kuis kapan saja instan
                         </div>
                       </div>
                     </button>
@@ -718,10 +739,10 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
 
                   {/* Scheduled Fields */}
                   {scheduleType === "scheduled" && (
-                    <div className="space-y-4 rounded-lg border border-border/80 bg-muted/20 p-4">
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-3 rounded-lg border border-border/80 bg-muted/20 p-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
-                          <Label htmlFor="openAt" className="text-body-sm font-semibold text-foreground">
+                          <Label htmlFor="openAt" className="text-body-xs font-semibold text-foreground">
                             Waktu Buka Kuis
                           </Label>
                           <Input
@@ -729,12 +750,12 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                             type="datetime-local"
                             value={openAt}
                             onChange={(e) => setOpenAt(e.target.value)}
-                            className="mt-1.5 rounded-lg border-border"
+                            className="mt-1 rounded-lg border-border h-8 text-body-xs"
                           />
                         </div>
 
                         <div>
-                          <Label htmlFor="closeAt" className="text-body-sm font-semibold text-foreground">
+                          <Label htmlFor="closeAt" className="text-body-xs font-semibold text-foreground">
                             Waktu Tutup Kuis
                           </Label>
                           <Input
@@ -742,20 +763,20 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                             type="datetime-local"
                             value={closeAt}
                             onChange={(e) => setCloseAt(e.target.value)}
-                            className="mt-1.5 rounded-lg border-border"
+                            className="mt-1 rounded-lg border-border h-8 text-body-xs"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <Label htmlFor="manualStatusScheduled" className="text-body-sm font-semibold text-foreground">
+                        <Label htmlFor="manualStatusScheduled" className="text-body-xs font-semibold text-foreground">
                           Status Override Manual
                         </Label>
                         <Select
                           value={manualStatus}
                           onValueChange={(v: "open" | "closed" | "scheduled") => setManualStatus(v)}
                         >
-                          <SelectTrigger id="manualStatusScheduled" className="mt-1.5 rounded-lg border-border">
+                          <SelectTrigger id="manualStatusScheduled" className="mt-1 rounded-lg border-border h-8 text-body-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -770,30 +791,32 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
 
                   {/* Manual Mode Fields */}
                   {scheduleType === "manual" && (
-                    <div className="rounded-lg border border-border/80 bg-muted/20 p-4 space-y-3">
-                      <Label className="text-body-sm font-semibold text-foreground">Status Ketersediaan Kuis</Label>
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-2">
+                      <Label className="text-body-xs font-semibold text-foreground">Status Ketersediaan Kuis</Label>
+                      <div className="grid grid-cols-2 gap-2.5">
                         <Button
                           type="button"
                           variant={manualStatus === "open" ? "default" : "outline"}
+                          size="sm"
                           onClick={() => setManualStatus("open")}
                           className={cn(
-                            "rounded-lg font-semibold",
+                            "rounded-lg font-semibold h-8 text-body-xs",
                             manualStatus === "open" ? "bg-status-success text-white hover:bg-status-success/90" : "border-border"
                           )}
                         >
-                          <CheckCircle2 className="mr-1.5 size-4" /> Kuis Dibuka
+                          <CheckCircle2 className="mr-1.5 size-3.5" /> Kuis Dibuka
                         </Button>
                         <Button
                           type="button"
                           variant={manualStatus === "closed" ? "default" : "outline"}
+                          size="sm"
                           onClick={() => setManualStatus("closed")}
                           className={cn(
-                            "rounded-lg font-semibold",
+                            "rounded-lg font-semibold h-8 text-body-xs",
                             manualStatus === "closed" ? "bg-muted-foreground text-white hover:bg-muted-foreground/90" : "border-border"
                           )}
                         >
-                          <Lock className="mr-1.5 size-4" /> Kuis Ditutup
+                          <Lock className="mr-1.5 size-3.5" /> Kuis Ditutup
                         </Button>
                       </div>
                     </div>
@@ -802,14 +825,14 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
               </Card>
 
               {/* Discussion & Scoring Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-xs">
-                <div className="border-b border-border/80 px-5 py-3.5">
-                  <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+              <Card className="rounded-xl border border-border bg-card shadow-2xs">
+                <div className="border-b border-border/80 px-4 py-3">
+                  <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <Sparkles className="size-4 text-brand-primary" />
                     Pembahasan & Penilaian
                   </h3>
                 </div>
-                <CardContent className="p-5 space-y-4">
+                <CardContent className="p-4 space-y-3.5">
                   <div>
                     <Label htmlFor="explanationRelease" className="text-body-sm font-semibold text-foreground">
                       Waktu Rilis Pembahasan Kuis
@@ -818,12 +841,12 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                       value={explanationRelease}
                       onValueChange={(v: "immediate" | "after_close" | "never") => setExplanationRelease(v)}
                     >
-                      <SelectTrigger id="explanationRelease" className="mt-1.5 rounded-lg border-border">
+                      <SelectTrigger id="explanationRelease" className="mt-1 rounded-lg border-border h-9 text-body-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="after_close">
-                          Setelah Kuis Ditutup (Jadwal selesai atau ditutup manual)
+                          Setelah Kuis Ditutup (Jadwal selesai / ditutup manual)
                         </SelectItem>
                         <SelectItem value="immediate">
                           Langsung Setelah Murid Mengumpulkan Kuis
@@ -835,20 +858,20 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
-                    <div className="flex items-center justify-between rounded-lg border border-border p-3.5">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 pt-1">
+                    <div className="flex items-center justify-between rounded-lg border border-border p-3">
                       <div className="space-y-0.5 pr-2">
-                        <Label className="text-body-sm font-semibold text-foreground">Tampilkan Skor Instan</Label>
-                        <p className="text-body-xs text-muted-foreground">
+                        <Label className="text-body-xs sm:text-body-sm font-semibold text-foreground">Tampilkan Skor Instan</Label>
+                        <p className="text-[11px] text-muted-foreground">
                           Siswa langsung melihat nilai total setelah submit
                         </p>
                       </div>
                       <Switch checked={showScoreImmediate} onCheckedChange={setShowScoreImmediate} />
                     </div>
 
-                    <div className="rounded-lg border border-border p-3.5 space-y-1.5">
-                      <Label htmlFor="passingScore" className="text-body-sm font-semibold text-foreground">
-                        Nilai Kelulusan / Passing Grade (%)
+                    <div className="rounded-lg border border-border p-3 space-y-1">
+                      <Label htmlFor="passingScore" className="text-body-xs sm:text-body-sm font-semibold text-foreground">
+                        Passing Grade (%)
                       </Label>
                       <Input
                         id="passingScore"
@@ -858,7 +881,7 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                         value={passingScore}
                         onChange={(e) => setPassingScore(e.target.value)}
                         placeholder="70"
-                        className="h-8 rounded-md border-border"
+                        className="h-8 rounded-md border-border text-body-xs"
                       />
                     </div>
                   </div>
@@ -867,17 +890,17 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
             </div>
 
             {/* RIGHT COLUMN: Timers, Navigation & Rules (5 cols) */}
-            <div className="space-y-6 lg:col-span-5">
+            <div className="space-y-4 lg:col-span-5">
               
               {/* Duration & Timer Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-xs">
-                <div className="border-b border-border/80 px-5 py-3.5">
-                  <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+              <Card className="rounded-xl border border-border bg-card shadow-2xs">
+                <div className="border-b border-border/80 px-4 py-3">
+                  <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <Timer className="size-4 text-brand-primary" />
                     Durasi & Timer
                   </h3>
                 </div>
-                <CardContent className="p-5 space-y-4">
+                <CardContent className="p-4 space-y-3.5">
                   {/* Global Duration */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -885,28 +908,28 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                       <Switch checked={hasGlobalTimeLimit} onCheckedChange={setHasGlobalTimeLimit} />
                     </div>
                     {hasGlobalTimeLimit ? (
-                      <div className="flex items-center gap-2 pt-1">
+                      <div className="flex items-center gap-2 pt-0.5">
                         <Input
                           type="number"
                           min={1}
                           max={360}
                           value={timeLimitMinutes}
                           onChange={(e) => setTimeLimitMinutes(e.target.value)}
-                          className="w-28 rounded-lg border-border"
+                          className="w-24 rounded-lg border-border h-8 text-body-xs"
                         />
-                        <span className="text-body-sm text-muted-foreground font-medium">Menit total</span>
+                        <span className="text-body-xs text-muted-foreground font-medium">Menit total</span>
                       </div>
                     ) : (
-                      <p className="text-body-xs text-muted-foreground">Kuis tidak memiliki batas waktu keseluruhan.</p>
+                      <p className="text-[11px] text-muted-foreground">Kuis tidak memiliki batas waktu keseluruhan.</p>
                     )}
                   </div>
 
-                  <div className="border-t border-border/60 pt-4 space-y-3">
+                  <div className="border-t border-border/60 pt-3 space-y-3">
                     {/* Per-Question Timer */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-0.5">
                         <Label className="text-body-sm font-semibold text-foreground">Timer Per Butir Soal</Label>
-                        <p className="text-body-xs text-muted-foreground">
+                        <p className="text-[11px] text-muted-foreground">
                           Setiap soal memiliki timer mundur tersendiri
                         </p>
                       </div>
@@ -917,7 +940,7 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                     </div>
 
                     {perQuestionTimerEnabled && (
-                      <div className="rounded-lg border border-border/80 bg-muted/20 p-3.5 space-y-2">
+                      <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-1.5">
                         <Label htmlFor="defaultTimer" className="text-body-xs font-semibold text-foreground">
                           Durasi Standar Per Soal (Detik)
                         </Label>
@@ -929,13 +952,10 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                             max={600}
                             value={defaultQuestionTimerSeconds}
                             onChange={(e) => setDefaultQuestionTimerSeconds(e.target.value)}
-                            className="w-28 rounded-lg border-border"
+                            className="w-24 rounded-lg border-border h-8 text-body-xs"
                           />
-                          <span className="text-body-sm text-muted-foreground font-medium">Detik</span>
+                          <span className="text-body-xs text-muted-foreground font-medium">Detik</span>
                         </div>
-                        <p className="text-body-xs text-muted-foreground">
-                          Anda juga dapat menyesuaikan durasi masing-masing soal di tab &ldquo;Pilihan Soal&rdquo;.
-                        </p>
                       </div>
                     )}
                   </div>
@@ -943,42 +963,42 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
               </Card>
 
               {/* Navigation & Submission Rules Card */}
-              <Card className="rounded-xl border border-border bg-card shadow-xs">
-                <div className="border-b border-border/80 px-5 py-3.5">
-                  <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+              <Card className="rounded-xl border border-border bg-card shadow-2xs">
+                <div className="border-b border-border/80 px-4 py-3">
+                  <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
                     <Sliders className="size-4 text-brand-primary" />
                     Aturan Pengerjaan & Navigasi
                   </h3>
                 </div>
-                <CardContent className="p-5 space-y-4">
+                <CardContent className="p-4 space-y-3.5">
                   {/* Can Go Back */}
-                  <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
+                  <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2.5">
                     <div className="space-y-0.5">
                       <Label className="text-body-sm font-semibold text-foreground">Navigasi Mundur (Kembali)</Label>
-                      <p className="text-body-xs text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground">
                         {canGoBack
-                          ? "Siswa bebas kembali ke soal sebelumnya"
-                          : "Mode linier satu arah (tidak bisa kembali ke nomor sebelumnya)"}
+                          ? "Siswa bebas kembali ke nomor sebelumnya"
+                          : "Mode linier satu arah"}
                       </p>
                     </div>
                     <Switch checked={canGoBack} onCheckedChange={setCanGoBack} />
                   </div>
 
                   {/* Require All Answered */}
-                  <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
+                  <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2.5">
                     <div className="space-y-0.5">
                       <Label className="text-body-sm font-semibold text-foreground">Wajib Jawab Semua Soal</Label>
-                      <p className="text-body-xs text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground">
                         {requireAllAnswered
-                          ? "Siswa harus mengisi semua soal sebelum boleh submit"
-                          : "Siswa boleh submit meski ada soal yang dikosongkan"}
+                          ? "Semua soal harus dijawab sebelum submit"
+                          : "Boleh submit meski ada soal kosong"}
                       </p>
                     </div>
                     <Switch checked={requireAllAnswered} onCheckedChange={setRequireAllAnswered} />
                   </div>
 
                   {/* Max Attempts */}
-                  <div className="space-y-1.5 border-b border-border/60 pb-3">
+                  <div className="space-y-1 border-b border-border/60 pb-2.5">
                     <Label htmlFor="maxAttempts" className="text-body-sm font-semibold text-foreground">
                       Batas Maksimal Percobaan
                     </Label>
@@ -990,17 +1010,17 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                         max={100}
                         value={maxAttempts}
                         onChange={(e) => setMaxAttempts(e.target.value)}
-                        placeholder="Kosongkan untuk bebas"
-                        className="w-40 rounded-lg border-border"
+                        placeholder="Bebas"
+                        className="w-32 rounded-lg border-border h-8 text-body-xs"
                       />
                       <span className="text-body-xs text-muted-foreground">
-                        {maxAttempts ? "Kali percobaan" : "Tak terbatas / bebas"}
+                        {maxAttempts ? "Kali percobaan" : "Tak terbatas"}
                       </span>
                     </div>
                   </div>
 
                   {/* Shuffle Questions & Options */}
-                  <div className="space-y-3 pt-1">
+                  <div className="space-y-2.5 pt-0.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-body-sm font-semibold text-foreground flex items-center gap-1.5">
                         <Shuffle className="size-3.5 text-muted-foreground" />
@@ -1021,22 +1041,22 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
               </Card>
 
               {/* Quick Navigation to Tab 2 */}
-              <div className="rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-4 flex items-center justify-between">
+              <div className="rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-3.5 flex items-center justify-between">
                 <div>
                   <div className="text-body-sm font-bold text-brand-primary">Lanjut Pilih Soal</div>
-                  <div className="text-body-xs text-muted-foreground">
+                  <div className="text-[11px] text-muted-foreground">
                     {selectedQIds.length > 0
                       ? `${selectedQIds.length} butir soal telah dipilih`
-                      : "Pilih butir soal dari bank soal"}
+                      : "Tentukan soal dari bank soal kelas"}
                   </div>
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   onClick={() => handleTabChange("soal")}
-                  className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold"
+                  className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold h-8 text-body-xs"
                 >
-                  Buka Tab Soal <ChevronRight className="ml-1 size-4" />
+                  Buka Tab Soal <ChevronRight className="ml-1 size-3.5" />
                 </Button>
               </div>
             </div>
@@ -1045,20 +1065,20 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
         </TabsContent>
 
         {/* TAB 2: PILIHAN SOAL */}
-        <TabsContent value="soal" className="space-y-6 focus-visible:outline-none">
+        <TabsContent value="soal" className="space-y-4 focus-visible:outline-none">
           
           {/* Mode Selector & Summary Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-2xs">
             <div className="flex items-center gap-2">
-              <span className="text-body-sm font-semibold text-muted-foreground">Metode Soal:</span>
+              <span className="text-body-xs font-semibold text-muted-foreground">Metode Soal:</span>
               <div className="flex rounded-lg border border-border p-0.5 bg-muted/40">
                 <button
                   type="button"
                   onClick={() => setSelectionMode("specific")}
                   className={cn(
-                    "rounded-md px-3 py-1.5 text-body-xs font-semibold transition-all cursor-pointer",
+                    "rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer",
                     selectionMode === "specific"
-                      ? "bg-background text-foreground shadow-xs"
+                      ? "bg-background text-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -1068,9 +1088,9 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                   type="button"
                   onClick={() => setSelectionMode("distribution")}
                   className={cn(
-                    "rounded-md px-3 py-1.5 text-body-xs font-semibold transition-all cursor-pointer",
+                    "rounded-md px-2.5 py-1 text-body-xs font-semibold transition-all cursor-pointer",
                     selectionMode === "distribution"
-                      ? "bg-background text-foreground shadow-xs"
+                      ? "bg-background text-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -1081,7 +1101,7 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
 
             {selectionMode === "specific" && (
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/10 text-brand-primary font-bold px-2.5 py-1">
+                <Badge variant="outline" className="rounded-md border-brand-primary/30 bg-brand-primary/10 text-brand-primary font-bold px-2 py-0.5 text-body-xs">
                   {selectedQIds.length} Soal Terpilih
                 </Badge>
                 {selectedQIds.length > 0 && (
@@ -1101,14 +1121,14 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
 
           {/* DISTRIBUTION MODE */}
           {selectionMode === "distribution" && (
-            <Card className="rounded-xl border border-border bg-card shadow-xs">
-              <div className="border-b border-border/80 px-5 py-3.5">
+            <Card className="rounded-xl border border-border bg-card shadow-2xs">
+              <div className="border-b border-border/80 px-4 py-3">
                 <h3 className="font-heading text-body-base font-bold text-foreground">
                   Konfigurasi Distribusi Soal Otomatis
                 </h3>
               </div>
-              <CardContent className="p-5 space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <CardContent className="p-4 space-y-3.5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="count" className="text-body-sm font-semibold text-foreground">
                       Jumlah Soal yang Ditarik
@@ -1120,7 +1140,7 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                       max={100}
                       value={count}
                       onChange={(e) => setCount(e.target.value)}
-                      className="mt-1.5 rounded-lg border-border"
+                      className="mt-1 rounded-lg border-border h-9"
                     />
                   </div>
 
@@ -1133,44 +1153,44 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                       value={tagsStr}
                       onChange={(e) => setTagsStr(e.target.value)}
                       placeholder="Contoh: Bab 1, Turunan, Integral"
-                      className="mt-1.5 rounded-lg border-border"
+                      className="mt-1 rounded-lg border-border h-9"
                     />
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-border/80 bg-muted/20 p-4 space-y-3">
+                <div className="rounded-lg border border-border/80 bg-muted/20 p-3.5 space-y-2.5">
                   <Label className="text-body-sm font-semibold text-foreground">
                     Proporsi Tingkat Kesulitan Soal
                   </Label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2.5">
                     <div>
-                      <span className="text-body-xs font-semibold text-status-success uppercase">Mudah</span>
+                      <span className="text-[11px] font-semibold text-status-success uppercase">Mudah</span>
                       <Input
                         type="number"
                         min={0}
                         value={easy}
                         onChange={(e) => setEasy(e.target.value)}
-                        className="mt-1 rounded-lg border-border"
+                        className="mt-1 rounded-lg border-border h-8 text-body-xs"
                       />
                     </div>
                     <div>
-                      <span className="text-body-xs font-semibold text-status-warning uppercase">Sedang</span>
+                      <span className="text-[11px] font-semibold text-status-warning uppercase">Sedang</span>
                       <Input
                         type="number"
                         min={0}
                         value={medium}
                         onChange={(e) => setMedium(e.target.value)}
-                        className="mt-1 rounded-lg border-border"
+                        className="mt-1 rounded-lg border-border h-8 text-body-xs"
                       />
                     </div>
                     <div>
-                      <span className="text-body-xs font-semibold text-status-error uppercase">Sulit</span>
+                      <span className="text-[11px] font-semibold text-status-error uppercase">Sulit</span>
                       <Input
                         type="number"
                         min={0}
                         value={hard}
                         onChange={(e) => setHard(e.target.value)}
-                        className="mt-1 rounded-lg border-border"
+                        className="mt-1 rounded-lg border-border h-8 text-body-xs"
                       />
                     </div>
                   </div>
@@ -1196,19 +1216,20 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
 
           {/* SPECIFIC QUESTION PICKER MODE */}
           {selectionMode === "specific" && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               
-              {/* Search & Filter Toolbar */}
-              <div className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  {/* Search bar */}
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
+              {/* Space-Efficient Inline Search & Filter Toolbar */}
+              <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Reusable Search Bar Component */}
+                  <div className="w-full sm:w-64 lg:w-72 shrink-0">
+                    <SearchBar
+                      size="sm"
+                      variant="bordered"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Cari teks pertanyaan, tag, atau ID soal..."
-                      className="pl-9 rounded-lg border-border"
+                      onSearch={setSearchQuery}
+                      onClear={() => setSearchQuery("")}
+                      placeholder="Cari teks pertanyaan, tag, ID..."
                     />
                   </div>
 
@@ -1219,21 +1240,18 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                     size="sm"
                     onClick={() => setOnlySelectedFilter(!onlySelectedFilter)}
                     className={cn(
-                      "rounded-lg font-semibold shrink-0",
+                      "h-9 rounded-lg font-semibold shrink-0 text-body-xs gap-1.5",
                       onlySelectedFilter ? "bg-brand-primary text-white" : "border-border"
                     )}
                   >
-                    <CheckSquare className="mr-1.5 size-4" />
+                    <CheckSquare className="size-3.5" />
                     Hanya Terpilih ({selectedQIds.length})
                   </Button>
-                </div>
 
-                {/* Filter Dropdowns Row */}
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {/* Difficulty */}
-                  <div>
+                  {/* Difficulty Select */}
+                  <div className="w-full sm:w-auto shrink-0">
                     <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-                      <SelectTrigger className="h-8 rounded-lg border-border text-body-xs">
+                      <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
                         <SelectValue placeholder="Semua Kesulitan" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1245,44 +1263,44 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                     </Select>
                   </div>
 
-                  {/* Type */}
-                  <div>
+                  {/* Type Select */}
+                  <div className="w-full sm:w-auto shrink-0">
                     <Select value={typeFilter} onValueChange={setTypeFilter}>
-                      <SelectTrigger className="h-8 rounded-lg border-border text-body-xs">
-                        <SelectValue placeholder="Semua Tipe Soal" />
+                      <SelectTrigger className="h-9 w-full sm:w-[140px] rounded-lg border-border text-body-xs">
+                        <SelectValue placeholder="Semua Tipe" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Semua Tipe Soal</SelectItem>
+                        <SelectItem value="all">Semua Tipe</SelectItem>
                         <SelectItem value="multiple_choice">Pilihan Ganda</SelectItem>
-                        <SelectItem value="multiple_choices">Pilihan Ganda Kompleks</SelectItem>
+                        <SelectItem value="multiple_choices">PG Kompleks</SelectItem>
                         <SelectItem value="short_answer">Isian Singkat</SelectItem>
                         <SelectItem value="essay">Esai</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Origin */}
-                  <div>
+                  {/* Origin Select */}
+                  <div className="w-full sm:w-auto shrink-0">
                     <Select value={originFilter} onValueChange={setOriginFilter}>
-                      <SelectTrigger className="h-8 rounded-lg border-border text-body-xs">
+                      <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
                         <SelectValue placeholder="Semua Sumber" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Semua Sumber</SelectItem>
                         <SelectItem value="zyx_original">Zyx Original</SelectItem>
-                        <SelectItem value="itb_example">Contoh Soal ITB</SelectItem>
+                        <SelectItem value="itb_example">Contoh ITB</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Tag */}
-                  <div>
+                  {/* Tag Select */}
+                  <div className="w-full sm:w-auto shrink-0">
                     <Select value={tagFilter} onValueChange={setTagFilter}>
-                      <SelectTrigger className="h-8 rounded-lg border-border text-body-xs">
-                        <SelectValue placeholder="Semua Topik/Tag" />
+                      <SelectTrigger className="h-9 w-full sm:w-[130px] rounded-lg border-border text-body-xs">
+                        <SelectValue placeholder="Semua Topik" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Semua Topik/Tag</SelectItem>
+                        <SelectItem value="all">Semua Topik</SelectItem>
                         {availableTags.map((tag) => (
                           <SelectItem key={tag} value={tag}>
                             {tag}
@@ -1293,8 +1311,8 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                   </div>
                 </div>
 
-                {/* Bulk Selection Actions */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-body-xs text-muted-foreground">
+                {/* Bulk Selection Sub-bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-body-xs text-muted-foreground">
                   <span>
                     Menampilkan <strong>{filteredQuestions.length}</strong> dari{" "}
                     <strong>{courseQuestions.length}</strong> butir soal kelas
@@ -1306,7 +1324,7 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                       size="sm"
                       onClick={selectAllFiltered}
                       disabled={filteredQuestions.length === 0}
-                      className="h-7 text-body-xs font-semibold text-brand-primary hover:bg-brand-primary/10"
+                      className="h-6 text-body-xs font-semibold text-brand-primary hover:bg-brand-primary/10 px-2"
                     >
                       Pilih Semua Hasil Filter
                     </Button>
@@ -1316,7 +1334,7 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                       size="sm"
                       onClick={deselectAllFiltered}
                       disabled={filteredQuestions.length === 0}
-                      className="h-7 text-body-xs font-semibold text-muted-foreground hover:bg-muted"
+                      className="h-6 text-body-xs font-semibold text-muted-foreground hover:bg-muted px-2"
                     >
                       Batal Pilih Hasil Filter
                     </Button>
@@ -1326,20 +1344,20 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
 
               {/* Questions List */}
               {loadingQuestions ? (
-                <div className="rounded-xl border border-border bg-card p-12 text-center">
-                  <Loader2 className="mx-auto size-6 animate-spin text-brand-primary" />
-                  <p className="mt-2 text-body-sm text-muted-foreground">Memuat bank soal kelas...</p>
+                <div className="rounded-xl border border-border bg-card p-8 text-center">
+                  <Loader2 className="mx-auto size-5 animate-spin text-brand-primary" />
+                  <p className="mt-2 text-body-xs text-muted-foreground">Memuat bank soal kelas...</p>
                 </div>
               ) : filteredQuestions.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
-                  <HelpCircle className="mx-auto size-8 text-muted-foreground mb-2" />
-                  <h4 className="font-heading text-body-base font-bold text-foreground">Tidak Ada Soal yang Cocok</h4>
-                  <p className="text-body-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+                  <HelpCircle className="mx-auto size-7 text-muted-foreground mb-1.5" />
+                  <h4 className="font-heading text-body-sm font-bold text-foreground">Tidak Ada Soal yang Cocok</h4>
+                  <p className="text-body-xs text-muted-foreground mt-0.5 max-w-md mx-auto">
                     Coba sesuaikan kata kunci pencarian atau bersihkan filter tingkat kesulitan dan topik.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {filteredQuestions.map((q) => {
                     const isSelected = selectedQIds.includes(q.id);
                     const qDuration = perQuestionTimers[q.id] ?? (Number(defaultQuestionTimerSeconds) || 60);
@@ -1375,30 +1393,30 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                         key={q.id}
                         onClick={() => toggleSelectQuestion(q.id)}
                         className={cn(
-                          "relative rounded-xl border p-4 transition-all cursor-pointer select-none",
+                          "relative rounded-xl border p-3 sm:p-3.5 transition-all cursor-pointer select-none",
                           isSelected
                             ? "border-brand-primary bg-brand-primary/5 ring-1 ring-brand-primary/30"
                             : "border-border bg-card hover:border-brand-primary/40 hover:bg-muted/30"
                         )}
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-start gap-2.5 sm:gap-3">
                           {/* Checkbox Icon */}
                           <div className="mt-0.5 shrink-0">
                             {isSelected ? (
-                              <CheckSquare className="size-5 text-brand-primary fill-brand-primary/10" />
+                              <CheckSquare className="size-4.5 text-brand-primary fill-brand-primary/10" />
                             ) : (
-                              <Square className="size-5 text-muted-foreground" />
+                              <Square className="size-4.5 text-muted-foreground" />
                             )}
                           </div>
 
                           {/* Content */}
-                          <div className="flex-1 space-y-2">
+                          <div className="flex-1 min-w-0 space-y-1.5">
                             {/* Badges row */}
                             <div className="flex flex-wrap items-center gap-1.5">
                               <Badge
                                 variant="outline"
                                 className={cn(
-                                  "rounded-md text-[11px] font-bold uppercase",
+                                  "rounded-md text-[10px] font-bold uppercase px-1.5 py-0.5",
                                   q.difficulty === "easy" && "border-status-success/30 bg-status-success/10 text-status-success",
                                   q.difficulty === "medium" && "border-status-warning/30 bg-status-warning/10 text-status-warning",
                                   q.difficulty === "hard" && "border-status-error/30 bg-status-error/10 text-status-error"
@@ -1407,18 +1425,18 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                                 {q.difficulty}
                               </Badge>
 
-                              <Badge variant="outline" className="rounded-md text-[11px] border-border text-muted-foreground">
+                              <Badge variant="outline" className="rounded-md text-[10px] border-border text-muted-foreground px-1.5 py-0.5">
                                 {q.questionType === "multiple_choice"
                                   ? "Pilihan Ganda"
                                   : q.questionType === "multiple_choices"
-                                  ? "Pilihan Ganda Kompleks"
+                                  ? "PG Kompleks"
                                   : q.questionType === "short_answer"
                                   ? "Isian Singkat"
                                   : "Esai"}
                               </Badge>
 
                               {q.origin === "itb_example" && (
-                                <Badge variant="outline" className="rounded-md text-[11px] border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                <Badge variant="outline" className="rounded-md text-[10px] border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5">
                                   Contoh ITB
                                 </Badge>
                               )}
@@ -1426,7 +1444,7 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                               {qTags.map((tag) => (
                                 <span
                                   key={tag}
-                                  className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
                                 >
                                   #{tag}
                                 </span>
@@ -1434,13 +1452,13 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                             </div>
 
                             {/* Prompt text */}
-                            <div className="text-body-sm font-medium leading-relaxed text-foreground">
+                            <div className="text-body-xs sm:text-body-sm font-medium leading-relaxed text-foreground">
                               <MathText>{q.prompt}</MathText>
                             </div>
 
                             {/* Options count preview */}
                             {optionsList.length > 0 && (
-                              <div className="text-body-xs text-muted-foreground">
+                              <div className="text-[11px] text-muted-foreground">
                                 {optionsList.length} Pilihan Jawaban
                               </div>
                             )}
@@ -1449,19 +1467,19 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
                             {perQuestionTimerEnabled && isSelected && (
                               <div
                                 onClick={(e) => e.stopPropagation()}
-                                className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-background p-2.5 w-fit"
+                                className="mt-2 flex items-center gap-2 rounded-lg border border-border bg-background p-2 w-fit"
                               >
-                                <Timer className="size-4 text-brand-primary" />
-                                <span className="text-body-xs font-semibold text-foreground">Timer Butir Soal Ini:</span>
+                                <Timer className="size-3.5 text-brand-primary" />
+                                <span className="text-[11px] font-semibold text-foreground">Timer Soal Ini:</span>
                                 <Input
                                   type="number"
                                   min={5}
                                   max={600}
                                   value={qDuration}
                                   onChange={(e) => updateQuestionTimer(q.id, Number(e.target.value))}
-                                  className="h-7 w-20 rounded-md border-border text-body-xs"
+                                  className="h-6 w-16 rounded-md border-border text-[11px]"
                                 />
-                                <span className="text-body-xs text-muted-foreground">Detik</span>
+                                <span className="text-[11px] text-muted-foreground">Detik</span>
                               </div>
                             )}
                           </div>
@@ -1478,3 +1496,4 @@ export function QuizForm({ initialData, courses, isEdit = false }: Props) {
     </div>
   );
 }
+

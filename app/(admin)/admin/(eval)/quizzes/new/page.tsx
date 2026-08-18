@@ -3,22 +3,26 @@ import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { courses } from "@/db/schema";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
-import { AdminPageHeader } from "@/components/admin/page-header";
-import { NotebookPen } from "lucide-react";
 import { QuizForm } from "../_components/quiz-form";
 
 export const metadata: Metadata = {
   title: pageTitle("Buat Kuis"),
 };
 
+
 type Props = {
-  searchParams: Promise<{ courseId?: string; tags?: string }>;
+  searchParams: Promise<{
+    courseId?: string;
+    tags?: string;
+    returnUrl?: string;
+    courseSlug?: string;
+  }>;
 };
 
 export default async function NewQuizPage({ searchParams }: Props) {
   await assertTutorOrAdmin();
 
-  const { courseId: prefillCourseId, tags: prefillTags } = await searchParams;
+  const { courseId: prefillCourseId, tags: prefillTags, returnUrl, courseSlug } = await searchParams;
 
   const allCourses = await db
     .select({ id: courses.id, title: courses.title })
@@ -56,18 +60,15 @@ export default async function NewQuizPage({ searchParams }: Props) {
   };
 
   return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        icon={NotebookPen}
-        title="Buat Kuis"
-        backHref="/admin/quizzes"
-        backLabel="Kembali ke Daftar Kuis"
-      />
-      <QuizForm
-        initialData={initialData}
-        courses={allCourses}
-        isEdit={false}
-      />
-    </div>
+    <QuizForm
+      initialData={initialData}
+      courses={allCourses}
+      isEdit={false}
+      returnUrl={returnUrl}
+      courseSlug={courseSlug}
+      backHref={returnUrl || (courseSlug ? `/admin/courses/${courseSlug}?tab=quizzes` : "/admin/quizzes")}
+      backLabel={courseSlug ? "Kembali ke Kelas" : "Kembali ke Daftar Kuis"}
+    />
   );
 }
+

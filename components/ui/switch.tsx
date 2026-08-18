@@ -15,7 +15,7 @@ function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimi
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          "pointer-events-none block size-5 rounded-full bg-white dark:bg-white data-[state=unchecked]:bg-slate-100 dark:data-[state=unchecked]:bg-slate-200 shadow-md ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
+          "pointer-events-none block size-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-200 ease-in-out data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0 dark:bg-white"
         )}
       />
     </SwitchPrimitive.Root>
@@ -23,3 +23,4 @@ function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimi
 }
 
 export { Switch };
+
