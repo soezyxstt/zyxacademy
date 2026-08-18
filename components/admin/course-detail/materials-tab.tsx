@@ -210,7 +210,7 @@ export function MaterialsTab({
           <p className="text-body-xs text-muted-foreground">
             Dokumen PDF yang diunggah di sini ditujukan sebagai bahan bacaan langsung dan latihan mahasiswa pada mata kuliah <strong>{courseTitle}</strong>.
             Untuk memproses pengetahuan menjadi kurikulum AI, ringkasan interaktif, dan bank soal otomatis, Anda juga dapat mengelola materi Markdown di{" "}
-            <Link href={`/admin/ai/materials?courseId=${courseId}`} className="text-brand-primary font-semibold hover:underline">
+            <Link href={`/admin/materials?courseId=${courseId}`} className="text-brand-primary font-semibold hover:underline">
               Materi AI
             </Link>.
           </p>

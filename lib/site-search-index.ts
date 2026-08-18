@@ -143,7 +143,7 @@ const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
  {
  title: "Materi",
  subtitle: "Admin",
- href: "/admin/ai/materials",
+ href: "/admin/materials",
  group: "Halaman",
  keywords: "materi bahan ajar ai ingestion knowledge base",
  content: "Segmentasi dan pengunggahan materi kurikulum ke basis pengetahuan untuk generasi soal",
@@ -151,7 +151,7 @@ const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
  {
  title: "Kompilasi Diktat",
  subtitle: "Admin",
- href: "/admin/ai/diktats",
+ href: "/admin/diktats",
  group: "Halaman",
  keywords: "diktat pdf compile buku cetak",
  content: "Gabungkan bab materi menjadi buku diktat belajar PDF siap cetak",
@@ -159,7 +159,7 @@ const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
  {
  title: "Generasi Soal",
  subtitle: "Admin",
- href: "/admin/ai/jobs",
+ href: "/admin/jobs",
  group: "Halaman",
  keywords: "generasi soal queue job gemini",
  content: "Pantau status job kompilasi dan generasi soal kecerdasan buatan",
@@ -167,7 +167,7 @@ const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
  {
  title: "Bank Soal",
  subtitle: "Admin",
- href: "/admin/ai/questions",
+ href: "/admin/questions",
  group: "Halaman",
  keywords: "bank soal list filter edit approve",
  content: "Kurasi, edit, setujui dan publikasikan bank soal kecerdasan buatan",
@@ -175,7 +175,7 @@ const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
  {
  title: "Template Kuis",
  subtitle: "Admin",
- href: "/admin/ai/quizzes",
+ href: "/admin/quizzes",
  group: "Halaman",
  keywords: "quiz kuis template rule seleksi",
  content: "Manajemen aturan seleksi kuis dan batas waktu pengerjaan",

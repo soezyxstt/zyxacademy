@@ -195,10 +195,10 @@ function AdminSidebarInner() {
   const isTabActive = useMemo(() => {
     return (tab: AdminTabDef) => {
       if (tab.id === "pka-quizzes") {
-        return (pathname === "/admin/quizzes" || pathname === "/admin/ai/quizzes") && searchParams?.get("courseId") === "tutorial-pka";
+        return pathname === "/admin/quizzes" && searchParams?.get("courseId") === "tutorial-pka";
       }
       if (tab.id === "pka-materials") {
-        return (pathname === "/admin/materials" || pathname === "/admin/ai/materials") && searchParams?.get("courseId") === "tutorial-pka";
+        return pathname === "/admin/materials" && searchParams?.get("courseId") === "tutorial-pka";
       }
       if (tab.id === "quizzes") {
         return (

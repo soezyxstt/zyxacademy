@@ -370,7 +370,7 @@ export function QuizzesTab({
                     Pratinjau
                   </Button>
 
-                  <Link href={`/admin/ai/quiz-insights/${quiz.id}`}>
+                  <Link href={`/admin/quiz-insights/${quiz.id}`}>
                     <Button
                       size="sm"
                       variant="outline"

@@ -152,7 +152,7 @@ export function AnalyticsTab({
                       )}
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <Link href={`/admin/ai/quiz-insights/${quiz.id}`}>
+                      <Link href={`/admin/quiz-insights/${quiz.id}`}>
                         <Button
                           size="sm"
                           variant={quiz.lastAiInsight ? "default" : "outline"}

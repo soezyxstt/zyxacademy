@@ -36,7 +36,7 @@ export function classifyPineconeCaller(filePath: string, _line: string): CallerC
     normalized.endsWith("db/schema.ts") ||
     normalized.endsWith("scripts/test-onboarding-blockers.ts") ||
     normalized.endsWith("lib/vectorize/contracts.ts") ||
-    normalized.includes("app/(admin)/admin/ai/(content)/materials") ||
+    normalized.includes("app/(admin)/admin/(academic)/materials") ||
     normalized.includes("app/api/admin/material-instances") ||
     normalized.endsWith("app/actions/tutor-management.ts") ||
     normalized.endsWith("lib/ko-extractor.ts") ||

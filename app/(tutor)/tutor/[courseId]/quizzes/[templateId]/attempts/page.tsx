@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { quizTemplates } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { verifyTutorAccess } from "@/app/actions/tutor-management";
-import { QuizAttemptsSpreadsheet } from "@/app/(admin)/admin/ai/(eval)/quiz-insights/[id]/_components/quiz-attempts-spreadsheet";
+import { QuizAttemptsSpreadsheet } from "@/app/(admin)/admin/(eval)/quiz-insights/[id]/_components/quiz-attempts-spreadsheet";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { Button } from "@/components/ui/button";

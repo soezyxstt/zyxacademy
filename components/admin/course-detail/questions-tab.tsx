@@ -96,7 +96,7 @@ export function QuestionsTab({
           </Select>
         </div>
 
-        <Link href={`/admin/ai/questions?courseId=${courseId}`}>
+        <Link href={`/admin/questions?courseId=${courseId}`}>
           <Button size="sm" variant="outline" className="gap-1.5 rounded-lg text-body-xs">
             <ExternalLink className="size-3.5" />
             Buka Studio Bank Soal

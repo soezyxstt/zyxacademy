@@ -52,7 +52,7 @@ export default function LiveHostPage() {
       .finally(() => setLoadingTemplates(false));
 
     // Also load templates list
-    fetch(`/api/admin/ai/quizzes?courseId=${courseId}`, { signal: ac.signal })
+    fetch(`/api/quiz/templates?courseId=${courseId}`, { signal: ac.signal })
       .then(async (r) => {
         if (!r.ok) return;
         const data = await r.json();

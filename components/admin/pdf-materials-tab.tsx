@@ -174,8 +174,7 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
       })
       .join(", ");
   };
-
-  return (
+  return (
     <div className="space-y-8 font-sans">
       {/* Upload Form */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -189,7 +188,7 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
             <p className="font-bold text-body-sm text-foreground">Catatan Penting Ingestion</p>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Unggah PDF di tab ini hanya ditujukan untuk bahan bacaan langsung atau unduhan manual mahasiswa (Layer 1).
-              Untuk memproses materi pelajaran menjadi basis pengetahuan AI (RAG, Ringkasan, Flashcard, &amp; Bank Soal), silakan unggah berkas Markdown di menu <Link href="/admin/ai/materials" className="text-primary font-semibold hover:underline">Materi AI</Link>.
+              Untuk memproses materi pelajaran menjadi basis pengetahuan (RAG, Ringkasan, Flashcard, &amp; Bank Soal), silakan unggah berkas Markdown di menu <Link href="/admin/materials" className="text-primary font-semibold hover:underline">Materi Kuliah</Link>.
             </p>
           </div>
         </div>
