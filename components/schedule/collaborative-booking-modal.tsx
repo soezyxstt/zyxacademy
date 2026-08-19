@@ -57,7 +57,7 @@ export function CollaborativeBookingModal({
       return;
     }
     if (!selectedCourseId) {
-      toast.error("Pilih mata kuliah bimbingan");
+      toast.error("Pilih mata kuliah tutorial");
       return;
     }
 
@@ -71,7 +71,7 @@ export function CollaborativeBookingModal({
       );
 
       if (res.success) {
-        toast.success("Jadwal bimbingan kelompok berhasil dipesan!");
+        toast.success("Jadwal tutorial kelompok berhasil dipesan!");
         onOpenChange(false);
         onSuccess();
       } else {
@@ -90,7 +90,7 @@ export function CollaborativeBookingModal({
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
             <CalendarDays className="size-5 text-brand-primary" />
-            Pilih Jadwal Bimbingan Kelompok
+            Pilih Jadwal Tutorial Kelompok
           </DialogTitle>
           <DialogDescription className="text-body-xs text-muted-foreground">
             Slot ini akan dipesan atas nama kelompok belajar Anda.
@@ -166,7 +166,7 @@ export function CollaborativeBookingModal({
             {/* Select Course */}
             <div className="space-y-1.5">
               <label className="text-body-xs font-semibold text-foreground block">
-                Pilih Mata Kuliah Bimbingan
+                Pilih Mata Kuliah Tutorial
               </label>
               {availableCourses.length === 0 ? (
                 <p className="text-body-xs text-muted-foreground italic">

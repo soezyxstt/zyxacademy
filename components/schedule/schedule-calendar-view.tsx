@@ -391,7 +391,7 @@ export function ScheduleCalendarView({
                       <div className="flex items-start justify-between gap-1">
                         <div className="min-w-0">
                           <span className="font-bold text-foreground block truncate">
-                            {b.course?.title || "Bimbingan"}
+                            {b.course?.title || "Tutorial"}
                           </span>
                           <span className="text-[10px] text-muted-foreground truncate block">
                             {b.slot?.tutor?.name || "Tutor"} • {b.group?.name || "Kelompok"}

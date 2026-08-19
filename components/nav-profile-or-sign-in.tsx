@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, User, LayoutDashboard, GraduationCap, ShieldCheck, CalendarDays } from "lucide-react";
+import { LogOut, User, LayoutDashboard, GraduationCap, ShieldCheck } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
@@ -151,41 +151,30 @@ export function NavProfileOrSignIn({
                 asChild
                 className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
               >
-                <Link href="/dashboard" prefetch={true} onClick={onNavigate}>
-                  <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span>Dashboard</span>
+                <Link href="/profile" prefetch={true} onClick={onNavigate}>
+                  <User className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span>Profil</span>
                 </Link>
               </DropdownMenu.Item>
               <DropdownMenu.Item
                 asChild
                 className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
               >
-                <Link href="/profile" prefetch={true} onClick={onNavigate}>
-                  <User className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span>Profile</span>
+                <Link href="/dashboard" prefetch={true} onClick={onNavigate}>
+                  <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span>Dashboard Belajar</span>
                 </Link>
               </DropdownMenu.Item>
               {(userRole === "teacher" || userRole === "admin") && (
-                <>
-                  <DropdownMenu.Item
-                    asChild
-                    className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
-                  >
-                    <Link href="/dashboard/schedule" prefetch={true} onClick={onNavigate}>
-                      <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                      <span>Jadwal Bimbingan</span>
-                    </Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    asChild
-                    className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
-                  >
-                    <Link href="/tutor" prefetch={true} onClick={onNavigate}>
-                      <GraduationCap className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                      <span>Teaching</span>
-                    </Link>
-                  </DropdownMenu.Item>
-                </>
+                <DropdownMenu.Item
+                  asChild
+                  className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"
+                >
+                  <Link href="/tutor" prefetch={true} onClick={onNavigate}>
+                    <GraduationCap className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span>Panel Tutor</span>
+                  </Link>
+                </DropdownMenu.Item>
               )}
               {userRole === "admin" && (
                 <DropdownMenu.Item
@@ -194,7 +183,7 @@ export function NavProfileOrSignIn({
                 >
                   <Link href="/admin" prefetch={true} onClick={onNavigate}>
                     <ShieldCheck className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    <span>Admin</span>
+                    <span>Panel Admin</span>
                   </Link>
                 </DropdownMenu.Item>
               )}

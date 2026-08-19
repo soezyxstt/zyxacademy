@@ -9,7 +9,7 @@ import { CalendarDays } from "lucide-react";
 
 export const metadata: Metadata = {
   title: pageTitle("Jadwal & Kalender Akademik"),
-  description: "Monitor seluruh sesi bimbingan kelompok belajar, jadwal Ujian Resmi ITB, Tryout, Kuis, dan tiket reschedule.",
+  description: "Monitor seluruh sesi tutorial kelompok belajar, jadwal Ujian Resmi ITB, Tryout, Kuis, dan tiket reschedule.",
 };
 
 export default async function AdminSchedulesPage() {

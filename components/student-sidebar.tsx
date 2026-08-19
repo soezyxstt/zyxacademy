@@ -249,7 +249,7 @@ export function StudentSidebar({
         <NavItem
           href="/dashboard/schedule"
           icon={CalendarRange}
-          label={userRole === "teacher" ? "Jadwal Bimbingan" : "Jadwal"}
+          label={userRole === "teacher" ? "Jadwal Tutorial" : "Jadwal"}
           active={pathname === "/dashboard/schedule"}
           collapsed={c}
         />

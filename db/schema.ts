@@ -754,6 +754,7 @@ export const userRelations = relations(user, ({ many, one }) => ({
   accounts: many(account),
   tutorCourses: many(tutorCourses),
   tutorSlots: many(tutorSlots),
+  enrollments: many(enrollments),
   pengguna: one(pengguna, {
     fields: [user.id],
     references: [pengguna.id],
@@ -807,6 +808,18 @@ export const enrollmentTokenCoursesRelations = relations(enrollmentTokenCourses,
   }),
   course: one(courses, {
     fields: [enrollmentTokenCourses.courseId],
+    references: [courses.id],
+  }),
+}));
+
+// Relations for enrollments
+export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
+  user: one(user, {
+    fields: [enrollments.userId],
+    references: [user.id],
+  }),
+  course: one(courses, {
+    fields: [enrollments.courseId],
     references: [courses.id],
   }),
 }));
@@ -3220,6 +3233,7 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
 	courseMaterials: many(courseMaterials),
 	assessmentSources: many(assessmentSources),
 	groupCourses: many(groupCourses),
+	enrollments: many(enrollments),
 	assessmentProfile: one(assessmentProfiles, {
 		fields: [courses.id],
 		references: [assessmentProfiles.courseId],

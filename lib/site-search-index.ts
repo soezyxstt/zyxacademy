@@ -38,7 +38,7 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     href: "/",
     group: "Halaman",
     keywords: "home utama zyx academy landing",
-    content: "Program bimbingan online kalkulus fisika kimia aljabar linear persiapan kuliah",
+    content: "Program tutorial online kalkulus fisika kimia aljabar linear persiapan kuliah",
   },
   {
     title: "Katalog course",
@@ -54,7 +54,7 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     href: "/plans",
     group: "Halaman",
     keywords: "langganan subscription pricing paket belajar biaya",
-    content: "Lihat paket harga membership akses course bimbingan",
+    content: "Lihat paket harga membership akses course tutorial",
   },
   {
     title: "Tentang kami",
@@ -62,7 +62,7 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     href: "/about",
     group: "Halaman",
     keywords: "tim visi misi profil zyx",
-    content: "Informasi platform bimbingan akademik Zyx Academy",
+    content: "Informasi platform tutorial akademik Zyx Academy",
   },
   {
     title: "Testimoni",
@@ -186,7 +186,7 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     href: "/courses/tutorial-pka",
     group: "Halaman",
     keywords: "tutorial pka pka itb persiapan kuliah",
-    content: "Program bimbingan intensif Tutorial PKA ITB",
+    content: "Program tutorial intensif Tutorial PKA ITB",
   },
   {
     title: "Pendaftaran PKA",
@@ -202,7 +202,7 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     href: "/courses/tutorial-pka/jadwal",
     group: "Halaman",
     keywords: "jadwal pka sesi live tutor",
-    content: "Jadwal pelaksanaan sesi bimbingan Tutorial PKA",
+    content: "Jadwal pelaksanaan sesi tutorial Tutorial PKA",
   },
   {
     title: "Laporan diagnostik PKA",

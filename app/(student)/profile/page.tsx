@@ -23,7 +23,7 @@ import {
 
 export const metadata: Metadata = {
  title: pageTitle("Profil Pengguna"),
- description: "Profil akademis, statistik belajar, kelompok belajar, dan jadwal bimbingan Anda di Zyx Academy.",
+ description: "Profil akademis, statistik belajar, kelompok belajar, dan jadwal tutorial Anda di Zyx Academy.",
 };
 
 export default async function ProfilePage() {

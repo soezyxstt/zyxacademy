@@ -106,7 +106,7 @@ export function PreSessionModal({
     try {
       const res = await updatePreSessionData(booking.id, topic, notes, attachments);
       if (res.success) {
-        toast.success("Persiapan sesi bimbingan berhasil disimpan!");
+        toast.success("Persiapan sesi tutorial berhasil disimpan!");
         onOpenChange(false);
         onSuccess();
       } else {

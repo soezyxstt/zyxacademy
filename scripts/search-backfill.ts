@@ -405,7 +405,7 @@ export async function runSearchBackfill(): Promise<{
           b.sessionDate,
           b.startTime,
           b.location,
-          "booking sesi tutorial bimbingan tutor meet",
+          "booking sesi tutorial tutor meet",
         ]
           .filter(Boolean)
           .join(" ")

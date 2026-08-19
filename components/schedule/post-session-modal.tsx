@@ -117,7 +117,7 @@ export function PostSessionModal({
       );
 
       if (res.success) {
-        toast.success("Sesi bimbingan berhasil diselesaikan!");
+        toast.success("Sesi tutorial berhasil diselesaikan!");
         onOpenChange(false);
         onSuccess();
       } else {

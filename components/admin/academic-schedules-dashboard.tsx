@@ -214,7 +214,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
       {/* 1. KPI Cards Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <AdminStatCard
-          label="Total Bimbingan"
+          label="Total Tutorial"
           value={totalBookings}
           caption="Pemesanan kelompok"
           icon={Users}

@@ -469,7 +469,7 @@ export async function collaborativeBookSlot(
         where: eq(courses.id, courseId),
       });
 
-      const auditSummary = `${currentUser.name} memilih jadwal bimbingan ${
+      const auditSummary = `${currentUser.name} memilih jadwal tutorial ${
         courseItem?.title || "Mata Kuliah"
       } bersama ${slot.tutor.name} (${slot.dayOfWeek}, ${targetDateIso} ${slot.startTime} - ${slot.endTime})`;
 
@@ -509,7 +509,7 @@ export async function collaborativeBookSlot(
     });
   } catch (err: any) {
     console.error("Collaborative booking error:", err);
-    return { success: false, error: err?.message || "Gagal memesan slot bimbingan" };
+    return { success: false, error: err?.message || "Gagal memesan slot tutorial" };
   }
 }
 
@@ -538,7 +538,7 @@ export async function collaborativeMoveSlot(
       });
 
       if (!booking) {
-        return { success: false, error: "Jadwal bimbingan tidak ditemukan" };
+        return { success: false, error: "Jadwal tutorial tidak ditemukan" };
       }
 
       // 1. Verify membership
@@ -665,7 +665,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
       });
 
       if (!booking) {
-        return { success: false, error: "Jadwal bimbingan tidak ditemukan" };
+        return { success: false, error: "Jadwal tutorial tidak ditemukan" };
       }
 
       const membership = await tx.query.groupMembers.findFirst({
@@ -734,7 +734,7 @@ export async function updatePreSessionData(
     });
 
     if (!booking) {
-      return { success: false, error: "Jadwal bimbingan tidak ditemukan" };
+      return { success: false, error: "Jadwal tutorial tidak ditemukan" };
     }
 
     const membership = await db.query.groupMembers.findFirst({
@@ -818,7 +818,7 @@ export async function submitRescheduleTicket(
     });
 
     if (!booking) {
-      return { success: false, error: "Jadwal bimbingan tidak ditemukan" };
+      return { success: false, error: "Jadwal tutorial tidak ditemukan" };
     }
 
     const membership = await db.query.groupMembers.findFirst({
@@ -1016,7 +1016,7 @@ export async function updateTutorCourses(courseIds: string[]) {
     return { success: true };
   } catch (err: any) {
     console.error("Update tutor courses error:", err);
-    return { success: false, error: "Gagal memperbarui mata kuliah bimbingan" };
+    return { success: false, error: "Gagal memperbarui mata kuliah tutorial" };
   }
 }
 
@@ -1115,7 +1115,7 @@ export async function tutorDecideTicket(
             groupId: ticket.groupId,
             actorId: currentUser.id,
             action: "BOOKING_CANCELLED",
-            summary: `Tutor ${currentUser.name} menyetujui pembatalan sesi bimbingan. Kuota sesi minggu ini hangus.`,
+            summary: `Tutor ${currentUser.name} menyetujui pembatalan sesi tutorial. Kuota sesi minggu ini hangus.`,
             metadata: { decisionNotes },
             createdAt: now,
           });
@@ -1180,7 +1180,7 @@ export async function tutorCompleteSession(
     });
 
     if (!booking) {
-      return { success: false, error: "Jadwal bimbingan tidak ditemukan" };
+      return { success: false, error: "Jadwal tutorial tidak ditemukan" };
     }
 
     if (booking.slot.tutorId !== currentUser.id) {

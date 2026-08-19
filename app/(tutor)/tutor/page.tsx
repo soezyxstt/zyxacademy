@@ -36,10 +36,10 @@ export default async function TutorPage() {
           </div>
           <div>
             <p className="font-heading text-body-sm font-bold text-foreground">
-              Kalender & Jadwal Bimbingan
+              Kalender & Jadwal Tutorial
             </p>
             <p className="text-body-xs text-muted-foreground">
-              Kelola slot ketersediaan 90 menit, sertifikasi mata kuliah, dan bimbingan kelompok.
+              Kelola slot ketersediaan 90 menit, sertifikasi mata kuliah, dan tutorial kelompok.
             </p>
           </div>
         </div>

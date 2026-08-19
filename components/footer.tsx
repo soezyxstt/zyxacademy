@@ -20,7 +20,7 @@ export function Footer() {
             </Link>
             <p className="mt-4 max-w-md text-body-sm leading-relaxed text-muted-foreground">
               Zyx Academy membantu mahasiswa S1 ITB tahun pertama dan kedua (TPB dan jurusan) menguasai materi dengan modul selaras kampus,
-              latihan terarah, dan bimbingan tutor ITB.
+              latihan terarah, dan tutorial bersama tutor ITB.
             </p>
             <p className="mt-2 text-body-xs font-semibold text-[var(--zx-accent)] tracking-wide">
               Built by ITB students. Belajar dengan arah yang lebih jelas.

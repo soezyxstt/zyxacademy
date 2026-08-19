@@ -94,7 +94,7 @@ export function TutorAvailabilityPanel({
     try {
       const res = await updateTutorCourses(newCourseIds);
       if (res.success) {
-        toast.success("Mata kuliah bimbingan diperbarui");
+        toast.success("Mata kuliah tutorial diperbarui");
         onRefresh();
       } else {
         toast.error(res.error || "Gagal memperbarui");
@@ -118,7 +118,7 @@ export function TutorAvailabilityPanel({
         <form onSubmit={handleAddSlot} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-body-xs font-semibold text-foreground block">
-              Hari Bimbingan
+              Hari Tutorial
             </label>
             <select
               value={dayOfWeek}
@@ -228,7 +228,7 @@ export function TutorAvailabilityPanel({
 
         {mySlots.length === 0 ? (
           <div className="p-8 text-center text-body-xs text-muted-foreground italic border border-dashed border-border rounded-xl">
-            Anda belum membuka slot ketersediaan bimbingan.
+            Anda belum membuka slot ketersediaan tutorial.
           </div>
         ) : (
           <div className="divide-y divide-border/70 max-h-96 overflow-y-auto pr-1">

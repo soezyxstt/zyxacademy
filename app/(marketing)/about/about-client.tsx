@@ -144,12 +144,12 @@ export function AboutClient() {
                 sistem pendampingan yang ramah.
               </p>
               <p>
-                Kami juga melihat bahwa alternatif bimbingan belajar atau <span className="italic">tutor center</span>{" "}
+                Kami juga melihat bahwa alternatif program tutorial atau <span className="italic">tutor center</span>{" "}
                 yang telah ada dan berkembang belum mampu memberikan solusi yang cocok. Sebagian besar masih dikelola
                 dengan manajemen yang seadanya, serta beroperasi murni sebagai bisnis penghasil uang belaka.
               </p>
               <p>
-                Akibatnya, proses bimbingan terasa transaksional dan kurang menghargai sisi manusiawi. Zyx didirikan untuk
+                Akibatnya, proses tutorial terasa transaksional dan kurang menghargai sisi manusiawi. Zyx didirikan untuk
                 mendobrak paradigma ini dengan menghadirkan ekosistem belajar yang benar-benar{" "}
                 <span className="font-semibold text-foreground">mahasiswa-sentris</span> sekaligus{" "}
                 <span className="font-semibold text-foreground">tutor-sentris</span>. Bagi kami, empati terhadap proses
@@ -172,7 +172,7 @@ export function AboutClient() {
           <div className="space-y-6 text-body-base text-muted-foreground leading-relaxed text-center">
             <p>
               Zyx dirancang untuk mahasiswa ITB tahun pertama (TPB) dan tahun kedua yang menginginkan arah belajar yang
-              terarah, materi yang selaras dengan perkuliahan, serta bimbingan yang memahami ritme akademik kampus.
+              terarah, materi yang selaras dengan perkuliahan, serta tutorial yang memahami ritme akademik kampus.
             </p>
             <p>
               Kami mendampingi mereka yang merasa terbebani oleh tumpukan teori instan dan ingin beralih membangun

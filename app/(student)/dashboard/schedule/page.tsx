@@ -54,10 +54,10 @@ export default function SchedulePage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <PageHeader
           icon={CalendarDays}
-          title="Kalender & Jadwal Bimbingan"
+          title="Kalender & Jadwal Tutorial"
         />
         <div className="p-16 text-center text-muted-foreground text-body-sm">
-          Memuat data kalender dan slot bimbingan...
+          Memuat data kalender dan slot tutorial...
         </div>
       </div>
     );
@@ -88,7 +88,7 @@ export default function SchedulePage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <PageHeader
           icon={CalendarDays}
-          title="Kalender & Jadwal Bimbingan"
+          title="Kalender & Jadwal Tutorial"
         />
 
         {/* Tutor Tabs Switcher */}
@@ -103,7 +103,7 @@ export default function SchedulePage() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Kalender Bimbingan
+              Kalender Tutorial
             </button>
             <button
               type="button"

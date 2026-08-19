@@ -5,7 +5,7 @@ import PlansClient from "./plans-client";
 export const metadata: Metadata = {
   title: pageTitle("Plans"),
   description:
-    "Paket bimbingan Zyx Academy - kombinasi course, jadwal pertemuan, dan akses materi. Real-time pricing calculator.",
+    "Paket tutorial Zyx Academy, kombinasi course, jadwal pertemuan, dan akses materi. Real-time pricing calculator.",
 };
 
 export default function PlansPage() {

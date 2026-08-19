@@ -253,7 +253,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
           <Link href="/dashboard/schedule">
             <Button className="h-10 rounded-lg gap-2 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20">
               <CalendarRange className="size-4" />
-              <span>Jadwalkan Sesi Bimbingan</span>
+              <span>Jadwalkan Sesi Tutorial</span>
             </Button>
           </Link>
         </div>
@@ -488,7 +488,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
 
         {activeGroup.recentBookings.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-body-sm space-y-2">
-            <p>Belum ada sesi bimbingan yang dijadwalkan untuk kelompok ini.</p>
+            <p>Belum ada sesi tutorial yang dijadwalkan untuk kelompok ini.</p>
             <Link href="/dashboard/schedule">
               <Button variant="outline" size="sm" className="rounded-lg gap-1.5 mt-2">
                 <CalendarRange className="size-3.5" />
