@@ -37,6 +37,7 @@ import {
   Image as ImageIcon,
   Archive,
   ArchiveRestore,
+  Trophy,
 } from "lucide-react";
 import {
   SidebarShell,
@@ -90,6 +91,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   // Bank Soal & Asesmen
   { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "evaluasi" },
   { id: "quizzes", label: "Kuis", href: "/admin/quizzes", icon: NotebookPen, group: "evaluasi" },
+  { id: "leaderboard", label: "Papan Peringkat", href: "/admin/leaderboard", icon: Trophy, group: "evaluasi" },
   { id: "quiz-insights", label: "Analisis Kuis", href: "/admin/quiz-insights", icon: BarChart3, group: "evaluasi", badge: "Beta" },
   { id: "question-jobs", label: "Generasi Soal", href: "/admin/jobs", icon: Zap, group: "evaluasi" },
   { id: "distractors", label: "Analitik Distraktor", href: "/admin/distractors", icon: Target, group: "evaluasi", badge: "Beta" },

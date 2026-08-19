@@ -11,7 +11,6 @@ import {
   questions,
   submissions,
   tutorCourses,
-  courses,
 } from "@/db/schema";
 import { eq, and, inArray, asc, or, sql, notInArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
@@ -19,7 +18,7 @@ import { headers } from "next/headers";
 import { randomUUID } from "crypto";
 import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
-import { sendQuizPublished } from "@/lib/notifications/send";
+import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
 import { normalizeQuestionProvenance, questionProvenanceSnapshot } from "@/lib/asesmen/question-provenance";
 
 // Helper to verify tutor role and course access
@@ -240,17 +239,12 @@ export async function saveQuizTemplateAction(
   }
 
   if (shouldNotify) {
-    const courseRow = await db
-      .select({ title: courses.title })
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
-    await sendQuizPublished(
-      data.title,
+    await notifyQuizPublishedBestEffort({
+      templateId: targetId,
+      quizTitle: data.title,
       courseId,
-      courseRow[0]?.title ?? "mata kuliah",
-      `/courses/${courseId}/quiz`
-    );
+      quizUrl: `/courses/${courseId}/quiz`,
+    });
   }
 
   revalidatePath(`/tutor/${courseId}/quizzes`);

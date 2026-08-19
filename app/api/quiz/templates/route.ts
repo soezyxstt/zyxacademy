@@ -12,12 +12,14 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, desc } from 'drizzle-orm';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
+import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
 
 const CreateTemplateSchema = z.object({
   courseId: z.string().min(1),
   title: z.string().min(1).max(255),
   category: z.enum(['daily', 'weekly', 'chapter', 'premium', 'simulation']),
   visibility: z.enum(['free', 'paid']).default('free'),
+  status: z.enum(['draft', 'published']).default('draft'),
   timeLimitSeconds: z.number().int().nullable().optional(),
   maxAttempts: z.number().int().nullable().optional(),
   openAt: z.string().optional().nullable(),
@@ -71,6 +73,7 @@ export async function POST(req: NextRequest) {
     title,
     category,
     visibility,
+    status,
     timeLimitSeconds,
     maxAttempts,
     selectionRules,
@@ -130,8 +133,17 @@ export async function POST(req: NextRequest) {
     closeAt: closeAt ? new Date(closeAt) : null,
     manualStatus,
     showDiscussion: derivedShowDiscussion,
-    status: "draft",
+    status,
   });
+
+  if (status === 'published') {
+    await notifyQuizPublishedBestEffort({
+      templateId: id,
+      quizTitle: title,
+      courseId,
+      quizUrl: `/courses/${courseId}/quiz`,
+    });
+  }
 
   return NextResponse.json({ templateId: id }, { status: 201 });
 }

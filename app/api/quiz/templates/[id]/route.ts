@@ -5,13 +5,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { quizTemplates, courses } from '@/db/schema';
+import { quizTemplates } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
-import { sendQuizPublished } from '@/lib/notifications/send';
+import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -135,19 +135,13 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     .where(eq(quizTemplates.id, id));
 
   if (parsed.data.status === 'published' && previous && previous.status !== 'published') {
-    const courseRow = await db
-      .select({ title: courses.title })
-      .from(courses)
-      .where(eq(courses.id, previous.courseId))
-      .limit(1)
-      .then((rows) => rows[0] ?? null);
     const quizTitle = typeof parsed.data.title === 'string' ? parsed.data.title : previous.title;
-    await sendQuizPublished(
+    await notifyQuizPublishedBestEffort({
+      templateId: id,
       quizTitle,
-      previous.courseId,
-      courseRow?.title ?? 'mata kuliah',
-      `/courses/${previous.courseId}/quiz`
-    );
+      courseId: previous.courseId,
+      quizUrl: `/courses/${previous.courseId}/quiz`,
+    });
   }
 
   return NextResponse.json({ success: true });

@@ -16,6 +16,7 @@ import {
   aiUsageEvents,
   vectorSyncQueue,
   blogArticles,
+  studentQuizAttempts,
 } from "@/db/schema";
 import { sql, eq, gte, ne } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
@@ -36,6 +37,7 @@ import {
   FileText,
   Image,
   Link as LinkIcon,
+  Trophy,
 } from "lucide-react";
 
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -65,6 +67,7 @@ export default async function AdminHomePage() {
     notificationStatsRes,
     opsStatsRes,
     blogCountRes,
+    attemptCountRes,
   ] = await Promise.all([
     db.select({ count: sql<number>`count(*)` }).from(courses),
 
@@ -112,6 +115,11 @@ export default async function AdminHomePage() {
     ]),
 
     db.select({ count: sql<number>`count(*)` }).from(blogArticles),
+
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(studentQuizAttempts)
+      .where(eq(studentQuizAttempts.status, "completed")),
   ]);
 
   const totalCourses = courseCountRes[0]?.count ?? 0;
@@ -146,6 +154,9 @@ export default async function AdminHomePage() {
 
   const totalQuizzes = quizCountRes[0]?.count ?? 0;
   const quizStat = `${totalQuizzes} kuis aktif`;
+
+  const totalAttempts = attemptCountRes[0]?.count ?? 0;
+  const leaderboardStat = `${totalAttempts} pengerjaan`;
 
   const totalBroadcasts = notificationStatsRes[0][0]?.count ?? 0;
   const totalDevices = notificationStatsRes[1][0]?.count ?? 0;
@@ -214,6 +225,14 @@ export default async function AdminHomePage() {
           href: "/admin/quizzes",
           label: "Kelola kuis",
           stat: quizStat,
+        },
+        {
+          title: "Papan Peringkat",
+          icon: Trophy,
+          iconColor: "text-brand-secondary",
+          href: "/admin/leaderboard",
+          label: "Buka papan peringkat",
+          stat: leaderboardStat,
         },
         {
           title: "Generasi Soal",

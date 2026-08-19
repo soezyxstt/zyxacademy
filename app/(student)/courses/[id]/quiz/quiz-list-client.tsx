@@ -93,8 +93,9 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
           const openDate = template.openAt ? new Date(template.openAt) : null;
           const closeDate = template.closeAt ? new Date(template.closeAt) : null;
 
-          let isOpen = true;
+          let isUpcoming = false;
           let isClosed = false;
+          let isOpen = true;
 
           if (template.manualStatus === "closed") {
             isOpen = false;
@@ -104,8 +105,15 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
             isClosed = false;
           } else {
             // "scheduled" or default
-            isOpen = !openDate || now >= openDate;
-            isClosed = !!closeDate && now > closeDate;
+            if (closeDate && now > closeDate) {
+              isClosed = true;
+              isOpen = false;
+            } else if (openDate && now < openDate) {
+              isUpcoming = true;
+              isOpen = false;
+            } else {
+              isOpen = true;
+            }
           }
 
           const buttonContent = (() => {
@@ -149,7 +157,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                 </Button>
               );
             }
-            if (!isOpen) {
+            if (isUpcoming) {
               return (
                 <Button
                   disabled
@@ -181,7 +189,7 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
               <div
                 className={cn(
                   "grid gap-3 px-4 py-3.5 transition-colors md:grid-cols-[minmax(0,1fr)_100px_180px] md:items-center",
-                  accessible && isOpen && !isClosed ? "hover:bg-muted/30" : "bg-card/45 text-muted-foreground",
+                  accessible && isOpen ? "hover:bg-muted/30" : "bg-card/45 text-muted-foreground",
                 )}
               >
                 <div className="min-w-0">
@@ -228,17 +236,19 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                         </span>
                       )}
 
-                      {!isOpen && openDate && (
+                      {isUpcoming && openDate && (
                         <span className="inline-flex items-center gap-1 text-status-warning font-medium">
                           <AlertCircle className="size-3.5" />
                           Akan dibuka: {openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
                         </span>
                       )}
 
-                      {isClosed && closeDate && (
+                      {isClosed && (
                         <span className="inline-flex items-center gap-1 text-status-error font-medium">
                           <AlertCircle className="size-3.5" />
-                          Telah ditutup: {closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                          {closeDate
+                            ? `Telah ditutup: ${closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`
+                            : "Telah ditutup"}
                         </span>
                       )}
                     </div>

@@ -18,6 +18,7 @@ import {
  userPushTokens,
  notifications,
  enrollments,
+ courses,
 } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { adminMessaging } from "@/lib/firebase/admin";
@@ -255,6 +256,47 @@ export async function sendQuizPublished(
  const userIds = enrolled.map((e) => e.userId);
  const payload = quizPublishedPayload(quizTitle, courseTitle, quizUrl);
  return sendToMany(userIds, payload);
+}
+
+/**
+ * Publish notifications are a best-effort side effect. The quiz status is
+ * already persisted before this function is called, so notification failures
+ * must never turn a successful publish into an HTTP 500 response.
+ */
+export async function notifyQuizPublishedBestEffort(input: {
+ quizTitle: string;
+ courseId: string;
+ quizUrl: string;
+ templateId?: string;
+}): Promise<void> {
+ try {
+  const [courseRow] = await db
+   .select({ title: courses.title })
+   .from(courses)
+   .where(eq(courses.id, input.courseId))
+   .limit(1);
+
+  const result = await sendQuizPublished(
+   input.quizTitle,
+   input.courseId,
+   courseRow?.title ?? "mata kuliah",
+   input.quizUrl,
+  );
+
+  if (result.errors.length > 0) {
+   console.error("[FCM] Quiz publish notification completed with errors.", {
+    templateId: input.templateId,
+    courseId: input.courseId,
+    errorCount: result.errors.length,
+   });
+  }
+ } catch (error) {
+  console.error("[FCM] Quiz publish notification failed.", {
+   templateId: input.templateId,
+   courseId: input.courseId,
+   error: error instanceof Error ? error.message : String(error),
+  });
+ }
 }
 
 /**
