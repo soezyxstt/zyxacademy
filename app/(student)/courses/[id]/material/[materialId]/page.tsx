@@ -15,7 +15,6 @@ import { getCourse } from "@/lib/course-utils";
 import { db } from "@/db";
 import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
-import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
 import { buildCourseTermIndex } from "@/lib/term-index";
 import { auth } from "@/lib/auth";
@@ -124,16 +123,25 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
       .where(eq(courseMaterials.id, materialId));
 
     if (matRecord) {
+      let docCategory: "materi" | "soal" | "solusi" = "materi";
+      if (matRecord.type === "contoh_soal" || matRecord.type === "soal") {
+        docCategory = "soal";
+      } else if (matRecord.type === "pembahasan_soal") {
+        docCategory = "solusi";
+      }
+
       return {
         id: matRecord.id,
         courseId,
         title: matRecord.title,
         kind: "pdf",
-        docCategory: matRecord.type === "contoh_soal" ? "soal" : "materi",
+        docCategory,
+        subcategory: matRecord.subcategory,
+        year: matRecord.year,
         fileSize: "PDF File",
         url: matRecord.fileUrl ? storage.getUrl(matRecord.fileUrl) : undefined,
         completed,
-        isPastYear: false,
+        isPastYear: Boolean(matRecord.year),
         isPreview: true,
       };
     }
@@ -241,8 +249,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
     );
   }
 
-  const materialLiveEnabled = env.FEATURE_MATERIAL_LIVE === "1";
-  const termIndex = materialLiveEnabled ? await buildCourseTermIndex(id) : [];
+  const termIndex = await buildCourseTermIndex(id);
 
   return (
     <Suspense fallback={<div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
@@ -251,7 +258,7 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
         chapterId={material.chapterId}
         ragEnabled
         termIndex={termIndex}
-        materialLiveEnabled={materialLiveEnabled}
+        materialLiveEnabled={true}
         course={course}
       />
     </Suspense>

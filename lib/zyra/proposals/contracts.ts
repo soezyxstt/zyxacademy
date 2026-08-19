@@ -164,7 +164,6 @@ export function isZyraProposalFeatureEnabled(
   role: ZyraProposalRole,
   env: Record<string, string | undefined> = process.env,
 ): boolean {
-  return role === "admin"
-    ? env.FEATURE_ZYRA_ADMIN_COPILOT_V1 === "1"
-    : env.FEATURE_ZYRA_TUTOR_COPILOT_V1 === "1";
+  const val = role === "admin" ? env.FEATURE_ZYRA_ADMIN_COPILOT_V1 : env.FEATURE_ZYRA_TUTOR_COPILOT_V1;
+  return val !== "0";
 }

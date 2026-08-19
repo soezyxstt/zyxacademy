@@ -5,12 +5,8 @@ import { db } from "@/db";
 import { tutorCourses } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getCohortAnalytics } from "@/lib/cohort-analytics";
-import { env } from "@/lib/env";
 
 export async function GET(req: NextRequest) {
-  if (env.FEATURE_TUTOR_ANALYTICS !== "1") {
-    return NextResponse.json({ error: "Feature disabled" }, { status: 404 });
-  }
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -50,7 +50,9 @@ type UploadedMaterial = {
   id: string;
   courseId: string;
   title: string;
-  type: "materi_kelas" | "contoh_soal";
+  type: string;
+  subcategory?: string | null;
+  year?: number | null;
   fileUrl: string;
   chapterIds: any;
   createdAt: Date;

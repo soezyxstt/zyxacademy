@@ -13,7 +13,6 @@ import {
 import { AnalyticsClient } from "@/components/tutor/analytics-client";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
-import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { ZyraProposalPanel } from "@/components/zyra/zyra-proposal-panel";
 
 type Props = { params: Promise<{ courseId: string }> };
@@ -108,9 +107,7 @@ export default async function TutorCoursePage({ params }: Props) {
         analytics={analytics}
         updatedAt={updatedAt}
       />
-      {zyraRuntimeEnv.FEATURE_ZYRA_TUTOR_COPILOT_V1 === "1" && (
-        <ZyraProposalPanel courseId={courseId} role="tutor" />
-      )}
+      <ZyraProposalPanel courseId={courseId} role="tutor" />
     </div>
   );
 }

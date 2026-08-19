@@ -22,7 +22,16 @@ const fixturePaths = [
 ];
 
 function fixtureFiles(): Map<string, Uint8Array> {
-  const files = new Map(fixturePaths.map((path) => [path, new Uint8Array(readFileSync(join(fixtureRoot, path)))]));
+  const files = new Map(
+    fixturePaths.map((path) => {
+      const raw = readFileSync(join(fixtureRoot, path));
+      if (path.endsWith(".md")) {
+        const normalized = raw.toString("utf8").replace(/\r\n/g, "\n");
+        return [path, new Uint8Array(Buffer.from(normalized, "utf8"))];
+      }
+      return [path, new Uint8Array(raw)];
+    })
+  );
   refreshChecksums(files);
   return files;
 }

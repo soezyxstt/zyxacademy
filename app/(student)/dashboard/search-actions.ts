@@ -112,7 +112,13 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
         .where(and(eq(diktats.courseId, course.id), eq(diktats.status, "ready")));
 
       const dbManuals = await db
-        .select({ id: courseMaterials.id, title: courseMaterials.title, type: courseMaterials.type })
+        .select({
+          id: courseMaterials.id,
+          title: courseMaterials.title,
+          type: courseMaterials.type,
+          subcategory: courseMaterials.subcategory,
+          year: courseMaterials.year,
+        })
         .from(courseMaterials)
         .where(eq(courseMaterials.courseId, course.id));
 
@@ -146,14 +152,16 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
       });
 
       dbManuals.forEach((m) => {
-        const kindLabel = m.type === "contoh_soal" ? "soal" : "materi";
+        const kindLabel = m.type === "contoh_soal" || m.type === "soal" ? "soal" : m.type === "pembahasan_soal" ? "pembahasan soal solusi" : "materi";
+        const subLabel = m.subcategory ? ` ${m.subcategory}` : "";
+        const yearLabel = m.year ? ` ${m.year}` : "";
         docs.push({
           id: `material:${course.id}:${m.id}`,
           title: m.title,
-          subtitle: `${course.title} · PDF`,
+          subtitle: `${course.title} · PDF${yearLabel}`,
           href: `/courses/${course.id}/material/${m.id}`,
           group: "Materi",
-          keywords: `pdf ${course.title} PDF ${kindLabel}`,
+          keywords: `pdf ${course.title} PDF ${kindLabel}${subLabel}${yearLabel}`,
           content: m.title,
         });
       });

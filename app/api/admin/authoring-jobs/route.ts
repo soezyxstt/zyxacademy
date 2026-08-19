@@ -13,7 +13,6 @@ const mappingsSchema = z.array(z.object({ sectionId: z.string().min(1), chapterI
 const productsSchema = z.array(authoringProductTypeSchema).min(1);
 
 async function requireAdmin(): Promise<{ id: string } | NextResponse> {
-  if (process.env.FEATURE_AUTHORING_CONTEXT_V1 !== "1") return NextResponse.json({ error: "AUTHORING_CONTEXT_V1_DISABLED" }, { status: 404 });
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "AUTHORING_CONTEXT_FORBIDDEN" }, { status: 403 });
   return { id: session.user.id };

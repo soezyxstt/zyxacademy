@@ -8,7 +8,6 @@ import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundl
 export const runtime = "nodejs";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  if (process.env.FEATURE_PRODUCT_BUNDLE_V2 !== "1") return NextResponse.json({ error: "PRODUCT_BUNDLE_V2_DISABLED" }, { status: 404 });
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await context.params;
@@ -43,7 +42,6 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 }
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  if (process.env.FEATURE_PRODUCT_BUNDLE_V2 !== "1") return NextResponse.json({ error: "PRODUCT_BUNDLE_V2_DISABLED" }, { status: 404 });
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await context.params;
@@ -74,7 +72,6 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  if (process.env.FEATURE_PRODUCT_BUNDLE_V2 !== "1") return NextResponse.json({ error: "PRODUCT_BUNDLE_V2_DISABLED" }, { status: 404 });
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await context.params;

@@ -52,9 +52,7 @@ type CanonicalProductVectorSpec = {
   text: string;
 };
 
-function enabled(): void {
-  if (process.env.FEATURE_PRODUCT_BUNDLE_V2 !== "1") throw new Error("PRODUCT_BUNDLE_V2_DISABLED");
-}
+function enabled(): void {}
 
 function id(prefix: string, value: string): string {
   return `${prefix}-${createHash("sha256").update(`${prefix}:${value}`, "utf8").digest("hex").slice(0, 32)}`;

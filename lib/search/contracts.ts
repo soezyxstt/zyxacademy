@@ -15,7 +15,25 @@ export type SearchCategory =
   | "Course & Modul"
   | "Materi & Artikel"
   | "Kuis & Evaluasi"
-  | "Navigasi";
+  | "Navigasi"
+  | "Administrasi";
+
+export type SearchPrefixType =
+  | "group"
+  | "meet"
+  | "user"
+  | "form"
+  | "token"
+  | "schedule";
+
+export interface ParsedSearchQuery {
+  rawQuery: string;
+  cleanQuery: string;
+  isScoped: boolean;
+  prefixType?: SearchPrefixType;
+  entityType?: string;
+  prefixLabel?: string;
+}
 
 export interface SearchDocumentMetadata {
   title: string;
@@ -79,6 +97,7 @@ export interface SiteSearchGroupedResults {
   "Materi & Artikel": SiteSearchMatch[];
   "Kuis & Evaluasi": SiteSearchMatch[];
   "Navigasi": SiteSearchMatch[];
+  "Administrasi": SiteSearchMatch[];
 }
 
 export interface SiteSearchResponse {

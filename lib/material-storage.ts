@@ -13,7 +13,6 @@ import { validateAST, WebsiteMaterialAST, CompiledMaterial, CompilerResult } fro
 import { verifyKOCoverage } from "./ko-coverage-auditor";
 import { buildTermIndex } from "./term-index";
 import { buildConceptGraph } from "./graph-trace";
-import { env } from "./env";
 import { randomUUID, createHash } from "crypto";
 import { dualWriteMaterialPublication } from "@/lib/migrasi/repository-kompatibilitas";
 import { articleDocumentSchema } from "@/lib/materials/article-contract";
@@ -531,11 +530,9 @@ export async function approveAndPublish(
   });
 
   // E5: rebuild the concept-graph rollup for this course (deterministic, no AI).
-  if (env.FEATURE_GRAPH === "1") {
-    await buildConceptGraph(material.courseId).catch((err) => {
-      console.error("buildConceptGraph failed after publish:", err);
-    });
-  }
+  await buildConceptGraph(material.courseId).catch((err) => {
+    console.error("buildConceptGraph failed after publish:", err);
+  });
 }
 
 /**

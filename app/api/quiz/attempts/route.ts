@@ -10,8 +10,7 @@ import { db } from '@/db';
 import { quizTemplates, aiQuestionBank, studentQuizAttempts, knowledgeObjects, studentConceptMastery } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { and, or, eq, asc, inArray, sql, desc, notInArray } from 'drizzle-orm';
-import { env } from '@/lib/env';
+import { and, or, eq, inArray, sql, desc, notInArray } from 'drizzle-orm';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
 import { serializeStudentQuizAttemptList } from '@/lib/assessment-serialization';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
@@ -109,13 +108,7 @@ export async function POST(req: NextRequest) {
       | undefined;
     const proportions =
       explicitProportions ??
-      (env.FEATURE_ADAPTIVE_QUIZ === '1'
-        ? await getAdaptiveDifficultyProportions(studentId, template.courseId, totalCount)
-        : {
-            easy: Math.round(totalCount * 0.3),
-            medium: Math.round(totalCount * 0.5),
-            hard: totalCount - Math.round(totalCount * 0.3) - Math.round(totalCount * 0.5),
-          });
+      (await getAdaptiveDifficultyProportions(studentId, template.courseId, totalCount));
 
     const tags = (rules.tags as string[] | undefined) || [];
     const tagConditions = tags.map(
@@ -137,7 +130,7 @@ export async function POST(req: NextRequest) {
               tagCondition,
             ),
           )
-          .orderBy(asc(aiQuestionBank.useCount))
+          .orderBy(sql`RANDOM()`)
           .limit(count),
       ),
     );
@@ -160,7 +153,7 @@ export async function POST(req: NextRequest) {
             tagCondition,
           ),
         )
-        .orderBy(asc(aiQuestionBank.useCount))
+        .orderBy(sql`RANDOM()`)
         .limit(extraNeeded);
 
       selected = [...selected, ...extraQuestions];
@@ -203,30 +196,28 @@ export async function POST(req: NextRequest) {
 
   // E2: snapshot current mastery for every concept this quiz covers (before/after delta).
   let masteryBefore: Record<string, number> | null = null;
-  if (env.FEATURE_REMEDIATION === "1") {
-    const koIds = Array.from(new Set(selected.map((q) => q.knowledgeObjectId).filter((x): x is string => !!x)));
-    if (koIds.length > 0) {
-      const koRows = await db
-        .select({ conceptName: knowledgeObjects.conceptName })
-        .from(knowledgeObjects)
-        .where(inArray(knowledgeObjects.id, koIds));
-      const conceptNames = Array.from(new Set(koRows.map((k) => k.conceptName.trim())));
-      if (conceptNames.length > 0) {
-        const masteryRows = await db
-          .select({ conceptName: studentConceptMastery.conceptName, masteryScore: studentConceptMastery.masteryScore })
-          .from(studentConceptMastery)
-          .where(
-            and(
-              eq(studentConceptMastery.studentId, studentId),
-              eq(studentConceptMastery.courseId, template.courseId),
-              inArray(studentConceptMastery.conceptName, conceptNames),
-            ),
-          );
-        const scoreByConcept = new Map(masteryRows.map((r) => [r.conceptName.trim(), r.masteryScore]));
-        masteryBefore = {};
-        for (const name of conceptNames) {
-          masteryBefore[name] = scoreByConcept.get(name) ?? 0;
-        }
+  const koIds = Array.from(new Set(selected.map((q) => q.knowledgeObjectId).filter((x): x is string => !!x)));
+  if (koIds.length > 0) {
+    const koRows = await db
+      .select({ conceptName: knowledgeObjects.conceptName })
+      .from(knowledgeObjects)
+      .where(inArray(knowledgeObjects.id, koIds));
+    const conceptNames = Array.from(new Set(koRows.map((k) => k.conceptName.trim())));
+    if (conceptNames.length > 0) {
+      const masteryRows = await db
+        .select({ conceptName: studentConceptMastery.conceptName, masteryScore: studentConceptMastery.masteryScore })
+        .from(studentConceptMastery)
+        .where(
+          and(
+            eq(studentConceptMastery.studentId, studentId),
+            eq(studentConceptMastery.courseId, template.courseId),
+            inArray(studentConceptMastery.conceptName, conceptNames),
+          ),
+        );
+      const scoreByConcept = new Map(masteryRows.map((r) => [r.conceptName.trim(), r.masteryScore]));
+      masteryBefore = {};
+      for (const name of conceptNames) {
+        masteryBefore[name] = scoreByConcept.get(name) ?? 0;
       }
     }
   }

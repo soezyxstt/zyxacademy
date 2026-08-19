@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { FileText } from "lucide-react";
 
-import { env } from "@/lib/env";
 import { pageTitle } from "@/lib/site";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import AdminFormsBuilder from "@/components/forms/admin-forms-builder";
@@ -16,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminFormsPage() {
-  const presetsEnabled = env.FEATURE_FORM_PRESETS === "1";
+  const presetsEnabled = true;
 
   return (
     <div className="space-y-8">

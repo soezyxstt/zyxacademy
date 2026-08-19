@@ -14,6 +14,12 @@ import {
   quizTemplates,
   blogArticles,
   customForms,
+  groups,
+  googleMeetSessions,
+  bookings,
+  user as userTable,
+  enrollmentTokens,
+  academicSchedules,
 } from "@/db/schema";
 import { STATIC_PAGES, LANDING_SUBJECTS } from "@/lib/site-search-index";
 
@@ -43,12 +49,17 @@ function determineNavMinRole(href: string): number {
   if (href.startsWith("/admin")) {
     return 3;
   }
+  if (href.startsWith("/tutor")) {
+    return 2;
+  }
   if (
-    href === "/dashboard" ||
+    href.startsWith("/dashboard") ||
     href.startsWith("/calendar") ||
     href.startsWith("/settings") ||
     href.startsWith("/profile") ||
-    href.startsWith("/feedback")
+    href.startsWith("/leaderboard") ||
+    href.startsWith("/feedback") ||
+    href.includes("tutorial-pka")
   ) {
     return 1;
   }
@@ -69,6 +80,11 @@ export async function runSearchBackfill(): Promise<{
     exam: 0,
     blog: 0,
     form: 0,
+    group: 0,
+    meet: 0,
+    user: 0,
+    token: 0,
+    schedule: 0,
   };
 
   // 1. Static navigation pages and landing subjects
@@ -187,14 +203,16 @@ export async function runSearchBackfill(): Promise<{
   // 5. Course Materials
   const allCourseMaterials = await db.select().from(courseMaterials);
   for (const cm of allCourseMaterials) {
-    const kindLabel = cm.type === "contoh_soal" ? "contoh soal latihan" : "materi kelas bahan ajar";
+    const kindLabel = cm.type === "contoh_soal" || cm.type === "soal" ? "soal latihan" : cm.type === "pembahasan_soal" ? "pembahasan soal solusi" : "materi kelas bahan ajar";
+    const subLabel = cm.subcategory ? cm.subcategory : "";
+    const yearLabel = cm.year ? String(cm.year) : "";
     const doc: SearchDocInsert = {
       id: `material_${cm.id}`,
       entityType: "material",
       entityId: cm.id,
       courseId: cm.courseId,
       title: cm.title,
-      searchableText: [cm.title, kindLabel].filter(Boolean).join(" ").trim(),
+      searchableText: [cm.title, kindLabel, subLabel, yearLabel].filter(Boolean).join(" ").trim(),
       path: `/courses/${cm.courseId}/material/${cm.id}`,
       minRole: 1,
       isSynced: false,
@@ -316,6 +334,167 @@ export async function runSearchBackfill(): Promise<{
     stats.form++;
   }
   console.log(`Indexed ${stats.form} custom forms.`);
+
+  // 11. Study Groups (Kelompok Belajar)
+  const allGroups = await db.select().from(groups);
+  for (const g of allGroups) {
+    const doc: SearchDocInsert = {
+      id: `group_${g.id}`,
+      entityType: "group",
+      entityId: g.id,
+      courseId: null,
+      title: g.name,
+      searchableText: [
+        g.name,
+        g.packageName,
+        g.packageType,
+        g.academicYear,
+        g.semester,
+        g.notes,
+        "kelompok belajar grup study group",
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim(),
+      path: `/admin/groups`,
+      minRole: 1,
+      isSynced: false,
+    };
+    await upsertSearchDocument(doc);
+    stats.group++;
+  }
+  console.log(`Indexed ${stats.group} study groups.`);
+
+  // 12. Google Meet Sessions & Sesi Pertemuan
+  const allMeetSessions = await db.select().from(googleMeetSessions);
+  for (const m of allMeetSessions) {
+    const doc: SearchDocInsert = {
+      id: `meet_${m.id}`,
+      entityType: "meet",
+      entityId: m.id,
+      courseId: null,
+      title: m.title,
+      searchableText: [
+        m.title,
+        m.meetingCode,
+        m.spaceName,
+        "google meet ruang virtual pertemuan sesi",
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim(),
+      path: `/meet/${m.slug || m.id}`,
+      minRole: 1,
+      isSynced: false,
+    };
+    await upsertSearchDocument(doc);
+    stats.meet++;
+  }
+
+  const allBookings = await db.select().from(bookings);
+  for (const b of allBookings) {
+    if (b.topic || b.googleMeetUrl) {
+      const doc: SearchDocInsert = {
+        id: `meet_booking_${b.id}`,
+        entityType: "meet",
+        entityId: b.id,
+        courseId: null,
+        title: b.topic || "Sesi Pertemuan Tutor",
+        searchableText: [
+          b.topic,
+          b.sessionDate,
+          b.startTime,
+          b.location,
+          "booking sesi tutorial bimbingan tutor meet",
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim(),
+        path: `/dashboard/schedule`,
+        minRole: 1,
+        isSynced: false,
+      };
+      await upsertSearchDocument(doc);
+      stats.meet++;
+    }
+  }
+  console.log(`Indexed ${stats.meet} meet sessions and bookings.`);
+
+  // 13. Users (Akun Pengguna - Admin Only)
+  const allUsers = await db.select().from(userTable);
+  for (const u of allUsers) {
+    const doc: SearchDocInsert = {
+      id: `user_${u.id}`,
+      entityType: "user",
+      entityId: u.id,
+      courseId: null,
+      title: `${u.name} (${u.email})`,
+      searchableText: [u.name, u.email, u.role, "pengguna user akun murid tutor admin"]
+        .filter(Boolean)
+        .join(" ")
+        .trim(),
+      path: `/admin`,
+      minRole: 3,
+      isSynced: false,
+    };
+    await upsertSearchDocument(doc);
+    stats.user++;
+  }
+  console.log(`Indexed ${stats.user} user accounts.`);
+
+  // 14. Enrollment Tokens (Voucher & Token - Admin Only)
+  const allTokens = await db.select().from(enrollmentTokens);
+  for (const t of allTokens) {
+    const doc: SearchDocInsert = {
+      id: `token_${t.id}`,
+      entityType: "token",
+      entityId: t.id,
+      courseId: null,
+      title: `Token: ${t.token} (${t.capacity} siswa)`,
+      searchableText: [
+        t.token,
+        `kapasitas ${t.capacity}`,
+        "token voucher aktivasi pendaftaran kelas",
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim(),
+      path: `/admin/tokens`,
+      minRole: 3,
+      isSynced: false,
+    };
+    await upsertSearchDocument(doc);
+    stats.token++;
+  }
+  console.log(`Indexed ${stats.token} enrollment tokens.`);
+
+  // 15. Academic Schedules (Jadwal Akademik & Ujian)
+  const allSchedules = await db.select().from(academicSchedules);
+  for (const s of allSchedules) {
+    const doc: SearchDocInsert = {
+      id: `schedule_${s.id}`,
+      entityType: "schedule",
+      entityId: s.id,
+      courseId: s.courseId,
+      title: s.title,
+      searchableText: [
+        s.title,
+        s.type,
+        s.description,
+        s.location,
+        "jadwal akademik kalender ujian uts uas agenda",
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim(),
+      path: `/dashboard/schedule`,
+      minRole: 1,
+      isSynced: false,
+    };
+    await upsertSearchDocument(doc);
+    stats.schedule++;
+  }
+  console.log(`Indexed ${stats.schedule} academic schedules.`);
 
   const total = Object.values(stats).reduce((acc, n) => acc + n, 0);
   console.log(`Search backfill completed successfully. Total indexed documents: ${total}`);

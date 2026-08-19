@@ -7,9 +7,14 @@ import { ZyraCharacter } from "@/components/course/zyra-character";
 import { ZyraPet, zyraPetLabels } from "@/components/course/zyra-pet";
 import type { ZyraPetState } from "@/lib/zyra/murid";
 import { cn } from "@/lib/utils";
+import {
+  useZyraPetVisibility,
+  ZYRA_PET_VISIBILITY_KEY as VISIBILITY_KEY,
+} from "@/hooks/use-zyra-pet-visibility";
+
+export { VISIBILITY_KEY };
 
 const POSITION_KEY = "zyx-zyra-pet-position-v1";
-const VISIBILITY_KEY = "zyx-zyra-pet-visible-v1";
 const PET_WIDTH = 80;
 const PET_HEIGHT = 88;
 const EDGE_GAP = 16;
@@ -32,7 +37,7 @@ function defaultPosition(): Point {
 
 export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen: () => void }) {
   const [position, setPosition] = React.useState<Point | null>(null);
-  const [visible, setVisible] = React.useState(true);
+  const { visible, setVisible: setPetVisibility } = useZyraPetVisibility();
   const dragRef = React.useRef<{
     pointerId: number;
     origin: Point;
@@ -42,9 +47,6 @@ export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen
   const suppressClickRef = React.useRef(false);
 
   React.useEffect(() => {
-    const savedVisibility = window.localStorage.getItem(VISIBILITY_KEY);
-    setVisible(savedVisibility !== "0");
-
     let initial = defaultPosition();
     const savedPosition = window.localStorage.getItem(POSITION_KEY);
     if (savedPosition) {
@@ -70,11 +72,6 @@ export function ZyraFloatingPet({ state, onOpen }: { state: ZyraPetState; onOpen
     window.addEventListener("resize", keepInsideViewport);
     return () => window.removeEventListener("resize", keepInsideViewport);
   }, []);
-
-  const setPetVisibility = (nextVisible: boolean) => {
-    setVisible(nextVisible);
-    window.localStorage.setItem(VISIBILITY_KEY, nextVisible ? "1" : "0");
-  };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (!position) return;

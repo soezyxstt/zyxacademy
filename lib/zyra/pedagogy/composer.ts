@@ -155,6 +155,7 @@ export function teachingResponseToTutorAnswer(
     grounded: sources.length > 0,
     coverageState: sources.length > 0 ? "full" : "none",
     canvasSpec: parseCanvasSpec(response.canvasSpec, evidence.map((source) => source.id))
+      ?? (response.canvasSpec && typeof response.canvasSpec === "object" ? parseCanvasSpec({ ...response.canvasSpec, claimRefs: [] }) : null)
       ?? visualSpecToCanvasSpec(response.visualSpec)
       ?? functionPlotFromTutorText({
         learnerQuestion,

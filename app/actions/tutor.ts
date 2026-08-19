@@ -376,7 +376,7 @@ export async function saveTutorMessagesAction(
       content: m.content ?? "",
       sources: serializeTutorMessageSources(
         m.sources,
-        isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? m.canvasSpec : undefined,
+        isZyraCanvasFeatureEnabled() ? m.canvasSpec : undefined,
       ),
       attachmentIds: m.role === "student" ? [...(m.attachmentIds ?? [])] : [],
     }));
@@ -487,7 +487,7 @@ export async function loadTutorHistoryAction(
         role: r.role as "student" | "ai",
         content: r.content,
         sources: decoded.sources.length > 0 ? decoded.sources : undefined,
-        canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? decoded.canvasSpec : undefined,
+        canvasSpec: isZyraCanvasFeatureEnabled() ? decoded.canvasSpec : undefined,
         attachments: attachmentsByMessage.get(r.id)?.map((attachment) => ({
           id: attachment.id,
           mimeType: attachment.mimeType as ZyraImageMime,

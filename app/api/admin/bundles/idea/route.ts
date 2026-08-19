@@ -19,7 +19,6 @@ function errorResponse(error: unknown, fallback = "IDEA_BUNDLE_REQUEST_FAILED") 
 }
 
 async function requireAdmin(): Promise<{ id: string } | NextResponse> {
-  if (process.env.FEATURE_IDEA_BUNDLE_V2 !== "1") return NextResponse.json({ error: "IDEA_BUNDLE_V2_DISABLED" }, { status: 404 });
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   return { id: session.user.id };

@@ -13,7 +13,6 @@ import { selectTeachingPlan, type TeachingPlan } from "./state-machine";
 import { createTeachingResponseValidator, validateTeachingResponse } from "./validators";
 import { ZYRA_PEDAGOGY_V3_CONTRACT } from "@/prompts/zyra/pedagogy-v3";
 import type { ProviderInputPart } from "@/lib/ai/provider/provider-adapter";
-import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import { isZyraCanvasFeatureEnabled } from "@/lib/zyra/canvas";
 
 export interface RunPedagogicalTurnParams {
@@ -43,7 +42,7 @@ function sourceMap(sources: readonly PedagogySource[]): ReadonlyMap<string, numb
 }
 
 function applyFeatureGates(response: ZyraTeachingResponse): ZyraTeachingResponse {
-  if (isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1)) return response;
+  if (isZyraCanvasFeatureEnabled()) return response;
   return response.canvasSpec ? { ...response, canvasSpec: null } : response;
 }
 

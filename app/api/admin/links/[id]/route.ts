@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { env } from "@/lib/env";
 import { hasPeran } from "@/lib/auth/authorization";
 import { db } from "@/db";
 import { importantLinks } from "@/db/schema";
@@ -12,9 +11,6 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: RouteContext) {
   try {
-    if (env.FEATURE_LINK_LIBRARY !== "1") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
     const { id } = await params;
 
     const session = await auth.api.getSession({ headers: await headers() });
@@ -98,9 +94,6 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
 export async function DELETE(_req: Request, { params }: RouteContext) {
   try {
-    if (env.FEATURE_LINK_LIBRARY !== "1") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
     const { id } = await params;
 
     const session = await auth.api.getSession({ headers: await headers() });

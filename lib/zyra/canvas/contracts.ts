@@ -184,9 +184,9 @@ export type CanvasSpec = z.infer<typeof CanvasSpecSchema>;
 export type CanvasType = CanvasSpec["type"];
 
 export function isZyraCanvasFeatureEnabled(
-  value = process.env.FEATURE_ZYRA_LEARNING_CANVAS_V1,
+  _value?: string,
 ): boolean {
-  return value === "1";
+  return true;
 }
 
 export const CanvasCapabilitySchema = z.object({

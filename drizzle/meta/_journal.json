@@ -498,6 +498,13 @@
       "when": 1787087529656,
       "tag": "0070_pink_whirlwind",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "6",
+      "when": 1787111183832,
+      "tag": "0071_heavy_zarda",
+      "breakpoints": true
     }
   ]
 }

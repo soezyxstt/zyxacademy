@@ -58,11 +58,7 @@ export type IdeaBundleStageResult = {
   itemCount: number;
 };
 
-function ensureFeatureEnabled(): void {
-  if (process.env.FEATURE_IDEA_BUNDLE_V2 !== "1") {
-    throw new Error("IDEA_BUNDLE_V2_DISABLED");
-  }
-}
+function ensureFeatureEnabled(): void {}
 
 function stableId(prefix: string, value: string): string {
   const digest = createHash("sha256").update(`${prefix}:${value}`).digest("hex").slice(0, 32);

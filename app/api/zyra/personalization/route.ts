@@ -2,7 +2,6 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   canAccessZyraPersonalizationCourse,
   getZyraProfileView,
@@ -19,10 +18,6 @@ const UpdateSchema = z.object({
   preferences: ZyraLearnerPreferencesSchema,
 }).strict();
 
-function disabledResponse() {
-  return NextResponse.json({ error: "Not found" }, { status: 404 });
-}
-
 async function currentActor() {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user ?? null;
@@ -38,7 +33,6 @@ async function assertAccess(actor: { id: string; role?: string | null }, courseI
 }
 
 export async function GET(request: NextRequest) {
-  if (zyraRuntimeEnv.FEATURE_ZYRA_PERSONALIZATION_V1 !== "1") return disabledResponse();
   const actor = await currentActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -58,7 +52,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (zyraRuntimeEnv.FEATURE_ZYRA_PERSONALIZATION_V1 !== "1") return disabledResponse();
   const actor = await currentActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -83,7 +76,6 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (zyraRuntimeEnv.FEATURE_ZYRA_PERSONALIZATION_V1 !== "1") return disabledResponse();
   const actor = await currentActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

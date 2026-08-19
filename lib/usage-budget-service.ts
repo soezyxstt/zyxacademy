@@ -120,7 +120,7 @@ type LeaseTransitionResult = {
 };
 
 function allowanceEnabled(): boolean {
-  return process.env.FEATURE_ZYRA_ALLOWANCE_V2 === "1";
+  return true;
 }
 
 function effectiveRole(codes: readonly PeranCode[]): PeranCode | null {

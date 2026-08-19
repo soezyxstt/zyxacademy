@@ -9,8 +9,6 @@ import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { Logo } from "@/components/logo";
 import { DEFAULT_ICON, linkColor } from "@/lib/links";
 import { cn } from "@/lib/utils";
-import { env } from "@/lib/env";
-import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
   title: pageTitle("Tautan"),
@@ -65,8 +63,6 @@ function LinkCard({ link }: { link: PublicLink }) {
 }
 
 export default async function TautanPage() {
-  if (env.FEATURE_LINK_LIBRARY !== "1") notFound();
-
   const links = await db
     .select({
       id: importantLinks.id,

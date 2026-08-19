@@ -8,18 +8,11 @@ import { jakartaDay, nextJakartaReset, startOfJakartaDayUtc } from "@/lib/date-u
 import { promptExecutorOwnsAllowance } from "@/lib/prompt-executor";
 
 describe("Plan 004 allowance policy", () => {
-  it("keeps the approved role limits and feature flag boundary", () => {
+  it("keeps the approved role limits and always-on allowance protection", () => {
     expect(ZYRA_ALLOWANCE_POLICY.murid).toEqual({ providerPerDay: 20, totalInteractions: 60, perMinute: 8, premiumPerDay: 20 });
     expect(ZYRA_ALLOWANCE_POLICY.tutor).toEqual({ providerPerDay: 50, totalInteractions: 150, perMinute: 12, premiumPerDay: 50 });
     expect(ZYRA_ALLOWANCE_POLICY.admin.providerPerDay).toBeNull();
-
-    const previous = process.env.FEATURE_ZYRA_ALLOWANCE_V2;
-    process.env.FEATURE_ZYRA_ALLOWANCE_V2 = "0";
-    expect(UsageBudgetService.isAllowanceEnabled()).toBe(false);
-    process.env.FEATURE_ZYRA_ALLOWANCE_V2 = "1";
     expect(UsageBudgetService.isAllowanceEnabled()).toBe(true);
-    if (previous === undefined) delete process.env.FEATURE_ZYRA_ALLOWANCE_V2;
-    else process.env.FEATURE_ZYRA_ALLOWANCE_V2 = previous;
   });
 
   it("counts cache interactions without spending provider turns", () => {

@@ -27,7 +27,6 @@ function isoAfterDays(createdAt: string, days: number): string {
 }
 
 export async function exportAuthoringContext(options: AuthoringContextExportOptions) {
-  if (process.env.FEATURE_AUTHORING_CONTEXT_V1 !== "1") throw new Error("AUTHORING_CONTEXT_V1_DISABLED");
   const runId = assertSafeRunId(options.runId);
   const createdAt = options.createdAt ?? new Date().toISOString();
   const retentionUntil = options.retentionUntil ?? isoAfterDays(createdAt, 7);
@@ -97,7 +96,6 @@ export async function downloadAuthoringContextExport(packId: string): Promise<{
   filename: string;
   retentionUntil: string;
 }> {
-  if (process.env.FEATURE_AUTHORING_CONTEXT_V1 !== "1") throw new Error("AUTHORING_CONTEXT_V1_DISABLED");
   const [row] = await db
     .select({ afterSnapshot: auditMutasi.afterSnapshot })
     .from(auditMutasi)

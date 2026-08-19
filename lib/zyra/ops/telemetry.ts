@@ -48,7 +48,6 @@ export function toZyraOperationalRow(event: ZyraOperationalEvent) {
 
 export async function recordZyraOperationalEvent(input: unknown): Promise<boolean> {
   const event = ZyraOperationalEventSchema.parse(input);
-  if (process.env.FEATURE_ZYRA_AI_OPS_V1 !== "1") return false;
   await db.insert(zyraOperationalEvents).values(toZyraOperationalRow(event));
   return true;
 }

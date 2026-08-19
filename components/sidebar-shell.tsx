@@ -21,6 +21,8 @@ import {
   ChevronsUpDown,
   Pin,
   Archive,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { DropdownMenu, HoverCard } from "radix-ui";
 import { useTheme } from "next-themes";
@@ -30,6 +32,7 @@ import { useCommandMenu } from "@/components/command-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOut, useSession } from "@/lib/auth-client";
 import { useSwipe } from "@/hooks/use-swipe";
+import { useZyraPetVisibility } from "@/hooks/use-zyra-pet-visibility";
 import {
   Tooltip,
   TooltipProvider,
@@ -70,6 +73,7 @@ export function NavItem({
   isChild,
   prefetch = true,
   trailing,
+  badge,
   onPin,
   onArchive,
   isPinned,
@@ -84,6 +88,7 @@ export function NavItem({
   isChild?: boolean;
   prefetch?: boolean;
   trailing?: ReactNode;
+  badge?: ReactNode;
   onPin?: (e: React.MouseEvent) => void;
   onArchive?: (e: React.MouseEvent) => void;
   isPinned?: boolean;
@@ -94,7 +99,7 @@ export function NavItem({
       ? "bg-brand-primary/10 text-brand-primary font-semibold"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
     collapsed && "justify-center px-0 size-10 mx-auto",
-    isChild && !collapsed && "pl-8 text-body-xs py-1.5",
+    isChild && !collapsed && "rounded-lg px-2.5 py-1.5 text-body-xs gap-2",
     className
   );
 
@@ -107,7 +112,23 @@ export function NavItem({
         </span>
       )}
       {!collapsed && (
-        <div className="flex items-center gap-0.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          {badge && (
+            typeof badge === "string" ? (
+              <span
+                className={cn(
+                  "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider leading-none select-none shrink-0 border transition-colors",
+                  active
+                    ? "border-brand-primary/30 bg-brand-primary/15 text-brand-primary"
+                    : "border-border/60 bg-muted/60 text-muted-foreground group-hover/item:text-foreground group-hover/item:border-border/90"
+                )}
+              >
+                {badge}
+              </span>
+            ) : (
+              badge
+            )
+          )}
           {trailing}
           {onPin && (
             <button
@@ -147,6 +168,9 @@ export function NavItem({
     </>
   );
 
+  const tooltipLabel =
+    collapsed && badge && typeof badge === "string" ? `${label} (${badge})` : label;
+
   const inner = href ? (
     <Link href={href} prefetch={prefetch} onClick={onClick as undefined} className={baseClass}>
       {content}
@@ -158,7 +182,7 @@ export function NavItem({
   );
 
   return (
-    <SidebarTooltip label={label} collapsed={collapsed}>
+    <SidebarTooltip label={tooltipLabel} collapsed={collapsed}>
       {inner}
     </SidebarTooltip>
   );
@@ -359,7 +383,7 @@ export function NavCollapsible({
         triggerButton
       )}
       {!collapsed && isOpen && (
-        <div className="flex flex-col gap-0.5 w-full animate-in slide-in-from-top-1 fade-in-50 duration-150 pl-1 border-l border-border/50 ml-4 my-0.5">
+        <div className="flex flex-col gap-0.5 animate-in slide-in-from-top-1 fade-in-50 duration-150 pl-1.5 border-l border-border/60 ml-5 my-0.5 min-w-0">
           {children}
         </div>
       )}
@@ -385,6 +409,7 @@ export function NavGroup({ label, collapsed }: { label: string; collapsed: boole
 function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
+  const { visible: petVisible, toggleVisible: togglePetVisibility } = useZyraPetVisibility();
 
   if (!session?.user) return null;
 
@@ -539,6 +564,25 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
               </Link>
             </DropdownMenu.Item>
           )}
+
+          <DropdownMenu.Item
+            onSelect={() => {
+              togglePetVisibility();
+            }}
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-body-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
+          >
+            {petVisible ? (
+              <>
+                <EyeOff className="size-4 shrink-0 text-muted-foreground" />
+                <span>Sembunyikan Zyra</span>
+              </>
+            ) : (
+              <>
+                <Eye className="size-4 shrink-0 text-muted-foreground" />
+                <span>Tunjukkan Zyra</span>
+              </>
+            )}
+          </DropdownMenu.Item>
 
           <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
 

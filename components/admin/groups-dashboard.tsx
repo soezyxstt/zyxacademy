@@ -28,6 +28,20 @@ import { AdminStatCard } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { SearchBar } from "@/components/ui/search-bar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -416,82 +430,98 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       </div>
 
       {/* 2. Search, Filter, and Action Bar */}
-      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-        <div className="flex flex-1 flex-wrap items-center gap-2.5">
-          {/* Search Input */}
-          <div className="relative min-w-[240px] flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Cari kelompok, murid, atau mata kuliah..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-10 rounded-lg text-body-sm bg-card border-border"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 rounded-lg border border-border bg-card px-3 text-body-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-brand-primary"
-          >
-            <option value="all">Semua Status</option>
-            <option value="active">Aktif</option>
-            <option value="completed">Selesai</option>
-            <option value="inactive">Nonaktif</option>
-          </select>
-
-          {/* Package Filter */}
-          <select
-            value={packageFilter}
-            onChange={(e) => setPackageFilter(e.target.value)}
-            className="h-10 rounded-lg border border-border bg-card px-3 text-body-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-brand-primary"
-          >
-            <option value="all">Semua Paket</option>
-            <option value="reguler_15">15 Sesi (1x/mgg)</option>
-            <option value="intensif_30">30 Sesi (2x/mgg)</option>
-            <option value="super_intensif_45">45 Sesi (3x/mgg)</option>
-            <option value="custom">Kustom</option>
-          </select>
-
-          {/* Course Filter */}
-          <select
-            value={courseFilter}
-            onChange={(e) => setCourseFilter(e.target.value)}
-            className="h-10 rounded-lg border border-border bg-card px-3 text-body-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-brand-primary max-w-[180px] truncate"
-          >
-            <option value="all">Semua Mata Kuliah</option>
-            {coursesList.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
+      <div className="flex items-center gap-2">
+        {/* Search Input */}
+        <div className="flex-1 min-w-0">
+          <SearchBar
             size="sm"
-            onClick={() => {
-              router.refresh();
-              toast.success("Data diperbarui");
-            }}
-            className="rounded-lg gap-1.5 h-10 text-muted-foreground hover:text-foreground"
-          >
-            <RefreshCw className="size-4" />
-            <span>Refresh</span>
-          </Button>
-
-          <Button
-            onClick={handleOpenCreate}
-            className="rounded-lg gap-1.5 h-10 bg-brand-primary text-white hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20"
-          >
-            <Plus className="size-4" />
-            <span>Buat Kelompok</span>
-          </Button>
+            placeholder="Cari kelompok, murid, atau mata kuliah..."
+            value={searchQuery}
+            onSearch={setSearchQuery}
+            onClear={() => setSearchQuery("")}
+          />
         </div>
+
+        {/* Status Filter */}
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-xs bg-card border-border">
+            <SelectValue placeholder="Semua Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Status</SelectItem>
+            <SelectItem value="active">Aktif</SelectItem>
+            <SelectItem value="completed">Selesai</SelectItem>
+            <SelectItem value="inactive">Nonaktif</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Package Filter */}
+        <Select value={packageFilter} onValueChange={setPackageFilter}>
+          <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-xs bg-card border-border">
+            <SelectValue placeholder="Semua Paket" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Paket</SelectItem>
+            <SelectItem value="reguler_15">15 Sesi (1x/mgg)</SelectItem>
+            <SelectItem value="intensif_30">30 Sesi (2x/mgg)</SelectItem>
+            <SelectItem value="super_intensif_45">45 Sesi (3x/mgg)</SelectItem>
+            <SelectItem value="custom">Kustom</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Course Filter */}
+        <Select value={courseFilter} onValueChange={setCourseFilter}>
+          <SelectTrigger className="h-9 w-[160px] sm:w-[180px] shrink-0 rounded-lg text-body-xs bg-card border-border truncate">
+            <SelectValue placeholder="Semua Mata Kuliah" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+            {coursesList.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Action Controls */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  router.refresh();
+                  toast.success("Data diperbarui");
+                }}
+                className="size-9 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+                aria-label="Refresh data"
+              >
+                <RefreshCw className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Refresh data</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                onClick={handleOpenCreate}
+                className="size-9 shrink-0 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/95 shadow-sm shadow-brand-primary/20"
+                aria-label="Buat Kelompok"
+              >
+                <Plus className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Buat Kelompok</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* 3. Table of Study Groups */}

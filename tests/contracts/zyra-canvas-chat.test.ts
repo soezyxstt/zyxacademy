@@ -55,9 +55,7 @@ describe("Zyra canvas chat persistence", () => {
     expect(deserializeTutorMessageSources(serialized).canvasSpec).toBeUndefined();
   });
 
-  test("keeps the public feature flag explicit", () => {
-    expect(isZyraCanvasFeatureEnabled("0")).toBe(false);
-    expect(isZyraCanvasFeatureEnabled(undefined)).toBe(false);
-    expect(isZyraCanvasFeatureEnabled("1")).toBe(true);
+  test("keeps the learning canvas feature enabled by default", () => {
+    expect(isZyraCanvasFeatureEnabled()).toBe(true);
   });
 });

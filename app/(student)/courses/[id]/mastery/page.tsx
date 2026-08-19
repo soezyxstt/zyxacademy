@@ -13,7 +13,6 @@ import { headers } from "next/headers";
 import { and, eq, asc, inArray } from "drizzle-orm";
 import { ConceptMap } from "@/components/course/concept-map";
 import { ConceptGraphView } from "@/components/course/concept-graph-view";
-import { env } from "@/lib/env";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -235,18 +234,14 @@ export default async function CourseMasteryPage({ params }: Props) {
     .filter((group) => group.concepts.length > 0);
 
   // E5: build the concept-graph dataset (nodes + prerequisite edges) for the graph view.
-  const graphEnabled = env.FEATURE_GRAPH === "1";
-  const graphNodes = graphEnabled
-    ? [...new Set(groups.flatMap((g) => g.concepts.map((c) => c.conceptName)))].map((conceptName) => ({
-        conceptName,
-        mastery: masteryMap.has(conceptName) ? masteryMap.get(conceptName)! : null,
-      }))
-    : [];
-  const graphEdges = graphEnabled
-    ? [...prereqMap.entries()].flatMap(([to, sources]) =>
-        [...sources].map((from) => ({ from, to })),
-      )
-    : [];
+  const graphEnabled = true;
+  const graphNodes = [...new Set(groups.flatMap((g) => g.concepts.map((c) => c.conceptName)))].map((conceptName) => ({
+    conceptName,
+    mastery: masteryMap.has(conceptName) ? masteryMap.get(conceptName)! : null,
+  }));
+  const graphEdges = [...prereqMap.entries()].flatMap(([to, sources]) =>
+    [...sources].map((from) => ({ from, to })),
+  );
 
   return (
     <CoursePageShell

@@ -6,7 +6,6 @@ import { assertAdmin } from "@/lib/uploadthing-admin";
 import { getCoursesWithStats, getAllChapters, getUploadedMaterials } from "./actions";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { CoursesPageTabs } from "@/components/admin/courses-page-tabs";
-import { env } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: pageTitle("Manajemen Mata Kuliah"),
@@ -31,7 +30,7 @@ export default async function AdminCoursesPage({ searchParams }: Props) {
     getAllChapters(),
     getUploadedMaterials(),
   ]);
-  const ideaBundleV2Enabled = env.FEATURE_IDEA_BUNDLE_V2 === "1";
+  const ideaBundleV2Enabled = true;
 
   return (
     <div className="space-y-6 font-sans">

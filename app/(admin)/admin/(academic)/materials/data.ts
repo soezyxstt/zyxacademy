@@ -1,7 +1,6 @@
 import { asc, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { courses as legacyCourses, mataKuliah, user } from "@/db/schema";
-import { env } from "@/lib/env";
 import { listAuthoringContextExports } from "@/lib/authoring/export";
 import { listAuthoringCourseOptions } from "@/lib/authoring/catalog";
 import { listIdeaBundleImports } from "@/lib/bundle/staging";
@@ -24,10 +23,10 @@ export type MaterialWorkspaceData = {
 
 export async function loadMaterialWorkspaceData(): Promise<MaterialWorkspaceData> {
   const [ideaRows, productRows, authoringCourses, contextRows, legacyCourseRows, canonicalCourseRows] = await Promise.all([
-    env.FEATURE_IDEA_BUNDLE_V2 === "1" ? listIdeaBundleImports() : Promise.resolve([]),
-    env.FEATURE_PRODUCT_BUNDLE_V2 === "1" ? listProductBundleImports() : Promise.resolve([]),
+    listIdeaBundleImports(),
+    listProductBundleImports(),
     listAuthoringCourseOptions(),
-    env.FEATURE_AUTHORING_CONTEXT_V1 === "1" ? listAuthoringContextExports() : Promise.resolve([]),
+    listAuthoringContextExports(),
     db.select({ id: legacyCourses.id, title: legacyCourses.title }).from(legacyCourses).orderBy(asc(legacyCourses.title)),
     db.select({ id: mataKuliah.id, code: mataKuliah.code, title: mataKuliah.title, legacyCourseId: mataKuliah.legacyCourseId }).from(mataKuliah).orderBy(asc(mataKuliah.title)),
   ]);
@@ -81,8 +80,8 @@ export async function loadMaterialWorkspaceData(): Promise<MaterialWorkspaceData
       retentionUntil: typeof row.afterSnapshot?.retentionUntil === "string" ? row.afterSnapshot.retentionUntil : null,
       byteLength: typeof row.afterSnapshot?.byteLength === "number" ? row.afterSnapshot.byteLength : null,
     })),
-    ideaEnabled: env.FEATURE_IDEA_BUNDLE_V2 === "1",
-    productEnabled: env.FEATURE_PRODUCT_BUNDLE_V2 === "1",
-    authoringEnabled: env.FEATURE_AUTHORING_CONTEXT_V1 === "1",
+    ideaEnabled: true,
+    productEnabled: true,
+    authoringEnabled: true,
   };
 }

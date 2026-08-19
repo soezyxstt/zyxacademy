@@ -12,6 +12,8 @@ export type CourseMaterial = {
  title: string;
  kind: MaterialKind;
  docCategory?: DocCategory;
+ subcategory?: string | null;
+ year?: number | null;
  fileSize?: string;
  /** Article: plain text / markdown-ish paragraphs separated by \n\n */
  body?: string;

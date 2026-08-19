@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   canAccessZyraPersonalizationCourse,
   recordZyraLearningEvent,
@@ -11,10 +10,6 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  if (zyraRuntimeEnv.FEATURE_ZYRA_PERSONALIZATION_V1 !== "1") {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

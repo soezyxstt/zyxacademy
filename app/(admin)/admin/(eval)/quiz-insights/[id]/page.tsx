@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, BetaBadge } from "@/components/ui/badge";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
 import { QuizAttemptsSpreadsheet } from "./_components/quiz-attempts-spreadsheet";
@@ -313,23 +313,24 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
         <AdminTabsList>
           <AdminTabsTrigger value="attempts-sheet">
             <FileSpreadsheet className="size-4 text-emerald-500" />
-            <span>Sheet Attempt & Jawaban Siswa</span>
+            <span>Sheet Attempt &amp; Jawaban Siswa</span>
           </AdminTabsTrigger>
           <AdminTabsTrigger value="ai-insights">
             <Sparkles className="size-4 text-amber-400" />
-            <span>Analisis Performa & Rekomendasi</span>
+            <span>Analisis Performa &amp; Rekomendasi</span>
           </AdminTabsTrigger>
           <AdminTabsTrigger value="questions">
             <FileSpreadsheet className="size-4 text-brand-primary" />
-            <span>Analisis Butir Soal & Distraktor</span>
+            <span>Analisis Butir Soal &amp; Distraktor</span>
           </AdminTabsTrigger>
-          <AdminTabsTrigger value="concepts">
+          <AdminTabsTrigger value="concepts" className="gap-1.5">
             <Target className="size-4 text-brand-secondary" />
-            <span>Analisis Konsep & Topik</span>
+            <span>Analisis Konsep &amp; Topik</span>
+            <BetaBadge />
           </AdminTabsTrigger>
           <AdminTabsTrigger value="distribution">
             <BarChart3 className="size-4 text-status-info" />
-            <span>Distribusi & Statistik Nilai</span>
+            <span>Distribusi &amp; Statistik Nilai</span>
           </AdminTabsTrigger>
         </AdminTabsList>
 

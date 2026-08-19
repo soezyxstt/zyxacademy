@@ -17,6 +17,11 @@ import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
 import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
+import {
+  isValidSubcategory,
+  type CourseMaterialCategory,
+  type CourseMaterialSubcategory,
+} from "@/lib/course-materials";
 
 export async function getCourses() {
   await assertAdmin();
@@ -403,15 +408,21 @@ export async function getUploadedMaterials(courseId?: string) {
 export async function saveCourseMaterial(
   courseId: string,
   title: string,
-  type: "materi_kelas" | "contoh_soal",
+  type: CourseMaterialCategory,
   chapterIds: string[],
-  fileKey: string
+  fileKey: string,
+  subcategory?: CourseMaterialSubcategory | null,
+  year?: number | null
 ) {
   await assertAdmin();
 
   const cleanCourseId = typeof courseId === "string" ? courseId.trim() : "";
   const cleanTitle = typeof title === "string" ? title.trim() : "";
   const cleanFileKey = typeof fileKey === "string" ? fileKey.trim() : "";
+  const cleanSubcategory = typeof subcategory === "string" && subcategory.trim() ? subcategory.trim() as CourseMaterialSubcategory : null;
+  const cleanYear = typeof year === "number" && !isNaN(year) && year >= 1900 && year <= 2100 ? Math.floor(year) : null;
+
+  const validTypes = ["materi", "soal", "pembahasan_soal", "materi_kelas", "contoh_soal"];
   const courseMaterialsPrefix = joinKey(
     "courses",
     slugifySegment(cleanCourseId),
@@ -421,13 +432,17 @@ export async function saveCourseMaterial(
   if (
     !cleanCourseId ||
     !cleanTitle ||
-    !["materi_kelas", "contoh_soal"].includes(type) ||
+    !validTypes.includes(type) ||
     !Array.isArray(chapterIds) ||
     chapterIds.length === 0 ||
     chapterIds.some((chapterId) => typeof chapterId !== "string" || !chapterId.trim()) ||
     !cleanFileKey
   ) {
     return { success: false, error: "Semua field wajib diisi" };
+  }
+
+  if (cleanSubcategory && !isValidSubcategory(type, cleanSubcategory)) {
+    return { success: false, error: "Sub-kategori tidak sesuai dengan kategori yang dipilih" };
   }
 
   if (
@@ -453,6 +468,8 @@ export async function saveCourseMaterial(
       courseId: cleanCourseId,
       title: cleanTitle,
       type,
+      subcategory: cleanSubcategory,
+      year: cleanYear,
       fileUrl: cleanFileKey,
       thumbnailUrl: thumbnailKey,
       chapterIds,

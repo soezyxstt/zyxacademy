@@ -137,16 +137,6 @@ export const verification = sqliteTable(
  (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-export const userRelations = relations(user, ({ many, one }) => ({
-  sessions: many(session),
-  accounts: many(account),
-  tutorCourses: many(tutorCourses),
-  pengguna: one(pengguna, {
-    fields: [user.id],
-    references: [pengguna.id],
-  }),
-}));
-
 export const penggunaRelations = relations(pengguna, ({ one, many }) => ({
  user: one(user, {
   fields: [pengguna.id],
@@ -531,57 +521,6 @@ export const enrollmentTokenCourses = sqliteTable(
 	]
 );
 
-// Relations definitions
-export const groupsRelations = relations(groups, ({ many }) => ({
-	members: many(groupMembers),
-	courses: many(groupCourses),
-	tokens: many(enrollmentTokens),
-	bookings: many(bookings),
-	rescheduleTickets: many(bookingRescheduleTickets),
-	auditLogs: many(bookingAuditLogs),
-}));
-
-export const groupCoursesRelations = relations(groupCourses, ({ one }) => ({
-	group: one(groups, {
-		fields: [groupCourses.groupId],
-		references: [groups.id],
-	}),
-	course: one(courses, {
-		fields: [groupCourses.courseId],
-		references: [courses.id],
-	}),
-}));
-
-export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
-	group: one(groups, {
-		fields: [groupMembers.groupId],
-		references: [groups.id],
-	}),
-	user: one(user, {
-		fields: [groupMembers.userId],
-		references: [user.id],
-	}),
-}));
-
-export const enrollmentTokensRelations = relations(enrollmentTokens, ({ one, many }) => ({
-	group: one(groups, {
-		fields: [enrollmentTokens.groupId],
-		references: [groups.id],
-	}),
-	tokenCourses: many(enrollmentTokenCourses),
-}));
-
-export const enrollmentTokenCoursesRelations = relations(enrollmentTokenCourses, ({ one }) => ({
-	token: one(enrollmentTokens, {
-		fields: [enrollmentTokenCourses.tokenId],
-		references: [enrollmentTokens.id],
-	}),
-	course: one(courses, {
-		fields: [enrollmentTokenCourses.courseId],
-		references: [courses.id],
-	}),
-}));
-
 // Tutor Courses Table (Which courses a tutor can teach)
 export const tutorCourses = sqliteTable(
  "tutor_courses",
@@ -809,6 +748,69 @@ export const academicSchedules = sqliteTable(
   ]
 );
 
+// Relations for user
+export const userRelations = relations(user, ({ many, one }) => ({
+  sessions: many(session),
+  accounts: many(account),
+  tutorCourses: many(tutorCourses),
+  tutorSlots: many(tutorSlots),
+  pengguna: one(pengguna, {
+    fields: [user.id],
+    references: [pengguna.id],
+  }),
+}));
+
+// Relations for groups & enrollment tokens
+export const groupsRelations = relations(groups, ({ many }) => ({
+  members: many(groupMembers),
+  courses: many(groupCourses),
+  tokens: many(enrollmentTokens),
+  bookings: many(bookings),
+  rescheduleTickets: many(bookingRescheduleTickets),
+  auditLogs: many(bookingAuditLogs),
+}));
+
+export const groupCoursesRelations = relations(groupCourses, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupCourses.groupId],
+    references: [groups.id],
+  }),
+  course: one(courses, {
+    fields: [groupCourses.courseId],
+    references: [courses.id],
+  }),
+}));
+
+export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupMembers.groupId],
+    references: [groups.id],
+  }),
+  user: one(user, {
+    fields: [groupMembers.userId],
+    references: [user.id],
+  }),
+}));
+
+export const enrollmentTokensRelations = relations(enrollmentTokens, ({ one, many }) => ({
+  group: one(groups, {
+    fields: [enrollmentTokens.groupId],
+    references: [groups.id],
+  }),
+  tokenCourses: many(enrollmentTokenCourses),
+}));
+
+export const enrollmentTokenCoursesRelations = relations(enrollmentTokenCourses, ({ one }) => ({
+  token: one(enrollmentTokens, {
+    fields: [enrollmentTokenCourses.tokenId],
+    references: [enrollmentTokens.id],
+  }),
+  course: one(courses, {
+    fields: [enrollmentTokenCourses.courseId],
+    references: [courses.id],
+  }),
+}));
+
 // Relations for tutorCourses
 export const tutorCoursesRelations = relations(tutorCourses, ({ one }) => ({
   tutor: one(user, {
@@ -827,10 +829,7 @@ export const tutorSlotsRelations = relations(tutorSlots, ({ one, many }) => ({
     fields: [tutorSlots.tutorId],
     references: [user.id],
   }),
-  booking: one(bookings, {
-    fields: [tutorSlots.id],
-    references: [bookings.slotId],
-  }),
+  booking: one(bookings),
   proposedTickets: many(bookingRescheduleTickets),
 }));
 
@@ -3178,7 +3177,7 @@ export const coursePolicies = sqliteTable(
   }
 );
 
-// 12. course_materials (Uploaded PDF files: Materi Kelas & Contoh Soal)
+// 12. course_materials (Uploaded PDF files: Materi, Soal, & Pembahasan Soal)
 export const courseMaterials = sqliteTable(
 	"course_materials",
 	{
@@ -3187,7 +3186,20 @@ export const courseMaterials = sqliteTable(
 			.notNull()
 			.references(() => courses.id, { onDelete: "cascade" }),
 		title: text("title").notNull(),
-		type: text("type").$type<"materi_kelas" | "contoh_soal">().notNull(),
+		type: text("type").$type<"materi" | "soal" | "pembahasan_soal" | "materi_kelas" | "contoh_soal">().notNull(),
+		subcategory: text("subcategory").$type<
+			| "ppt_dosen"
+			| "ebook"
+			| "catatan"
+			| "kuis"
+			| "kbf"
+			| "tutorial"
+			| "modul"
+			| "uts"
+			| "uas"
+			| "lainnya"
+		>(),
+		year: integer("year"),
 		fileUrl: text("file_url").notNull(),
 		chapterIds: text("chapter_ids", { mode: "json" }).$type<string[]>().notNull(),
 		thumbnailUrl: text("thumbnail_url"),
@@ -5311,7 +5323,7 @@ export const searchDocuments = sqliteTable(
   {
     id: text("id").primaryKey(),
     entityType: text("entity_type")
-      .$type<"course" | "chapter" | "material" | "quiz" | "exam" | "blog" | "nav" | "form">()
+      .$type<"course" | "chapter" | "material" | "quiz" | "exam" | "blog" | "nav" | "form" | "group" | "meet" | "user" | "token" | "schedule">()
       .notNull(),
     entityId: text("entity_id"),
     courseId: text("course_id"),

@@ -31,7 +31,7 @@ export function TutorSidebar() {
           "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
           c
             ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-            : "px-3 overflow-y-auto sidebar-scroll"
+            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
         )}
       >
         <NavItem
@@ -100,6 +100,7 @@ export function TutorSidebar() {
               label="Live Quiz Console"
               active={pathname.includes("/live/host")}
               collapsed={c}
+              badge="Beta"
             />
           </>
         )}

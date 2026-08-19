@@ -588,9 +588,12 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `id`
 * `courseId`
 * `title`
-* `type`: Upload category, either 'materi_kelas' (class slides) or 'contoh_soal' (sample questions).
-* `fileUrl`: Public URL path pointing to uploaded asset.
+* `type`: Upload category, Level 1: 'materi', 'soal', 'pembahasan_soal' (also supports legacy 'materi_kelas', 'contoh_soal').
+* `subcategory`: Level 2 subcategory ('ppt_dosen', 'ebook', 'catatan', 'kuis', 'kbf', 'tutorial', 'modul', 'uts', 'uas', 'lainnya').
+* `year`: Optional academic year (integer).
+* `fileUrl`: Public URL or storage key pointing to uploaded asset.
 * `chapterIds`: Associated chapter list stored as a JSON array.
+* `thumbnailUrl`: Page 1 thumbnail preview image path.
 * `createdAt`
 * `updatedAt`
 

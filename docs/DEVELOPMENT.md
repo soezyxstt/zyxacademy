@@ -297,41 +297,21 @@ Before adding or removing a flag for a new capability or material behavior chang
 
 A retained flag is active only when its value is `"1"` or `"true"`; an absent value keeps that optional capability hidden. Foundational behavior is always-on and intentionally has no env flag.
 
-Current approved optional flags:
+Current approved vital flags (< 10 flags retained for high-impact runtime control):
 
-| Flag | Feature |
-|------|---------|
-| `FEATURE_REMEDIATION` | Quiz remediation |
-| `FEATURE_MATERIAL_LIVE` | Interactive material layer |
-| `FEATURE_GRAPH` | Concept graph |
-| `FEATURE_TUTOR_ANALYTICS` | Tutor analytics dashboard |
-| `FEATURE_LIVE` | Real-time classroom |
-| `FEATURE_REFLECTION` | Weekly reflections |
-| `FEATURE_REFLECTION_EMAIL` | Reflection email delivery |
-| `FEATURE_ADAPTIVE_QUIZ` | Adaptive quiz difficulty |
-| `FEATURE_PKA` | Tutorial PKA campaign |
-| `FEATURE_QUESTION_GENERATOR_V2` | Question blueprint and distractor provenance |
-| `FEATURE_DIKTAT_AI` | Optional AI-assisted Diktat audit suggestions |
-| `FEATURE_IDEA_BUNDLE_V2` | Idea Bundle workflow |
-| `FEATURE_AUTHORING_CONTEXT_V1` | Authoring Context Pack export |
-| `FEATURE_PRODUCT_BUNDLE_V2` | Product Bundle workflow |
-| `FEATURE_ZYRA_ALLOWANCE_V2` | Zyra allowance ledger |
-| `FEATURE_ZYRA_PROVIDER_ROUTER_V2` | Zyra provider routing |
-| `FEATURE_ZYRA_SEMANTIC_CACHE_V1` | Zyra semantic cache |
-| `FEATURE_ZYRA_PERSONALIZATION_V1` | Zyra personalization |
-| `FEATURE_ZYRA_LEARNING_CANVAS_V1` | Zyra Learning Canvas |
-| `FEATURE_ZYRA_IMAGE_INPUT_V1` | Zyra image input |
-| `FEATURE_ZYRA_SELECTION_ASK_V1` | Selection-to-ask flow |
-| `FEATURE_ZYRA_PET_V1` | Zyra pet states |
-| `FEATURE_ZYRA_TUTOR_COPILOT_V1` | Tutor proposal copilot |
-| `FEATURE_ZYRA_ADMIN_COPILOT_V1` | Admin proposal copilot |
-| `FEATURE_ZYRA_AI_OPS_V1` | Zyra operations dashboard |
-| `FEATURE_DRIVE_EDITOR_SYNC` | Drive editor synchronization |
-| `FEATURE_MEDIA_LIBRARY` | Admin media library |
-| `FEATURE_LINK_LIBRARY` | Important links library |
-| `FEATURE_FORM_PRESETS` | Form Studio presets |
+| Flag | Feature | Scope |
+|------|---------|-------|
+| `FEATURE_PKA` | Tutorial PKA campaign course & registration gate | Academic / Campaign |
+| `FEATURE_REFLECTION_EMAIL` | Weekly reflection email batch dispatch gate | Academic / Resend |
+| `FEATURE_LIVE` | Real-time interactive classroom & Cloudflare Worker switch | Quiz & Live |
+| `FEATURE_DIKTAT_AI` | LLM quota protection for Diktat AI audit suggestions | AI Architecture |
+| `FEATURE_ZYRA_IMAGE_INPUT_V1` | Learner multimodal image input & vision quota switch | AI Architecture |
+| `FEATURE_ZYRA_SEMANTIC_CACHE_V1` | Vectorize semantic cache kill switch for semantic drift | AI Architecture |
+| `FEATURE_DRIVE_EDITOR_SYNC` | Auto-grant editor permission synchronization on Drive | Platform / Admin |
 
-The admin flag page reads this same catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. Legacy migration flags are removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
+> Foundational features (Remediation, Adaptive Quiz, Concept Graph, Interactive Material, Weekly Reflections, Tutor Analytics, Question Generator Critic, Idea & Product Bundles, Authoring Context, Zyra Allowance & Provider Router, Learning Canvas, Selection-to-Ask, Zyra Pet, AI Ops, Media Library, Link Library, Form Presets) are now mature and always-on by default, secured by role-based authorization (RBAC).
+
+The admin flag page reads this catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. Decommissioned flags have been removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
 
 ## Code Conventions
 

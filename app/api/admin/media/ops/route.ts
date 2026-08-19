@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import { assertAdmin } from "@/lib/uploadthing-admin";
-import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
 import {
   assertSafeKey,
@@ -136,9 +135,6 @@ async function deleteFolder(folderPath: string): Promise<number> {
 export async function POST(req: Request) {
   try {
     await assertAdmin();
-    if (env.FEATURE_MEDIA_LIBRARY !== "1") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
 
     const payload = await readPayload(req);
     const { action } = payload;

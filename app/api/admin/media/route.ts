@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
 import { assertAdmin } from "@/lib/uploadthing-admin";
-import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
 import { assertSafeKey, buildMediaKey, leafFilename, slugifySegment } from "@/lib/storage/keys";
 import {
@@ -45,9 +44,6 @@ function markerKeyFor(folderPath: string): string {
 export async function GET(req: Request) {
   try {
     await assertAdmin();
-    if (env.FEATURE_MEDIA_LIBRARY !== "1") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
 
     const url = new URL(req.url);
     const folder = slugifyFolderPath(url.searchParams.get("folder"));
@@ -115,9 +111,6 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await assertAdmin();
-    if (env.FEATURE_MEDIA_LIBRARY !== "1") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
 
     const contentType = req.headers.get("content-type") || "";
     let action: string | null = null;

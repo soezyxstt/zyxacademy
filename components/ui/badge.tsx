@@ -22,4 +22,17 @@ function Badge({ className, variant, ...props }: React.ComponentProps<"div"> & V
   return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
+export function BetaBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider leading-none select-none shrink-0 border border-border/60 bg-muted/60 text-muted-foreground",
+        className
+      )}
+    >
+      Beta
+    </span>
+  );
+}
+
 export { Badge, badgeVariants };

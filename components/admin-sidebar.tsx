@@ -73,6 +73,7 @@ export type AdminTabDef = {
   icon: React.ElementType;
   group: "utama" | "akademik" | "evaluasi" | "alat" | "pengguna" | "ops" | "tutorial-pka";
   exact?: boolean;
+  badge?: React.ReactNode | string;
 };
 
 const ALL_ADMIN_TABS: AdminTabDef[] = [
@@ -89,9 +90,9 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   // Bank Soal & Asesmen
   { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "evaluasi" },
   { id: "quizzes", label: "Kuis", href: "/admin/quizzes", icon: NotebookPen, group: "evaluasi" },
-  { id: "quiz-insights", label: "Analisis Kuis", href: "/admin/quiz-insights", icon: BarChart3, group: "evaluasi" },
+  { id: "quiz-insights", label: "Analisis Kuis", href: "/admin/quiz-insights", icon: BarChart3, group: "evaluasi", badge: "Beta" },
   { id: "question-jobs", label: "Generasi Soal", href: "/admin/jobs", icon: Zap, group: "evaluasi" },
-  { id: "distractors", label: "Analitik Distraktor", href: "/admin/distractors", icon: Target, group: "evaluasi" },
+  { id: "distractors", label: "Analitik Distraktor", href: "/admin/distractors", icon: Target, group: "evaluasi", badge: "Beta" },
 
   // Alat & Komunikasi
   { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
@@ -251,6 +252,7 @@ function AdminSidebarInner() {
         href={tab.href}
         icon={tab.icon}
         label={tab.label}
+        badge={tab.badge}
         active={active}
         collapsed={collapsed}
         isChild={isChild}
@@ -288,7 +290,7 @@ function AdminSidebarInner() {
           "flex flex-1 flex-col gap-1 py-3 font-sans text-left",
           c
             ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-            : "px-3 overflow-y-auto sidebar-scroll"
+            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
         )}
       >
         {/* Pinned Section */}
@@ -433,22 +435,27 @@ function AdminSidebarInner() {
               active={archivedTabItems.some((t) => isTabActive(t))}
               previewItems={archivedTabItems.map((t) => t.label)}
             >
-              <div className="pt-1 pb-1 space-y-1">
+              <div className="flex flex-col gap-0.5">
                 {archivedTabItems.map((tab) => {
                   const active = isTabActive(tab);
                   return (
                     <div
                       key={tab.id}
-                      className="group/item flex items-center justify-between gap-1.5 rounded-xl px-2.5 py-1.5 text-body-xs font-medium hover:bg-muted/70 text-muted-foreground transition-colors w-full"
+                      className="group/item flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-body-xs font-medium hover:bg-muted text-muted-foreground hover:text-foreground transition-colors w-full"
                     >
                       <Link
                         href={tab.href}
-                        className="flex items-center gap-2 flex-1 min-w-0 text-left hover:text-foreground"
+                        className="flex items-center gap-2 flex-1 min-w-0 text-left"
                       >
                         <tab.icon className="size-3.5 shrink-0" />
                         <span className={cn("truncate", active && "text-brand-primary font-semibold")}>
                           {tab.label}
                         </span>
+                        {tab.badge && (
+                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider leading-none select-none shrink-0 border border-border/60 bg-muted/60 text-muted-foreground">
+                            {tab.badge}
+                          </span>
+                        )}
                       </Link>
                       <button
                         type="button"

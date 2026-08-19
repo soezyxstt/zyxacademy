@@ -128,9 +128,9 @@ export default async function DashboardPage() {
     }
   }
 
-  // Fetch the latest weekly reflection when the optional email and reflection workflow is active.
+  // Fetch the latest weekly reflection for enrolled students.
   let latestReflection = null;
-  if (user?.id && env.FEATURE_REFLECTION === "1" && isEnrolledInAny) {
+  if (user?.id && isEnrolledInAny) {
     try {
       const rows = await db
         .select()
@@ -286,7 +286,7 @@ export default async function DashboardPage() {
         ) : (
           <>
             {user?.id && <InterventionBanner />}
-            {env.FEATURE_REFLECTION === "1" && latestReflection && (
+            {latestReflection && (
               <WeeklyReflection reflection={latestReflection} />
             )}
             {user?.id ? (

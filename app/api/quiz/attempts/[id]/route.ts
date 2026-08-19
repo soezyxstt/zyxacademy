@@ -15,7 +15,6 @@ import { inngest } from '@/lib/inngest';
 import { markRecommendationDone, buildPlanForConcepts } from '@/lib/recommendation-service';
 import { recordQuestionOptionStats } from '@/lib/option-stats';
 import { buildRemediation } from '@/lib/remediation';
-import { env } from '@/lib/env';
 import { PKA_COURSE_ID } from '@/lib/pka-config';
 import { normalizeDate } from '@/lib/date-utils';
 import { serializeStudentQuizAttempt } from '@/lib/assessment-serialization';
@@ -114,26 +113,26 @@ export async function GET(_req: NextRequest, { params }: Context) {
 
   // E2: deterministic remediation (mastery delta + root cause + misconceptions)
   let remediation = null;
-  if (env.FEATURE_REMEDIATION === "1" && attempt.status === "completed") {
-  const [tpl] = await db
-  .select({ courseId: quizTemplates.courseId })
-  .from(quizTemplates)
-  .where(eq(quizTemplates.id, attempt.templateId))
-  .limit(1);
-  if (tpl?.courseId) {
-  remediation = await buildRemediation(
-  {
-  id: attempt.id,
-  studentId: attempt.studentId,
-  masteryBefore: attempt.masteryBefore as Record<string, number> | null,
-  weakAreas: attempt.weakAreas as string[] | null,
-  },
-  tpl.courseId,
-  ).catch((err) => {
-  console.error("buildRemediation failed:", err);
-  return null;
-  });
-  }
+  if (attempt.status === "completed") {
+    const [tpl] = await db
+      .select({ courseId: quizTemplates.courseId })
+      .from(quizTemplates)
+      .where(eq(quizTemplates.id, attempt.templateId))
+      .limit(1);
+    if (tpl?.courseId) {
+      remediation = await buildRemediation(
+        {
+          id: attempt.id,
+          studentId: attempt.studentId,
+          masteryBefore: attempt.masteryBefore as Record<string, number> | null,
+          weakAreas: attempt.weakAreas as string[] | null,
+        },
+        tpl.courseId,
+      ).catch((err) => {
+        console.error("buildRemediation failed:", err);
+        return null;
+      });
+    }
   }
 
   const rawPayload = {

@@ -125,7 +125,7 @@ export function StudentSidebar({
           "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
           c
             ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-            : "px-3 overflow-y-auto sidebar-scroll"
+            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
         )}>
           <SidebarTooltip label="Kembali ke Dashboard" collapsed={c}>
             <Link
@@ -168,6 +168,7 @@ export function StudentSidebar({
                 icon: typeof LayoutDashboard;
                 label: string;
                 exact?: boolean;
+                badge?: string;
               }> = isPka
                 ? [
                     { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
@@ -181,13 +182,13 @@ export function StudentSidebar({
                   ]
                 : [
                     { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
-                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
+                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar", badge: "Beta" }] : []),
                     { href: `${base}/material`, icon: FileText, label: "Dokumen" },
                     { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
                     { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
                     { href: `${base}/tryout`, icon: GraduationCap, label: "Tryout" },
-                    ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung" }] : []),
-                    ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan" }] : []),
+                    ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung", badge: "Beta" }] : []),
+                    ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan", badge: "Beta" }] : []),
                     { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
                     { href: `${base}/my-results`, icon: History, label: "Hasil Ujian" },
                   ];
@@ -198,6 +199,7 @@ export function StudentSidebar({
                   href={item.href}
                   icon={item.icon}
                   label={item.label}
+                  badge={item.badge}
                   active={item.exact ? pathname === item.href : pathname.startsWith(item.href)}
                   collapsed={c}
                 />
@@ -227,12 +229,14 @@ export function StudentSidebar({
       );
     }
 
+    const userRole = (session?.user as { role?: string | null } | undefined)?.role;
+
     return (
       <nav className={cn(
         "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
         c
           ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-          : "px-3 overflow-y-auto sidebar-scroll"
+          : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
       )}>
         <NavItem
           href="/dashboard"
@@ -245,10 +249,20 @@ export function StudentSidebar({
         <NavItem
           href="/dashboard/schedule"
           icon={CalendarRange}
-          label="Jadwal"
+          label={userRole === "teacher" ? "Jadwal Bimbingan" : "Jadwal"}
           active={pathname === "/dashboard/schedule"}
           collapsed={c}
         />
+
+        {(userRole === "teacher" || userRole === "admin") && (
+          <NavItem
+            href="/tutor"
+            icon={GraduationCap}
+            label="Teaching"
+            active={pathname === "/tutor" || pathname.startsWith("/tutor/")}
+            collapsed={c}
+          />
+        )}
 
         <NavItem
           href="/dashboard/groups"

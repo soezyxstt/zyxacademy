@@ -2,19 +2,23 @@ import { compileSafeExpression, normalizeLegacyGraphExpression } from "./express
 import { parseCanvasSpec } from "./validator";
 import type { CanvasSpec } from "./contracts";
 
-const GRAPH_INTENT = /\b(grafik|plot|kurva|graph|visualisasi|unsur visual|representasi visual)\b/i;
-const QUADRATIC_INTENT = /\b(persamaan|fungsi)\s+kuadrat\b|\bkuadratik\b/i;
+const GRAPH_INTENT = /\b(grafik|plot|kurva|graph|visualisasi|unsur visual|representasi visual|parabola|hero|desmos|kanvas)\b/i;
+const QUADRATIC_INTENT = /\b(persamaan|fungsi)\s+kuadrat\b|\bkuadratik\b|\bparabola\b|\bhero\b|\bdesmos\b/i;
 
 function candidateExpressions(text: string): string[] {
   const candidates: string[] = [];
-  const equationPattern = /(?:\by\b|\bf\s*\(\s*x\s*\))\s*=\s*([^$\n,;]+)/gi;
+  const equationPattern = /(?:\b[yY]\b|\b[fghFGH](?:_\d+)?\s*\(\s*[xX]\s*\))\s*[:=]\s*([^$\n,;]+)/gi;
   for (const match of text.matchAll(equationPattern)) {
     if (match[0]) candidates.push(match[0]);
+    if (match[1]) candidates.push(match[1]);
   }
   for (const match of text.matchAll(/\$+([^$]+)\$+/g)) {
-    if (match[1] && /(?:\by\b|\bf\s*\(\s*x\s*\))\s*=/.test(match[1])) candidates.push(match[1]);
+    if (match[1]) candidates.push(match[1]);
   }
-  for (const match of text.matchAll(/\b(?:grafik|plot|kurva|graph)(?:\s+(?:fungsi|dari|untuk))*\s+([^$\n,;]+)/gi)) {
+  for (const match of text.matchAll(/\\(?:\[|\()([\s\S]+?)\\(?:\]|\))/g)) {
+    if (match[1]) candidates.push(match[1]);
+  }
+  for (const match of text.matchAll(/\b(?:grafik|plot|kurva|graph|fungsi|persamaan)(?:\s+(?:fungsi|dari|untuk|persamaan|seperti))*\s+([^$\n,;]+)/gi)) {
     if (match[1]) candidates.push(match[1]);
   }
   return candidates;
@@ -47,7 +51,7 @@ function quadraticConceptPlot(claimRefs: readonly string[]): CanvasSpec | null {
       { id: "c", label: "Konstanta c", min: -6, max: 6, defaultValue: 0 },
     ],
     controls: [
-      { variableId: "a", label: "Koefisien a", min: -3, max: 3, step: 0.25, presets: [-2, -1, 1, 2] },
+      { variableId: "a", label: "Koefisien a", min: -3, max: 3, step: 0.05, presets: [-2, -1, -0.08, 1, 2] },
       { variableId: "b", label: "Koefisien b", min: -6, max: 6, step: 0.5, presets: [-4, -2, 0, 2, 4] },
       { variableId: "c", label: "Konstanta c", min: -6, max: 6, step: 0.5, presets: [-4, -2, 0, 2, 4] },
     ],

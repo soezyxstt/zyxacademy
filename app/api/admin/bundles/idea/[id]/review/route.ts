@@ -12,7 +12,6 @@ const reviewSchema = z.object({
 }).strict();
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  if (process.env.FEATURE_IDEA_BUNDLE_V2 !== "1") return NextResponse.json({ error: "IDEA_BUNDLE_V2_DISABLED" }, { status: 404 });
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user || (session.user.role !== "admin" && session.user.role !== "teacher")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

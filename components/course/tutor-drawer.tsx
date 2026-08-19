@@ -18,16 +18,12 @@ import {
   FileQuestion,
   Maximize2,
   Minimize2,
-  MessageSquare,
   Sparkles,
   Copy,
   Trash2,
   Send,
-  Target,
-  Search,
   GripVertical,
   HelpCircle,
-  Lightbulb,
   Paperclip,
 } from "lucide-react";
 import {

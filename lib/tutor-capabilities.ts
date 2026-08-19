@@ -18,8 +18,8 @@ export interface TutorCapabilities {
 }
 
 const IMAGE_INPUT_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1 === "1";
-const CANVAS_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_LEARNING_CANVAS_V1 === "1";
-const PET_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_PET_V1 === "1";
+const CANVAS_ENABLED = true;
+const PET_ENABLED = true;
 
 const ALL_ON: TutorCapabilities = {
   chat: true,

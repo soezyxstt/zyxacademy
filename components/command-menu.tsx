@@ -18,11 +18,13 @@ import {
   FileText,
   FolderSearch,
   GraduationCap,
+  Hash,
   Home,
   Layers,
   Loader2,
   Search,
   Star,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -32,6 +34,7 @@ import {
 import type { SiteSearchDocument } from "@/lib/site-search-index";
 import { cn } from "@/lib/utils";
 import { getStudentSearchDocuments } from "@/app/(student)/dashboard/search-actions";
+import { parseSearchQueryString } from "@/lib/search/parser";
 import Fuse from "fuse.js";
 
 export interface SearchItem {
@@ -68,6 +71,7 @@ const CATEGORY_ORDER = [
   "Materi & Artikel",
   "Kuis & Evaluasi",
   "Navigasi",
+  "Administrasi",
 ] as const;
 
 type NormalizedCategory = (typeof CATEGORY_ORDER)[number];
@@ -100,6 +104,22 @@ function normalizeCategory(group?: string): NormalizedCategory {
   ) {
     return "Kuis & Evaluasi";
   }
+  if (
+    lower.includes("admin") ||
+    lower.includes("group") ||
+    lower.includes("grup") ||
+    lower.includes("kelompok") ||
+    lower.includes("meet") ||
+    lower.includes("sesi") ||
+    lower.includes("user") ||
+    lower.includes("pengguna") ||
+    lower.includes("form") ||
+    lower.includes("token") ||
+    lower.includes("schedule") ||
+    lower.includes("jadwal")
+  ) {
+    return "Administrasi";
+  }
   return "Navigasi";
 }
 
@@ -113,6 +133,8 @@ function getCategoryIcon(category: NormalizedCategory) {
       return FileText;
     case "Navigasi":
       return Compass;
+    case "Administrasi":
+      return Users;
     default:
       return Layers;
   }
@@ -132,6 +154,97 @@ function groupIcon(group?: string) {
     default:
       return getCategoryIcon(normalizeCategory(group));
   }
+}
+
+interface SearchItemCluster {
+  id: string;
+  parent?: SiteSearchDocument;
+  children: SiteSearchDocument[];
+}
+
+function clusterSearchItems(items: SiteSearchDocument[]): SearchItemCluster[] {
+  const clusters: SearchItemCluster[] = [];
+  const processedChildIds = new Set<string>();
+
+  // Pass 1: Identify items that have matching children in the search results
+  for (const item of items) {
+    if (processedChildIds.has(item.id)) continue;
+
+    const children = items.filter((candidate) => {
+      if (candidate.id === item.id || processedChildIds.has(candidate.id)) return false;
+
+      // Condition 1: Anchor URL matching base href
+      if (
+        candidate.href.includes("#") &&
+        candidate.href.split("#")[0] === item.href
+      ) {
+        return true;
+      }
+
+      // Condition 2: Candidate subtitle matches item title
+      if (
+        candidate.subtitle &&
+        item.title &&
+        candidate.subtitle.trim().toLowerCase() === item.title.trim().toLowerCase()
+      ) {
+        return true;
+      }
+
+      // Condition 3: Sub-path matching
+      if (
+        item.href &&
+        item.href !== "/" &&
+        item.href !== "/courses" &&
+        candidate.href.startsWith(item.href + "/")
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+
+    if (children.length > 0) {
+      for (const child of children) {
+        processedChildIds.add(child.id);
+      }
+      clusters.push({
+        id: item.id,
+        parent: item,
+        children,
+      });
+    }
+  }
+
+  // Pass 2: Remaining items that were not clustered in Pass 1
+  for (const item of items) {
+    if (processedChildIds.has(item.id)) continue;
+    if (clusters.some((c) => c.parent?.id === item.id)) continue;
+
+    // Check if it is an orphan section / sub-item
+    const isSectionItem =
+      item.href.includes("#") ||
+      (item.subtitle &&
+        item.subtitle !== "Halaman" &&
+        item.subtitle !== "Admin" &&
+        item.subtitle !== "Landing" &&
+        item.subtitle !== "Akun");
+
+    if (isSectionItem && item.subtitle) {
+      clusters.push({
+        id: item.id,
+        parent: undefined,
+        children: [item],
+      });
+    } else {
+      clusters.push({
+        id: item.id,
+        parent: item,
+        children: [],
+      });
+    }
+  }
+
+  return clusters;
 }
 
 function getStoredItems(key: string): SearchItem[] {
@@ -297,12 +410,24 @@ export function CommandMenuProvider({
   }, [docs]);
 
   const trimmed = search.trim();
+  const parsedQuery = useMemo(() => parseSearchQueryString(trimmed), [trimmed]);
 
-  // Instant local Fuse search
+  // Instant local Fuse search with prefix scope awareness
   const fuseResults = useMemo(() => {
     if (!trimmed || !fuse) return [];
-    return fuse.search(trimmed, { limit: 48 }).map((r) => r.item);
-  }, [trimmed, fuse]);
+    const queryText = parsedQuery.isScoped ? (parsedQuery.cleanQuery || "") : trimmed;
+    if (!queryText) {
+      if (parsedQuery.isScoped && parsedQuery.entityType) {
+        return docs.filter((d) => normalizeCategory(d.group) === "Administrasi" || d.href.includes(parsedQuery.entityType!));
+      }
+      return [];
+    }
+    const hits = fuse.search(queryText, { limit: 48 }).map((r) => r.item);
+    if (parsedQuery.isScoped && parsedQuery.entityType) {
+      return hits.filter((d) => normalizeCategory(d.group) === "Administrasi" || d.href.includes(parsedQuery.entityType!));
+    }
+    return hits;
+  }, [trimmed, fuse, parsedQuery, docs]);
 
   // Debounced API search (250ms)
   useEffect(() => {
@@ -318,11 +443,30 @@ export function CommandMenuProvider({
         const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
         if (res.ok) {
           const data = await res.json();
-          const items = Array.isArray(data)
-            ? data
-            : data.results || data.items || data.data || [];
-          if (Array.isArray(items) && items.length > 0) {
+          if (data?.grouped) {
+            const items: SiteSearchDocument[] = [];
+            for (const cat of CATEGORY_ORDER) {
+              const list = data.grouped[cat] || [];
+              for (const m of list) {
+                items.push({
+                  id: m.id,
+                  title: m.metadata?.title || m.id,
+                  subtitle: m.metadata?.subtitle || "",
+                  href: m.metadata?.href || "",
+                  group: cat,
+                  keywords: m.metadata?.keywords || "",
+                  content: (m.metadata?.searchable_text as string) || "",
+                });
+              }
+            }
             setApiResults(items);
+          } else if (Array.isArray(data)) {
+            setApiResults(data);
+          } else {
+            const items = data.results || data.items || data.data || [];
+            if (Array.isArray(items)) {
+              setApiResults(items);
+            }
           }
         }
       } catch {
@@ -478,15 +622,39 @@ export function CommandMenuProvider({
                 className="w-full flex flex-col"
               >
                 {/* Search Header */}
-                <div className="flex items-center gap-3 border-b border-border bg-background/40 px-4 py-3">
+                <div className="flex items-center gap-2.5 border-b border-border bg-background/40 px-4 py-3">
                   <Search
                     className="text-muted-foreground size-5 shrink-0"
                     aria-hidden
                   />
+                  {parsedQuery.isScoped && parsedQuery.prefixLabel && (
+                    <div className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-body-xs font-semibold shrink-0 select-none animate-in fade-in zoom-in-95 duration-150">
+                      <span>{parsedQuery.prefixLabel}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSearch(parsedQuery.cleanQuery)}
+                        className="ml-0.5 rounded hover:bg-primary/20 p-0.5 transition-colors cursor-pointer text-primary/80 hover:text-primary"
+                        aria-label="Hapus filter prefiks"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  )}
                   <Command.Input
-                    placeholder="Cari materi, soal, modul, atau halaman..."
-                    value={search}
-                    onValueChange={setSearch}
+                    placeholder={
+                      parsedQuery.isScoped && parsedQuery.prefixLabel
+                        ? `Cari dalam ${parsedQuery.prefixLabel.toLowerCase()}...`
+                        : "Cari materi, soal, modul, atau halaman..."
+                    }
+                    value={parsedQuery.isScoped ? parsedQuery.cleanQuery : search}
+                    onValueChange={(val) => {
+                      if (parsedQuery.isScoped) {
+                        const rawPrefix = search.split(":")[0];
+                        setSearch(`${rawPrefix}: ${val}`);
+                      } else {
+                        setSearch(val);
+                      }
+                    }}
                     className="placeholder:text-muted-foreground/60 flex h-7 w-full bg-transparent text-body-sm sm:text-body-base outline-none text-foreground"
                   />
 
@@ -873,13 +1041,14 @@ export function CommandMenuProvider({
                     </div>
                   )}
 
-                  {/* State 2: Active Search Results */}
+                  {/* State 2: Active Search Results with Parent-Children Hierarchy */}
                   {trimmed &&
                     flatResults.length > 0 &&
                     CATEGORY_ORDER.map((cat) => {
                       const items = groupedResults?.get(cat) ?? [];
                       if (items.length === 0) return null;
                       const Icon = getCategoryIcon(cat);
+                      const clusters = clusterSearchItems(items);
 
                       return (
                         <Command.Group
@@ -887,53 +1056,122 @@ export function CommandMenuProvider({
                           heading={cat}
                           className="mt-2 first:mt-0 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
                         >
-                          {items.map((doc) => (
-                            <Command.Item
-                              key={doc.id}
-                              value={`${doc.id} ${doc.title} ${doc.subtitle} ${doc.keywords || ""}`}
-                              onSelect={() => navigate(doc)}
-                              className={cn(
-                                "group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 my-1 text-body-sm outline-none cursor-pointer transition-all duration-150 select-none",
-                                "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent",
-                                "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
-                              )}
-                            >
-                              <div className="flex min-w-0 items-center gap-3 flex-1">
-                                <div
-                                  className={cn(
-                                    "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
-                                    "border-border/60 bg-background text-muted-foreground",
-                                    "group-hover:border-border group-hover:text-foreground",
-                                    "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
-                                  )}
-                                >
-                                  <Icon className="size-4" aria-hidden />
-                                </div>
+                          {clusters.map((cluster) => {
+                            return (
+                              <div key={cluster.id} className="flex flex-col">
+                                {/* Parent Item */}
+                                {cluster.parent && (
+                                  <Command.Item
+                                    key={cluster.parent.id}
+                                    value={`${cluster.parent.id} ${cluster.parent.title} ${cluster.parent.subtitle} ${cluster.parent.keywords || ""}`}
+                                    onSelect={() => navigate(cluster.parent!)}
+                                    className={cn(
+                                      "group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 my-1 text-body-sm outline-none cursor-pointer transition-all duration-150 select-none",
+                                      "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent",
+                                      "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
+                                    )}
+                                  >
+                                    <div className="flex min-w-0 items-center gap-3 flex-1">
+                                      <div
+                                        className={cn(
+                                          "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
+                                          "border-border/60 bg-background text-muted-foreground",
+                                          "group-hover:border-border group-hover:text-foreground",
+                                          "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
+                                        )}
+                                      >
+                                        <Icon className="size-4" aria-hidden />
+                                      </div>
 
-                                <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                  <div className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                    <HighlightText
-                                      text={doc.title}
-                                      query={trimmed}
-                                    />
-                                  </div>
-                                  {doc.subtitle && (
-                                    <div className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
-                                      <HighlightText
-                                        text={doc.subtitle}
-                                        query={trimmed}
-                                      />
+                                      <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                        <div className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
+                                          <HighlightText
+                                            text={cluster.parent.title}
+                                            query={trimmed}
+                                          />
+                                        </div>
+                                        {cluster.children.length === 0 && cluster.parent.subtitle && (
+                                          <div className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
+                                            <HighlightText
+                                              text={cluster.parent.subtitle}
+                                              query={trimmed}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
-                              </div>
 
-                              <ChevronRight
-                                className="size-4 text-muted-foreground/50 group-hover:text-foreground group-aria-selected:text-primary-foreground shrink-0"
-                                aria-hidden
-                              />
-                            </Command.Item>
-                          ))}
+                                    <ChevronRight
+                                      className="size-4 text-muted-foreground/50 group-hover:text-foreground group-aria-selected:text-primary-foreground shrink-0"
+                                      aria-hidden
+                                    />
+                                  </Command.Item>
+                                )}
+
+                                {/* Children with left connector tree line */}
+                                {cluster.children.length > 0 && (
+                                  <div
+                                    className={cn(
+                                      "flex flex-col gap-1",
+                                      cluster.parent
+                                        ? "relative ml-5 pl-3 my-0.5 border-l-2 border-border/80"
+                                        : "my-0.5"
+                                    )}
+                                  >
+                                    {cluster.children.map((child) => (
+                                      <Command.Item
+                                        key={child.id}
+                                        value={`${child.id} ${child.title} ${child.subtitle} ${child.keywords || ""}`}
+                                        onSelect={() => navigate(child)}
+                                        className={cn(
+                                          "group flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-body-sm outline-none cursor-pointer transition-all duration-150 select-none",
+                                          cluster.parent
+                                            ? "bg-muted/30 hover:bg-muted/70 text-foreground border border-transparent"
+                                            : "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent my-0.5",
+                                          "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
+                                        )}
+                                      >
+                                        <div className="flex min-w-0 items-center gap-3 flex-1">
+                                          <div
+                                            className={cn(
+                                              "flex size-7 shrink-0 items-center justify-center rounded-md border transition-colors",
+                                              "border-border/60 bg-background/80 text-muted-foreground",
+                                              "group-hover:border-border group-hover:text-foreground",
+                                              "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
+                                            )}
+                                          >
+                                            <Hash className="size-3.5" aria-hidden />
+                                          </div>
+
+                                          <div className="min-w-0 flex-1 flex flex-col justify-center">
+                                            {child.subtitle && (
+                                              <div className="truncate text-body-xs text-muted-foreground leading-tight group-aria-selected:text-primary-foreground/80">
+                                                <HighlightText
+                                                  text={child.subtitle}
+                                                  query={trimmed}
+                                                />
+                                              </div>
+                                            )}
+                                            <div className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground mt-0.5">
+                                              <HighlightText
+                                                text={child.title}
+                                                query={trimmed}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <ChevronRight
+                                          className="size-4 text-muted-foreground/50 group-hover:text-foreground group-aria-selected:text-primary-foreground shrink-0"
+                                          aria-hidden
+                                        />
+                                      </Command.Item>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </Command.Group>
                       );
                     })}

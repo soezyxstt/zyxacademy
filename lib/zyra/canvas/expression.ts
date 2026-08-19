@@ -321,25 +321,26 @@ export function safeExpressionToLatex(
   }
 }
 
-/**
- * Adapts the bounded legacy graph notation into the Learning Canvas parser.
- * This is compatibility normalization only. Evaluation still goes through the
- * allowlisted expression AST and never through model-provided executable code.
- */
 export function normalizeLegacyGraphExpression(value: string): string {
-  return value
+  let expr = value
     .trim()
     .replace(/^`+|`+$/g, "")
     .replace(/^\$+|\$+$/g, "")
     .replace(/^(?:\\\(|\\\[)|(?:\\\)|\\\])$/g, "")
-    .replace(/^\s*(?:y|f\s*\(\s*x\s*\))\s*=\s*/i, "")
+    .replace(/^\s*(?:persamaan|fungsi|kurva|grafik|rumus)(?:\s+(?:kuadrat|linier|linear|polinomial))?\s*[:=]\s*/i, "")
+    .replace(/^\s*(?:y\s*(?:\([a-zA-Z]\))?|[a-zA-Z](?:_\d+)?\s*\(\s*[a-zA-Z]\s*\))\s*[:=]\s*/i, "")
     .replace(/\s*(?:,|;)\s*x\s*(?:\\(?:ne|neq)|!=|≠|<|>|≤|≥).*$/i, "")
     .replace(/[\u2212\u2013\u2014]/g, "-")
     .replace(/[×·]/g, "*")
     .replace(/²/g, "^2")
     .replace(/³/g, "^3")
-    .replace(/⁴/g, "^4")
-    .replace(/\\(?:dfrac|tfrac|frac)\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, "(($1)/($2))")
+    .replace(/⁴/g, "^4");
+
+  while (/\\(?:dfrac|tfrac|frac)\s*\{([^{}]+)\}\s*\{([^{}]+)\}/.test(expr)) {
+    expr = expr.replace(/\\(?:dfrac|tfrac|frac)\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, "(($1)/($2))");
+  }
+
+  return expr
     .replace(/\\sqrt\s*\{([^{}]+)\}/g, "sqrt($1)")
     .replace(/\\operatorname\s*\{(sin|cos|tan|log|ln|exp|min|max|abs)\}/gi, "$1")
     .replace(/\\(sin|cos|tan|log|ln|exp|min|max|abs)\b/gi, "$1")

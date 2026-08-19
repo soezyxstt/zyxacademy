@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { env } from "@/lib/env";
 import { hasPeran } from "@/lib/auth/authorization";
 import { db } from "@/db";
 import { importantLinks } from "@/db/schema";
@@ -10,9 +9,6 @@ import { isValidHttpUrl, normalizeCategory, DEFAULT_ICON } from "@/lib/links";
 
 export async function GET() {
   try {
-    if (env.FEATURE_LINK_LIBRARY !== "1") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {
       return NextResponse.json({ error: "Unauthorized. Admin role required." }, { status: 403 });
@@ -32,9 +28,6 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    if (env.FEATURE_LINK_LIBRARY !== "1") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
     let createdById: string | undefined;
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user || !(await hasPeran(session.user.id, "admin"))) {

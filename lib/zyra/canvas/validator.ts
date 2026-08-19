@@ -19,18 +19,73 @@ function unique(values: readonly string[]): string[] {
 
 function normalizeCanvasInput(input: unknown): unknown {
   if (!input || typeof input !== "object" || Array.isArray(input)) return input;
-  const record = input as Record<string, unknown>;
-  if (record.type !== "function_plot" || !Array.isArray(record.series)) return input;
-  return {
-    ...record,
-    series: record.series.map((series) => {
+  const record = { ...(input as Record<string, unknown>) };
+
+  if (!record.version || typeof record.version !== "string") {
+    record.version = "zyra-learning-canvas-v1";
+  }
+  if (!record.title || typeof record.title !== "string" || record.title.trim().length < 3) {
+    record.title = "Grafik Fungsi";
+  }
+  if (!record.purpose || typeof record.purpose !== "string" || record.purpose.trim().length < 5) {
+    record.purpose = "Visualisasi grafik matematika interaktif.";
+  }
+  if (!record.altText || typeof record.altText !== "string" || record.altText.trim().length < 5) {
+    record.altText = `Grafik ${record.title} pada bidang koordinat kartesius.`;
+  }
+  if (!Array.isArray(record.variables)) {
+    record.variables = [];
+  }
+  if (!Array.isArray(record.controls)) {
+    record.controls = [];
+  }
+  if (!Array.isArray(record.claimRefs)) {
+    record.claimRefs = [];
+  }
+
+  if (record.type === "function_plot") {
+    const rawDomain = (record.domain && typeof record.domain === "object" ? record.domain : {}) as Record<string, unknown>;
+    const min = typeof rawDomain.min === "number" && Number.isFinite(rawDomain.min) ? rawDomain.min : -10;
+    const max = typeof rawDomain.max === "number" && Number.isFinite(rawDomain.max) && rawDomain.max > min ? rawDomain.max : 10;
+    const sampleCount = typeof rawDomain.sampleCount === "number" && Number.isInteger(rawDomain.sampleCount) && rawDomain.sampleCount >= 2 && rawDomain.sampleCount <= 400 ? rawDomain.sampleCount : 240;
+    record.domain = { min, max, sampleCount };
+
+    let seriesList = Array.isArray(record.series) ? record.series : [];
+    if (typeof record.series === "string") {
+      seriesList = [{ id: "f1", label: "y", expression: record.series }];
+    }
+    record.series = seriesList.map((series, idx) => {
+      if (typeof series === "string") {
+        return {
+          id: `f${idx + 1}`,
+          label: `f${idx + 1}(x)`,
+          expression: normalizeLegacyGraphExpression(series),
+        };
+      }
       if (!series || typeof series !== "object" || Array.isArray(series)) return series;
       const item = series as Record<string, unknown>;
-      return typeof item.expression === "string"
-        ? { ...item, expression: normalizeLegacyGraphExpression(item.expression) }
-        : series;
-    }),
-  };
+      return {
+        id: typeof item.id === "string" && item.id ? item.id : `f${idx + 1}`,
+        label: typeof item.label === "string" && item.label ? item.label : `f${idx + 1}(x)`,
+        expression: typeof item.expression === "string" ? normalizeLegacyGraphExpression(item.expression) : "",
+      };
+    });
+
+    if (!record.fallback || typeof record.fallback !== "object" || !Array.isArray((record.fallback as Record<string, unknown>).columns)) {
+      const seriesNames = (record.series as Array<{ label: string; expression: string }>).map((s) => s.label || "y");
+      record.fallback = {
+        summary: `Tabel nilai untuk ${record.title}`,
+        columns: [{ id: "x", label: "x" }, ...seriesNames.map((name, i) => ({ id: `y_${i}`, label: name }))],
+        rows: [
+          [String(min), ...seriesNames.map(() => "0")],
+          ["0", ...seriesNames.map(() => "0")],
+          [String(max), ...seriesNames.map(() => "0")],
+        ],
+      };
+    }
+  }
+
+  return record;
 }
 
 function validateVariables(spec: CanvasSpec): string[] {

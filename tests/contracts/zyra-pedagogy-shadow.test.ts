@@ -84,8 +84,6 @@ describe("Zyra pedagogy staging shadow", () => {
   });
 
   it("prevents a hidden legacy repair call in shadow mode", async () => {
-    const previousAllowance = process.env.FEATURE_ZYRA_ALLOWANCE_V2;
-    process.env.FEATURE_ZYRA_ALLOWANCE_V2 = "0";
     const budgetSpy = spyOn(UsageBudgetService, "canUseFeature").mockResolvedValueOnce(true);
     const providerSpy = spyOn(geminiModule, "generateContentWithFallback").mockResolvedValueOnce({
       response: { text: "{ malformed json content ... }" },
@@ -115,8 +113,6 @@ describe("Zyra pedagogy staging shadow", () => {
     } finally {
       budgetSpy.mockRestore();
       providerSpy.mockRestore();
-      if (previousAllowance === undefined) delete process.env.FEATURE_ZYRA_ALLOWANCE_V2;
-      else process.env.FEATURE_ZYRA_ALLOWANCE_V2 = previousAllowance;
     }
   });
 });

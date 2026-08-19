@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Mail, GraduationCap, CalendarDays, User2, ShieldCheck, ClipboardList } from "lucide-react";
-import { env } from "@/lib/env";
 
 import { ShellPage } from "@/components/shell-page";
 import { pageTitle } from "@/lib/site";
@@ -183,7 +182,6 @@ export default async function ProfilePage() {
  <ShieldCheck className="size-4 shrink-0" />
  Google Connected
  </span>
- {env.FEATURE_REFLECTION === "1" && (
  <Link
  href="/profile/reflections"
  className="flex items-center gap-1.5 text-brand-primary font-semibold hover:underline shrink-0"
@@ -191,7 +189,6 @@ export default async function ProfilePage() {
  <ClipboardList className="size-4 shrink-0" />
  Weekly reflections
  </Link>
- )}
  </div>
  </div>
  </div>

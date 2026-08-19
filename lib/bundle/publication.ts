@@ -43,9 +43,7 @@ export type IdeaBundlePublicationResult = {
 
 type FailureInjection = "source_materials" | "source_chunks" | "ideas" | "provenance" | "relations" | "outbox";
 
-function ensureFeatureEnabled(): void {
-  if (process.env.FEATURE_IDEA_BUNDLE_V2 !== "1") throw new Error("IDEA_BUNDLE_V2_DISABLED");
-}
+function ensureFeatureEnabled(): void {}
 
 function deterministicId(prefix: string, value: string): string {
   return `${prefix}-${createHash("sha256").update(`${prefix}:${value}`).digest("hex").slice(0, 32)}`;

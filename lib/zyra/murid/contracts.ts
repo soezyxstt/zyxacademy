@@ -42,12 +42,12 @@ export function isZyraMuridFeatureEnabled(): true {
   return true;
 }
 
-export function isZyraSelectionAskEnabled(value = process.env.NEXT_PUBLIC_FEATURE_ZYRA_SELECTION_ASK_V1): boolean {
-  return value === "1";
+export function isZyraSelectionAskEnabled(_value?: string): boolean {
+  return true;
 }
 
-export function isZyraPetFeatureEnabled(value = process.env.NEXT_PUBLIC_FEATURE_ZYRA_PET_V1): boolean {
-  return value === "1";
+export function isZyraPetFeatureEnabled(_value?: string): boolean {
+  return true;
 }
 
 export function petStateForTutorEvent(input: {

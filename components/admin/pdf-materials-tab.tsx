@@ -16,6 +16,14 @@ import {
 } from "@/components/ui/select";
 import { saveCourseMaterial, deleteCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { Trash2, Plus, Loader2, FileText, ExternalLink } from "lucide-react";
+import {
+  LEVEL1_CATEGORIES,
+  getSubcategoriesForLevel1,
+  LEVEL1_LABELS,
+  getSubcategoryLabel,
+  type MaterialLevel1Category,
+  type CourseMaterialSubcategory,
+} from "@/lib/course-materials";
 
 const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -35,7 +43,9 @@ type UploadedMaterial = {
   id: string;
   courseId: string;
   title: string;
-  type: "materi_kelas" | "contoh_soal";
+  type: string;
+  subcategory?: string | null;
+  year?: number | null;
   fileUrl: string;
   chapterIds: any;
   createdAt: Date;
@@ -57,10 +67,14 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
   const [form, setForm] = useState({
     courseId: "",
     title: "",
-    type: "materi_kelas" as "materi_kelas" | "contoh_soal",
+    type: "materi" as MaterialLevel1Category,
+    subcategory: "ppt_dosen" as CourseMaterialSubcategory,
+    year: "",
   });
   const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const availableSubcategories = getSubcategoriesForLevel1(form.type);
 
   // Filter chapters based on selected course
   const courseChapters = useMemo(() => {
@@ -71,6 +85,17 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
   const handleCourseChange = (courseId: string) => {
     setForm((prev) => ({ ...prev, courseId }));
     setSelectedChapters(new Set());
+  };
+
+  const handleTypeChange = (newType: MaterialLevel1Category) => {
+    const subcats = getSubcategoriesForLevel1(newType);
+    setForm((prev) => ({
+      ...prev,
+      type: newType,
+      subcategory: subcats.length > 0 && !subcats.some((s) => s.value === prev.subcategory)
+        ? subcats[0].value
+        : prev.subcategory,
+    }));
   };
 
   const handleChapterToggle = (chapterId: string) => {
@@ -95,13 +120,19 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.courseId || !form.title || !form.type || selectedChapters.size === 0 || !selectedFile) {
+    if (!form.courseId || !form.title.trim() || !form.type || selectedChapters.size === 0 || !selectedFile) {
       toast.error("Silakan lengkapi semua field, pilih minimal satu bab, dan unggah file PDF.");
       return;
     }
 
     if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
       toast.error("Ukuran PDF maksimal 50 MB.");
+      return;
+    }
+
+    const parsedYear = form.year.trim() ? parseInt(form.year.trim(), 10) : null;
+    if (form.year.trim() && (isNaN(parsedYear!) || parsedYear! < 1900 || parsedYear! > 2100)) {
+      toast.error("Format tahun tidak valid (contoh: 2024).");
       return;
     }
 
@@ -125,15 +156,17 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
 
       const res = await saveCourseMaterial(
         form.courseId,
-        form.title,
+        form.title.trim(),
         form.type,
         Array.from(selectedChapters),
-        uploadData.key
+        uploadData.key,
+        form.subcategory,
+        parsedYear
       );
 
       if (res.success) {
         toast.success("Materi PDF berhasil diunggah");
-        setForm((prev) => ({ ...prev, title: "" }));
+        setForm((prev) => ({ ...prev, title: "", year: "" }));
         setSelectedChapters(new Set());
         setSelectedFile(null);
         const fileInput = document.getElementById("pdf-file-input") as HTMLInputElement;
@@ -193,12 +226,12 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
         </h3>
 
         <form onSubmit={handleUpload} className="space-y-3">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {/* Course Selector */}
             <div className="space-y-1">
               <Label className="text-body-sm font-semibold text-foreground">Mata Kuliah</Label>
               <Select value={form.courseId} onValueChange={handleCourseChange} disabled={loading}>
-                <SelectTrigger className="h-9 text-body-xs rounded-lg">
+                <SelectTrigger className="h-9 text-body-sm rounded-lg">
                   <SelectValue placeholder="Pilih Mata Kuliah" />
                 </SelectTrigger>
                 <SelectContent>
@@ -211,33 +244,74 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
               </Select>
             </div>
 
-            {/* Type Selector */}
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold text-foreground">Jenis Dokumen</Label>
-              <Select
-                value={form.type}
-                onValueChange={(v: any) => setForm((prev) => ({ ...prev, type: v }))}
-                disabled={loading}
-              >
-                <SelectTrigger className="h-9 text-body-xs rounded-lg">
-                  <SelectValue placeholder="Pilih Jenis" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="materi_kelas">Materi Kelas (PDF)</SelectItem>
-                  <SelectItem value="contoh_soal">Contoh Soal (PDF)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Title */}
             <div className="space-y-1">
               <Label className="text-body-sm font-semibold text-foreground">Judul Dokumen</Label>
               <Input
-                placeholder="Contoh: Soal UTS Fisika IA 2024"
+                placeholder="Contoh: Soal UTS Fisika IA"
                 value={form.title}
                 onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                 disabled={loading}
-                className="h-9 text-body-xs rounded-lg"
+                className="h-9 text-body-sm rounded-lg"
+              />
+            </div>
+
+            {/* Level 1 Type Selector */}
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Kategori</Label>
+              <Select
+                value={form.type}
+                onValueChange={(v: MaterialLevel1Category) => handleTypeChange(v)}
+                disabled={loading}
+              >
+                <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                  <SelectValue placeholder="Pilih Kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEVEL1_CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Level 2 Subcategory Selector */}
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">Sub-kategori</Label>
+              <Select
+                value={form.subcategory}
+                onValueChange={(v: CourseMaterialSubcategory) => setForm((prev) => ({ ...prev, subcategory: v }))}
+                disabled={loading}
+              >
+                <SelectTrigger className="h-9 text-body-sm rounded-lg">
+                  <SelectValue placeholder="Pilih Sub-kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSubcategories.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Year Input */}
+            <div className="space-y-1">
+              <Label className="text-body-sm font-semibold text-foreground">
+                Tahun <span className="text-muted-foreground font-normal text-body-xs">(opsional)</span>
+              </Label>
+              <Input
+                placeholder="2024"
+                type="number"
+                min={1900}
+                max={2100}
+                value={form.year}
+                onChange={(e) => setForm((prev) => ({ ...prev, year: e.target.value }))}
+                disabled={loading}
+                className="h-9 text-body-sm rounded-lg"
               />
             </div>
           </div>
@@ -344,7 +418,9 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
               <tr>
                 <th className="px-3 py-2">Judul</th>
                 <th className="px-3 py-2">Mata Kuliah</th>
-                <th className="px-3 py-2">Jenis</th>
+                <th className="px-3 py-2">Kategori</th>
+                <th className="px-3 py-2">Sub-kategori</th>
+                <th className="px-3 py-2">Tahun</th>
                 <th className="px-3 py-2">Kaitan Bab</th>
                 <th className="px-3 py-2 text-right">Aksi</th>
               </tr>
@@ -356,14 +432,32 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
                   ? m.fileUrl
                   : `/api/storage/file/${m.fileUrl}`;
 
+                const categoryLabel = LEVEL1_LABELS[m.type] || m.type;
+                const subcategoryLabel = getSubcategoryLabel(m.subcategory);
+
                 return (
                   <tr key={m.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-3 py-2.5 font-semibold text-foreground">{m.title}</td>
                     <td className="px-3 py-2.5 text-muted-foreground">{courseTitle}</td>
                     <td className="px-3 py-2.5">
-                      <Badge variant={m.type === "contoh_soal" ? "secondary" : "outline"} className="text-[10px] px-1.5 py-0.5 rounded-md">
-                        {m.type === "contoh_soal" ? "Contoh Soal" : "Materi Kelas"}
+                      <Badge
+                        variant={m.type === "soal" || m.type === "contoh_soal" ? "secondary" : m.type === "pembahasan_soal" ? "outline" : "default"}
+                        className="text-[10px] px-1.5 py-0.5 rounded-md"
+                      >
+                        {categoryLabel}
                       </Badge>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {subcategoryLabel ? (
+                        <span className="font-medium text-foreground bg-muted/60 px-1.5 py-0.5 rounded-md text-[10px]">
+                          {subcategoryLabel}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap text-body-xs font-mono">
+                      {m.year ? m.year : "-"}
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground max-w-xs truncate" title={getChapterLabels(m.chapterIds)}>
                       {getChapterLabels(m.chapterIds)}

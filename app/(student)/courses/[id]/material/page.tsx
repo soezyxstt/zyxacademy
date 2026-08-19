@@ -120,6 +120,8 @@ export default async function CourseMaterialListPage({ params }: Props) {
       id: courseMaterials.id,
       title: courseMaterials.title,
       type: courseMaterials.type,
+      subcategory: courseMaterials.subcategory,
+      year: courseMaterials.year,
       fileUrl: courseMaterials.fileUrl,
       chapterIds: courseMaterials.chapterIds,
       updatedAt: courseMaterials.updatedAt,
@@ -157,20 +159,31 @@ export default async function CourseMaterialListPage({ params }: Props) {
     chapterIds: m.chapterIds as string[],
   }));
 
-  const mappedManual = manualMaterials.map((m) => ({
-    id: m.id,
-    courseId: id,
-    title: m.title,
-    kind: "pdf" as const,
-    docCategory: m.type === "contoh_soal" ? ("soal" as const) : ("materi" as const),
-    fileSize: m.type === "contoh_soal" ? "Contoh Soal" : "Materi Kelas",
-    completed: completedMaterialIds.has(m.id),
-    isPastYear: false,
-    isPreview: true,
-    url: storage.getUrl(m.fileUrl),
-    thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
-    chapterIds: m.chapterIds as string[],
-  }));
+  const mappedManual = manualMaterials.map((m) => {
+    let docCategory: "materi" | "soal" | "solusi" = "materi";
+    if (m.type === "contoh_soal" || m.type === "soal") {
+      docCategory = "soal";
+    } else if (m.type === "pembahasan_soal") {
+      docCategory = "solusi";
+    }
+
+    return {
+      id: m.id,
+      courseId: id,
+      title: m.title,
+      kind: "pdf" as const,
+      docCategory,
+      subcategory: m.subcategory,
+      year: m.year,
+      fileSize: "PDF",
+      completed: completedMaterialIds.has(m.id),
+      isPastYear: Boolean(m.year),
+      isPreview: true,
+      url: storage.getUrl(m.fileUrl),
+      thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
+      chapterIds: m.chapterIds as string[],
+    };
+  });
 
   const mappedWeb = webMaterials.map((m) => ({
     id: m.id,
@@ -188,7 +201,6 @@ export default async function CourseMaterialListPage({ params }: Props) {
   }));
 
   const allMaterials = [...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual];
-
 
   return (
     <CoursePageShell

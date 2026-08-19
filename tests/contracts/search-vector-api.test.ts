@@ -183,4 +183,60 @@ describe("Vector Engine & Search API Contracts", () => {
     expect(body.ok).toBe(false);
     expect(body.error.code).toBe("SEARCH_BINDING_UNAVAILABLE");
   });
+
+  describe("parseSearchQueryString", () => {
+    const { parseSearchQueryString } = require("@/lib/search/parser");
+
+    it("identifies non-scoped standard queries", () => {
+      const parsed = parseSearchQueryString("kalkulus turunan");
+      expect(parsed.isScoped).toBe(false);
+      expect(parsed.cleanQuery).toBe("kalkulus turunan");
+      expect(parsed.prefixType).toBeUndefined();
+    });
+
+    it("parses group: prefix and aliases", () => {
+      const res1 = parseSearchQueryString("group:kimia");
+      expect(res1.isScoped).toBe(true);
+      expect(res1.prefixType).toBe("group");
+      expect(res1.cleanQuery).toBe("kimia");
+      expect(res1.prefixLabel).toBe("Kelompok Belajar");
+
+      const res2 = parseSearchQueryString("grup: fisika dasar");
+      expect(res2.isScoped).toBe(true);
+      expect(res2.prefixType).toBe("group");
+      expect(res2.cleanQuery).toBe("fisika dasar");
+
+      const res3 = parseSearchQueryString("kelompok:tpb");
+      expect(res3.isScoped).toBe(true);
+      expect(res3.prefixType).toBe("group");
+      expect(res3.cleanQuery).toBe("tpb");
+    });
+
+    it("parses meet:, user:, form:, token:, schedule: prefixes", () => {
+      const meet = parseSearchQueryString("meet:tutor");
+      expect(meet.isScoped).toBe(true);
+      expect(meet.prefixType).toBe("meet");
+      expect(meet.cleanQuery).toBe("tutor");
+
+      const user = parseSearchQueryString("user:adi@zyxacademy.com");
+      expect(user.isScoped).toBe(true);
+      expect(user.prefixType).toBe("user");
+      expect(user.cleanQuery).toBe("adi@zyxacademy.com");
+
+      const form = parseSearchQueryString("formulir:evaluasi");
+      expect(form.isScoped).toBe(true);
+      expect(form.prefixType).toBe("form");
+      expect(form.cleanQuery).toBe("evaluasi");
+
+      const token = parseSearchQueryString("voucher:ZYX-2026");
+      expect(token.isScoped).toBe(true);
+      expect(token.prefixType).toBe("token");
+      expect(token.cleanQuery).toBe("ZYX-2026");
+
+      const schedule = parseSearchQueryString("jadwal:uts");
+      expect(schedule.isScoped).toBe(true);
+      expect(schedule.prefixType).toBe("schedule");
+      expect(schedule.cleanQuery).toBe("uts");
+    });
+  });
 });

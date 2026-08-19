@@ -297,19 +297,19 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - "Lainnya" (other) options use a stable sentinel (`\uE000__other__`) so open answers survive round trips; SECTION counts are excluded everywhere via a continuous `questionNumberMap`.
 - The builder auto-scrolls, resets after a successful publish, and uses shadcn Switch toggles for settings (collect email, show progress, etc.).
 - `collectEmail` works end to end; schedule inputs are converted from browser-local values to absolute ISO instants before save, then use `formatDatetimeLocal` for editing.
-- Reusable presets (question blueprints + settings) can be saved and re-applied from `/admin/forms` via `/api/admin/form-presets` and `components/forms/form-presets.tsx`, gated by `FEATURE_FORM_PRESETS=1`.
+- Reusable presets (question blueprints + settings) can be saved and re-applied from `/admin/forms` via `/api/admin/form-presets` and `components/forms/form-presets.tsx`, standard for admin users.
 - Settings panels fill the container width; the matrix question table was removed; terminology and section header images with zoom were fixed.
 
 ### Media Library
 - Admins can upload, organize, preview, and manage shared media in R2 under `media/{children_folder...}/{filename}` via `/admin/media` (`components/admin/media-library.tsx`).
 - Virtual folder tree with `.keep` markers; move, copy, rename, replace, delete, and download operations, including recursive folder ops and bulk ops.
 - Built-in document viewer for image, video, audio, PDF, markdown, and text (`components/admin/document-viewer.tsx`).
-- Gated by `FEATURE_MEDIA_LIBRARY=1`; uploads use `buildMediaKey` from `lib/storage/keys.ts` and `StorageProvider.list()` from `lib/storage/index.ts`.
+- Standard admin capability; uploads use `buildMediaKey` from `lib/storage/keys.ts` and `StorageProvider.list()` from `lib/storage/index.ts`.
 
 ### Tautan (Important Links)
 - Admins manage a curated links library at `/admin/tautan` (`components/admin/links-manager.tsx`) backed by `lib/links.ts` and `/api/admin/links/*`.
 - A public Linktree-style page at `/tautan` renders only active links grouped by category.
-- Gated by `FEATURE_LINK_LIBRARY=1`; stored in the `important_links` table with title, URL, description, icon, category, color, and sort order.
+- Stored in the `important_links` table with title, URL, description, icon, category, color, and sort order.
 
 ### Zyra multimodal tutoring and murid experience
 
@@ -319,8 +319,8 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Image and text are dispatched as one multimodal request. Gemini Interactions calls use the direct Google endpoint, while the stable `gemini-2.5-flash` image fallback uses Cloudflare AI Gateway through `generateContent`. Retryable provider failures move through this bounded model chain. One successful learner turn spends one allowance; a terminal provider failure refunds it.
 - Mathematical tutoring uses equation-first Markdown with inline and display LaTeX. The tutor prompt prefers symbolic derivations over verbal operation lists, while a bounded presentation normalizer repairs common raw equations in new responses and restored chat history without changing valid LaTeX or code.
 - A learner can paste an image from the clipboard into the chat input as well as select a file. Image turns treat the current attachment as the primary problem statement and bypass text-only course retrieval, preventing an unrelated published question and its source link from replacing the image content.
-- The integrated murid Zyra surface is foundational. `FEATURE_ZYRA_SELECTION_ASK_V1` sends only a bounded explicit lesson quote, and `FEATURE_ZYRA_PET_V1` shows accessible application-owned request states.
-- Learning Canvas exploration remains local after render and spends no provider allowance. Image and Canvas behavior are independently gated.
+- The integrated murid Zyra surface, selection-to-ask, and Zyra pet states are foundational.
+- Learning Canvas exploration remains local after render and spends no provider allowance. Multimodal image input is gated by `FEATURE_ZYRA_IMAGE_INPUT_V1`.
 
 ### Kelompok Belajar (Study Groups)
 

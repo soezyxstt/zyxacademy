@@ -36,4 +36,9 @@ describe("Feature Flags Registry Contract", () => {
       expect(flag.categoryLabel.length).toBeGreaterThan(0);
     }
   });
+
+  test("Feature flags count is reduced to fewer than 10 vital flags", () => {
+    expect(KNOWN_FEATURE_FLAGS.length).toBeLessThan(10);
+    expect(KNOWN_FEATURE_FLAGS.length).toBe(7);
+  });
 });

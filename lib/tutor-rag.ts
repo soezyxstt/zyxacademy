@@ -160,7 +160,7 @@ function tutorAnswerToSharedScaffold(answer: TutorRagAnswer, identity: ReturnTyp
     claims,
     sourceRefs: answer.sources,
     teachingMove: "grounded_explanation",
-    canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? answer.canvasSpec ?? undefined : undefined,
+    canvasSpec: isZyraCanvasFeatureEnabled() ? answer.canvasSpec ?? undefined : undefined,
     examples: [],
     validation: {
       status: answer.grounded ? "grounded" : "abstain",
@@ -187,7 +187,7 @@ function sharedScaffoldToTutorAnswer(scaffold: SharedScaffold): TutorRagAnswer {
     confidence: scaffold.validation.status === "grounded" ? 1 : 0,
     grounded: scaffold.validation.status === "grounded",
     coverageState: scaffold.validation.status === "grounded" ? "full" : "none",
-    canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? scaffold.canvasSpec ?? null : null,
+    canvasSpec: isZyraCanvasFeatureEnabled() ? scaffold.canvasSpec ?? null : null,
   };
 }
 
@@ -891,7 +891,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
       base = {
         ...base,
         answer: ansText,
-        canvasSpec: isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1) ? base.canvasSpec ?? null : null,
+        canvasSpec: isZyraCanvasFeatureEnabled() ? base.canvasSpec ?? null : null,
       };
       assertNoStudentTextInSharedCache(cacheKey, base, [studentId, sessionId ?? ""]);
       await logCacheHit(studentId, "tutor_rag");
@@ -1204,25 +1204,23 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  // Plan 008: learner-local adaptation runs after shared cache lookup and write.
  let adaptation: ZyraAdaptationDecision | null = null;
  let adaptedAnswer = base.answer;
- if (zyraRuntimeEnv.FEATURE_ZYRA_PERSONALIZATION_V1 === "1") {
-   const readOnly = pedagogyMode === "shadow" || Boolean(params.suppressLearnerSideEffects);
-   try {
-     adaptation = await getZyraAdaptation({ studentId, courseId, readOnly });
-     adaptedAnswer = composePersonalizedAnswer(base.answer, adaptation);
-     if (!readOnly) {
-       await recordZyraLearningEvent(studentId, {
-         courseId,
-         eventKind: "tutor_question",
-         sourceType: "tutor",
-         outcome: "unknown",
-         representation: "text",
-       });
-     }
-   } catch {
-     // Personalization is additive. A profile failure must not remove grounded text tutoring.
-     adaptation = null;
-     adaptedAnswer = base.answer;
+ const readOnly = pedagogyMode === "shadow" || Boolean(params.suppressLearnerSideEffects);
+ try {
+   adaptation = await getZyraAdaptation({ studentId, courseId, readOnly });
+   adaptedAnswer = composePersonalizedAnswer(base.answer, adaptation);
+   if (!readOnly) {
+     await recordZyraLearningEvent(studentId, {
+       courseId,
+       eventKind: "tutor_question",
+       sourceType: "tutor",
+       outcome: "unknown",
+       representation: "text",
+     });
    }
+ } catch {
+   // Personalization is additive. A profile failure must not remove grounded text tutoring.
+   adaptation = null;
+   adaptedAnswer = base.answer;
  }
 
  // Tier 2: deterministic addendum, runs on hits AND misses
@@ -1231,7 +1229,7 @@ export async function askTutorRag(params: AskTutorParams): Promise<TutorRagResul
  // Recover a requested function plot after cache and provider handling. This
  // keeps learner-provided equations renderable even when Gemini omits an
  // otherwise optional canvasSpec or the request has no canonical RAG match.
- const recoveredCanvasSpec = isZyraCanvasFeatureEnabled(zyraRuntimeEnv.FEATURE_ZYRA_LEARNING_CANVAS_V1)
+ const recoveredCanvasSpec = isZyraCanvasFeatureEnabled()
    ? functionPlotFromTutorText({
        learnerQuestion: question,
        answer: adaptedAnswer,
