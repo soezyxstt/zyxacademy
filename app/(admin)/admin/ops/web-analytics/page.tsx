@@ -4,8 +4,8 @@ import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { getDashboardMetrics } from "@/lib/analytics-dashboard";
 import { WebAnalyticsCharts } from "@/components/admin/web-analytics-charts";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
-import { Users, MousePointerClick, Eye, AlertCircle } from "lucide-react";
-import { Reveal } from "@/components/ui/reveal";
+import { Users, MousePointerClick, Eye, AlertCircle, Globe } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -19,21 +19,18 @@ export default async function WebAnalyticsPage() {
   const metrics = await getDashboardMetrics(30);
 
   return (
-    <Reveal className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <h1 className="font-heading text-h4 font-bold text-foreground">Web Analytics</h1>
-          <p className="mt-1 text-body-sm text-muted-foreground">
-            Wawasan lalu lintas pengunjung Zyx Academy 30 hari terakhir.
-          </p>
-        </div>
-        <RefreshAnalyticsButton />
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={Globe}
+        title="Web Analytics"
+        description="Wawasan lalu lintas pengunjung Zyx Academy 30 hari terakhir."
+        actions={<RefreshAnalyticsButton />}
+      />
 
       {!metrics ? (
         <div className="rounded-xl border border-status-warning/20 bg-status-warning/10 p-6 flex flex-col items-center justify-center text-center">
           <AlertCircle className="size-8 text-status-warning mb-3" />
-          <h2 className="text-body-lg font-semibold text-foreground">Data Tidak Tersedia</h2>
+          <h2 className="font-heading text-body-base font-semibold text-foreground">Data Tidak Tersedia</h2>
           <p className="mt-1 text-body-sm text-muted-foreground max-w-md">
             Gagal mengambil data dari Google Analytics 4. Pastikan kredensial service account (GA_CLIENT_EMAIL, GA_PRIVATE_KEY) dan GA_PROPERTY_ID telah dikonfigurasi dengan benar di environment variables.
           </p>
@@ -89,7 +86,7 @@ export default async function WebAnalyticsPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="mb-6 font-heading text-h5 font-bold text-foreground">
+            <h2 className="mb-6 font-heading text-body-base font-bold text-foreground">
               Tren Pengunjung
             </h2>
             <WebAnalyticsCharts data={metrics.dailyData} />
@@ -97,7 +94,7 @@ export default async function WebAnalyticsPage() {
 
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6">
-              <h2 className="font-heading text-h5 font-bold text-foreground">
+              <h2 className="font-heading text-body-base font-bold text-foreground">
                 Halaman Terpopuler
               </h2>
             </div>
@@ -127,6 +124,6 @@ export default async function WebAnalyticsPage() {
           </div>
         </>
       )}
-    </Reveal>
+    </div>
   );
 }

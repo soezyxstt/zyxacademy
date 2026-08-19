@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { exams, questions, courses } from "@/db/schema";
+import { aiQuestionBank, exams, questions, courses } from "@/db/schema";
 import { eq, and, desc, inArray, asc } from "drizzle-orm";
 import { verifyTutorAccess } from "@/app/actions/tutor-management";
 import { TryoutsClient } from "./tryouts-client";
@@ -50,12 +50,24 @@ export default async function TutorTryoutsPage({ params }: Props) {
         .where(inArray(questions.examId, tryoutIds))
         .orderBy(asc(questions.order))
     : [];
+  const questionBank = await db
+    .select({
+      id: aiQuestionBank.id,
+      prompt: aiQuestionBank.prompt,
+      questionType: aiQuestionBank.questionType,
+      difficulty: aiQuestionBank.difficulty,
+      origin: aiQuestionBank.origin,
+      sourceEventName: aiQuestionBank.sourceEventName,
+    })
+    .from(aiQuestionBank)
+    .where(and(eq(aiQuestionBank.courseId, courseId), eq(aiQuestionBank.reviewStatus, "published")))
+    .orderBy(asc(aiQuestionBank.createdAt));
 
   return (
     <div className="px-6 py-8 max-w-5xl space-y-8 font-sans">
       <Reveal>
         <div className="flex flex-col gap-1">
-          <h1 className="text-h4 font-heading font-bold text-foreground">
+          <h1 className="text-h5 font-heading font-bold text-foreground">
             Kelola Tryout Ujian
           </h1>
           <p className="text-body-sm text-muted-foreground">
@@ -69,6 +81,7 @@ export default async function TutorTryoutsPage({ params }: Props) {
           courseId={courseId}
           initialTryouts={tryoutsList}
           initialQuestions={questionsList}
+          questionBank={questionBank}
         />
       </Reveal>
     </div>

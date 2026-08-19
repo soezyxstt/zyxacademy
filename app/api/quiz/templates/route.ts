@@ -11,17 +11,21 @@ import { quizTemplates } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, desc } from 'drizzle-orm';
+import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
+import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
 
 const CreateTemplateSchema = z.object({
   courseId: z.string().min(1),
   title: z.string().min(1).max(255),
   category: z.enum(['daily', 'weekly', 'chapter', 'premium', 'simulation']),
   visibility: z.enum(['free', 'paid']).default('free'),
-  timeLimitSeconds: z.number().int().min(60).optional(),
-  maxAttempts: z.number().int().min(1).optional(),
+  status: z.enum(['draft', 'published']).default('draft'),
+  timeLimitSeconds: z.number().int().nullable().optional(),
+  maxAttempts: z.number().int().nullable().optional(),
   openAt: z.string().optional().nullable(),
   closeAt: z.string().optional().nullable(),
   manualStatus: z.enum(['open', 'closed', 'scheduled']).default('scheduled'),
+  showDiscussion: z.boolean().optional(),
   selectionRules: z.object({
     tags: z.array(z.string()).optional(),
     count: z.number().int().min(1),
@@ -33,35 +37,61 @@ const CreateTemplateSchema = z.object({
         hard: z.number().int().min(0),
       })
       .optional(),
-  }),
+    assessmentType: z.enum(['quiz', 'tryout']).optional(),
+    chapterIds: z.array(z.string().min(1)).optional(),
+    blueprint: z.record(z.string(), z.unknown()).optional(),
+    seed: z.number().int().optional(),
+    canGoBack: z.boolean().optional(),
+    requireAllAnswered: z.boolean().optional(),
+    explanationRelease: z.enum(['immediate', 'after_close', 'never']).optional(),
+    perQuestionTimerEnabled: z.boolean().optional(),
+    perQuestionTimers: z.record(z.string(), z.number()).optional(),
+    defaultQuestionTimerSeconds: z.number().optional(),
+    shuffleQuestions: z.boolean().optional(),
+    shuffleOptions: z.boolean().optional(),
+    showScoreImmediate: z.boolean().optional(),
+    passingScore: z.number().nullable().optional(),
+  }).passthrough(),
 });
 
 export async function POST(req: NextRequest) {
- const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
- }
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
- const body = await req.json();
- const parsed = CreateTemplateSchema.safeParse(body);
+  const body = await req.json();
+  const parsed = CreateTemplateSchema.safeParse(body);
   if (!parsed.success) {
     const errorMsg = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     return NextResponse.json({ error: errorMsg }, { status: 400 });
   }
 
- const id = randomUUID();
+  const id = randomUUID();
   const {
     courseId,
     title,
     category,
     visibility,
+    status,
     timeLimitSeconds,
     maxAttempts,
     selectionRules,
     openAt,
     closeAt,
     manualStatus,
+    showDiscussion,
   } = parsed.data;
+
+  if (selectionRules.assessmentType) {
+    const scope = assessmentScopeSchema.safeParse({
+      assessmentType: selectionRules.assessmentType,
+      chapterIds: selectionRules.chapterIds ?? [],
+    });
+    if (!scope.success) {
+      return NextResponse.json({ error: 'Assessment scope must match quiz or tryout chapter rules.' }, { status: 400 });
+    }
+  }
 
   // Uniqueness check for tags per course
   const tags = (selectionRules.tags as string[] | undefined) || [];
@@ -80,11 +110,15 @@ export async function POST(req: NextRequest) {
 
     if (hasDuplicateTags) {
       return NextResponse.json(
-        { error: 'Template kuis dengan tag bab ini sudah ada di kelas ini.' },
+        { error: 'Kuis dengan tag bab ini sudah ada di kelas ini.' },
         { status: 409 },
       );
     }
   }
+
+  const derivedShowDiscussion = showDiscussion !== undefined
+    ? showDiscussion
+    : selectionRules.explanationRelease !== 'never';
 
   await db.insert(quizTemplates).values({
     id,
@@ -98,10 +132,20 @@ export async function POST(req: NextRequest) {
     openAt: openAt ? new Date(openAt) : null,
     closeAt: closeAt ? new Date(closeAt) : null,
     manualStatus,
-    status: "draft",
+    showDiscussion: derivedShowDiscussion,
+    status,
   });
 
- return NextResponse.json({ templateId: id }, { status: 201 });
+  if (status === 'published') {
+    await notifyQuizPublishedBestEffort({
+      templateId: id,
+      quizTitle: title,
+      courseId,
+      quizUrl: `/courses/${courseId}/quiz`,
+    });
+  }
+
+  return NextResponse.json({ templateId: id }, { status: 201 });
 }
 
 export async function GET(req: NextRequest) {

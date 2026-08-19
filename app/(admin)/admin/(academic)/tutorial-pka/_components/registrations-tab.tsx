@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import {
-  Search,
   Download,
   AtSign,
   BellRing,
@@ -12,10 +11,12 @@ import {
   GraduationCap,
   CalendarDays,
   ExternalLink,
-  X,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
+import { AdminTable } from "@/components/admin/table";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { normalizeDate } from "@/lib/date-utils";
+import { toast } from "@/components/ui/toast";
+import { useSpreadsheetExport } from "@/components/admin/spreadsheet-export";
 import type { PkaRegistrationRow } from "../actions";
 
 
@@ -94,9 +97,6 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState<PkaRegistrationRow | null>(null);
 
-  const optedIn = registrations.filter((r) => r.receiveAnnouncements).length;
-  const facultyCount = new Set(registrations.map((r) => r.faculty.trim().toLowerCase())).size;
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return registrations;
@@ -117,6 +117,49 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
     a.download = `pendaftar-tutorial-pka-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const { exporting: exportingSheets, confirmDialog, runExport } = useSpreadsheetExport({
+    onSuccess: ({ spreadsheetUrl }) => {
+      window.open(spreadsheetUrl, "_blank");
+      toast.success("Google Spreadsheet berhasil dibuat!");
+    },
+    onError: (message) => {
+      toast.error(message);
+      handleExport();
+    },
+  });
+
+  const optedIn = registrations.filter((r) => r.receiveAnnouncements).length;
+  const facultyCount = new Set(registrations.map((r) => r.faculty.trim().toLowerCase())).size;
+
+  const handleExportGoogleSheets = () => {
+    const headersRow = [
+      "Nama Lengkap",
+      "Fakultas",
+      "Email Siswa",
+      "Instagram",
+      "Waktu Pendaftaran",
+      "Notifikasi Pengumuman",
+      "Link Bukti",
+    ];
+    const rowsMatrix = filtered.map((r) => [
+      r.fullName,
+      r.faculty,
+      r.email,
+      `@${r.instagramUsername}`,
+      r.createdAt ? formatDate(r.createdAt) : "-",
+      r.receiveAnnouncements ? "Ya" : "Tidak",
+      r.proofUrl,
+    ]);
+
+    runExport({
+      entityType: "pka",
+      entityId: "tutorial-pka",
+      title: "Pendaftar Tutorial PKA",
+      headers: headersRow,
+      rows: rowsMatrix,
+    });
   };
 
   if (registrations.length === 0) {
@@ -142,38 +185,29 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full sm:max-w-md">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Search className="size-4 text-muted-foreground" />
-          </div>
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari nama, fakultas, email, atau Instagram..."
-            className="pl-9 pr-9"
-          />
-          {query && (
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Bersihkan pencarian"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-        <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 rounded-lg">
-          <Download className="size-4" />
+      <div className="flex items-center gap-2">
+        <SearchBar
+          size="sm"
+          value={query}
+          onSearch={setQuery}
+          onClear={() => setQuery("")}
+          placeholder="Cari nama, fakultas, email, atau Instagram..."
+          containerClassName="flex-1 min-w-0"
+        />
+        <Button onClick={handleExportGoogleSheets} disabled={exportingSheets} variant="outline" size="sm" className="gap-2 rounded-lg text-brand-primary border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 h-9 shrink-0">
+          <RefreshCw className={`size-3.5 ${exportingSheets ? "animate-spin" : "hidden"}`} />
+          <FileText className="size-3.5" />
+          {exportingSheets ? "Mengekspor..." : "Ekspor Sheets"}
+        </Button>
+
+        <Button onClick={handleExport} variant="outline" size="sm" className="gap-2 rounded-lg h-9 shrink-0">
+          <Download className="size-3.5" />
           Ekspor CSV
         </Button>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <AdminTable>
         <div className="hidden grid-cols-[minmax(0,1fr)_5rem_7rem_6rem] items-center gap-6 border-b border-border bg-muted/30 px-5 py-2.5 md:grid">
           <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Pendaftar</span>
           <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Bukti</span>
@@ -200,7 +234,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-body-sm font-semibold text-foreground">{r.fullName}</span>
-                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-body-xs font-medium text-muted-foreground">
                         {r.faculty}
                       </span>
                     </div>
@@ -257,7 +291,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
             ))}
           </ul>
         )}
-      </div>
+      </AdminTable>
 
       {/* Proof lightbox */}
       <Dialog open={!!preview} onOpenChange={(open) => !open && setPreview(null)}>
@@ -291,6 +325,8 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
           )}
         </DialogContent>
       </Dialog>
+
+      {confirmDialog}
     </div>
   );
 }

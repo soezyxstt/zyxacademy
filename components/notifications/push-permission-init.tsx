@@ -4,20 +4,20 @@
  * components/notifications/push-permission-init.tsx
  *
  * Client component that initialises FCM push notification permission
- * and token registration on the user's first authenticated page load.
+ * and token registration for authenticated users.
  *
  * Renders a custom Dialog to ask for consent before triggering the native prompt.
  *
  * Consent persistence strategy:
- * - "fcm_consent" in localStorage stores "granted" | "denied".
- * - If already set, this component does nothing (no re-prompts).
- * - On permission granted, obtains an FCM token and registers it with the server.
- * - On permission denied, stores "denied" so we stop prompting.
+ * - localStorage "fcm_consent":
+ *   - "granted"  -> FCM token is registered; never prompt again.
+ *   - "denied"   -> the browser blocked notifications; never prompt again
+ *                   (browsers do not allow re-prompting after a deny).
+ *   - "later"    -> the user deferred; re-prompt after a cooldown (7 days).
+ * - "fcm_later_at" stores the timestamp of the last deferral.
  *
  * Placed in the root layout so it runs on every page for authenticated users.
- * The component checks for a session before doing anything.
  */
-
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -29,13 +29,19 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BellIcon } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
 
 const CONSENT_KEY = "fcm_consent";
+const LATER_AT_KEY = "fcm_later_at";
+const LATER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function PushPermissionInit() {
+  const { data: session, isPending } = useSession();
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
+    if (isPending || !session?.user) return;
+
     // Only run in a real browser with service worker support
     if (
       typeof window === "undefined" ||
@@ -45,12 +51,6 @@ export function PushPermissionInit() {
       return;
     }
 
-    // If we already have a stored consent decision, respect it
-    const storedConsent = localStorage.getItem(CONSENT_KEY);
-    if (storedConsent === "denied") return;
-
-    // If permission is already granted (e.g. returning user, no localStorage yet),
-    // skip the prompt and just ensure the token is registered.
     const currentPermission = Notification.permission;
 
     if (currentPermission === "denied") {
@@ -58,18 +58,29 @@ export function PushPermissionInit() {
       return;
     }
 
+    const storedConsent = localStorage.getItem(CONSENT_KEY);
+
     if (currentPermission === "granted") {
-      initFCM(false);
+      // Returning user who already allowed it (or localStorage was cleared).
+      localStorage.setItem(CONSENT_KEY, "granted");
+      void initFCM(false);
       return;
     }
 
-    // If granted or default ; proceed (will prompt only if "default")
-    // Delay slightly to avoid competing with the critical render path
+    // Permission is "default": only prompt if not in the "later" cooldown.
+    if (storedConsent === "denied") return;
+
+    if (storedConsent === "later") {
+      const lastLater = Number(localStorage.getItem(LATER_AT_KEY) ?? 0);
+      if (Date.now() - lastLater < LATER_COOLDOWN_MS) return;
+    }
+
+    // Delay slightly to avoid competing with the critical render path.
     const timer = setTimeout(() => {
       setShowPrompt(true);
     }, 2000);
     return () => clearTimeout(timer);
-  }, []); // Run once on mount
+  }, [isPending, session?.user]); // Re-run when the session loads
 
   const initFCM = async (requestPermission: boolean) => {
     try {
@@ -81,7 +92,13 @@ export function PushPermissionInit() {
       let permission = Notification.permission;
       if (requestPermission) {
         permission = await requestNotificationPermission();
-        localStorage.setItem(CONSENT_KEY, permission);
+        if (permission === "denied") {
+          localStorage.setItem(CONSENT_KEY, "denied");
+          return;
+        }
+        if (permission === "granted") {
+          localStorage.setItem(CONSENT_KEY, "granted");
+        }
       }
 
       if (permission !== "granted") return;
@@ -101,9 +118,10 @@ export function PushPermissionInit() {
     await initFCM(true);
   };
 
-  const handleDecline = () => {
+  const handleLater = () => {
     setShowPrompt(false);
-    localStorage.setItem(CONSENT_KEY, "denied");
+    localStorage.setItem(CONSENT_KEY, "later");
+    localStorage.setItem(LATER_AT_KEY, String(Date.now()));
   };
 
   if (!showPrompt) return null;
@@ -113,7 +131,7 @@ export function PushPermissionInit() {
       open={showPrompt}
       onOpenChange={(open) => {
         if (!open) {
-          handleDecline();
+          handleLater();
         }
       }}
     >
@@ -123,17 +141,17 @@ export function PushPermissionInit() {
             <BellIcon className="size-6 text-primary" />
           </div>
           <DialogTitle>Aktifkan Notifikasi</DialogTitle>
-          <DialogDescription className="space-y-2 text-body-base">
+          <DialogDescription className="space-y-2 text-body-xs">
             <p>Dapatkan info terbaru seputar belajarmu dengan mengaktifkan notifikasi push. Kami akan memberitahumu tentang:</p>
             <ul className="list-disc pl-5 space-y-1 text-body-sm text-foreground">
-              <li>Pengumuman baru dan pembaruan materi</li>
-              <li>Kuis dan tugas yang akan datang</li>
-              <li>Pengingat untuk menjaga *streak* belajarmu</li>
+              <li>Kuis baru yang siap dikerjakan</li>
+              <li>Pengumuman dan jadwal sesi live</li>
+              <li>Pembaruan materi di kelasmu</li>
             </ul>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="mt-4 sm:justify-end">
-          <Button variant="ghost" onClick={handleDecline}>
+          <Button variant="ghost" onClick={handleLater}>
             Nanti Saja
           </Button>
           <Button onClick={handleAccept}>

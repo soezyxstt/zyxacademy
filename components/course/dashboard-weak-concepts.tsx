@@ -55,7 +55,7 @@ export function DashboardWeakConcepts({ concepts, courseTitle = "Kuliah" }: Dash
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-body-xs font-semibold text-foreground">
                 <span>Konsep Aljabar Limit</span>
-                <span className="font-mono text-xs">75%</span>
+                <span className="font-mono text-body-xs">75%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-md bg-muted">
                 <div className="h-full w-3/4 rounded-md bg-brand-primary" />
@@ -64,7 +64,7 @@ export function DashboardWeakConcepts({ concepts, courseTitle = "Kuliah" }: Dash
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-body-xs font-semibold text-foreground">
                 <span>Kekontinuan Fungsi</span>
-                <span className="font-mono text-xs">40%</span>
+                <span className="font-mono text-body-xs">40%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-md bg-muted">
                 <div className="h-full w-2/5 rounded-md bg-brand-secondary" />
@@ -86,7 +86,7 @@ export function DashboardWeakConcepts({ concepts, courseTitle = "Kuliah" }: Dash
                   {c.conceptName}
                   <TrendIcon trend={c.trend} />
                 </span>
-                <span className="font-mono text-xs font-semibold text-muted-foreground">
+                <span className="font-mono text-body-xs font-semibold text-muted-foreground">
                   {c.masteryScore}
                 </span>
               </div>

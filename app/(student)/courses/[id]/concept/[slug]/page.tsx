@@ -103,7 +103,7 @@ export default async function ConceptExplorerPage({ params }: Props) {
         <Reveal>
           <div className={studentCardClass("space-y-4")}>
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <h2 className="text-h6 font-heading font-semibold text-foreground">{data.conceptName}</h2>
+              <h2 className="text-body-base font-heading font-semibold text-foreground">{data.conceptName}</h2>
               {typeof data.masteryScore === "number" && (
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-32 rounded-md bg-muted overflow-hidden">

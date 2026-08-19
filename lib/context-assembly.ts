@@ -2,7 +2,6 @@ import { KnowledgeService } from "./knowledge-service";
 import { db } from "@/db";
 import { aiQuestionBank } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { env } from "./env";
 import { traceRootCause } from "./graph-trace";
 
 export interface ConceptContextVars {
@@ -49,7 +48,7 @@ export class ContextAssembly {
 
     // E5: inject deterministic prerequisite root cause when the chain is non-empty.
     let rootCause: string | undefined;
-    if (env.FEATURE_GRAPH === "1" && ko.courseId) {
+    if (ko.courseId) {
       try {
         const trace = await traceRootCause(studentId, ko.courseId, ko.conceptName);
         if (trace.chain.length > 0) {

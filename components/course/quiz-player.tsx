@@ -5,9 +5,18 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Flag, Timer, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type QuizPlayerProps = {
   courseId: string;
@@ -21,9 +30,19 @@ type QuizPlayerProps = {
       prompt: string;
       options: string[];
       correctIndex?: number;
+      origin?: "zyx_original" | "itb_example";
+      sourceEventName?: string | null;
+      sourceReferenceId?: string | null;
     }>;
     settings?: {
       timeLimitMinutes?: number;
+      canGoBack?: boolean;
+      requireAllAnswered?: boolean;
+      perQuestionTimerEnabled?: boolean;
+      perQuestionTimers?: Record<string, number>;
+      defaultQuestionTimerSeconds?: number;
+      shuffleQuestions?: boolean;
+      shuffleOptions?: boolean;
     };
   };
   attemptId: string;
@@ -43,6 +62,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const router = useRouter();
   const durationSeconds = (exam.settings?.timeLimitMinutes ?? 15) * 60;
   const timerStorageKey = useMemo(() => `zyx-quiz-timer-deadline-${attemptId}`, [attemptId]);
+
+  const canGoBack = exam.settings?.canGoBack ?? true;
+  const requireAllAnswered = exam.settings?.requireAllAnswered ?? false;
+  const perQuestionTimerEnabled = exam.settings?.perQuestionTimerEnabled ?? false;
   
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>(() => {
@@ -78,9 +101,59 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
   const [timeLeft, setTimeLeft] = useState<number>(durationSeconds);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  const handleSubmit = useCallback(async () => {
+  const sorted = useMemo(
+    () => [...exam.questions].sort((a, b) => a.order - b.order),
+    [exam.questions],
+  );
+
+  const isQuestionAnswered = useCallback((questionId: string) => {
+    const val = answers[questionId];
+    if (val === undefined || val === null) return false;
+    if (typeof val === "string") return val.trim().length > 0;
+    return true;
+  }, [answers]);
+
+  const handleRequestSubmit = useCallback(() => {
     if (isSubmitted || submitting) return;
+
+    if (requireAllAnswered) {
+      const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
+      if (unansweredIndex !== -1) {
+        toast.error("Harap jawab semua butir soal sebelum mengumpulkan kuis.");
+        setIndex(unansweredIndex);
+        return;
+      }
+    }
+
+    setShowConfirmModal(true);
+  }, [isSubmitted, submitting, requireAllAnswered, sorted, isQuestionAnswered]);
+
+  // Per-question timer state
+  const currentQuestionId = sorted[index]?.id;
+  const currentQuestionDuration =
+    (currentQuestionId && exam.settings?.perQuestionTimers?.[currentQuestionId]) ||
+    exam.settings?.defaultQuestionTimerSeconds ||
+    60;
+  const [questionTimeLeft, setQuestionTimeLeft] = useState<number>(currentQuestionDuration);
+
+  useEffect(() => {
+    if (!perQuestionTimerEnabled) return;
+    setQuestionTimeLeft(currentQuestionDuration);
+  }, [index, currentQuestionDuration, perQuestionTimerEnabled]);
+
+  const handleSubmit = useCallback(async (isAutoSubmit = false) => {
+    if (isSubmitted || submitting) return;
+
+    if (requireAllAnswered && !isAutoSubmit) {
+      const unansweredIndex = sorted.findIndex((question) => !isQuestionAnswered(question.id));
+      if (unansweredIndex !== -1) {
+        toast.error("Harap jawab semua butir soal sebelum mengumpulkan kuis.");
+        setIndex(unansweredIndex);
+        return;
+      }
+    }
 
     try {
       setSubmitting(true);
@@ -137,7 +210,31 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       toast.error(message);
       setSubmitting(false);
     }
-  }, [courseId, isSubmitted, submitting, router, timerStorageKey, attemptId, answers, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath, redirectBasePath]);
+  }, [courseId, isSubmitted, submitting, router, timerStorageKey, attemptId, answers, durationSeconds, timeLeft, exam.id, exam.questions, getRedirectPath, redirectBasePath, requireAllAnswered, sorted, isQuestionAnswered]);
+
+  // Per-question timer interval
+  useEffect(() => {
+    if (!perQuestionTimerEnabled || isSubmitted || submitting) return;
+
+    const qTimer = setInterval(() => {
+      setQuestionTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(qTimer);
+          if (index < sorted.length - 1) {
+            toast.info("Waktu untuk butir soal ini telah habis. Beralih ke soal berikutnya.");
+            setIndex((i) => i + 1);
+          } else {
+            toast.warning("Waktu soal terakhir habis! Jawaban Anda otomatis terkirim.");
+            handleSubmit(true);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(qTimer);
+  }, [perQuestionTimerEnabled, isSubmitted, submitting, index, sorted.length, handleSubmit]);
 
   useEffect(() => {
     const rawDeadline = window.localStorage.getItem(timerStorageKey);
@@ -179,7 +276,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       if (remaining <= 0) {
         clearInterval(timer);
         toast.warning("Waktu habis! Jawaban Anda otomatis terkirim.");
-        handleSubmit();
+        handleSubmit(true);
       }
     }, 1000);
     return () => clearInterval(timer);
@@ -191,20 +288,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const sorted = useMemo(
-    () => [...exam.questions].sort((a, b) => a.order - b.order),
-    [exam.questions],
-  );
-
-  function isQuestionAnswered(questionId: string) {
-    const val = answers[questionId];
-    if (val === undefined || val === null) return false;
-    if (typeof val === "string") return val.trim().length > 0;
-    return true;
-  }
-
   const q = sorted[index];
   const answeredCount = sorted.filter((question) => isQuestionAnswered(question.id)).length;
+  const unansweredCount = sorted.length - answeredCount;
+  const flaggedCount = sorted.filter((question) => flags[question.id]).length;
   const progress = sorted.length > 0 ? (answeredCount / sorted.length) * 100 : 0;
 
   function selectOption(qId: string, optionIndex: number) {
@@ -249,7 +336,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
         {/* Progress Bar & Header */}
         <div className="flex flex-col gap-2.5 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 md:pb-4">
           <div className="flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground sm:text-[11px]">
+            <div className="flex items-center justify-between gap-3 text-body-xs font-bold uppercase tracking-wider text-muted-foreground">
               <span>PROGRES PENGERJAAN</span>
               <span>{Math.round(progress)}% ({answeredCount} / {sorted.length} Terisi)</span>
             </div>
@@ -261,9 +348,17 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             </div>
           </div>
 
-          <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-[13px] font-bold text-brand-secondary sm:px-3 sm:py-1.5 sm:text-body-sm">
-            <Timer className="size-3.5 animate-pulse sm:size-4" />
-            <span>{formatTime(timeLeft)}</span>
+          <div className="flex items-center gap-2">
+            {perQuestionTimerEnabled && (
+              <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-primary/35 bg-brand-primary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-primary sm:px-3 sm:py-1.5" title="Batas waktu untuk nomor ini">
+                <Timer className="size-3.5 animate-pulse sm:size-4" />
+                <span>Soal: {questionTimeLeft}s</span>
+              </div>
+            )}
+            <div className="flex w-fit shrink-0 items-center gap-1.5 rounded-lg border border-brand-secondary/35 bg-brand-secondary/10 px-2.5 py-1 font-mono text-body-sm font-bold text-brand-secondary sm:px-3 sm:py-1.5" title="Total sisa waktu kuis">
+              <Clock className="size-3.5 sm:size-4" />
+              <span>{formatTime(timeLeft)}</span>
+            </div>
           </div>
         </div>
 
@@ -281,7 +376,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               {index + 1}
             </span>
             <div className="space-y-1 flex-1 leading-relaxed text-foreground">
-              <div className="font-heading text-body-base font-bold leading-normal md:text-body-lg">
+              <div className="font-sans text-body-base font-bold leading-normal">
                 <MarkdownRenderer content={q.prompt} className="space-y-3" />
               </div>
             </div>
@@ -359,7 +454,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                 className="size-4 rounded-sm border-border text-brand-secondary accent-brand-secondary focus:ring-brand-secondary cursor-pointer"
               />
               <span className={cn(
-                "flex items-center gap-1 text-[11px] font-semibold transition-colors sm:text-body-xs",
+                "flex items-center gap-1 text-body-xs font-semibold transition-colors",
                 currentFlagged ? "text-brand-secondary" : "text-muted-foreground hover:text-foreground"
               )}>
                 <Flag className={cn("size-3.5", currentFlagged ? "fill-brand-secondary text-brand-secondary" : "")} />
@@ -367,29 +462,36 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               </span>
             </label>
 
-            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1 text-body-xs text-muted-foreground">
               <AlertCircle className="size-3 text-brand-primary" />
               Progress tersimpan otomatis
             </span>
           </div>
+          <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
         </div>
 
         {/* Navigation Action Buttons */}
         <div className="flex items-center justify-between gap-2 sm:gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9 gap-1 rounded-md border-border/80 px-3 text-[13px] sm:text-body-sm"
-            onClick={goPrev}
-            disabled={index === 0}
-          >
-            <ChevronLeft className="size-4" />
-            Sebelumnya
-          </Button>
+          {canGoBack ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 gap-1 rounded-md border-border/80 px-3 text-body-sm"
+              onClick={goPrev}
+              disabled={index === 0}
+            >
+              <ChevronLeft className="size-4" />
+              Sebelumnya
+            </Button>
+          ) : (
+            <span className="text-body-xs font-medium text-muted-foreground italic">
+              Mode linier (navigasi satu arah)
+            </span>
+          )}
 
           <div className="flex gap-2">
             {index < sorted.length - 1 ? (
-              <Button type="button" className="h-9 gap-1 rounded-md bg-foreground px-4 text-[13px] text-background hover:bg-foreground/90 sm:px-6 sm:text-body-sm" onClick={goNext}>
+              <Button type="button" className="h-9 gap-1 rounded-md bg-foreground px-4 text-body-sm text-background hover:bg-foreground/90 sm:px-6" onClick={goNext}>
                 Lanjut
                 <ChevronRight className="size-4" />
               </Button>
@@ -397,8 +499,8 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               <Button
                 type="button"
                 disabled={submitting || isSubmitted}
-                className="h-9 rounded-md bg-brand-primary px-4 text-[13px] font-bold text-white hover:bg-brand-primary/95 sm:px-8 sm:text-body-sm"
-                onClick={handleSubmit}
+                className="h-9 rounded-md bg-brand-primary px-4 text-body-sm font-bold text-white hover:bg-brand-primary/95 sm:px-8"
+                onClick={handleRequestSubmit}
               >
                 {submitting ? (
                   <>
@@ -425,8 +527,10 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               <BookOpen className="size-4 text-brand-primary" />
               Navigasi Pertanyaan
             </h3>
-            <p className="mt-1 text-[11px] text-muted-foreground md:text-body-xs">
-              Lompat langsung ke soal dengan klik tombol angka di bawah:
+            <p className="mt-1 text-body-xs text-muted-foreground">
+              {canGoBack
+                ? "Lompat langsung ke butir soal dengan klik tombol angka di bawah:"
+                : "Klik butir soal berikutnya untuk berpindah (soal sebelumnya terkunci):"}
             </p>
           </div>
 
@@ -436,14 +540,20 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               const active = index === idx;
               const isAnswered = isQuestionAnswered(question.id);
               const isFlagged = !!flags[question.id];
+              const isAllowed = canGoBack || idx >= index;
 
               return (
                 <button
                   key={question.id}
                   type="button"
-                  onClick={() => setIndex(idx)}
+                  disabled={!isAllowed}
+                  onClick={() => {
+                    if (isAllowed) setIndex(idx);
+                  }}
                   className={cn(
-                    "flex size-8 items-center justify-center rounded-lg border font-heading text-[11px] font-bold transition-all cursor-pointer md:size-9 md:text-body-xs",
+                    "flex size-8 items-center justify-center rounded-lg border font-heading text-body-xs font-bold transition-all md:size-9",
+                    !isAllowed && "opacity-40 cursor-not-allowed",
+                    isAllowed && "cursor-pointer",
                     active
                       ? "border-brand-primary ring-2 ring-brand-primary/20 scale-105"
                       : "border-transparent",
@@ -453,7 +563,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
                       ? "bg-tertiary-1/15 text-tertiary-1 border-tertiary-1/50 hover:bg-tertiary-1/25"
                       : "bg-muted/40 text-muted-foreground border-border/50 hover:bg-muted/80 hover:text-foreground"
                   )}
-                  title={`Soal ${idx + 1}`}
+                  title={`Soal ${idx + 1}${!isAllowed ? " (Terkunci)" : ""}`}
                 >
                   {idx + 1}
                 </button>
@@ -462,7 +572,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
           </div>
 
           {/* Legend indicator */}
-          <div className="space-y-2 border-t border-border pt-3 text-[11px] md:pt-4 md:text-body-xs">
+          <div className="space-y-2 border-t border-border pt-3 text-body-xs md:pt-4">
             <span className="font-semibold text-foreground block">Keterangan Warna:</span>
             <div className="grid grid-cols-2 gap-2 text-muted-foreground">
               <div className="flex items-center gap-1.5">
@@ -483,9 +593,113 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
               </div>
             </div>
           </div>
+
+          {/* Sidebar Submit shortcut */}
+          <div className="border-t border-border pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting || isSubmitted}
+              onClick={handleRequestSubmit}
+              className="h-9 w-full rounded-md border-border/80 text-body-sm font-semibold text-foreground hover:bg-muted"
+            >
+              Kumpulkan Kuis
+            </Button>
+          </div>
         </div>
 
       </div>
+
+      {/* Confirmation Dialog before submitting */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
+              Kumpulkan Lembar Jawaban Kuis?
+            </DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground mt-1.5">
+              Periksa kembali ringkasan pengerjaan sebelum mengumpulkan jawaban Anda.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="my-2 space-y-3">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+                <span className="block text-body-xs font-semibold text-muted-foreground uppercase">Total Soal</span>
+                <span className="font-heading text-body-base font-bold text-foreground">{sorted.length}</span>
+              </div>
+              <div className="rounded-xl border border-tertiary-1/30 bg-tertiary-1/10 p-2.5">
+                <span className="block text-body-xs font-semibold text-tertiary-1 uppercase">Terjawab</span>
+                <span className="font-heading text-body-base font-bold text-tertiary-1">{answeredCount}</span>
+              </div>
+              <div
+                className={cn(
+                  "rounded-xl border p-2.5",
+                  unansweredCount > 0
+                    ? "border-status-error/30 bg-status-error/10 text-status-error"
+                    : "border-border bg-muted/30 text-muted-foreground"
+                )}
+              >
+                <span className="block text-body-xs font-semibold uppercase">Kosong</span>
+                <span className="font-heading text-body-base font-bold">{unansweredCount}</span>
+              </div>
+            </div>
+
+            {flaggedCount > 0 && (
+              <div className="flex items-center gap-2 rounded-xl border border-brand-secondary/35 bg-brand-secondary/10 px-3.5 py-2.5 text-body-xs font-semibold text-brand-secondary">
+                <Flag className="size-4 shrink-0 fill-brand-secondary" />
+                <span>Masih ada {flaggedCount} butir soal yang ditandai ragu-ragu.</span>
+              </div>
+            )}
+
+            {unansweredCount > 0 && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-body-xs text-amber-700 dark:text-amber-300">
+                <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                <span>Terdapat {unansweredCount} butir soal belum diisi. Soal yang kosong akan dianggap bernilai nol.</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-body-xs text-muted-foreground">
+              <span>Sisa waktu pengerjaan:</span>
+              <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
+            </div>
+
+            <p className="text-body-xs text-muted-foreground">
+              Setelah dikumpulkan, lembar jawaban Anda akan dinilai dan tidak dapat diubah lagi.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              onClick={() => setShowConfirmModal(false)}
+              className="w-full sm:w-auto rounded-lg border-border"
+            >
+              Cek Kembali
+            </Button>
+            <Button
+              type="button"
+              disabled={submitting}
+              onClick={() => {
+                setShowConfirmModal(false);
+                handleSubmit(false);
+              }}
+              className="w-full sm:w-auto rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-bold"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                  Mengirim...
+                </>
+              ) : (
+                "Ya, Kumpulkan"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

@@ -15,6 +15,9 @@ export interface Question {
   prompt: string;
   options: string[];
   correctIndex: number;
+  origin?: "zyx_original" | "itb_example";
+  sourceEventName?: string | null;
+  sourceReferenceId?: string | null;
 }
 
 interface Participant {
@@ -267,6 +270,9 @@ export class LiveQuizRoom extends DurableObject<Env> {
       questionIndex: 0,
       prompt: q.prompt,
       options: q.options,
+      origin: q.origin,
+      sourceEventName: q.sourceEventName,
+      sourceReferenceId: q.sourceReferenceId,
       deadline: this.roomState.deadlineTs,
       total: this.questions.length,
     });
@@ -295,6 +301,9 @@ export class LiveQuizRoom extends DurableObject<Env> {
       questionIndex: nextIndex,
       prompt: q.prompt,
       options: q.options,
+      origin: q.origin,
+      sourceEventName: q.sourceEventName,
+      sourceReferenceId: q.sourceReferenceId,
       deadline: this.roomState.deadlineTs,
       total: this.questions.length,
     });
@@ -458,6 +467,9 @@ export class LiveQuizRoom extends DurableObject<Env> {
           ...base,
           prompt: q.prompt,
           options: q.options,
+          origin: q.origin,
+          sourceEventName: q.sourceEventName,
+          sourceReferenceId: q.sourceReferenceId,
           deadline: deadlineTs,
           myAnswer,
           total: this.questions.length,
@@ -479,6 +491,9 @@ export class LiveQuizRoom extends DurableObject<Env> {
           ...base,
           prompt: q.prompt,
           options: q.options,
+          origin: q.origin,
+          sourceEventName: q.sourceEventName,
+          sourceReferenceId: q.sourceReferenceId,
           correctIndex: q.correctIndex,
           top10: leaderboard.slice(0, 10),
           yourRank: myEntry?.rank ?? null,

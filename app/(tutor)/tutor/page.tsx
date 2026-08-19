@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { ArrowRight, BookOpen, Users } from "lucide-react";
+import { ArrowRight, BookOpen, Users, CalendarDays } from "lucide-react";
 import { getTutorCourseList } from "@/lib/cohort-analytics";
 import { pageTitle } from "@/lib/site";
 
@@ -24,9 +24,33 @@ export default async function TutorPage() {
   const totalStudents = courseList.reduce((sum, course) => sum + course.enrolledCount, 0);
 
   return (
-    <div className="max-w-4xl px-6 py-8">
+    <div className="max-w-4xl px-6 py-8 space-y-6">
+      {/* Schedule Banner */}
+      <Link
+        href="/dashboard/schedule"
+        className="flex items-center justify-between p-4 rounded-2xl border border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 transition-colors shadow-xs"
+      >
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl bg-brand-primary text-white flex items-center justify-center shrink-0">
+            <CalendarDays className="size-5" />
+          </div>
+          <div>
+            <p className="font-heading text-body-sm font-bold text-foreground">
+              Kalender & Jadwal Tutorial
+            </p>
+            <p className="text-body-xs text-muted-foreground">
+              Kelola slot ketersediaan 90 menit, sertifikasi mata kuliah, dan tutorial kelompok.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 text-body-xs font-semibold text-brand-primary shrink-0">
+          <span>Buka Jadwal</span>
+          <ArrowRight className="size-4" />
+        </div>
+      </Link>
+
       <div className="border-b border-border pb-6">
-        <h1 className="font-heading text-h4 font-bold text-foreground">Teaching</h1>
+        <h1 className="font-heading text-h5 font-bold text-foreground">Teaching</h1>
         <p className="mt-1 text-body-sm text-muted-foreground">
           Select a course to view cohort analytics.
         </p>

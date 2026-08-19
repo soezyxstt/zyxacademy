@@ -209,10 +209,9 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h1 className="text-h4 md:text-h3 font-heading">{formData.id ? "Sunting Artikel" : "Tulis Artikel Baru"}</h1>
-        <div className="flex gap-4">
+    <form onSubmit={handleSubmit} className="w-full space-y-8">
+      <div className="flex justify-end">
+        <div className="flex flex-wrap gap-3">
           <Button variant="outline" type="button" onClick={() => router.push("/admin/blog")}>
             Batal
           </Button>
@@ -243,7 +242,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
               name="summary"
               value={formData.summary}
               onChange={handleInputChange}
-              placeholder="Dapat dikosongkan untuk menghasilkan ringkasan otomatis menggunakan AI..."
+              placeholder="Dapat dikosongkan untuk menghasilkan ringkasan otomatis..."
               rows={3}
             />
           </div>
@@ -326,7 +325,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
                             onChange={handleFileUpload}
                             disabled={isUploading}
                           />
-                          {isUploading && <p className="text-sm text-muted-foreground flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin"/> Mengunggah...</p>}
+                          {isUploading && <p className="text-body-sm text-muted-foreground flex items-center"><Loader2 className="w-4 h-4 mr-2 animate-spin"/> Mengunggah...</p>}
                           {mediaUrl && (
                             <div className="mt-2">
                               <Label>URL Berkas (Otomatis)</Label>
@@ -415,7 +414,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
                         Status: {formData.status}
                       </span>
                     </div>
-                    <h2 className="text-h4 md:text-h3 font-heading font-bold text-foreground">
+                    <h2 className="text-body-base font-heading font-bold text-foreground">
                       {formData.title || "Judul Artikel (Akan diekstrak dari baris pertama jika kosong)"}
                     </h2>
                     {formData.summary && (
@@ -442,7 +441,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
 
         <div className="space-y-6">
           <div className="p-5 border border-border rounded-xl bg-card space-y-4 shadow-sm">
-            <h3 className="font-heading font-semibold text-h6">Pengaturan Publikasi</h3>
+            <h3 className="font-heading font-semibold text-body-base">Pengaturan Publikasi</h3>
             
             <div className="space-y-2">
               <Label>Status</Label>

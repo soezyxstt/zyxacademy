@@ -22,6 +22,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
+import { MathText } from "@/components/course/math-text";
 
 interface QuizAnalyticsViewProps {
   attemptId: string;
@@ -86,7 +87,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         <Loader2 className="size-8 animate-spin text-brand-primary" />
         <p className="font-heading text-body-base font-bold text-foreground">Menyiapkan Diagnosis Pembelajaran...</p>
         <p className="text-body-sm text-muted-foreground max-w-md">
-          Sistem backend dan AI sedang menganalisis penguasaan konsep, pola kesalahan, dan waktu pengerjaan Anda.
+          Sistem sedang menganalisis penguasaan konsep, pola kesalahan, dan waktu pengerjaan Anda.
         </p>
       </div>
     );
@@ -103,9 +104,9 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           <Sparkles className="size-7" />
         </div>
         <div className="space-y-2 max-w-lg mx-auto">
-          <h3 className="font-heading text-h4 font-bold text-foreground">Diagnosis Pembelajaran AI Belum Dihasilkan</h3>
+          <h3 className="font-heading text-body-base font-bold text-foreground">Diagnosis Pembelajaran Belum Dihasilkan</h3>
           <p className="text-body-sm text-muted-foreground leading-relaxed">
-            Kuis ini telah selesai dikerjakan. Klik tombol di bawah untuk mentrigger diagnosis pembelajaran terperinci, pemetaan konsep, dan rencana belajar personal secara otomatis.
+            Kuis ini telah selesai dikerjakan. Klik tombol di bawah untuk menjalankan diagnosis pembelajaran terperinci, pemetaan konsep, dan rencana belajar personal secara otomatis.
           </p>
         </div>
         <Button
@@ -114,7 +115,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold px-6 py-2.5 shadow-sm"
         >
           <Sparkles className={`mr-2 size-4 ${recomputing ? "animate-spin" : ""}`} />
-          {recomputing ? "Menghasilkan Diagnosis AI..." : "Hasilkan Diagnosis Pembelajaran AI Sekarang"}
+          {recomputing ? "Menghasilkan Diagnosis..." : "Hasilkan Diagnosis Pembelajaran Sekarang"}
         </Button>
       </div>
     );
@@ -122,13 +123,13 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
   return (
     <div className="space-y-8 font-sans">
-      {/* Processing Banner if AI is still running */}
+      {/* Processing Banner if analysis is still running */}
       {isProcessing && (
         <div className="flex items-center justify-between rounded-lg border border-brand-primary/30 bg-brand-primary/10 p-4 text-brand-primary">
           <div className="flex items-center gap-3">
             <Loader2 className="size-5 animate-spin shrink-0" />
             <div className="text-body-sm">
-              <span className="font-bold">Analisis AI Sedang Berjalan:</span> Menghasilkan diagnosis terperinci & pola kesalahan...
+              <span className="font-bold">Analisis Sedang Berjalan:</span> Menghasilkan diagnosis terperinci & pola kesalahan...
             </div>
           </div>
           <Button onClick={fetchAnalytics} variant="ghost" size="sm" className="text-brand-primary hover:bg-brand-primary/20 rounded-md">
@@ -147,7 +148,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="rounded-md border-brand-primary/40 bg-brand-primary/10 text-brand-primary text-body-xs font-semibold uppercase tracking-wider">
-                  <Sparkles className="mr-1 size-3" /> Learning Diagnosis Zyx AI
+                  <Sparkles className="mr-1 size-3" /> Diagnosis Pembelajaran Zyx
                 </Badge>
                 {metrics && (
                   <Badge variant="outline" className="rounded-md border-border bg-card text-muted-foreground text-body-xs">
@@ -162,14 +163,14 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   className="h-6 px-2 text-body-xs text-muted-foreground hover:text-foreground rounded-md ml-auto md:ml-0"
                 >
                   <RefreshCw className={`mr-1 size-3 ${recomputing ? "animate-spin" : ""}`} />
-                  {recomputing ? "Memproses..." : "Generasi Ulang AI"}
+                  {recomputing ? "Memproses..." : "Analisis Ulang"}
                 </Button>
               </div>
-              <h2 className="font-heading text-h4 font-bold text-foreground">
-                {diagnosis?.headline || `Hasil Kuis: ${metrics?.score}% (${metrics?.correctCount}/${metrics?.totalQuestions} Benar)`}
+              <h2 className="font-heading text-body-base font-bold text-foreground">
+                <MathText as="span">{diagnosis?.headline || `Hasil Kuis: ${metrics?.score}% (${metrics?.correctCount}/${metrics?.totalQuestions} Benar)`}</MathText>
               </h2>
               <p className="text-body-base text-muted-foreground leading-relaxed">
-                {diagnosis?.overall_summary || `Anda telah menyelesaikan ${metrics?.totalQuestions} soal kuis.`}
+                <MathText as="span">{diagnosis?.overall_summary || `Anda telah menyelesaikan ${metrics?.totalQuestions} soal kuis.`}</MathText>
               </p>
             </div>
 
@@ -178,7 +179,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
               <div className="flex flex-col items-center justify-center shrink-0 rounded-xl border border-border/80 bg-card p-5 text-center shadow-xs min-w-[150px]">
                 <span className="text-body-xs uppercase font-semibold text-muted-foreground tracking-wider">Skor Total</span>
                 <div className="font-heading text-h2 font-bold text-brand-primary mt-1">
-                  {metrics.score}<span className="text-body-lg text-muted-foreground font-normal">%</span>
+                  {metrics.score}<span className="text-body-base text-muted-foreground font-normal">%</span>
                 </div>
                 <Badge className={`mt-2 rounded-md ${getPerformanceBadgeClass(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}`}>
                   {getPerformanceLabel(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}
@@ -241,11 +242,11 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="space-y-6">
         <div className="border-b border-border pb-3">
-          <h3 className="font-heading text-h4 font-bold text-foreground flex items-center gap-2">
+          <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <Brain className="size-5 text-brand-primary" /> Diagnosis Pembelajaran Terperinci
           </h3>
           <p className="text-body-sm text-muted-foreground">
-            Pemetaan penguasaan konsep deterministik backend & interpretasi pedagogis AI.
+            Pemetaan penguasaan konsep &amp; interpretasi evaluasi belajar.
           </p>
         </div>
 
@@ -254,7 +255,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+                <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                   <Target className="size-4 text-brand-primary" /> Penguasaan Konsep Utama
                 </h4>
                 <p className="text-body-xs text-muted-foreground">
@@ -278,10 +279,10 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                   {metrics.conceptMastery.map((c, idx) => (
                     <tr key={idx} className="hover:bg-muted/30 transition-colors">
                       <td className="py-3 px-3">
-                        <div className="font-semibold text-foreground">{c.concept}</div>
+                        <div className="font-semibold text-foreground"><MathText as="span">{c.concept}</MathText></div>
                         {c.subconcepts && c.subconcepts.length > 0 && (
                           <div className="text-body-xs text-muted-foreground mt-0.5">
-                            Subkonsep: {c.subconcepts.join(", ")}
+                            Subkonsep: <MathText as="span">{c.subconcepts.join(", ")}</MathText>
                           </div>
                         )}
                       </td>
@@ -319,18 +320,18 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Strengths Card */}
           <div className="rounded-xl border border-status-success/30 bg-status-success/5 p-5 space-y-4">
-            <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2 text-status-success">
+            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-success">
               <ShieldCheck className="size-5" /> Kekuatan & Keunggulan Anda
             </h4>
             {diagnosis?.strengths && diagnosis.strengths.length > 0 ? (
               <div className="space-y-3">
                 {diagnosis.strengths.map((item, i) => (
                   <div key={i} className="rounded-lg border border-border/60 bg-card p-3.5 space-y-1.5 shadow-xs">
-                    <div className="font-heading text-body-base font-bold text-foreground">{item.title}</div>
-                    <p className="text-body-sm text-muted-foreground leading-snug">{item.description}</p>
+                    <div className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{item.title}</MathText></div>
+                    <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{item.description}</MathText></p>
                     {item.evidence && item.evidence.length > 0 && (
                       <div className="text-body-xs text-brand-primary bg-brand-primary/5 p-2 rounded-md font-medium mt-1">
-                        ✓ {item.evidence[0].observation}
+                        ✓ <MathText as="span">{item.evidence[0].observation}</MathText>
                       </div>
                     )}
                   </div>
@@ -345,17 +346,17 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
           {/* Focus Areas Card */}
           <div className="rounded-xl border border-status-warning/30 bg-status-warning/5 p-5 space-y-4">
-            <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2 text-status-warning">
+            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2 text-status-warning">
               <Target className="size-5" /> Area yang Perlu Diperkuat
             </h4>
             {diagnosis?.focus_areas && diagnosis.focus_areas.length > 0 ? (
               <div className="space-y-3">
                 {diagnosis.focus_areas.map((item, i) => (
                   <div key={i} className="rounded-lg border border-border/60 bg-card p-3.5 space-y-1.5 shadow-xs">
-                    <div className="font-heading text-body-base font-bold text-foreground">{item.title}</div>
-                    <p className="text-body-sm text-muted-foreground leading-snug">{item.description}</p>
+                    <div className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{item.title}</MathText></div>
+                    <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{item.description}</MathText></p>
                     <div className="text-body-xs text-status-warning bg-status-warning/10 p-2 rounded-md font-medium mt-1">
-                      ! {item.importance}
+                      ! <MathText as="span">{item.importance}</MathText>
                     </div>
                   </div>
                 ))}
@@ -371,22 +372,22 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         {/* SECTION C: POLA KESALAHAN (ERROR PATTERNS) */}
         {diagnosis?.error_patterns && diagnosis.error_patterns.length > 0 && (
           <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
-            <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+            <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <Lightbulb className="size-5 text-brand-secondary" /> Analisis Pola Kesalahan (Error Pattern Detection)
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {diagnosis.error_patterns.map((errItem, idx) => (
                 <div key={idx} className="rounded-lg border border-border/80 bg-card p-4 space-y-2 shadow-xs">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-heading text-body-base font-bold text-foreground">{errItem.title}</span>
+                    <span className="font-heading text-body-base font-bold text-foreground"><MathText as="span">{errItem.title}</MathText></span>
                     <Badge variant="outline" className="rounded-md border-border text-body-xs uppercase font-medium">
                       {getErrorCategoryLabel(errItem.category)}
                     </Badge>
                   </div>
-                  <p className="text-body-sm text-muted-foreground leading-snug">{errItem.description}</p>
+                  <p className="text-body-sm text-muted-foreground leading-snug"><MathText as="span">{errItem.description}</MathText></p>
                   <div className="rounded-md bg-muted/50 p-2.5 text-body-xs text-foreground mt-2 border border-border/50">
                     <span className="font-bold text-brand-primary block mb-0.5">Strategi Perbaikan:</span>
-                    {errItem.correction_strategy}
+                    <MathText as="span">{errItem.correction_strategy}</MathText>
                   </div>
                 </div>
               ))}
@@ -399,7 +400,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cognitive Skills Matrix */}
             <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
-              <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+              <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <BarChart3 className="size-5 text-brand-primary" /> Performa Kemampuan Kognitif
               </h4>
               <div className="space-y-3">
@@ -422,7 +423,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
             {/* Time & Speed Insights */}
             <div className="rounded-xl border border-border/80 bg-card/70 p-5 space-y-4">
-              <h4 className="font-heading text-h5 font-bold text-foreground flex items-center gap-2">
+              <h4 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
                 <Zap className="size-5 text-tertiary-1" /> Efisiensi & Kecepatan Pengerjaan
               </h4>
               <div className="space-y-3 text-body-sm">
@@ -441,8 +442,8 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                 )}
                 {diagnosis?.time_insights && diagnosis.time_insights.length > 0 && (
                   <div className="text-body-xs text-muted-foreground leading-relaxed pt-1">
-                    <span className="font-semibold text-foreground block">Catatan Waktu AI:</span>
-                    {diagnosis.time_insights[0].observation} {diagnosis.time_insights[0].suggestion}
+                    <span className="font-semibold text-foreground block">Catatan Waktu:</span>
+                    <MathText as="span">{`${diagnosis.time_insights[0].observation} ${diagnosis.time_insights[0].suggestion}`}</MathText>
                   </div>
                 )}
               </div>
@@ -456,11 +457,11 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           ───────────────────────────────────────────────────────────────────────── */}
       <div className="space-y-4 pt-4 border-t border-border">
         <div>
-          <h3 className="font-heading text-h4 font-bold text-foreground flex items-center gap-2">
+          <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <BookOpen className="size-5 text-brand-primary" /> Rencana Belajar Personal (3 Prioritas Utama)
           </h3>
           <p className="text-body-sm text-muted-foreground">
-            Langkah konkrit yang direkomendasikan AI untuk memperkuat pemahaman Anda setelah kuis ini.
+            Langkah konkrit yang direkomendasikan untuk memperkuat pemahaman Anda setelah kuis ini.
           </p>
         </div>
 
@@ -479,23 +480,23 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
                     <span className="text-body-xs text-muted-foreground font-semibold">Langkah {idx + 1}</span>
                   </div>
 
-                  <h4 className="font-heading text-body-lg font-bold text-foreground group-hover:text-brand-primary transition-colors">
-                    {step.focus}
+                  <h4 className="font-heading text-body-base font-bold text-foreground group-hover:text-brand-primary transition-colors">
+                    <MathText as="span">{step.focus}</MathText>
                   </h4>
 
                   <p className="text-body-sm text-muted-foreground leading-snug">
                     <span className="font-semibold text-foreground block mb-0.5">Alasan:</span>
-                    {step.reason}
+                    <MathText as="span">{step.reason}</MathText>
                   </p>
 
                   <div className="rounded-md bg-muted/60 p-3 text-body-xs text-foreground space-y-1 border border-border/40">
                     <span className="font-bold text-brand-primary block">Aktivitas Konkret:</span>
-                    <p className="leading-snug">{step.action}</p>
+                    <p className="leading-snug"><MathText as="span">{step.action}</MathText></p>
                   </div>
 
                   <div className="text-body-xs text-status-success font-medium flex items-start gap-1.5">
                     <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
-                    <span>Cek Sukses: {step.success_check}</span>
+                    <span>Cek Sukses: <MathText as="span">{step.success_check}</MathText></span>
                   </div>
                 </div>
 
@@ -525,7 +526,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
         {diagnosis?.encouragement && (
           <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-center">
             <p className="font-heading text-body-base font-semibold text-foreground italic">
-              &ldquo;{diagnosis.encouragement}&rdquo;
+              &ldquo;<MathText as="span">{diagnosis.encouragement}</MathText>&rdquo;
             </p>
           </div>
         )}

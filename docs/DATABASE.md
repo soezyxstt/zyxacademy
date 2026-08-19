@@ -55,11 +55,11 @@ Full table reference in [ARCHITECTURE.md](./ARCHITECTURE.md#3-database-schema--a
 `learning_events`, `student_concept_mastery`, `student_streaks`, `daily_recommendations`, `study_paths`, `student_flashcard_progress` ; mastery computation, spaced repetition, personalization.
 
 ### Storage
-`drive_item` ; admin file explorer (folder tree + file pointers).
+`drive_item` ; legacy read-only file pointers, no longer surfaced in the admin UI. R2 browsing moved to the admin Media page "Storage R2" tab. New uploads store R2 keys in the owning tables (`course_materials.fileUrl`, `diktats.fileUrl`, `pka_registrations.proof_key`, `blog_articles.thumbnail_url`).
 
 ## Key Design Decisions
 
 - **SQLite stays** ; no Postgres. Turso for production scale.
 - **Dual-hashing** ; `sourceHash` (raw content) + `derivedHash` (structured attributes) prevent unnecessary regeneration on cosmetic edits.
 - **All timestamps** use `integer` (Unix ms) with `{ mode: "timestamp" }`.
-- **Vectors** are stored externally (Pinecone / Vectorize), not in SQLite.
+- **Vectors** are stored externally in canonical Cloudflare Vectorize, not in SQLite. Legacy vector columns remain only as preserved migration history.

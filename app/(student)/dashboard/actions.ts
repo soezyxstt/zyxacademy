@@ -9,6 +9,7 @@ import { eq, and, gt } from "drizzle-orm";
 import { recordLearningEvent } from "@/lib/learning-events";
 import { inngest } from "@/lib/inngest";
 import { getSemesterEndDate } from "@/lib/utils";
+import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 
 async function requireUser() {
   const h = await headers();
@@ -143,13 +144,21 @@ export async function enrollWithToken(tokenStr: string) {
 
       // Enroll in each course the user is not yet enrolled in
       for (const courseId of coursesToEnroll) {
+        const enrollmentId = randomUUID();
         await tx.insert(enrollments).values({
-          id: randomUUID(),
+          id: enrollmentId,
           userId: user.id,
           courseId,
           enrolledAt: now,
           expiresAt: expiresAt,
         });
+        await dualWriteEnrollment(tx, {
+          id: enrollmentId,
+          userId: user.id,
+          courseId,
+          enrolledAt: now,
+          expiresAt,
+        }, user.id);
       }
     });
 

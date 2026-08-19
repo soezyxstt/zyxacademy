@@ -16,7 +16,6 @@ export type CoursePageShellProps = {
 
 export function CoursePageShell({
   title,
-  description,
   icon,
   hideHeader = false,
   children,
@@ -27,7 +26,7 @@ export function CoursePageShell({
     <div className={cn("relative pb-8", className, fullWidth && "pb-0 h-full flex flex-col")}>
       <div className={cn(fullWidth ? "w-full h-full flex flex-col" : "marketing-container pt-6 md:pt-8")}>
         {!hideHeader && title && (
-          <PageHeader title={title} description={description} icon={icon} />
+          <PageHeader title={title} icon={icon} />
         )}
         <div className={cn(fullWidth && "w-full h-full flex flex-col")}>{children}</div>
       </div>

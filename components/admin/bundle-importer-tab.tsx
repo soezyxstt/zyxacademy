@@ -179,7 +179,7 @@ export function BundleImporterTab() {
         <div className="space-y-6 lg:col-span-2">
           <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
             <CardHeader className="border-b border-border bg-muted/20 py-4">
-              <CardTitle className="font-heading text-body-lg font-semibold text-foreground flex items-center gap-2">
+              <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <Upload className="size-5 text-brand-primary" />
                 Input Course Bundle JSON
               </CardTitle>
@@ -243,7 +243,7 @@ export function BundleImporterTab() {
         <div className="space-y-6">
           <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
             <CardHeader className="border-b border-border bg-muted/20 py-4">
-              <CardTitle className="font-heading text-body-lg font-semibold text-foreground">
+              <CardTitle className="font-heading text-body-base font-semibold text-foreground">
                 Pengaturan Importir
               </CardTitle>
               <p className="text-body-sm text-muted-foreground">
@@ -289,7 +289,7 @@ export function BundleImporterTab() {
                       Jalankan Pasca-Proses (Rekomendasi)
                     </Label>
                     <p className="text-body-sm text-muted-foreground">
-                      Mengompilasi materi markdown, membangun relasi peta konsep, pemetaan soal ujian, serta antrean sinkronisasi vektor Pinecone/Vectorize.
+                      Mengompilasi materi markdown, membangun relasi peta konsep, pemetaan soal ujian, serta antrean sinkronisasi canonical Vectorize.
                     </p>
                   </div>
                 </div>
@@ -398,7 +398,7 @@ export function BundleImporterTab() {
         <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
           <CardHeader className="border-b border-border bg-muted/20 py-4 flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="font-heading text-body-lg font-semibold text-foreground flex items-center gap-2">
+              <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <TerminalIcon className="size-5 text-muted-foreground" />
                 Console Logs Ingesti
               </CardTitle>
@@ -453,7 +453,7 @@ export function BundleImporterTab() {
       {result && !loading && result.success && result.stats && result.stats.chapterDiffs.length > 0 && (
         <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
           <CardHeader className="border-b border-border bg-muted/20 py-4">
-            <CardTitle className="font-heading text-body-md font-semibold text-foreground flex items-center gap-2">
+            <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
               <Layers className="size-5 text-brand-primary" />
               {dryRun ? "Pratinjau Dampak (belum disimpan)" : "Ringkasan Perubahan"}
             </CardTitle>
@@ -514,7 +514,7 @@ export function BundleImporterTab() {
           {result.errorContext && (
             <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
               <CardHeader className="border-b border-border bg-muted/20 py-4 text-left">
-                <CardTitle className="font-heading text-body-md font-semibold text-foreground flex items-center gap-2">
+                <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                   <HelpCircle className="size-5 text-brand-primary" />
                   Identifikasi Lokasi Masalah
                 </CardTitle>
@@ -631,7 +631,7 @@ export function BundleImporterTab() {
           {result.jsonSnippet && (
             <div className="rounded-xl border border-border bg-muted/30 p-5">
               <h6 className="font-heading text-body-sm font-semibold text-foreground mb-3 text-left">Potongan Kode Bermasalah (JSON)</h6>
-              <pre className="text-left font-mono text-xs overflow-x-auto p-4 bg-zinc-950 text-zinc-100 rounded-lg whitespace-pre select-all leading-relaxed border border-border">
+              <pre className="text-left font-mono text-body-sm overflow-x-auto p-4 bg-zinc-950 text-zinc-100 rounded-lg whitespace-pre select-all leading-relaxed border border-border">
                 {result.jsonSnippet}
               </pre>
               <p className="text-body-xs text-muted-foreground mt-3 text-left">

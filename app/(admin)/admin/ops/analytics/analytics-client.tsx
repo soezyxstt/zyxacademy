@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { AiStats, AiRequestLog } from "@/lib/ai/analytics";
 import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
+import { AdminStatCard } from "@/components/admin/stat-card";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types
@@ -13,37 +14,6 @@ type GatewayMode = "gateway" | "direct" | "unknown";
 // ────────────────────────────────────────────────────────────────────────────
 // Small helpers
 // ────────────────────────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  sub,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  accent?: "green" | "red" | "blue" | "muted";
-}) {
-  const accentClass =
-    accent === "green"
-      ? "text-status-success"
-      : accent === "red"
-        ? "text-status-error"
-        : accent === "blue"
-          ? "text-brand-primary"
-          : "text-foreground";
-
-  return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <p className="text-body-sm text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-h5 font-semibold font-heading ${accentClass}`}>
-        {value}
-      </p>
-      {sub && <p className="mt-0.5 text-body-sm text-muted-foreground">{sub}</p>}
-    </div>
-  );
-}
 
 function Badge({ via }: { via: boolean }) {
   return (
@@ -133,7 +103,7 @@ export function AiAnalyticsClient() {
     return (
       <div className="space-y-8">
         <div className="rounded-xl border border-border bg-muted/40 p-10 text-center">
-          <p className="text-h6 font-heading font-semibold text-foreground">
+          <p className="text-body-base font-heading font-semibold text-foreground">
             No model requests recorded yet
           </p>
           <p className="mt-2 text-body-sm text-muted-foreground">
@@ -186,26 +156,29 @@ export function AiAnalyticsClient() {
 
       {/* Summary cards ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard
+        <AdminStatCard
+          size="sm"
           label="Total Requests"
           value={stats.totalRequests}
-          accent="blue"
+          tone="brand"
         />
-        <StatCard
+        <AdminStatCard
+          size="sm"
           label="Successful"
           value={stats.successfulRequests}
-          sub={`${((stats.successfulRequests / stats.totalRequests) * 100).toFixed(1)}%`}
-          accent="green"
+          caption={`${((stats.successfulRequests / stats.totalRequests) * 100).toFixed(1)}%`}
+          tone="success"
         />
-        <StatCard
+        <AdminStatCard
+          size="sm"
           label="Failed"
           value={stats.failedRequests}
-          accent={stats.failedRequests > 0 ? "red" : "muted"}
+          tone={stats.failedRequests > 0 ? "error" : "default"}
         />
-        <StatCard
+        <AdminStatCard
+          size="sm"
           label="Avg Latency"
           value={formatLatency(stats.averageLatencyMs)}
-          accent="muted"
         />
       </div>
 
@@ -254,7 +227,7 @@ export function AiAnalyticsClient() {
 
       {/* Recent request log ───────────────────────────────────────────────── */}
       <div>
-        <h2 className="font-heading text-h6 font-semibold text-foreground mb-4">
+        <h2 className="font-heading text-body-base font-semibold text-foreground mb-4">
           Recent Requests
         </h2>
         <div className="overflow-x-auto rounded-xl border border-border">

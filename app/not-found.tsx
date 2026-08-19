@@ -20,12 +20,12 @@ export default function NotFound() {
           </h1>
 
           {/* Heading */}
-          <h2 className="font-heading text-h3 md:text-h2 font-bold tracking-tight text-foreground -mt-2">
+          <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground -mt-2">
             Waduh, nyasar ke mana nih?
           </h2>
 
           {/* Subtext */}
-          <p className="text-body-md text-muted-foreground leading-relaxed max-w-sm">
+          <p className="text-body-base text-muted-foreground leading-relaxed max-w-sm">
             Halaman yang kamu cari nggak ada di sini. Mungkin alamatnya salah ketik, 
             atau emang udah dipindahin. Tenang aja, mari kita balik ke jalan yang benar!
           </p>

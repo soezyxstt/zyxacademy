@@ -1,153 +1,137 @@
-/**
- * P8 Vectorize Backfill ; one-shot migration script.
- *
- * Reads all vectors from every course namespace in Pinecone and upserts them
- * into the Vectorize index via the deployed zyx-vector-api Worker.
- * No re-embedding: raw values are forwarded as-is.
- *
- * Usage:
- * bunx tsx scripts/vectorize-backfill.ts
- *
- * Required env vars (from .env or shell):
- * PINECONE_API_KEY, PINECONE_INDEX_NAME
- * TURSO_CONNECTION_URL (or DATABASE_URL for local SQLite)
- * TURSO_AUTH_TOKEN (optional for local dev)
- * VECTORIZE_WORKER_URL, VECTORIZE_SHARED_SECRET
- *
- * Run from the repo root after deploying the zyx-vector-api Worker.
- */
+import { createClient } from "@libsql/client";
+import { join } from "node:path";
+import {
+  assertStagingEnvironment,
+  parseEnvFile,
+  resolveDatabaseConnection,
+  safeGuardError,
+} from "@/lib/staging/staging-guard";
+import {
+  artifactFile,
+  parseCliArgs,
+  readArtifact,
+  requiredCliArg,
+  sha256Text,
+  stableStringify,
+  writeArtifact,
+} from "@/lib/staging/migration-ledger";
+import { CANONICAL_VECTOR_PROFILE } from "@/lib/vectorize/contracts";
+import { getCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/runtime";
+import { vectorizeCanonicalUpsert } from "@/lib/vectorize-client";
+import { loadCanonicalManifest, manifestMetadata, type CanonicalManifestEntry } from "./vectorize-manifest";
 
-import 'dotenv/config';
-import { Pinecone } from '@pinecone-database/pinecone';
-import { createClient } from '@libsql/client';
+const BATCH_SIZE = 20;
 
-const BATCH_SIZE = 100; // Pinecone fetch limit per call
+type BackfillArtifact = {
+  status: "running" | "passed" | "failed";
+  runId: string;
+  source: "turso";
+  profileId: typeof CANONICAL_VECTOR_PROFILE.id;
+  dimensions: number;
+  manifestHash: string;
+  expectedCount: number;
+  processedVectorIds: string[];
+  failedVectorIds: string[];
+  lastError?: string;
+};
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function requireEnv(key: string): string {
- const v = process.env[key];
- if (!v) throw new Error(`Missing required env var: ${key}`);
- return v;
+function hasStringArg(args: Record<string, string | boolean>, name: string, expected: string): boolean {
+  return args[name] === expected;
 }
 
-async function vzPost(path: string, body: unknown): Promise<unknown> {
- const base = requireEnv('VECTORIZE_WORKER_URL');
- const secret = requireEnv('VECTORIZE_SHARED_SECRET');
- const res = await fetch(`${base}${path}`, {
- method: 'POST',
- headers: {
- 'Content-Type': 'application/json',
- Authorization: `Bearer ${secret}`,
- },
- body: JSON.stringify(body),
- });
- if (!res.ok) {
- const text = await res.text();
- throw new Error(`Worker ${path} error ${res.status}: ${text}`);
- }
- return res.json();
+async function previousArtifact(runId: string): Promise<BackfillArtifact | undefined> {
+  try {
+    return await readArtifact<BackfillArtifact>(runId, "vectorize-backfill.json");
+  } catch {
+    return undefined;
+  }
 }
 
-function serializeMeta(
- raw: Record<string, unknown>,
-): Record<string, string | number | boolean> {
- const out: Record<string, string | number | boolean> = {};
- for (const [k, v] of Object.entries(raw)) {
- if (Array.isArray(v)) {
- out[k] = JSON.stringify(v);
- } else if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
- out[k] = v;
- }
- }
- return out;
+async function upsertBatch(entries: CanonicalManifestEntry[], adapter: Awaited<ReturnType<typeof getCanonicalContentV2EmbeddingAdapter>>): Promise<void> {
+  const vectors = [];
+  for (const item of entries) {
+    const values = await adapter.embedDocument(item.title, item.content);
+    vectors.push({ id: item.vectorId, values, metadata: item.metadata });
+  }
+  if (vectors.length > 0) {
+    await vectorizeCanonicalUpsert({ profileId: CANONICAL_VECTOR_PROFILE.id, vectors });
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
+async function main(): Promise<void> {
+  const args = parseCliArgs();
+  const runId = requiredCliArg(args, "run-id");
+  const source = requiredCliArg(args, "source");
+  if (source !== "db" || !hasStringArg(args, "source", "db")) throw new Error("Plan 012 backfill source must be db");
 
-async function main() {
- const pineconeKey = requireEnv('PINECONE_API_KEY');
- const indexName = requireEnv('PINECONE_INDEX_NAME');
- const dbUrl = process.env.TURSO_CONNECTION_URL || process.env.DATABASE_URL || '';
- const authToken = process.env.TURSO_AUTH_TOKEN;
+  try {
+    assertStagingEnvironment({
+      productionEnv: parseEnvFile(join(process.cwd(), ".env.prod")),
+      requireMutation: true,
+      requiredResources: ["database", "authUrl", "vectorizeWorker"],
+    });
+    const connection = resolveDatabaseConnection(process.env);
+    const client = createClient(connection);
+    try {
+      const courseId = typeof args.course === "string" ? args.course : undefined;
+      const manifest = await loadCanonicalManifest(client, courseId);
+      const manifestHash = sha256Text(stableStringify(manifest.map(manifestMetadata)));
+      const prior = args.resume ? await previousArtifact(runId) : undefined;
+      const processed = new Set(prior?.processedVectorIds ?? []);
+      const artifact: BackfillArtifact = {
+        status: "running",
+        runId,
+        source: "turso",
+        profileId: CANONICAL_VECTOR_PROFILE.id,
+        dimensions: CANONICAL_VECTOR_PROFILE.dimensions,
+        manifestHash,
+        expectedCount: manifest.length,
+        processedVectorIds: [...processed].sort(),
+        failedVectorIds: [],
+      };
+      await writeArtifact(runId, "vectorize-backfill.json", artifact);
 
- if (!dbUrl) throw new Error('TURSO_CONNECTION_URL or DATABASE_URL must be set');
+      const adapter = await getCanonicalContentV2EmbeddingAdapter();
+      const pending = manifest.filter((item) => !processed.has(item.vectorId));
+      for (let index = 0; index < pending.length; index += BATCH_SIZE) {
+        const batch = pending.slice(index, index + BATCH_SIZE);
+        try {
+          await upsertBatch(batch, adapter);
+          batch.forEach((item) => processed.add(item.vectorId));
+          artifact.processedVectorIds = [...processed].sort();
+          artifact.failedVectorIds = [];
+          await writeArtifact(runId, "vectorize-backfill.json", artifact);
+          console.log(JSON.stringify({ runId, processed: processed.size, expected: manifest.length }));
+        } catch (error) {
+          artifact.status = "failed";
+          artifact.failedVectorIds = batch.map((item) => item.vectorId);
+          artifact.lastError = error instanceof Error ? error.message : String(error);
+          await writeArtifact(runId, "vectorize-backfill.json", artifact);
+          throw error;
+        }
+      }
 
- // 1. Get all course IDs from the database
- const db = createClient({ url: dbUrl, authToken });
- const { rows } = await db.execute('SELECT id FROM courses');
- const courseIds = rows.map((r) => String(r[0] ?? r.id));
- console.log(`Found ${courseIds.length} courses: ${courseIds.join(', ')}`);
-
- const pinecone = new Pinecone({ apiKey: pineconeKey });
- const index = pinecone.index(indexName);
-
- let totalTransferred = 0;
- let totalSkipped = 0;
-
- // 2. For each course namespace, paginate Pinecone IDs, fetch values, upsert to Vectorize
- for (const courseId of courseIds) {
- const namespace = `course_${courseId}`;
- const ns = index.namespace(namespace);
- let paginationToken: string | undefined;
- let pageCount = 0;
-
- console.log(`\nProcessing namespace: ${namespace}`);
-
- do {
- // List a page of vector IDs
- const listResult = await ns.listPaginated(
- paginationToken ? { paginationToken } : {},
- );
- const ids = (listResult.vectors ?? [])
- .map((v) => v.id)
- .filter((id): id is string => !!id);
- paginationToken = listResult.pagination?.next;
- pageCount++;
-
- if (ids.length === 0) break;
-
- // Fetch full vectors in sub-batches of BATCH_SIZE
- for (let i = 0; i < ids.length; i += BATCH_SIZE) {
- const batchIds = ids.slice(i, i + BATCH_SIZE);
- const fetchResult = await ns.fetch({ ids: batchIds });
- const records = fetchResult.records ?? {};
-
- const vzVectors = Object.values(records)
- .filter((v) => v.values && v.values.length > 0)
- .map((v) => ({
- id: v.id,
- values: v.values,
- namespace,
- metadata: serializeMeta((v.metadata ?? {}) as Record<string, unknown>),
- }));
-
- if (vzVectors.length === 0) {
- totalSkipped += batchIds.length;
- continue;
- }
-
- await vzPost('/upsert', { vectors: vzVectors });
- totalTransferred += vzVectors.length;
- process.stdout.write(` upserted ${totalTransferred} vectors so far...\r`);
- }
- } while (paginationToken);
-
- console.log(` done ; ${pageCount} page(s) processed`);
- }
-
- console.log(`\nBackfill complete.`);
- console.log(` Transferred: ${totalTransferred}`);
- console.log(` Skipped (no values): ${totalSkipped}`);
- console.log(`\nNext: run "wrangler vectorize describe zyx-edu" to verify record count.`);
- console.log('Then update docs/baselines.md gate 8.2 with both counts.');
+      artifact.status = "passed";
+      artifact.processedVectorIds = [...processed].sort();
+      await writeArtifact(runId, "vectorize-backfill.json", artifact);
+      console.log(JSON.stringify({
+        status: "passed",
+        runId,
+        source: artifact.source,
+        profileId: artifact.profileId,
+        dimensions: artifact.dimensions,
+        expectedCount: artifact.expectedCount,
+        processedCount: artifact.processedVectorIds.length,
+        artifact: artifactFile(runId, "vectorize-backfill.json"),
+      }));
+    } finally {
+      client.close();
+    }
+  } catch (error) {
+    const safe = safeGuardError(error);
+    console.error(JSON.stringify({ status: "blocked", ...safe }));
+    process.exitCode = 1;
+  }
 }
 
-main().catch((err) => {
- console.error('Backfill failed:', err);
- process.exit(1);
-});
+void main();

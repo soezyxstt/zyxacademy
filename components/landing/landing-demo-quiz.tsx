@@ -43,7 +43,7 @@ function CorrectPanel() {
 function WrongPanel() {
  return (
  <div className="border-l-2 border-status-warning bg-status-warning/10 px-4 py-3">
- <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+ <p className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground">
  Kenapa salah?
  </p>
  <p className="mt-1 font-heading text-body-sm font-semibold text-foreground">
@@ -71,7 +71,7 @@ export function LandingDemoQuiz() {
  <SectionContainer className="bg-background" aria-labelledby="landing-quiz-heading">
  <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
  <div className="max-w-xl">
- <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
+ <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
  Kuis Latihan
  </p>
  <SectionHeading as="h2" id="landing-quiz-heading" className="mt-3 text-foreground">

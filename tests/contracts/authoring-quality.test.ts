@@ -1,0 +1,68 @@
+import { createHash } from "node:crypto";
+import { describe, expect, test } from "bun:test";
+import { evaluateIdeaBundleQuality } from "@/lib/authoring/quality/idea-bundle";
+import { evaluateProductBundleQuality } from "@/lib/authoring/quality/product-bundle";
+import { evaluateSourcePackQuality } from "@/lib/authoring/quality/source-pack";
+import type { ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
+import type { ProductEntity } from "@/lib/bundle/product-validator";
+import type { ValidatedSourcePack } from "@/lib/authoring/source-pack";
+
+function hash(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function sourcePackFixture(): { pack: ValidatedSourcePack; original: Uint8Array } {
+  const original = new TextEncoder().encode("original document");
+  const markdown = new TextEncoder().encode("<!-- source-unit: 1 -->\n# Materi\nIsi.");
+  const coverage = new TextEncoder().encode(JSON.stringify({
+    documentId: "source-1",
+    outputCounts: { headings: 1, formulas: 0, tables: 0, examples: 0, applications: 0, visualExplanations: 0, questions: 0, solutions: 0 },
+  }));
+  const pack = {
+    archive: { files: new Map([["documents/one.md", markdown], ["coverage/source-1.json", coverage]]), checksum: "archive" },
+    manifest: { documents: [{ id: "source-1", title: "Materi", originalSha256: hash(original), markdownPath: "documents/one.md", coveragePath: "coverage/source-1.json" }] },
+    documents: [{ id: "source-1", title: "Materi", expectedUnits: 1, sections: [] }],
+  } as unknown as ValidatedSourcePack;
+  return { pack, original };
+}
+
+describe("canonical authoring quality gates", () => {
+  test("requires original binaries for Source Pack MCP verification", () => {
+    const { pack, original } = sourcePackFixture();
+    expect(evaluateSourcePackQuality(pack).valid).toBe(false);
+    const report = evaluateSourcePackQuality(pack, new Map([["source-1", original]]));
+    expect(report.valid).toBe(true);
+    expect(report.metrics.originalVerification).toBe("verified");
+  });
+
+  test("reports Idea source coverage and duplicate candidates", () => {
+    const bundle = {
+      entities: {
+        sourceMaterials: [],
+        sourceChunks: [{ id: "chunk-1", content: "Definisi konsep yang cukup panjang untuk coverage.", }],
+        ideas: [
+          { id: "idea-1", canonicalStatement: "Konsep adalah perubahan posisi terhadap waktu.", sourcePolicy: "source_grounded", latex: undefined },
+          { id: "idea-2", canonicalStatement: "Konsep adalah perubahan posisi terhadap waktu.", sourcePolicy: "source_grounded", latex: undefined },
+        ],
+        provenance: [{ ideaId: "idea-1", sourceChunkId: "chunk-1" }],
+        relations: [],
+      },
+    } as unknown as ValidatedIdeaBundle;
+    const report = evaluateIdeaBundleQuality(bundle);
+    expect(report.valid).toBe(false);
+    expect(report.issues.map((issue) => issue.code)).toContain("IDEA_SEMANTIC_DUPLICATE_CANDIDATE");
+    expect(report.issues.map((issue) => issue.code)).toContain("IDEA_PROVENANCE_MISSING");
+  });
+
+  test("reports shallow Article content", () => {
+    const article = {
+      id: "article-1",
+      productType: "article",
+      ideaLinks: [{ id: "idea-1" }],
+      blocks: [{ blockType: "explanation", content: "Terlalu pendek." }],
+    } as unknown as ProductEntity;
+    const report = evaluateProductBundleQuality({ products: [article] });
+    expect(report.valid).toBe(false);
+    expect(report.issues.map((issue) => issue.code)).toContain("ARTICLE_TOO_SHALLOW");
+  });
+});

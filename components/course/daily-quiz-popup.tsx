@@ -169,7 +169,7 @@ export function DailyQuizPopup({
           </span>
           <div>
             <span className="text-[10px] font-bold tracking-widest uppercase text-brand-primary">Kuis Harian Pop-Up</span>
-            <h3 className="font-heading text-body-md font-bold text-foreground leading-tight">{courseTitle} Trivia</h3>
+            <h3 className="font-heading text-body-base font-bold text-foreground leading-tight">{courseTitle} Trivia</h3>
           </div>
         </div>
 
@@ -257,7 +257,7 @@ export function DailyQuizPopup({
             <div className="rounded-2xl border border-brand-primary/20 bg-brand-primary/5 p-4">
               <h4 className="font-heading text-body-xs font-bold text-brand-primary flex items-center gap-1.5">
                 <Sparkles className="size-3.5" />
-                Pembahasan AI:
+                Pembahasan:
               </h4>
               <p className="mt-2 text-body-xs text-muted-foreground leading-relaxed">
                 <MathText>{trivia.explanation}</MathText>

@@ -12,6 +12,8 @@ export type CourseMaterial = {
  title: string;
  kind: MaterialKind;
  docCategory?: DocCategory;
+ subcategory?: string | null;
+ year?: number | null;
  fileSize?: string;
  /** Article: plain text / markdown-ish paragraphs separated by \n\n */
  body?: string;
@@ -24,6 +26,8 @@ export type CourseMaterial = {
  /** Chapter this material belongs to, when known (enables P3 chapter summary). */
  chapterId?: string;
  chapterIds?: string[] | null;
+ /** Thumbnail image URL / R2 path for page-1 document preview */
+ thumbnailUrl?: string;
 };
 
 export type ExamType = "quiz" | "tryout";
@@ -36,7 +40,13 @@ export type QuestionType =
  | "multiple_choices"
  | "essay";
 
-export type QuestionSpec =
+export type QuestionProvenanceSpec = {
+ origin?: "zyx_original" | "itb_example";
+ sourceEventName?: string | null;
+ sourceReferenceId?: string | null;
+};
+
+export type QuestionSpec = QuestionProvenanceSpec & (
  | {
  id: string;
  order: number;
@@ -68,7 +78,7 @@ export type QuestionSpec =
  type: "essay";
  prompt: string;
  acceptsFile?: boolean;
- };
+ });
 
 export type ExamFixture = {
  id: string;
@@ -120,6 +130,9 @@ export type ReviewItem = {
  explanationImage?: string;
  explanationVideoUrl?: string;
  explanationVideoKind?: "youtube" | "r2";
+ origin?: "zyx_original" | "itb_example";
+ sourceEventName?: string | null;
+ sourceReferenceId?: string | null;
 };
 
 export type SubmissionReviewFixture = {

@@ -19,17 +19,10 @@ function getLayoutGroup(pathname: string): string {
     "/leaderboard",
     "/profile",
     "/settings",
+    "/courses",
   ];
   if (studentPrefixes.some((prefix) => pathname.startsWith(prefix))) {
     return "student";
-  }
-
-  // Check for student courses pages: /courses/[id]/...
-  if (pathname.startsWith("/courses")) {
-    const segments = pathname.split("/").filter(Boolean);
-    if (segments.length > 1) {
-      return "student";
-    }
   }
 
   return "marketing";

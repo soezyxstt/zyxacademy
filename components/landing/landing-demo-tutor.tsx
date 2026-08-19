@@ -8,7 +8,7 @@ import { TutorChatDemo, type TutorChatMessage } from "@/components/landing/demo/
 
 function SourceTag({ icon, children }: { icon: ReactNode; children: ReactNode }) {
  return (
- <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground">
+ <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 text-body-xs font-medium text-foreground">
  {icon}
  {children}
  </span>
@@ -76,7 +76,7 @@ export function LandingDemoTutor() {
  </LandingVisible>
 
  <div className="order-1 max-w-xl lg:order-2">
- <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
+ <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
  Zyra
  </p>
  <SectionHeading as="h2" id="landing-tutor-heading" className="mt-3 text-foreground">

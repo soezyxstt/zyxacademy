@@ -185,7 +185,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
                   </p>
                   <span
                     className={cn(
-                      "mt-2 inline-flex rounded-md px-2.5 py-0.5 text-xs font-semibold ring-1 ring-border/60",
+                      "mt-2 inline-flex rounded-md px-2.5 py-0.5 text-body-xs font-semibold ring-1 ring-border/60",
                       submission.status === "pending_review"
                         ? "bg-status-warning/12 text-status-warning"
                         : "bg-muted/80 text-muted-foreground",
@@ -209,7 +209,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
           ))}
         </ul>
         {allSubmissions.length === 0 ? (
-          <p className="text-body-md text-muted-foreground">Belum ada pengumpulan untuk course ini.</p>
+          <p className="text-body-base text-muted-foreground">Belum ada pengumpulan untuk course ini.</p>
         ) : null}
       </Reveal>
     </CoursePageShell>

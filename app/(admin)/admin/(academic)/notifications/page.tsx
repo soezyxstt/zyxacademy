@@ -17,6 +17,7 @@ import { getNotificationHistoryAction, getCoursesForTargetingAction } from "./ac
 import { NotificationBroadcastForm } from "./_components/broadcast-form";
 import { NotificationHistoryTable } from "./_components/history-table";
 import { Bell, History } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/page-header";
 
 export const metadata: Metadata = {
  title: pageTitle("Notifikasi Push"),
@@ -24,25 +25,24 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminNotificationsPage() {
- const [history, courseList] = await Promise.all([
- getNotificationHistoryAction(1, 50),
- getCoursesForTargetingAction(),
- ]);
+  const [history, courseList] = await Promise.all([
+  getNotificationHistoryAction(1, 10),
+  getCoursesForTargetingAction(),
+  ]);
 
  return (
- <div className="space-y-6">
-  <div className="mb-6 text-left">
-    <h1 className="font-heading text-h4 font-bold text-foreground">Push Notification</h1>
-    <p className="mt-1 text-body-sm text-muted-foreground">
-      Kelola dan kirim pesan otomatis ke perangkat siswa.
-    </p>
-  </div>
+ <div className="space-y-8">
+  <AdminPageHeader
+   icon={Bell}
+   title="Push Notification"
+   description="Kelola dan kirim pesan otomatis ke perangkat siswa."
+  />
  <div className="grid gap-8 lg:grid-cols-5">
  {/* Left: Compose form (3/5 width) */}
  <div className="lg:col-span-3">
  <div className="mb-3 flex items-center gap-2">
  <Bell className="size-4 text-brand-primary" aria-hidden />
- <h2 className="font-heading text-h6 font-semibold text-foreground">
+ <h2 className="font-heading text-body-base font-semibold text-foreground">
  Kirim Notifikasi
  </h2>
  </div>
@@ -87,11 +87,11 @@ export default async function AdminNotificationsPage() {
  <div className="mt-10">
  <div className="mb-3 flex items-center gap-2">
  <History className="size-4 text-muted-foreground" aria-hidden />
- <h2 className="font-heading text-h6 font-semibold text-foreground">
+ <h2 className="font-heading text-body-base font-semibold text-foreground">
  Riwayat Notifikasi
  </h2>
  </div>
- <NotificationHistoryTable history={history} />
+  <NotificationHistoryTable history={history.rows} total={history.total} pageSize={10} />
  </div>
  </div>
  );

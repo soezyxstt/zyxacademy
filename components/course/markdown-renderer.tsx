@@ -17,7 +17,8 @@ import { Input } from "@/components/ui/input";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
 import { getLayoutedGraph, LayoutDiagnostics } from "@/lib/visual-layout-service";
-import * as math from "mathjs";
+import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyra/canvas";
+import { MathText } from "@/components/course/math-text";
 import ReactFlow, { Edge, Node } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -95,7 +96,7 @@ function parseInline(text: string): ReactNode[] {
       result.push(
         <span
           key={`mathblk-${index}`}
-          className="my-3 block overflow-x-auto overflow-y-hidden py-1.5 text-center"
+          className="my-2 block overflow-x-auto overflow-y-hidden py-1 text-left"
           dangerouslySetInnerHTML={{ __html: renderMath(content, true) }}
         />
       );
@@ -292,7 +293,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
 
   return (
     <div className="my-6 overflow-hidden rounded-2xl border border-border/80 bg-zinc-950 dark:bg-zinc-900/60 shadow-md">
-      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 dark:bg-zinc-950/40 border-b border-zinc-800 text-zinc-400 text-[11px] font-mono select-none">
+      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 dark:bg-zinc-950/40 border-b border-zinc-800 text-zinc-400 text-body-xs font-mono select-none">
         <span className="font-semibold tracking-wider uppercase text-zinc-400/80">{language}</span>
         <button
           onClick={handleCopy}
@@ -312,7 +313,7 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
           )}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-zinc-200 font-mono text-[13px] sm:text-body-sm leading-relaxed text-left">
+      <pre className="p-4 overflow-x-auto text-zinc-200 font-mono text-body-sm leading-relaxed text-left">
         <code>{code}</code>
       </pre>
     </div>
@@ -376,6 +377,13 @@ function AlertCallout({
 
 function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) {
   const [formula, setFormula] = useState(initialFormula || "x^2 - 2");
+  const compiledFormula = React.useMemo(() => {
+    try {
+      return compileSafeExpression(formula, { variables: ["x"] });
+    } catch {
+      return null;
+    }
+  }, [formula]);
   
   const padL = 46;
   const padR = 18;
@@ -394,31 +402,6 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
   const mapX = (x: number) => padL + ((x - xMin) / (xMax - xMin)) * plotW;
   const mapY = (y: number) => padT + ((yMax - y) / (yMax - yMin)) * plotH;
 
-  const evalFormula = (xVal: number) => {
-    let expr = formula
-      .toLowerCase()
-      .replace(/\^/g, "**")
-      .replace(/sin/g, "Math.sin")
-      .replace(/cos/g, "Math.cos")
-      .replace(/tan/g, "Math.tan")
-      .replace(/sqrt/g, "Math.sqrt")
-      .replace(/exp/g, "Math.exp")
-      .replace(/log/g, "Math.log")
-      .replace(/pi/g, "Math.PI")
-      .replace(/e/g, "Math.E");
-
-    // Allow only safe characters
-    const sanitized = expr.replace(/[^0-9x+\-*/().\sMath.sincostanqrexplgPIE]/g, "");
-
-    try {
-      const fn = new Function("x", `return ${sanitized};`);
-      const val = fn(xVal);
-      return isNaN(val) ? 0 : val;
-    } catch {
-      return NaN;
-    }
-  };
-
   const graphPath = React.useMemo(() => {
     const steps = 200;
     let path = "";
@@ -426,7 +409,12 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
 
     for (let i = 0; i <= steps; i++) {
       const xVal = xMin + (i / steps) * (xMax - xMin);
-      const yVal = evalFormula(xVal);
+      let yVal = Number.NaN;
+      try {
+        yVal = compiledFormula?.evaluate({ x: xVal }) ?? Number.NaN;
+      } catch {
+        yVal = Number.NaN;
+      }
 
       if (isNaN(yVal)) continue;
 
@@ -442,7 +430,7 @@ function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) 
     }
     return path;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formula]);
+  }, [compiledFormula]);
 
   const xTicks = React.useMemo(() => {
     const ticks = [];
@@ -605,7 +593,7 @@ function BoxPlotChart({ data, xLabel, yLabel }: { data: any[]; xLabel?: string; 
             x={15}
             y={height / 2}
             textAnchor="middle"
-            className="fill-foreground text-[11px] font-heading font-bold"
+            className="fill-foreground text-body-xs font-heading font-bold"
           >
             {yLabel}
           </text>
@@ -668,7 +656,7 @@ function BoxPlotChart({ data, xLabel, yLabel }: { data: any[]; xLabel?: string; 
             x={padding.left + plotWidth / 2}
             y={height - 10}
             textAnchor="middle"
-            className="fill-foreground text-[11px] font-heading font-bold"
+            className="fill-foreground text-body-xs font-heading font-bold"
           >
             {xLabel}
           </text>
@@ -799,12 +787,10 @@ function ChartRenderer({ data, title, caption }: { data: any; title?: string; ca
 }
 
 function GraphRenderer({ data, title, caption }: { data: any; title?: string; caption?: string }) {
-  let functions = data.functions || [];
-  if (typeof functions === "string") {
-    functions = [functions];
-  } else if (!Array.isArray(functions)) {
-    functions = [];
-  }
+  const rawFunctions = data.functions ?? data.function ?? data.equations ?? data.equation ?? data.formula ?? [];
+  const functions = (Array.isArray(rawFunctions) ? rawFunctions : [rawFunctions])
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .map(normalizeLegacyGraphExpression);
   const domain = data.domain || { min: -10, max: 10 };
   const samples = data.samples || 200;
 
@@ -818,27 +804,12 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
   const xMax = domain.max;
 
   let yVals: number[] = [];
-  const curves = functions.map((fnStr: string) => {
-    let code: any = null;
+  const curves = functions.map((expression: string) => {
+    let compiled: ReturnType<typeof compileSafeExpression> | null = null;
     try {
-      let cleanFn = fnStr.trim();
-      // Remove LaTeX delimiters if present
-      cleanFn = cleanFn.replace(/^\$+/, "").replace(/\$+$/, "").trim();
-      // Remove 'y =' prefix
-      cleanFn = cleanFn.replace(/^\s*y\s*=\s*/, "").trim();
-      
-      // Basic LaTeX to MathJS sanitization
-      cleanFn = cleanFn.replace(/\\frac\s*\{([^}]+)\}\s*\{([^}]+)\}/g, "($1/$2)");
-      cleanFn = cleanFn.replace(/\\cdot/g, "*");
-      cleanFn = cleanFn.replace(/\\times/g, "*");
-      cleanFn = cleanFn.replace(/\\left\(/g, "(");
-      cleanFn = cleanFn.replace(/\\right\)/g, ")");
-      cleanFn = cleanFn.replace(/\\/g, "");
-      cleanFn = cleanFn.replace(/[{}]/g, "");
-
-      code = math.compile(cleanFn);
+      compiled = compileSafeExpression(expression, { variables: ["x"] });
     } catch (err) {
-      console.error("MathJS compilation failed for:", fnStr, err);
+      console.error("Safe graph compilation failed for:", expression, err);
       return [];
     }
 
@@ -847,7 +818,7 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
     for (let i = 0; i < samples; i++) {
       const x = xMin + i * step;
       try {
-        const y = code.evaluate({ x });
+        const y = compiled.evaluate({ x });
         if (typeof y === "number" && !isNaN(y) && isFinite(y)) {
           points.push([x, y]);
           yVals.push(y);
@@ -857,6 +828,7 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
     }
     return points;
   });
+  const hasPlottableCurve = curves.some((curve: [number, number][]) => curve.length > 1);
 
   let yMin = -10;
   let yMax = 10;
@@ -920,13 +892,33 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
     setHoverPoint(null);
   };
 
-  const COLORS = ["#2563eb", "#dc2626", "#16a34a", "#ca8a04"];
+  const COLORS = [
+    "var(--color-brand-primary)",
+    "var(--color-brand-secondary)",
+    "var(--color-tertiary-1)",
+    "var(--color-status-warning)",
+  ];
   const originX = mapX(0);
   const originY = mapY(0);
+  const titleEquationIndex = title?.search(/\b(?:y|f\s*\(\s*x\s*\))\s*=/i) ?? -1;
+  const titlePrefix = titleEquationIndex >= 0 ? title?.slice(0, titleEquationIndex).trim() : title;
+  const titleExpression = titleEquationIndex >= 0 && title
+    ? normalizeLegacyGraphExpression(title.slice(titleEquationIndex))
+    : null;
 
   return (
     <div className="my-6 p-5 border border-border bg-card shadow-xs rounded-xl text-center relative select-none">
-      {title && <h4 className="font-heading text-body-base font-bold text-foreground mb-4">{renderRichText(title)}</h4>}
+      {title && <h4 className="font-heading text-body-base font-bold text-foreground mb-4">{titlePrefix}{titleExpression && <><span aria-hidden> </span><MathText>{`$y = ${titleExpression}$`}</MathText></>}</h4>}
+      {functions.length > 0 && (
+        <div className="mb-3 flex flex-wrap justify-center gap-3 text-body-sm text-muted-foreground">
+          {functions.map((expression: string, index: number) => (
+            <span key={`${expression}-${index}`} className="inline-flex items-center gap-2">
+              <span className="size-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+              <MathText>{`$y = ${expression}$`}</MathText>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="w-full max-w-[600px] mx-auto bg-card relative">
         <svg
           viewBox={`0 0 ${svgW} ${svgH}`}
@@ -962,6 +954,19 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
             />
           ))}
 
+          {curves.flatMap((curve: [number, number][], curveIndex: number) => curve.slice(1).flatMap((point, pointIndex) => {
+            const previous = curve[pointIndex];
+            if (!previous || Math.sign(previous[1]) === Math.sign(point[1]) || previous[1] === point[1]) return [];
+            const ratio = Math.abs(previous[1]) / (Math.abs(previous[1]) + Math.abs(point[1]));
+            const rootX = previous[0] + (point[0] - previous[0]) * ratio;
+            return [
+              <g key={`root-${curveIndex}-${pointIndex}`}>
+                <circle cx={mapX(rootX)} cy={originY} r="5" fill="var(--color-background)" stroke={COLORS[curveIndex % COLORS.length]} strokeWidth="2" />
+                <text x={mapX(rootX)} y={originY - 10} textAnchor="middle" fill="var(--color-muted-foreground)" fontSize="11">{rootX.toFixed(2)}</text>
+              </g>,
+            ];
+          }))}
+
           {hoverPoint && (
             <circle
               cx={mapX(hoverPoint.x)}
@@ -973,9 +978,15 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
           )}
         </svg>
 
+        {!hasPlottableCurve && (
+          <div className="absolute inset-x-4 bottom-4 rounded-lg border border-status-warning/30 bg-background/95 p-3 text-left text-body-sm text-foreground shadow-sm">
+            Grafik tidak dapat dibaca. Periksa kembali rumus fungsi yang diberikan.
+          </div>
+        )}
+
         {hoverPoint && (
           <div
-            className="absolute z-10 pointer-events-none bg-zinc-900/90 text-white rounded-lg px-2.5 py-1.5 text-xs font-mono shadow-md border border-zinc-700/50"
+            className="absolute z-10 pointer-events-none bg-zinc-900/90 text-white rounded-lg px-2.5 py-1.5 text-body-xs font-mono shadow-md border border-zinc-700/50"
             style={{
               left: `${hoverPoint.clientX + 10}px`,
               top: `${hoverPoint.clientY - 40}px`,
@@ -1079,12 +1090,12 @@ function FlowchartDiagramRenderer({ data, title, caption }: { data: any; title?:
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-destructive/5 text-destructive border border-destructive/20 rounded-lg">
             <AlertTriangle className="size-8 mb-2 text-destructive" />
             <span className="font-semibold text-body-sm">Diagram Parsing Failed</span>
-            <span className="text-xs text-muted-foreground mt-1 text-center max-w-[80%]">
+            <span className="text-body-xs text-muted-foreground mt-1 text-center max-w-[80%]">
               {error}
             </span>
           </div>
         ) : loading ? (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm font-sans">
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-body-sm font-sans">
             Menghitung tata letak...
           </div>
         ) : (
@@ -1229,11 +1240,11 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "h": {
       const hLvl = block.level || 2;
       const headingClasses = {
-        1: "text-h4 md:text-h3 font-heading font-bold mt-14 mb-4 border-b border-border/60 pb-2.5 tracking-tight",
-        2: "text-h5 md:text-h4 font-heading font-bold mt-12 mb-4 tracking-tight",
-        3: "text-h6 md:text-h5 font-heading font-bold mt-10 mb-3 tracking-tight",
-        4: "text-body-lg md:text-h6 font-heading font-semibold mt-8 mb-3 tracking-tight",
-        5: "text-body-base md:text-body-lg font-heading font-semibold mt-6 mb-2.5 tracking-tight",
+        1: "text-h5 font-heading font-bold mt-14 mb-4 border-b border-border/60 pb-2.5 tracking-tight",
+        2: "text-body-base font-heading font-bold mt-12 mb-4 tracking-tight",
+        3: "text-body-sm font-heading font-bold mt-10 mb-3 tracking-tight",
+        4: "text-body-sm font-heading font-semibold mt-8 mb-3 tracking-tight",
+        5: "text-body-sm font-heading font-semibold mt-6 mb-2.5 tracking-tight",
         6: "text-body-sm md:text-body-base font-heading font-semibold text-muted-foreground mt-6 mb-2 tracking-tight",
       };
       const cls = headingClasses[hLvl as 1 | 2 | 3 | 4 | 5 | 6] || headingClasses[2];
@@ -1267,7 +1278,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "blockquote":
       return (
         <blockquote
-          className="my-5 pl-5 border-l-4 border-primary/50 text-muted-foreground italic bg-muted/20 py-2.5 pr-4 rounded-r-xl leading-relaxed text-body-md"
+          className="my-5 pl-5 border-l-4 border-primary/50 text-muted-foreground italic bg-muted/20 py-2.5 pr-4 rounded-r-xl leading-relaxed text-body-base"
         >
           {renderRichText(block.content)}
         </blockquote>
@@ -1433,7 +1444,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "concept":
       return (
         <div id={block.id} className="p-5 border border-border bg-card shadow-xs rounded-xl text-left my-6">
-          <h3 className="text-h4 font-heading font-bold text-foreground mb-3">{renderRichText(block.content.title)}</h3>
+          <h3 className="text-body-base font-heading font-bold text-foreground mb-3">{renderRichText(block.content.title)}</h3>
           <MarkdownRenderer content={block.content.bodyMarkdown} />
         </div>
       );
@@ -1442,7 +1453,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
       const formulaHtml = katex.renderToString(block.content.latex, { throwOnError: false, displayMode: true });
       return (
         <div id={block.id} className="p-5 border border-border bg-card shadow-xs rounded-xl text-left my-6">
-          <h4 className="text-h5 font-heading font-bold text-foreground mb-3">{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
+          <h4 className="text-body-base font-heading font-bold text-foreground mb-3">{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
           <div className="my-4 overflow-x-auto text-center w-full max-w-full" dangerouslySetInnerHTML={{ __html: formulaHtml }} />
           {block.content.interpretation && (
             <div className="mt-3 text-body-sm text-muted-foreground leading-relaxed">
@@ -1655,7 +1666,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
     return (
       <div className="p-4 bg-status-error/10 border border-status-error/25 text-status-error rounded-xl text-body-sm font-sans">
         <strong>Visual Compiler Error:</strong>
-        <p className="mt-1 font-mono text-xs">{err instanceof Error ? err.message : String(err)}</p>
+        <p className="mt-1 font-mono text-body-xs">{err instanceof Error ? err.message : String(err)}</p>
       </div>
     );
   }

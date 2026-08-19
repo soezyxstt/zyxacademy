@@ -1,7 +1,16 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import { Node, Edge } from "reactflow";
 
-const elk = new ELK();
+let elkInstance: InstanceType<typeof ELK> | null = null;
+
+function getElkInstance() {
+  if (!elkInstance) {
+    elkInstance = new ELK({
+      workerFactory: () => null as any,
+    });
+  }
+  return elkInstance;
+}
 
 export interface LayoutDiagnostics {
   layoutTimeMs: number;
@@ -80,7 +89,7 @@ export async function getLayoutedGraph(
   };
 
   try {
-    const layout = await elk.layout(graph);
+    const layout = await getElkInstance().layout(graph);
     const positionedNodes = nodes.map(n => {
       const nodeLayout = layout.children?.find(c => c.id === n.id);
       return {

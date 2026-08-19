@@ -5,13 +5,8 @@ import { db } from "@/db";
 import { enrollments } from "@/db/schema";
 import { and, eq, gt } from "drizzle-orm";
 import { getOrComputeStudyPath, bucketStudyPathByDays } from "@/lib/study-path-service";
-import { env } from "@/lib/env";
 
 export async function GET(req: NextRequest) {
-  if (env.FEATURE_STUDY_PATH !== "1") {
-    return NextResponse.json({ error: "Study path feature disabled" }, { status: 403 });
-  }
-
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

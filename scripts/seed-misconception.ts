@@ -1,7 +1,6 @@
 /**
  * E1: seed + verify distractor mapping, analytics, and deterministic feedback.
- * Run with: FEATURE_MISCONCEPTION=1 bunx tsx scripts/seed-misconception.ts
- * (PowerShell: $env:FEATURE_MISCONCEPTION=1; bunx tsx scripts/seed-misconception.ts)
+ * Run with: bunx tsx scripts/seed-misconception.ts
  */
 import "dotenv/config";
 import { db } from "../lib/db/index";
@@ -99,7 +98,7 @@ async function setup() {
 
 async function main() {
   console.log("E1 misconception seed starting...");
-  console.log(`FEATURE_MISCONCEPTION=${process.env.FEATURE_MISCONCEPTION ?? "(unset)"}`);
+  console.log("Misconception feedback policy: always-on");
   await setup();
 
   // ── E1.1 buildDistractorMap + validateDistractorMap ──────────────────────────
@@ -168,7 +167,7 @@ async function main() {
   check("option 0 selected 2 times", (byIdx.get(0)?.selectedCount ?? 0) === 2);
   check("option 2 selected 1 time", (byIdx.get(2)?.selectedCount ?? 0) === 1);
 
-  // ── E1.2 deterministic feedback (requires FEATURE_MISCONCEPTION=1) ────────────
+  // ── E1.2 deterministic feedback ─────────────────────────────────────────────
   console.log("\nE1.2 deterministic misconception feedback");
   await db.insert(quizTemplates).values({
     id: TEMPLATE_ID,
@@ -199,13 +198,9 @@ async function main() {
   const payload = fb[0]?.payload as { whyWrong?: string; misconceptionName?: string } | undefined;
   const miscKoRow = await db.select().from(knowledgeObjects).where(eq(knowledgeObjects.id, MISCON_KO_ID));
   const expectedName = miscKoRow[0]?.title;
-  if (process.env.FEATURE_MISCONCEPTION === "1") {
-    check("feedback row created", fb.length === 1);
-    check("misconceptionName equals the KO title (deterministic, no LLM)", payload?.misconceptionName === expectedName);
-    check("whyWrong drawn from the KO content", typeof payload?.whyWrong === "string" && payload!.whyWrong!.toLowerCase().includes("nilai mutlak"));
-  } else {
-    console.log("  SKIP deterministic feedback asserts (set FEATURE_MISCONCEPTION=1 to run)");
-  }
+  check("feedback row created", fb.length === 1);
+  check("misconceptionName equals the KO title (deterministic, no LLM)", payload?.misconceptionName === expectedName);
+  check("whyWrong drawn from the KO content", typeof payload?.whyWrong === "string" && payload!.whyWrong!.toLowerCase().includes("nilai mutlak"));
 
   console.log(`\nE1 result: ${pass} pass, ${fail} fail.`);
   process.exit(fail > 0 ? 1 : 0);

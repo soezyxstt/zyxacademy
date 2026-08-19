@@ -4,8 +4,8 @@ import { studentConceptMastery, knowledgeObjects, knowledgeRelationships, studen
 import { AnalyticsService } from "@/lib/analytics-service";
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { evaluateInterventions } from "@/lib/intervention-service";
-import { env } from "@/lib/env";
 import { recomputeStudyPath } from "@/lib/study-path-service";
+export { getIdeaMasteryWithFallback } from "@/lib/pemahaman/compatibility";
 
 export interface MasteryRow {
   conceptName: string;
@@ -104,16 +104,12 @@ export async function recomputeMastery(studentId: string, courseId: string): Pro
       });
   }
 
-  if (env.FEATURE_FEEDBACK === "1") {
-    await evaluateInterventions(studentId, courseId);
-  }
+  await evaluateInterventions(studentId, courseId);
 
-  if (env.FEATURE_STUDY_PATH === "1") {
-    try {
-      await recomputeStudyPath(studentId, courseId);
-    } catch (err) {
-      console.error("Error recomputing study path after mastery update:", err);
-    }
+  try {
+    await recomputeStudyPath(studentId, courseId);
+  } catch (err) {
+    console.error("Error recomputing study path after mastery update:", err);
   }
 }
 

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Radio, Users, AlertTriangle } from "lucide-react";
 import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
+import { MathText } from "@/components/course/math-text";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { cn } from "@/lib/utils";
 
 interface Template {
@@ -50,7 +52,7 @@ export default function LiveHostPage() {
       .finally(() => setLoadingTemplates(false));
 
     // Also load templates list
-    fetch(`/api/admin/ai/quizzes?courseId=${courseId}`, { signal: ac.signal })
+    fetch(`/api/quiz/templates?courseId=${courseId}`, { signal: ac.signal })
       .then(async (r) => {
         if (!r.ok) return;
         const data = await r.json();
@@ -131,7 +133,7 @@ export default function LiveHostPage() {
         <div className="border-b border-border pb-4">
           <div className="flex items-center gap-2">
             <Radio className="size-4 text-brand-primary" />
-            <h1 className="font-heading text-h4 font-semibold text-foreground">
+            <h1 className="font-heading text-h5 font-semibold text-foreground">
               Kuis Langsung
             </h1>
           </div>
@@ -233,9 +235,9 @@ export default function LiveHostPage() {
             </span>
           </div>
 
-          <p className="font-heading text-h5 font-semibold text-foreground">
+          <MathText className="font-sans text-body-base font-semibold text-foreground block" as="div">
             {currentQuestion.prompt}
-          </p>
+          </MathText>
 
           {/* Per-option count bars */}
           <div className="space-y-2.5">
@@ -248,7 +250,7 @@ export default function LiveHostPage() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-body-sm text-foreground">
                       <span className="mr-1.5 font-bold">{String.fromCharCode(65 + i)}.</span>
-                      {opt}
+                      <MathText as="span">{opt}</MathText>
                     </span>
                     <span className="shrink-0 text-body-xs text-muted-foreground tabular-nums">{count}</span>
                   </div>
@@ -262,13 +264,14 @@ export default function LiveHostPage() {
               );
             })}
           </div>
+          <QuestionSourceCitation origin={currentQuestion.origin} sourceEventName={currentQuestion.sourceEventName} />
         </div>
       )}
 
       {/* ── Reveal / Leaderboard ── */}
       {(sessionState === "reveal" || sessionState === "ended") && top10.length > 0 && (
         <div className="mx-auto max-w-lg space-y-3">
-          <h2 className="font-heading text-h6 font-semibold text-foreground">
+          <h2 className="font-heading text-body-base font-semibold text-foreground">
             {sessionState === "ended" ? "Papan skor akhir" : "Papan Skor"}
           </h2>
           <div className="divide-y divide-border rounded-xl border border-border">

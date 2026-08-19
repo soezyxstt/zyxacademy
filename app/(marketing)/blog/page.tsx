@@ -25,8 +25,8 @@ const CATEGORIES = [
 
 const APP_FEATURES = [
   {
-    title: "Zyx Tutor AI",
-    desc: "Belajar adaptif dengan AI tutor pribadi 24/7.",
+    title: "Asisten Belajar Zyra",
+    desc: "Belajar adaptif dengan asisten belajar pribadi 24/7.",
     icon: Sparkles,
     bg: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   },

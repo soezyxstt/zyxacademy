@@ -18,7 +18,6 @@ import { StudyStatisticsCard } from "@/components/course/study-statistics-card";
 import { RecentActivityCard } from "@/components/course/recent-activity-card";
 import { getCourseLearningSummary, getCourseDailyPlan } from "@/lib/learning-analytics";
 import { getMastery } from "@/lib/mastery-store";
-import { env } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
@@ -47,8 +46,8 @@ export default async function CourseOverviewPage({ params }: Props) {
     getCourseChapterOutline(id, studentId),
   ]);
 
-  const showDailyPlan = env.FEATURE_TODAY === "1";
-  const showMastery = env.FEATURE_MASTERY === "1";
+  const showDailyPlan = true;
+  const showMastery = true;
 
   const [learningSummary, dailyPlan, masteryConcepts] =
     studentId && isEnrolled

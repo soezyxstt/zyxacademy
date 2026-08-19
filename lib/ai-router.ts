@@ -1,127 +1,126 @@
+import {
+  ROUTE_POLICY,
+  getRpdLimit as getRegistryRpdLimit,
+  getRpmLimit as getRegistryRpmLimit,
+  getTpmLimit as getRegistryTpmLimit,
+  type ModelId,
+  type ModelRouteClass,
+} from "@/lib/ai/provider/model-registry";
+
 export const USE_CASES = {
-  // ── Tier A: Ultra High Volume (default: gemini-3.1-flash-lite) ─────────
-  GROUNDED_RAG: 'grounded-rag',
-  EXPLAIN_CONCEPT: 'explain-concept',
-  CHAPTER_SUMMARY: 'chapter-summary',
-  MISTAKE_FEEDBACK: 'mistake-feedback',
-  FLASHCARD_GEN: 'flashcard-gen',
-  MATERIAL_GEN: 'material-gen',
-  PRACTICE_QUESTION_GEN: 'practice-question-gen',
-
-  // ── Tier B: Medium Complexity (default: gemini-2.5-flash) ─────────────
-  UNGROUNDED_TUTOR: 'ungrounded-tutor',
-  UNGROUNDED_TUTOR_GEMMA: 'ungrounded-tutor-gemma',
-
-  // ── Tier C: Premium Reasoning (default: gemini-3.5-flash) ─────────────
-  KO_EXTRACTION: 'ko-extraction',
-  KO_VALIDATION: 'ko-validation',
-  QUESTION_REVIEW: 'question-review',
-  WEAK_CONCEPT_GUIDANCE: 'weak-concept-guidance',
-  WEAK_CONCEPT_GUIDANCE_GEMMA: 'weak-concept-guidance-gemma',
-
-  // ── Diktat ────────────────────────────────────────────────────────────
-  DIKTAT_AUDIT: 'diktat-audit',
-  DIKTAT_PDF_AUDIT: 'diktat-pdf-audit',
-  DIKTAT_EXAM_PATTERNS: 'diktat-exam-patterns',
-  DIKTAT_QUICK_METHODS: 'diktat-quick-methods',
-
-  // ── Embedding (separate path) ─────────────────────────────────────────
+  GROUNDED_RAG: "grounded-rag",
+  EXPLAIN_CONCEPT: "explain-concept",
+  CHAPTER_SUMMARY: "chapter-summary",
+  MISTAKE_FEEDBACK: "mistake-feedback",
+  FLASHCARD_GEN: "flashcard-gen",
+  MATERIAL_GEN: "material-gen",
+  PRACTICE_QUESTION_GEN: "practice-question-gen",
+  UNGROUNDED_TUTOR: "ungrounded-tutor",
+  UNGROUNDED_TUTOR_GEMMA: "ungrounded-tutor-gemma",
+  KO_EXTRACTION: "ko-extraction",
+  KO_VALIDATION: "ko-validation",
+  QUESTION_REVIEW: "question-review",
+  WEAK_CONCEPT_GUIDANCE: "weak-concept-guidance",
+  WEAK_CONCEPT_GUIDANCE_GEMMA: "weak-concept-guidance-gemma",
+  DIKTAT_AUDIT: "diktat-audit",
+  DIKTAT_PDF_AUDIT: "diktat-pdf-audit",
+  DIKTAT_EXAM_PATTERNS: "diktat-exam-patterns",
+  DIKTAT_QUICK_METHODS: "diktat-quick-methods",
 } as const;
 
 export type UseCase = (typeof USE_CASES)[keyof typeof USE_CASES];
 
-interface ModelChain {
-  models: string[];
+type ModelChain = readonly ModelId[];
+
+export type ProviderRouteRequest = {
+  readonly useCase?: string;
+  readonly feature?: string;
+  readonly visualMode?: boolean;
+  readonly multimodal?: boolean;
+  readonly evidenceSize?: number;
+  readonly assessmentState?: "active" | "inactive";
+  readonly explicitUserAction?: "explain" | "diagnose" | "visualize" | "summarize" | "generate" | "emergency";
+};
+
+export type ProviderRoutePlan = {
+  readonly routeClass: ModelRouteClass;
+  readonly models: readonly ModelId[];
+  readonly premium: boolean;
+};
+
+const REGISTRY_CHAINS: Record<string, ModelChain> = {
+  [USE_CASES.GROUNDED_RAG]: ROUTE_POLICY.default,
+  [USE_CASES.EXPLAIN_CONCEPT]: ROUTE_POLICY.default,
+  [USE_CASES.CHAPTER_SUMMARY]: ROUTE_POLICY.default,
+  [USE_CASES.MISTAKE_FEEDBACK]: ROUTE_POLICY.default,
+  [USE_CASES.FLASHCARD_GEN]: ROUTE_POLICY.default,
+  [USE_CASES.MATERIAL_GEN]: ROUTE_POLICY.default,
+  [USE_CASES.PRACTICE_QUESTION_GEN]: ROUTE_POLICY.default,
+  [USE_CASES.UNGROUNDED_TUTOR]: ROUTE_POLICY.premiumPedagogy,
+  [USE_CASES.UNGROUNDED_TUTOR_GEMMA]: ROUTE_POLICY.emergency,
+  [USE_CASES.KO_EXTRACTION]: ROUTE_POLICY.premiumPedagogy,
+  [USE_CASES.KO_VALIDATION]: ROUTE_POLICY.premiumPedagogy,
+  [USE_CASES.QUESTION_REVIEW]: ROUTE_POLICY.premiumPedagogy,
+  [USE_CASES.WEAK_CONCEPT_GUIDANCE]: ROUTE_POLICY.premiumPedagogy,
+  [USE_CASES.WEAK_CONCEPT_GUIDANCE_GEMMA]: ROUTE_POLICY.emergency,
+  [USE_CASES.DIKTAT_AUDIT]: ROUTE_POLICY.premiumPedagogy,
+  [USE_CASES.DIKTAT_PDF_AUDIT]: ROUTE_POLICY.premiumPedagogy,
+  [USE_CASES.DIKTAT_EXAM_PATTERNS]: ROUTE_POLICY.premiumPedagogy,
+  [USE_CASES.DIKTAT_QUICK_METHODS]: ROUTE_POLICY.premiumPedagogy,
+  default: ROUTE_POLICY.default,
+};
+
+const DIAGNOSTIC_USE_CASES = new Set<string>([
+  USE_CASES.MISTAKE_FEEDBACK,
+  USE_CASES.WEAK_CONCEPT_GUIDANCE,
+  USE_CASES.QUESTION_REVIEW,
+  USE_CASES.DIKTAT_AUDIT,
+  USE_CASES.DIKTAT_PDF_AUDIT,
+]);
+
+const EMERGENCY_USE_CASES = new Set<string>([
+  USE_CASES.UNGROUNDED_TUTOR_GEMMA,
+  USE_CASES.WEAK_CONCEPT_GUIDANCE_GEMMA,
+]);
+
+/** Classifies only server-owned request attributes. Model names in prompts are ignored. */
+export function classifyProviderRoute(input: ProviderRouteRequest = {}): ProviderRoutePlan {
+  if (input.explicitUserAction === "emergency" || EMERGENCY_USE_CASES.has(input.useCase ?? "")) {
+    return { routeClass: "emergency", models: ROUTE_POLICY.emergency, premium: false };
+  }
+
+  if (input.visualMode === true || input.multimodal === true) {
+    return { routeClass: "premium-visual", models: ROUTE_POLICY.premiumVisual, premium: true };
+  }
+
+  if (input.explicitUserAction === "diagnose" || DIAGNOSTIC_USE_CASES.has(input.useCase ?? "")) {
+    return { routeClass: "premium-pedagogy", models: ROUTE_POLICY.premiumPedagogy, premium: true };
+  }
+
+  return { routeClass: "default", models: ROUTE_POLICY.default, premium: false };
 }
 
-const CHAINS: Record<string, ModelChain> = {
-  // Tier A: start cheap, escalate on exhaustion
-  [USE_CASES.GROUNDED_RAG]: {
-    models: ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3.5-flash'],
-  },
-  [USE_CASES.EXPLAIN_CONCEPT]: {
-    models: ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3.5-flash'],
-  },
-  [USE_CASES.CHAPTER_SUMMARY]: {
-    models: ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3.5-flash'],
-  },
-  [USE_CASES.MISTAKE_FEEDBACK]: {
-    models: ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3.5-flash'],
-  },
-  [USE_CASES.FLASHCARD_GEN]: {
-    models: ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3.5-flash'],
-  },
-  [USE_CASES.MATERIAL_GEN]: {
-    models: ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3.5-flash'],
-  },
-  [USE_CASES.PRACTICE_QUESTION_GEN]: {
-    models: ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3.5-flash'],
-  },
-
-  // Tier B: start with 2.5-flash, escalate to 3.5
-  [USE_CASES.UNGROUNDED_TUTOR]: {
-    models: ['gemini-2.5-flash', 'gemini-3.5-flash'],
-  },
-  // Tier B Gemma fallback: when user's 5 premium/day exhausted
-  [USE_CASES.UNGROUNDED_TUTOR_GEMMA]: {
-    models: ['gemma-4-31b-it'],
-  },
-
-  // Tier C: premium reasoning
-  [USE_CASES.KO_EXTRACTION]: {
-    models: ['gemini-3.5-flash', 'gemini-2.5-flash'],
-  },
-  [USE_CASES.KO_VALIDATION]: {
-    models: ['gemini-3.5-flash', 'gemini-2.5-flash'],
-  },
-  [USE_CASES.QUESTION_REVIEW]: {
-    models: ['gemini-3.5-flash', 'gemini-2.5-flash'],
-  },
-  [USE_CASES.WEAK_CONCEPT_GUIDANCE]: {
-    models: ['gemini-3.5-flash', 'gemini-2.5-flash'],
-  },
-  // Tier C Gemma fallback: when user's 5 premium/day exhausted
-  [USE_CASES.WEAK_CONCEPT_GUIDANCE_GEMMA]: {
-    models: ['gemma-4-31b-it'],
-  },
-
-  // Diktat
-  [USE_CASES.DIKTAT_AUDIT]: {
-    models: ['gemini-3.5-flash', 'gemini-2.5-flash'],
-  },
-  [USE_CASES.DIKTAT_PDF_AUDIT]: {
-    models: ['gemini-3.5-flash', 'gemini-2.5-flash'],
-  },
-  [USE_CASES.DIKTAT_EXAM_PATTERNS]: {
-    models: ['gemini-3.5-flash', 'gemini-2.5-flash'],
-  },
-  [USE_CASES.DIKTAT_QUICK_METHODS]: {
-    models: ['gemini-3.5-flash', 'gemini-2.5-flash'],
-  },
-
-  default: {
-    models: ['gemini-2.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-3.5-flash'],
-  },
-};
+export function providerRouterV2Enabled(): boolean {
+  return true;
+}
 
 export function getModelChain(useCase?: string): string[] {
-  if (useCase && CHAINS[useCase]) {
-    return CHAINS[useCase].models;
-  }
-  return CHAINS.default.models;
+  const chains = REGISTRY_CHAINS;
+  return [...(useCase && chains[useCase] ? chains[useCase] : chains.default)];
 }
 
-export const RPD_LIMITS: Record<string, number> = {
-  'gemini-2.5-flash-lite': 50,
-  'gemini-3.1-flash-lite': 500,
-  'gemini-2.5-flash': 20,
-  'gemini-3.5-flash': 20,
-  'gemma-4-31b-it': 1500,
-  'gemini-embedding-2': 1000,
-  'gemini-embedding-002': 1000,
-  'gemini-embedding-001': 1000,
-};
+export function getProviderRoutePlan(input: ProviderRouteRequest = {}): ProviderRoutePlan {
+  return classifyProviderRoute(input);
+}
 
 export function getRpdLimit(modelId: string): number {
-  return RPD_LIMITS[modelId] ?? 1500;
+  return getRegistryRpdLimit(modelId);
+}
+
+export function getRpmLimit(modelId: string): number {
+  return getRegistryRpmLimit(modelId);
+}
+
+export function getTpmLimit(modelId: string): number {
+  return getRegistryTpmLimit(modelId);
 }

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import { gradeSubmissionAction } from "@/app/actions/tutor-management";
 
@@ -89,7 +90,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
             Kembali
           </Button>
           <div>
-            <h2 className="font-heading text-body-lg font-bold text-foreground">Lembar Jawaban: {activeSub.examTitle}</h2>
+            <h2 className="font-heading text-body-base font-bold text-foreground">Lembar Jawaban: {activeSub.examTitle}</h2>
             <p className="text-body-xs text-muted-foreground flex items-center gap-1">
               <User className="size-3" /> {activeSub.studentName} ({activeSub.studentEmail})
             </p>
@@ -123,7 +124,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-body-base font-medium text-foreground leading-relaxed pt-2">{q.prompt}</p>
+                      <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-2" as="p">{q.prompt}</MathText>
                     </div>
                   </div>
 
@@ -153,7 +154,9 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                             }`}>
                               {String.fromCharCode(65 + i)}
                             </span>
-                            <span className="truncate">{opt}</span>
+                            <span className="truncate">
+                              <MathText className="leading-normal" as="span">{opt}</MathText>
+                            </span>
                           </div>
                         );
                       })}
@@ -229,7 +232,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                     value={scoreInput}
                     onChange={(e) => setScoreInput(e.target.value)}
                     placeholder="Masukkan angka..."
-                    className="rounded-lg border-input bg-background font-heading text-body-lg font-bold text-brand-primary focus-visible:ring-brand-primary"
+                    className="rounded-lg border-input bg-background font-sans text-body-sm font-semibold text-brand-primary focus-visible:ring-brand-primary"
                   />
                 </div>
 
@@ -339,7 +342,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right">
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase">Nilai Akhir</p>
-                      <p className="font-heading text-body-lg font-bold text-brand-primary tabular-nums">{s.score}%</p>
+                      <p className="font-heading text-h6 font-bold text-brand-primary tabular-nums">{s.score}%</p>
                     </div>
                     <Button variant="outline" onClick={() => handleOpenGrade(s)} className="rounded-md border-border/80 text-muted-foreground hover:text-foreground">
                       Edit Nilai
@@ -373,7 +376,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                     <p className="text-body-xs text-muted-foreground flex items-center gap-1.5">
                       <Calendar className="size-3.5" />
                       Status:{" "}
-                      <Badge variant="outline" className={`text-[9px] rounded-md ${
+                      <Badge variant="outline" className={`text-[10px] rounded-md ${
                         s.status === "graded" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                       }`}>
                         {s.status === "graded" ? "Sudah Dinilai" : "Menunggu Dinilai"}
@@ -383,7 +386,7 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right">
                       <p className="text-body-xs font-semibold text-muted-foreground uppercase font-sans">Skor</p>
-                      <p className="font-heading text-body-lg font-bold text-brand-primary tabular-nums">{s.score != null ? `${s.score}%` : "Pending"}</p>
+                      <p className="font-heading text-h6 font-bold text-brand-primary tabular-nums">{s.score != null ? `${s.score}%` : "Pending"}</p>
                     </div>
                     <Button onClick={() => handleOpenGrade(s)} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold text-body-sm">
                       {s.status === "graded" ? "Edit Nilai" : "Nilai Jawaban"}

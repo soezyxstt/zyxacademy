@@ -10,6 +10,8 @@ import { useLiveQuizSocket } from "@/components/live/use-live-quiz-socket";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import type { QuizOptionState } from "@/components/course/quiz-option-styles";
 import { CoursePageShell } from "@/components/course/course-page-shell";
+import { MathText } from "@/components/course/math-text";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 // Fixture import removed
 import { getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
@@ -83,9 +85,9 @@ export default function LiveStudentPage() {
     return (
       <CoursePageShell title={title} description="Ikuti kuis langsung bersama teman sekelas." icon={Play}>
         <div className="mx-auto flex max-w-xs flex-col items-center gap-6 px-4 py-20">
-          <h1 className="font-heading text-h4 font-semibold text-foreground">Gabung kuis langsung</h1>
+          <h1 className="font-heading text-h5 font-semibold text-foreground">Gabung kuis langsung</h1>
           <Input
-            className="rounded-lg text-center font-heading text-h5 tracking-widest uppercase"
+            className="rounded-lg text-center font-sans text-body-sm tracking-widest uppercase"
             placeholder="ABC123"
             maxLength={6}
             value={code}
@@ -192,9 +194,9 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
             )}
           </div>
 
-          <p className="font-heading text-h5 font-semibold text-foreground">
+          <MathText className="font-sans text-body-base font-semibold text-foreground block" as="div">
             {currentQuestion.prompt}
-          </p>
+          </MathText>
 
           <ul className="space-y-2">
             {currentQuestion.options.map((opt, i) => {
@@ -222,12 +224,13 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
                     <span className={quizOptionLetterClasses(optState)}>
                       {String.fromCharCode(65 + i)}
                     </span>
-                    <span className="flex-1 text-left leading-normal">{opt}</span>
+                    <MathText className="flex-1 text-left leading-normal" as="span">{opt}</MathText>
                   </button>
                 </li>
               );
             })}
           </ul>
+          <QuestionSourceCitation origin={currentQuestion.origin} sourceEventName={currentQuestion.sourceEventName} />
 
           {myAnswer !== null && sessionState === "question" && (
             <p className="text-body-sm text-muted-foreground">
@@ -251,7 +254,7 @@ function LiveView({ state, sendAnswer }: LiveViewProps) {
       {sessionState === "ended" && (
         <div className="mx-auto max-w-lg space-y-6">
           <div className="text-center">
-            <p className="font-heading text-h4 font-bold text-foreground">Sesi berakhir</p>
+            <p className="font-heading text-body-base font-bold text-foreground">Sesi berakhir</p>
             <p className="mt-1 text-body-sm text-muted-foreground">
               Skor Anda: <span className="font-bold tabular-nums text-primary">{yourScore}</span>
               {yourRank ? ` · Peringkat ${yourRank}` : ""}
@@ -287,7 +290,7 @@ function Leaderboard({ top10, yourRank, yourScore, title }: LeaderboardProps) {
 
   return (
     <div className="mx-auto max-w-lg space-y-2">
-      <h2 className="font-heading text-h6 font-semibold text-foreground">{title}</h2>
+      <h2 className="font-heading text-body-base font-semibold text-foreground">{title}</h2>
       {yourRank && !top10.find((e) => e.rank === yourRank) && (
         <div className="mb-1 flex items-center gap-3 rounded-lg border-l-2 border-primary bg-primary/5 px-4 py-2">
           <span className="w-6 shrink-0 text-center text-body-sm font-bold tabular-nums text-primary">

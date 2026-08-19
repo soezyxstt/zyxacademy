@@ -13,6 +13,7 @@ import {
 import { AnalyticsClient } from "@/components/tutor/analytics-client";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
+import { ZyraProposalPanel } from "@/components/zyra/zyra-proposal-panel";
 
 type Props = { params: Promise<{ courseId: string }> };
 
@@ -72,7 +73,7 @@ export default async function TutorCoursePage({ params }: Props) {
       {/* Section 1: headline stats */}
       <Reveal>
         <section aria-labelledby="course-title">
-          <h1 id="course-title" className="text-h4 font-heading font-bold mb-4">
+          <h1 id="course-title" className="text-h5 font-heading font-bold mb-4">
             {analytics.courseTitle}
           </h1>
           <div className="flex gap-8">
@@ -106,6 +107,7 @@ export default async function TutorCoursePage({ params }: Props) {
         analytics={analytics}
         updatedAt={updatedAt}
       />
+      <ZyraProposalPanel courseId={courseId} role="tutor" />
     </div>
   );
 }

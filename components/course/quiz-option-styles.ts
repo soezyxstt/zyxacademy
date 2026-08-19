@@ -19,7 +19,7 @@ const optionStateClasses: Record<QuizOptionState, string> = {
 
 export function quizOptionClasses(state: QuizOptionState, className?: string) {
   return cn(
-    "flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-[13px] font-medium transition-all duration-200 cursor-pointer disabled:cursor-not-allowed md:gap-3 md:rounded-xl md:px-4 md:py-3 md:text-body-sm",
+    "flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-body-sm font-medium transition-all duration-200 cursor-pointer disabled:cursor-not-allowed md:gap-3 md:rounded-xl md:px-4 md:py-3",
     optionStateClasses[state],
     className,
   );
@@ -34,7 +34,7 @@ const letterStateClasses: Record<QuizOptionState, string> = {
 
 export function quizOptionLetterClasses(state: QuizOptionState, className?: string) {
   return cn(
-    "flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-bold transition-colors md:size-7 md:text-body-xs",
+    "flex size-6 shrink-0 items-center justify-center rounded-md text-body-xs font-bold transition-colors md:size-7",
     letterStateClasses[state],
     className,
   );

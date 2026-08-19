@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FormattedDate } from "@/components/ui/formatted-date";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { QRCodeSVG } from "qrcode.react";
 import { Link as LinkIcon, QrCode, Copy } from "lucide-react";
-
+import { PageHeader } from "@/components/page-header";
 
 type ShortLink = {
   id: string;
@@ -16,7 +20,7 @@ type ShortLink = {
   url: string;
   title: string | null;
   clicks: number;
-  createdAt: string;
+  createdAt: string | number;
 };
 
 export default function ShortLinksPage() {
@@ -54,20 +58,21 @@ export default function ShortLinksPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, slug, title: title.trim() || null }),
       });
-      
+
       if (res.ok) {
         const newLink = await res.json();
         setLinks([newLink, ...links]);
         setUrl("");
         setTitle("");
         setSlug("");
+        toast.success("Short link berhasil dibuat");
       } else {
         const err = await res.text();
-        alert(`Error: ${err}`);
+        toast.error(`Error: ${err}`);
       }
     } catch (error) {
       console.error(error);
-      alert("Failed to create short link");
+      toast.error("Failed to create short link");
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +80,7 @@ export default function ShortLinksPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Copied to clipboard!");
+    toast.success("Tautan berhasil disalin");
   };
 
   const getFullUrl = (slug: string) => {
@@ -86,150 +91,176 @@ export default function ShortLinksPage() {
   };
 
   return (
-    <div className="space-y-8 p-0 sm:p-2">
-      <div>
-        <h1 className="font-heading text-h3">Short Links</h1>
-        <p className="text-muted-foreground text-body-base">
-          Create and manage custom short URLs (zyxacademy.com/s/[slug]) and generate QR codes.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader icon={LinkIcon} title="Short Links" />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         <div className="md:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Link</CardTitle>
-              <CardDescription>Generate a new short URL</CardDescription>
+          <Card className="p-4 gap-4">
+            <CardHeader className="p-0">
+              <CardTitle className="font-heading text-body-base font-bold">Buat Tautan</CardTitle>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="url">Destination URL</Label>
+            <CardContent className="p-0">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="url" className="text-body-sm font-semibold">
+                    URL Tujuan
+                  </Label>
                   <Input
                     id="url"
                     type="url"
-                    placeholder="https://example.com/some/long/path"
+                    placeholder="https://..."
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title (Optional)</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="title" className="text-body-sm font-semibold">
+                    Judul (Opsional)
+                  </Label>
                   <Input
                     id="title"
                     type="text"
-                    placeholder="e.g. Spring Sale Campaign"
+                    placeholder="Promo Musim Semi"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="slug">Custom Slug (Optional)</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="slug" className="text-body-sm font-semibold">
+                    Slug Kustom (Opsional)
+                  </Label>
                   <Input
                     id="slug"
                     type="text"
-                    placeholder="e.g. spring-sale"
+                    placeholder="promo-musim-semi"
                     value={slug}
                     onChange={(e) => setSlug(e.target.value)}
                   />
-                  <p className="text-body-sm text-muted-foreground">
-                    Leave blank to generate a random slug.
-                  </p>
                 </div>
                 <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? "Creating..." : "Create Link"}
+                  {submitting ? "Membuat..." : "Buat Tautan"}
                 </Button>
               </form>
             </CardContent>
           </Card>
         </div>
 
-        <div className="md:col-span-2 space-y-4">
-          <div className="rounded-xl border border-border bg-card">
-            {loading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading...</div>
-            ) : links.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">No short links created yet.</div>
-            ) : (
-              <div className="divide-y divide-border">
-                {links.map((link) => (
-                  <div key={link.id} className="p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                    <div className="space-y-1 overflow-hidden">
-                      <div className="flex items-center gap-2">
-                        <LinkIcon className="size-4 text-primary" />
-                        <span className="font-medium">{link.title || `/s/${link.slug}`}</span>
-                        {link.title && <span className="text-body-sm text-muted-foreground">(/s/{link.slug})</span>}
+        <div className="md:col-span-2">
+          <TooltipProvider>
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              {loading ? (
+                <div className="p-6 text-center text-body-sm text-muted-foreground">Memuat...</div>
+              ) : links.length === 0 ? (
+                <div className="p-4">
+                  <AdminEmptyState compact title="Belum ada tautan pendek." />
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {links.map((link) => (
+                    <div
+                      key={link.id}
+                      className="p-3 sm:p-3.5 flex items-center justify-between gap-3 transition-colors hover:bg-muted/30"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <LinkIcon className="size-3.5 text-primary shrink-0" />
+                          <span className="font-medium text-body-sm text-foreground truncate">
+                            {link.title || `/s/${link.slug}`}
+                          </span>
+                          {link.title && (
+                            <span className="text-body-xs text-muted-foreground">(/s/{link.slug})</span>
+                          )}
+                        </div>
+                        <p className="text-body-xs text-muted-foreground truncate" title={link.url}>
+                          {link.url}
+                        </p>
+                        <div className="text-body-xs text-muted-foreground flex items-center gap-1.5">
+                          <span>{link.clicks} klik</span>
+                          <span>·</span>
+                          <FormattedDate
+                            date={link.createdAt}
+                            options={{ day: "numeric", month: "short", year: "numeric" }}
+                          />
+                        </div>
                       </div>
-                      <p className="text-body-sm text-muted-foreground truncate max-w-[300px]" title={link.url}>
-                        {link.url}
-                      </p>
-                      <p className="text-body-sm text-muted-foreground">
-                        {link.clicks} clicks • {new Date(link.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </p>
-                    </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button variant="outline" size="sm" onClick={() => copyToClipboard(getFullUrl(link.slug))}>
-                        <Copy className="size-4 mr-2" />
-                        Copy
-                      </Button>
-                      
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <QrCode className="size-4 mr-2" />
-                            QR Code
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>QR Code for /s/{link.slug}</DialogTitle>
-                          </DialogHeader>
-                          <div className="flex flex-col items-center justify-center p-6 space-y-6">
-                            <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
-                              <QRCodeSVG
-                                id={`qr-${link.slug}`}
-                                value={getFullUrl(link.slug)}
-                                size={200}
-                                level={"H"}
-                                includeMargin={true}
-                              />
-                            </div>
-                            <Button 
-                              variant="secondary" 
-                              className="w-full"
-                              onClick={() => {
-                                const svg = document.getElementById(`qr-${link.slug}`);
-                                if (!svg) return;
-                                const svgData = new XMLSerializer().serializeToString(svg);
-                                const canvas = document.createElement("canvas");
-                                const ctx = canvas.getContext("2d");
-                                const img = new Image();
-                                img.onload = () => {
-                                  canvas.width = img.width;
-                                  canvas.height = img.height;
-                                  ctx?.drawImage(img, 0, 0);
-                                  const pngFile = canvas.toDataURL("image/png");
-                                  const downloadLink = document.createElement("a");
-                                  downloadLink.download = `qrcode-${link.slug}.png`;
-                                  downloadLink.href = `${pngFile}`;
-                                  downloadLink.click();
-                                };
-                                img.src = "data:image/svg+xml;base64," + btoa(svgData);
-                              }}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              onClick={() => copyToClipboard(getFullUrl(link.slug))}
+                              aria-label="Salin tautan"
                             >
-                              Download PNG
+                              <Copy className="size-3.5" />
                             </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                          </TooltipTrigger>
+                          <TooltipContent>Salin tautan</TooltipContent>
+                        </Tooltip>
+
+                        <Dialog>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="icon-sm" aria-label="Kode QR">
+                                  <QrCode className="size-3.5" />
+                                </Button>
+                              </DialogTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>Kode QR</TooltipContent>
+                          </Tooltip>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Kode QR untuk /s/{link.slug}</DialogTitle>
+                            </DialogHeader>
+                            <div className="flex flex-col items-center justify-center p-6 space-y-4">
+                              <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
+                                <QRCodeSVG
+                                  id={`qr-${link.slug}`}
+                                  value={getFullUrl(link.slug)}
+                                  size={200}
+                                  level={"H"}
+                                  includeMargin={true}
+                                />
+                              </div>
+                              <Button
+                                variant="secondary"
+                                className="w-full text-body-sm"
+                                onClick={() => {
+                                  const svg = document.getElementById(`qr-${link.slug}`);
+                                  if (!svg) return;
+                                  const svgData = new XMLSerializer().serializeToString(svg);
+                                  const canvas = document.createElement("canvas");
+                                  const ctx = canvas.getContext("2d");
+                                  const img = new Image();
+                                  img.onload = () => {
+                                    canvas.width = img.width;
+                                    canvas.height = img.height;
+                                    ctx?.drawImage(img, 0, 0);
+                                    const pngFile = canvas.toDataURL("image/png");
+                                    const downloadLink = document.createElement("a");
+                                    downloadLink.download = `qrcode-${link.slug}.png`;
+                                    downloadLink.href = `${pngFile}`;
+                                    downloadLink.click();
+                                  };
+                                  img.src = "data:image/svg+xml;base64," + btoa(svgData);
+                                }}
+                              >
+                                Unduh PNG
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TooltipProvider>
         </div>
       </div>
     </div>

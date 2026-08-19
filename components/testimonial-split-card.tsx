@@ -43,7 +43,7 @@ export function TestimonialSplitCard({
         {company ? (
           <p className="font-heading text-h6 font-bold uppercase tracking-wide text-white/90">{company}</p>
         ) : null}
-        <blockquote className="mt-3 font-heading text-body-base font-medium italic leading-snug text-white md:text-body-lg">
+        <blockquote className="mt-3 font-heading text-body-base font-medium italic leading-snug text-white">
           &ldquo;{quote}&rdquo;
         </blockquote>
         <p className="mt-5 font-heading text-h6 font-bold text-white">{name}</p>

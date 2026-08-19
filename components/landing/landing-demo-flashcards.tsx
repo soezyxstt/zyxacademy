@@ -53,11 +53,11 @@ function StreakStrip() {
  </div>
  ))}
  </div>
- <p className="text-right text-xs font-semibold text-foreground">
+ <p className="text-right text-body-xs font-semibold text-foreground">
  🔥 6 hari beruntun
  </p>
  </div>
- <p className="mt-2.5 text-xs text-muted-foreground">
+ <p className="mt-2.5 text-body-xs text-muted-foreground">
  Jadwal review selesai 6 hari berturut-turut ; jangan putus di hari Minggu.
  </p>
  </div>
@@ -69,7 +69,7 @@ export function LandingDemoFlashcards() {
  <SectionContainer className="bg-background" aria-labelledby="landing-flashcards-heading">
  <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
  <div className="max-w-xl">
- <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
+ <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">
  Flashcard · Spaced Repetition
  </p>
  <SectionHeading as="h2" id="landing-flashcards-heading" className="mt-3 text-foreground">

@@ -4,6 +4,7 @@ import { db } from "@/db"; // Assuming you export your Drizzle db instance from 
 import * as schema from "@/db/schema";
 import { resolveAuthSecret } from "@/lib/auth-secret";
 import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
+import { provisionPenggunaForNewUser } from "@/lib/auth/authorization";
 
 function requiredEnv(name: string): string {
  const v = process.env[name];
@@ -40,6 +41,20 @@ export const auth = betterAuth({
  type: "date",
  required: false,
  }
- }
- }
+   }
+ },
+ databaseHooks: {
+  user: {
+   create: {
+    after: async (createdUser) => {
+     await provisionPenggunaForNewUser({
+      id: createdUser.id,
+      role: createdUser.role,
+      createdAt: createdUser.createdAt,
+      updatedAt: createdUser.updatedAt,
+     });
+    },
+   },
+  },
+ },
 });

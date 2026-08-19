@@ -1,0 +1,90 @@
+import { NextRequest, NextResponse } from "next/server";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import { auth } from "@/lib/auth";
+import { principalFromConnectionToken, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
+import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function unauthorized(request: NextRequest, message: string): NextResponse {
+  const resourceMetadata = `${request.nextUrl.origin}/.well-known/oauth-protected-resource/api/mcp/authoring`;
+  return NextResponse.json(
+    { error: message },
+    {
+      status: 401,
+      headers: {
+        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadata}" scope="authoring:read authoring:stage"`,
+      },
+    },
+  );
+}
+
+function isForbidden(error: unknown): boolean {
+  const code = error instanceof Error ? error.message.split(":")[0] : "";
+  return code === "AUTHORING_MCP_ADMIN_REQUIRED" || code === "AUTHORING_MCP_SCOPE_REQUIRED";
+}
+
+async function authenticate(request: NextRequest): Promise<McpPrincipal | NextResponse> {
+  const authorization = request.headers.get("authorization");
+  if (authorization) {
+    if (!authorization.startsWith("Bearer ")) return unauthorized(request, "AUTHORING_MCP_AUTH_REQUIRED");
+    try {
+      return await principalFromConnectionToken(authorization.slice("Bearer ".length));
+    } catch (error) {
+      if (isForbidden(error)) return NextResponse.json({ error: "AUTHORING_MCP_ADMIN_REQUIRED" }, { status: 403 });
+      return unauthorized(request, error instanceof Error ? error.message.split(":")[0] : "AUTHORING_MCP_AUTH_INVALID");
+    }
+  }
+
+  try {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session?.user) return unauthorized(request, "AUTHORING_MCP_LOGIN_REQUIRED");
+    return await resolveMcpAdmin({
+      userId: session.user.id,
+      sessionId: session.session.id,
+      scopes: ["authoring:read", "authoring:stage"],
+      authMethod: "session",
+    });
+  } catch (error) {
+    if (isForbidden(error)) return NextResponse.json({ error: "AUTHORING_MCP_ADMIN_REQUIRED" }, { status: 403 });
+    return unauthorized(request, error instanceof Error ? error.message.split(":")[0] : "AUTHORING_MCP_AUTH_INVALID");
+  }
+}
+
+async function handle(request: NextRequest): Promise<Response> {
+  const principal = await authenticate(request);
+  if (principal instanceof NextResponse) return principal;
+
+  const server = createAuthoringMcpServer(principal);
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+  await server.connect(transport);
+  return transport.handleRequest(request);
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    return await handle(request);
+  } catch {
+    return NextResponse.json({ error: "AUTHORING_MCP_INTERNAL_ERROR" }, { status: 500 });
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    return await handle(request);
+  } catch {
+    return NextResponse.json({ error: "AUTHORING_MCP_INTERNAL_ERROR" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    return await handle(request);
+  } catch {
+    return NextResponse.json({ error: "AUTHORING_MCP_INTERNAL_ERROR" }, { status: 500 });
+  }
+}

@@ -17,7 +17,7 @@ export function HeroGraphCard() {
  <DesmosStyleGraph mode="quadratic" a={a} b={0} c={2} className="w-full" />
  <div className="border-t border-border bg-card px-4 py-3 md:px-5">
  <label className="flex items-center gap-3">
- <span className="shrink-0 font-mono text-[13px] font-semibold text-foreground">
+ <span className="shrink-0 font-mono text-body-sm font-semibold text-foreground">
  a = {a.toFixed(2)}
  </span>
  <input
@@ -31,7 +31,7 @@ export function HeroGraphCard() {
  aria-label="Ubah koefisien a pada grafik kuadratik"
  />
  </label>
- <p className="mt-2 text-xs text-muted-foreground">
+ <p className="mt-2 text-body-xs text-muted-foreground">
  Geser koefisiennya ; semua materi di Zyx interaktif seperti ini.
  </p>
  </div>

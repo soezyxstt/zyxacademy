@@ -1,0 +1,15 @@
+[
+  {
+    "id": "chunk-motion-1",
+    "sourceMaterialId": "source-motion",
+    "sourceVersion": 1,
+    "content": "Kecepatan adalah perubahan posisi terhadap waktu.",
+    "sectionLocator": "Bab 1 > Kecepatan",
+    "startOffset": 0,
+    "endOffset": 49,
+    "checksum": "bfbe2339f794dc0a1b2a4e8e5c6e5518fdc0afcba9df2f92a36887172e4fa232",
+    "embeddingEligible": true,
+    "createdAt": "2026-08-03T00:00:00.000Z",
+    "updatedAt": "2026-08-03T00:00:00.000Z"
+  }
+]

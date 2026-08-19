@@ -8,6 +8,15 @@ import { cn } from "@/lib/utils";
 import { Flag, Timer, BookOpen, AlertCircle, FileText, CheckCircle2, Trash2, ArrowLeft, ArrowRight, UploadCloud } from "lucide-react";
 import { MathText } from "@/components/course/math-text";
 import type { ExamFixture, QuestionSpec } from "@/lib/student-course-fixtures";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { submitTryoutAction } from "@/app/actions/tutor-management";
 
@@ -43,13 +52,17 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     return (exam.settings?.timeLimitMinutes ?? 90) * 60;
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // S3 Cloudflare R2 upload simulation state
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadingFile, setUploadingFile] = useState<Record<string, string>>({});
 
   const handleSubmit = useCallback(async () => {
+    if (isSubmitting) return;
     try {
+      setIsSubmitting(true);
       // Save to Database
       const res = await submitTryoutAction(courseId, exam.id, answers);
       if (res.success) {
@@ -58,10 +71,12 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
     } catch (err: any) {
       console.error("Error submitting tryout:", err);
       toast.error(err.message || "Gagal mengumpulkan lembar jawaban.");
+    } finally {
+      setIsSubmitting(false);
     }
 
     router.push(`/courses/${courseId}/my-results`);
-  }, [courseId, exam.id, answers, router]);
+  }, [courseId, exam.id, answers, router, isSubmitting]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -91,6 +106,9 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
   );
 
   const q = sorted[index];
+  const answeredCount = sorted.filter((question) => isQuestionAnswered(question)).length;
+  const unansweredCount = sorted.length - answeredCount;
+  const flaggedCount = sorted.filter((question) => flags[question.id]).length;
   const progress = ((index + 1) / sorted.length) * 100;
 
   function setAnswerFor(id: string, next: AnswerState) {
@@ -216,7 +234,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-body-sm font-bold text-white shadow-xs">
               {index + 1}
             </span>
-            <h2 className="font-heading text-body-lg font-bold text-foreground leading-snug md:text-h5">
+            <h2 className="font-sans text-body-base font-bold text-foreground leading-snug">
               <MathText>{q.prompt}</MathText>
             </h2>
           </div>
@@ -342,7 +360,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                       />
                       <UploadCloud className="size-8 text-muted-foreground mb-2" />
                       <p className="text-body-xs font-bold text-foreground">Klik atau Seret Berkas di sini</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Mendukung PDF, PNG, JPG (Maks. 10 MB)</p>
+                      <p className="text-body-xs text-muted-foreground mt-1">Mendukung PDF, PNG, JPG (Maks. 10 MB)</p>
                     </div>
                   ) : null}
 
@@ -359,7 +377,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                           style={{ width: `${uploadProgress[q.id]}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-muted-foreground">Menyimpan langsung ke Cloudflare R2 Object Storage...</p>
+                      <p className="text-body-xs text-muted-foreground">Menyimpan langsung ke Cloudflare R2 Object Storage...</p>
                     </div>
                   ) : null}
 
@@ -408,11 +426,12 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               </span>
             </label>
 
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <span className="text-body-xs text-muted-foreground flex items-center gap-1">
               <CheckCircle2 className="size-3 text-status-success" />
               Progress ujian tersimpan aman
             </span>
           </div>
+          <QuestionSourceCitation origin={q.origin} sourceEventName={q.sourceEventName} />
         </div>
 
         {/* Back and Forth Control buttons */}
@@ -435,7 +454,12 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
                 <ArrowRight className="size-4" />
               </Button>
             ) : (
-              <Button type="button" className="bg-brand-primary text-white hover:bg-brand-primary/95 px-8 font-bold" onClick={handleSubmit}>
+              <Button
+                type="button"
+                disabled={isSubmitting}
+                className="bg-brand-primary text-white hover:bg-brand-primary/95 px-8 font-bold"
+                onClick={() => setShowConfirmModal(true)}
+              >
                 Kumpulkan Jawaban
               </Button>
             )}
@@ -511,6 +535,19 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
               </div>
             </div>
           </div>
+
+          {/* Sidebar Submit shortcut */}
+          <div className="border-t border-border pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => setShowConfirmModal(true)}
+              className="h-9 w-full rounded-md border-border/80 text-body-sm font-semibold text-foreground hover:bg-muted"
+            >
+              Kumpulkan Ujian
+            </Button>
+          </div>
         </div>
 
         {/* Warning panel */}
@@ -518,13 +555,97 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
           <AlertCircle className="size-5 text-brand-secondary shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h4 className="text-body-xs font-bold text-foreground">Kumpulkan Sesuai Waktu</h4>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Pastikan Anda mengklik <b>Kumpulkan Jawaban</b> sebelum sisa waktu habis. Sistem akan mengumpulkan berkas secara otomatis saat penghitung waktu mencapai nol.
+            <p className="text-body-xs text-muted-foreground leading-relaxed">
+              Pastikan Anda mengklik <b>Kumpulkan Jawaban</b> sebelum sisa waktu habis. Sistem akan mengumpulkan lembar jawaban otomatis saat waktu habis.
             </p>
           </div>
         </div>
 
       </div>
+
+      {/* Confirmation Dialog before submitting */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
+              Kumpulkan Lembar Jawaban Tryout?
+            </DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground mt-1.5">
+              Periksa kembali ringkasan pengerjaan sebelum mengumpulkan lembar jawaban Anda.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="my-2 space-y-3">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl border border-border bg-muted/30 p-2.5">
+                <span className="block text-body-xs font-semibold text-muted-foreground uppercase">Total Soal</span>
+                <span className="font-heading text-body-base font-bold text-foreground">{sorted.length}</span>
+              </div>
+              <div className="rounded-xl border border-tertiary-1/30 bg-tertiary-1/10 p-2.5">
+                <span className="block text-body-xs font-semibold text-tertiary-1 uppercase">Terjawab</span>
+                <span className="font-heading text-body-base font-bold text-tertiary-1">{answeredCount}</span>
+              </div>
+              <div
+                className={cn(
+                  "rounded-xl border p-2.5",
+                  unansweredCount > 0
+                    ? "border-status-error/30 bg-status-error/10 text-status-error"
+                    : "border-border bg-muted/30 text-muted-foreground"
+                )}
+              >
+                <span className="block text-body-xs font-semibold uppercase">Kosong</span>
+                <span className="font-heading text-body-base font-bold">{unansweredCount}</span>
+              </div>
+            </div>
+
+            {flaggedCount > 0 && (
+              <div className="flex items-center gap-2 rounded-xl border border-brand-secondary/35 bg-brand-secondary/10 px-3.5 py-2.5 text-body-xs font-semibold text-brand-secondary">
+                <Flag className="size-4 shrink-0 fill-brand-secondary" />
+                <span>Masih ada {flaggedCount} butir soal yang ditandai ragu-ragu.</span>
+              </div>
+            )}
+
+            {unansweredCount > 0 && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-body-xs text-amber-700 dark:text-amber-300">
+                <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                <span>Terdapat {unansweredCount} butir soal belum diisi. Soal yang kosong akan dianggap bernilai nol.</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-body-xs text-muted-foreground">
+              <span>Sisa waktu ujian:</span>
+              <span className="font-mono font-bold text-foreground">{formatTime(timeLeft)}</span>
+            </div>
+
+            <p className="text-body-xs text-muted-foreground">
+              Setelah dikumpulkan, lembar jawaban akan diserahkan untuk dinilai dan tidak dapat disunting kembali.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => setShowConfirmModal(false)}
+              className="w-full sm:w-auto rounded-lg border-border"
+            >
+              Cek Kembali
+            </Button>
+            <Button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                setShowConfirmModal(false);
+                handleSubmit();
+              }}
+              className="w-full sm:w-auto rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-bold"
+            >
+              {isSubmitting ? "Mengirim..." : "Ya, Kumpulkan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

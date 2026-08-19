@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock } from "lucide-react";
+import Link from "next/link";
+import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,15 +14,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import {
-  saveQuizTemplateAction,
   deleteQuizTemplateAction,
   saveQuestionBankAction,
   deleteQuestionBankAction,
   getQuizTemplatePreviewAction,
 } from "@/app/actions/tutor-management";
-import { formatDatetimeLocal } from "@/lib/date-utils";
 
 interface QuizTemplate {
   id: string;
@@ -62,23 +62,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  // Template Dialog State
-  const [isTplOpen, setIsTplOpen] = useState(false);
-  const [editingTpl, setEditingTpl] = useState<QuizTemplate | null>(null);
-  const [tplTitle, setTplTitle] = useState("");
-  const [tplCategory, setTplCategory] = useState<"daily" | "weekly" | "chapter" | "premium" | "simulation">("weekly");
-  const [tplVisibility, setTplVisibility] = useState<"free" | "paid">("free");
-  const [tplTimeLimit, setTplTimeLimit] = useState("20"); // in minutes
-  const [tplMaxAttempts, setTplMaxAttempts] = useState("3");
-  const [tplCount, setTplCount] = useState("5");
-  const [tplTags, setTplTags] = useState("");
-  const [tplOpenAt, setTplOpenAt] = useState("");
-  const [tplCloseAt, setTplCloseAt] = useState("");
-  const [tplManualStatus, setTplManualStatus] = useState<"open" | "closed" | "scheduled">("scheduled");
-  const [tplShowDiscussion, setTplShowDiscussion] = useState(false);
   const [deleteTplId, setDeleteTplId] = useState<string | null>(null);
-
-  const [selectedQIds, setSelectedQIds] = useState<string[]>([]);
 
   // Preview Dialog State
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -98,8 +82,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       } else {
         toast.error("Gagal memuat pratinjau kuis.");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Gagal memuat pratinjau kuis.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal memuat pratinjau kuis.";
+      toast.error(message);
     } finally {
       setLoadingPreview(false);
     }
@@ -118,104 +103,19 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   const [qTags, setQTags] = useState("");
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // QUIZ TEMPLATE HANDLERS
-  // ───────────────────────────────────────────────────────────────────────────
-  function handleOpenAddTpl() {
-    setEditingTpl(null);
-    setTplTitle("");
-    setTplCategory("weekly");
-    setTplVisibility("free");
-    setTplTimeLimit("20");
-    setTplMaxAttempts("3");
-    setTplCount("5");
-    setTplTags("");
-    setTplOpenAt("");
-    setTplCloseAt("");
-    setTplManualStatus("scheduled");
-    setTplShowDiscussion(false);
-    setSelectedQIds([]);
-    setIsTplOpen(true);
-  }
-
-  function handleOpenEditTpl(t: QuizTemplate) {
-    setEditingTpl(t);
-    setTplTitle(t.title);
-    setTplCategory(t.category);
-    setTplVisibility(t.visibility);
-    setTplTimeLimit(t.timeLimitSeconds ? (t.timeLimitSeconds / 60).toString() : "");
-    setTplMaxAttempts(t.maxAttempts ? t.maxAttempts.toString() : "");
-    setTplOpenAt(t.openAt ? formatDatetimeLocal(t.openAt) : "");
-    setTplCloseAt(t.closeAt ? formatDatetimeLocal(t.closeAt) : "");
-    setTplManualStatus(t.manualStatus || "scheduled");
-    setTplShowDiscussion(t.showDiscussion || false);
-    
-    const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
-    setTplCount((rules?.count || 5).toString());
-    setTplTags((rules?.tags || []).join(", "));
-    setSelectedQIds(rules?.fixedQuestionIds || []);
-    setIsTplOpen(true);
-  }
-
-  async function handleSaveTpl() {
-    if (!tplTitle.trim()) {
-      toast.error("Judul kuis wajib diisi.");
-      return;
-    }
-
-    const countNum = selectedQIds.length > 0 ? selectedQIds.length : (parseInt(tplCount, 10) || 5);
-    const rules: any = {
-      count: countNum,
-      tags: selectedQIds.length > 0 ? [] : tplTags.split(",").map((t) => t.trim()).filter(Boolean),
-    };
-
-    if (selectedQIds.length > 0) {
-      rules.fixedQuestionIds = selectedQIds;
-    } else {
-      rules.difficulty_proportions = {
-        easy: Math.ceil(countNum * 0.4),
-        medium: Math.ceil(countNum * 0.4),
-        hard: Math.floor(countNum * 0.2),
-      };
-    }
-
-    startTransition(async () => {
-      try {
-        const res = await saveQuizTemplateAction(courseId, editingTpl?.id || null, {
-          title: tplTitle,
-          category: tplCategory,
-          visibility: tplVisibility,
-          timeLimitSeconds: tplTimeLimit ? parseInt(tplTimeLimit, 10) * 60 : null,
-          maxAttempts: tplMaxAttempts ? parseInt(tplMaxAttempts, 10) : null,
-          selectionRules: rules,
-          openAt: tplOpenAt ? new Date(tplOpenAt).toISOString() : null,
-          closeAt: tplCloseAt ? new Date(tplCloseAt).toISOString() : null,
-          manualStatus: tplManualStatus,
-          showDiscussion: tplShowDiscussion,
-        });
-        if (res.success) {
-          toast.success(editingTpl ? "Template kuis diperbarui!" : "Template kuis ditambahkan!");
-          setIsTplOpen(false);
-          router.refresh();
-        }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menyimpan kuis.");
-      }
-    });
-  }
-
   async function handleDeleteTpl() {
     if (!deleteTplId) return;
     startTransition(async () => {
       try {
         const res = await deleteQuizTemplateAction(courseId, deleteTplId);
         if (res.success) {
-          toast.success("Template kuis dihapus.");
+          toast.success("Kuis berhasil dihapus.");
           setDeleteTplId(null);
           router.refresh();
         }
-      } catch (err: any) {
-        toast.error(err.message || "Gagal menghapus kuis.");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Gagal menghapus kuis.";
+        toast.error(message);
       }
     });
   }
@@ -357,7 +257,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         <TabsList className="grid grid-cols-2 max-w-md bg-muted rounded-xl p-1 mb-6">
           <TabsTrigger value="templates" className="rounded-lg font-semibold py-2">
             <ClipboardList className="size-4 mr-2" />
-            Template Kuis
+            Kuis
           </TabsTrigger>
           <TabsTrigger value="questionbank" className="rounded-lg font-semibold py-2">
             <HelpCircle className="size-4 mr-2" />
@@ -366,14 +266,16 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         </TabsList>
 
         {/* =====================================================================
-            TAB 1: QUIZ TEMPLATES
+            TAB 1: QUIZ
             ===================================================================== */}
         <TabsContent value="templates" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-body-lg font-semibold text-foreground">Daftar Kuis ({initialTemplates.length})</h2>
-            <Button onClick={handleOpenAddTpl} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
-              <Plus className="size-4" />
-              Buat Kuis Baru
+            <h2 className="font-heading text-body-base font-semibold text-foreground">Daftar Kuis ({initialTemplates.length})</h2>
+            <Button asChild className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
+              <Link href={`/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`}>
+                <Plus className="size-4" />
+                Buat Kuis Baru
+              </Link>
             </Button>
           </div>
 
@@ -443,7 +345,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             Akses Kuis:
                           </span>
                           <span className={cn(
-                            "inline-flex rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                            "inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
                             t.manualStatus === "open"
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
                               : t.manualStatus === "closed"
@@ -477,7 +379,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
                             Daftar Soal Terpilih:
                           </span>
-                          <ol className="list-decimal pl-4 space-y-1 text-[11px] text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
+                          <ol className="list-decimal pl-4 space-y-1 text-body-xs text-foreground/80 leading-normal max-h-24 overflow-y-auto pr-1">
                             {rules.fixedQuestionIds.map((qId: string) => {
                               const question = initialQuestionBank.find((q) => q.id === qId);
                               return (
@@ -490,14 +392,22 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         </div>
                       )}
                     </CardContent>
-                    <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex justify-end gap-2">
+                    <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex flex-wrap justify-end gap-2">
+                      <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
+                        <Button variant="outline" size="sm" className="rounded-md border-border/80 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 gap-1">
+                          <FileSpreadsheet className="size-3.5" />
+                          Sheet Attempt
+                        </Button>
+                      </Link>
                       <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1">
                         <Eye className="size-3.5" />
                         Preview
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleOpenEditTpl(t)} className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1">
-                        <Edit2 className="size-3.5" />
-                        Edit
+                      <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1">
+                        <Link href={`/admin/quizzes/${t.id}/edit`}>
+                          <Edit2 className="size-3.5" />
+                          Edit
+                        </Link>
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => setDeleteTplId(t.id)} className="rounded-md border-border/80 text-status-error hover:bg-status-error/10 hover:text-status-error gap-1">
                         <Trash2 className="size-3.5" />
@@ -516,7 +426,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             ===================================================================== */}
         <TabsContent value="questionbank" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-body-lg font-semibold text-foreground">Kumpulan Bank Soal ({initialQuestionBank.length})</h2>
+            <h2 className="font-heading text-body-base font-semibold text-foreground">Kumpulan Bank Soal ({initialQuestionBank.length})</h2>
             <Button onClick={handleOpenAddQ} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
               <Plus className="size-4" />
               Tambah Soal Baru
@@ -557,7 +467,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                              q.questionType === "multiple_choices" ? "Multi Select" : "Single Choice"}
                           </Badge>
                         </div>
-                        <p className="text-body-base font-medium text-foreground leading-relaxed pt-1">{q.prompt}</p>
+                        <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-1" as="p">{q.prompt}</MathText>
                       </div>
                       
                       <div className="flex gap-1.5">
@@ -584,7 +494,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                               }`}>
                                 {String.fromCharCode(65 + i)}
                               </span>
-                              <span className="truncate">{opt}</span>
+                              <span className="truncate">
+                                <MathText className="leading-normal" as="span">{opt}</MathText>
+                              </span>
                             </div>
                           );
                         })}
@@ -612,7 +524,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     {Array.isArray(tagsArr) && tagsArr.length > 0 && (
                       <div className="mt-4 pt-3 border-t border-border/40 flex flex-wrap gap-1">
                         {tagsArr.map((t: string) => (
-                          <Badge key={t} variant="outline" className="text-[9px] text-muted-foreground rounded-md">
+                          <Badge key={t} variant="outline" className="text-[10px] text-muted-foreground rounded-md">
                             {t}
                           </Badge>
                         ))}
@@ -627,242 +539,12 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       </Tabs>
 
       {/* =====================================================================
-          TEMPLATE DIALOG
-          ===================================================================== */}
-      <Dialog open={isTplOpen} onOpenChange={setIsTplOpen}>
-        <DialogContent className="max-w-xl rounded-2xl border-border bg-card">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
-              {editingTpl ? "Edit Template Kuis" : "Buat Template Kuis Baru"}
-            </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
-              Tentukan parameter kuis. Soal akan otomatis ditarik dari bank soal berdasarkan filter tag.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 my-3 font-sans">
-            <div className="grid gap-2">
-              <Label htmlFor="tpl-title" className="text-body-sm font-semibold">Judul Kuis</Label>
-              <Input
-                id="tpl-title"
-                value={tplTitle}
-                onChange={(e) => setTplTitle(e.target.value)}
-                placeholder="Contoh: Kuis Mingguan 1 - Turunan Dasar"
-                className="rounded-lg border-input bg-background"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="tpl-category" className="text-body-sm font-semibold">Kategori Kuis</Label>
-                <Select value={tplCategory} onValueChange={(val: any) => setTplCategory(val)}>
-                  <SelectTrigger className="rounded-lg border-input bg-background">
-                    <SelectValue placeholder="Pilih kategori" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="daily">Daily Quiz</SelectItem>
-                    <SelectItem value="weekly">Weekly Quiz</SelectItem>
-                    <SelectItem value="chapter">Chapter Evaluation</SelectItem>
-                    <SelectItem value="simulation">Simulasi (Try Out)</SelectItem>
-                    <SelectItem value="premium">Premium Test</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="tpl-visibility" className="text-body-sm font-semibold">Aksesibilitas</Label>
-                <Select value={tplVisibility} onValueChange={(val: any) => setTplVisibility(val)}>
-                  <SelectTrigger className="rounded-lg border-input bg-background">
-                    <SelectValue placeholder="Pilih akses" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="free">Gratis (Bisa dikerjakan guest)</SelectItem>
-                    <SelectItem value="paid">Premium (Butuh Token Kelas)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="tpl-time" className="text-body-sm font-semibold">Batas Waktu (Menit)</Label>
-                <Input
-                  id="tpl-time"
-                  type="number"
-                  value={tplTimeLimit}
-                  onChange={(e) => setTplTimeLimit(e.target.value)}
-                  placeholder="20"
-                  className="rounded-lg border-input bg-background"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="tpl-attempts" className="text-body-sm font-semibold">Maks. Percobaan</Label>
-                <Input
-                  id="tpl-attempts"
-                  type="number"
-                  value={tplMaxAttempts}
-                  onChange={(e) => setTplMaxAttempts(e.target.value)}
-                  placeholder="3"
-                  className="rounded-lg border-input bg-background"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="tpl-count" className="text-body-sm font-semibold">Jumlah Soal</Label>
-                <Input
-                  id="tpl-count"
-                  type="number"
-                  disabled={selectedQIds.length > 0}
-                  value={selectedQIds.length > 0 ? selectedQIds.length.toString() : tplCount}
-                  onChange={(e) => setTplCount(e.target.value)}
-                  placeholder="5"
-                  className="rounded-lg border-input bg-background"
-                />
-              </div>
-            </div>
-
-            {/* Scheduling & Manual Status Control */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="tpl-open-at" className="text-body-sm font-semibold">Waktu Buka Akses (Opsional)</Label>
-                <Input
-                  id="tpl-open-at"
-                  type="datetime-local"
-                  value={tplOpenAt}
-                  onChange={(e) => setTplOpenAt(e.target.value)}
-                  className="rounded-lg border-input bg-background"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="tpl-close-at" className="text-body-sm font-semibold">Waktu Tutup Akses (Opsional)</Label>
-                <Input
-                  id="tpl-close-at"
-                  type="datetime-local"
-                  value={tplCloseAt}
-                  onChange={(e) => setTplCloseAt(e.target.value)}
-                  className="rounded-lg border-input bg-background"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="tpl-manual-status" className="text-body-sm font-semibold">Kontrol Akses Kuis</Label>
-              <Select value={tplManualStatus} onValueChange={(val: any) => setTplManualStatus(val)}>
-                <SelectTrigger className="rounded-lg border-input bg-background">
-                  <SelectValue placeholder="Pilih kontrol akses" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  <SelectItem value="scheduled">Ikuti Jadwal Waktu (Default)</SelectItem>
-                  <SelectItem value="open">Buka Secara Manual (Bypass Jadwal)</SelectItem>
-                  <SelectItem value="closed">Tutup Secara Manual (Blokir Akses)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <label className="flex items-center gap-3 cursor-pointer mt-1">
-              <input
-                type="checkbox"
-                checked={tplShowDiscussion}
-                onChange={(e) => setTplShowDiscussion(e.target.checked)}
-                className="size-4 shrink-0 rounded border-border"
-              />
-              <div className="space-y-0.5">
-                <span className="text-body-sm font-semibold block text-foreground">Buka Pembahasan</span>
-                <span className="text-[11px] text-muted-foreground block">Siswa dapat melihat soal dan pembahasan setelah kuis ditutup.</span>
-              </div>
-            </label>
-
-            <div className="grid gap-2 mt-2">
-              <Label htmlFor="tpl-tags" className="text-body-sm font-semibold">Filter Tag Soal (Pisahkan Koma)</Label>
-              <Input
-                id="tpl-tags"
-                disabled={selectedQIds.length > 0}
-                value={selectedQIds.length > 0 ? "" : tplTags}
-                onChange={(e) => setTplTags(e.target.value)}
-                placeholder={selectedQIds.length > 0 ? "Diabaikan karena memilih soal spesifik" : "Contoh: limit, turunan, aljabar"}
-                className="rounded-lg border-input bg-background"
-              />
-              <span className="text-[10px] text-muted-foreground leading-normal">
-                {selectedQIds.length > 0 ? "Filter tag dinonaktifkan karena Anda memilih soal secara spesifik." : "Kosongkan jika ingin menarik soal secara acak tanpa memandang tag."}
-              </span>
-            </div>
-
-            <div className="border border-border/85 rounded-xl p-3.5 bg-muted/15 space-y-2 text-left">
-              <Label className="text-body-sm font-semibold flex items-center gap-1.5 text-foreground">
-                <CheckSquare className="size-4 text-brand-primary shrink-0" />
-                Pilih Soal Secara Spesifik ({selectedQIds.length} terpilih)
-              </Label>
-              <div className="text-[11px] text-muted-foreground mb-2">
-                Opsional. Jika dipilih, kuis ini akan selalu berisi soal-soal ini secara tetap (mengabaikan filter tag & proporsi kesulitan).
-              </div>
-              <div className="max-h-48 overflow-y-auto space-y-2 divide-y divide-border/45 pr-1 border border-border/45 rounded-lg bg-background p-2">
-                {initialQuestionBank.length === 0 ? (
-                  <div className="text-xs text-muted-foreground py-2 text-center">
-                    Belum ada soal di Bank Soal kelas ini.
-                  </div>
-                ) : (
-                  initialQuestionBank.map((q) => {
-                    const isChecked = selectedQIds.includes(q.id);
-                    return (
-                      <label
-                        key={q.id}
-                        className="flex items-start gap-2.5 py-2 cursor-pointer hover:bg-muted/30 px-1.5 rounded transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedQIds((prev) => [...prev, q.id]);
-                            } else {
-                              setSelectedQIds((prev) => prev.filter((id) => id !== q.id));
-                            }
-                          }}
-                          className="mt-1 cursor-pointer shrink-0"
-                        />
-                        <div className="flex-1 text-left min-w-0">
-                          <div className="text-xs font-semibold text-foreground line-clamp-2">
-                            {q.prompt}
-                          </div>
-                          <div className="flex gap-1.5 items-center mt-1.5 text-[10px] text-muted-foreground">
-                            <span className="uppercase font-mono font-bold bg-muted px-1 rounded">
-                              {q.difficulty}
-                            </span>
-                            {q.tags && q.tags.length > 0 && (
-                              <span className="truncate">
-                                Tags: {q.tags.join(", ")}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsTplOpen(false)} disabled={isPending} className="rounded-md border-border/80">
-              Batal
-            </Button>
-            <Button onClick={handleSaveTpl} isLoading={isPending} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-1.5">
-              Simpan Template
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* =====================================================================
           QUESTION DIALOG
           ===================================================================== */}
       <Dialog open={isQOpen} onOpenChange={setIsQOpen}>
         <DialogContent className="max-w-2xl rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {editingQ ? "Edit Soal Bank" : "Tambah Soal Baru ke Bank"}
             </DialogTitle>
           </DialogHeader>
@@ -966,13 +648,13 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                   placeholder="Contoh: 12, duabelas, 12.0"
                   className="rounded-lg border-input bg-background"
                 />
-                <p className="text-xs text-muted-foreground">Siswa dianggap benar jika jawaban teks mereka cocok dengan salah satu kata kunci di atas.</p>
+                <p className="text-body-xs text-muted-foreground">Siswa dianggap benar jika jawaban teks mereka cocok dengan salah satu kata kunci di atas.</p>
               </div>
             )}
 
             {/* Input Block for Essay */}
             {qType === "essay" && (
-              <div className="p-4 rounded-xl border border-border bg-muted/5 text-xs text-muted-foreground space-y-1">
+              <div className="p-4 rounded-xl border border-border bg-muted/5 text-body-xs text-muted-foreground space-y-1">
                 <p className="font-semibold text-foreground">Soal Tipe Essay / Uraian</p>
                 <p>Siswa akan mengetikkan jawaban teks uraian bebas. Tuliskan rubrik penilaian atau kunci jawaban referensi pada kolom Pembahasan di bawah.</p>
               </div>
@@ -1017,8 +699,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       <Dialog open={deleteTplId !== null} onOpenChange={(open) => !open && setDeleteTplId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Hapus Kuis?</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Kuis?</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Apakah Anda yakin ingin menghapus template kuis ini? Percobaan pengerjaan siswa yang terkait juga dapat terpengaruh.
             </DialogDescription>
           </DialogHeader>
@@ -1036,8 +718,8 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       <Dialog open={deleteQId !== null} onOpenChange={(open) => !open && setDeleteQId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Hapus Soal?</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Soal?</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Apakah Anda yakin ingin menghapus soal ini dari bank soal? Soal tidak akan terpilih lagi untuk kuis baru.
             </DialogDescription>
           </DialogHeader>
@@ -1056,7 +738,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
           <DialogHeader className="p-6 pb-4 border-b border-border shrink-0">
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               Pratinjau Kuis: {previewTpl?.title}
             </DialogTitle>
             <DialogDescription className="text-left text-body-xs text-muted-foreground flex gap-3 flex-wrap items-center mt-1">
@@ -1092,9 +774,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                       </div>
                     </div>
 
-                    <p className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed">
+                    <MathText className="text-body-sm font-semibold text-foreground whitespace-pre-wrap leading-relaxed" as="p">
                       {q.prompt}
-                    </p>
+                    </MathText>
 
                     <div className="grid gap-2">
                       {q.options.map((opt: string, optIdx: number) => {
@@ -1119,7 +801,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             >
                               {String.fromCharCode(65 + optIdx)}
                             </span>
-                            <span className="leading-normal">{opt}</span>
+                            <MathText className="leading-normal" as="span">{opt}</MathText>
                             {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
                           </div>
                         );
@@ -1131,9 +813,9 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
                           Pembahasan Jawaban:
                         </span>
-                        <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        <MathText className="text-muted-foreground leading-relaxed whitespace-pre-wrap" as="p">
                           {q.explanation}
-                        </p>
+                        </MathText>
                       </div>
                     )}
                   </div>

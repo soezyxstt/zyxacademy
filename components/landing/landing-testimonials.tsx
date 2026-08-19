@@ -10,7 +10,7 @@ export function LandingTestimonials() {
     <SectionContainer className="border-y border-border/80 bg-landing-warm" aria-labelledby="testimonials-heading">
       <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">Testimoni</p>
+          <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">Testimoni</p>
           <SectionHeading id="testimonials-heading" tier="secondary" className="mt-2">
             Dari mahasiswa yang sudah lewat masa TPB.
           </SectionHeading>

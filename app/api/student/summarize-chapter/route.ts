@@ -4,19 +4,13 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import { chapters, enrollments } from "@/db/schema";
 import { and, eq, gt } from "drizzle-orm";
-import { env } from "@/lib/env";
 import { summarizeChapterCached } from "@/lib/tutor-rag";
 
 /**
  * Cache-first chapter summary (P3). Profile-free by design; the cache key
- * embeds the material version so edits invalidate naturally. Gated by
- * FEATURE_TUTOR_RAG.
+ * embeds the material version so edits invalidate naturally.
  */
 export async function POST(req: NextRequest) {
-  if (env.FEATURE_TUTOR_RAG !== "1") {
-    return NextResponse.json({ error: "Feature disabled" }, { status: 404 });
-  }
-
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

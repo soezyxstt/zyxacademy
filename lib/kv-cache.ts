@@ -8,15 +8,19 @@
  * `meta:writes:{yyyy-mm-dd}` stops all writes once it reaches WRITE_DAILY_LIMIT.
  */
 
-import { env } from '@/lib/env';
+import { zyraRuntimeEnv } from '@/lib/zyra/runtime-env';
 import { todayUtc } from '@/lib/date-utils';
 
 const TIMEOUT_MS = 1500;
 const WRITE_DAILY_LIMIT = 900;
 
 function kvBaseUrl(): string | null {
-  if (!env.CF_ACCOUNT_ID || !env.CF_KV_NAMESPACE_ID || !env.CF_API_TOKEN) return null;
-  return `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/storage/kv/namespaces/${env.CF_KV_NAMESPACE_ID}`;
+  if (
+    !zyraRuntimeEnv.CF_ACCOUNT_ID
+    || !zyraRuntimeEnv.CF_KV_NAMESPACE_ID
+    || !zyraRuntimeEnv.CF_API_TOKEN
+  ) return null;
+  return `https://api.cloudflare.com/client/v4/accounts/${zyraRuntimeEnv.CF_ACCOUNT_ID}/storage/kv/namespaces/${zyraRuntimeEnv.CF_KV_NAMESPACE_ID}`;
 }
 
 async function kvFetch(path: string, init: RequestInit = {}): Promise<Response | null> {
@@ -26,7 +30,7 @@ async function kvFetch(path: string, init: RequestInit = {}): Promise<Response |
     const res = await fetch(`${base}${path}`, {
       ...init,
       headers: {
-        Authorization: `Bearer ${env.CF_API_TOKEN}`,
+        Authorization: `Bearer ${zyraRuntimeEnv.CF_API_TOKEN}`,
         ...(init.headers ?? {}),
       },
       signal: AbortSignal.timeout(TIMEOUT_MS),

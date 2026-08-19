@@ -54,7 +54,7 @@ export default async function TutorMaterialsPage({ params }: Props) {
     <div className="px-6 py-8 max-w-5xl space-y-8 font-sans">
       <Reveal>
         <div className="flex flex-col gap-1">
-          <h1 className="text-h4 font-heading font-bold text-foreground">
+          <h1 className="text-h5 font-heading font-bold text-foreground">
             Kelola Materi Belajar
           </h1>
           <p className="text-body-sm text-muted-foreground">

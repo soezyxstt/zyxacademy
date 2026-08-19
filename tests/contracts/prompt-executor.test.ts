@@ -8,7 +8,7 @@ import { PromptContract } from "@/lib/ai/contracts";
 import { POLICY_JSON_STRICT, POLICY_ZYX_VOICE, POLICY_MATH_LATEX } from "@/lib/ai/policies";
 import { SemanticValidator } from "@/lib/ai/validation";
 import * as geminiModule from "@/lib/gemini";
-import { UsageBudgetService } from "@/lib/usage-budget-service";
+import { RequestLifecycleError } from "@/lib/ai/request-lifecycle";
 import { z } from "zod";
 
 describe("PromptExecutor Contract Tests", () => {
@@ -435,8 +435,9 @@ describe("PromptExecutor Contract Tests", () => {
   });
 
   it("AI-PROMPT-009: Stop execution when daily quota is exceeded without invoking LLM", async () => {
-    const budgetSpy = spyOn(UsageBudgetService, "canUseFeature").mockResolvedValueOnce(false);
-    const geminiSpy = spyOn(geminiModule, "generateContentWithFallback");
+    const geminiSpy = spyOn(geminiModule, "generateContentWithFallback").mockRejectedValueOnce(
+      new RequestLifecycleError("ALLOWANCE_REJECTED", "application allowance rejected the request", "PROVIDER_TURNS_EXHAUSTED")
+    );
 
     const schema = z.object({ text: z.string() });
     const contract: PromptContract<any, z.infer<typeof schema>> = {
@@ -459,10 +460,8 @@ describe("PromptExecutor Contract Tests", () => {
 
     expect(result.success).toBe(false);
     expect(result.outcome).toBe("quota_exceeded");
-    expect(result.violationCodes).toContain("DAILY_QUOTA_EXCEEDED");
-    expect(geminiSpy.mock.calls.length).toBe(0);
+    expect(result.violationCodes).toContain("ALLOWANCE_PROVIDER_TURNS_EXHAUSTED");
 
-    budgetSpy.mockRestore();
     geminiSpy.mockRestore();
   });
 

@@ -1,4 +1,5 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { leafFilename } from "@/lib/storage/keys";
 
 const bucket = process.env.R2_BUCKET || "zyx";
 const s3 = new S3Client({
@@ -55,12 +56,8 @@ export async function GET(
     // Enable browser caching for 1 hour to reduce R2 egress operations
     headers.set("Cache-Control", "public, max-age=3600");
 
-    // Extract clean filename (remove UUID prefix)
-    let filename = key;
-    const uuidMatch = key.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i);
-    if (uuidMatch) {
-      filename = key.substring(uuidMatch[0].length);
-    }
+    // Extract clean filename (last path segment minus the {timestamp}-{hash}- prefix)
+    const filename = leafFilename(key);
 
     const urlObj = new URL(req.url);
     const isDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("download") === "true";

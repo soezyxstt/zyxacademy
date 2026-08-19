@@ -11,6 +11,7 @@ import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { env } from "@/lib/env";
 import { canPublishDiktat } from "@/lib/diktat/audit-contracts";
+import { joinKey, slugifySegment } from "@/lib/storage/keys";
 
 /**
  * Extracts the unique file key from an UploadThing CDN URL.
@@ -179,7 +180,7 @@ export async function executeDiktatPDFGeneration(
 
   // 3. Apply safe AI revisions (gated)
   let revisionsApplied = 0;
-  if (process.env.FEATURE_DIKTAT_AI === "1" && auditResult.proposedRevisions.length > 0) {
+  if (env.FEATURE_DIKTAT_AI === "1" && auditResult.proposedRevisions.length > 0) {
     auditedStructure = await applyDiktatRevisions(structure, auditResult.proposedRevisions, sourceKOs);
     revisionsApplied = auditResult.proposedRevisions.length;
   }
@@ -252,39 +253,35 @@ export async function executeDiktatPDFGeneration(
     );
   }
 
-  // 7. PDF Audit (fail-closed when FEATURE_DIKTAT_QA_V2="1")
-  if (env.FEATURE_DIKTAT_QA_V2 === "1" || process.env.FEATURE_DIKTAT_AI === "1") {
-    try {
-      const pdfAudit = await auditRenderedPDF(pdfBuffer, enrichedStructure);
-      const isPublishable = canPublishDiktat({
-        status: pdfAudit.status as any,
-        findings: (pdfAudit.warnings || []).map((w, idx) => ({
-          id: `w-${idx}`,
-          code: "AUDIT_WARN",
-          severity: pdfAudit.status === "fail" ? "critical" : "warning",
-          message: w,
-          sourceSpanIds: [],
-        })),
-      });
+  // 7. PDF Audit is always fail-closed because it protects a published artifact.
+  try {
+    const pdfAudit = await auditRenderedPDF(pdfBuffer, enrichedStructure);
+    const isPublishable = canPublishDiktat({
+      status: pdfAudit.status as any,
+      findings: (pdfAudit.warnings || []).map((w, idx) => ({
+        id: `w-${idx}`,
+        code: "AUDIT_WARN",
+        severity: pdfAudit.status === "fail" ? "critical" : "warning",
+        message: w,
+        sourceSpanIds: [],
+      })),
+    });
 
-      if (!isPublishable) {
-        throw new Error(`Diktat PDF audit failed with status "${pdfAudit.status}": ${(pdfAudit.warnings || []).join("; ")}`);
-      }
-    } catch (auditErr: any) {
-      if (env.FEATURE_DIKTAT_QA_V2 === "1") {
-        throw auditErr;
-      }
-      console.warn("[diktat-pdf-audit] Audit warning:", auditErr?.message || auditErr);
+    if (!isPublishable) {
+      throw new Error(`Diktat PDF audit failed with status "${pdfAudit.status}": ${(pdfAudit.warnings || []).join("; ")}`);
     }
+  } catch (auditErr) {
+    throw auditErr;
   }
 
   // 8. Long-Term PDF Storage Strategy: Upload new and clean up old CDN files
   try {
     const oldUrl = diktat.fileUrl;
 
-    // Upload using unified storage provider
-    const filename = `${diktat.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}.pdf`;
-    const uploadedData = await storage.upload(pdfBuffer, filename, "application/pdf");
+    // Upload using unified storage provider (stable leaf name, delete old on replace)
+    const leaf = `${slugifySegment(diktat.title)}.pdf`;
+    const objectKey = joinKey("courses", slugifySegment(diktat.courseId), "diktats", leaf);
+    const uploadedData = await storage.upload(pdfBuffer, leaf, "application/pdf", { key: objectKey });
     const fileUrl = uploadedData.url; // Storing only key/reference URL
 
     // Trigger cleanup of the old file

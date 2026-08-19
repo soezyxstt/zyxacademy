@@ -91,17 +91,17 @@ export function CalculatorExpressionBar({
       className="flex max-w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b bg-muted px-3 py-2.5"
     >
       <span
-        className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded border border-transparent px-1.5 text-[11px] font-bold text-white shadow-sm"
+        className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded border border-transparent px-1.5 text-body-xs font-bold text-white shadow-sm"
         style={{ backgroundColor: GRAPH_BLUE }}
         aria-hidden
       >
         f
       </span>
-      <code className="min-w-0 max-w-full wrap-break-word text-[13px] font-medium tracking-tight text-foreground">
+      <code className="min-w-0 max-w-full wrap-break-word text-body-sm font-medium tracking-tight text-foreground">
         {expression}
       </code>
       {subtitle ? (
-        <span className="min-w-0 max-w-full wrap-break-word text-[12px] font-normal text-muted-foreground">{subtitle}</span>
+        <span className="min-w-0 max-w-full wrap-break-word text-body-xs font-normal text-muted-foreground">{subtitle}</span>
       ) : null}
     </div>
   );

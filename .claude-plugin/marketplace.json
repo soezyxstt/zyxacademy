@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "zyx-local",
+  "version": "1.0.0",
+  "description": "Local Zyx authoring plugins",
+  "owner": {
+    "name": "Zyx Academy"
+  },
+  "plugins": [
+    {
+      "name": "zyx-authoring-mcp",
+      "version": "0.1.0",
+      "description": "Author Zyx content through the Authoring MCP.",
+      "author": {
+        "name": "Zyx Academy"
+      },
+      "source": "./plugins/zyx-authoring-mcp",
+      "category": "productivity"
+    }
+  ]
+}

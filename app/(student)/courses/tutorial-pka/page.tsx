@@ -119,7 +119,7 @@ export default async function PkaCourseHomePage() {
             <section className="space-y-3">
               <div className="flex items-center gap-2 border-b border-border pb-2">
                 <BellRing className="size-5 text-brand-primary" />
-                <h2 className="font-heading text-h6 font-bold text-foreground">Pengumuman Terbaru</h2>
+                <h2 className="font-heading text-body-base font-bold text-foreground">Pengumuman Terbaru</h2>
               </div>
               <div className="flex flex-col gap-4">
                 {announcements.map((announcement) => (
@@ -134,7 +134,7 @@ export default async function PkaCourseHomePage() {
         <Reveal>
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
-              <h2 className="font-heading text-h6 font-bold text-foreground">Sesi berikutnya</h2>
+              <h2 className="font-heading text-body-base font-bold text-foreground">Sesi berikutnya</h2>
               <Link
                 href="/courses/tutorial-pka/jadwal"
                 className="flex items-center gap-1 text-body-sm font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
@@ -183,7 +183,7 @@ export default async function PkaCourseHomePage() {
         <Reveal>
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-4 border-b border-border pb-2">
-              <h2 className="font-heading text-h6 font-bold text-foreground">Simulasi Ujian</h2>
+              <h2 className="font-heading text-body-base font-bold text-foreground">Simulasi Ujian</h2>
               <Link
                 href="/courses/tutorial-pka/leaderboard?type=simulation"
                 className="flex items-center gap-1 text-body-sm font-semibold text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
@@ -224,4 +224,3 @@ export default async function PkaCourseHomePage() {
     </CoursePageShell>
   );
 }
-

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "idea-velocity",
+    "courseId": "course-physics",
+    "chapterId": "chapter-kinematics",
+    "stableKey": "course-physics:chapter-kinematics:velocity",
+    "code": "KIN-VELOCITY",
+    "canonicalStatement": "Kecepatan adalah perubahan posisi terhadap waktu.",
+    "conciseExplanation": "Kecepatan mengukur laju perubahan posisi.",
+    "knowledgeKind": "definition",
+    "instructionalRole": "core",
+    "version": 1,
+    "status": "published",
+    "schemaVersion": "idea.v1",
+    "semanticHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "generationHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "sourcePolicy": "source_grounded",
+    "creatorId": "creator-1",
+    "createdAt": "2026-08-03T00:00:00.000Z",
+    "updatedAt": "2026-08-03T00:00:00.000Z"
+  }
+]

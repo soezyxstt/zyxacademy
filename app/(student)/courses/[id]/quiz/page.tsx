@@ -13,7 +13,6 @@ import { eq, desc, and, ne } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getWeakestConcepts } from "@/lib/learning-analytics";
-import { env } from "@/lib/env";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -70,10 +69,9 @@ export default async function CourseQuizListPage({ params }: Props) {
     : [];
 
   // Weakest concepts steer targeted practice, mirroring the landing "latihan terarah" promise.
-  const weakConcepts =
-    studentId && isEnrolled && env.FEATURE_MASTERY === "1"
-      ? (await getWeakestConcepts(studentId, id, 3)).map((c) => c.conceptName)
-      : [];
+  const weakConcepts = studentId && isEnrolled
+    ? (await getWeakestConcepts(studentId, id, 3)).map((c) => c.conceptName)
+    : [];
 
   return (
     <CoursePageShell

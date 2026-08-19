@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { MaterialViewer } from "@/components/course/material-viewer";
@@ -13,7 +15,6 @@ import { getCourse } from "@/lib/course-utils";
 import { db } from "@/db";
 import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
-import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
 import { buildCourseTermIndex } from "@/lib/term-index";
 import { auth } from "@/lib/auth";
@@ -122,16 +123,25 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
       .where(eq(courseMaterials.id, materialId));
 
     if (matRecord) {
+      let docCategory: "materi" | "soal" | "solusi" = "materi";
+      if (matRecord.type === "contoh_soal" || matRecord.type === "soal") {
+        docCategory = "soal";
+      } else if (matRecord.type === "pembahasan_soal") {
+        docCategory = "solusi";
+      }
+
       return {
         id: matRecord.id,
         courseId,
         title: matRecord.title,
         kind: "pdf",
-        docCategory: matRecord.type === "contoh_soal" ? "soal" : "materi",
+        docCategory,
+        subcategory: matRecord.subcategory,
+        year: matRecord.year,
         fileSize: "PDF File",
         url: matRecord.fileUrl ? storage.getUrl(matRecord.fileUrl) : undefined,
         completed,
-        isPastYear: false,
+        isPastYear: Boolean(matRecord.year),
         isPreview: true,
       };
     }
@@ -209,6 +219,14 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   if (!isAccessible) {
     return (
       <CoursePageShell title="Materi terkunci" description={`${course.title} · konten premium`} hideHeader>
+        <div className="mb-4">
+          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
+            <Link href={`/courses/${id}/material`}>
+              <ArrowLeft className="size-3.5" />
+              <span>Kembali ke Dokumen</span>
+            </Link>
+          </Button>
+        </div>
         <Reveal>
           <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
             <div className="flex items-start gap-3">
@@ -231,17 +249,17 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
     );
   }
 
-  const materialLiveEnabled = env.FEATURE_MATERIAL_LIVE === "1";
-  const termIndex = materialLiveEnabled ? await buildCourseTermIndex(id) : [];
+  const termIndex = await buildCourseTermIndex(id);
 
   return (
     <Suspense fallback={<div className="p-8 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
       <MaterialViewer
         material={material}
         chapterId={material.chapterId}
-        ragEnabled={env.FEATURE_TUTOR_RAG === "1"}
+        ragEnabled
         termIndex={termIndex}
-        materialLiveEnabled={materialLiveEnabled}
+        materialLiveEnabled={true}
+        course={course}
       />
     </Suspense>
   );

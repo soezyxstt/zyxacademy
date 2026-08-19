@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check } from "lucide-react";
+import { Plus, Edit2, Trash2, Trophy, Clock, Layers, ArrowLeft, Check, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,12 +11,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import {
   saveTryoutAction,
   deleteTryoutAction,
   saveTryoutQuestionAction,
   deleteTryoutQuestionAction,
+  importQuestionBankToTryoutAction,
 } from "@/app/actions/tutor-management";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 
@@ -43,9 +47,19 @@ interface Props {
   courseId: string;
   initialTryouts: TryoutExam[];
   initialQuestions: TryoutQuestion[];
+  questionBank: Array<{
+    id: string;
+    prompt: string;
+    questionType: string;
+    difficulty: string;
+    origin: "zyx_original" | "itb_example";
+    sourceEventName: string | null;
+  }>;
 }
 
-export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Props) {
+const provenanceEnabled = true;
+
+export function TryoutsClient({ courseId, initialTryouts, initialQuestions, questionBank }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -75,6 +89,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
   const [qAcceptsFile, setQAcceptsFile] = useState(false);
   const [qAcceptableAnswers, setQAcceptableAnswers] = useState("");
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
+  const [bankOpen, setBankOpen] = useState(false);
+  const [selectedBankIds, setSelectedBankIds] = useState<Set<string>>(new Set());
 
   const activeQuestions = activeExam
     ? initialQuestions.filter((q) => q.examId === activeExam.id).sort((a, b) => a.order - b.order)
@@ -236,6 +252,21 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
     });
   }
 
+  async function handleImportFromBank() {
+    if (!activeExam || selectedBankIds.size === 0) return;
+    startTransition(async () => {
+      try {
+        const result = await importQuestionBankToTryoutAction(courseId, activeExam.id, [...selectedBankIds]);
+        toast.success(`${result.imported} soal ditambahkan${result.skipped > 0 ? `, ${result.skipped} sudah ada` : ""}.`);
+        setBankOpen(false);
+        setSelectedBankIds(new Set());
+        router.refresh();
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : "Gagal mengambil soal dari bank soal.");
+      }
+    });
+  }
+
   // Toggle correct index for single choice MC
   function selectSingleCorrect(idx: number) {
     setQCorrectIndex(idx);
@@ -251,6 +282,10 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
 
   // Render listing or nested questions view
   if (activeExam) {
+    const importedBankIds = new Set(activeQuestions.flatMap((question) => {
+      const content = typeof question.content === "string" ? JSON.parse(question.content) : question.content;
+      return typeof content?.bankQuestionId === "string" ? [content.bankQuestionId] : [];
+    }));
     return (
       <div className="space-y-6">
         {/* Sub-view Header */}
@@ -260,13 +295,17 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
             Kembali
           </Button>
           <div>
-            <h2 className="font-heading text-body-lg font-bold text-foreground">Kelola Soal: {activeExam.title}</h2>
+            <h2 className="font-heading text-body-base font-bold text-foreground">Kelola Soal: {activeExam.title}</h2>
             <p className="text-body-xs text-muted-foreground">Total: {activeQuestions.length} Soal</p>
           </div>
         </div>
 
         {/* Action Row */}
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={() => { setSelectedBankIds(new Set()); setBankOpen(true); }} className="rounded-md border-border font-semibold gap-2">
+            <Library className="size-4" />
+            Ambil dari bank soal
+          </Button>
           <Button onClick={handleOpenAddQ} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
             <Plus className="size-4" />
             Tambah Pertanyaan
@@ -298,7 +337,12 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
                           {q.type.replace("_", " ")}
                         </Badge>
                       </div>
-                      <p className="text-body-base font-medium text-foreground leading-relaxed pt-1">{content.prompt}</p>
+                      <MathText className="text-body-base font-medium text-foreground leading-relaxed pt-1" as="p">{content.prompt}</MathText>
+                      {provenanceEnabled && content.origin === "itb_example" && content.sourceEventName ? (
+                        <p className="mt-2 text-body-xs font-medium text-muted-foreground">Sumber: {content.sourceEventName}</p>
+                      ) : provenanceEnabled ? (
+                        <p className="mt-2 text-body-xs font-medium text-muted-foreground">Asli Zyx</p>
+                      ) : null}
                     </div>
 
                     <div className="flex gap-1">
@@ -327,7 +371,9 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
                             }`}>
                               {String.fromCharCode(65 + i)}
                             </span>
-                            <span>{opt}</span>
+                            <span>
+                              <MathText className="leading-normal" as="span">{opt}</MathText>
+                            </span>
                           </div>
                         );
                       })}
@@ -354,11 +400,56 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
         )}
 
         {/* Delete Question Dialog */}
+        <Dialog open={bankOpen} onOpenChange={setBankOpen}>
+          <DialogContent className="max-w-2xl rounded-2xl border-border bg-card">
+            <DialogHeader>
+              <DialogTitle className="font-heading text-body-base font-bold text-foreground">Ambil soal dari bank soal</DialogTitle>
+              <DialogDescription>Pilih soal asli Zyx atau contoh ITB. Sitasi sumber ITB akan ikut dibawa ke tryout murid.</DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[55vh] divide-y divide-border overflow-y-auto border-y border-border">
+              {questionBank.length === 0 ? (
+                <p className="py-8 text-center text-body-sm text-muted-foreground">Belum ada soal terpublikasi untuk kelas ini.</p>
+              ) : questionBank.map((question) => {
+                const alreadyImported = importedBankIds.has(question.id);
+                const checked = selectedBankIds.has(question.id) || alreadyImported;
+                return (
+                  <label key={question.id} className="flex cursor-pointer items-start gap-3 py-3">
+                    <Checkbox
+                      checked={checked}
+                      disabled={alreadyImported}
+                      onCheckedChange={(next) => setSelectedBankIds((current) => {
+                        const updated = new Set(current);
+                        if (next === true) updated.add(question.id);
+                        else updated.delete(question.id);
+                        return updated;
+                      })}
+                      aria-label={`Pilih ${question.id}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {provenanceEnabled ? <Badge variant="outline">{question.origin === "itb_example" ? "Contoh ITB" : "Asli Zyx"}</Badge> : null}
+                        <span className="text-body-xs text-muted-foreground">{question.difficulty}</span>
+                        {alreadyImported ? <span className="text-body-xs font-medium text-status-success">Sudah ada</span> : null}
+                      </div>
+                      <MathText className="mt-1 text-body-sm text-foreground" as="p">{question.prompt}</MathText>
+                      {provenanceEnabled && question.origin === "itb_example" && question.sourceEventName ? <p className="mt-1 text-body-xs text-muted-foreground">Sumber: {question.sourceEventName}</p> : null}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setBankOpen(false)} disabled={isPending}>Batal</Button>
+              <Button onClick={handleImportFromBank} disabled={isPending || selectedBankIds.size === 0}>Tambahkan {selectedBankIds.size} soal</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={deleteQId !== null} onOpenChange={(open) => !open && setDeleteQId(null)}>
           <DialogContent className="max-w-md rounded-2xl border-border bg-card">
             <DialogHeader>
-              <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Hapus Pertanyaan?</DialogTitle>
-              <DialogDescription className="text-body-sm text-muted-foreground">
+              <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Pertanyaan?</DialogTitle>
+              <DialogDescription className="text-body-xs text-muted-foreground">
                 Apakah Anda yakin ingin menghapus pertanyaan ini? Ujian yang sedang dikerjakan siswa mungkin terganggu.
               </DialogDescription>
             </DialogHeader>
@@ -377,7 +468,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
         <Dialog open={isQOpen} onOpenChange={setIsQOpen}>
           <DialogContent className="max-w-xl rounded-2xl border-border bg-card">
             <DialogHeader>
-              <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+              <DialogTitle className="font-heading text-body-base font-bold text-foreground">
                 {editingQ ? "Edit Pertanyaan Tryout" : "Tambah Pertanyaan Baru"}
               </DialogTitle>
             </DialogHeader>
@@ -478,17 +569,15 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
 
               {/* RENDER ESSAY OPTIONS */}
               {qType === "essay" && (
-                <div className="flex items-center gap-2 pt-2 select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    id="que-file"
-                    checked={qAcceptsFile}
-                    onChange={(e) => setQAcceptsFile(e.target.checked)}
-                    className="size-4 rounded-sm border-border text-brand-primary focus:ring-brand-primary"
-                  />
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-3 select-none">
                   <Label htmlFor="que-file" className="text-body-sm font-semibold cursor-pointer">
                     Izinkan siswa mengunggah berkas coretan pendukung (PDF/Gambar)
                   </Label>
+                  <Switch
+                    id="que-file"
+                    checked={qAcceptsFile}
+                    onCheckedChange={setQAcceptsFile}
+                  />
                 </div>
               )}
             </div>
@@ -512,7 +601,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
     <div className="space-y-6">
       {/* Header action */}
       <div className="flex justify-between items-center">
-        <h2 className="text-body-lg font-semibold text-foreground">Daftar Tryout ({initialTryouts.length})</h2>
+        <h2 className="font-heading text-body-base font-semibold text-foreground">Daftar Tryout ({initialTryouts.length})</h2>
         <Button onClick={handleOpenAddT} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
           <Plus className="size-4" />
           Tambah Tryout Baru
@@ -582,7 +671,7 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
       <Dialog open={isTOpen} onOpenChange={setIsTOpen}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {editingT ? "Edit Tryout" : "Buat Tryout Baru"}
             </DialogTitle>
           </DialogHeader>
@@ -679,8 +768,8 @@ export function TryoutsClient({ courseId, initialTryouts, initialQuestions }: Pr
       <Dialog open={deleteTId !== null} onOpenChange={(open) => !open && setDeleteTId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Hapus Tryout?</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Tryout?</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Apakah Anda yakin ingin menghapus tryout ini? Seluruh soal di dalamnya dan riwayat pengumpulan siswa juga akan ikut terhapus.
             </DialogDescription>
           </DialogHeader>

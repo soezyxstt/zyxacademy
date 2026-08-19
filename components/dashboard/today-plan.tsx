@@ -68,7 +68,6 @@ export function TodayPlan({ firstName }: { firstName: string }) {
             Halo, <span className="bg-gradient-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent">{firstName}</span>
           </>
         }
-        description="Siap untuk melanjutkan petualangan belajarmu hari ini?"
         actions={
           loading ? (
             <div className="h-9 w-32 bg-muted rounded-xl animate-pulse" />

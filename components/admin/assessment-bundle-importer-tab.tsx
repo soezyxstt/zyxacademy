@@ -141,13 +141,16 @@ export function AssessmentBundleImporterTab() {
         <div className="space-y-6 lg:col-span-2">
           <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
             <CardHeader className="border-b border-border bg-muted/20 py-4">
-              <CardTitle className="font-heading text-body-lg font-semibold text-foreground flex items-center gap-2">
+              <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <Upload className="size-5 text-brand-primary" />
                 Input Assessment Bundle JSON
               </CardTitle>
               <p className="text-body-sm text-muted-foreground">
                 Unggah berkas JSON bundel asesmen (soal ujian/kuis) untuk mata kuliah yang sudah ada. Bab direferensikan
                 berdasarkan judul (title), bukan $id, karena bundel ini diunggah terpisah dari Learning Bundle.
+              </p>
+              <p className="text-body-sm text-muted-foreground">
+                Mode upsert membuat versi sumber baru saat isi berubah dan mempertahankan versi sebelumnya untuk audit.
               </p>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -203,7 +206,7 @@ export function AssessmentBundleImporterTab() {
         <div className="space-y-6">
           <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
             <CardHeader className="border-b border-border bg-muted/20 py-4">
-              <CardTitle className="font-heading text-body-lg font-semibold text-foreground">
+              <CardTitle className="font-heading text-body-base font-semibold text-foreground">
                 Pengaturan Importir
               </CardTitle>
               <p className="text-body-sm text-muted-foreground">
@@ -247,7 +250,7 @@ export function AssessmentBundleImporterTab() {
                       Jalankan Pasca-Proses (Rekomendasi)
                     </Label>
                     <p className="text-body-sm text-muted-foreground">
-                      Memetakan soal ke konsep/materi secara heuristik dan mengantrekan sinkronisasi vektor Pinecone/Vectorize.
+                      Memetakan soal ke konsep/materi secara heuristik dan mengantrekan sinkronisasi canonical Vectorize.
                     </p>
                   </div>
                 </div>
@@ -300,7 +303,7 @@ export function AssessmentBundleImporterTab() {
         <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
           <CardHeader className="border-b border-border bg-muted/20 py-4 flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="font-heading text-body-lg font-semibold text-foreground flex items-center gap-2">
+              <CardTitle className="font-heading text-body-base font-semibold text-foreground flex items-center gap-2">
                 <TerminalIcon className="size-5 text-muted-foreground" />
                 Console Logs Ingesti
               </CardTitle>
@@ -358,7 +361,7 @@ export function AssessmentBundleImporterTab() {
           {result.stats.sourceDiffs.length > 0 && (
             <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">
               <CardHeader className="border-b border-border bg-muted/20 py-4">
-                <CardTitle className="font-heading text-body-md font-semibold text-foreground">
+                <CardTitle className="font-heading text-body-base font-semibold text-foreground">
                   Detail per Sumber Ujian
                 </CardTitle>
               </CardHeader>

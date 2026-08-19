@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 import { Button } from "@/components/ui/button";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { RefreshCw, Home } from "lucide-react";
@@ -16,6 +17,7 @@ export default function ErrorPage({
   useEffect(() => {
     // Log the error to an error reporting service
     console.error(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
@@ -32,12 +34,12 @@ export default function ErrorPage({
           </h1>
 
           {/* Heading */}
-          <h2 className="font-heading text-h3 md:text-h2 font-bold tracking-tight text-foreground -mt-2">
+          <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground -mt-2">
             Waduh, sistemnya lagi ngambek nih!
           </h2>
 
           {/* Subtext */}
-          <p className="text-body-md text-muted-foreground leading-relaxed max-w-sm">
+          <p className="text-body-base text-muted-foreground leading-relaxed max-w-sm">
             Ternyata ada sedikit masalah di server kita. Jangan panik, kamu bisa coba muat ulang halamannya atau balik ke dashboard.
           </p>
 

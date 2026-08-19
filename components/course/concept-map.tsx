@@ -74,7 +74,7 @@ export function ConceptMap({ courseId, groups }: ConceptMapProps) {
                       </span>
                     )}
                     {c.blockedBy.length > 0 && (
-                      <Badge variant="outline" className="text-muted-foreground mt-1 gap-1 text-[11px] rounded-md">
+                      <Badge variant="outline" className="text-muted-foreground mt-1 gap-1 text-body-xs rounded-md">
                         <Lock className="size-3" />
                         needs {c.blockedBy[0]}
                       </Badge>

@@ -18,7 +18,7 @@ export interface LiveQuizState {
   // lobby
   participantCount: number;
   // question
-  currentQuestion: { prompt: string; options: string[]; deadline: number; total: number; questionIndex: number } | null;
+  currentQuestion: { prompt: string; options: string[]; deadline: number; total: number; questionIndex: number; origin?: "zyx_original" | "itb_example"; sourceEventName?: string | null; sourceReferenceId?: string | null } | null;
   myAnswer: number | null;
   countdown: number;
   // host-only: answer counts during question
@@ -114,6 +114,9 @@ export function useLiveQuizSocket(wsUrl: string | null) {
                     deadline: msg.deadline as number,
                     total: msg.total as number,
                     questionIndex: msg.currentQuestionIndex as number,
+                    origin: msg.origin as "zyx_original" | "itb_example" | undefined,
+                    sourceEventName: typeof msg.sourceEventName === "string" ? msg.sourceEventName : null,
+                    sourceReferenceId: typeof msg.sourceReferenceId === "string" ? msg.sourceReferenceId : null,
                   }
                 : null,
             myAnswer: typeof msg.myAnswer === "number" ? msg.myAnswer : null,
@@ -160,6 +163,9 @@ export function useLiveQuizSocket(wsUrl: string | null) {
               deadline: msg.deadline as number,
               total: msg.total as number,
               questionIndex: msg.questionIndex as number,
+              origin: msg.origin as "zyx_original" | "itb_example" | undefined,
+              sourceEventName: typeof msg.sourceEventName === "string" ? msg.sourceEventName : null,
+              sourceReferenceId: typeof msg.sourceReferenceId === "string" ? msg.sourceReferenceId : null,
             },
             myAnswer: null,
             revealCorrectIndex: null,

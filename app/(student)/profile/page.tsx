@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Mail, GraduationCap, CalendarDays, User2, ShieldCheck, ClipboardList } from "lucide-react";
-import { env } from "@/lib/env";
 
 import { ShellPage } from "@/components/shell-page";
 import { pageTitle } from "@/lib/site";
@@ -24,7 +23,7 @@ import {
 
 export const metadata: Metadata = {
  title: pageTitle("Profil Pengguna"),
- description: "Profil akademis, statistik belajar, kelompok belajar, dan jadwal bimbingan Anda di Zyx Academy.",
+ description: "Profil akademis, statistik belajar, kelompok belajar, dan jadwal tutorial Anda di Zyx Academy.",
 };
 
 export default async function ProfilePage() {
@@ -141,10 +140,7 @@ export default async function ProfilePage() {
  }
 
  return (
- <ShellPage
- title="Profil Saya"
- description="Akun personal belajar Anda di Zyx Academy."
- >
+ <ShellPage title="Profil Saya">
  <div className="max-w-5xl mx-auto pb-12">
  {/* Profile Header */}
  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8">
@@ -158,7 +154,7 @@ export default async function ProfilePage() {
  referrerPolicy="no-referrer"
  />
  ) : (
- <span className="flex size-full items-center justify-center rounded-full bg-brand-primary text-h4 font-bold text-white shadow-sm ring-4 ring-brand-primary/20 border-2 border-background">
+ <span className="flex size-full items-center justify-center rounded-full bg-brand-primary text-h5 font-bold text-white shadow-sm ring-4 ring-brand-primary/20 border-2 border-background">
  {user.name?.charAt(0)?.toUpperCase() ?? "?"}
  </span>
  )}
@@ -173,7 +169,7 @@ export default async function ProfilePage() {
  {user.role || "student"}
  </span>
 
- <h2 className="font-heading text-h3 md:text-h2 font-bold tracking-tight text-foreground mt-2 truncate bg-gradient-to-r from-brand-primary via-primary-hover to-brand-secondary bg-clip-text text-transparent">
+ <h2 className="font-heading text-h5 font-bold tracking-tight text-foreground mt-2 truncate bg-gradient-to-r from-brand-primary via-primary-hover to-brand-secondary bg-clip-text text-transparent">
  {user.name}
  </h2>
 
@@ -186,7 +182,6 @@ export default async function ProfilePage() {
  <ShieldCheck className="size-4 shrink-0" />
  Google Connected
  </span>
- {env.FEATURE_REFLECTION === "1" && (
  <Link
  href="/profile/reflections"
  className="flex items-center gap-1.5 text-brand-primary font-semibold hover:underline shrink-0"
@@ -194,7 +189,6 @@ export default async function ProfilePage() {
  <ClipboardList className="size-4 shrink-0" />
  Weekly reflections
  </Link>
- )}
  </div>
  </div>
  </div>
@@ -205,7 +199,7 @@ export default async function ProfilePage() {
  <span className="font-heading text-h3 md:text-h2 font-bold text-brand-primary">
  {activeEnrollments.length}
  </span>
- <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
  Kelas Aktif
  </span>
  </div>
@@ -214,7 +208,7 @@ export default async function ProfilePage() {
  <span className="font-heading text-h3 md:text-h2 font-bold text-brand-primary">
  {completedCount}
  </span>
- <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
  Materi Selesai
  </span>
  </div>
@@ -223,7 +217,7 @@ export default async function ProfilePage() {
  <span className="font-heading text-h3 md:text-h2 font-bold text-brand-primary">
  {submissionCount}
  </span>
- <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
  Ujian Selesai
  </span>
  </div>
@@ -232,97 +226,97 @@ export default async function ProfilePage() {
  <span className="font-heading text-h3 md:text-h2 font-bold text-brand-secondary">
  {averageScore !== null ? `${averageScore}%` : ""}
  </span>
- <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
+ <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground mt-1.5">
  Rata-rata Nilai
  </span>
  </div>
  </div>
 
- {/* Main Content Info Row */}
- <div className="grid gap-12 lg:grid-cols-12 mt-12">
- {/* Left Side: Learning and Bookings */}
- <div className="lg:col-span-7 space-y-10">
- {/* Active Classes list */}
- <div>
- <h3 className="font-heading text-h5 font-semibold text-foreground flex items-center gap-2 mb-5">
- <GraduationCap className="size-5 text-brand-primary shrink-0" />
- Kelas yang Diikuti
- </h3>
- {activeEnrollments.length > 0 ? (
- <div className="divide-y divide-border/60">
- {activeEnrollments.map((course) => (
- <div key={course.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4 border-b border-border/40 last:border-b-0 text-left">
- <div className="min-w-0 flex-1 text-left">
- <div className="flex items-center gap-2 flex-wrap text-left">
- <span className="inline-flex rounded-md bg-brand-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
- {course.category}
- </span>
- <span className="text-[11px] text-muted-foreground">
- Terdaftar: {new Date(course.enrolledAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
- </span>
- </div>
- <h4 className="font-heading text-body-md font-semibold text-foreground mt-1.5 truncate text-left">
- {course.title}
- </h4>
- </div>
- <Link
- href={`/courses/${course.id}`}
- className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-1.5 text-[12px] font-semibold text-foreground hover:bg-muted/70 hover:border-border-strong transition-colors h-9 shrink-0"
- >
- Buka Kelas
- </Link>
- </div>
- ))}
- </div>
- ) : (
- <p className="text-body-sm text-muted-foreground py-2 italic border-t border-border/40">
- Belum ada kelas aktif yang diikuti saat ini. Silakan hubungi dosen/admin Anda untuk token aktivasi kelas.
- </p>
- )}
- </div>
+      {/* Main Content Info Row */}
+      <div className="grid gap-8 lg:grid-cols-12 mt-8">
+        {/* Left Side: Learning and Bookings */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* Active Classes list */}
+          <div>
+            <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-4">
+              <GraduationCap className="size-5 text-brand-primary shrink-0" />
+              Kelas yang Diikuti
+            </h3>
+            {activeEnrollments.length > 0 ? (
+              <div className="divide-y divide-border/60">
+                {activeEnrollments.map((course) => (
+                  <div key={course.id} className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-4 border-b border-border/40 last:border-b-0 text-left">
+                    <div className="min-w-0 flex-1 text-left">
+                      <div className="flex items-center gap-2 flex-wrap text-left">
+                        <span className="inline-flex rounded-md bg-brand-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-brand-primary uppercase tracking-wider ring-1 ring-brand-primary/20">
+                          {course.category}
+                        </span>
+                        <span className="text-body-xs text-muted-foreground">
+                          Terdaftar: {new Date(course.enrolledAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <h4 className="font-heading text-body-sm font-semibold text-foreground mt-1.5 truncate text-left">
+                        {course.title}
+                      </h4>
+                    </div>
+                    <Link
+                      href={`/courses/${course.id}`}
+                      className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-1.5 text-body-xs font-semibold text-foreground hover:bg-muted/70 hover:border-border-strong transition-colors h-8 shrink-0"
+                    >
+                      Buka Kelas
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-body-sm text-muted-foreground py-2 italic border-t border-border/40">
+                Belum ada kelas aktif yang diikuti saat ini. Silakan hubungi dosen/admin Anda untuk token aktivasi kelas.
+              </p>
+            )}
+          </div>
 
- {/* Bookings list */}
- <div className="border-t border-border/60 pt-8">
- <h3 className="font-heading text-h5 font-semibold text-foreground flex items-center gap-2 mb-5">
- <CalendarDays className="size-5 text-brand-secondary shrink-0" />
- Jadwal Tutorial Mendatang
- </h3>
- {studentBookings.length > 0 ? (
- <div className="grid gap-3 sm:grid-cols-2">
- {studentBookings.map((booking) => (
- <div key={booking.id} className="flex items-start gap-3 p-3.5 rounded-lg border border-border/50 bg-muted/15">
- <div className="size-8 shrink-0 flex items-center justify-center rounded bg-brand-secondary/10 text-brand-secondary">
- <User2 className="size-4" />
- </div>
- <div className="min-w-0 flex-1">
- <h4 className="text-body-sm font-semibold text-foreground truncate">
- Tutorial {booking.courseTitle}
- </h4>
- <p className="text-body-xs text-muted-foreground mt-0.5 truncate">
- Tutor: <span className="font-medium text-foreground">{booking.tutorName}</span>
- </p>
- <p className="text-body-xs font-semibold text-brand-secondary mt-2 flex items-center gap-1">
- <span className="capitalize">{booking.dayOfWeek}</span>, {booking.startTime} - {booking.endTime}
- </p>
- </div>
- </div>
- ))}
- </div>
- ) : (
- <p className="text-body-sm text-muted-foreground py-2 italic">
- Tidak ada jadwal tutorial terdaftar untuk minggu ini.
- </p>
- )}
- </div>
- </div>
+          {/* Bookings list */}
+          <div className="border-t border-border/60 pt-6">
+            <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-4">
+              <CalendarDays className="size-5 text-brand-secondary shrink-0" />
+              Jadwal Tutorial Mendatang
+            </h3>
+            {studentBookings.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {studentBookings.map((booking) => (
+                  <div key={booking.id} className="flex items-start gap-3 p-3.5 rounded-lg border border-border/50 bg-muted/15">
+                    <div className="size-8 shrink-0 flex items-center justify-center rounded bg-brand-secondary/10 text-brand-secondary">
+                      <User2 className="size-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-body-sm font-semibold text-foreground truncate">
+                        Tutorial {booking.courseTitle}
+                      </h4>
+                      <p className="text-body-xs text-muted-foreground mt-0.5 truncate">
+                        Tutor: <span className="font-medium text-foreground">{booking.tutorName}</span>
+                      </p>
+                      <p className="text-body-xs font-semibold text-brand-secondary mt-2 flex items-center gap-1">
+                        <span className="capitalize">{booking.dayOfWeek}</span>, {booking.startTime} - {booking.endTime}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-body-sm text-muted-foreground py-2 italic">
+                Tidak ada jadwal tutorial terdaftar untuk minggu ini.
+              </p>
+            )}
+          </div>
+        </div>
 
- {/* Right Side: Account details and groups */}
- <div className="lg:col-span-5 space-y-10">
- {/* Google Identity info */}
- <div>
- <h3 className="font-heading text-h5 font-semibold text-foreground mb-4">
- Google Identity Account
- </h3>
+        {/* Right Side: Account details and groups */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Google Identity info */}
+          <div>
+            <h3 className="font-heading text-body-base font-bold text-foreground mb-3">
+              Google Identity Account
+            </h3>
  <dl className="text-body-sm divide-y divide-border/40 border-t border-border/40">
  <div className="py-3 flex justify-between gap-4">
  <dt className="text-muted-foreground">Hubungan Akun</dt>
@@ -361,7 +355,7 @@ export default async function ProfilePage() {
 
  {/* Groups list */}
  <div>
- <h3 className="font-heading text-h5 font-semibold text-foreground mb-4">
+ <h3 className="font-heading text-body-base font-semibold text-foreground mb-4">
  Kelompok Belajar
  </h3>
  {userGroups.length > 0 ? (

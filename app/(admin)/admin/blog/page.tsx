@@ -2,10 +2,12 @@ import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Eye, Share2 } from "lucide-react";
+import { Plus, Edit, Eye, Share2, PenLine } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ShareDialog } from "@/components/blog/share-widget";
+import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminTable, AdminTableHead } from "@/components/admin/table";
 
 export default async function AdminBlogDashboard() {
   const articles = await db.query.blogArticles.findMany({
@@ -16,23 +18,24 @@ export default async function AdminBlogDashboard() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 p-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-h2 font-heading tracking-tight">Manajemen Blog</h1>
-          <p className="text-muted-foreground mt-2 text-body-md">Kelola artikel, berita, dan tips untuk ditampilkan di Zyx Blog.</p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/blog/new">
-            <Plus className="w-4 h-4 mr-2" />
-            Tulis Artikel
-          </Link>
-        </Button>
-      </div>
+    <div className="space-y-8">
+      <AdminPageHeader
+        icon={PenLine}
+        title="Manajemen Blog"
+        description="Kelola artikel, berita, dan tips untuk ditampilkan di Zyx Blog."
+        actions={
+          <Button asChild>
+            <Link href="/admin/blog/new">
+              <Plus className="size-4" />
+              Tulis Artikel
+            </Link>
+          </Button>
+        }
+      />
 
-      <div className="border border-border rounded-xl bg-card overflow-hidden shadow-sm">
+      <AdminTable>
         <table className="w-full text-left text-body-sm">
-          <thead className="bg-muted/50 border-b border-border/80">
+          <AdminTableHead>
             <tr>
               <th className="px-6 py-4 font-semibold text-foreground">Judul Artikel</th>
               <th className="px-6 py-4 font-semibold text-foreground">Kategori</th>
@@ -40,7 +43,7 @@ export default async function AdminBlogDashboard() {
               <th className="px-6 py-4 font-semibold text-foreground">Penulis</th>
               <th className="px-6 py-4 font-semibold text-foreground">Aksi</th>
             </tr>
-          </thead>
+          </AdminTableHead>
           <tbody className="divide-y divide-border/40">
             {articles.length === 0 ? (
               <tr>
@@ -51,15 +54,15 @@ export default async function AdminBlogDashboard() {
             ) : (
               articles.map((article) => (
                 <tr key={article.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4 font-medium text-foreground max-w-sm truncate">
+                  <td className="px-6 py-4 font-medium text-foreground max-w-[280px] md:max-w-xs truncate" title={article.title}>
                     {article.title}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <Badge variant="outline" className="rounded-md capitalize">
                       {article.category.replace("_", " ")}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <Badge 
                       variant={article.status === "published" ? "default" : "secondary"}
                       className={article.status === "published" ? "bg-status-success text-status-success-foreground hover:bg-status-success/90 rounded-md" : "rounded-md"}
@@ -67,40 +70,42 @@ export default async function AdminBlogDashboard() {
                       {article.status}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-muted-foreground">
+                  <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
                     {article.author?.name || "Anonim"}
                   </td>
-                  <td className="px-6 py-4 flex items-center gap-2">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/admin/blog/${article.id}/edit`}>
-                        <Edit className="w-4.5 h-4.5 mr-1" />
-                        Sunting
-                      </Link>
-                    </Button>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/blog/${article.slug}`} target="_blank">
-                        <Eye className="w-4.5 h-4.5 mr-1" />
-                        Lihat
-                      </Link>
-                    </Button>
-                    <ShareDialog
-                      slug={article.slug}
-                      title={article.title}
-                      description={article.summary || ""}
-                      trigger={
-                        <Button variant="ghost" size="sm">
-                          <Share2 className="w-4.5 h-4.5 mr-1" />
-                          Bagikan
-                        </Button>
-                      }
-                    />
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/admin/blog/${article.id}/edit`}>
+                          <Edit className="size-4" />
+                          Sunting
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/blog/${article.slug}`} target="_blank">
+                          <Eye className="size-4" />
+                          Lihat
+                        </Link>
+                      </Button>
+                      <ShareDialog
+                        slug={article.slug}
+                        title={article.title}
+                        description={article.summary || ""}
+                        trigger={
+                          <Button variant="ghost" size="sm">
+                            <Share2 className="size-4" />
+                            Bagikan
+                          </Button>
+                        }
+                      />
+                    </div>
                   </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
-      </div>
+      </AdminTable>
     </div>
   );
 }

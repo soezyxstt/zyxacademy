@@ -1,292 +1,954 @@
 "use server";
 
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
 import {
   user,
+  groups,
+  groupMembers,
   courses,
   enrollments,
-  groupMembers,
-  tutorCourses,
   tutorSlots,
+  tutorCourses,
   bookings,
+  bookingAuditLogs,
+  bookingRescheduleTickets,
+  bookingTicketMessages,
+  academicSchedules,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import {
+  getJakartaNow,
+  getWeekScheduleDays,
+  isSessionLocked,
+  ensureGoogleMeetForBooking,
+  fetchLinkPreview,
+} from "@/lib/schedule-lock";
 
-// Helper to authenticate user
 async function requireUser() {
   const h = await headers();
   const session = await auth.api.getSession({
     headers: h,
   });
+
   if (!session?.user?.id) {
-    throw new Error("Unauthorized");
+    throw new Error("UNAUTHORIZED");
   }
+
   return session.user;
 }
 
-// Fetch all scheduling data for the current user's role
-export async function getScheduleData() {
+// ── GET SCHEDULE DATA ─────────────────────────────────────────────────────────
+
+export async function getScheduleData(weekOffset = 0) {
   const currentUser = await requireUser();
-  
-  // Refetch user from DB to get the most accurate role
+
   const dbUser = await db.query.user.findFirst({
     where: eq(user.id, currentUser.id),
   });
 
   if (!dbUser) {
-    throw new Error("User not found in database");
+    throw new Error("USER_NOT_FOUND");
   }
 
-  const userRole = dbUser.role || "student";
-  const userId = dbUser.id;
+  const role = (dbUser.role as "student" | "teacher" | "admin") || "student";
 
-  // 1. Find groups this user is in
-  const myGroupMemberships = await db.query.groupMembers.findMany({
-    where: eq(groupMembers.userId, userId),
+  // Calculate week range
+  const nowJakarta = getJakartaNow();
+  const anchorDate = new Date(nowJakarta);
+  anchorDate.setDate(anchorDate.getDate() + weekOffset * 7);
+
+  const weekInfo = getWeekScheduleDays(anchorDate);
+  const isWeekLocked = isSessionLocked(weekInfo.days[0].dateIso, nowJakarta);
+
+  // Fetch Academic Schedules (Exams, Tryouts, Quizzes) for the calendar
+  const allAcademicSchedules = await db.query.academicSchedules.findMany({
+    where: eq(academicSchedules.status, "published"),
     with: {
-      group: true,
+      course: true,
+      creator: true,
     },
+    orderBy: [desc(academicSchedules.startDate)],
   });
 
-  const myGroupIds = myGroupMemberships.map((gm) => gm.groupId);
-
-  if (userRole === "teacher") {
-    // ─── TUTOR WORKFLOW ───
-    // Fetch tutor's certified courses
-    const certifiedCourses = await db
-      .select({
-        id: courses.id,
-        title: courses.title,
-        category: courses.category,
-      })
-      .from(tutorCourses)
-      .innerJoin(courses, eq(tutorCourses.courseId, courses.id))
-      .where(eq(tutorCourses.tutorId, userId));
-
-    // Fetch tutor's availability slots
-    const slots = await db.query.tutorSlots.findMany({
-      where: eq(tutorSlots.tutorId, userId),
-      with: {
-        booking: {
+  if (role === "teacher") {
+    // ── TUTOR ROLE DATA ──────────────────────────────────────────────────────
+    const [mySlots, myCertifications, allCourses, tutorBookings, incomingTickets] =
+      await Promise.all([
+        db.query.tutorSlots.findMany({
+          where: eq(tutorSlots.tutorId, dbUser.id),
           with: {
-            student: true,
-            course: true,
-            group: true,
+            booking: {
+              with: {
+                group: {
+                  with: {
+                    members: {
+                      with: {
+                        user: true,
+                      },
+                    },
+                  },
+                },
+                course: true,
+                student: true,
+                lastModifier: true,
+                auditLogs: {
+                  with: {
+                    actor: true,
+                  },
+                  orderBy: [desc(bookingAuditLogs.createdAt)],
+                },
+                rescheduleTickets: {
+                  with: {
+                    requestedBy: true,
+                    proposedSlot: true,
+                    messages: {
+                      with: {
+                        sender: true,
+                      },
+                    },
+                  },
+                  orderBy: [desc(bookingRescheduleTickets.createdAt)],
+                },
+              },
+            },
           },
-        },
-      },
-    });
-
-    // Fetch all courses in database (for certification checklist)
-    const allCourses = await db.select().from(courses);
-
-    // Fetch groups the tutor belongs to
-    const myGroups = myGroupMemberships.map((gm) => gm.group).filter(Boolean);
+        }),
+        db.query.tutorCourses.findMany({
+          where: eq(tutorCourses.tutorId, dbUser.id),
+          with: {
+            course: true,
+          },
+        }),
+        db.select().from(courses),
+        db.query.bookings.findMany({
+          where: inArray(
+            bookings.slotId,
+            db
+              .select({ id: tutorSlots.id })
+              .from(tutorSlots)
+              .where(eq(tutorSlots.tutorId, dbUser.id))
+          ),
+          with: {
+            slot: true,
+            group: {
+              with: {
+                members: {
+                  with: {
+                    user: true,
+                  },
+                },
+              },
+            },
+            course: true,
+            student: true,
+            lastModifier: true,
+            auditLogs: {
+              with: {
+                actor: true,
+              },
+              orderBy: [desc(bookingAuditLogs.createdAt)],
+            },
+            rescheduleTickets: {
+              with: {
+                requestedBy: true,
+                proposedSlot: true,
+                messages: {
+                  with: {
+                    sender: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        db.query.bookingRescheduleTickets.findMany({
+          where: eq(bookingRescheduleTickets.tutorId, dbUser.id),
+          with: {
+            booking: {
+              with: {
+                course: true,
+                group: true,
+              },
+            },
+            requestedBy: true,
+            proposedSlot: true,
+            messages: {
+              with: {
+                sender: true,
+              },
+              orderBy: [desc(bookingTicketMessages.createdAt)],
+            },
+          },
+          orderBy: [desc(bookingRescheduleTickets.createdAt)],
+        }),
+      ]);
 
     return {
       role: "teacher" as const,
-      user: dbUser,
-      certifiedCourses,
-      slots,
+      user: {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        image: dbUser.image,
+        role: dbUser.role,
+      },
+      weekInfo,
+      isWeekLocked,
+      mySlots,
+      certifiedCourses: myCertifications.map((c) => c.course),
       allCourses,
-      myGroups,
+      tutorBookings,
+      incomingTickets,
+      academicSchedules: allAcademicSchedules,
     };
-  } else {
-    // ─── STUDENT WORKFLOW ───
-    // Fetch student's active enrollments
-    const now = new Date();
-    let activeEnrollments;
-    if (process.env.NODE_ENV === "development" && dbUser.role === "admin") {
-      const all = await db.select().from(courses);
-      activeEnrollments = all.map((c) => ({
-        id: c.id,
-        title: c.title,
-        category: c.category,
-      }));
-    } else {
-      activeEnrollments = await db
-        .select({
-          id: courses.id,
-          title: courses.title,
-          category: courses.category,
-        })
-        .from(enrollments)
-        .innerJoin(courses, eq(enrollments.courseId, courses.id))
-        .where(and(eq(enrollments.userId, userId), sql`${enrollments.expiresAt} > ${now}`));
-    }
+  }
 
-    const enrolledCourseIds = activeEnrollments.map((ae) => ae.id);
-
-    if (myGroupIds.length === 0) {
-      return {
-        role: "student" as const,
-        user: dbUser,
-        enrollments: activeEnrollments,
-        groups: [],
-        relevantTutors: [],
-        availableSlots: [],
-        myBookings: [],
-      };
-    }
-
-    // Find all group members in student's groups
-    const allMembersInMyGroups = await db.query.groupMembers.findMany({
-      where: inArray(groupMembers.groupId, myGroupIds),
-      with: {
-        user: true,
-        group: true,
+  // ── STUDENT ROLE DATA ───────────────────────────────────────────────────────
+  // 1. Get student study groups
+  const myMemberships = await db.query.groupMembers.findMany({
+    where: eq(groupMembers.userId, dbUser.id),
+    with: {
+      group: {
+        with: {
+          courses: {
+            with: {
+              course: true,
+            },
+          },
+          members: {
+            with: {
+              user: true,
+            },
+          },
+        },
       },
-    });
+    },
+  });
 
-    // Extract tutors (role === 'teacher') from these groups
-    const tutorsInMyGroupsMap = new Map<string, { user: any; groups: any[] }>();
-    allMembersInMyGroups.forEach((m) => {
-      if (m.user && m.user.role === "teacher") {
-        const existing = tutorsInMyGroupsMap.get(m.user.id);
-        if (existing) {
-          existing.groups.push(m.group);
-        } else {
-          tutorsInMyGroupsMap.set(m.user.id, {
-            user: m.user,
-            groups: [m.group],
-          });
-        }
-      }
-    });
+  const myGroups = myMemberships.map((m) => m.group).filter(Boolean);
+  const myGroupIds = myGroups.map((g) => g.id);
 
-    const tutorsInMyGroups = Array.from(tutorsInMyGroupsMap.values());
-    const tutorIdsInMyGroups = tutorsInMyGroups.map((t) => t.user.id);
+  // 2. Get student active enrollments
+  const now = new Date();
+  const activeEnrollments = await db.query.enrollments.findMany({
+    where: and(
+      eq(enrollments.userId, dbUser.id),
+      sql`${enrollments.expiresAt} > ${now}`
+    ),
+    with: {
+      course: true,
+    },
+  });
 
-    // If no tutors in group, return early
-    if (tutorIdsInMyGroups.length === 0) {
-      return {
-        role: "student" as const,
-        user: dbUser,
-        enrollments: activeEnrollments,
-        groups: myGroupMemberships.map((gm) => gm.group).filter(Boolean),
-        relevantTutors: [],
-        availableSlots: [],
-        myBookings: [],
-      };
-    }
+  // 3. Find all available tutor slots with tutors & their certified courses
+  const allTutorSlots = await db.query.tutorSlots.findMany({
+    with: {
+      tutor: {
+        with: {
+          tutorCourses: {
+            with: {
+              course: true,
+            },
+          },
+        },
+      },
+      booking: {
+        with: {
+          group: true,
+          course: true,
+          student: true,
+          lastModifier: true,
+          auditLogs: {
+            with: {
+              actor: true,
+            },
+            orderBy: [desc(bookingAuditLogs.createdAt)],
+          },
+          rescheduleTickets: {
+            with: {
+              requestedBy: true,
+              proposedSlot: true,
+              messages: {
+                with: {
+                  sender: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
 
-    // Fetch tutor courses certifications
-    const tutorCertifications = await db.query.tutorCourses.findMany({
-      where: inArray(tutorCourses.tutorId, tutorIdsInMyGroups),
-    });
-
-    // Map certifications by tutor
-    const tutorSubjectsMap = new Map<string, string[]>();
-    tutorCertifications.forEach((tc) => {
-      const existing = tutorSubjectsMap.get(tc.tutorId) || [];
-      existing.push(tc.courseId);
-      tutorSubjectsMap.set(tc.tutorId, existing);
-    });
-
-    // Filter relevant tutors: must teach at least one course the student is enrolled in
-    const relevantTutors = tutorsInMyGroups
-      .map((t) => {
-        const tutorSubjects = tutorSubjectsMap.get(t.user.id) || [];
-        const sharedSubjects = tutorSubjects.filter((cid) => enrolledCourseIds.includes(cid));
-        return {
-          ...t,
-          certifiedCourseIds: tutorSubjects,
-          sharedCourseIds: sharedSubjects,
-        };
+  // 4. Get bookings made by the student's groups
+  const groupBookings = myGroupIds.length
+    ? await db.query.bookings.findMany({
+        where: inArray(bookings.groupId, myGroupIds),
+        with: {
+          slot: {
+            with: {
+              tutor: true,
+            },
+          },
+          course: true,
+          group: {
+            with: {
+              members: {
+                with: {
+                  user: true,
+                },
+              },
+            },
+          },
+          student: true,
+          lastModifier: true,
+          auditLogs: {
+            with: {
+              actor: true,
+            },
+            orderBy: [desc(bookingAuditLogs.createdAt)],
+          },
+          rescheduleTickets: {
+            with: {
+              requestedBy: true,
+              proposedSlot: true,
+              messages: {
+                with: {
+                  sender: true,
+                },
+                orderBy: [desc(bookingTicketMessages.createdAt)],
+              },
+            },
+            orderBy: [desc(bookingRescheduleTickets.createdAt)],
+          },
+        },
+        orderBy: [desc(bookings.bookedAt)],
       })
-      .filter((t) => t.sharedCourseIds.length > 0);
+    : [];
 
-    const relevantTutorIds = relevantTutors.map((t) => t.user.id);
+  return {
+    role: "student" as const,
+    user: {
+      id: dbUser.id,
+      name: dbUser.name,
+      email: dbUser.email,
+      image: dbUser.image,
+      role: dbUser.role,
+    },
+    weekInfo,
+    isWeekLocked,
+    groups: myGroups,
+    enrollments: activeEnrollments,
+    availableSlots: allTutorSlots,
+    groupBookings,
+    academicSchedules: allAcademicSchedules,
+  };
+}
 
-    // If no relevant tutors, return early
-    if (relevantTutorIds.length === 0) {
-      return {
-        role: "student" as const,
-        user: dbUser,
-        enrollments: activeEnrollments,
-        groups: myGroupMemberships.map((gm) => gm.group).filter(Boolean),
-        relevantTutors: [],
-        availableSlots: [],
-        myBookings: [],
-      };
-    }
+// ── COLLABORATIVE BOOKING (Any group member can execute) ──────────────────────
 
-    // Fetch slots for relevant tutors
-    const tutorSlotsList = await db.query.tutorSlots.findMany({
-      where: inArray(tutorSlots.tutorId, relevantTutorIds),
-      with: {
-        tutor: true,
-        booking: {
-          with: {
-            student: true,
-            course: true,
-            group: true,
-          },
+export async function collaborativeBookSlot(
+  slotId: string,
+  courseId: string,
+  groupId: string,
+  targetDateIso: string
+) {
+  const currentUser = await requireUser();
+
+  try {
+    return await db.transaction(async (tx) => {
+      // 1. Verify student membership in group
+      const membership = await tx.query.groupMembers.findFirst({
+        where: and(
+          eq(groupMembers.groupId, groupId),
+          eq(groupMembers.userId, currentUser.id)
+        ),
+      });
+
+      if (!membership) {
+        return { success: false, error: "Anda bukan anggota dari kelompok belajar ini" };
+      }
+
+      // 2. Verify lock status: Cannot book past weekly lock cutoff
+      const isLocked = isSessionLocked(targetDateIso);
+      if (isLocked) {
+        return {
+          success: false,
+          error: "Jadwal untuk minggu ini sudah terkunci (Sabtu 23:59 WIB). Silakan pilih minggu berikutnya.",
+        };
+      }
+
+      // 3. Verify slot exists and get details
+      const slot = await tx.query.tutorSlots.findFirst({
+        where: eq(tutorSlots.id, slotId),
+        with: {
+          tutor: true,
         },
-      },
-    });
+      });
 
-    // Get student's own bookings
-    const myBookingsList = await db.query.bookings.findMany({
-      where: eq(bookings.studentId, userId),
-      with: {
-        slot: {
-          with: {
-            tutor: true,
-          },
+      if (!slot) {
+        return { success: false, error: "Slot jadwal tutor tidak ditemukan" };
+      }
+
+      // 4. Verify FCFS: Ensure slot is not already booked
+      const existingBooking = await tx.query.bookings.findFirst({
+        where: eq(bookings.slotId, slotId),
+      });
+
+      if (existingBooking) {
+        return {
+          success: false,
+          error: "Slot ini baru saja diambil oleh kelompok lain (First-Come First-Served)",
+        };
+      }
+
+      // 5. Verify group quota
+      const groupData = await tx.query.groups.findFirst({
+        where: eq(groups.id, groupId),
+      });
+
+      if (!groupData) {
+        return { success: false, error: "Data kelompok belajar tidak ditemukan" };
+      }
+
+      if (groupData.usedQuotaSessions >= groupData.totalQuotaSessions) {
+        return {
+          success: false,
+          error: `Kuota pertemuan kelompok Anda untuk semester ini telah habis (${groupData.usedQuotaSessions}/${groupData.totalQuotaSessions} sesi)`,
+        };
+      }
+
+      // 6. Verify course and tutor certification
+      const tutorCert = await tx.query.tutorCourses.findFirst({
+        where: and(
+          eq(tutorCourses.tutorId, slot.tutorId),
+          eq(tutorCourses.courseId, courseId)
+        ),
+      });
+
+      if (!tutorCert) {
+        return { success: false, error: "Tutor ini tidak bersertifikasi untuk mata kuliah ini" };
+      }
+
+      // 7. Insert booking record
+      const bookingId = randomUUID();
+      const now = new Date();
+
+      await tx.insert(bookings).values({
+        id: bookingId,
+        slotId,
+        studentId: currentUser.id,
+        courseId,
+        groupId,
+        status: "scheduled",
+        sessionDate: targetDateIso,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        mode: slot.mode,
+        location: slot.location,
+        lastModifiedBy: currentUser.id,
+        lastModifiedAt: now,
+        bookedAt: now,
+      });
+
+      // 8. Deduct group quota
+      await tx
+        .update(groups)
+        .set({
+          usedQuotaSessions: groupData.usedQuotaSessions + 1,
+          updatedAt: now,
+        })
+        .where(eq(groups.id, groupId));
+
+      // 9. Insert Audit Log
+      const courseItem = await tx.query.courses.findFirst({
+        where: eq(courses.id, courseId),
+      });
+
+      const auditSummary = `${currentUser.name} memilih jadwal tutorial ${
+        courseItem?.title || "Mata Kuliah"
+      } bersama ${slot.tutor.name} (${slot.dayOfWeek}, ${targetDateIso} ${slot.startTime} - ${slot.endTime})`;
+
+      await tx.insert(bookingAuditLogs).values({
+        id: randomUUID(),
+        bookingId,
+        groupId,
+        actorId: currentUser.id,
+        action: "BOOK_CREATED",
+        summary: auditSummary,
+        metadata: {
+          slotId,
+          courseId,
+          sessionDate: targetDateIso,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          mode: slot.mode,
+          location: slot.location,
         },
-        course: true,
-        group: true,
-      },
-    });
+        createdAt: now,
+      });
 
-    return {
-      role: "student" as const,
-      user: dbUser,
-      enrollments: activeEnrollments,
-      groups: myGroupMemberships.map((gm) => gm.group).filter(Boolean),
-      relevantTutors,
-      availableSlots: tutorSlotsList,
-      myBookings: myBookingsList,
-    };
+      // 10. Generate Google Meet if Online
+      if (slot.mode === "online") {
+        setTimeout(async () => {
+          try {
+            await ensureGoogleMeetForBooking(bookingId);
+          } catch (e) {
+            console.error("Async Google Meet generation error:", e);
+          }
+        }, 100);
+      }
+
+      revalidatePath("/dashboard/schedule");
+      revalidatePath("/dashboard/groups");
+      return { success: true, bookingId };
+    });
+  } catch (err: any) {
+    console.error("Collaborative booking error:", err);
+    return { success: false, error: err?.message || "Gagal memesan slot tutorial" };
   }
 }
 
-// Add a slot of availability (Tutor only)
-export async function addTutorSlot(dayOfWeek: string, startTime: string, endTime: string) {
+// ── COLLABORATIVE MOVE SLOT (Before Weekly Lock) ──────────────────────────────
+
+export async function collaborativeMoveSlot(
+  bookingId: string,
+  newSlotId: string,
+  newTargetDateIso: string
+) {
   const currentUser = await requireUser();
 
-  // Verify role
+  try {
+    return await db.transaction(async (tx) => {
+      const booking = await tx.query.bookings.findFirst({
+        where: eq(bookings.id, bookingId),
+        with: {
+          group: true,
+          course: true,
+          slot: {
+            with: {
+              tutor: true,
+            },
+          },
+        },
+      });
+
+      if (!booking) {
+        return { success: false, error: "Jadwal tutorial tidak ditemukan" };
+      }
+
+      // 1. Verify membership
+      const membership = await tx.query.groupMembers.findFirst({
+        where: and(
+          eq(groupMembers.groupId, booking.groupId),
+          eq(groupMembers.userId, currentUser.id)
+        ),
+      });
+
+      if (!membership) {
+        return { success: false, error: "Anda tidak berwenang mengubah jadwal kelompok ini" };
+      }
+
+      // 2. Verify lock status
+      if (booking.sessionDate && isSessionLocked(booking.sessionDate)) {
+        return {
+          success: false,
+          error:
+            "Jadwal ini sudah terkunci (Sabtu 23:59 WIB). Silakan ajukan permohonan Reschedule untuk ditinjau tutor.",
+        };
+      }
+
+      if (isSessionLocked(newTargetDateIso)) {
+        return {
+          success: false,
+          error: "Slot tujuan sudah terkunci. Pilih slot pada minggu yang belum terkunci.",
+        };
+      }
+
+      // 3. Verify new slot
+      const newSlot = await tx.query.tutorSlots.findFirst({
+        where: eq(tutorSlots.id, newSlotId),
+        with: {
+          tutor: true,
+        },
+      });
+
+      if (!newSlot) {
+        return { success: false, error: "Slot baru tidak ditemukan" };
+      }
+
+      // 4. Verify FCFS for new slot
+      const existing = await tx.query.bookings.findFirst({
+        where: eq(bookings.slotId, newSlotId),
+      });
+
+      if (existing && existing.id !== bookingId) {
+        return { success: false, error: "Slot baru sudah diambil oleh kelompok lain" };
+      }
+
+      const now = new Date();
+
+      // 5. Update booking
+      await tx
+        .update(bookings)
+        .set({
+          slotId: newSlotId,
+          sessionDate: newTargetDateIso,
+          startTime: newSlot.startTime,
+          endTime: newSlot.endTime,
+          mode: newSlot.mode,
+          location: newSlot.location,
+          lastModifiedBy: currentUser.id,
+          lastModifiedAt: now,
+        })
+        .where(eq(bookings.id, bookingId));
+
+      // 6. Record Audit Log
+      const auditSummary = `${currentUser.name} memindahkan jadwal ${booking.course.title} dari ${
+        booking.sessionDate || ""
+      } (${booking.startTime} - ${booking.endTime}) ke ${newSlot.dayOfWeek}, ${newTargetDateIso} (${
+        newSlot.startTime
+      } - ${newSlot.endTime})`;
+
+      await tx.insert(bookingAuditLogs).values({
+        id: randomUUID(),
+        bookingId,
+        groupId: booking.groupId,
+        actorId: currentUser.id,
+        action: "SLOT_MOVED",
+        summary: auditSummary,
+        metadata: {
+          oldSlotId: booking.slotId,
+          newSlotId,
+          newDate: newTargetDateIso,
+        },
+        createdAt: now,
+      });
+
+      // 7. Ensure Google Meet for new slot if online
+      if (newSlot.mode === "online") {
+        setTimeout(async () => {
+          try {
+            await ensureGoogleMeetForBooking(bookingId);
+          } catch (e) {
+            console.error("Async Google Meet update error:", e);
+          }
+        }, 100);
+      }
+
+      revalidatePath("/dashboard/schedule");
+      return { success: true };
+    });
+  } catch (err: any) {
+    console.error("Collaborative move slot error:", err);
+    return { success: false, error: err?.message || "Gagal memindahkan jadwal" };
+  }
+}
+
+// ── COLLABORATIVE CANCEL (Before Weekly Lock) ─────────────────────────────────
+
+export async function collaborativeCancelSlot(bookingId: string) {
+  const currentUser = await requireUser();
+
+  try {
+    return await db.transaction(async (tx) => {
+      const booking = await tx.query.bookings.findFirst({
+        where: eq(bookings.id, bookingId),
+        with: {
+          group: true,
+          course: true,
+        },
+      });
+
+      if (!booking) {
+        return { success: false, error: "Jadwal tutorial tidak ditemukan" };
+      }
+
+      const membership = await tx.query.groupMembers.findFirst({
+        where: and(
+          eq(groupMembers.groupId, booking.groupId),
+          eq(groupMembers.userId, currentUser.id)
+        ),
+      });
+
+      if (!membership) {
+        return { success: false, error: "Anda tidak berwenang membatalkan jadwal ini" };
+      }
+
+      if (booking.sessionDate && isSessionLocked(booking.sessionDate)) {
+        return {
+          success: false,
+          error:
+            "Jadwal ini sudah terkunci. Pembatalan pasca-lock wajib diajukan melalui tiket pembatalan.",
+        };
+      }
+
+      // Return group quota
+      const now = new Date();
+      if (booking.group.usedQuotaSessions > 0) {
+        await tx
+          .update(groups)
+          .set({
+            usedQuotaSessions: booking.group.usedQuotaSessions - 1,
+            updatedAt: now,
+          })
+          .where(eq(groups.id, booking.groupId));
+      }
+
+      // Delete booking
+      await tx.delete(bookings).where(eq(bookings.id, bookingId));
+
+      revalidatePath("/dashboard/schedule");
+      revalidatePath("/dashboard/groups");
+      return { success: true };
+    });
+  } catch (err: any) {
+    console.error("Collaborative cancel slot error:", err);
+    return { success: false, error: err?.message || "Gagal membatalkan jadwal" };
+  }
+}
+
+// ── PRE-SESSION WORKFLOW (Topic & Question Materials) ─────────────────────────
+
+export async function updatePreSessionData(
+  bookingId: string,
+  topic: string,
+  preSessionNotes?: string,
+  attachments?: Array<{
+    id: string;
+    name: string;
+    url: string;
+    size?: number;
+    type?: string;
+  }>
+) {
+  const currentUser = await requireUser();
+
+  try {
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, bookingId),
+    });
+
+    if (!booking) {
+      return { success: false, error: "Jadwal tutorial tidak ditemukan" };
+    }
+
+    const membership = await db.query.groupMembers.findFirst({
+      where: and(
+        eq(groupMembers.groupId, booking.groupId),
+        eq(groupMembers.userId, currentUser.id)
+      ),
+    });
+
+    if (!membership) {
+      return { success: false, error: "Anda bukan anggota kelompok belajar ini" };
+    }
+
+    const now = new Date();
+
+    // Map existing attachments with new ones
+    const formattedAttachments = (attachments || []).map((att) => ({
+      id: att.id || randomUUID(),
+      name: att.name,
+      url: att.url,
+      size: att.size,
+      type: att.type,
+      uploadedBy: currentUser.id,
+      uploadedByName: currentUser.name || "Murid",
+      uploadedAt: now.toISOString(),
+    }));
+
+    await db
+      .update(bookings)
+      .set({
+        topic: topic.trim(),
+        preSessionNotes: preSessionNotes?.trim() || null,
+        preSessionAttachments: formattedAttachments,
+        lastModifiedBy: currentUser.id,
+        lastModifiedAt: now,
+      })
+      .where(eq(bookings.id, bookingId));
+
+    // Audit log
+    const auditSummary = `${currentUser.name} memperbarui topik bahasan dan mengunggah berkas soal latihan (${formattedAttachments.length} berkas)`;
+
+    await db.insert(bookingAuditLogs).values({
+      id: randomUUID(),
+      bookingId,
+      groupId: booking.groupId,
+      actorId: currentUser.id,
+      action: "TOPIC_UPDATED",
+      summary: auditSummary,
+      metadata: {
+        topic,
+        attachmentsCount: formattedAttachments.length,
+      },
+      createdAt: now,
+    });
+
+    revalidatePath("/dashboard/schedule");
+    return { success: true };
+  } catch (err: any) {
+    console.error("Update pre-session data error:", err);
+    return { success: false, error: err?.message || "Gagal menyimpan persiapan sesi" };
+  }
+}
+
+// ── RESCHEDULE & CANCELLATION TICKETS (Post-Lock) ──────────────────────────────
+
+export async function submitRescheduleTicket(
+  bookingId: string,
+  type: "reschedule" | "cancellation",
+  reason: string,
+  proposedSlotId?: string,
+  proposedDate?: string
+) {
+  const currentUser = await requireUser();
+
+  try {
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, bookingId),
+      with: {
+        slot: true,
+      },
+    });
+
+    if (!booking) {
+      return { success: false, error: "Jadwal tutorial tidak ditemukan" };
+    }
+
+    const membership = await db.query.groupMembers.findFirst({
+      where: and(
+        eq(groupMembers.groupId, booking.groupId),
+        eq(groupMembers.userId, currentUser.id)
+      ),
+    });
+
+    if (!membership) {
+      return { success: false, error: "Anda bukan anggota kelompok belajar ini" };
+    }
+
+    const ticketId = randomUUID();
+    const now = new Date();
+
+    await db.insert(bookingRescheduleTickets).values({
+      id: ticketId,
+      bookingId,
+      groupId: booking.groupId,
+      requestedById: currentUser.id,
+      tutorId: booking.slot.tutorId,
+      type,
+      status: "pending",
+      reason: reason.trim(),
+      proposedSlotId: proposedSlotId || null,
+      proposedDate: proposedDate || null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Initial message in discussion thread
+    await db.insert(bookingTicketMessages).values({
+      id: randomUUID(),
+      ticketId,
+      senderId: currentUser.id,
+      message: `[Permohonan ${type === "reschedule" ? "Reschedule" : "Pembatalan"}]\nAlasan: ${reason}`,
+      createdAt: now,
+    });
+
+    // Audit log
+    const auditSummary = `${currentUser.name} mengajukan tiket ${
+      type === "reschedule" ? "Reschedule" : "Pembatalan"
+    } untuk sesi ini`;
+
+    await db.insert(bookingAuditLogs).values({
+      id: randomUUID(),
+      bookingId,
+      groupId: booking.groupId,
+      actorId: currentUser.id,
+      action: type === "reschedule" ? "RESCHEDULE_REQUESTED" : "BOOKING_CANCELLED",
+      summary: auditSummary,
+      metadata: {
+        ticketId,
+        type,
+        reason,
+        proposedSlotId,
+        proposedDate,
+      },
+      createdAt: now,
+    });
+
+    revalidatePath("/dashboard/schedule");
+    return { success: true, ticketId };
+  } catch (err: any) {
+    console.error("Submit reschedule ticket error:", err);
+    return { success: false, error: err?.message || "Gagal mengajukan tiket" };
+  }
+}
+
+export async function sendTicketMessage(ticketId: string, message: string) {
+  const currentUser = await requireUser();
+
+  try {
+    const ticket = await db.query.bookingRescheduleTickets.findFirst({
+      where: eq(bookingRescheduleTickets.id, ticketId),
+    });
+
+    if (!ticket) {
+      return { success: false, error: "Tiket tidak ditemukan" };
+    }
+
+    const now = new Date();
+    await db.insert(bookingTicketMessages).values({
+      id: randomUUID(),
+      ticketId,
+      senderId: currentUser.id,
+      message: message.trim(),
+      createdAt: now,
+    });
+
+    await db
+      .update(bookingRescheduleTickets)
+      .set({ updatedAt: now })
+      .where(eq(bookingRescheduleTickets.id, ticketId));
+
+    revalidatePath("/dashboard/schedule");
+    return { success: true };
+  } catch (err: any) {
+    console.error("Send ticket message error:", err);
+    return { success: false, error: err?.message || "Gagal mengirim pesan" };
+  }
+}
+
+// ── TUTOR ACTIONS (Availability, Certifications, Decision, Completion) ────────
+
+export async function tutorAddSlot(
+  dayOfWeek: string,
+  startTime: string,
+  endTime: string,
+  mode: "online" | "offline" = "online",
+  location?: string
+) {
+  const currentUser = await requireUser();
+
   const dbUser = await db.query.user.findFirst({
     where: eq(user.id, currentUser.id),
   });
 
-  if (dbUser?.role !== "teacher") {
-    return { success: false, error: "Hanya tutor yang dapat menambahkan jadwal kosong" };
+  if (dbUser?.role !== "teacher" && dbUser?.role !== "admin") {
+    return { success: false, error: "Hanya tutor yang dapat menambahkan slot ketersediaan" };
   }
 
-  // Basic validation
-  if (!dayOfWeek || !startTime || !endTime) {
-    return { success: false, error: "Harap isi semua kolom jadwal" };
-  }
-
-  // Check time formats (HH:MM)
   const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
   if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
     return { success: false, error: "Format waktu harus HH:MM (contoh: 09:00)" };
   }
 
-  // Check if start time is before end time
-  const [startHour, startMin] = startTime.split(":").map(Number);
-  const [endHour, endMin] = endTime.split(":").map(Number);
-  const startVal = startHour * 60 + startMin;
-  const endVal = endHour * 60 + endMin;
-
-  if (startVal >= endVal) {
-    return { success: false, error: "Waktu mulai harus sebelum waktu selesai" };
+  if (mode === "offline" && !location?.trim()) {
+    return { success: false, error: "Untuk sesi offline, lokasi/ruangan fisik wajib diisi" };
   }
 
   try {
@@ -296,17 +958,20 @@ export async function addTutorSlot(dayOfWeek: string, startTime: string, endTime
       dayOfWeek,
       startTime,
       endTime,
+      mode,
+      location: mode === "offline" ? location?.trim() : null,
+      createdAt: new Date(),
     });
 
+    revalidatePath("/dashboard/schedule");
     return { success: true };
-  } catch (error: any) {
-    console.error("Error adding slot:", error);
-    return { success: false, error: "Gagal menyimpan jadwal" };
+  } catch (err: any) {
+    console.error("Tutor add slot error:", err);
+    return { success: false, error: "Gagal menyimpan slot ketersediaan" };
   }
 }
 
-// Delete a slot of availability (Tutor only)
-export async function deleteTutorSlot(slotId: string) {
+export async function tutorDeleteSlot(slotId: string) {
   const currentUser = await requireUser();
 
   const slot = await db.query.tutorSlots.findFirst({
@@ -314,188 +979,275 @@ export async function deleteTutorSlot(slotId: string) {
   });
 
   if (!slot) {
-    return { success: false, error: "Jadwal tidak ditemukan" };
+    return { success: false, error: "Slot tidak ditemukan" };
   }
 
   if (slot.tutorId !== currentUser.id) {
-    return { success: false, error: "Anda tidak memiliki akses untuk menghapus jadwal ini" };
+    return { success: false, error: "Anda tidak berwenang menghapus slot ini" };
   }
 
   try {
     await db.delete(tutorSlots).where(eq(tutorSlots.id, slotId));
+    revalidatePath("/dashboard/schedule");
     return { success: true };
-  } catch (error: any) {
-    console.error("Error deleting slot:", error);
-    return { success: false, error: "Gagal menghapus jadwal" };
+  } catch (err: any) {
+    console.error("Tutor delete slot error:", err);
+    return { success: false, error: "Gagal menghapus slot" };
   }
 }
 
-// Book a slot (Student only, First-Come First-Served)
-export async function bookTutorSlot(slotId: string, courseId: string, groupId: string) {
-  const currentUser = await requireUser();
-
-  // Verify role
-  const dbUser = await db.query.user.findFirst({
-    where: eq(user.id, currentUser.id),
-  });
-
-  if (dbUser?.role !== "student") {
-    return { success: false, error: "Hanya murid yang dapat memesan jadwal bimbingan" };
-  }
-
-  try {
-    return await db.transaction(async (tx) => {
-      // 1. Check if slot exists and get tutor id
-      const slot = await tx.query.tutorSlots.findFirst({
-        where: eq(tutorSlots.id, slotId),
-      });
-
-      if (!slot) {
-        return { success: false, error: "Slot jadwal tidak tersedia" };
-      }
-
-      // 2. Check if already booked (FCFS)
-      const existingBooking = await tx.query.bookings.findFirst({
-        where: eq(bookings.slotId, slotId),
-      });
-
-      if (existingBooking) {
-        return { success: false, error: "Jadwal ini baru saja dipesan oleh murid lain (First-Come First-Served)" };
-      }
-
-      // 3. Verify student is in the group
-      const isMember = await tx.query.groupMembers.findFirst({
-        where: and(
-          eq(groupMembers.groupId, groupId),
-          eq(groupMembers.userId, dbUser.id)
-        ),
-      });
-
-      if (!isMember) {
-        return { success: false, error: "Anda bukan anggota dari grup bimbingan ini" };
-      }
-
-      // 4. Verify tutor is also in the group
-      const isTutorInGroup = await tx.query.groupMembers.findFirst({
-        where: and(
-          eq(groupMembers.groupId, groupId),
-          eq(groupMembers.userId, slot.tutorId)
-        ),
-      });
-
-      if (!isTutorInGroup) {
-        return { success: false, error: "Tutor tidak terdaftar di dalam grup bimbingan Anda" };
-      }
-
-      // 5. Verify student enrollment in course
-      const now = new Date();
-      const studentEnrollment = await tx.query.enrollments.findFirst({
-        where: and(
-          eq(enrollments.userId, dbUser.id),
-          eq(enrollments.courseId, courseId),
-          sql`${enrollments.expiresAt} > ${now}`
-        ),
-      });
-
-      if (!studentEnrollment) {
-        return { success: false, error: "Anda tidak terdaftar secara aktif pada mata kuliah ini" };
-      }
-
-      // 6. Verify tutor certification in course
-      const tutorCert = await tx.query.tutorCourses.findFirst({
-        where: and(
-          eq(tutorCourses.tutorId, slot.tutorId),
-          eq(tutorCourses.courseId, courseId)
-        ),
-      });
-
-      if (!tutorCert) {
-        return { success: false, error: "Tutor ini tidak bersertifikasi untuk mengajar mata kuliah ini" };
-      }
-
-      // 7. Perform booking
-      await tx.insert(bookings).values({
-        id: randomUUID(),
-        slotId,
-        studentId: dbUser.id,
-        courseId,
-        groupId,
-        bookedAt: new Date(),
-      });
-
-      return { success: true };
-    });
-  } catch (error: any) {
-    console.error("Error booking slot:", error);
-    return { success: false, error: "Terjadi kesalahan sistem saat melakukan pemesanan" };
-  }
-}
-
-// Cancel a booking
-export async function cancelBooking(bookingId: string) {
-  const currentUser = await requireUser();
-
-  const booking = await db.query.bookings.findFirst({
-    where: eq(bookings.id, bookingId),
-    with: {
-      slot: true,
-    },
-  });
-
-  if (!booking) {
-    return { success: false, error: "Pemesanan tidak ditemukan" };
-  }
-
-  // Allowed to cancel if current user is the student who booked it OR the tutor who owns the slot
-  const isStudentOwner = booking.studentId === currentUser.id;
-  const isTutorOwner = booking.slot?.tutorId === currentUser.id;
-
-  if (!isStudentOwner && !isTutorOwner) {
-    return { success: false, error: "Anda tidak memiliki akses untuk membatalkan bimbingan ini" };
-  }
-
-  try {
-    await db.delete(bookings).where(eq(bookings.id, bookingId));
-    return { success: true };
-  } catch (error: any) {
-    console.error("Error cancelling booking:", error);
-    return { success: false, error: "Gagal membatalkan jadwal" };
-  }
-}
-
-// Update tutor certified courses (Tutor only)
 export async function updateTutorCourses(courseIds: string[]) {
   const currentUser = await requireUser();
 
-  // Verify role
-  const dbUser = await db.query.user.findFirst({
-    where: eq(user.id, currentUser.id),
-  });
+  try {
+    await db.delete(tutorCourses).where(eq(tutorCourses.tutorId, currentUser.id));
 
-  if (dbUser?.role !== "teacher") {
-    return { success: false, error: "Hanya tutor yang dapat memperbarui sertifikasi mata kuliah" };
+    if (courseIds.length > 0) {
+      await db.insert(tutorCourses).values(
+        courseIds.map((courseId) => ({
+          id: randomUUID(),
+          tutorId: currentUser.id,
+          courseId,
+        }))
+      );
+    }
+
+    revalidatePath("/dashboard/schedule");
+    return { success: true };
+  } catch (err: any) {
+    console.error("Update tutor courses error:", err);
+    return { success: false, error: "Gagal memperbarui mata kuliah tutorial" };
   }
+}
+
+export async function tutorDecideTicket(
+  ticketId: string,
+  decision: "approved" | "rejected",
+  decisionNotes?: string
+) {
+  const currentUser = await requireUser();
 
   try {
-    await db.transaction(async (tx) => {
-      // 1. Delete all existing certifications
-      await tx.delete(tutorCourses).where(eq(tutorCourses.tutorId, dbUser.id));
+    return await db.transaction(async (tx) => {
+      const ticket = await tx.query.bookingRescheduleTickets.findFirst({
+        where: eq(bookingRescheduleTickets.id, ticketId),
+        with: {
+          booking: {
+            with: {
+              group: true,
+              course: true,
+            },
+          },
+          proposedSlot: true,
+        },
+      });
 
-      // 2. Insert new certifications
-      if (courseIds.length > 0) {
-        for (const cid of courseIds) {
-          await tx.insert(tutorCourses).values({
+      if (!ticket) {
+        return { success: false, error: "Tiket tidak ditemukan" };
+      }
+
+      if (ticket.tutorId !== currentUser.id) {
+        return { success: false, error: "Hanya tutor pengampu yang memiliki hak menyetujui tiket ini" };
+      }
+
+      const now = new Date();
+
+      if (decision === "approved") {
+        if (ticket.type === "reschedule") {
+          if (!ticket.proposedSlotId || !ticket.proposedSlot) {
+            return { success: false, error: "Slot baru tidak valid" };
+          }
+
+          // Move booking to new slot
+          await tx
+            .update(bookings)
+            .set({
+              slotId: ticket.proposedSlotId,
+              sessionDate: ticket.proposedDate || ticket.booking.sessionDate,
+              startTime: ticket.proposedSlot.startTime,
+              endTime: ticket.proposedSlot.endTime,
+              mode: ticket.proposedSlot.mode,
+              location: ticket.proposedSlot.location,
+              lastModifiedBy: currentUser.id,
+              lastModifiedAt: now,
+            })
+            .where(eq(bookings.id, ticket.bookingId));
+
+          // Audit log
+          await tx.insert(bookingAuditLogs).values({
             id: randomUUID(),
-            tutorId: dbUser.id,
-            courseId: cid,
+            bookingId: ticket.bookingId,
+            groupId: ticket.groupId,
+            actorId: currentUser.id,
+            action: "RESCHEDULE_APPROVED",
+            summary: `Tutor ${currentUser.name} menyetujui permohonan Reschedule ke ${ticket.proposedSlot.dayOfWeek} (${ticket.proposedSlot.startTime} - ${ticket.proposedSlot.endTime})`,
+            metadata: {
+              decisionNotes,
+              newSlotId: ticket.proposedSlotId,
+            },
+            createdAt: now,
+          });
+
+          // Update Meet if online
+          if (ticket.proposedSlot.mode === "online") {
+            setTimeout(async () => {
+              try {
+                await ensureGoogleMeetForBooking(ticket.bookingId);
+              } catch (e) {
+                console.error("Async Google Meet generation error:", e);
+              }
+            }, 100);
+          }
+        } else if (ticket.type === "cancellation") {
+          // Mark booking cancelled (quota is forfeited)
+          await tx
+            .update(bookings)
+            .set({
+              status: "cancelled",
+              lastModifiedBy: currentUser.id,
+              lastModifiedAt: now,
+            })
+            .where(eq(bookings.id, ticket.bookingId));
+
+          await tx.insert(bookingAuditLogs).values({
+            id: randomUUID(),
+            bookingId: ticket.bookingId,
+            groupId: ticket.groupId,
+            actorId: currentUser.id,
+            action: "BOOKING_CANCELLED",
+            summary: `Tutor ${currentUser.name} menyetujui pembatalan sesi tutorial. Kuota sesi minggu ini hangus.`,
+            metadata: { decisionNotes },
+            createdAt: now,
           });
         }
+      } else {
+        // Rejected
+        await tx.insert(bookingAuditLogs).values({
+          id: randomUUID(),
+          bookingId: ticket.bookingId,
+          groupId: ticket.groupId,
+          actorId: currentUser.id,
+          action: "RESCHEDULE_REJECTED",
+          summary: `Tutor ${currentUser.name} menolak permohonan ${
+            ticket.type === "reschedule" ? "Reschedule" : "Pembatalan"
+          }`,
+          metadata: { decisionNotes },
+          createdAt: now,
+        });
       }
+
+      // Update ticket status
+      await tx
+        .update(bookingRescheduleTickets)
+        .set({
+          status: decision,
+          decisionNotes: decisionNotes?.trim() || null,
+          decidedAt: now,
+          decidedById: currentUser.id,
+          updatedAt: now,
+        })
+        .where(eq(bookingRescheduleTickets.id, ticketId));
+
+      revalidatePath("/dashboard/schedule");
+      return { success: true };
+    });
+  } catch (err: any) {
+    console.error("Tutor decide ticket error:", err);
+    return { success: false, error: err?.message || "Gagal memproses keputusan tiket" };
+  }
+}
+
+export async function tutorCompleteSession(
+  bookingId: string,
+  postSessionNotes: string,
+  postSessionAttachments?: Array<{
+    id: string;
+    name: string;
+    url: string;
+    size?: number;
+    type?: string;
+  }>,
+  linkUrl?: string
+) {
+  const currentUser = await requireUser();
+
+  try {
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, bookingId),
+      with: {
+        slot: true,
+      },
     });
 
+    if (!booking) {
+      return { success: false, error: "Jadwal tutorial tidak ditemukan" };
+    }
+
+    if (booking.slot.tutorId !== currentUser.id) {
+      return { success: false, error: "Hanya tutor pengampu yang dapat menandai sesi selesai" };
+    }
+
+    const now = new Date();
+
+    // Fetch link preview if link URL provided
+    let linkTitle: string | null = null;
+    let linkDesc: string | null = null;
+    let linkImg: string | null = null;
+
+    if (linkUrl && linkUrl.trim()) {
+      const preview = await fetchLinkPreview(linkUrl.trim());
+      linkTitle = preview.title;
+      linkDesc = preview.description;
+      linkImg = preview.image;
+    }
+
+    const formattedAtts = (postSessionAttachments || []).map((att) => ({
+      id: att.id || randomUUID(),
+      name: att.name,
+      url: att.url,
+      size: att.size,
+      type: att.type,
+      uploadedBy: currentUser.id,
+      uploadedByName: currentUser.name || "Tutor",
+      uploadedAt: now.toISOString(),
+    }));
+
+    await db
+      .update(bookings)
+      .set({
+        status: "completed",
+        postSessionNotes: postSessionNotes.trim(),
+        postSessionAttachments: formattedAtts,
+        postSessionLinkUrl: linkUrl?.trim() || null,
+        postSessionLinkTitle: linkTitle,
+        postSessionLinkDescription: linkDesc,
+        postSessionLinkImage: linkImg,
+        completedAt: now,
+        completedById: currentUser.id,
+        lastModifiedBy: currentUser.id,
+        lastModifiedAt: now,
+      })
+      .where(eq(bookings.id, bookingId));
+
+    await db.insert(bookingAuditLogs).values({
+      id: randomUUID(),
+      bookingId,
+      groupId: booking.groupId,
+      actorId: currentUser.id,
+      action: "SESSION_COMPLETED",
+      summary: `Tutor ${currentUser.name} menandai sesi telah selesai dan mengunggah catatan pembahasan`,
+      metadata: {
+        notesLength: postSessionNotes.length,
+        attachmentsCount: formattedAtts.length,
+        hasLink: Boolean(linkUrl),
+      },
+      createdAt: now,
+    });
+
+    revalidatePath("/dashboard/schedule");
     return { success: true };
-  } catch (error: any) {
-    console.error("Error updating certified courses:", error);
-    return { success: false, error: "Gagal memperbarui daftar matkul bimbingan" };
+  } catch (err: any) {
+    console.error("Tutor complete session error:", err);
+    return { success: false, error: err?.message || "Gagal menyelesaikan sesi" };
   }
 }

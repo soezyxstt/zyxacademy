@@ -125,7 +125,7 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
     <div className="space-y-6">
       {/* Action Row */}
       <div className="flex justify-between items-center">
-        <h2 className="text-body-lg font-semibold text-foreground">Daftar Modul ({initialMaterials.length})</h2>
+        <h2 className="font-heading text-body-base font-semibold text-foreground">Daftar Modul ({initialMaterials.length})</h2>
         <Button onClick={handleOpenAdd} className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
           <Plus className="size-4" />
           Tambah Materi
@@ -180,10 +180,10 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-3xl rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {editingMaterial ? "Edit Materi Belajar" : "Tambah Materi Belajar"}
             </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Tulis materi dengan format Markdown. Judul level 2 (##) akan otomatis membagi materi menjadi beberapa halaman.
             </DialogDescription>
           </DialogHeader>
@@ -239,8 +239,8 @@ export function MaterialsClient({ courseId, initialMaterials }: Props) {
       <Dialog open={deleteId !== null} onOpenChange={(open) => !open && setDeleteId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="font-heading text-body-lg font-bold text-foreground">Hapus Materi?</DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">Hapus Materi?</DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
               Apakah Anda yakin ingin menghapus materi ini? Tindakan ini bersifat permanen dan materi tidak akan dapat diakses oleh siswa lagi.
             </DialogDescription>
           </DialogHeader>

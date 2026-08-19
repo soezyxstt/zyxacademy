@@ -69,7 +69,7 @@ export function AboutClient() {
             <h1 className="font-heading text-h2 md:text-h1 font-extrabold tracking-tight text-foreground max-w-4xl mx-auto">
               Tentang kami
             </h1>
-            <p className="mx-auto max-w-2xl text-body-md text-muted-foreground md:text-body-lg leading-relaxed font-normal">
+            <p className="mx-auto max-w-2xl text-body-base text-muted-foreground leading-relaxed font-normal">
               Kami membangun pengalaman belajar yang tenang dan terukur - dari TPB hingga jurusan.
             </p>
           </div>
@@ -81,12 +81,12 @@ export function AboutClient() {
       <SectionContainer className="relative z-10 border-b border-border bg-background/30 backdrop-blur-xs py-20 md:py-28">
         <div className="mx-auto max-w-4xl space-y-8 text-center">
           <div className="space-y-3">
-            <span className="text-xs font-bold text-primary uppercase tracking-widest">Visi Kami</span>
+            <span className="text-body-xs font-bold text-primary uppercase tracking-widest">Visi Kami</span>
             <SectionHeading as="h2" tier="primary" className="text-foreground leading-tight font-extrabold tracking-tight text-center">
               Zyx Academy: Learn Deep, Fly High
             </SectionHeading>
           </div>
-          <div className="space-y-6 text-body-md md:text-body-lg text-muted-foreground leading-relaxed text-center">
+          <div className="space-y-6 text-body-base text-muted-foreground leading-relaxed text-center">
             <p>
               Berdiri sejak 2022, Zyx lahir dari satu keresahan sederhana: pendidikan seringkali terasa seperti beban,
               padahal seharusnya menjadi pintu pembuka peluang.
@@ -120,7 +120,7 @@ export function AboutClient() {
             <span className="absolute -left-4 -top-12 text-[140px] font-serif font-black text-stone-200/50 dark:text-stone-800/15 select-none pointer-events-none leading-none" aria-hidden>
               &ldquo;
             </span>
-            <blockquote className="font-heading text-xl md:text-2xl font-extrabold italic text-foreground leading-relaxed tracking-tight relative z-10 text-left">
+            <blockquote className="font-heading text-body-base font-extrabold italic text-foreground leading-relaxed tracking-tight relative z-10 text-left">
               Pendidikan seharusnya menjadi pembuka peluang, bukan tumpukan beban akademis yang menjemukan.
             </blockquote>
             <span className="block text-[10px] font-extrabold text-[var(--zx-accent)] uppercase tracking-[0.25em] text-left pt-2">
@@ -131,7 +131,7 @@ export function AboutClient() {
           {/* Right Column: Origin Background Narrative */}
           <div className="lg:col-span-7 space-y-6 text-left">
             <div>
-              <span className="text-xs font-bold text-primary uppercase tracking-widest text-left">Kisah Di Balik Zyx</span>
+              <span className="text-body-xs font-bold text-primary uppercase tracking-widest text-left">Kisah Di Balik Zyx</span>
               <SectionHeading as="h2" tier="primary" className="text-foreground font-extrabold tracking-tight text-left mt-2">
                 Mengapa Zyx Lahir?
               </SectionHeading>
@@ -144,12 +144,12 @@ export function AboutClient() {
                 sistem pendampingan yang ramah.
               </p>
               <p>
-                Kami juga melihat bahwa alternatif bimbingan belajar atau <span className="italic">tutor center</span>{" "}
+                Kami juga melihat bahwa alternatif program tutorial atau <span className="italic">tutor center</span>{" "}
                 yang telah ada dan berkembang belum mampu memberikan solusi yang cocok. Sebagian besar masih dikelola
                 dengan manajemen yang seadanya, serta beroperasi murni sebagai bisnis penghasil uang belaka.
               </p>
               <p>
-                Akibatnya, proses bimbingan terasa transaksional dan kurang menghargai sisi manusiawi. Zyx didirikan untuk
+                Akibatnya, proses tutorial terasa transaksional dan kurang menghargai sisi manusiawi. Zyx didirikan untuk
                 mendobrak paradigma ini dengan menghadirkan ekosistem belajar yang benar-benar{" "}
                 <span className="font-semibold text-foreground">mahasiswa-sentris</span> sekaligus{" "}
                 <span className="font-semibold text-foreground">tutor-sentris</span>. Bagi kami, empati terhadap proses
@@ -165,14 +165,14 @@ export function AboutClient() {
       <Reveal>
       <SectionContainer className="relative z-10 border-b border-border bg-background/30 backdrop-blur-xs py-20 md:py-28">
         <div className="max-w-4xl mx-auto space-y-6 text-center">
-          <span className="text-xs font-bold text-primary uppercase tracking-widest text-center">Relevansi</span>
+          <span className="text-body-xs font-bold text-primary uppercase tracking-widest text-center">Relevansi</span>
           <SectionHeading as="h2" tier="primary" className="text-foreground font-extrabold tracking-tight text-center">
             Untuk Siapa Zyx?
           </SectionHeading>
-          <div className="space-y-6 text-body-md text-muted-foreground leading-relaxed text-center">
+          <div className="space-y-6 text-body-base text-muted-foreground leading-relaxed text-center">
             <p>
               Zyx dirancang untuk mahasiswa ITB tahun pertama (TPB) dan tahun kedua yang menginginkan arah belajar yang
-              terarah, materi yang selaras dengan perkuliahan, serta bimbingan yang memahami ritme akademik kampus.
+              terarah, materi yang selaras dengan perkuliahan, serta tutorial yang memahami ritme akademik kampus.
             </p>
             <p>
               Kami mendampingi mereka yang merasa terbebani oleh tumpukan teori instan dan ingin beralih membangun
@@ -190,11 +190,11 @@ export function AboutClient() {
         <div className="max-w-5xl mx-auto space-y-12">
           {/* Header block */}
           <div className="space-y-4 max-w-3xl text-left">
-            <span className="text-xs font-bold text-primary uppercase tracking-widest">Tim Kami</span>
+            <span className="text-body-xs font-bold text-primary uppercase tracking-widest">Tim Kami</span>
             <SectionHeading as="h2" tier="primary" className="text-foreground font-extrabold tracking-tight mt-2 text-left">
               Pilar Penggagas Zyx
             </SectionHeading>
-            <p className="text-body-md text-muted-foreground leading-relaxed font-normal text-left">
+            <p className="text-body-base text-muted-foreground leading-relaxed font-normal text-left">
               Zyx digerakkan oleh mahasiswa yang telah menaklukkan kurikulum ketat ITB, berkomitmen menyalurkan
               pemahaman taktis mereka untuk kesuksesan akademik Anda.
             </p>
@@ -227,7 +227,7 @@ export function AboutClient() {
                       <span className="text-[10px] font-extrabold uppercase tracking-widest text-primary">
                         {founder.role}
                       </span>
-                      <h3 className="font-heading text-xl font-bold text-foreground leading-tight mt-0.5">
+                      <h3 className="font-heading text-body-base font-bold text-foreground leading-tight mt-0.5">
                         {founder.name}
                       </h3>
                     </div>
@@ -246,7 +246,7 @@ export function AboutClient() {
                           href={founder.socials.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-all duration-200 group/link"
+                          className="inline-flex items-center gap-1.5 text-body-xs text-muted-foreground hover:text-primary transition-all duration-200 group/link"
                           title="Website Pribadi"
                         >
                           <Globe className="size-3.5 text-muted-foreground group-hover/link:text-primary transition-colors" />
@@ -260,7 +260,7 @@ export function AboutClient() {
                           href={founder.socials.linkedin}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#0077B5] transition-all duration-200 group/link"
+                          className="inline-flex items-center gap-1.5 text-body-xs text-muted-foreground hover:text-[#0077B5] transition-all duration-200 group/link"
                           title="LinkedIn Profile"
                         >
                           <FaLinkedin className="size-3.5 text-muted-foreground group-hover/link:text-[#0077B5] transition-colors" />
@@ -272,7 +272,7 @@ export function AboutClient() {
                           href={founder.socials.instagram}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#E1306C] transition-all duration-200 group/link"
+                          className="inline-flex items-center gap-1.5 text-body-xs text-muted-foreground hover:text-[#E1306C] transition-all duration-200 group/link"
                           title="Instagram Profile"
                         >
                           <FaInstagram className="size-3.5 text-muted-foreground group-hover/link:text-[#E1306C] transition-colors" />

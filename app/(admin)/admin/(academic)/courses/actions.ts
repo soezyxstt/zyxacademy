@@ -2,76 +2,65 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { courses, chapters, courseMaterials } from "@/db/schema";
+import {
+  courses,
+  chapters,
+  courseMaterials,
+  quizTemplates,
+  studentQuizAttempts,
+  quizAiInsights,
+  aiQuestionBank,
+} from "@/db/schema";
 import { assertAdmin } from "@/lib/uploadthing-admin";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, and, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
+import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
+import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
+import {
+  isValidSubcategory,
+  type CourseMaterialCategory,
+  type CourseMaterialSubcategory,
+} from "@/lib/course-materials";
 
 export async function getCourses() {
   await assertAdmin();
-  return db.select().from(courses);
+  return db.select().from(courses).orderBy(asc(courses.title));
 }
 
-const allowedCategories = [
-  "Matematika",
-  "Fisika",
-  "Astronomi",
-  "Kimia",
-  "Aktuaria",
-  "Mikrobiologi",
-  "Biologi",
-  "Rekayasa Hayati",
-  "Rekayasa Pertanian",
-  "Rekayasa Kehutanan",
-  "Teknologi Pasca Panen",
-  "Sains dan Teknologi Farmasi",
-  "Farmasi Klinik dan Komunitas",
-  "Teknik Pertambangan",
-  "Teknik Perminyakan",
-  "Teknik Geofisika",
-  "Teknik Metalurgi",
-  "Teknik Geologi",
-  "Meteorologi",
-  "Oseanografi",
-  "Teknik Geodesi dan Geomatika",
-  "Teknik Kimia",
-  "Teknik Fisika",
-  "Teknik Industri",
-  "Teknik Pangan",
-  "Manajemen Rekayasa",
-  "Teknik Bioenergi dan Kemurgi",
-  "Teknik Industri (Kampus Cirebon)",
-  "Teknik Elektro",
-  "Teknik Informatika",
-  "Teknik Tenaga Listrik",
-  "Teknik Telekomunikasi",
-  "Sistem dan Teknologi Informasi",
-  "Teknik Biomedis",
-  "Teknik Mesin",
-  "Teknik Dirgantara",
-  "Teknik Material",
-  "Teknik Sipil",
-  "Teknik Lingkungan",
-  "Teknik Kelautan",
-  "Rekayasa Infrastruktur Lingkungan",
-  "Teknik dan Pengelolaan Sumber Daya Air",
-  "Arsitektur",
-  "Perencanaan Wilayah dan Kota",
-  "Perencanaan Wilayah dan Kota (Kampus Cirebon)",
-  "Seni Rupa",
-  "Kriya (Kampus Cirebon)",
-  "Kriya",
-  "Desain Interior",
-  "Desain Komunikasi Visual",
-  "Desain Produk",
-  "Manajemen",
-  "Kewirausahaan",
-  "TPB",
-  "Rekayasa Umum",
-] as const;
+export async function getCoursesWithStats() {
+  await assertAdmin();
 
-type Category = typeof allowedCategories[number];
+  const allCourses = await db.select().from(courses).orderBy(asc(courses.title));
+  const allChapters = await db.select({ courseId: chapters.courseId }).from(chapters);
+  const allMaterials = await db.select({ courseId: courseMaterials.courseId }).from(courseMaterials);
+  const allQuizzes = await db.select({ courseId: quizTemplates.courseId }).from(quizTemplates);
+
+  const chapterCountMap: Record<string, number> = {};
+  for (const ch of allChapters) {
+    if (ch.courseId) chapterCountMap[ch.courseId] = (chapterCountMap[ch.courseId] || 0) + 1;
+  }
+
+  const materialCountMap: Record<string, number> = {};
+  for (const m of allMaterials) {
+    if (m.courseId) materialCountMap[m.courseId] = (materialCountMap[m.courseId] || 0) + 1;
+  }
+
+  const quizCountMap: Record<string, number> = {};
+  for (const q of allQuizzes) {
+    if (q.courseId) quizCountMap[q.courseId] = (quizCountMap[q.courseId] || 0) + 1;
+  }
+
+  return allCourses.map((c) => ({
+    ...c,
+    chapterCount: chapterCountMap[c.id] || 0,
+    materialCount: materialCountMap[c.id] || 0,
+    quizCount: quizCountMap[c.id] || 0,
+  }));
+}
+
+import { allowedCategories, type Category } from "./constants";
+export type { Category } from "./constants";
 
 export async function saveCourse(
   id: string,
@@ -126,6 +115,7 @@ export async function saveCourse(
     }
 
     revalidatePath("/admin/courses");
+    revalidatePath(`/admin/courses/${cleanId}`);
     revalidatePath("/courses");
     revalidatePath(`/courses/${cleanId}`);
     revalidatePath("/dashboard");
@@ -153,7 +143,130 @@ export async function deleteCourse(id: string) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Detailed Course Hub Server Action
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getCourseDetailData(courseId: string) {
+  await assertAdmin();
+
+  const cleanCourseId = courseId.trim().toLowerCase();
+  const [course] = await db
+    .select()
+    .from(courses)
+    .where(eq(courses.id, cleanCourseId))
+    .limit(1);
+
+  if (!course) {
+    return null;
+  }
+
+  const [chaptersList, materialsList, quizTemplatesList, rawQuestions] = await Promise.all([
+    db
+      .select()
+      .from(chapters)
+      .where(eq(chapters.courseId, cleanCourseId))
+      .orderBy(asc(chapters.orderIndex)),
+    db
+      .select()
+      .from(courseMaterials)
+      .where(eq(courseMaterials.courseId, cleanCourseId))
+      .orderBy(desc(courseMaterials.createdAt)),
+    db
+      .select()
+      .from(quizTemplates)
+      .where(eq(quizTemplates.courseId, cleanCourseId))
+      .orderBy(desc(quizTemplates.createdAt)),
+    db
+      .select()
+      .from(aiQuestionBank)
+      .where(eq(aiQuestionBank.courseId, cleanCourseId))
+      .orderBy(desc(aiQuestionBank.createdAt))
+      .limit(100),
+  ]);
+
+  // Aggregate quiz attempts & AI insights for quizzes in this course
+  const quizIds = quizTemplatesList.map((q) => q.id);
+
+  let attemptsData: Array<{ templateId: string; score: number | null; status: string }> = [];
+  let insightsMap: Record<string, { id: string; createdAt: Date }> = {};
+
+  if (quizIds.length > 0) {
+    attemptsData = await db
+      .select({
+        templateId: studentQuizAttempts.templateId,
+        score: studentQuizAttempts.score,
+        status: studentQuizAttempts.status,
+      })
+      .from(studentQuizAttempts)
+      .where(inArray(studentQuizAttempts.templateId, quizIds));
+
+    const insights = await db
+      .select({
+        id: quizAiInsights.id,
+        templateId: quizAiInsights.templateId,
+        createdAt: quizAiInsights.createdAt,
+      })
+      .from(quizAiInsights)
+      .where(inArray(quizAiInsights.templateId, quizIds));
+
+    for (const ins of insights) {
+      if (ins.templateId) {
+        insightsMap[ins.templateId] = {
+          id: ins.id,
+          createdAt: ins.createdAt,
+        };
+      }
+    }
+  }
+
+  // Calculate per-quiz metrics
+  const quizzesWithMetrics = quizTemplatesList.map((tpl) => {
+    const tplAttempts = attemptsData.filter((a) => a.templateId === tpl.id && a.status === "completed");
+    const totalAttempts = tplAttempts.length;
+    const scores = tplAttempts.map((a) => a.score ?? 0);
+    const avgScore = totalAttempts > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / totalAttempts) : 0;
+    const passCount = scores.filter((s) => s >= 70).length;
+    const passRate = totalAttempts > 0 ? Math.round((passCount / totalAttempts) * 100) : 0;
+
+    return {
+      ...tpl,
+      totalAttempts,
+      avgScore,
+      passRate,
+      lastAiInsight: insightsMap[tpl.id] || null,
+    };
+  });
+
+  // Calculate overall course metrics
+  const completedAttempts = attemptsData.filter((a) => a.status === "completed");
+  const totalCompletedAttempts = completedAttempts.length;
+  const allScores = completedAttempts.map((a) => a.score ?? 0);
+  const overallAvgScore = totalCompletedAttempts > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / totalCompletedAttempts) : 0;
+  const overallPassRate = totalCompletedAttempts > 0 ? Math.round((allScores.filter((s) => s >= 70).length / totalCompletedAttempts) * 100) : 0;
+
+  return {
+    course,
+    chapters: chaptersList,
+    materials: materialsList,
+    quizzes: quizzesWithMetrics,
+    questions: rawQuestions,
+    stats: {
+      totalChapters: chaptersList.length,
+      totalMaterials: materialsList.length,
+      totalQuizzes: quizTemplatesList.length,
+      totalQuestions: rawQuestions.length,
+      totalAttempts: totalCompletedAttempts,
+      avgScore: overallAvgScore,
+      passRate: overallPassRate,
+    },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Chapter Management Server Actions
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function getCourseChapters(courseId: string) {
   await assertAdmin();
   return db
@@ -199,6 +312,7 @@ export async function saveChapter(
         status: "published",
       });
       revalidatePath("/admin/courses");
+      revalidatePath(`/admin/courses/${courseId}`);
       revalidatePath(`/courses/${courseId}/material`);
       return { success: true, chapter: { id: newId, courseId, title: cleanTitle, orderIndex, description: cleanDesc } };
     } else {
@@ -213,6 +327,7 @@ export async function saveChapter(
     }
 
     revalidatePath("/admin/courses");
+    revalidatePath(`/admin/courses/${courseId}`);
     revalidatePath(`/courses/${courseId}/material`);
     return { success: true };
   } catch (err: any) {
@@ -233,6 +348,7 @@ export async function deleteChapter(id: string) {
     await db.delete(chapters).where(eq(chapters.id, id));
 
     revalidatePath("/admin/courses");
+    revalidatePath(`/admin/courses/${existing.courseId}`);
     revalidatePath(`/courses/${existing.courseId}/material`);
     return { success: true };
   } catch (err: any) {
@@ -241,7 +357,37 @@ export async function deleteChapter(id: string) {
   }
 }
 
+export async function reorderChapters(courseId: string, chapterIds: string[]) {
+  await assertAdmin();
+
+  if (!courseId || !Array.isArray(chapterIds)) {
+    return { success: false, error: "Data urutan bab tidak valid" };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < chapterIds.length; i++) {
+        await tx
+          .update(chapters)
+          .set({ orderIndex: i + 1 })
+          .where(and(eq(chapters.id, chapterIds[i]), eq(chapters.courseId, courseId)));
+      }
+    });
+
+    revalidatePath("/admin/courses");
+    revalidatePath(`/admin/courses/${courseId}`);
+    revalidatePath(`/courses/${courseId}/material`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("Failed to reorder chapters:", err);
+    return { success: false, error: "Gagal memperbarui urutan bab" };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PDF Course Materials Server Actions
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function getUploadedMaterials(courseId?: string) {
   await assertAdmin();
   
@@ -259,43 +405,86 @@ export async function getUploadedMaterials(courseId?: string) {
   }
 }
 
-export async function uploadCourseMaterial(
+export async function saveCourseMaterial(
   courseId: string,
   title: string,
-  type: "materi_kelas" | "contoh_soal",
+  type: CourseMaterialCategory,
   chapterIds: string[],
-  fileData: { bufferBase64: string; name: string; type: string }
+  fileKey: string,
+  subcategory?: CourseMaterialSubcategory | null,
+  year?: number | null
 ) {
   await assertAdmin();
 
-  if (!courseId || !title || !type || !chapterIds || chapterIds.length === 0 || !fileData) {
+  const cleanCourseId = typeof courseId === "string" ? courseId.trim() : "";
+  const cleanTitle = typeof title === "string" ? title.trim() : "";
+  const cleanFileKey = typeof fileKey === "string" ? fileKey.trim() : "";
+  const cleanSubcategory = typeof subcategory === "string" && subcategory.trim() ? subcategory.trim() as CourseMaterialSubcategory : null;
+  const cleanYear = typeof year === "number" && !isNaN(year) && year >= 1900 && year <= 2100 ? Math.floor(year) : null;
+
+  const validTypes = ["materi", "soal", "pembahasan_soal", "materi_kelas", "contoh_soal"];
+  const courseMaterialsPrefix = joinKey(
+    "courses",
+    slugifySegment(cleanCourseId),
+    "materials"
+  );
+
+  if (
+    !cleanCourseId ||
+    !cleanTitle ||
+    !validTypes.includes(type) ||
+    !Array.isArray(chapterIds) ||
+    chapterIds.length === 0 ||
+    chapterIds.some((chapterId) => typeof chapterId !== "string" || !chapterId.trim()) ||
+    !cleanFileKey
+  ) {
     return { success: false, error: "Semua field wajib diisi" };
   }
 
+  if (cleanSubcategory && !isValidSubcategory(type, cleanSubcategory)) {
+    return { success: false, error: "Sub-kategori tidak sesuai dengan kategori yang dipilih" };
+  }
+
+  if (
+    !isSafeKey(cleanFileKey) ||
+    !cleanFileKey.startsWith(`${courseMaterialsPrefix}/`) ||
+    !cleanFileKey.toLowerCase().endsWith(".pdf")
+  ) {
+    return { success: false, error: "Key file PDF tidak valid untuk mata kuliah ini" };
+  }
+
   try {
-    const fileBuffer = Buffer.from(fileData.bufferBase64, "base64");
-    const fileExtension = fileData.name.split(".").pop() || "pdf";
-    const r2Key = `pdf-materials/${courseId}/${randomUUID()}.${fileExtension}`;
-    
-    const uploadRes = await storage.upload(fileBuffer, r2Key, fileData.type);
-    
     const materialId = randomUUID();
     
+    // Generate page 1 thumbnail asynchronously
+    const thumbnailKey = await generateAndSavePdfThumbnail({
+      courseSlug: cleanCourseId,
+      materialId,
+      fileKey: cleanFileKey,
+    }).catch(() => null);
+
     await db.insert(courseMaterials).values({
       id: materialId,
-      courseId,
-      title: title.trim(),
+      courseId: cleanCourseId,
+      title: cleanTitle,
       type,
-      fileUrl: uploadRes.key,
+      subcategory: cleanSubcategory,
+      year: cleanYear,
+      fileUrl: cleanFileKey,
+      thumbnailUrl: thumbnailKey,
       chapterIds,
     });
 
     revalidatePath("/admin/courses");
-    revalidatePath(`/courses/${courseId}/material`);
+    revalidatePath(`/admin/courses/${cleanCourseId}`);
+    revalidatePath(`/courses/${cleanCourseId}/material`);
     return { success: true };
   } catch (err: any) {
-    console.error("Failed to upload course material:", err);
-    return { success: false, error: err.message || "Gagal mengunggah materi" };
+    console.error("Failed to save course material:", err);
+    await storage.delete(cleanFileKey).catch((cleanupError) => {
+      console.error("Failed to clean up uploaded course material:", cleanupError);
+    });
+    return { success: false, error: err.message || "Gagal menyimpan materi" };
   }
 }
 
@@ -319,9 +508,16 @@ export async function deleteCourseMaterial(id: string) {
       });
     }
 
+    if (existing.thumbnailUrl) {
+      await storage.delete(existing.thumbnailUrl).catch((e) => {
+        console.error("Failed to delete thumbnail from R2:", e);
+      });
+    }
+
     await db.delete(courseMaterials).where(eq(courseMaterials.id, id));
 
     revalidatePath("/admin/courses");
+    revalidatePath(`/admin/courses/${existing.courseId}`);
     revalidatePath(`/courses/${existing.courseId}/material`);
     return { success: true };
   } catch (err: any) {

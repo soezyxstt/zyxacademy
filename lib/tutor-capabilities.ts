@@ -11,7 +11,15 @@ export interface TutorCapabilities {
   explain: boolean;
   studyPlan: boolean;
   microApps: boolean;
+  imageInput: boolean;
+  canvas: boolean;
+  muridExperience: boolean;
+  pet: boolean;
 }
+
+const IMAGE_INPUT_ENABLED = process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1 === "1";
+const CANVAS_ENABLED = true;
+const PET_ENABLED = true;
 
 const ALL_ON: TutorCapabilities = {
   chat: true,
@@ -19,6 +27,10 @@ const ALL_ON: TutorCapabilities = {
   explain: true,
   studyPlan: true,
   microApps: true,
+  imageInput: IMAGE_INPUT_ENABLED,
+  canvas: CANVAS_ENABLED,
+  muridExperience: true,
+  pet: PET_ENABLED,
 };
 
 const PKA_CAPS: TutorCapabilities = {
@@ -27,6 +39,10 @@ const PKA_CAPS: TutorCapabilities = {
   explain: false,
   studyPlan: false,
   microApps: false,
+  imageInput: IMAGE_INPUT_ENABLED,
+  canvas: CANVAS_ENABLED,
+  muridExperience: true,
+  pet: PET_ENABLED,
 };
 
 export function getTutorCapabilities(courseId: string | null | undefined): TutorCapabilities {

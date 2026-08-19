@@ -160,12 +160,12 @@ export function PkaScheduleCalendar({ sessions }: { sessions: PkaCalendarSession
       <Dialog open={selectedKey !== null} onOpenChange={(open) => !open && setSelectedKey(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-heading text-h6 font-bold text-foreground">
+            <DialogTitle className="font-heading text-body-base font-bold text-foreground">
               {selectedDate
                 ? selectedDate.toLocaleDateString("id-ID", { dateStyle: "full" })
                 : "Jadwal sesi"}
             </DialogTitle>
-            <DialogDescription className="text-body-sm text-muted-foreground">
+            <DialogDescription className="text-body-xs text-muted-foreground">
               {selectedSessions.length} sesi tutorial pada tanggal ini.
             </DialogDescription>
           </DialogHeader>

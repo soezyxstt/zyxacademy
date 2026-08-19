@@ -25,6 +25,9 @@ function assertNoProtectedKeys(obj: unknown): void {
   expect(record).not.toHaveProperty("correct_indices");
   expect(record).not.toHaveProperty("correctIndices");
   expect(record).not.toHaveProperty("explanation");
+  expect(record).not.toHaveProperty("evidenceMappings");
+  expect(record).not.toHaveProperty("gradingRubric");
+  expect(record).not.toHaveProperty("holdoutContent");
 
   for (const value of Object.values(record)) {
     if (typeof value === "object" && value !== null) {
@@ -66,7 +69,14 @@ describe("Assessment Redaction Contract Tests", () => {
           options: ["3", "4", "5", "6"],
           correct_indices: [1],
           explanation: "2 + 2 sama dengan 4.",
+          stable_option_ids: ["option-q-1-0", "option-q-1-1"],
+          evidenceMappings: [{ ideaId: "hidden-idea", weight: 1 }],
+          gradingRubric: { answer: "4" },
+          holdoutContent: "HOLDOUT_CANARY",
           difficulty: "easy",
+          origin: "itb_example",
+          sourceEventName: "UTS Matematika I ITB 2024",
+          sourceReferenceId: "itb-ref-2024",
         },
       ],
       answersSnapshot: { "q-1": [1] },
@@ -79,6 +89,12 @@ describe("Assessment Redaction Contract Tests", () => {
     expect(serialized.score).toBeNull();
     expect(serialized.feedback).toEqual([]);
     assertNoProtectedKeys(serialized.questionsSnapshot);
+    expect(serialized.questionsSnapshot[0].stable_option_ids).toEqual(["option-q-1-0", "option-q-1-1"]);
+    expect(serialized.questionsSnapshot[0]).toMatchObject({
+      origin: "itb_example",
+      sourceEventName: "UTS Matematika I ITB 2024",
+      sourceReferenceId: "itb-ref-2024",
+    });
 
     // List serialization test
     const serializedList = serializeStudentQuizAttemptList([activeAttempt]);

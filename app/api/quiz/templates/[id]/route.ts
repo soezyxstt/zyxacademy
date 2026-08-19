@@ -10,6 +10,8 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
+import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -58,7 +60,21 @@ export async function PATCH(req: NextRequest, { params }: Context) {
           hard: z.number().int().min(0),
         })
         .optional(),
-    }).optional(),
+      assessmentType: z.enum(['quiz', 'tryout']).optional(),
+      chapterIds: z.array(z.string().min(1)).optional(),
+      blueprint: z.record(z.string(), z.unknown()).optional(),
+      seed: z.number().int().optional(),
+      canGoBack: z.boolean().optional(),
+      requireAllAnswered: z.boolean().optional(),
+      explanationRelease: z.enum(['immediate', 'after_close', 'never']).optional(),
+      perQuestionTimerEnabled: z.boolean().optional(),
+      perQuestionTimers: z.record(z.string(), z.number()).optional(),
+      defaultQuestionTimerSeconds: z.number().optional(),
+      shuffleQuestions: z.boolean().optional(),
+      shuffleOptions: z.boolean().optional(),
+      showScoreImmediate: z.boolean().optional(),
+      passingScore: z.number().nullable().optional(),
+    }).passthrough().optional(),
     showDiscussion: z.boolean().optional(),
   });
 
@@ -83,17 +99,50 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   if (parsed.data.timeLimitSeconds !== undefined) updateData.timeLimitSeconds = parsed.data.timeLimitSeconds;
   if (parsed.data.maxAttempts !== undefined) updateData.maxAttempts = parsed.data.maxAttempts;
   if (parsed.data.selectionRules !== undefined) {
+    if (parsed.data.selectionRules.assessmentType) {
+      const scope = assessmentScopeSchema.safeParse({
+        assessmentType: parsed.data.selectionRules.assessmentType,
+        chapterIds: parsed.data.selectionRules.chapterIds ?? [],
+      });
+      if (!scope.success) {
+        return NextResponse.json({ error: 'Assessment scope must match quiz or tryout chapter rules.' }, { status: 400 });
+      }
+    }
     updateData.selectionRules = parsed.data.selectionRules;
+    if (parsed.data.showDiscussion === undefined && parsed.data.selectionRules.explanationRelease !== undefined) {
+      updateData.showDiscussion = parsed.data.selectionRules.explanationRelease !== 'never';
+    }
   }
   if (parsed.data.showDiscussion !== undefined) {
     updateData.showDiscussion = parsed.data.showDiscussion;
   }
   updateData.updatedAt = new Date();
 
+  // If status is changing, read the current row so we only notify on a
+  // transition into "published" (never on every save or re-publish).
+  const previous = parsed.data.status
+    ? await db
+        .select({ status: quizTemplates.status, title: quizTemplates.title, courseId: quizTemplates.courseId })
+        .from(quizTemplates)
+        .where(eq(quizTemplates.id, id))
+        .limit(1)
+        .then((rows) => rows[0] ?? null)
+    : null;
+
   await db
     .update(quizTemplates)
     .set(updateData)
     .where(eq(quizTemplates.id, id));
+
+  if (parsed.data.status === 'published' && previous && previous.status !== 'published') {
+    const quizTitle = typeof parsed.data.title === 'string' ? parsed.data.title : previous.title;
+    await notifyQuizPublishedBestEffort({
+      templateId: id,
+      quizTitle,
+      courseId: previous.courseId,
+      quizUrl: `/courses/${previous.courseId}/quiz`,
+    });
+  }
 
   return NextResponse.json({ success: true });
 }

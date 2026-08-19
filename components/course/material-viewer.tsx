@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { useSearchParams, usePathname } from "next/navigation";
 import { 
+  ArrowLeft,
   Download, 
   ExternalLink, 
   ZoomIn, 
@@ -22,13 +24,14 @@ import {
   CheckCircle2, 
   PanelLeftClose, 
   PanelLeft, 
-  Trash2, 
+  Trash2,
+  Sparkles,
   X,
   Check,
-  Sparkles,
   Loader2,
   AlertTriangle
 } from "lucide-react";
+import { SearchBar } from "@/components/ui/search-bar";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,8 +55,10 @@ import { cn } from "@/lib/utils";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
+import { ZyraMark } from "@/components/course/zyra-mark";
 import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
+import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -168,7 +173,7 @@ function ChapterSummarySheet({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-h6 font-heading">{chapterTitle}</SheetTitle>
+          <SheetTitle className="text-body-base font-heading">{chapterTitle}</SheetTitle>
           </SheetHeader>
           <div className="px-4 pb-6">
             {loading && <SummarySkeleton />}
@@ -233,10 +238,10 @@ const getMockPageContent = (pageNum: number, query: string) => {
       return (
         <div className="space-y-8 text-center py-8">
           <div className="mx-auto size-16 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary mb-2 font-bold text-h5">ITB</div>
-          <h2 className="font-heading text-h5 md:text-h4 font-bold tracking-tight">
+          <h2 className="font-heading text-h5 font-bold tracking-tight">
             {highlight("UJIAN TENGAH SEMESTER (UTS) II")}
           </h2>
-          <h3 className="font-heading text-body-lg font-semibold text-muted-foreground mt-1">
+          <h3 className="font-heading text-body-base font-semibold text-muted-foreground mt-1">
             {highlight("MA1101 KALKULUS I")}
           </h3>
           
@@ -257,7 +262,7 @@ const getMockPageContent = (pageNum: number, query: string) => {
     case 2:
       return (
         <div className="space-y-4 text-left">
-          <h3 className="font-heading text-body-md font-bold text-brand-primary border-b border-border pb-1">
+          <h3 className="font-heading text-body-sm font-bold text-brand-primary border-b border-border pb-1">
             {highlight("1. Limit Fungsi Secara Intuitif")}
           </h3>
           <p className="text-body-sm leading-relaxed">
@@ -283,7 +288,7 @@ const getMockPageContent = (pageNum: number, query: string) => {
     case 3:
       return (
         <div className="space-y-4 text-left">
-          <h3 className="font-heading text-body-md font-bold text-brand-primary border-b border-border pb-1">
+          <h3 className="font-heading text-body-sm font-bold text-brand-primary border-b border-border pb-1">
             {highlight("2. Turunan Fungsi (Diferensial)")}
           </h3>
           <p className="text-body-sm leading-relaxed">
@@ -325,7 +330,7 @@ const getMockPageContent = (pageNum: number, query: string) => {
     case 4:
       return (
         <div className="space-y-4 text-left">
-          <h3 className="font-heading text-body-md font-bold text-brand-primary border-b border-border pb-1">
+          <h3 className="font-heading text-body-sm font-bold text-brand-primary border-b border-border pb-1">
             {highlight("3. Latihan Soal Evaluatif")}
           </h3>
           
@@ -593,7 +598,6 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
 
   // Navigation hooks
   const searchParams = useSearchParams();
-  const router = useRouter();
   const pathname = usePathname();
 
   // Article states
@@ -621,9 +625,11 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
       } else {
         params.set("section", activeSectionIdx.toString());
       }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      const newQuery = params.toString();
+      const newUrl = newQuery ? `${pathname}?${newQuery}` : pathname;
+      window.history.replaceState(null, "", newUrl);
     }
-  }, [activeSectionIdx, pathname, router, searchParams]);
+  }, [activeSectionIdx, pathname, searchParams]);
 
   const { chapterTitle, sections: articleSections } = useMemo(() => {
     return parseArticleSections(material.body || "", material.title);
@@ -646,9 +652,11 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
       } else {
         params.set("page", page.toString());
       }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      const newQuery = params.toString();
+      const newUrl = newQuery ? `${pathname}?${newQuery}` : pathname;
+      window.history.replaceState(null, "", newUrl);
     }
-  }, [page, pathname, router, searchParams]);
+  }, [page, pathname, searchParams]);
   
   // Interactive Sidebar states
   const [showSidebar, setShowSidebar] = useState(true);
@@ -676,7 +684,8 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
     return done ? 100 : 0;
   }, [material.kind, articleProgress, done]);
 
-  const { openExplain } = useTutor();
+  const { openExplain, openChatWithQuestion } = useTutor();
+  const selectionAskEnabled = isZyraSelectionAskEnabled();
   const [selectedText, setSelectedText] = useState("");
   const [selectionCoords, setSelectionCoords] = useState<{ top: number; left: number } | null>(null);
   const popoverActiveRef = useRef(false);
@@ -697,6 +706,13 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
 
   const runTutorExplain = (query: string) => {
     dismissPopover();
+    if (selectionAskEnabled) {
+      const selection = normalizeZyraSelection(query);
+      if (selection.length >= 3) {
+        openChatWithQuestion(`Kutipan dari materi ${material.title}: "${selection}"\n\nJelaskan bagian ini secara bertahap.`);
+        return;
+      }
+    }
     toast.promise(
       (async () => {
         const { findKoForMaterialSectionAction } = await import("@/app/actions/tutor");
@@ -1167,15 +1183,15 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
         ) : (
           <Button
             type="button"
-            size="xs"
-            className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 shadow-md flex items-center gap-1.5 h-8 font-sans text-[11px] !text-white px-3 border border-brand-primary/20"
+            size="sm"
+            className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 shadow-md flex items-center gap-1.5 h-8 font-sans text-body-xs font-semibold !text-white px-3 border border-brand-primary/20"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               runTutorExplain(selectedText);
             }}
           >
-            <Sparkles className="size-3.5" />
+            <ZyraMark className="size-4" />
             Tanya Zyra
           </Button>
         )}
@@ -1200,7 +1216,19 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
           <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
           
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-mono font-semibold">
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
+            >
+              <Link href={`/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+                <ArrowLeft className="size-3.5 mr-1" />
+                <span>Kembali</span>
+              </Link>
+            </Button>
+            <span className="text-border">|</span>
+            <span className="text-body-xs text-muted-foreground font-mono font-semibold">
               {progressPercent}%
             </span>
           </div>
@@ -1210,7 +1238,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
               variant="outline"
               size="sm"
               onClick={() => setShowOutlineSheet(true)}
-              className="h-7 text-[11px] font-semibold flex items-center gap-1.5 rounded-md"
+              className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md"
             >
               <BookOpen className="size-3.5" />
               <span>Daftar Isi</span>
@@ -1223,7 +1251,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
               size="sm"
               onClick={markDone}
               disabled={done}
-              className="h-7 text-[11px] font-semibold flex items-center gap-1.5 rounded-md interactive"
+              className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
             >
               <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
               <span>{done ? "Selesai" : "Tandai Selesai"}</span>
@@ -1240,7 +1268,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
         >
           <div className="max-w-2xl mx-auto px-6 py-8">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1 select-none font-medium">
+            <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground mb-1 select-none font-medium">
               <span>{course?.title ?? "Course"}</span>
               <span>&rarr;</span>
               <span>{chapterTitle || "Bab"}</span>
@@ -1249,7 +1277,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
             </div>
 
             {/* Chapter Title */}
-            <h1 className="text-xl font-bold text-primary font-heading tracking-tight mt-1 mb-2">
+            <h1 className="text-h5 font-bold text-primary font-heading tracking-tight mt-1 mb-2">
               {chapterTitle}
             </h1>
 
@@ -1267,7 +1295,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
             {articleSections.length > 0 ? (
               <>
                 {/* Section heading below divider */}
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                <h2 className="font-heading text-body-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                   {articleSections[activeSectionIdx]?.title}
                 </h2>
 
@@ -1295,13 +1323,13 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                 setActiveSectionIdx(prev => Math.max(0, prev - 1));
                 articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded-md text-[11px] font-semibold interactive h-8"
+              className="rounded-md text-body-sm font-semibold interactive h-8"
             >
               <ChevronLeft className="mr-1 size-3.5" /> Sebelum
             </Button>
             <button
               onClick={() => setShowOutlineSheet(true)}
-              className="text-[11px] font-mono text-muted-foreground font-semibold hover:text-foreground flex items-center gap-1.5 h-8 px-2.5 rounded-md hover:bg-muted/60 transition-colors"
+              className="text-body-sm font-mono text-muted-foreground font-semibold hover:text-foreground flex items-center gap-1.5 h-8 px-2.5 rounded-md hover:bg-muted/60 transition-colors"
               title="Buka Daftar Subbab"
             >
               <span>Subbab {activeSectionIdx + 1} dari {articleSections.length}</span>
@@ -1314,7 +1342,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                 setActiveSectionIdx(prev => Math.min(articleSections.length - 1, prev + 1));
                 articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="rounded-md text-[11px] font-semibold interactive h-8"
+              className="rounded-md text-body-sm font-semibold interactive h-8"
             >
               Selanjutnya <ChevronRight className="ml-1 size-3.5" />
             </Button>
@@ -1324,7 +1352,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
         <Sheet open={showOutlineSheet} onOpenChange={setShowOutlineSheet}>
           <SheetContent side="right" className="w-full sm:max-w-xs overflow-y-auto p-0 flex flex-col h-full bg-card">
             <SheetHeader className="p-4 border-b border-border">
-              <SheetTitle className="text-body-md font-heading font-bold flex items-center gap-2">
+              <SheetTitle className="text-body-base font-heading font-bold flex items-center gap-2">
                 <BookOpen className="size-4 text-brand-primary" />
                 Daftar Subbab & Konsep
               </SheetTitle>
@@ -1347,7 +1375,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
                   >
-                    <span className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground/60">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/60">
                       Konsep {idx + 1}
                     </span>
                     <span className="line-clamp-2">{sec.title}</span>
@@ -1369,7 +1397,19 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
         <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
         
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground font-mono font-semibold">
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <Link href={`/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+              <ArrowLeft className="size-3.5 mr-1" />
+              <span>Kembali</span>
+            </Link>
+          </Button>
+          <span className="text-border">|</span>
+          <span className="text-body-xs text-muted-foreground font-mono font-semibold">
             {progressPercent}%
           </span>
         </div>
@@ -1383,7 +1423,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
             size="sm"
             onClick={markDone}
             disabled={done}
-            className="h-7 text-[11px] font-semibold flex items-center gap-1.5 rounded-md interactive"
+            className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
           >
             <CheckCircle2 className={cn("size-3.5", done ? "text-status-success fill-status-success/10" : "text-muted-foreground")} />
             <span>{done ? "Selesai" : "Tandai Selesai"}</span>
@@ -1529,7 +1569,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                         <NotebookPen className="size-3.5" />
                         <span>Catatan</span>
                         {(Object.keys(notes).length > 0 || bookmarks.length > 0) && (
-                          <span className="absolute top-1 right-2 bg-brand-secondary/90 text-white rounded-md px-1 text-[8px] font-mono leading-none scale-85">
+                          <span className="absolute top-1 right-2 bg-brand-secondary/90 text-white rounded-md px-1 text-[10px] font-mono leading-none">
                             {Object.keys(notes).length + bookmarks.length}
                           </span>
                         )}
@@ -1557,7 +1597,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                                     <button
                                       onClick={() => setPage(p.pageNum)}
                                       className={cn(
-                                        "w-full text-left p-2.5 rounded-md text-sm font-medium flex items-center justify-between border transition-all duration-200",
+                                        "w-full text-left p-2.5 rounded-md text-body-sm font-medium flex items-center justify-between border transition-all duration-200",
                                         page === p.pageNum
                                           ? "bg-accent text-accent-foreground font-medium border-border"
                                           : "border-transparent text-muted-foreground hover:bg-accent/50"
@@ -1567,7 +1607,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                                         <IconComp className={cn("size-3.5 shrink-0", page === p.pageNum ? "text-accent-foreground" : "text-muted-foreground")} />
                                         <span className="truncate">{shortenSubbabLabel(p.title)}</span>
                                       </div>
-                                      <div className="flex items-center gap-1 text-[9px] shrink-0">
+                                      <div className="flex items-center gap-1 text-[10px] shrink-0">
                                         {hasBookmark && <Bookmark className="size-3 text-brand-secondary fill-brand-secondary shrink-0" />}
                                         {hasNote && <NotebookPen className="size-3 text-sky-500 shrink-0" />}
                                         <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-semibold">
@@ -1626,37 +1666,26 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                             <label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground px-1">
                               Indeks Pencarian Kata
                             </label>
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => {
-                                  setSearchQuery(e.target.value);
-                                  setActiveHighlightQuery(e.target.value);
-                                }}
-                                placeholder="Ketik kata kunci (e.g. limit, turunan)..."
-                                className="w-full bg-muted/60 text-body-xs border border-border rounded-xl pl-8 pr-8 py-2 focus:bg-card focus:outline-none transition-all placeholder:text-muted-foreground text-foreground"
-                              />
-                              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-                              {searchQuery && (
-                                <button
-                                  onClick={() => {
-                                    setSearchQuery("");
-                                    setActiveHighlightQuery("");
-                                  }}
-                                  className="absolute right-2.5 top-2.5 p-0.5 rounded-full hover:bg-muted text-muted-foreground"
-                                  title="Bersihkan Pencarian"
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              )}
-                            </div>
+                            <SearchBar
+                              size="sm"
+                              variant="muted"
+                              value={searchQuery}
+                              onSearch={(val) => {
+                                setSearchQuery(val);
+                                setActiveHighlightQuery(val);
+                              }}
+                              onClear={() => {
+                                setSearchQuery("");
+                                setActiveHighlightQuery("");
+                              }}
+                              placeholder="Ketik kata kunci (e.g. limit, turunan)..."
+                            />
                           </div>
 
                           {/* Search Matches list */}
                           {searchQuery.trim() ? (
                             <div className="space-y-2">
-                              <span className="text-[9px] font-semibold text-muted-foreground px-1 block">
+                              <span className="text-[10px] font-semibold text-muted-foreground px-1 block">
                                 Ditemukan {searchResults.length} halaman yang cocok:
                               </span>
                               {searchResults.length > 0 ? (
@@ -1674,10 +1703,10 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                                       )}
                                     >
                                       <div className="flex items-center justify-between w-full font-bold">
-                                        <span className="text-foreground font-heading text-[11px] truncate max-w-[180px]">
+                                        <span className="text-foreground font-heading text-body-xs truncate max-w-[180px]">
                                           {r.title}
                                         </span>
-                                        <span className="font-mono text-[9px] bg-muted px-1 py-0.5 rounded text-muted-foreground">
+                                        <span className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded text-muted-foreground">
                                           Hal {r.pageNum}
                                         </span>
                                       </div>

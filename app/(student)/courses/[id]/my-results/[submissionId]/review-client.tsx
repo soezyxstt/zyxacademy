@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, HelpCircle, X, Lock, Sparkles, Video, ExternalLink } from "lucide-react";
+import { Check, HelpCircle, X, Lock, Video, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
+import { ZyraMark } from "@/components/course/zyra-mark";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import { useTutor } from "@/components/course/tutor-drawer";
 import type { SubmissionReviewFixture, SubmissionListItem } from "@/lib/student-course-fixtures";
+import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 
 type ReviewClientProps = {
   courseId: string;
@@ -51,7 +53,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
         <div className="flex items-center gap-6">
           <div className="text-left md:text-right">
             <span className="text-body-xs font-semibold text-muted-foreground uppercase">Skor Akhir</span>
-            <p className="font-heading text-h4 font-bold text-foreground">
+            <p className="font-heading text-h5 font-bold text-foreground">
               {listItem.score != null ? `${listItem.score}%` : "Pending"}
             </p>
           </div>
@@ -74,7 +76,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
               className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm backdrop-blur-xs md:p-8"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <h3 className="font-heading text-body-md font-bold text-foreground md:text-h6 max-w-xl leading-snug">
+                <h3 className="font-heading text-body-base font-bold text-foreground max-w-xl leading-snug">
                   <span className="text-muted-foreground mr-1">{idx + 1}.</span>
                   <MathText>{item.prompt}</MathText>
                 </h3>
@@ -121,7 +123,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
                       onClick={() => openMistake(item.questionId, item.userAnswer || "")}
                       className="text-body-xs font-semibold flex items-center gap-1.5 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/5 rounded-lg h-9"
                     >
-                      <Sparkles className="size-3.5" />
+                      <ZyraMark className="size-4" />
                       Tanya Zyra: Analisis Kesalahan
                     </Button>
                   </div>
@@ -132,7 +134,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
               {hasExplanation && (
                 <div className="mt-6 border-t border-border/80 pt-6 space-y-4">
                   <div className="flex items-center gap-2 text-brand-primary">
-                    <Sparkles className="size-4 animate-pulse" />
+                    <ZyraMark className="size-4" />
                     <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
                   </div>
 
@@ -227,6 +229,7 @@ export function ReviewClient({ listItem, review }: ReviewClientProps) {
 
                 </div>
               )}
+              <QuestionSourceCitation origin={item.origin} sourceEventName={item.sourceEventName} />
             </li>
           );
         })}

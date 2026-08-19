@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 
 process.env.MOCK_GEMINI = "true";
-import { normalizeQuestion } from "@/lib/tutor-rag";
+import {
+  composeUngroundedTeachingAnswer,
+  normalizeQuestion,
+  shouldRetrieveTutorEvidence,
+} from "@/lib/tutor-rag";
+import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { loadAiFixture } from "../helpers/ai-fixtures";
 import { assertNoStudentTextInSharedCache, buildTutorCacheKey, computeEvidenceVersion } from "@/lib/tutor/cache-contract";
 import { classifyQueryAction, extractStyleModifiers } from "@/lib/tutor/query-action";
@@ -12,6 +17,74 @@ import { classifyEvidence } from "@/lib/tutor/evidence-coverage";
 import { sanitizePromptInput, formatSourceEnvelope, SourceEnvelope } from "@/lib/tutor/prompt-sanitizer";
 
 describe("Tutor RAG Contract Tests", () => {
+  it("keeps attached images primary by bypassing text evidence retrieval", () => {
+    expect(shouldRetrieveTutorEvidence(true)).toBe(false);
+    expect(shouldRetrieveTutorEvidence(false)).toBe(true);
+  });
+
+  it("composes an ungrounded explanation with a learning goal and one checkpoint", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      answer: "Konsep ini berada di luar materi kuliah saat ini.\n\n1. Mulai dari bentuk umum.",
+      learningGoal: "Memahami bentuk umum persamaan kuadrat.",
+      checkForUnderstanding: "Apa peran diskriminan pada jumlah akar real?",
+      matchedConcepts: ["persamaan kuadrat"],
+      confidence: 0.8,
+    });
+
+    expect(answer).toContain("### Tujuan belajar");
+    expect(answer).toContain("### Cek pemahaman");
+    expect(answer.match(/Apa peran diskriminan/g)).toHaveLength(1);
+  });
+
+  it("repairs common raw tutor equations without changing valid LaTeX", () => {
+    const normalized = normalizeTutorMathMarkdown(
+      "Diketahui f'(x) = 6x^2 - 4x + 3. Hitung 3x^2 + 4x. Bentuk valid $g(x) = x^2$ tetap sama.",
+    );
+
+    expect(normalized).toContain("$f'(x) = 6x^2 - 4x + 3$");
+    expect(normalized).toContain("$3x^2 + 4x$");
+    expect(normalized).toContain("$g(x) = x^2$");
+    expect(normalized).not.toContain("$$g(x) = x^2$$");
+  });
+
+  it("normalizes math in the generated checkpoint", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      answer: "Gunakan aturan pangkat.",
+      learningGoal: "Mengintegralkan polinom.",
+      checkForUnderstanding: "Berapakah integral dari 3x^2 + 4x?",
+      matchedConcepts: ["integral"],
+      confidence: 0.8,
+    });
+
+    expect(answer).toContain("integral dari $3x^2 + 4x$?");
+  });
+
+  it("preserves LaTeX commands beginning with n", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      answer: "Gunakan $a \\neq b$ dan $$\\nabla f = 0$$.",
+      learningGoal: "Membaca notasi matematika.",
+      checkForUnderstanding: "Apa arti simbol $\\neq$?",
+      matchedConcepts: ["notasi"],
+      confidence: 0.8,
+    });
+
+    expect(answer).toContain("$a \\neq b$");
+    expect(answer).toContain("$$\\nabla f = 0$$");
+  });
+
+  it("redirects an out-of-scope request without adding a learning scaffold", () => {
+    const answer = composeUngroundedTeachingAnswer({
+      inScope: false,
+      answer: "Zyra membantu topik belajar. Coba tanyakan materi atau strategi belajar.",
+      matchedConcepts: [],
+      confidence: 0,
+    });
+
+    expect(answer).toBe("Zyra membantu topik belajar. Coba tanyakan materi atau strategi belajar.");
+    expect(answer).not.toContain("### Tujuan belajar");
+    expect(answer).not.toContain("### Cek pemahaman");
+  });
+
   it("characterization: normalizeQuestion lowercases, strips punctuation, and trims questions deterministically", () => {
     expect(normalizeQuestion("   Apa  Definisi LIMIT?  ")).toBe("apa definisi limit");
     expect(normalizeQuestion("TURUNAN   fungsi!")).toBe("turunan fungsi");
@@ -132,6 +205,13 @@ describe("Tutor RAG Contract Tests", () => {
     // Graph request modifier extraction
     const graphMod = extractStyleModifiers("gambarkan grafik fungsi kuadrat");
     expect(graphMod.modifiers).toContain("graph");
+
+    const visualMod = extractStyleModifiers(
+      "bantu saya mengerti persamaan kuadrat, berikan teori lengkapnya, lalu dukung dengan unsur visual jika bisa",
+    );
+    expect(visualMod.modifiers).toContain("graph");
+    expect(visualMod.modifiers).toContain("more_detail");
+    expect(visualMod.cleanedText).toBe("persamaan kuadrat");
   });
 
   it("AI-TUTOR-DLG-002: Classifies query action into retrieve, reuse_previous_evidence, answer_from_conversation, or clarify", async () => {
@@ -231,12 +311,12 @@ describe("Tutor RAG Contract Tests", () => {
     expect(keySession1).not.toContain("session_");
   });
 
-  it("AI-TUTOR-ENV-001: Env schema contains FEATURE_TUTOR_PIPELINE_V2 flag", () => {
-    expect("FEATURE_TUTOR_PIPELINE_V2" in env).toBe(true);
+  it("AI-TUTOR-ENV-001: Tutor pipeline is foundational and has no runtime flag", () => {
+    expect("FEATURE_TUTOR_PIPELINE_V2" in env).toBe(false);
   });
 
-  it("AI-TUTOR-ENV-002: Env schema contains FEATURE_TUTOR_EVIDENCE_V2 flag", () => {
-    expect("FEATURE_TUTOR_EVIDENCE_V2" in env).toBe(true);
+  it("AI-TUTOR-ENV-002: Tutor evidence is foundational and has no runtime flag", () => {
+    expect("FEATURE_TUTOR_EVIDENCE_V2" in env).toBe(false);
   });
 
   it("AI-TUTOR-CIT-001: Reject citation IDs that do not exist in retrieved source set", () => {
@@ -422,4 +502,3 @@ describe("Tutor RAG Contract Tests", () => {
     expect(serialized).toContain(":::");
   });
 });
-

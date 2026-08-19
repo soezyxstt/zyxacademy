@@ -11,11 +11,11 @@ export function LandingPricingPreview() {
   return (
     <SectionContainer className="border-b border-border bg-background" aria-labelledby="pricing-preview-heading">
       <div className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">Paket</p>
+        <p className="text-body-xs font-semibold uppercase tracking-[0.2em] text-[var(--zx-accent)]">Paket</p>
         <SectionHeading id="pricing-preview-heading" tier="secondary" className="mt-2 text-foreground">
           Mulai gratis, naikkan saat butuh.
         </SectionHeading>
-        <p className="mt-3 text-body-md text-muted-foreground">
+        <p className="mt-3 text-body-base text-muted-foreground">
           Bank materi dan soal gratis selamanya. Paket berbayar menambah kuis + pembahasan, diktat,
           dan tutorial tatap muka bersama tutor ITB.
         </p>
@@ -37,8 +37,8 @@ export function LandingPricingPreview() {
                 Rekomendasi
               </Badge>
             ) : null}
-            <h3 className="font-heading text-xl font-semibold tracking-tight text-foreground md:text-2xl">{tier.name}</h3>
-            <p className="mt-2 font-heading text-lg font-semibold text-primary dark:text-foreground">{tier.price}</p>
+            <h3 className="font-heading text-body-base font-semibold tracking-tight text-foreground">{tier.name}</h3>
+            <p className="mt-2 font-heading text-h6 font-semibold text-primary dark:text-foreground">{tier.price}</p>
             <p className="mt-1 text-body-sm text-muted-foreground">{tier.note}</p>
             <ul className="mt-5 flex flex-1 flex-col gap-3">
               {tier.features.slice(0, 3).map((f) => (

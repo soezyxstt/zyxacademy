@@ -48,7 +48,7 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
 
           return (
             <div key={idx} className="flex flex-col items-center gap-1">
-              <span className="font-sans text-[11px] font-bold text-foreground/80">
+              <span className="font-sans text-body-xs font-bold text-foreground/80">
                 {day.label}
               </span>
               <div

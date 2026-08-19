@@ -5,49 +5,61 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { db } from '@/db';
-import { aiQuestionBank } from '@/db/schema';
+import { aiQuestionBank, auditMutasi, pembahasanSoal, soal } from '@/db/schema';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { and, eq, inArray, desc } from 'drizzle-orm';
+import { and, eq, inArray, desc, sql } from 'drizzle-orm';
+import { questionAuthoringInputSchema, canonicalQuestionStatus } from '@/lib/question-authoring-contract';
+import { createCanonicalQuestion, QuestionAuthoringError } from '@/lib/question-authoring';
 
 export async function GET(req: NextRequest) {
- const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
- }
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
- const { searchParams } = new URL(req.url);
- const courseId = searchParams.get('courseId');
- const reviewStatus = searchParams.get('reviewStatus');
- const difficulty = searchParams.get('difficulty');
- const limit = Math.min(Number(searchParams.get('limit') ?? '50'), 200);
- const offset = Number(searchParams.get('offset') ?? '0');
+  const { searchParams } = new URL(req.url);
+  const courseId = searchParams.get('courseId');
+  const reviewStatus = searchParams.get('reviewStatus');
+  const difficulty = searchParams.get('difficulty');
+  const origin = searchParams.get('origin');
+  const search = searchParams.get('q') || searchParams.get('search');
+  const limit = Math.min(Math.max(Number(searchParams.get('limit') ?? '100'), 1), 500);
+  const offset = Math.max(Number(searchParams.get('offset') ?? '0'), 0);
 
- const conditions = [];
- if (courseId) conditions.push(eq(aiQuestionBank.courseId, courseId));
- if (reviewStatus)
- conditions.push(
- eq(
- aiQuestionBank.reviewStatus,
- reviewStatus as 'generated' | 'reviewed' | 'published' | 'flagged' | 'retired',
- ),
- );
- if (difficulty)
- conditions.push(
- eq(aiQuestionBank.difficulty, difficulty as 'easy' | 'medium' | 'hard'),
- );
+  const conditions = [];
+  if (courseId) conditions.push(eq(aiQuestionBank.courseId, courseId));
+  if (reviewStatus) {
+    conditions.push(
+      eq(
+        aiQuestionBank.reviewStatus,
+        reviewStatus as 'generated' | 'reviewed' | 'published' | 'flagged' | 'retired',
+      ),
+    );
+  }
+  if (difficulty) {
+    conditions.push(
+      eq(aiQuestionBank.difficulty, difficulty as 'easy' | 'medium' | 'hard'),
+    );
+  }
+  if (origin === 'zyx_original' || origin === 'itb_example') {
+    conditions.push(eq(aiQuestionBank.origin, origin));
+  }
+  if (search) {
+    conditions.push(sql`${aiQuestionBank.prompt} LIKE ${`%${search}%`}`);
+  }
 
- const questions = await db
- .select()
- .from(aiQuestionBank)
- .where(conditions.length > 0 ? and(...conditions) : undefined)
- .orderBy(desc(aiQuestionBank.createdAt))
- .limit(limit)
- .offset(offset);
+  const questions = await db
+    .select()
+    .from(aiQuestionBank)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(aiQuestionBank.createdAt))
+    .limit(limit)
+    .offset(offset);
 
- return NextResponse.json(questions);
+  return NextResponse.json(questions);
 }
 
 const BulkUpdateSchema = z.object({
@@ -69,26 +81,50 @@ export async function PUT(req: NextRequest) {
 
  const { ids, reviewStatus } = parsed.data;
 
- await db
- .update(aiQuestionBank)
- .set({ reviewStatus })
- .where(inArray(aiQuestionBank.id, ids));
+  const canonicalStatus = canonicalQuestionStatus(reviewStatus);
+  const now = new Date();
+  const publishedAt = canonicalStatus === 'published' ? now : null;
+
+  await db.transaction(async (tx) => {
+    const canonicalRows = await tx
+      .select({ id: soal.id, version: soal.version, status: soal.status, courseId: soal.mataKuliahId })
+      .from(soal)
+      .where(inArray(soal.id, ids));
+    const compatibilityRows = await tx
+      .select({ id: aiQuestionBank.id, reviewStatus: aiQuestionBank.reviewStatus, courseId: aiQuestionBank.courseId })
+      .from(aiQuestionBank)
+      .where(inArray(aiQuestionBank.id, ids));
+    await tx
+      .update(aiQuestionBank)
+      .set({ reviewStatus, status: canonicalStatus === 'retired' ? 'retired' : 'active' })
+      .where(inArray(aiQuestionBank.id, ids));
+    await tx
+      .update(soal)
+      .set({ status: canonicalStatus, publishedAt, updatedAt: now })
+      .where(inArray(soal.id, ids));
+    await tx
+      .update(pembahasanSoal)
+      .set({ status: canonicalStatus, publishedAt, updatedAt: now })
+      .where(inArray(pembahasanSoal.soalId, ids));
+    const canonicalById = new Map(canonicalRows.map((row) => [row.id, row]));
+    const compatibilityById = new Map(compatibilityRows.map((row) => [row.id, row]));
+    await tx.insert(auditMutasi).values(ids.map((id) => ({
+      id: `audit-question-status-${id}-${randomUUID()}`,
+      actorId: session.user.id,
+      entityType: 'question',
+      entityId: id,
+      action: reviewStatus === 'published' ? 'published' : 'review_status_updated',
+      beforeSnapshot: canonicalById.has(id)
+        ? { version: canonicalById.get(id)?.version, status: canonicalById.get(id)?.status, courseId: canonicalById.get(id)?.courseId }
+        : { reviewStatus: compatibilityById.get(id)?.reviewStatus, courseId: compatibilityById.get(id)?.courseId },
+      afterSnapshot: { reviewStatus, canonicalStatus },
+      correlationId: id,
+      createdAt: now,
+    })));
+  });
 
  return NextResponse.json({ updated: ids.length });
 }
-
-const CreateQuestionSchema = z.object({
-  courseId: z.string().min(1),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
-  questionType: z.enum(['multiple_choice', 'multiple_choices', 'short_answer', 'essay']).default('multiple_choice'),
-  tags: z.array(z.string()).default([]),
-  prompt: z.string().min(1),
-  options: z.array(z.string()).default([]),
-  correctIndices: z.array(z.number().int().min(0)).default([]),
-  acceptableAnswers: z.array(z.string()).default([]),
-  explanation: z.string().default(''),
-  reviewStatus: z.enum(['generated', 'reviewed', 'published', 'flagged', 'retired']).default('published'),
-});
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -97,28 +133,26 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const parsed = CreateQuestionSchema.safeParse(body);
+  const parsed = questionAuthoringInputSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { courseId, difficulty, questionType, tags, prompt, options, correctIndices, acceptableAnswers, explanation, reviewStatus } = parsed.data;
-
-  const id = randomUUID();
-
-  await db.insert(aiQuestionBank).values({
-    id,
-    courseId,
-    difficulty,
-    questionType,
-    tags: tags as unknown as Record<string, unknown>,
-    prompt,
-    options: options as unknown as Record<string, unknown>,
-    correctIndices: correctIndices as unknown as Record<string, unknown>,
-    acceptableAnswers: acceptableAnswers || [],
-    explanation: explanation ?? null,
-    reviewStatus,
-  });
-
-  return NextResponse.json({ id, success: true }, { status: 201 });
+  try {
+    const result = await createCanonicalQuestion(parsed.data, session.user.id);
+    return NextResponse.json({
+      id: result.id,
+      courseId: result.legacyCourseId,
+      canonicalCourseId: result.canonicalCourseId,
+      chapterId: result.chapterId,
+      reviewStatus: result.reviewStatus,
+      success: true,
+    }, { status: 201 });
+  } catch (error) {
+    if (error instanceof QuestionAuthoringError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
+    }
+    console.error('[Question Authoring] Failed to persist question:', error);
+    return NextResponse.json({ error: 'Gagal menyimpan soal canonical.' }, { status: 500 });
+  }
 }

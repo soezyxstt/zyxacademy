@@ -20,7 +20,13 @@ export const env = createEnv({
  BETTER_AUTH_SECRET: z.string().min(1),
  GOOGLE_CLIENT_ID: z.string(),
  GOOGLE_CLIENT_SECRET: z.string(),
- /** From https://uploadthing.com/dashboard ; replaces direct S3/Tigris uploads. */
+ /** Primary Google OAuth Refresh Token for Google Workspace REST APIs (Meet, Forms, Sheets, Drive) */
+ GOOGLE_REFRESH_TOKEN: z.string().optional(),
+ /** Google OAuth Refresh Token for Master Pro Account (Meet REST API) */
+ GOOGLE_MEET_REFRESH_TOKEN: z.string().optional(),
+ /** Dedicated Google OAuth Refresh Token for Google Forms REST API (optional fallback to GOOGLE_REFRESH_TOKEN / GOOGLE_MEET_REFRESH_TOKEN) */
+ GOOGLE_FORMS_REFRESH_TOKEN: z.string().optional(),
+ /** Legacy UploadThing compatibility token; Cloudflare R2 is the default storage provider. */
  UPLOADTHING_TOKEN: z.string().min(1),
  /** Resend API Key for sending transactional emails. */
  RESEND_API_KEY: z.string().min(1),
@@ -34,10 +40,14 @@ export const env = createEnv({
  GEMINI_API_KEY_3: z.string().optional(),
  /** Gemini API Key #4 for failover/load balancing */
  GEMINI_API_KEY_4: z.string().optional(),
- /** Pinecone API Key for vector search (required for AI quiz generation) */
- PINECONE_API_KEY: z.string().transform((v) => v || undefined).optional(),
- /** Pinecone index name (e.g. "zyx-edu") */
- PINECONE_INDEX_NAME: z.string().transform((v) => v || undefined).optional(),
+ /** Non-secret alias for Gemini project slot 1. */
+ GEMINI_PROJECT_ALIAS_1: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 2. */
+ GEMINI_PROJECT_ALIAS_2: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 3. */
+ GEMINI_PROJECT_ALIAS_3: z.string().optional(),
+ /** Non-secret alias for Gemini project slot 4. */
+ GEMINI_PROJECT_ALIAS_4: z.string().optional(),
  /** Inngest event key for sending events */
  INNGEST_EVENT_KEY: z.string().min(1),
  /** Inngest signing key for production request verification */
@@ -53,7 +63,7 @@ export const env = createEnv({
  R2_ACCESS_KEY_ID: z.string().optional(),
  /** Cloudflare R2 secret access key */
  R2_SECRET_ACCESS_KEY: z.string().optional(),
- /** Storage provider mode: 'r2' | 'uploadthing' (default: uploadthing) */
+ /** Storage provider mode: 'r2' | 'uploadthing' (default: r2) */
  STORAGE_PROVIDER_MODE: z.enum(['r2', 'uploadthing']).optional(),
  // ── Cloudflare AI Gateway ──────────────────────────────────────────────
  /**
@@ -65,67 +75,35 @@ export const env = createEnv({
  CF_AI_GATEWAY_URL: z.string().url().optional(),
  /** Cloudflare AI Gateway token for Authorization header */
  CF_AI_GATEWAY_TOKEN: z.string().optional(),
+ /** Absolute origin of the staging Zyra control-plane Worker. */
+ ZYRA_CONTROL_PLANE_URL: z.string().url().optional(),
+ /** Server-only bearer token for the Zyra control-plane Worker. */
+ ZYRA_CONTROL_PLANE_TOKEN: z.string().optional(),
  /** Cloudflare account ID (used for KV REST API and Workers) */
  CF_ACCOUNT_ID: z.string().optional(),
  /** Cloudflare Workers KV namespace ID for zyx-ai-cache */
  CF_KV_NAMESPACE_ID: z.string().optional(),
  /** Cloudflare API token with Workers KV Storage: Edit permission */
  CF_API_TOKEN: z.string().optional(),
- FEATURE_MASTERY: z.string().optional(),
- FEATURE_TODAY: z.string().optional(),
- /** EIF E0 learning-context fabric and embedded surfaces. "1" enables. */
- FEATURE_EMBED: z.string().optional(),
- /** EIF E1 distractor analytics + deterministic misconception feedback. "1" enables. */
- FEATURE_MISCONCEPTION: z.string().optional(),
- /** EIF E2 quiz remediation surfacing (mastery delta + root cause). "1" enables. */
- FEATURE_REMEDIATION: z.string().optional(),
- /** EIF E3 interactive material layer (highlight to KO actions). "1" enables. */
- FEATURE_MATERIAL_LIVE: z.string().optional(),
- /** EIF E4 flashcard recall difficulty + SM-2 blend. "1" enables. */
- FEATURE_FC_DIFFICULTY: z.string().optional(),
- /** EIF E5 navigable concept graph + tutor root cause. "1" enables. */
- FEATURE_GRAPH: z.string().optional(),
- /** P3 grounded tutor pipeline (RAG + KV cache + learner memory). "1" enables. */
- FEATURE_TUTOR_RAG: z.string().optional(),
- /** P0 Tutor Pipeline V2: cache isolation, typed query action routing, student-free Tier 1 payload. "1" enables. */
- FEATURE_TUTOR_PIPELINE_V2: z.string().optional(),
- /** P0 Tutor Evidence, Citation, Conflict, and Abstention Pipeline V2. "1" enables. */
- FEATURE_TUTOR_EVIDENCE_V2: z.string().optional(),
- FEATURE_FEEDBACK: z.string().optional(),
- FEATURE_STUDY_PATH: z.string().optional(),
- /** P6A tutor analytics MVP. "1" enables /tutor area for teacher role. */
- FEATURE_TUTOR_ANALYTICS: z.string().optional(),
- /** P9 real-time classroom. "1" enables live quiz routes. */
- FEATURE_LIVE: z.string().optional(),
- /** Shared secret for HMAC token generation and Worker auth (P9). */
- LIVE_HMAC_SECRET: z.string().optional(),
- FEATURE_REFLECTION: z.string().optional(),
- FEATURE_REFLECTION_EMAIL: z.string().optional(),
- /** Adaptive quiz difficulty: bias a quiz's easy/medium/hard mix by the student's course mastery. "1" enables. */
- FEATURE_ADAPTIVE_QUIZ: z.string().optional(),
- /** Tutorial PKA campaign: free multi-stage PKA simulation course + auto-enroll link + admin announcements. "1" enables. */
- FEATURE_PKA: z.string().optional(),
- /** P0 Versioned AI Prompt Contracts & Provenance. "1" enables. */
- FEATURE_AI_CONTRACT_V2: z.string().optional(),
- /** Assessment assistance policy: deterministic gating for AI tutor and mistake feedback. "1" enables. */
- FEATURE_ASSESSMENT_ASSISTANCE_POLICY: z.string().optional(),
- /** P0 Knowledge object provenance and stable identity pipeline. "1" enables. */
- FEATURE_KO_PIPELINE_V2: z.string().optional(),
- /** P1 Question generator V2: blueprint, option shuffle, and distractor provenance. "1" enables. */
- FEATURE_QUESTION_GENERATOR_V2: z.string().optional(),
- /** P1 Tutor Pedagogy V2: pedagogical strategy and context fabric. "1" enables. */
- FEATURE_TUTOR_PEDAGOGY_V2: z.string().optional(),
- /** P1 Material Compiler V2: semantic material compiler. "1" enables. */
- FEATURE_MATERIAL_COMPILER_V2: z.string().optional(),
- /** P2 Flashcard Generator V2: atomic active recall cards. "1" enables. */
- FEATURE_FLASHCARD_GENERATOR_V2: z.string().optional(),
- /** P1 Diktat QA V2: fail-closed diktat audit & PDF QA. "1" enables. */
- FEATURE_DIKTAT_QA_V2: z.string().optional(),
- /** P1 Analytics Diagnosis V2: evidence-calibrated analytics. "1" enables. */
- FEATURE_ANALYTICS_DIAGNOSIS_V2: z.string().optional(),
+  /** P9 real-time classroom. "1" enables live quiz routes. */
+  FEATURE_LIVE: z.string().optional(),
+  /** Shared secret for HMAC token generation and Worker auth (P9). */
+  LIVE_HMAC_SECRET: z.string().optional(),
+  /** Email pengingat dan ringkasan refleksi mingguan. */
+  FEATURE_REFLECTION_EMAIL: z.string().optional(),
+  /** Tutorial PKA campaign: free multi-stage PKA simulation course + auto-enroll link + admin announcements. "1" enables. */
+  FEATURE_PKA: z.string().optional(),
+  /** Profile-free exact and semantic cache. "1" enables the semantic gate. */
+  FEATURE_ZYRA_SEMANTIC_CACHE_V1: z.string().optional(),
+  /** Authenticated private learner image input for Zyra. "1" enables the multimodal path. */
+  FEATURE_ZYRA_IMAGE_INPUT_V1: z.string().optional(),
+  /** Dedicated staging-only user allowed to execute hidden pedagogy shadow comparisons. */
+  STAGING_ZYRA_PEDAGOGY_USER_ID: z.string().optional(),
+  /** Auto-grant editor access on every exported Google Spreadsheet and its Drive folder to all active admin emails. "1" enables. */
+  FEATURE_DRIVE_EDITOR_SYNC: z.string().optional(),
+  /** Optional AI-assisted Diktat audit suggestions. "1" enables. */
+  FEATURE_DIKTAT_AI: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
- /** Active vector store: 'pinecone' (default) | 'dual' (write both) | 'vectorize' (read from VZ) */
- VECTOR_STORE: z.enum(['pinecone', 'vectorize', 'dual']).optional(),
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
   /** Shared secret matching SHARED_SECRET set on the zyx-vector-api Worker */
@@ -135,10 +113,25 @@ export const env = createEnv({
   DIKTAT_RENDERER_URL: z.string().url().optional(),
   /** Shared secret matching SHARED_SECRET set on the diktat-renderer service */
   DIKTAT_RENDERER_SECRET: z.string().optional(),
+  // ── Sentry Error Monitoring ───────────────────────────────────────────
+  /** Sentry auth token for source map uploads */
+  SENTRY_AUTH_TOKEN: z.string().optional(),
+  /** Sentry organization slug */
+  SENTRY_ORG: z.string().optional(),
+  /** Sentry project slug */
+  SENTRY_PROJECT: z.string().optional(),
+  /** Sentry public key */
+  SENTRY_PUBLIC_KEY: z.string().optional(),
+  /** Sentry OTLP traces ingest endpoint */
+  SENTRY_OTLP_TRACES_URL: z.string().url().optional(),
+  /** Sentry Vercel log drain endpoint */
+  SENTRY_VERCEL_LOG_DRAIN_URL: z.string().url().optional(),
   },
  client: {
  /** Absolute origin for better-auth client (e.g. https://app.example.com). Falls back for local dev. */
  NEXT_PUBLIC_APP_URL: publicAppUrlSchema,
+ /** Sentry DSN for client error reporting and tracing */
+ NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
  /** Desmos API key from https://www.desmos.com/my-api ; embeds the graphing calculator on the landing lab when set. */
  NEXT_PUBLIC_DESMOS_API_KEY: z.string().optional(),
  /**
@@ -154,80 +147,82 @@ export const env = createEnv({
   NEXT_PUBLIC_BRAND_INSTAGRAM: z.string().url().optional().default("https://instagram.com/zyx_academy"),
   /** Akun TikTok resmi brand Zyx Academy. */
   NEXT_PUBLIC_BRAND_TIKTOK: z.string().url().optional().default("https://tiktok.com/@zyx_academy"),
+  /** PostHog Project API Key for feature flags and analytics */
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
+  /** PostHog API Host URL (default: https://us.i.posthog.com) */
+  NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional().default("https://us.i.posthog.com"),
+  NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: z.enum(["0", "1"]).optional(),
   },
- runtimeEnv: {
- NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
- NEXT_PUBLIC_DESMOS_API_KEY: process.env.NEXT_PUBLIC_DESMOS_API_KEY,
- NEXT_PUBLIC_WHATSAPP_NUMBER: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER,
- NEXT_PUBLIC_BRAND_EMAIL: process.env.NEXT_PUBLIC_BRAND_EMAIL,
- NEXT_PUBLIC_BRAND_INSTAGRAM: process.env.NEXT_PUBLIC_BRAND_INSTAGRAM,
- NEXT_PUBLIC_BRAND_TIKTOK: process.env.NEXT_PUBLIC_BRAND_TIKTOK,
- DATABASE_URL: process.env.DATABASE_URL,
- TURSO_CONNECTION_URL: process.env.TURSO_CONNECTION_URL,
- TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN,
- BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
- BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
- GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
- GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
- UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
- RESEND_API_KEY: process.env.RESEND_API_KEY,
- WHATSAPP_ADMIN_NUMBER: process.env.WHATSAPP_ADMIN_NUMBER,
- GEMINI_API_KEY: process.env.GEMINI_API_KEY,
- GEMINI_API_KEY_2: process.env.GEMINI_API_KEY_2,
- GEMINI_API_KEY_3: process.env.GEMINI_API_KEY_3,
- GEMINI_API_KEY_4: process.env.GEMINI_API_KEY_4,
- PINECONE_API_KEY: process.env.PINECONE_API_KEY,
- PINECONE_INDEX_NAME: process.env.PINECONE_INDEX_NAME,
- INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
- INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
- // R2
- R2_ENDPOINT: process.env.R2_ENDPOINT,
- R2_BUCKET: process.env.R2_BUCKET,
- R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,
- R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
- R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
- STORAGE_PROVIDER_MODE: process.env.STORAGE_PROVIDER_MODE,
- // AI Gateway
- CF_AI_GATEWAY_URL: process.env.CF_AI_GATEWAY_URL,
- CF_AI_GATEWAY_TOKEN: process.env.CF_AI_GATEWAY_TOKEN,
- CF_API_TOKEN: process.env.CF_API_TOKEN,
- CF_KV_NAMESPACE_ID: process.env.CF_KV_NAMESPACE_ID,
- CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
- FEATURE_MASTERY: process.env.FEATURE_MASTERY,
- FEATURE_TODAY: process.env.FEATURE_TODAY,
- FEATURE_EMBED: process.env.FEATURE_EMBED,
- FEATURE_MISCONCEPTION: process.env.FEATURE_MISCONCEPTION,
- FEATURE_REMEDIATION: process.env.FEATURE_REMEDIATION,
- FEATURE_MATERIAL_LIVE: process.env.FEATURE_MATERIAL_LIVE,
- FEATURE_FC_DIFFICULTY: process.env.FEATURE_FC_DIFFICULTY,
- FEATURE_GRAPH: process.env.FEATURE_GRAPH,
- FEATURE_TUTOR_RAG: process.env.FEATURE_TUTOR_RAG,
- FEATURE_TUTOR_PIPELINE_V2: process.env.FEATURE_TUTOR_PIPELINE_V2,
- FEATURE_TUTOR_EVIDENCE_V2: process.env.FEATURE_TUTOR_EVIDENCE_V2,
- FEATURE_FEEDBACK: process.env.FEATURE_FEEDBACK,
- FEATURE_STUDY_PATH: process.env.FEATURE_STUDY_PATH,
- FEATURE_TUTOR_ANALYTICS: process.env.FEATURE_TUTOR_ANALYTICS,
- FEATURE_LIVE: process.env.FEATURE_LIVE,
- LIVE_HMAC_SECRET: process.env.LIVE_HMAC_SECRET,
- FEATURE_REFLECTION: process.env.FEATURE_REFLECTION,
- FEATURE_REFLECTION_EMAIL: process.env.FEATURE_REFLECTION_EMAIL,
- FEATURE_ADAPTIVE_QUIZ: process.env.FEATURE_ADAPTIVE_QUIZ,
- FEATURE_PKA: process.env.FEATURE_PKA,
- FEATURE_AI_CONTRACT_V2: process.env.FEATURE_AI_CONTRACT_V2,
- FEATURE_ASSESSMENT_ASSISTANCE_POLICY: process.env.FEATURE_ASSESSMENT_ASSISTANCE_POLICY,
- FEATURE_KO_PIPELINE_V2: process.env.FEATURE_KO_PIPELINE_V2,
- FEATURE_QUESTION_GENERATOR_V2: process.env.FEATURE_QUESTION_GENERATOR_V2,
- FEATURE_TUTOR_PEDAGOGY_V2: process.env.FEATURE_TUTOR_PEDAGOGY_V2,
- FEATURE_MATERIAL_COMPILER_V2: process.env.FEATURE_MATERIAL_COMPILER_V2,
- FEATURE_FLASHCARD_GENERATOR_V2: process.env.FEATURE_FLASHCARD_GENERATOR_V2,
- FEATURE_DIKTAT_QA_V2: process.env.FEATURE_DIKTAT_QA_V2,
- FEATURE_ANALYTICS_DIAGNOSIS_V2: process.env.FEATURE_ANALYTICS_DIAGNOSIS_V2,
+  runtimeEnv: {
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  NEXT_PUBLIC_DESMOS_API_KEY: process.env.NEXT_PUBLIC_DESMOS_API_KEY,
+  NEXT_PUBLIC_WHATSAPP_NUMBER: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER,
+  NEXT_PUBLIC_BRAND_EMAIL: process.env.NEXT_PUBLIC_BRAND_EMAIL,
+  NEXT_PUBLIC_BRAND_INSTAGRAM: process.env.NEXT_PUBLIC_BRAND_INSTAGRAM,
+  NEXT_PUBLIC_BRAND_TIKTOK: process.env.NEXT_PUBLIC_BRAND_TIKTOK,
+  NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+  NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1,
+  DATABASE_URL: process.env.DATABASE_URL,
+  TURSO_CONNECTION_URL: process.env.TURSO_CONNECTION_URL,
+  TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN,
+  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+  BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN,
+  GOOGLE_MEET_REFRESH_TOKEN: process.env.GOOGLE_MEET_REFRESH_TOKEN,
+  GOOGLE_FORMS_REFRESH_TOKEN: process.env.GOOGLE_FORMS_REFRESH_TOKEN,
+  UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  WHATSAPP_ADMIN_NUMBER: process.env.WHATSAPP_ADMIN_NUMBER,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  GEMINI_API_KEY_2: process.env.GEMINI_API_KEY_2,
+  GEMINI_API_KEY_3: process.env.GEMINI_API_KEY_3,
+  GEMINI_API_KEY_4: process.env.GEMINI_API_KEY_4,
+  GEMINI_PROJECT_ALIAS_1: process.env.GEMINI_PROJECT_ALIAS_1,
+  GEMINI_PROJECT_ALIAS_2: process.env.GEMINI_PROJECT_ALIAS_2,
+  GEMINI_PROJECT_ALIAS_3: process.env.GEMINI_PROJECT_ALIAS_3,
+  GEMINI_PROJECT_ALIAS_4: process.env.GEMINI_PROJECT_ALIAS_4,
+  INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
+  INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
+  // R2
+  R2_ENDPOINT: process.env.R2_ENDPOINT,
+  R2_BUCKET: process.env.R2_BUCKET,
+  R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,
+  R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+  R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+  STORAGE_PROVIDER_MODE: process.env.STORAGE_PROVIDER_MODE,
+  // AI Gateway
+  CF_AI_GATEWAY_URL: process.env.CF_AI_GATEWAY_URL,
+  CF_AI_GATEWAY_TOKEN: process.env.CF_AI_GATEWAY_TOKEN,
+  ZYRA_CONTROL_PLANE_URL: process.env.ZYRA_CONTROL_PLANE_URL,
+  ZYRA_CONTROL_PLANE_TOKEN: process.env.ZYRA_CONTROL_PLANE_TOKEN,
+  CF_API_TOKEN: process.env.CF_API_TOKEN,
+  CF_KV_NAMESPACE_ID: process.env.CF_KV_NAMESPACE_ID,
+  CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
+  FEATURE_LIVE: process.env.FEATURE_LIVE,
+  LIVE_HMAC_SECRET: process.env.LIVE_HMAC_SECRET,
+  FEATURE_REFLECTION_EMAIL: process.env.FEATURE_REFLECTION_EMAIL,
+  FEATURE_PKA: process.env.FEATURE_PKA,
+  FEATURE_ZYRA_SEMANTIC_CACHE_V1: process.env.FEATURE_ZYRA_SEMANTIC_CACHE_V1,
+  FEATURE_ZYRA_IMAGE_INPUT_V1: process.env.FEATURE_ZYRA_IMAGE_INPUT_V1,
+  STAGING_ZYRA_PEDAGOGY_USER_ID: process.env.STAGING_ZYRA_PEDAGOGY_USER_ID,
+  FEATURE_DRIVE_EDITOR_SYNC: process.env.FEATURE_DRIVE_EDITOR_SYNC,
+  FEATURE_DIKTAT_AI: process.env.FEATURE_DIKTAT_AI,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
- VECTOR_STORE: process.env.VECTOR_STORE,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,
   // Diktat PDF Renderer
   DIKTAT_RENDERER_URL: process.env.DIKTAT_RENDERER_URL,
   DIKTAT_RENDERER_SECRET: process.env.DIKTAT_RENDERER_SECRET,
+  // Sentry Error Monitoring
+  SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+  SENTRY_ORG: process.env.SENTRY_ORG,
+  SENTRY_PROJECT: process.env.SENTRY_PROJECT,
+  SENTRY_PUBLIC_KEY: process.env.SENTRY_PUBLIC_KEY,
+  SENTRY_OTLP_TRACES_URL: process.env.SENTRY_OTLP_TRACES_URL,
+  SENTRY_VERCEL_LOG_DRAIN_URL: process.env.SENTRY_VERCEL_LOG_DRAIN_URL,
   },
 });

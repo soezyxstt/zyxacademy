@@ -1,160 +1,132 @@
 /**
- * HTTP client for the zyx-vector-api Cloudflare Worker (P8).
- *
- * Import only from lib/pinecone.ts, lib/vector-store.ts, lib/inngest-functions.ts,
- * and the P8 scripts. Never import this from application UI code.
- *
- * Three helpers are exported for use:
- * vectorizeUpsert ; batch upsert pre-embedded vectors
- * vectorizeQuery ; semantic search
- * vectorizeDelete ; delete by ID list
- *
- * Two predicates control routing:
- * shouldMirrorToVectorize ; true when VECTOR_STORE is 'dual' or 'vectorize'
- * shouldReadFromVectorize ; true when VECTOR_STORE is 'vectorize'
+ * Provider-neutral HTTP client for the canonical Vectorize worker boundary.
+ * Application code never imports Cloudflare or provider-native types.
  */
 
-import { env } from '@/lib/env';
+import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
+import {
+  assertCanonicalDelete,
+  assertCanonicalGet,
+  assertCanonicalList,
+  assertCanonicalProfile,
+  assertCanonicalQuery,
+  assertCanonicalVector,
+  type CanonicalDeleteRequest,
+  type CanonicalGetRequest,
+  type CanonicalGetResult,
+  type CanonicalListRequest,
+  type CanonicalListResult,
+  type CanonicalMutationResult,
+  type CanonicalQueryRequest,
+  type CanonicalQueryResult,
+  type CanonicalUpsertRequest,
+  type CanonicalVectorProvider,
+} from "@/lib/vectorize/contracts";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface VzVector {
- id: string;
- values: number[];
- namespace?: string;
- metadata?: Record<string, string | number | boolean>;
+export interface CanonicalVectorClientOptions {
+  baseUrl?: string;
+  sharedSecret?: string;
+  fetcher?: typeof fetch;
 }
 
-export interface VzMatch {
- id: string;
- score: number;
- metadata?: Record<string, string | number | boolean>;
+const CANONICAL_GET_BATCH_SIZE = 20;
+
+function canonicalClientDefaults(options: CanonicalVectorClientOptions) {
+  const baseUrl = options.baseUrl ?? zyraRuntimeEnv.VECTORIZE_WORKER_URL;
+  const sharedSecret = options.sharedSecret ?? zyraRuntimeEnv.VECTORIZE_SHARED_SECRET;
+  if (!baseUrl || !sharedSecret) {
+    throw new Error("VECTORIZE_WORKER_URL and VECTORIZE_SHARED_SECRET must be set for canonical-content-v2");
+  }
+  return {
+    baseUrl: baseUrl.replace(/\/$/, ""),
+    sharedSecret,
+    fetcher: options.fetcher ?? fetch,
+  };
 }
 
-// ---------------------------------------------------------------------------
-// Routing predicates
-// ---------------------------------------------------------------------------
+function createCanonicalRequestClient(options: CanonicalVectorClientOptions): CanonicalVectorProvider {
+  const defaults = canonicalClientDefaults(options);
 
-export function shouldMirrorToVectorize(): boolean {
- const mode = env.VECTOR_STORE;
- return (
- (mode === 'dual' || mode === 'vectorize') &&
- !!env.VECTORIZE_WORKER_URL &&
- !!env.VECTORIZE_SHARED_SECRET
- );
+  async function postCanonical<T>(
+    path: "/v2/upsert" | "/v2/query" | "/v2/delete" | "/v2/list" | "/v2/get",
+    body: unknown,
+  ): Promise<T> {
+    const response = await defaults.fetcher(`${defaults.baseUrl}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${defaults.sharedSecret}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Vectorize canonical worker ${path} failed (${response.status}): ${text}`);
+    }
+    return (await response.json()) as T;
+  }
+
+  return {
+    async upsert(request: CanonicalUpsertRequest): Promise<CanonicalMutationResult> {
+      assertCanonicalProfile(request.profileId);
+      if (request.vectors.length === 0) throw new Error("canonical upsert requires at least one vector");
+      request.vectors.forEach(assertCanonicalVector);
+      return postCanonical<CanonicalMutationResult>("/v2/upsert", request);
+    },
+    async query(request: CanonicalQueryRequest): Promise<CanonicalQueryResult> {
+      assertCanonicalQuery(request);
+      return postCanonical<CanonicalQueryResult>("/v2/query", request);
+    },
+    async delete(request: CanonicalDeleteRequest): Promise<CanonicalMutationResult> {
+      assertCanonicalDelete(request);
+      return postCanonical<CanonicalMutationResult>("/v2/delete", request);
+    },
+    async list(request: CanonicalListRequest): Promise<CanonicalListResult> {
+      assertCanonicalList(request);
+      return postCanonical<CanonicalListResult>("/v2/list", request);
+    },
+    async get(request: CanonicalGetRequest): Promise<CanonicalGetResult> {
+      assertCanonicalGet(request);
+      if (request.ids.length <= CANONICAL_GET_BATCH_SIZE) {
+        return postCanonical<CanonicalGetResult>("/v2/get", request);
+      }
+
+      const vectors: CanonicalGetResult["vectors"] = [];
+      for (let offset = 0; offset < request.ids.length; offset += CANONICAL_GET_BATCH_SIZE) {
+        const result = await postCanonical<CanonicalGetResult>("/v2/get", {
+          profileId: request.profileId,
+          ids: request.ids.slice(offset, offset + CANONICAL_GET_BATCH_SIZE),
+        });
+        vectors.push(...result.vectors);
+      }
+      return { vectors };
+    },
+  };
 }
 
-export function shouldReadFromVectorize(): boolean {
- return (
- env.VECTOR_STORE === 'vectorize' &&
- !!env.VECTORIZE_WORKER_URL &&
- !!env.VECTORIZE_SHARED_SECRET
- );
+export function createCanonicalVectorClient(
+  options: CanonicalVectorClientOptions = {},
+): CanonicalVectorProvider {
+  return createCanonicalRequestClient(options);
 }
 
-// ---------------------------------------------------------------------------
-// Internal POST helper
-// ---------------------------------------------------------------------------
-
-async function post(path: '/upsert' | '/query' | '/delete', body: unknown): Promise<unknown> {
- const base = env.VECTORIZE_WORKER_URL;
- const secret = env.VECTORIZE_SHARED_SECRET;
- if (!base || !secret) {
- throw new Error('VECTORIZE_WORKER_URL and VECTORIZE_SHARED_SECRET must be set');
- }
- const res = await fetch(`${base}${path}`, {
- method: 'POST',
- headers: {
- 'Content-Type': 'application/json',
- Authorization: `Bearer ${secret}`,
- },
- body: JSON.stringify(body),
- });
- if (!res.ok) {
- const text = await res.text();
- throw new Error(`Vectorize worker ${path} failed (${res.status}): ${text}`);
- }
- return res.json();
+export async function vectorizeCanonicalUpsert(
+  request: CanonicalUpsertRequest,
+  options: CanonicalVectorClientOptions = {},
+): Promise<CanonicalMutationResult> {
+  return createCanonicalRequestClient(options).upsert(request);
 }
 
-// ---------------------------------------------------------------------------
-// Metadata helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Flatten metadata to Vectorize-compatible scalars.
- * Arrays are JSON-stringified so they survive the round-trip.
- */
-export function serializeVzMetadata(
- metadata: Record<string, unknown>,
-): Record<string, string | number | boolean> {
- const out: Record<string, string | number | boolean> = {};
- for (const [k, v] of Object.entries(metadata)) {
- if (Array.isArray(v)) {
- out[k] = JSON.stringify(v);
- } else if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
- out[k] = v;
- }
- }
- return out;
+export async function vectorizeCanonicalQuery(
+  request: CanonicalQueryRequest,
+  options: CanonicalVectorClientOptions = {},
+): Promise<CanonicalQueryResult> {
+  return createCanonicalRequestClient(options).query(request);
 }
 
-/**
- * Translate a Pinecone-style flat equality filter { field: value } to the
- * Vectorize operator syntax { field: { $eq: value } }.
- */
-export function toVzFilter(
- filter: Record<string, unknown>,
-): Record<string, unknown> {
- const out: Record<string, unknown> = {};
- for (const [k, v] of Object.entries(filter)) {
- if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
- out[k] = { $eq: v };
- } else {
- // Pass through already-structured operators
- out[k] = v;
- }
- }
- return out;
-}
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-/** Batch upsert pre-embedded vectors into Vectorize. */
-export async function vectorizeUpsert(vectors: VzVector[]): Promise<void> {
- if (!vectors.length) return;
- await post('/upsert', { vectors });
-}
-
-/**
- * Query Vectorize by embedding vector.
- * filter uses Pinecone-style flat equality syntax; it is translated internally.
- */
-export async function vectorizeQuery(
- vector: number[],
- topK: number,
- namespace: string,
- filter?: Record<string, unknown>,
-): Promise<VzMatch[]> {
- const body: Record<string, unknown> = {
- vector,
- topK,
- namespace,
- returnMetadata: 'all',
- };
- if (filter && Object.keys(filter).length > 0) {
- body.filter = toVzFilter(filter);
- }
- const res = (await post('/query', body)) as { matches?: VzMatch[] };
- return res.matches ?? [];
-}
-
-/** Delete vectors by ID list. */
-export async function vectorizeDelete(ids: string[]): Promise<void> {
- if (!ids.length) return;
- await post('/delete', { ids });
+export async function vectorizeCanonicalDelete(
+  request: CanonicalDeleteRequest,
+  options: CanonicalVectorClientOptions = {},
+): Promise<CanonicalMutationResult> {
+  return createCanonicalRequestClient(options).delete(request);
 }

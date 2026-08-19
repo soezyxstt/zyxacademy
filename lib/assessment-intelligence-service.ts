@@ -6,27 +6,18 @@ import { eq, and } from "drizzle-orm";
  * Deterministically checks if a student query is asking about exam patterns, structures, or formats (Type B query).
  */
 export function isMetaExamQuery(query: string): Promise<boolean> | boolean {
-  const normalized = query.toLowerCase().trim();
-  const examKeywords = [
-    "uts",
-    "uas",
-    "ujian",
-    "soal ujian",
-    "pola soal",
-    "tipe soal",
-    "format soal",
-    "struktur soal",
-    "midterm",
-    "semester",
-    "bentuk soal",
-    "pola ujian",
-    "tutorial",
-    "soal tutorial",
-    "tugas tutorial",
-    "kuis",
-    "soal kuis",
-  ];
-  return examKeywords.some(keyword => normalized.includes(keyword));
+  const normalized = query.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  const mentionsAssessment = /\b(uts|uas|ujian|midterm|soal|kuis|tutorial)\b/.test(normalized);
+  const asksHistoricalPattern = /\b(pola|tren|historis|riwayat|sering muncul|biasanya keluar|prediksi|distribusi|format|struktur|tipe|bentuk)\b/.test(normalized);
+  return mentionsAssessment && asksHistoricalPattern;
+}
+
+export function isCurrentQuizContextQuery(query: string): boolean {
+  const normalized = query.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+  const asksForSummary = /\b(ringkas|ringkasan|rangkuman|summary|topik|tentang apa)\b/.test(normalized);
+  const pointsToCurrentQuiz = /\b(kuis|soal|pembahasan)\b/.test(normalized)
+    && /\b(ini|tersebut|tadi|sekarang)\b/.test(normalized);
+  return asksForSummary && pointsToCurrentQuiz;
 }
 
 /**

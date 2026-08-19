@@ -7,6 +7,7 @@ import { pkaRegistrations } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 import { storage } from "@/lib/storage";
+import { joinKey, slugifySegment, userFileLeaf } from "@/lib/storage/keys";
 import { ensurePkaEnrollment, isPkaEnrolled } from "@/lib/pka-enrollment";
 
 export interface PkaRegisterState {
@@ -34,10 +35,10 @@ export async function registerPkaAction(
     return { error: "Mohon maaf, pendaftaran Tutorial PKA saat ini telah ditutup." };
 
     const session = await auth.api.getSession({ headers: await headers() });
-    if (!session?.user?.id) {
+    const userId = session?.user?.id ?? "";
+    if (!userId) {
       return { error: "Sesi kamu berakhir. Masuk ulang lalu coba lagi." };
     }
-    const userId = session.user.id;
 
     // Idempotent: an already-enrolled student does not re-submit.
     if (await isPkaEnrolled(userId)) {
@@ -49,7 +50,7 @@ export async function registerPkaAction(
     const emailRaw = formData.get("email")?.toString().trim() ?? "";
     const instagramRaw = formData.get("instagram")?.toString() ?? "";
     const receiveAnnouncements = formData.get("receiveAnnouncements") === "on";
-    const proof = formData.get("proof");
+    const proof = formData.get("proof") as File;
 
     if (!fullName) return { error: "Nama lengkap wajib diisi." };
     if (!faculty) return { error: "Fakultas wajib diisi." };
@@ -58,7 +59,10 @@ export async function registerPkaAction(
     const instagram = normalizeInstagram(instagramRaw);
     if (!instagram) return { error: "Username Instagram wajib diisi." };
 
-    if (!(proof instanceof File) || proof.size === 0) {
+    if (!proof) {
+      return { error: "Unggah screenshot bukti follow @zyx_academy." };
+    }
+    if (proof.size === 0) {
       return { error: "Unggah screenshot bukti follow @zyx_academy." };
     }
     if (!ALLOWED_PROOF_TYPES.includes(proof.type)) {
@@ -69,7 +73,7 @@ export async function registerPkaAction(
     }
 
     const safeName = (proof.name || "proof.jpg").replace(/\s+/g, "_");
-    const key = `pka-proof/${userId}-${randomUUID()}-${safeName}`;
+    const key = joinKey("pka", slugifySegment(userId), "proofs", userFileLeaf(proof.name));
     const uploaded = await storage.upload(proof, safeName, proof.type, { key });
 
     await db.insert(pkaRegistrations).values({

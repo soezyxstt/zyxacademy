@@ -12,6 +12,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pkaSimulationStages, pkaStageProgress, studentQuizAttempts } from "@/db/schema";
 import { PKA_STAGES, type PkaStage, type PkaSubject } from "@/lib/pka-config";
+import { dualWritePkaStageProgress } from "@/lib/migrasi/repository-kompatibilitas";
 
 export type PkaStageStatus = "locked" | "unlocked" | "completed" | "skipped";
 
@@ -36,18 +37,19 @@ export async function ensureStageProgressInitialized(studentId: string, subject:
   const missing = PKA_STAGES.filter((s) => !existingStages.has(s));
   if (missing.length === 0) return;
 
-  await db
-    .insert(pkaStageProgress)
-    .values(
-      missing.map((stage) => ({
-        id: randomUUID(),
-        studentId,
-        subject,
-        stage,
-        status: stage === 1 ? ("unlocked" as const) : ("locked" as const),
-      })),
-    )
-    .onConflictDoNothing();
+  const rows = missing.map((stage) => ({
+    id: randomUUID(),
+    studentId,
+    subject,
+    stage,
+    status: stage === 1 ? ("unlocked" as const) : ("locked" as const),
+  }));
+  await db.transaction(async (tx) => {
+    await tx.insert(pkaStageProgress).values(rows).onConflictDoNothing();
+    for (const row of rows) {
+      await dualWritePkaStageProgress(tx, row, studentId);
+    }
+  });
 }
 
 /** Returns the 3 stages for a subject merged with this student's progress, seeding progress if needed. */
@@ -82,13 +84,14 @@ export async function getSubjectStageState(studentId: string, subject: PkaSubjec
   });
 }
 
-async function upsertStageStatusIfLower(
+async function upsertStageStatusIfLowerTx(
+  tx: any,
   studentId: string,
   subject: PkaSubject,
   stage: PkaStage,
   status: PkaStageStatus,
 ): Promise<void> {
-  const [current] = await db
+  const [current] = await tx
     .select({ status: pkaStageProgress.status })
     .from(pkaStageProgress)
     .where(and(eq(pkaStageProgress.studentId, studentId), eq(pkaStageProgress.subject, subject), eq(pkaStageProgress.stage, stage)))
@@ -98,15 +101,33 @@ async function upsertStageStatusIfLower(
   if (current && (current.status === "completed" || current.status === "skipped")) return;
 
   if (current) {
-    await db
+    await tx
       .update(pkaStageProgress)
       .set({ status })
       .where(and(eq(pkaStageProgress.studentId, studentId), eq(pkaStageProgress.subject, subject), eq(pkaStageProgress.stage, stage)));
   } else {
-    await db
+    await tx
       .insert(pkaStageProgress)
       .values({ id: randomUUID(), studentId, subject, stage, status })
       .onConflictDoNothing();
+  }
+
+  const [latest] = await tx
+    .select({ id: pkaStageProgress.id, bestScore: pkaStageProgress.bestScore, passed: pkaStageProgress.passed, attemptId: pkaStageProgress.attemptId })
+    .from(pkaStageProgress)
+    .where(and(eq(pkaStageProgress.studentId, studentId), eq(pkaStageProgress.subject, subject), eq(pkaStageProgress.stage, stage)))
+    .limit(1);
+  if (latest) {
+    await dualWritePkaStageProgress(tx, {
+      id: latest.id,
+      studentId,
+      subject,
+      stage,
+      status,
+      bestScore: latest.bestScore,
+      passed: latest.passed,
+      attemptId: latest.attemptId,
+    }, studentId);
   }
 }
 
@@ -123,6 +144,7 @@ export async function recordPkaStageResult(attemptId: string): Promise<void> {
     .where(eq(studentQuizAttempts.id, attemptId))
     .limit(1);
   if (!attempt || attempt.status !== "completed" || attempt.score == null) return;
+  const score = attempt.score;
 
   const [stageRow] = await db
     .select()
@@ -133,26 +155,40 @@ export async function recordPkaStageResult(attemptId: string): Promise<void> {
 
   const subject = stageRow.subject;
   const stage = stageRow.stage as PkaStage;
-  const passed = attempt.score >= stageRow.passScoreThreshold;
+  const passed = score >= stageRow.passScoreThreshold;
 
-  const [existing] = await db
-    .select()
-    .from(pkaStageProgress)
-    .where(and(eq(pkaStageProgress.studentId, attempt.studentId), eq(pkaStageProgress.subject, subject), eq(pkaStageProgress.stage, stage)))
-    .limit(1);
+  await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(pkaStageProgress)
+      .where(and(eq(pkaStageProgress.studentId, attempt.studentId), eq(pkaStageProgress.subject, subject), eq(pkaStageProgress.stage, stage)))
+      .limit(1);
 
-  if (existing?.attemptId === attempt.id && existing.status === "completed") return; // Already recorded.
+    if (existing?.attemptId === attempt.id && existing.status === "completed") return; // Already recorded.
 
-  const bestScore = existing?.bestScore != null ? Math.max(existing.bestScore, attempt.score) : attempt.score;
+    const bestScore = existing?.bestScore != null ? Math.max(existing.bestScore, score) : score;
+    const progressId = existing?.id ?? randomUUID();
 
-  if (existing) {
-    await db
-      .update(pkaStageProgress)
-      .set({ status: "completed", bestScore, passed, attemptId: attempt.id })
-      .where(eq(pkaStageProgress.id, existing.id));
-  } else {
-    await db.insert(pkaStageProgress).values({
-      id: randomUUID(),
+    if (existing) {
+      await tx
+        .update(pkaStageProgress)
+        .set({ status: "completed", bestScore, passed, attemptId: attempt.id })
+        .where(eq(pkaStageProgress.id, existing.id));
+    } else {
+      await tx.insert(pkaStageProgress).values({
+        id: progressId,
+        studentId: attempt.studentId,
+        subject,
+        stage,
+        status: "completed",
+        bestScore,
+        passed,
+        attemptId: attempt.id,
+      });
+    }
+
+    await dualWritePkaStageProgress(tx, {
+      id: progressId,
       studentId: attempt.studentId,
       subject,
       stage,
@@ -160,19 +196,19 @@ export async function recordPkaStageResult(attemptId: string): Promise<void> {
       bestScore,
       passed,
       attemptId: attempt.id,
-    });
-  }
+    }, attempt.studentId);
 
-  if (passed) {
-    for (const laterStage of PKA_STAGES.filter((s) => s > stage)) {
-      await upsertStageStatusIfLower(attempt.studentId, subject, laterStage, "skipped");
+    if (passed) {
+      for (const laterStage of PKA_STAGES.filter((s) => s > stage)) {
+        await upsertStageStatusIfLowerTx(tx, attempt.studentId, subject, laterStage, "skipped");
+      }
+    } else {
+      const nextStage = (stage + 1) as PkaStage;
+      if (PKA_STAGES.includes(nextStage)) {
+        await upsertStageStatusIfLowerTx(tx, attempt.studentId, subject, nextStage, "unlocked");
+      }
     }
-  } else {
-    const nextStage = (stage + 1) as PkaStage;
-    if (PKA_STAGES.includes(nextStage)) {
-      await upsertStageStatusIfLower(attempt.studentId, subject, nextStage, "unlocked");
-    }
-  }
+  });
 }
 
 export type PkaSubjectDiagnosticStatus = "not_attempted" | "at_risk" | "borderline" | "solid";

@@ -111,7 +111,7 @@ function DialogTitle({
   return (
     <DialogNs.Title
       data-slot="dialog-title"
-      className={cn("font-heading text-lg font-semibold text-foreground", className)}
+      className={cn("font-heading text-body-base font-bold text-foreground", className)}
       {...props}
     />
   );
@@ -124,7 +124,7 @@ function DialogDescription({
   return (
     <DialogNs.Description
       data-slot="dialog-description"
-      className={cn("text-body-sm text-muted-foreground", className)}
+      className={cn("text-body-xs text-muted-foreground", className)}
       {...props}
     />
   );

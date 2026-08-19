@@ -13,8 +13,10 @@ import { validateAST, WebsiteMaterialAST, CompiledMaterial, CompilerResult } fro
 import { verifyKOCoverage } from "./ko-coverage-auditor";
 import { buildTermIndex } from "./term-index";
 import { buildConceptGraph } from "./graph-trace";
-import { env } from "./env";
 import { randomUUID, createHash } from "crypto";
+import { dualWriteMaterialPublication } from "@/lib/migrasi/repository-kompatibilitas";
+import { articleDocumentSchema } from "@/lib/materials/article-contract";
+import { evaluateArticleQuality, QualityGateResult } from "@/lib/materials/quality-gates";
 
 // ─── UTILITY: CALCULATE GENERATION HASH ──────────────────────────────────────
 
@@ -59,6 +61,35 @@ interface SaveResult {
   versionNumber: number;
   compiledStatus: "success" | "failed";
   compileError?: string;
+}
+
+function validateStoredArticleQuality(structuredContent: unknown): QualityGateResult {
+  const articleCandidate = (structuredContent as { articleDocument?: unknown } | null)?.articleDocument;
+  if (!articleCandidate) {
+    return {
+      passed: false,
+      score: 0,
+      issues: [{ code: "ARTICLE_CONTRACT_MISSING", message: "Material Compiler V2 requires an approved article document." }],
+      metrics: { requiredCoveragePercent: 0, traceableBlockPercent: 0 },
+    };
+  }
+  const parsed = articleDocumentSchema.safeParse(articleCandidate);
+  if (!parsed.success) {
+    return {
+      passed: false,
+      score: 0,
+      issues: [{ code: "ARTICLE_CONTRACT_INVALID", message: parsed.error.issues[0]?.message ?? "article document is invalid" }],
+      metrics: { requiredCoveragePercent: 0, traceableBlockPercent: 0 },
+    };
+  }
+  return evaluateArticleQuality(parsed.data);
+}
+
+function assertStoredArticleQuality(structuredContent: unknown): void {
+  const quality = validateStoredArticleQuality(structuredContent);
+  if (!quality.passed) {
+    throw new Error(`Material Compiler V2 quality gates blocked publication: ${quality.issues.map((entry) => entry.code).join(",")}`);
+  }
 }
 
 /**
@@ -359,6 +390,7 @@ export async function requestReview(chapterId: string): Promise<void> {
         validation.errors.map(e => `  [${e.path}]: ${e.message}`).join("\n")
     );
   }
+  assertStoredArticleQuality(content);
 
   await db
     .update(websiteMaterials)
@@ -428,6 +460,8 @@ export async function approveAndPublish(
     );
   }
 
+  assertStoredArticleQuality(material.structuredContent);
+
   // E3: build the term index for the interactive material popover.
   const termIndex = await buildTermIndex(chapterId);
 
@@ -443,6 +477,20 @@ export async function approveAndPublish(
         updatedAt: new Date(),
       })
       .where(eq(websiteMaterials.chapterId, chapterId));
+
+    await dualWriteMaterialPublication(tx, {
+      id: material.id,
+      courseId: material.courseId,
+      chapterId: material.chapterId,
+      title: material.title,
+      slug: material.slug,
+      canonicalMarkdown: material.canonicalMarkdown,
+      generationHash: material.generationHash,
+      status: "published",
+      creatorId: _adminUserId,
+      version: material.contentVersion,
+      publishedAt: new Date(),
+    }, _adminUserId);
 
     // Fetch active KOs of the chapter to queue them for vector sync
     const activeKOs = await tx
@@ -482,11 +530,9 @@ export async function approveAndPublish(
   });
 
   // E5: rebuild the concept-graph rollup for this course (deterministic, no AI).
-  if (env.FEATURE_GRAPH === "1") {
-    await buildConceptGraph(material.courseId).catch((err) => {
-      console.error("buildConceptGraph failed after publish:", err);
-    });
-  }
+  await buildConceptGraph(material.courseId).catch((err) => {
+    console.error("buildConceptGraph failed after publish:", err);
+  });
 }
 
 /**

@@ -22,7 +22,7 @@ export function AdminTabNav({ tabs }: { tabs: TabItem[] }) {
               key={tab.href}
               href={tab.href}
               className={cn(
-                "pb-3 text-body-sm font-medium transition-colors border-b-2 relative -mb-[2px]",
+                "pb-3 text-body-xs font-medium transition-colors border-b-2 relative -mb-[2px]",
                 isActive
                   ? "border-brand-primary text-brand-primary font-semibold"
                   : "border-transparent text-muted-foreground hover:text-foreground"

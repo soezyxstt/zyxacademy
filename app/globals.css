@@ -314,6 +314,20 @@
  display: flex !important;
  flex-direction: column !important;
  }
+
+  /* Prevent layout shift (main layout shrinkage) caused by Radix Scroll Lock */
+  body[data-scroll-locked] {
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+    overflow: clip !important;
+  }
+
+  /* Prevent sidebar from losing scrollbar, pointer events, and active states */
+  body[data-scroll-locked] aside,
+  body[data-scroll-locked] .sidebar-scroll,
+  body[data-scroll-locked] .sidebar-scroll-hidden {
+    pointer-events: auto !important;
+  }
 }
 
 @utility transform-style-3d {
@@ -762,6 +776,7 @@
  /* Sidebar nav: styled scrollbar (expanded), invisible (collapsed) */
  .sidebar-scroll::-webkit-scrollbar {
  width: 3px;
+ height: 0px;
  }
 
  .sidebar-scroll::-webkit-scrollbar-track {
@@ -804,4 +819,48 @@
  .katex-display > .katex {
  white-space: nowrap;
  }
+
+ /* Zebra rhythm for data tables and row-based lists. Keep this selector
+ low-specificity so explicit status and selected-state backgrounds win. */
+ :where(
+  table:not(.zebra-no-rows) > tbody > tr:nth-child(even),
+  .divide-y:not(.zebra-no-rows) > :nth-child(even)
+ ) {
+  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
+ }
+
+ :where(
+  table:not(.zebra-no-rows) > tbody > tr:nth-child(even):hover,
+  .divide-y:not(.zebra-no-rows) > :nth-child(even):hover
+ ) {
+  background-color: color-mix(in oklch, var(--muted) 42%, transparent);
+ }
+}
+
+@keyframes zyra-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes zyra-shadow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(0.75);
+    opacity: 0.2;
+  }
+}
+
+.animate-zyra-float {
+  animation: zyra-float 3s ease-in-out infinite;
+}
+
+.animate-zyra-shadow {
+  animation: zyra-shadow 3s ease-in-out infinite;
 }

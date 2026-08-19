@@ -80,7 +80,7 @@ export function QuizDemo({ prompt, options, correctPanel, wrongPanel }: QuizDemo
  {wasCorrect ? correctPanel : wrongPanel}
  </div>
  ) : (
- <p className="mt-4 text-xs text-muted-foreground">
+ <p className="mt-4 text-body-xs text-muted-foreground">
  Pilih salah satu jawaban ; coba juga jawab salah untuk melihat pembahasannya.
  </p>
  )}

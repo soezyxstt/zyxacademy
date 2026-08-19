@@ -160,7 +160,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
           <Check className="size-6" />
         </div>
-        <h3 className="mt-4 font-heading text-body-lg font-bold text-foreground">
+        <h3 className="mt-4 font-heading text-body-base font-bold text-foreground">
           Sesi Review Selesai! 🎉
         </h3>
         <p className="mt-2 text-body-sm text-muted-foreground">
@@ -269,21 +269,21 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             style={faceStyle}
           >
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <span className="inline-flex rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2 py-0.5 text-body-2xs font-semibold text-brand-primary capitalize">
+              <span className="inline-flex rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2 py-0.5 text-body-xs font-semibold text-brand-primary capitalize">
                 Konsep: {activeCard.koId ? "Knowledge Object" : "Materi"}
               </span>
-              <span className="text-body-2xs font-medium text-muted-foreground">
+              <span className="text-body-xs font-medium text-muted-foreground">
                 Tanya
               </span>
             </div>
 
             <div className="flex-1 flex items-center justify-center py-4 overflow-y-auto">
-              <MathText className="font-heading text-body-lg font-bold text-foreground text-center" as="div">
+              <MathText className="font-sans text-body-base font-semibold text-foreground text-center" as="div">
                 {activeCard.front}
               </MathText>
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-body-2xs text-muted-foreground border-t border-border/40 pt-3">
+            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground border-t border-border/40 pt-3">
               <RotateCw className="size-3" />
               <span>Ketuk area kartu untuk membalik</span>
             </div>
@@ -295,12 +295,12 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             style={faceStyle}
           >
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-2xs font-semibold text-emerald-600">
+              <span className="inline-flex rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-body-xs font-semibold text-emerald-600">
                 Jawaban
               </span>
               {typeof activeCard.metadata?.recallDifficulty === "number" ? (
                 <span
-                  className="flex items-center gap-1 text-body-2xs font-medium text-muted-foreground"
+                  className="flex items-center gap-1 text-body-xs font-medium text-muted-foreground"
                   title={`Tingkat ingatan ${activeCard.metadata.recallDifficulty} dari 5`}
                 >
                   <span className="hidden sm:inline">Ingatan</span>
@@ -317,7 +317,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
                   </span>
                 </span>
               ) : (
-                <span className="text-body-2xs font-medium text-muted-foreground">Detail</span>
+                <span className="text-body-xs font-medium text-muted-foreground">Detail</span>
               )}
             </div>
 
@@ -327,7 +327,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               </MathText>
               {activeCard.explanation && (
                 <div className="rounded-lg bg-muted/40 p-3 border border-border/50">
-                  <div className="text-body-2xs font-semibold text-muted-foreground mb-0.5">Penjelasan:</div>
+                  <div className="text-body-xs font-semibold text-muted-foreground mb-0.5">Penjelasan:</div>
                   <MathText className="text-body-xs text-muted-foreground" as="div">
                     {activeCard.explanation}
                   </MathText>
@@ -335,7 +335,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               )}
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 text-body-2xs text-muted-foreground border-t border-border/40 pt-3">
+            <div className="flex items-center justify-center gap-1.5 text-body-xs text-muted-foreground border-t border-border/40 pt-3">
               <RotateCw className="size-3" />
               <span>Ketuk untuk kembali ke pertanyaan</span>
             </div>
