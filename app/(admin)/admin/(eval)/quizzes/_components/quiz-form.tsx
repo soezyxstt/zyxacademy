@@ -572,7 +572,7 @@ export function QuizForm({
         {/* TAB 1: PENGATURAN KUIS */}
         <TabsContent value="pengaturan" className="space-y-4 focus-visible:outline-none">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-            
+
             {/* LEFT COLUMN: Main Info & Schedule (7 cols) */}
             <div className="space-y-4 lg:col-span-7">
               {/* General Information Card */}
@@ -892,7 +892,7 @@ export function QuizForm({
 
             {/* RIGHT COLUMN: Timers, Navigation & Rules (5 cols) */}
             <div className="space-y-4 lg:col-span-5">
-              
+
               {/* Duration & Timer Card */}
               <Card className="rounded-xl border border-border bg-card shadow-2xs">
                 <div className="border-b border-border/80 px-4 py-3">
@@ -1096,7 +1096,7 @@ export function QuizForm({
 
         {/* TAB 2: PILIHAN SOAL */}
         <TabsContent value="soal" className="space-y-4 focus-visible:outline-none">
-          
+
           {/* Mode Selector & Summary Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-2xs">
             <div className="flex items-center gap-2">
@@ -1247,7 +1247,7 @@ export function QuizForm({
           {/* SPECIFIC QUESTION PICKER MODE */}
           {selectionMode === "specific" && (
             <div className="space-y-3">
-              
+
               {/* Space-Efficient Inline Search & Filter Toolbar */}
               <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2.5">
                 <div className="flex flex-wrap items-center gap-2">

@@ -67,7 +67,7 @@ The production migration script (`db/push-prod.ts`):
 
 ## Cloudflare Workers
 
-Three Workers support the app:
+Workers support the app:
 
 ### 1. zyx-vector-api (Vectorize proxy)
 ```
@@ -76,16 +76,67 @@ workers/vector-api/
 ├── index.ts
 ```
 
-- Exposes only authenticated `/v2/upsert`, `/v2/query`, `/v2/delete`, `/v2/list`, and `/v2/get` routes
+- Exposes authenticated `/v2/upsert`, `/v2/query`, `/v2/delete`, `/v2/list`, and `/v2/get` routes
 - Canonical `/v2/get` hydration is sent in batches of at most 20 IDs per request
-- Staging binds only `VECTORIZE_V2` to `zyx-vectors-staging-v2`; the 1024-dimensional indexes remain unbound preservation resources
+- Production keeps the legacy `VECTORIZE` binding to `zyx-edu` for rollback compatibility
+- Production binds `VECTORIZE_V2` to `zyx-vectors-production-v2` and `VECTORIZE_SEARCH` to `zyx-site-search-production`
+- The two production indexes must use 768 dimensions and cosine distance, matching the canonical embedding profile
+- Staging binds `VECTORIZE_V2` to `zyx-vectors-staging-v2` and `VECTORIZE_SEARCH` to `zyx-site-search-staging`; staging does not reuse production indexes
 - Staging sets `RESTRICTED_SOLUTION_CAPABILITY` so published solution queries require the server-side capability check
 
+#### Production provisioning gate
+
+The Git merge does not provision Vectorize resources. Do not run a production deploy, backfill, or cutover until both production indexes pass the read-only checks below with dimensions `768` and metric `cosine`. If either index is missing or has incompatible metadata, stop and obtain an owner decision before creating or replacing it.
+
+Run these commands from the repository root. They inspect account access, index configuration, and the rendered Worker bindings only:
+
 ```bash
-cd workers/vector-api
-wrangler deploy
-wrangler secret put SHARED_SECRET
+wrangler whoami
+wrangler vectorize list
+wrangler vectorize get zyx-vectors-production-v2
+wrangler vectorize list-metadata-index zyx-vectors-production-v2
+wrangler vectorize get zyx-site-search-production
+wrangler deploy --dry-run --env="" --config workers/vector-api/wrangler.toml
+wrangler deploy --dry-run --env staging --config workers/vector-api/wrangler.toml
 ```
+
+If an approved production index is absent, create it only after the gate has recorded the absence and the owner has approved the mutation. These commands are instructions, not commands to run during a merge:
+
+```bash
+wrangler vectorize create zyx-vectors-production-v2 --dimensions=768 --metric=cosine
+wrangler vectorize create zyx-site-search-production --dimensions=768 --metric=cosine
+```
+
+The canonical metadata index allowlist is limited to eight properties, below Vectorize's ten-index limit. Create each property once on `zyx-vectors-production-v2`; `version` is numeric and every other property is a string:
+
+```bash
+wrangler vectorize create-metadata-index zyx-vectors-production-v2 --property-name=namespace --type=string
+wrangler vectorize create-metadata-index zyx-vectors-production-v2 --property-name=courseId --type=string
+wrangler vectorize create-metadata-index zyx-vectors-production-v2 --property-name=chapterId --type=string
+wrangler vectorize create-metadata-index zyx-vectors-production-v2 --property-name=entityType --type=string
+wrangler vectorize create-metadata-index zyx-vectors-production-v2 --property-name=status --type=string
+wrangler vectorize create-metadata-index zyx-vectors-production-v2 --property-name=version --type=number
+wrangler vectorize create-metadata-index zyx-vectors-production-v2 --property-name=accessClass --type=string
+wrangler vectorize create-metadata-index zyx-vectors-production-v2 --property-name=language --type=string
+```
+
+Set the Worker secret after the production Worker and index bindings have been verified. Never put the secret value in shell history, Git, or this document:
+
+```bash
+wrangler secret put SHARED_SECRET --env="" --config workers/vector-api/wrangler.toml
+```
+
+#### Backfill and cutover order
+
+1. Complete the read-only account, index, metadata, and dry-run checks above.
+2. Provision only missing resources, then repeat the read-only checks and record the dimensions, metric, binding names, and metadata index list.
+3. Configure the Vercel production values `VECTORIZE_WORKER_URL` and `VECTORIZE_SHARED_SECRET` through the encrypted environment settings. The application must not receive the secret from source control.
+4. Run the production-approved canonical backfill from Turso using the fixed `canonical-content-v2` Gemini Embedding 2 profile, exactly 768 dimensions, and resumable run artifacts. Do not use a 1024-dimensional fallback or switch models.
+5. Reconcile the Turso manifest against Vectorize IDs, dimensions, and allowlisted metadata. Require zero missing IDs, extra IDs, metadata mismatches, and dimension mismatches.
+6. Run the canonical golden retrieval checks, including published-solution denial without `read:published_solutions` and success with that capability. Record the result before enabling production traffic.
+7. Deploy only after all checks pass, then monitor the Worker and application error rates before completing the retrieval cutover.
+
+Keep `zyx-edu` and the legacy `VECTORIZE` binding during the entire rollout. For rollback, restore the previously verified application and Worker version, disable the v2 traffic path according to the reviewed release procedure, and keep both new indexes intact for investigation. Do not delete or repoint the 1024-dimensional legacy index, and do not send 768-dimensional vectors to it.
 
 ### 2. zyxrealtime (Live quiz WebSocket/SSE)
 ```

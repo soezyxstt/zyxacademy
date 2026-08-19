@@ -8,10 +8,10 @@
 // --- Minimal Vectorize types (avoids requiring @cloudflare/workers-types locally) ---
 
 interface VectorizeIndex {
- upsert(vectors: Array<{ id: string; values: number[]; metadata?: Record<string, string | number | boolean> }>): Promise<{ count: number; mutationId: string }>;
- query(vector: number[], options: { topK: number; returnMetadata?: 'all' | 'none' | 'indexed'; filter?: Record<string, unknown> }): Promise<{ matches: Array<{ id: string; score: number; metadata?: Record<string, unknown> }>; count: number }>;
- deleteByIds(ids: string[]): Promise<{ count: number; mutationId: string }>;
- getByIds(ids: string[]): Promise<Array<{ id: string; values: number[]; metadata?: Record<string, string | number | boolean> }>>;
+	 upsert(vectors: Array<{ id: string; values: number[]; namespace?: string; metadata?: Record<string, string | number | boolean | string[] | number[]> }>): Promise<{ count: number; mutationId: string }>;
+	 query(vector: number[], options: { topK: number; returnMetadata?: 'all' | 'none' | 'indexed'; filter?: Record<string, unknown> }): Promise<{ matches: Array<{ id: string; score: number; metadata?: Record<string, unknown> }>; count: number }>;
+	 deleteByIds(ids: string[]): Promise<{ count: number; mutationId: string }>;
+	 getByIds(ids: string[]): Promise<Array<{ id: string; values: number[]; namespace?: string; metadata?: Record<string, string | number | boolean | string[] | number[]> }>>;
  list?(options: { limit?: number; cursor?: string; prefix?: string }): Promise<{
   vectors: Array<{ id: string }>;
   count?: number;
@@ -37,6 +37,7 @@ import {
 } from "../../lib/vectorize/contracts";
 
 interface Env {
+	VECTORIZE?: VectorizeIndex;
 	VECTORIZE_V2?: VectorizeIndex;
 	VECTORIZE_SEARCH?: VectorizeIndex;
 	SHARED_SECRET: string;
@@ -72,6 +73,13 @@ function requireCanonicalIndex(env: Env): VectorizeIndex {
 	return env.VECTORIZE_V2;
 }
 
+function requireLegacyIndex(env: Env): VectorizeIndex {
+	if (!env.VECTORIZE) {
+		throw new Error('VECTORIZE binding is not configured');
+	}
+	return env.VECTORIZE;
+}
+
 function requireSearchIndex(env: Env): VectorizeIndex {
 	if (!env.VECTORIZE_SEARCH) {
 		throw new Error('VECTORIZE_SEARCH binding is not configured');
@@ -91,6 +99,46 @@ function parseSearchVector(value: unknown): { id: string; values: number[]; meta
 		values: value.values,
 		metadata: isRecord(value.metadata) ? (value.metadata as Record<string, string | number | boolean>) : undefined,
 	};
+}
+
+interface LegacyVector {
+	id: string;
+	values: number[];
+	namespace?: string;
+	metadata?: Record<string, string | number | boolean | string[] | number[]>;
+}
+
+function parseLegacyUpsert(value: unknown): { vectors: LegacyVector[] } {
+	if (!isRecord(value) || !Array.isArray(value.vectors) || value.vectors.length === 0) {
+		throw new Error('vectors must be a non-empty array');
+	}
+	return { vectors: value.vectors as LegacyVector[] };
+}
+
+function parseLegacyQuery(value: unknown): {
+	vector: number[];
+	topK?: number;
+	namespace?: string;
+	filter?: Record<string, unknown>;
+	returnMetadata?: 'all' | 'none' | 'indexed';
+} {
+	if (!isRecord(value) || !Array.isArray(value.vector) || value.vector.length === 0) {
+		throw new Error('vector must be a non-empty number[]');
+	}
+	return {
+		vector: value.vector as number[],
+		topK: typeof value.topK === 'number' ? value.topK : undefined,
+		namespace: typeof value.namespace === 'string' ? value.namespace : undefined,
+		filter: isRecord(value.filter) ? value.filter : undefined,
+		returnMetadata: value.returnMetadata === 'none' || value.returnMetadata === 'indexed' ? value.returnMetadata : 'all',
+	};
+}
+
+function parseLegacyDelete(value: unknown): { ids: string[] } {
+	if (!isRecord(value) || !Array.isArray(value.ids) || value.ids.length === 0) {
+		throw new Error('ids must be a non-empty string[]');
+	}
+	return { ids: value.ids as string[] };
 }
 
 function parseSearchUpsert(value: unknown): { vectors: Array<{ id: string; values: number[]; metadata?: Record<string, string | number | boolean> }> } {
@@ -239,6 +287,32 @@ const worker = {
 	}
 
 	try {
+		// Legacy production API. This path is intentionally separate from the
+		// v2 staging API so it cannot fall back to a staging index.
+		if (pathname === '/upsert') {
+			const requestBody = parseLegacyUpsert(body);
+			const result = await requireLegacyIndex(env).upsert(requestBody.vectors);
+			return json({ ok: true, count: result.count });
+		}
+
+		if (pathname === '/query') {
+			const requestBody = parseLegacyQuery(body);
+			const options = {
+				topK: requestBody.topK ?? 10,
+				returnMetadata: requestBody.returnMetadata ?? 'all',
+				...(requestBody.namespace !== undefined ? { namespace: requestBody.namespace } : {}),
+				...(requestBody.filter !== undefined ? { filter: requestBody.filter } : {}),
+			};
+			const result = await requireLegacyIndex(env).query(requestBody.vector, options);
+			return json(result);
+		}
+
+		if (pathname === '/delete') {
+			const requestBody = parseLegacyDelete(body);
+			const result = await requireLegacyIndex(env).deleteByIds(requestBody.ids);
+			return json({ ok: true, count: result.count });
+		}
+
 		// Every route uses the explicitly selected canonical binding.
 		if (pathname === '/v2/upsert') {
 			const requestBody = parseCanonicalUpsert(body);
@@ -361,6 +435,9 @@ const worker = {
 				return json({ ok: false, error: { code: 'SEARCH_BINDING_UNAVAILABLE', message: err.message } }, 503);
 			}
 			return contractError(err);
+		}
+		if (err instanceof Error && err.message === 'VECTORIZE binding is not configured') {
+			return json({ ok: false, error: { code: 'LEGACY_BINDING_UNAVAILABLE', message: err.message } }, 503);
 		}
 		const message = err instanceof Error ? err.message : String(err);
 		console.error(`[vector-api] ${pathname} error:`, message);

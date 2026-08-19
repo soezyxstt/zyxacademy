@@ -366,7 +366,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
 
       const newQ = await res.json();
       toast.success(reviewStatus === "published" ? "Soal manual disimpan dan diterbitkan." : "Soal manual disimpan sebagai draft.");
-      
+
       const createdQuestion: Question = {
         id: newQ.id,
         courseId: newQ.courseId ?? authoringCourses.find((course) => course.id === createCourseId)?.legacyCourseId ?? createCourseId,
@@ -390,10 +390,10 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         reasoningPattern: createReasoningPattern,
         ideaLinks: createIdeaLinks,
       };
-      
+
       setLocalQuestions(prev => [createdQuestion, ...prev]);
       setCreateOpen(false);
-      
+
       setCreatePrompt("");
       setCreateOptions(["", "", "", ""]);
       setCreateCorrectIndices([0]);
@@ -511,7 +511,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
       }
 
       toast.success(reviewStatus === "published" ? "Soal diperbarui dan diterbitkan." : "Perubahan disimpan sebagai draft.");
-      
+
       setLocalQuestions(prev =>
         prev.map(item =>
           item.id === editingQuestion.id
@@ -1351,7 +1351,7 @@ function QuestionRow({
   const tags = Array.isArray(question.tags) ? (question.tags as string[]) : [];
 
   // Question type display helper
-  const qTypeLabel = 
+  const qTypeLabel =
     question.questionType === "short_answer" ? "Isian Singkat" :
     question.questionType === "essay" ? "Essay" :
     question.questionType === "multiple_choices" ? "PG Kompleks" : "Pilihan Ganda";
@@ -1391,7 +1391,7 @@ function QuestionRow({
             <span className="text-muted-foreground font-medium">
               {courseMap[question.courseId] ?? question.courseId}
             </span>
-            
+
             <span className="text-muted-foreground ml-auto font-medium text-body-xs normal-case">
               digunakan {question.useCount}×
             </span>
@@ -1465,7 +1465,7 @@ function QuestionRow({
               </div>
             </div>
           )}
-          
+
           {/* Solution Explanation */}
           {question.explanation && (
             <div className="rounded-xl bg-muted/20 p-4 border border-border/60">

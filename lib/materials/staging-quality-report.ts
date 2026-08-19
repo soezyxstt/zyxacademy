@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { posix, win32 } from "node:path";
 import type { ArticleDocument } from "./article-contract";
 import type { DiktatCompressionReport, DiktatDocument } from "./diktat-contract";
 import type { QualityGateResult } from "./quality-gates";
@@ -39,7 +39,8 @@ export type Plan009QualityReport = {
 };
 
 export function plan009ArtifactPath(runId: string, cwd = process.cwd()): string {
-  return join(cwd, "artifacts", "staging-overhaul", runId, "plan-009-result.json");
+  const path = /^[A-Za-z]:[\\/]/.test(cwd) || cwd.startsWith("\\\\") || cwd.includes("\\") ? win32 : posix;
+  return path.join(cwd, "artifacts", "staging-overhaul", runId, "plan-009-result.json");
 }
 
 export function validatePlan009Report(report: Plan009QualityReport): string[] {

@@ -229,4 +229,3 @@ export function CourseDetailClient({
     </div>
   );
 }
-

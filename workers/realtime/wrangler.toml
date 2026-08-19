@@ -11,6 +11,7 @@ class_name = "LiveQuizRoom"
 tag = "v1"
 new_sqlite_classes = ["LiveQuizRoom"]
 
+# LIVE_HMAC_SECRET must be configured with Wrangler's secret store:
+#   wrangler secret put LIVE_HMAC_SECRET
 [vars]
-LIVE_HMAC_SECRET = "WtZoUSZI+aM4UpT1nCkMCjj9bBNk9XPvMHfVSIv12KA="
 NEXT_APP_URL = "https://www.zyxacademy.com"

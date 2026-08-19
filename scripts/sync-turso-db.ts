@@ -6,7 +6,7 @@ import { assertStagingEnvironment } from "@/lib/staging/staging-guard";
 /**
  * Script to duplicate/clone a Turso Production database into a Staging database.
  * Auto-detects credentials from `.env.prod` and `.env.staging`.
- * 
+ *
  * Usage:
  *   TURSO_DESTRUCTIVE_CONFIRMATION="I UNDERSTAND THIS DROPS STAGING DATA" bun run db:sync-prod-to-staging:destructive
  */

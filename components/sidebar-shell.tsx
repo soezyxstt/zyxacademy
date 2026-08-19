@@ -885,4 +885,3 @@ export function SidebarShell({
     </SidebarContext.Provider>
   );
 }
-

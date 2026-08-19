@@ -3,6 +3,20 @@ main = "index.ts"
 compatibility_date = "2026-06-13"
 compatibility_flags = ["nodejs_compat"]
 
+# Production environment. Keep the legacy 1024-dimensional binding for rollback
+# while the 768-dimensional canonical and search indexes are provisioned.
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "zyx-edu"
+
+[[vectorize]]
+binding = "VECTORIZE_V2"
+index_name = "zyx-vectors-production-v2"
+
+[[vectorize]]
+binding = "VECTORIZE_SEARCH"
+index_name = "zyx-site-search-production"
+
 # Staging environment
 # Deploy via: npx wrangler deploy --env staging
 # Secret via: npx wrangler secret put SHARED_SECRET --env staging

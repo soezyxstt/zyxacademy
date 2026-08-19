@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 /**
  * Hook for tab or filter state synchronized with URL search params.
- * 
+ *
  * Why: Standard Next.js `router.replace('?tab=...')` triggers a full React transition
  * and Server Component evaluation, causing noticeable lag when switching tabs.
  * This hook maintains instant local React state (0ms) while keeping `window.location` query params

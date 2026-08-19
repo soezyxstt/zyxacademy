@@ -27,7 +27,7 @@ export interface SearchDocumentMutationInput {
 export async function syncSingleSearchDocument(doc: SearchDocumentMutationInput): Promise<void> {
   const textContent = doc.content?.trim() || doc.title;
   const values = await embedSearchDocument(doc.title, textContent);
-  
+
   await upsertSearchVectors([
     {
       id: doc.id,

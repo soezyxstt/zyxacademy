@@ -4,10 +4,10 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  BookOpen, 
-  Layers, 
-  ClipboardList, 
+import {
+  BookOpen,
+  Layers,
+  ClipboardList,
   Compass,
   AlertTriangle,
   Loader2,
@@ -109,13 +109,13 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
   const imageInputEnabled = caps.imageInput && activeMode === "chat";
-  
+
   // Variables and results states
   const [koId, setKoId] = React.useState<string | null>(null);
   const [questionId, setQuestionId] = React.useState<string | null>(null);
   const [userAnswer, setUserAnswer] = React.useState<string | null>(null);
   const [explainMode, setExplainMode] = React.useState<"content" | "analogy" | "simplification">("content");
-  
+
   // Loading and response states
   const [loading, setLoading] = React.useState(false);
   const [errors, setErrors] = React.useState<string[]>([]);
@@ -386,7 +386,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (!data) return;
     if (savedDataRef.current === data) return;
-    
+
     const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
     let newMessages: ChatMessage[] = [];
 
@@ -438,7 +438,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       savedDataRef.current = data;
       if (courseId) {
         saveTutorMessagesAction(
-          courseId, 
+          courseId,
           newMessages.map(m => ({ role: m.role, content: m.content, sources: m.sources, canvasSpec: m.canvasSpec })),
           sessionId
         ).then((res) => {
@@ -755,7 +755,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                   Batas Penggunaan Zyra Tercapai
                 </div>
                 <p className="text-body-xs text-foreground/90 leading-relaxed">
-                  {errors[0].includes("DAILY_QUOTA_EXCEEDED") 
+                  {errors[0].includes("DAILY_QUOTA_EXCEEDED")
                     ? "Anda telah mencapai batas interaksi harian dengan Zyra. Zyra tersedia kembali besok."
                     : errors[0]}
                 </p>
@@ -818,7 +818,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                       {caps.canvas && msg.canvasSpec && !isStudent && (
                         <LearningCanvasRenderer spec={msg.canvasSpec} />
                       )}
-                      
+
                       {/* Citations and Verified Sources */}
                       {!isStudent && msg.sources && msg.sources.length > 0 && (
                         <div className="mt-2 pt-2.5 border-t border-border/50">
@@ -880,8 +880,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                 {/* Concept Socratic Buttons */}
                 {caps.microApps && activeMode === "explain" && activeAction === "none" && !chatLoading && (
                   <div className="grid grid-cols-2 gap-2 pt-2 self-start w-full">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="rounded-lg h-9 text-body-xs font-medium"
                       onClick={async () => {
                         setExplainMode("analogy");
@@ -893,7 +893,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                           if (res.success) {
                             const aiMsg: ChatMessage = { id: `ai-ana-${Date.now()}`, role: "ai", content: `### Analogi Konsep\n\n> &ldquo;${res.data.analogy}&rdquo;\n\n**Miskonsepsi Umum:**\n${res.data.commonMisconception}` };
                             setMessages((prev) => [...prev, aiMsg]);
-                            
+
                             const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
                             if (courseId) {
                               saveTutorMessagesAction(courseId, [
@@ -912,8 +912,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                       <Compass className="size-3.5 mr-1.5 text-brand-primary" />
                       Gunakan Analogi
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="rounded-lg h-9 text-body-xs font-medium"
                       onClick={async () => {
                         setExplainMode("simplification");
@@ -925,7 +925,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                           if (res.success) {
                             const aiMsg: ChatMessage = { id: `ai-simp-${Date.now()}`, role: "ai", content: `### Penjelasan Sederhana\n\n${res.data.simplification}\n\n**Miskonsepsi Umum:**\n${res.data.commonMisconception}` };
                             setMessages((prev) => [...prev, aiMsg]);
-                            
+
                             const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
                             if (courseId) {
                               saveTutorMessagesAction(courseId, [
@@ -954,15 +954,15 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                       Latihan Terintegrasi:
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <Button 
+                      <Button
                         className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 text-white text-body-xs"
                         onClick={() => handleLaunchFlashcards(koId)}
                       >
                         <Layers className="size-3.5 mr-1.5" />
                         Kartu Hafalan
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="rounded-lg text-body-xs"
                         onClick={() => handleLaunchPracticeQuiz(koId)}
                       >
@@ -986,7 +986,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                     ))}
                   </div>
                 )}
-                
+
                 <div ref={messagesEndRef} />
               </div>
             )}
@@ -1094,8 +1094,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                       Kartu Hafalan ({actionIndex + 1}/{actionData.length})
                     </span>
                   </div>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="xs"
                     className="h-7 text-body-xs"
                     onClick={() => setActiveAction("none")}
@@ -1105,19 +1105,19 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* Flip Card Deck */}
-                <div 
+                <div
                   onClick={() => setActionFlipped(!actionFlipped)}
                   className={cn(
                     "flex-1 min-h-[220px] max-h-[340px] border rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 shadow-md",
-                    actionFlipped 
-                      ? "bg-brand-primary/5 border-brand-primary/40 ring-1 ring-brand-primary/10" 
+                    actionFlipped
+                      ? "bg-brand-primary/5 border-brand-primary/40 ring-1 ring-brand-primary/10"
                       : "bg-card border-border hover:border-brand-primary/30"
                   )}
                 >
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest block mb-4 select-none">
                     {actionFlipped ? "KUNCI JAWABAN (BELAKANG)" : "PERTANYAAN (DEPAN)"}
                   </span>
-                  
+
                   <div className="text-body-base font-medium leading-relaxed font-sans max-w-sm text-foreground">
                     <MarkdownRenderer content={actionFlipped ? actionData[actionIndex].back : actionData[actionIndex].front} />
                   </div>
@@ -1130,8 +1130,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
               <div className="space-y-3 pt-4 border-t border-border">
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="flex-1 rounded-lg"
                     onClick={() => {
                       setActionFlipped(false);
@@ -1145,7 +1145,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                   >
                     Lupa / Salah
                   </Button>
-                  <Button 
+                  <Button
                     className="flex-1 rounded-lg bg-status-success hover:bg-status-success/90 text-white"
                     onClick={() => {
                       setActionFlipped(false);
@@ -1175,8 +1175,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                       Latihan Kuis ({actionIndex + 1}/{actionData.length})
                     </span>
                   </div>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="xs"
                     className="h-7 text-body-xs"
                     onClick={() => setActiveAction("none")}
@@ -1194,7 +1194,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                     {(actionData[actionIndex].options as string[]).map((opt, oIdx) => {
                       const isSelected = actionSelectedAnswer === oIdx;
                       const isCorrect = (actionData[actionIndex].correctIndices as number[]).includes(oIdx);
-                      
+
                       return (
                         <li key={oIdx}>
                           <button
@@ -1203,13 +1203,13 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                             onClick={() => setActionSelectedAnswer(oIdx)}
                             className={cn(
                               "flex w-full items-center gap-2.5 rounded-lg border p-3 text-left text-body-xs font-medium transition-colors cursor-pointer",
-                              actionQuizSubmitted 
-                                ? isCorrect 
+                              actionQuizSubmitted
+                                ? isCorrect
                                   ? "border-status-success bg-status-success/10 text-status-success font-bold"
-                                  : isSelected 
+                                  : isSelected
                                     ? "border-status-error bg-status-error/10 text-status-error"
                                     : "border-border/80 opacity-50"
-                                : isSelected 
+                                : isSelected
                                   ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
                                   : "border-border/80 bg-background hover:bg-muted/40"
                             )}
@@ -1253,7 +1253,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
                 <div className="flex gap-2">
                   {!actionQuizSubmitted ? (
-                    <Button 
+                    <Button
                       disabled={actionSelectedAnswer === null}
                       className="rounded-lg bg-foreground text-background font-semibold"
                       onClick={() => setActionQuizSubmitted(true)}

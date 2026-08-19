@@ -60,7 +60,7 @@ export function AuditLogDrawer({ open, onOpenChange, booking }: Props) {
                   <div key={log.id || idx} className="relative space-y-1">
                     {/* Timeline dot */}
                     <div className="absolute -left-[31px] top-1 size-3 rounded-full bg-brand-primary border-2 border-card" />
-                    
+
                     <p className="text-body-xs font-semibold text-foreground leading-snug">
                       {log.summary}
                     </p>

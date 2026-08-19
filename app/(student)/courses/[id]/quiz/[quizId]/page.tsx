@@ -151,7 +151,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     }
   }
 
-  const parsedRules = typeof template.selectionRules === "string" 
+  const parsedRules = typeof template.selectionRules === "string"
     ? (() => { try { return JSON.parse(template.selectionRules); } catch { return {}; } })()
     : (template.selectionRules as Record<string, any>) || {};
 
@@ -262,7 +262,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   // STATE A, B, C: Unified Discussion & Review
   // ───────────────────────────────────────────────────────────────────────────
   const completedAttempts = previousAttempts.filter((a) => a.status === "completed");
-  
+
   let targetAttempt = null;
   if (attemptId) {
     targetAttempt = previousAttempts.find((a) => a.id === attemptId);
@@ -358,7 +358,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
       sourceReferenceId?: string | null;
     }>) ?? [];
     const answers = (targetAttempt?.answersSnapshot as Record<string, number[]>) ?? {};
-    
+
     let unseenSnapshot: Array<{
       id: string;
       prompt: string;
@@ -372,13 +372,13 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     }> = [];
 
     if (isDiscussionOpen) {
-      const rules = typeof template.selectionRules === "string" 
-        ? JSON.parse(template.selectionRules) 
+      const rules = typeof template.selectionRules === "string"
+        ? JSON.parse(template.selectionRules)
         : template.selectionRules as Record<string, any>;
-        
+
       let selected: any[] = [];
       const fixedQuestionIds = rules?.fixedQuestionIds as string[] | undefined;
-      
+
       if (fixedQuestionIds && fixedQuestionIds.length > 0) {
         selected = await db.select().from(aiQuestionBank).where(
           and(
@@ -394,7 +394,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
           (tag) => sql`exists (select 1 from json_each(${aiQuestionBank.tags}) where json_each.value = ${tag})`
         );
         const tagCondition = tags.length > 0 ? or(...tagConditions) : undefined;
-        
+
         selected = await db.select().from(aiQuestionBank).where(
           and(
             eq(aiQuestionBank.courseId, template.courseId),
@@ -565,7 +565,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                           isCorrect ? "bg-status-success" : "bg-status-error"
                         )}
                       />
-                      
+
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-2.5">
                           <span className={cn(
@@ -773,7 +773,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   // ───────────────────────────────────────────────────────────────────────────
   // STATE D: Gateway Confirmation page (Default if no attemptId)
   // ───────────────────────────────────────────────────────────────────────────
-  const attemptsLeft = template.maxAttempts 
+  const attemptsLeft = template.maxAttempts
     ? Math.max(0, template.maxAttempts - completedAttempts.length)
     : null;
 
@@ -792,12 +792,12 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
     >
       <Reveal>
         <div className="grid grid-cols-1 gap-6 font-sans lg:grid-cols-12">
-          
+
           {/* Details Column */}
           <div className="space-y-5 lg:col-span-8">
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
               <h2 className="font-heading text-body-base font-bold text-foreground">Instruksi Kuis</h2>
-              
+
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 border-y border-border/60 py-4 text-center">
                 <div>
                   <span className="block text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Jumlah Soal</span>
@@ -805,14 +805,14 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
                     {((template.selectionRules as { count?: number })?.count ?? 10)} Soal
                   </span>
                 </div>
-                
+
                 <div>
                   <span className="block text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Durasi</span>
                   <span className="font-heading text-h6 font-bold text-foreground">
                     {template.timeLimitSeconds ? `${Math.round(template.timeLimitSeconds / 60)} menit` : "Tanpa batas"}
                   </span>
                 </div>
-                
+
                 <div className="col-span-2 sm:col-span-1">
                   <span className="block text-body-xs font-semibold text-muted-foreground uppercase tracking-wide">Sisa Percobaan</span>
                   <span className="font-heading text-h6 font-bold text-foreground">

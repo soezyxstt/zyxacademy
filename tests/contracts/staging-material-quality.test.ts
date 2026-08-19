@@ -22,6 +22,7 @@ function report(): Plan009QualityReport {
 describe("Plan 009 staging quality report contract", () => {
   it("resolves the default report path from the exact run ID", () => {
     expect(plan009ArtifactPath("20260803-plan009-article-v1", "C:\\workspace")).toBe("C:\\workspace\\artifacts\\staging-overhaul\\20260803-plan009-article-v1\\plan-009-result.json");
+    expect(plan009ArtifactPath("20260803-plan009-article-v1", "/workspace")).toBe("/workspace/artifacts/staging-overhaul/20260803-plan009-article-v1/plan-009-result.json");
   });
 
   it("passes only a complete 100 percent read-only report", () => {
