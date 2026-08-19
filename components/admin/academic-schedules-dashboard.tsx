@@ -16,6 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { AdminStatCard } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
@@ -210,15 +217,16 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* 1. KPI Cards Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="space-y-4">
+      {/* 1. Compact Minimal KPI Cards Strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         <AdminStatCard
           label="Total Tutorial"
           value={totalBookings}
           caption="Pemesanan kelompok"
           icon={Users}
           tone="brand"
+          size="sm"
         />
         <AdminStatCard
           label="Sesi Selesai"
@@ -226,6 +234,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
           caption="Telah terlaksana"
           icon={CheckCircle2}
           tone="success"
+          size="sm"
         />
         <AdminStatCard
           label="Tiket Pending"
@@ -233,6 +242,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
           caption="Permohonan reschedule"
           icon={MessageSquare}
           tone="warning"
+          size="sm"
         />
         <AdminStatCard
           label="Jadwal Akademik"
@@ -240,11 +250,12 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
           caption="Ujian ITB, Tryout, Kuis"
           icon={CalendarDays}
           tone="info"
+          size="sm"
         />
       </div>
 
       {/* 2. Top Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <AdminTabs value={activeTab} onValueChange={setActiveTab}>
           <AdminTabsList>
             <AdminTabsTrigger value="calendar">Master Kalender</AdminTabsTrigger>
@@ -260,19 +271,19 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
             size="sm"
             disabled={batchMeetLoading}
             onClick={handleBatchMeetAutomation}
-            className="rounded-lg gap-1.5 h-9 text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30"
+            className="rounded-lg gap-1.5 h-8 text-[11px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30"
             title="Generate Google Meet untuk semua sesi online yang terisi"
           >
-            <Bot className="size-4" />
+            <Bot className="size-3.5" />
             <span>{batchMeetLoading ? "Memproses..." : "Otomasi Google Meet"}</span>
           </Button>
 
           <Button
             size="sm"
             onClick={handleOpenCreate}
-            className="rounded-lg gap-1.5 h-9 bg-brand-primary text-white hover:bg-brand-primary/95"
+            className="rounded-lg gap-1.5 h-8 text-[11px] bg-brand-primary text-white hover:bg-brand-primary/95"
           >
-            <Plus className="size-4" />
+            <Plus className="size-3.5" />
             <span>Buat Jadwal Akademik</span>
           </Button>
         </div>
@@ -554,16 +565,20 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
               <label className="text-body-xs font-semibold text-foreground block">
                 Jenis Jadwal
               </label>
-              <select
+              <Select
                 value={formType}
-                onChange={(e: any) => setFormType(e.target.value)}
-                className="w-full h-10 rounded-lg border border-border bg-card px-3 text-body-sm"
+                onValueChange={(val: any) => setFormType(val)}
               >
-                <option value="official_exam">Ujian Resmi ITB</option>
-                <option value="tryout">Tryout</option>
-                <option value="quiz">Kuis</option>
-                <option value="general">Kegiatan Akademik Lainnya</option>
-              </select>
+                <SelectTrigger className="h-10 rounded-lg text-body-sm bg-card">
+                  <SelectValue placeholder="Pilih Jenis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="official_exam">Ujian Resmi ITB</SelectItem>
+                  <SelectItem value="tryout">Tryout</SelectItem>
+                  <SelectItem value="quiz">Kuis</SelectItem>
+                  <SelectItem value="general">Kegiatan Akademik Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
@@ -583,18 +598,22 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
               <label className="text-body-xs font-semibold text-foreground block">
                 Mata Kuliah (Opsional)
               </label>
-              <select
-                value={formCourseId}
-                onChange={(e) => setFormCourseId(e.target.value)}
-                className="w-full h-10 rounded-lg border border-border bg-card px-3 text-body-sm"
+              <Select
+                value={formCourseId || "all"}
+                onValueChange={(val) => setFormCourseId(val === "all" ? "" : val)}
               >
-                <option value="">-- Berlaku untuk Semua Mata Kuliah --</option>
-                {data.courses.map((c: any) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-10 rounded-lg text-body-sm bg-card">
+                  <SelectValue placeholder="Pilih Mata Kuliah" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">-- Berlaku untuk Semua Mata Kuliah --</SelectItem>
+                  {data.courses.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -681,16 +700,20 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
               <label className="text-body-xs font-semibold text-foreground block">
                 Jenis Jadwal
               </label>
-              <select
+              <Select
                 value={formType}
-                onChange={(e: any) => setFormType(e.target.value)}
-                className="w-full h-10 rounded-lg border border-border bg-card px-3 text-body-sm"
+                onValueChange={(val: any) => setFormType(val)}
               >
-                <option value="official_exam">Ujian Resmi ITB</option>
-                <option value="tryout">Tryout</option>
-                <option value="quiz">Kuis</option>
-                <option value="general">Kegiatan Akademik Lainnya</option>
-              </select>
+                <SelectTrigger className="h-10 rounded-lg text-body-sm bg-card">
+                  <SelectValue placeholder="Pilih Jenis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="official_exam">Ujian Resmi ITB</SelectItem>
+                  <SelectItem value="tryout">Tryout</SelectItem>
+                  <SelectItem value="quiz">Kuis</SelectItem>
+                  <SelectItem value="general">Kegiatan Akademik Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
@@ -709,18 +732,22 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
               <label className="text-body-xs font-semibold text-foreground block">
                 Mata Kuliah
               </label>
-              <select
-                value={formCourseId}
-                onChange={(e) => setFormCourseId(e.target.value)}
-                className="w-full h-10 rounded-lg border border-border bg-card px-3 text-body-sm"
+              <Select
+                value={formCourseId || "all"}
+                onValueChange={(val) => setFormCourseId(val === "all" ? "" : val)}
               >
-                <option value="">-- Berlaku untuk Semua Mata Kuliah --</option>
-                {data.courses.map((c: any) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-10 rounded-lg text-body-sm bg-card">
+                  <SelectValue placeholder="Pilih Mata Kuliah" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">-- Berlaku untuk Semua Mata Kuliah --</SelectItem>
+                  {data.courses.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

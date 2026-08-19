@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import {
   MessageSquare,
@@ -229,18 +236,21 @@ export function RescheduleTicketModal({
                       <label className="text-body-xs font-semibold text-foreground block">
                         Pilih Slot Tutor yang Luang
                       </label>
-                      <select
+                      <Select
                         value={proposedSlotId}
-                        onChange={(e) => setProposedSlotId(e.target.value)}
-                        className="w-full h-9 rounded-lg border border-border bg-card px-2.5 text-body-xs"
+                        onValueChange={setProposedSlotId}
                       >
-                        <option value="">-- Pilih Slot --</option>
-                        {tutorSlots.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.dayOfWeek} ({s.startTime} - {s.endTime})
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="h-9 rounded-lg text-body-xs bg-card">
+                          <SelectValue placeholder="Pilih Slot" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tutorSlots.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.dayOfWeek} ({s.startTime} - {s.endTime})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 )}

@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
-  CalendarDays,
   Clock,
   Video,
   MapPin,
-  Sparkles,
   CheckCircle2,
   FileText,
   FileQuestion,
@@ -17,59 +15,108 @@ import {
   MessageSquare,
   Lock,
   Plus,
+  Calendar as CalendarIcon,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatIsoDate } from "@/lib/date-utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { formatIsoDate, formatIsoDateUtc } from "@/lib/date-utils";
+import {
+  getJakartaNow,
+  type IndonesianDay,
+} from "@/lib/schedule-lock";
 
-// Distinct color palettes for tutors
+// Tutor distinct color styling
 const TUTOR_COLORS = [
   {
-    border: "border-indigo-300 dark:border-indigo-800",
-    bg: "bg-indigo-50/70 dark:bg-indigo-950/30",
-    badge: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300",
-    accent: "text-indigo-600 dark:text-indigo-400",
+    border: "border-indigo-400 dark:border-indigo-600",
+    bg: "bg-indigo-50/90 dark:bg-indigo-950/50 hover:bg-indigo-100/90 dark:hover:bg-indigo-900/60",
+    badge: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200",
+    accent: "bg-indigo-500 text-white",
+    bar: "bg-indigo-500",
+    text: "text-indigo-900 dark:text-indigo-200",
   },
   {
-    border: "border-emerald-300 dark:border-emerald-800",
-    bg: "bg-emerald-50/70 dark:bg-emerald-950/30",
-    badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300",
-    accent: "text-emerald-600 dark:text-emerald-400",
+    border: "border-emerald-400 dark:border-emerald-600",
+    bg: "bg-emerald-50/90 dark:bg-emerald-950/50 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/60",
+    badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200",
+    accent: "bg-emerald-500 text-white",
+    bar: "bg-emerald-500",
+    text: "text-emerald-900 dark:text-emerald-200",
   },
   {
-    border: "border-amber-300 dark:border-amber-800",
-    bg: "bg-amber-50/70 dark:bg-amber-950/30",
-    badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300",
-    accent: "text-amber-600 dark:text-amber-400",
+    border: "border-amber-400 dark:border-amber-600",
+    bg: "bg-amber-50/90 dark:bg-amber-950/50 hover:bg-amber-100/90 dark:hover:bg-amber-900/60",
+    badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200",
+    accent: "bg-amber-500 text-white",
+    bar: "bg-amber-500",
+    text: "text-amber-900 dark:text-amber-200",
   },
   {
-    border: "border-rose-300 dark:border-rose-800",
-    bg: "bg-rose-50/70 dark:bg-rose-950/30",
-    badge: "bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300",
-    accent: "text-rose-600 dark:text-rose-400",
+    border: "border-rose-400 dark:border-rose-600",
+    bg: "bg-rose-50/90 dark:bg-rose-950/50 hover:bg-rose-100/90 dark:hover:bg-rose-900/60",
+    badge: "bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200",
+    accent: "bg-rose-500 text-white",
+    bar: "bg-rose-500",
+    text: "text-rose-900 dark:text-rose-200",
   },
   {
-    border: "border-violet-300 dark:border-violet-800",
-    bg: "bg-violet-50/70 dark:bg-violet-950/30",
-    badge: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-300",
-    accent: "text-violet-600 dark:text-violet-400",
+    border: "border-violet-400 dark:border-violet-600",
+    bg: "bg-violet-50/90 dark:bg-violet-950/50 hover:bg-violet-100/90 dark:hover:bg-violet-900/60",
+    badge: "bg-violet-100 text-violet-800 dark:bg-violet-900/60 dark:text-violet-200",
+    accent: "bg-violet-500 text-white",
+    bar: "bg-violet-500",
+    text: "text-violet-900 dark:text-violet-200",
   },
   {
-    border: "border-cyan-300 dark:border-cyan-800",
-    bg: "bg-cyan-50/70 dark:bg-cyan-950/30",
-    badge: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300",
-    accent: "text-cyan-600 dark:text-cyan-400",
+    border: "border-cyan-400 dark:border-cyan-600",
+    bg: "bg-cyan-50/90 dark:bg-cyan-950/50 hover:bg-cyan-100/90 dark:hover:bg-cyan-900/60",
+    badge: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/60 dark:text-cyan-200",
+    accent: "bg-cyan-500 text-white",
+    bar: "bg-cyan-500",
+    text: "text-cyan-900 dark:text-cyan-200",
   },
 ];
 
 export function getTutorColorStyle(tutorId: string) {
   let hash = 0;
-  for (let i = 0; i < tutorId.length; i++) {
-    hash = tutorId.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < (tutorId || "default").length; i++) {
+    hash = (tutorId || "default").charCodeAt(i) + ((hash << 5) - hash);
   }
   const index = Math.abs(hash) % TUTOR_COLORS.length;
   return TUTOR_COLORS[index];
 }
+
+// Operating Hours for Google Calendar grid (07:00 to 22:00 WIB)
+const START_HOUR = 7;
+const END_HOUR = 22;
+const HOURS_COUNT = END_HOUR - START_HOUR;
+const HOUR_HEIGHT = 56; // 56px per hour row => 90 min slot = 84px
+
+const HOURS = Array.from({ length: HOURS_COUNT }, (_, i) => START_HOUR + i);
+
+const DAY_NAMES_ID: IndonesianDay[] = [
+  "Senin",
+  "Selasa",
+  "Rabu",
+  "Kamis",
+  "Jumat",
+  "Sabtu",
+  "Minggu",
+];
 
 export type ScheduleCalendarProps = {
   role: "student" | "teacher" | "admin";
@@ -103,6 +150,64 @@ export type ScheduleCalendarProps = {
   onOpenAuditLog?: (booking: any) => void;
 };
 
+// Helper: parse "09:00" or "09:30" to minutes from midnight
+function timeToMinutes(timeStr?: string): number {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+// Helper: get month calendar days grid (7 cols x 4-6 rows)
+function getMonthCalendarDays(year: number, month: number) {
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+
+  // Day of week for 1st (0 = Sun, 1 = Mon ... 6 = Sat)
+  const firstDayWeekday = firstDayOfMonth.getDay();
+  // We start week on Monday (1). If Sunday (0), it is 7th day
+  const prefixDays = firstDayWeekday === 0 ? 6 : firstDayWeekday - 1;
+
+  const startDate = new Date(firstDayOfMonth);
+  startDate.setDate(startDate.getDate() - prefixDays);
+
+  const days: Array<{
+    date: Date;
+    dateIso: string;
+    dayOfMonth: number;
+    isCurrentMonth: boolean;
+    isToday: boolean;
+    dayName: IndonesianDay;
+  }> = [];
+
+  const nowJakarta = getJakartaNow();
+  const todayIso = formatIsoDateUtc(nowJakarta);
+
+  // Generate 35 or 42 days grid
+  const totalDays = prefixDays + lastDayOfMonth.getDate() > 35 ? 42 : 35;
+
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    const dateIso = formatIsoDateUtc(d);
+    const dayOfWeekIndex = d.getDay();
+    const dayName =
+      dayOfWeekIndex === 0
+        ? "Minggu"
+        : DAY_NAMES_ID[dayOfWeekIndex - 1] || "Senin";
+
+    days.push({
+      date: d,
+      dateIso,
+      dayOfMonth: d.getDate(),
+      isCurrentMonth: d.getMonth() === month,
+      isToday: dateIso === todayIso,
+      dayName,
+    });
+  }
+
+  return days;
+}
+
 export function ScheduleCalendarView({
   role,
   currentUserId: _currentUserId,
@@ -122,10 +227,13 @@ export function ScheduleCalendarView({
   onOpenRescheduleTicket,
   onOpenAuditLog,
 }: ScheduleCalendarProps) {
-  // Mobile active day
-  const [activeMobileDay, setActiveMobileDay] = useState(
-    weekInfo.days.find((d) => d.isToday)?.dayName || "Senin"
-  );
+  // View Modes: "month" | "week" | "day"
+  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("week");
+
+  // Active anchor date for Day / Month views
+  const [activeDate, setActiveDate] = useState<Date>(() => {
+    return getJakartaNow();
+  });
 
   // Filters
   const [selectedCourseFilter, setSelectedCourseFilter] = useState("all");
@@ -133,10 +241,30 @@ export function ScheduleCalendarView({
   const [selectedGroupFilter, setSelectedGroupFilter] = useState("all");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState("all");
 
-  // Filtered academic schedules
+  const gridScrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to 08:00 on mount for time grid
+  useEffect(() => {
+    if (gridScrollRef.current) {
+      gridScrollRef.current.scrollTop = HOUR_HEIGHT * 1; // scroll to 08:00
+    }
+  }, [viewMode]);
+
+  // Current time line calculation
+  const nowJakarta = getJakartaNow();
+  const nowMinutes = nowJakarta.getHours() * 60 + nowJakarta.getMinutes();
+  const nowTopPosition =
+    ((nowMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+  const todayIso = formatIsoDateUtc(nowJakarta);
+
+  // Filtered Academic Schedules (Exams, Tryouts, Quizzes)
   const filteredAcademicSchedules = useMemo(() => {
     return academicSchedules.filter((sched) => {
-      if (selectedCourseFilter !== "all" && sched.courseId && sched.courseId !== selectedCourseFilter) {
+      if (
+        selectedCourseFilter !== "all" &&
+        sched.courseId &&
+        sched.courseId !== selectedCourseFilter
+      ) {
         return false;
       }
       if (selectedTypeFilter !== "all" && sched.type !== selectedTypeFilter) {
@@ -146,440 +274,1049 @@ export function ScheduleCalendarView({
     });
   }, [academicSchedules, selectedCourseFilter, selectedTypeFilter]);
 
+  // Filtered Bookings
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((b) => {
+      if (
+        selectedCourseFilter !== "all" &&
+        b.courseId !== selectedCourseFilter
+      ) {
+        return false;
+      }
+      if (selectedGroupFilter !== "all" && b.groupId !== selectedGroupFilter) {
+        return false;
+      }
+      if (
+        selectedTutorFilter !== "all" &&
+        b.slot?.tutorId !== selectedTutorFilter
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [bookings, selectedCourseFilter, selectedGroupFilter, selectedTutorFilter]);
+
+  // Filtered Slots
+  const filteredSlots = useMemo(() => {
+    return slots.filter((s) => {
+      if (
+        selectedTutorFilter !== "all" &&
+        s.tutorId !== selectedTutorFilter
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [slots, selectedTutorFilter]);
+
+  // Navigation handlers
+  const handlePrev = () => {
+    if (viewMode === "day") {
+      const nextD = new Date(activeDate);
+      nextD.setDate(nextD.getDate() - 1);
+      setActiveDate(nextD);
+    } else if (viewMode === "week") {
+      onWeekChange(weekOffset - 1);
+    } else if (viewMode === "month") {
+      const nextD = new Date(activeDate);
+      nextD.setMonth(nextD.getMonth() - 1);
+      setActiveDate(nextD);
+    }
+  };
+
+  const handleNext = () => {
+    if (viewMode === "day") {
+      const nextD = new Date(activeDate);
+      nextD.setDate(nextD.getDate() + 1);
+      setActiveDate(nextD);
+    } else if (viewMode === "week") {
+      onWeekChange(weekOffset + 1);
+    } else if (viewMode === "month") {
+      const nextD = new Date(activeDate);
+      nextD.setMonth(nextD.getMonth() + 1);
+      setActiveDate(nextD);
+    }
+  };
+
+  const handleToday = () => {
+    const now = getJakartaNow();
+    setActiveDate(now);
+    if (weekOffset !== 0) {
+      onWeekChange(0);
+    }
+  };
+
+  // Header Date Range Label
+  const headerDateLabel = useMemo(() => {
+    if (viewMode === "day") {
+      return activeDate.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    }
+    if (viewMode === "month") {
+      return activeDate.toLocaleDateString("id-ID", {
+        month: "long",
+        year: "numeric",
+      });
+    }
+    // Week mode
+    const first = weekInfo.days[0];
+    const last = weekInfo.days[6];
+    return `${first.dayOfMonth} ${first.monthName} – ${last.dayOfMonth} ${last.monthName}`;
+  }, [viewMode, activeDate, weekInfo]);
+
+  // Day View specific day object
+  const activeDayIso = formatIsoDateUtc(activeDate);
+  const activeDayOfWeekIndex = activeDate.getDay();
+  const activeDayName =
+    activeDayOfWeekIndex === 0
+      ? "Minggu"
+      : DAY_NAMES_ID[activeDayOfWeekIndex - 1] || "Senin";
+
+  // Month View Days
+  const monthDays = useMemo(() => {
+    return getMonthCalendarDays(
+      activeDate.getFullYear(),
+      activeDate.getMonth()
+    );
+  }, [activeDate]);
+
   return (
-    <div className="space-y-4">
-      {/* 1. Header Navigation Bar (Week Switcher & Multi-Filters) */}
-      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between bg-card p-4 rounded-2xl border border-border shadow-sm">
-        {/* Week Switcher */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => onWeekChange(weekOffset - 1)}
-            className="h-9 w-9 p-0 rounded-lg"
-            title="Minggu Sebelumnya"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
+    <TooltipProvider delayDuration={150}>
+      <div className="space-y-3 font-sans">
+        {/* 1. SINGLE-ROW COMPACT TOOLBAR (G-Calendar Style) */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 rounded-xl border border-border bg-card shadow-xs">
+          {/* Left: View Switcher & Navigation */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* View Mode Toggle */}
+            <div className="flex items-center p-0.5 rounded-lg bg-muted/60 border border-border/80">
+              <button
+                type="button"
+                onClick={() => setViewMode("day")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  viewMode === "day"
+                    ? "bg-card text-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Hari
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("week")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  viewMode === "week"
+                    ? "bg-card text-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Minggu
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("month")}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  viewMode === "month"
+                    ? "bg-card text-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Bulan
+              </button>
+            </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/20">
-            <CalendarDays className="size-4 text-brand-primary shrink-0" />
-            <span className="text-body-xs font-semibold text-foreground whitespace-nowrap">
-              {weekInfo.days[0].dayOfMonth} {weekInfo.days[0].monthName} –{" "}
-              {weekInfo.days[6].dayOfMonth} {weekInfo.days[6].monthName}
-            </span>
-          </div>
+            <div className="h-4 w-px bg-border mx-0.5" />
 
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => onWeekChange(weekOffset + 1)}
-            className="h-9 w-9 p-0 rounded-lg"
-            title="Minggu Berikutnya"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-
-          {weekOffset !== 0 && (
+            {/* Today Button */}
             <Button
-              variant="ghost"
+              variant="outline"
               size="xs"
-              onClick={() => onWeekChange(0)}
-              className="h-9 rounded-lg text-body-xs font-semibold text-brand-primary"
+              onClick={handleToday}
+              className="h-8 px-2.5 rounded-lg text-body-xs font-semibold text-foreground hover:bg-muted"
             >
-              Minggu Ini
+              Hari Ini
             </Button>
-          )}
 
-          {isWeekLocked && (
-            <Badge variant="outline" className="text-[10px] uppercase font-bold text-amber-600 bg-amber-500/10 border-amber-500/30 gap-1">
-              <Lock className="size-3" />
-              Terkunci
-            </Badge>
-          )}
-        </div>
+            {/* Prev & Next Arrows */}
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={handlePrev}
+                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                aria-label="Sebelumnya"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={handleNext}
+                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                aria-label="Berikutnya"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
 
-        {/* Multi-Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Course Filter */}
-          <select
-            value={selectedCourseFilter}
-            onChange={(e) => setSelectedCourseFilter(e.target.value)}
-            className="h-9 rounded-lg border border-border bg-card px-2.5 text-body-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-brand-primary max-w-[170px] truncate"
-          >
-            <option value="all">Semua Mata Kuliah</option>
-            {coursesList.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.title}
-              </option>
-            ))}
-          </select>
+            {/* Date Range Text */}
+            <div className="flex items-center gap-1.5 px-2 py-1">
+              <CalendarIcon className="size-3.5 text-brand-primary shrink-0" />
+              <span className="text-body-xs font-bold text-foreground capitalize whitespace-nowrap">
+                {headerDateLabel}
+              </span>
+            </div>
 
-          {/* Tutor Filter (for Student & Admin) */}
-          {(role === "student" || role === "admin") && tutorsList.length > 0 && (
-            <select
-              value={selectedTutorFilter}
-              onChange={(e) => setSelectedTutorFilter(e.target.value)}
-              className="h-9 rounded-lg border border-border bg-card px-2.5 text-body-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-brand-primary max-w-[160px] truncate"
-            >
-              <option value="all">Semua Tutor</option>
-              {tutorsList.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Group Filter (for Tutor & Admin) */}
-          {(role === "teacher" || role === "admin") && groupsList.length > 0 && (
-            <select
-              value={selectedGroupFilter}
-              onChange={(e) => setSelectedGroupFilter(e.target.value)}
-              className="h-9 rounded-lg border border-border bg-card px-2.5 text-body-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-brand-primary max-w-[160px] truncate"
-            >
-              <option value="all">Semua Kelompok</option>
-              {groupsList.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Schedule Type Filter */}
-          {role === "admin" && (
-            <select
-              value={selectedTypeFilter}
-              onChange={(e) => setSelectedTypeFilter(e.target.value)}
-              className="h-9 rounded-lg border border-border bg-card px-2.5 text-body-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-brand-primary"
-            >
-              <option value="all">Semua Jenis Jadwal</option>
-              <option value="official_exam">Ujian Resmi ITB</option>
-              <option value="tryout">Tryout</option>
-              <option value="quiz">Kuis</option>
-            </select>
-          )}
-        </div>
-      </div>
-
-      {/* 2. Global Academic Events Strip (Ujian Resmi ITB / Tryouts / Quizzes) */}
-      {filteredAcademicSchedules.length > 0 && (
-        <div className="rounded-xl border border-border bg-muted/15 p-3 space-y-2">
-          <div className="flex items-center gap-2 text-body-xs font-bold text-foreground">
-            <Sparkles className="size-3.5 text-brand-primary" />
-            <span>Jadwal Akademik & Evaluasi</span>
+            {/* Lock Status (Icon + Accessible Tooltip) */}
+            {isWeekLocked && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center justify-center size-7 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-help ml-1">
+                    <Lock className="size-3.5" />
+                    <span className="sr-only">Jadwal Minggu Ini Terkunci</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-[11px]">
+                  Jadwal minggu ini telah dikunci (Sabtu 23:59 WIB). Perubahan jadwal wajib melalui tiket reschedule.
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-            {filteredAcademicSchedules.map((sched) => {
-              const typeLabel =
-                sched.type === "official_exam"
-                  ? "Ujian Resmi ITB"
-                  : sched.type === "tryout"
-                  ? "Tryout"
-                  : "Kuis";
 
-              return (
-                <div
-                  key={sched.id}
-                  className="p-2.5 rounded-lg border border-border bg-card text-body-xs space-y-1 shadow-xs"
+          {/* Right: Compact Multi-Filters (Using Shadcn Select) */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Course Filter */}
+            <div className="w-[150px] sm:w-[165px]">
+              <Select
+                value={selectedCourseFilter}
+                onValueChange={setSelectedCourseFilter}
+              >
+                <SelectTrigger className="h-8 text-[11px] rounded-lg bg-card">
+                  <SelectValue placeholder="Mata Kuliah" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+                  {coursesList.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Tutor Filter */}
+            {(role === "student" || role === "admin") && tutorsList.length > 0 && (
+              <div className="w-[130px] sm:w-[145px]">
+                <Select
+                  value={selectedTutorFilter}
+                  onValueChange={setSelectedTutorFilter}
                 >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-bold text-foreground truncate">{sched.title}</span>
-                    <Badge variant="outline" className="text-[9px] uppercase shrink-0">
-                      {typeLabel}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
-                    <Clock className="size-3 shrink-0" />
-                    <span>{formatIsoDate(new Date(sched.startDate))}</span>
-                    {sched.location && <span>• {sched.location}</span>}
-                  </div>
-                </div>
-              );
-            })}
+                  <SelectTrigger className="h-8 text-[11px] rounded-lg bg-card">
+                    <SelectValue placeholder="Tutor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Tutor</SelectItem>
+                    {tutorsList.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Group Filter */}
+            {(role === "teacher" || role === "admin") && groupsList.length > 0 && (
+              <div className="w-[135px] sm:w-[150px]">
+                <Select
+                  value={selectedGroupFilter}
+                  onValueChange={setSelectedGroupFilter}
+                >
+                  <SelectTrigger className="h-8 text-[11px] rounded-lg bg-card">
+                    <SelectValue placeholder="Kelompok" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Kelompok</SelectItem>
+                    {groupsList.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Schedule Type Filter (for Admin) */}
+            {role === "admin" && (
+              <div className="w-[135px] sm:w-[145px]">
+                <Select
+                  value={selectedTypeFilter}
+                  onValueChange={setSelectedTypeFilter}
+                >
+                  <SelectTrigger className="h-8 text-[11px] rounded-lg bg-card">
+                    <SelectValue placeholder="Jenis Jadwal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Jenis</SelectItem>
+                    <SelectItem value="official_exam">Ujian ITB</SelectItem>
+                    <SelectItem value="tryout">Tryout</SelectItem>
+                    <SelectItem value="quiz">Kuis</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      {/* 3. Mobile Day Tabs (visible only on mobile) */}
-      <div className="flex md:hidden items-center gap-1.5 overflow-x-auto pb-1">
-        {weekInfo.days.map((d) => (
-          <button
-            key={d.dateIso}
-            type="button"
-            onClick={() => setActiveMobileDay(d.dayName)}
-            className={`flex flex-col items-center justify-center px-3 py-1.5 rounded-lg border text-center transition-all ${
-              activeMobileDay === d.dayName
-                ? "border-brand-primary bg-brand-primary text-white font-bold"
-                : "border-border bg-card text-muted-foreground"
-            }`}
-          >
-            <span className="text-[10px] uppercase font-semibold">{d.dayName}</span>
-            <span className="text-body-xs font-bold">{d.dayOfMonth}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* 4. Desktop 7-Day Calendar Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-        {weekInfo.days.map((day) => {
-          // On mobile, show only active mobile day
-          const isMobileVisible = activeMobileDay === day.dayName;
-
-          // Find slots on this day
-          const daySlots = slots.filter((s) => {
-            if (s.dayOfWeek !== day.dayName) return false;
-            if (selectedTutorFilter !== "all" && s.tutorId !== selectedTutorFilter) return false;
-            return true;
-          });
-
-          // Find bookings for this day
-          const dayBookings = bookings.filter((b) => {
-            if (b.sessionDate && b.sessionDate !== day.dateIso) return false;
-            if (!b.sessionDate && b.slot?.dayOfWeek !== day.dayName) return false;
-            if (selectedCourseFilter !== "all" && b.courseId !== selectedCourseFilter) return false;
-            if (selectedGroupFilter !== "all" && b.groupId !== selectedGroupFilter) return false;
-            if (selectedTutorFilter !== "all" && b.slot?.tutorId !== selectedTutorFilter) return false;
-            return true;
-          });
-
-          return (
-            <div
-              key={day.dateIso}
-              className={`flex flex-col rounded-2xl border ${
-                day.isToday
-                  ? "border-brand-primary/60 bg-brand-primary/5"
-                  : "border-border bg-card"
-              } p-3 min-h-[380px] shadow-sm ${
-                isMobileVisible ? "flex" : "hidden md:flex"
-              }`}
-            >
-              {/* Day Header */}
-              <div className="flex items-center justify-between border-b border-border/70 pb-2 mb-3">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="font-heading text-body-sm font-bold text-foreground">
-                    {day.dayName}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {day.dayOfMonth} {day.monthName}
-                  </span>
-                </div>
-                {day.isToday && (
-                  <span className="text-[9px] font-bold uppercase tracking-wider bg-brand-primary text-white px-1.5 py-0.5 rounded">
-                    Hari Ini
-                  </span>
-                )}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 1: GOOGLE CALENDAR 7-DAY WEEKLY TIME GRID                     */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {viewMode === "week" && (
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+            {/* Top All-Day / Academic Events Row Header */}
+            <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] border-b border-border/80 bg-muted/20">
+              {/* Timezone corner label */}
+              <div className="p-2 text-center text-[10px] font-semibold text-muted-foreground border-r border-border/60 flex flex-col justify-center">
+                <span>WIB</span>
+                <span className="text-[8px] text-muted-foreground/80">GMT+7</span>
               </div>
 
-              {/* Day Cards Column */}
-              <div className="flex-1 space-y-2.5 overflow-y-auto">
-                {/* 1. Render Booked Sessions */}
-                {dayBookings.map((b) => {
-                  const tutorStyle = getTutorColorStyle(b.slot?.tutorId || b.studentId);
-                  const isCompleted = b.status === "completed";
-                  const isCancelled = b.status === "cancelled";
-                  const hasQuestions = b.preSessionAttachments && b.preSessionAttachments.length > 0;
-                  const hasTopic = Boolean(b.topic);
+              {/* 7 Day Column Headers */}
+              {weekInfo.days.map((day) => {
+                // Find academic schedules on this day
+                const dayAcademic = filteredAcademicSchedules.filter((sched) => {
+                  if (!sched.startDate) return false;
+                  const schedIso = formatIsoDate(new Date(sched.startDate));
+                  return schedIso === day.dateIso;
+                });
+
+                return (
+                  <div
+                    key={day.dateIso}
+                    className={`p-2 border-r border-border/60 text-center flex flex-col justify-between ${
+                      day.isToday ? "bg-brand-primary/5" : ""
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
+                        {day.dayName.slice(0, 3)}
+                      </span>
+                      <span
+                        className={`inline-flex items-center justify-center size-6 text-body-xs font-bold rounded-full my-0.5 ${
+                          day.isToday
+                            ? "bg-brand-primary text-white"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {day.dayOfMonth}
+                      </span>
+                    </div>
+
+                    {/* Academic Event Chips (All-Day banner) */}
+                    {dayAcademic.length > 0 && (
+                      <div className="space-y-1 mt-1 text-left">
+                        {dayAcademic.map((sched) => (
+                          <div
+                            key={sched.id}
+                            className="px-1.5 py-0.5 rounded text-[9px] font-bold truncate bg-brand-primary/15 text-brand-primary border border-brand-primary/30 flex items-center gap-1"
+                            title={`${sched.title} (${sched.type})`}
+                          >
+                            <Sparkles className="size-2.5 shrink-0" />
+                            <span className="truncate">{sched.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Scrollable Hourly Time Grid */}
+            <div
+              ref={gridScrollRef}
+              className="relative max-h-[620px] overflow-y-auto overflow-x-hidden"
+              style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
+            >
+              <div
+                className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] relative"
+                style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
+              >
+                {/* 1. Left Time Axis */}
+                <div className="border-r border-border/60 bg-muted/10 select-none">
+                  {HOURS.map((hour) => (
+                    <div
+                      key={hour}
+                      style={{ height: `${HOUR_HEIGHT}px` }}
+                      className="border-b border-border/30 px-1 pt-1 text-right text-[10px] font-semibold text-muted-foreground"
+                    >
+                      {String(hour).padStart(2, "0")}:00
+                    </div>
+                  ))}
+                </div>
+
+                {/* 2. 7 Day Columns with Time Grid Lines & Event Blocks */}
+                {weekInfo.days.map((day) => {
+                  const daySlots = filteredSlots.filter(
+                    (s) => s.dayOfWeek === day.dayName
+                  );
+
+                  const dayBookings = filteredBookings.filter((b) => {
+                    if (b.sessionDate && b.sessionDate !== day.dateIso) return false;
+                    if (!b.sessionDate && b.slot?.dayOfWeek !== day.dayName) return false;
+                    return true;
+                  });
 
                   return (
                     <div
-                      key={b.id}
-                      className={`p-3 rounded-xl border ${tutorStyle.border} ${tutorStyle.bg} space-y-2 text-body-xs shadow-xs transition-all hover:shadow-sm`}
+                      key={day.dateIso}
+                      className={`relative border-r border-border/60 ${
+                        day.isToday ? "bg-brand-primary/[0.02]" : ""
+                      }`}
                     >
-                      {/* Top Row: Course & Status */}
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="min-w-0">
-                          <span className="font-bold text-foreground block truncate">
-                            {b.course?.title || "Tutorial"}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground truncate block">
-                            {b.slot?.tutor?.name || "Tutor"} • {b.group?.name || "Kelompok"}
-                          </span>
-                        </div>
-                        {isCompleted ? (
-                          <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 shrink-0">
-                            Selesai
-                          </Badge>
-                        ) : isCancelled ? (
-                          <Badge variant="outline" className="text-[9px] bg-red-500/10 text-red-600 border-red-500/30 shrink-0">
-                            Batal
-                          </Badge>
-                        ) : (
-                          <Badge variant="default" className="text-[9px] bg-brand-primary text-white shrink-0">
-                            Terjadwal
-                          </Badge>
-                        )}
-                      </div>
+                      {/* Horizontal Grid lines */}
+                      {HOURS.map((hour) => (
+                        <div
+                          key={hour}
+                          style={{ height: `${HOUR_HEIGHT}px` }}
+                          className="border-b border-border/30 w-full"
+                        />
+                      ))}
 
-                      {/* Time & Mode */}
-                      <div className="flex items-center justify-between text-[11px] text-foreground font-medium">
-                        <div className="flex items-center gap-1">
-                          <Clock className="size-3 text-muted-foreground shrink-0" />
-                          <span>
-                            {b.startTime || b.slot?.startTime} - {b.endTime || b.slot?.endTime}
-                          </span>
-                        </div>
-
-                        {b.mode === "online" || b.slot?.mode === "online" ? (
-                          <span className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-semibold">
-                            <Video className="size-3" />
-                            Online
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-semibold truncate max-w-[90px]" title={b.location || b.slot?.location || "Offline"}>
-                            <MapPin className="size-3 shrink-0" />
-                            {b.location || b.slot?.location || "Offline"}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Google Meet Link if available */}
-                      {b.googleMeetUrl && !isCompleted && !isCancelled && (
-                        <a
-                          href={b.googleMeetUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-1.5 w-full py-1.5 px-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-[11px] font-semibold transition-colors shadow-xs"
-                        >
-                          <Video className="size-3.5" />
-                          <span>Buka Google Meet</span>
-                          <ExternalLink className="size-3" />
-                        </a>
-                      )}
-
-                      {/* Topic & Questions Indicator */}
-                      {(hasTopic || hasQuestions) && (
-                        <div className="p-1.5 rounded-md bg-card/80 border border-border/60 text-[10px] space-y-0.5">
-                          {hasTopic && (
-                            <p className="font-medium text-foreground truncate">
-                              💬 {b.topic}
-                            </p>
-                          )}
-                          {hasQuestions && (
-                            <p className="text-brand-primary font-semibold flex items-center gap-1">
-                              <FileQuestion className="size-3" />
-                              {b.preSessionAttachments.length} Soal Diunggah
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Last Modified Banner */}
-                      {b.lastModifier && (
-                        <div className="text-[10px] text-muted-foreground border-t border-border/40 pt-1 leading-tight">
-                          Diubah: <strong className="text-foreground">{b.lastModifier.name}</strong>
-                          {b.lastModifiedAt && (
-                            <span> • {formatIsoDate(new Date(b.lastModifiedAt))}</span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Action Buttons Row */}
-                      <div className="flex items-center justify-between gap-1 pt-1 border-t border-border/40">
-                        {/* Student Actions */}
-                        {role === "student" && !isCompleted && !isCancelled && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              onClick={() => onOpenPreSession && onOpenPreSession(b)}
-                              className="h-7 px-2 text-[10px] rounded gap-1 text-foreground hover:bg-card"
-                              title="Unggah Topik / Soal"
-                            >
-                              <FileText className="size-3" />
-                              <span>Materi</span>
-                            </Button>
-
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              onClick={() => onOpenRescheduleTicket && onOpenRescheduleTicket(b)}
-                              className="h-7 px-2 text-[10px] rounded gap-1 text-foreground hover:bg-card"
-                              title="Reschedule / Batal"
-                            >
-                              <MessageSquare className="size-3" />
-                              <span>Reschedule</span>
-                            </Button>
-                          </>
-                        )}
-
-                        {/* Tutor Actions */}
-                        {role === "teacher" && !isCompleted && !isCancelled && (
-                          <Button
-                            variant="default"
-                            size="xs"
-                            onClick={() => onOpenPostSession && onOpenPostSession(b)}
-                            className="h-7 w-full text-[10px] rounded bg-brand-primary text-white gap-1"
+                      {/* Current Time Line if Today */}
+                      {day.isToday &&
+                        nowMinutes >= START_HOUR * 60 &&
+                        nowMinutes <= END_HOUR * 60 && (
+                          <div
+                            className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
+                            style={{ top: `${nowTopPosition}px` }}
                           >
-                            <CheckCircle2 className="size-3" />
-                            <span>Selesaikan Sesi</span>
-                          </Button>
+                            <div className="size-2 rounded-full bg-red-500 -ml-1 ring-2 ring-white dark:ring-background" />
+                            <div className="h-[2px] w-full bg-red-500" />
+                          </div>
                         )}
 
-                        {/* Audit Trail Button */}
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => onOpenAuditLog && onOpenAuditLog(b)}
-                          className="h-7 px-1.5 text-muted-foreground hover:text-foreground rounded"
-                          title="Riwayat Aktivitas"
-                        >
-                          <History className="size-3" />
-                        </Button>
-                      </div>
+                      {/* Render Booked Sessions (Google Calendar Block Style) */}
+                      {dayBookings.map((b) => {
+                        const startTimeStr = b.startTime || b.slot?.startTime || "09:00";
+                        const endTimeStr = b.endTime || b.slot?.endTime || "10:30";
+                        const startMin = timeToMinutes(startTimeStr);
+                        const endMin = timeToMinutes(endTimeStr);
+                        const duration = Math.max(30, endMin - startMin);
+
+                        const top =
+                          ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                        const height = (duration / 60) * HOUR_HEIGHT - 2;
+
+                        const tutorStyle = getTutorColorStyle(
+                          b.slot?.tutorId || b.studentId
+                        );
+                        const isCompleted = b.status === "completed";
+                        const isCancelled = b.status === "cancelled";
+                        const hasQuestions =
+                          b.preSessionAttachments &&
+                          b.preSessionAttachments.length > 0;
+
+                        return (
+                          <div
+                            key={b.id}
+                            style={{
+                              top: `${Math.max(0, top)}px`,
+                              height: `${Math.max(32, height)}px`,
+                            }}
+                            className={`absolute left-0.5 right-0.5 z-20 rounded-md border ${tutorStyle.border} ${tutorStyle.bg} p-1.5 flex flex-col justify-between overflow-hidden shadow-xs transition-all hover:z-30 hover:shadow-md`}
+                          >
+                            {/* Left solid color accent bar */}
+                            <div
+                              className={`absolute left-0 top-0 bottom-0 w-1 ${tutorStyle.bar}`}
+                            />
+
+                            {/* Header row: Course Title & Time */}
+                            <div className="pl-1.5 min-w-0">
+                              <div className="flex items-start justify-between gap-1 leading-tight">
+                                <span className="text-[11px] font-bold text-foreground truncate block">
+                                  {b.course?.title || "Tutorial"}
+                                </span>
+                                {isCompleted ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[8px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 px-1 py-0"
+                                  >
+                                    Selesai
+                                  </Badge>
+                                ) : isCancelled ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[8px] bg-red-500/10 text-red-600 border-red-500/30 px-1 py-0"
+                                  >
+                                    Batal
+                                  </Badge>
+                                ) : null}
+                              </div>
+
+                              <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5">
+                                <Clock className="size-2.5 shrink-0" />
+                                <span>
+                                  {startTimeStr} - {endTimeStr}
+                                </span>
+                                <span>•</span>
+                                <span>{b.slot?.tutor?.name || "Tutor"}</span>
+                              </div>
+                            </div>
+
+                            {/* Mode badge & Indicators */}
+                            <div className="pl-1.5 flex items-center justify-between gap-1 mt-1">
+                              <div className="flex items-center gap-1 truncate">
+                                {b.mode === "online" || b.slot?.mode === "online" ? (
+                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-blue-600 dark:text-blue-400">
+                                    <Video className="size-2.5" />
+                                    Online
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate max-w-[80px]"
+                                    title={b.location || b.slot?.location || "Offline"}
+                                  >
+                                    <MapPin className="size-2.5 shrink-0" />
+                                    {b.location || b.slot?.location || "Offline"}
+                                  </span>
+                                )}
+
+                                {hasQuestions && (
+                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-brand-primary">
+                                    <FileQuestion className="size-2.5" />
+                                    {b.preSessionAttachments.length}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Google Meet 1-click button if available */}
+                              {b.googleMeetUrl && !isCompleted && !isCancelled && (
+                                <a
+                                  href={b.googleMeetUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-600 text-white hover:bg-blue-700 text-[9px] font-bold transition-colors shrink-0"
+                                  title="Buka Google Meet"
+                                >
+                                  <Video className="size-2.5" />
+                                  <span>Meet</span>
+                                  <ExternalLink className="size-2" />
+                                </a>
+                              )}
+                            </div>
+
+                            {/* Action Buttons Row */}
+                            <div className="pl-1.5 flex items-center justify-between gap-1 pt-1 border-t border-border/40 mt-1">
+                              {/* Student action buttons */}
+                              {role === "student" && !isCompleted && !isCancelled && (
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenPreSession?.(b)}
+                                    className="p-1 rounded text-foreground hover:bg-card text-[9px] font-semibold flex items-center gap-0.5"
+                                    title="Unggah Materi / Soal"
+                                  >
+                                    <FileText className="size-2.5" />
+                                    <span>Materi</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenRescheduleTicket?.(b)}
+                                    className="p-1 rounded text-foreground hover:bg-card text-[9px] font-semibold flex items-center gap-0.5"
+                                    title="Reschedule / Batal"
+                                  >
+                                    <MessageSquare className="size-2.5" />
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Tutor action button */}
+                              {role === "teacher" && !isCompleted && !isCancelled && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenPostSession?.(b)}
+                                  className="px-1.5 py-0.5 rounded bg-brand-primary text-white text-[9px] font-bold flex items-center gap-1"
+                                >
+                                  <CheckCircle2 className="size-2.5" />
+                                  <span>Selesai</span>
+                                </button>
+                              )}
+
+                              {/* Audit trail icon */}
+                              <button
+                                type="button"
+                                onClick={() => onOpenAuditLog?.(b)}
+                                className="p-1 rounded text-muted-foreground hover:text-foreground ml-auto"
+                                title="Riwayat Jejak Audit"
+                              >
+                                <History className="size-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Render Available Slots for Booking */}
+                      {role === "student" &&
+                        daySlots
+                          .filter((s) => !s.booking)
+                          .map((s) => {
+                            const startMin = timeToMinutes(s.startTime);
+                            const endMin = timeToMinutes(s.endTime);
+                            const duration = Math.max(30, endMin - startMin);
+
+                            const top =
+                              ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                            const height =
+                              (duration / 60) * HOUR_HEIGHT - 2;
+
+                            return (
+                              <button
+                                key={s.id}
+                                type="button"
+                                style={{
+                                  top: `${Math.max(0, top)}px`,
+                                  height: `${Math.max(28, height)}px`,
+                                }}
+                                onClick={() => onSelectSlotToBook?.(s, day.dateIso)}
+                                className="absolute left-0.5 right-0.5 z-10 rounded-md border border-dashed border-brand-primary/50 bg-brand-primary/5 hover:bg-brand-primary/15 hover:border-brand-primary p-1 flex flex-col justify-between text-left transition-all group"
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="text-[10px] font-bold text-foreground truncate">
+                                    {s.startTime} - {s.endTime}
+                                  </span>
+                                  {s.mode === "online" ? (
+                                    <span className="text-[8px] text-blue-600 font-bold">
+                                      Online
+                                    </span>
+                                  ) : (
+                                    <span className="text-[8px] text-emerald-600 font-bold truncate max-w-[60px]">
+                                      {s.location || "Offline"}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between text-[9px] text-muted-foreground w-full mt-0.5">
+                                  <span className="truncate">
+                                    {s.tutor?.name || "Tutor"}
+                                  </span>
+                                  <span className="text-brand-primary font-bold group-hover:underline flex items-center gap-0.5">
+                                    <Plus className="size-2.5" />
+                                    Pilih
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+        )}
 
-                {/* 2. Render Available Empty Slots (For Students to Book) */}
-                {role === "student" &&
-                  daySlots
-                    .filter((s) => !s.booking) // only open slots
-                    .map((s) => {
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 2: GOOGLE CALENDAR SINGLE-DAY EXPANDED VIEW                   */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {viewMode === "day" && (
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+            {/* Day Header */}
+            <div className="p-3 border-b border-border bg-muted/20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-heading text-body-base font-bold text-foreground">
+                  {activeDate.toLocaleDateString("id-ID", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+                {activeDayIso === todayIso && (
+                  <Badge variant="default" className="text-[10px] bg-brand-primary">
+                    Hari Ini
+                  </Badge>
+                )}
+              </div>
+              <span className="text-body-xs text-muted-foreground font-semibold">
+                Zona Waktu: WIB (GMT+7)
+              </span>
+            </div>
+
+            {/* Day Hourly Grid */}
+            <div
+              ref={gridScrollRef}
+              className="relative max-h-[620px] overflow-y-auto overflow-x-hidden"
+              style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
+            >
+              <div
+                className="grid grid-cols-[64px_1fr] relative"
+                style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
+              >
+                {/* Time Axis */}
+                <div className="border-r border-border/60 bg-muted/10 select-none">
+                  {HOURS.map((hour) => (
+                    <div
+                      key={hour}
+                      style={{ height: `${HOUR_HEIGHT}px` }}
+                      className="border-b border-border/30 px-1.5 pt-1 text-right text-[11px] font-semibold text-muted-foreground"
+                    >
+                      {String(hour).padStart(2, "0")}:00
+                    </div>
+                  ))}
+                </div>
+
+                {/* Day Column */}
+                <div className="relative">
+                  {/* Grid lines */}
+                  {HOURS.map((hour) => (
+                    <div
+                      key={hour}
+                      style={{ height: `${HOUR_HEIGHT}px` }}
+                      className="border-b border-border/30 w-full"
+                    />
+                  ))}
+
+                  {/* Current time line if today */}
+                  {activeDayIso === todayIso &&
+                    nowMinutes >= START_HOUR * 60 &&
+                    nowMinutes <= END_HOUR * 60 && (
+                      <div
+                        className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
+                        style={{ top: `${nowTopPosition}px` }}
+                      >
+                        <div className="size-2.5 rounded-full bg-red-500 -ml-1 ring-2 ring-white dark:ring-background" />
+                        <div className="h-[2px] w-full bg-red-500" />
+                      </div>
+                    )}
+
+                  {/* Day Booked Sessions */}
+                  {filteredBookings
+                    .filter((b) => {
+                      if (b.sessionDate && b.sessionDate !== activeDayIso)
+                        return false;
+                      if (!b.sessionDate && b.slot?.dayOfWeek !== activeDayName)
+                        return false;
+                      return true;
+                    })
+                    .map((b) => {
+                      const startTimeStr =
+                        b.startTime || b.slot?.startTime || "09:00";
+                      const endTimeStr =
+                        b.endTime || b.slot?.endTime || "10:30";
+                      const startMin = timeToMinutes(startTimeStr);
+                      const endMin = timeToMinutes(endTimeStr);
+                      const duration = Math.max(45, endMin - startMin);
+
+                      const top =
+                        ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                      const height = (duration / 60) * HOUR_HEIGHT - 2;
+
+                      const tutorStyle = getTutorColorStyle(
+                        b.slot?.tutorId || b.studentId
+                      );
+
                       return (
                         <div
-                          key={s.id}
-                          className="p-2.5 rounded-xl border border-dashed border-border bg-card/50 hover:bg-card hover:border-brand-primary transition-all space-y-2 text-body-xs group cursor-pointer"
-                          onClick={() => onSelectSlotToBook && onSelectSlotToBook(s, day.dateIso)}
+                          key={b.id}
+                          style={{
+                            top: `${Math.max(0, top)}px`,
+                            height: `${Math.max(50, height)}px`,
+                          }}
+                          className={`absolute left-2 right-2 z-20 rounded-xl border ${tutorStyle.border} ${tutorStyle.bg} p-3 flex items-start justify-between gap-3 shadow-sm`}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-foreground text-[11px]">
-                              {s.startTime} - {s.endTime}
-                            </span>
-                            {s.mode === "online" ? (
-                              <Badge variant="outline" className="text-[9px] text-blue-600 border-blue-300">
-                                Online
+                          <div
+                            className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${tutorStyle.bar}`}
+                          />
+                          <div className="pl-2 space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-heading text-body-sm font-bold text-foreground truncate">
+                                {b.course?.title}
+                              </h4>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-semibold"
+                              >
+                                {b.slot?.tutor?.name} • {b.group?.name}
                               </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[9px] text-emerald-600 border-emerald-300 truncate max-w-[70px]">
-                                {s.location || "Offline"}
-                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3 text-body-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Clock className="size-3.5" />
+                                {startTimeStr} - {endTimeStr}
+                              </span>
+                              <span>•</span>
+                              {b.mode === "online" ? (
+                                <span className="flex items-center gap-1 text-blue-600 font-semibold">
+                                  <Video className="size-3.5" />
+                                  Online (Google Meet)
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                                  <MapPin className="size-3.5" />
+                                  {b.location || "Offline"}
+                                </span>
+                              )}
+                            </div>
+                            {b.topic && (
+                              <p className="text-body-xs text-foreground font-medium pt-0.5 truncate">
+                                💬 Topik: {b.topic}
+                              </p>
                             )}
                           </div>
 
-                          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                            <span className="truncate">{s.tutor?.name || "Tutor"}</span>
-                            <span className="text-brand-primary font-bold group-hover:underline flex items-center gap-0.5">
-                              <Plus className="size-3" />
-                              Pilih
-                            </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {b.googleMeetUrl && (
+                              <a
+                                href={b.googleMeetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-body-xs font-semibold hover:bg-blue-700 flex items-center gap-1.5 shadow-xs"
+                              >
+                                <Video className="size-3.5" />
+                                <span>Buka Meet</span>
+                                <ExternalLink className="size-3" />
+                              </a>
+                            )}
+                            {role === "student" && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  onClick={() => onOpenPreSession?.(b)}
+                                  className="h-8 rounded-lg text-body-xs font-semibold gap-1"
+                                >
+                                  <FileText className="size-3.5" />
+                                  <span>Materi</span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  onClick={() => onOpenRescheduleTicket?.(b)}
+                                  className="h-8 rounded-lg text-body-xs font-semibold gap-1"
+                                >
+                                  <MessageSquare className="size-3.5" />
+                                  <span>Reschedule</span>
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => onOpenAuditLog?.(b)}
+                              className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                              title="Riwayat Jejak Audit"
+                            >
+                              <History className="size-4" />
+                            </Button>
                           </div>
                         </div>
                       );
                     })}
 
-                {/* Empty Day State */}
-                {dayBookings.length === 0 && (role !== "student" || daySlots.length === 0) && (
-                  <div className="py-12 text-center text-[11px] text-muted-foreground italic">
-                    Tidak ada jadwal
-                  </div>
-                )}
+                  {/* Day Available Slots for booking */}
+                  {role === "student" &&
+                    filteredSlots
+                      .filter(
+                        (s) => s.dayOfWeek === activeDayName && !s.booking
+                      )
+                      .map((s) => {
+                        const startMin = timeToMinutes(s.startTime);
+                        const endMin = timeToMinutes(s.endTime);
+                        const duration = Math.max(45, endMin - startMin);
+
+                        const top =
+                          ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                        const height = (duration / 60) * HOUR_HEIGHT - 2;
+
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            style={{
+                              top: `${Math.max(0, top)}px`,
+                              height: `${Math.max(38, height)}px`,
+                            }}
+                            onClick={() => onSelectSlotToBook?.(s, activeDayIso)}
+                            className="absolute left-2 right-2 z-10 rounded-xl border border-dashed border-brand-primary/50 bg-brand-primary/5 hover:bg-brand-primary/15 hover:border-brand-primary p-3 flex items-center justify-between text-left transition-all group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-body-sm font-bold text-foreground">
+                                {s.startTime} - {s.endTime}
+                              </span>
+                              <span className="text-body-xs text-muted-foreground">
+                                Tutor: {s.tutor?.name}
+                              </span>
+                              {s.mode === "online" ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-blue-600 text-[10px]"
+                                >
+                                  Online
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-emerald-600 text-[10px]"
+                                >
+                                  {s.location || "Offline"}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-brand-primary font-bold text-body-xs flex items-center gap-1 group-hover:underline">
+                              <Plus className="size-4" />
+                              Pilih Slot Ini
+                            </span>
+                          </button>
+                        );
+                      })}
+                </div>
               </div>
             </div>
-          );
-        })}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 3: GOOGLE CALENDAR MONTH GRID VIEW                            */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {viewMode === "month" && (
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+            {/* 7 Days Column Headers */}
+            <div className="grid grid-cols-7 border-b border-border bg-muted/20 text-center">
+              {DAY_NAMES_ID.map((dayName) => (
+                <div
+                  key={dayName}
+                  className="p-2 text-body-xs font-bold text-muted-foreground uppercase tracking-wider"
+                >
+                  {dayName.slice(0, 3)}
+                </div>
+              ))}
+            </div>
+
+            {/* Month Day Cells (7 cols x 5/6 rows) */}
+            <div className="grid grid-cols-7 divide-x divide-y divide-border/60">
+              {monthDays.map((cell) => {
+                // Find bookings on this day
+                const cellBookings = filteredBookings.filter(
+                  (b) => b.sessionDate === cell.dateIso
+                );
+
+                // Find academic schedules on this day
+                const cellAcademic = filteredAcademicSchedules.filter(
+                  (sched) => {
+                    if (!sched.startDate) return false;
+                    const schedIso = formatIsoDate(new Date(sched.startDate));
+                    return schedIso === cell.dateIso;
+                  }
+                );
+
+                // Open slots for this weekday
+                const cellOpenSlots = filteredSlots.filter(
+                  (s) => s.dayOfWeek === cell.dayName && !s.booking
+                );
+
+                return (
+                  <div
+                    key={cell.dateIso}
+                    className={`min-h-[105px] p-1.5 flex flex-col justify-between transition-colors ${
+                      cell.isCurrentMonth
+                        ? "bg-card hover:bg-muted/10"
+                        : "bg-muted/30 opacity-60"
+                    } ${cell.isToday ? "bg-brand-primary/[0.04]" : ""}`}
+                  >
+                    {/* Cell Day Header */}
+                    <div className="flex items-center justify-between mb-1">
+                      <span
+                        className={`inline-flex items-center justify-center size-5 text-[11px] font-bold rounded-full ${
+                          cell.isToday
+                            ? "bg-brand-primary text-white"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {cell.dayOfMonth}
+                      </span>
+
+                      {/* Quick jump to Day view */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveDate(cell.date);
+                          setViewMode("day");
+                        }}
+                        className="text-[9px] text-muted-foreground hover:text-brand-primary font-medium"
+                      >
+                        Detail
+                      </button>
+                    </div>
+
+                    {/* Events List in Day Cell */}
+                    <div className="flex-1 space-y-1 overflow-y-auto max-h-[85px]">
+                      {/* Academic Schedules */}
+                      {cellAcademic.map((sched) => (
+                        <div
+                          key={sched.id}
+                          className="px-1.5 py-0.5 rounded text-[9px] font-bold truncate bg-brand-primary/15 text-brand-primary border border-brand-primary/30"
+                          title={sched.title}
+                        >
+                          ★ {sched.title}
+                        </div>
+                      ))}
+
+                      {/* Booked Sessions */}
+                      {cellBookings.map((b) => {
+                        const tutorStyle = getTutorColorStyle(
+                          b.slot?.tutorId || b.studentId
+                        );
+                        return (
+                          <div
+                            key={b.id}
+                            onClick={() => {
+                              if (role === "student") {
+                                onOpenPreSession?.(b);
+                              } else {
+                                onOpenPostSession?.(b);
+                              }
+                            }}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-semibold truncate border ${tutorStyle.border} ${tutorStyle.bg} cursor-pointer hover:shadow-xs`}
+                            title={`${b.course?.title} (${b.startTime} - ${b.endTime})`}
+                          >
+                            <span className="font-bold">
+                              {b.startTime?.slice(0, 5)}
+                            </span>{" "}
+                            {b.course?.title || "Tutorial"}
+                          </div>
+                        );
+                      })}
+
+                      {/* Open Slots indicator for students */}
+                      {role === "student" &&
+                        cellBookings.length === 0 &&
+                        cellOpenSlots.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveDate(cell.date);
+                              setViewMode("day");
+                            }}
+                            className="w-full text-left px-1.5 py-0.5 rounded text-[9px] font-bold text-brand-primary bg-brand-primary/10 hover:bg-brand-primary/20 truncate"
+                          >
+                            + {cellOpenSlots.length} Slot Tersedia
+                          </button>
+                        )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

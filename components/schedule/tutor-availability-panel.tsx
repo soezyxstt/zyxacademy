@@ -13,6 +13,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import {
   tutorAddSlot,
@@ -120,17 +127,21 @@ export function TutorAvailabilityPanel({
             <label className="text-body-xs font-semibold text-foreground block">
               Hari Tutorial
             </label>
-            <select
+            <Select
               value={dayOfWeek}
-              onChange={(e) => setDayOfWeek(e.target.value)}
-              className="w-full h-10 rounded-lg border border-border bg-card px-3 text-body-sm"
+              onValueChange={setDayOfWeek}
             >
-              {DAYS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-10 rounded-lg text-body-sm bg-card">
+                <SelectValue placeholder="Pilih Hari" />
+              </SelectTrigger>
+              <SelectContent>
+                {DAYS.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

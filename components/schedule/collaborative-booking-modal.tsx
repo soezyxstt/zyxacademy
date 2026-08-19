@@ -12,6 +12,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import {
   CalendarDays,
@@ -136,20 +143,24 @@ export function CollaborativeBookingModal({
                 <label className="text-body-xs font-semibold text-foreground block">
                   Kelompok Belajar
                 </label>
-                <select
+                <Select
                   value={selectedGroupId}
-                  onChange={(e) => {
-                    setSelectedGroupId(e.target.value);
+                  onValueChange={(val) => {
+                    setSelectedGroupId(val);
                     setSelectedCourseId("");
                   }}
-                  className="w-full h-10 rounded-lg border border-border bg-card px-3 text-body-sm"
                 >
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name} (Sisa Kuota: {Math.max(0, g.totalQuotaSessions - g.usedQuotaSessions)} sesi)
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10 rounded-lg text-body-sm bg-card">
+                    <SelectValue placeholder="Pilih Kelompok" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {groups.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.name} (Sisa: {Math.max(0, g.totalQuotaSessions - g.usedQuotaSessions)} sesi)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
