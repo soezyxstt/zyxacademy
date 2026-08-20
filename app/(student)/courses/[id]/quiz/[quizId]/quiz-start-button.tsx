@@ -34,11 +34,23 @@ export function QuizStartButton({ courseId, templateId, label = "Mulai Kuis", cl
       });
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Gagal memulai kuis");
+        let message = "Gagal memulai kuis";
+        try {
+          const errData = await res.json();
+          if (errData?.error) message = typeof errData.error === "string" ? errData.error : "Terjadi kesalahan";
+        } catch { /* empty or non-JSON body */ }
+        throw new Error(message);
       }
 
-      const data = await res.json();
+      let data: { attemptId?: string } | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Respons server tidak valid. Silakan coba lagi.");
+      }
+      if (!data?.attemptId) {
+        throw new Error("Respons server tidak lengkap. Silakan coba lagi.");
+      }
       toast.success("Kuis dimulai! Semoga berhasil.");
       const path = getRedirectPath
         ? getRedirectPath(data.attemptId)

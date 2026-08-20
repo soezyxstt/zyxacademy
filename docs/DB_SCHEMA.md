@@ -1232,6 +1232,7 @@ Plan 010 reuses the additive assessment tables without changing legacy quiz snap
 * `item_asesmen` stores rendered question, option order, grading policy, content version, and generation hash snapshots.
 * `percobaan_asesmen` and `jawaban_murid` preserve the rendered question, option order, response, grading policy, and content version at attempt time.
 * `bukti_ide_jawaban` stores per-Idea score contribution, weight, confidence, rubric version, derivation status, and the invariant that ambiguous evidence cannot affect mastery.
+* `quiz_templates` acts as a legacy compatibility projection; all quiz creation flows write canonical `asesmen` and `blueprint_asesmen` first, then mirror to `quiz_templates`.
 
 The runtime adds stable option IDs inside the existing JSON snapshots as an additive compatibility field and does not rewrite historical `questions_snapshot`, `answers_snapshot`, or `mastery_before` values.
 

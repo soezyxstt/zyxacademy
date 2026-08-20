@@ -20,6 +20,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, inArray, asc, sql } from 'drizzle-orm';
 import { dualWriteQuizAttempt } from '@/lib/migrasi/repository-kompatibilitas';
+import { createAssessmentWithLegacyProjection } from '@/lib/asesmen/quiz-canonical-sync';
 
 const DAILY_QUESTION_COUNT = 5;
 
@@ -72,17 +73,18 @@ export async function GET() {
  } else {
  // Use first enrolled course for the template
  templateId = randomUUID();
- await db.insert(quizTemplates).values({
- id: templateId,
- courseId: courseIds[0],
- title: 'Daily Quiz',
- category: 'daily',
- visibility: 'free',
- selectionRules: {
- count: DAILY_QUESTION_COUNT,
- difficulty_proportions: { easy: 2, medium: 2, hard: 1 },
- } as unknown as Record<string, unknown>,
- status: 'published',
+ await createAssessmentWithLegacyProjection({
+  id: templateId,
+  courseId: courseIds[0],
+  title: 'Daily Quiz',
+  category: 'daily',
+  visibility: 'free',
+  selectionRules: {
+  count: DAILY_QUESTION_COUNT,
+  difficulty_proportions: { easy: 2, medium: 2, hard: 1 },
+  } as unknown as Record<string, unknown>,
+  status: 'published',
+  creatorId: studentId,
  });
  }
 

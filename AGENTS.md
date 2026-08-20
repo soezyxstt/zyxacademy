@@ -196,6 +196,16 @@ After a meaningful code edit batch:
 
 Report pre-existing failures separately from regressions introduced by the change. Do not claim staging, production, visual, OAuth, or external-service success without actually exercising that boundary.
 
+## Multi-model worker delegation
+
+When the task involves global multi-model delegation (e.g., parallel subagents or worker dispatch), the delegating agent must:
+
+1. Require each dispatched worker (AGY or OpenCode, never GPT or the delegating agent itself) to run and analyze `bun run lint`, `bun run typecheck`, and `bun run build`.
+2. Record every command exit status and failure output. A zero exit code is success; non-zero is failure.
+3. Do not declare the task complete until all required validation commands pass or all failures are explicitly reported with their exit codes.
+
+Workers must not skip validation. If a worker cannot run a command (missing binary, environment issue), it must report the failure with the reason and a non-zero exit status.
+
 ## Keeping this file maintainable
 
 - Add a rule here only when it is durable, cross-cutting, and likely to prevent repeated mistakes.

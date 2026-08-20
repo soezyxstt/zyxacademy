@@ -20,6 +20,11 @@ import { parseMaterialIntoSections } from "@/lib/ingestion-parser";
 import { revalidatePath } from "next/cache";
 import { notifyQuizPublishedBestEffort } from "@/lib/notifications/send";
 import { normalizeQuestionProvenance, questionProvenanceSnapshot } from "@/lib/asesmen/question-provenance";
+import {
+  createAssessmentWithLegacyProjection,
+  updateAssessmentWithLegacyProjection,
+  deleteAssessmentWithLegacyProjection,
+} from "@/lib/asesmen/quiz-canonical-sync";
 
 // Helper to verify tutor role and course access
 export async function verifyTutorAccess(courseId: string) {
@@ -182,7 +187,7 @@ export async function saveQuizTemplateAction(
     showDiscussion?: boolean;
   }
 ) {
-  await verifyTutorAccess(courseId);
+  const { session } = await verifyTutorAccess(courseId);
 
   const targetId = templateId || `tpl-tutor-${randomUUID()}`;
 
@@ -202,26 +207,23 @@ export async function saveQuizTemplateAction(
     existingStatus = existing[0]?.status ?? null;
     shouldNotify = data.status === "published" && existingStatus !== "published";
 
-    await db
-      .update(quizTemplates)
-      .set({
-        title: data.title,
-        category: data.category,
-        visibility: data.visibility,
-        timeLimitSeconds: data.timeLimitSeconds,
-        maxAttempts: data.maxAttempts,
-        selectionRules: data.selectionRules,
-        openAt: openDate,
-        closeAt: closeDate,
-        manualStatus: data.manualStatus ?? "scheduled",
-        status: data.status ?? "published",
-        showDiscussion: data.showDiscussion ?? false,
-        updatedAt: new Date(),
-      })
-      .where(eq(quizTemplates.id, templateId));
+    await updateAssessmentWithLegacyProjection(templateId, {
+      title: data.title,
+      category: data.category,
+      visibility: data.visibility,
+      timeLimitSeconds: data.timeLimitSeconds,
+      maxAttempts: data.maxAttempts,
+      selectionRules: data.selectionRules,
+      openAt: openDate,
+      closeAt: closeDate,
+      manualStatus: data.manualStatus ?? "scheduled",
+      status: data.status ?? "published",
+      showDiscussion: data.showDiscussion ?? false,
+      actorId: session.user.id,
+    });
   } else {
     shouldNotify = data.status === "published";
-    await db.insert(quizTemplates).values({
+    await createAssessmentWithLegacyProjection({
       id: targetId,
       courseId,
       title: data.title,
@@ -235,6 +237,7 @@ export async function saveQuizTemplateAction(
       manualStatus: data.manualStatus ?? "scheduled",
       status: data.status ?? "draft",
       showDiscussion: data.showDiscussion ?? false,
+      creatorId: session.user.id,
     });
   }
 
@@ -254,7 +257,7 @@ export async function saveQuizTemplateAction(
 
 export async function deleteQuizTemplateAction(courseId: string, templateId: string) {
   await verifyTutorAccess(courseId);
-  await db.delete(quizTemplates).where(eq(quizTemplates.id, templateId));
+  await deleteAssessmentWithLegacyProjection(templateId);
   revalidatePath(`/tutor/${courseId}/quizzes`);
   revalidatePath(`/courses/${courseId}/quiz`);
   return { success: true };

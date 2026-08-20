@@ -12,22 +12,24 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
 import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
+import {
+  deleteAssessmentWithLegacyProjection,
+  updateAssessmentWithLegacyProjection,
+} from '@/lib/asesmen/quiz-canonical-sync';
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function DELETE(_req: NextRequest, { params }: Context) {
- const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
- }
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
- const { id } = await params;
+  const { id } = await params;
 
- await db
- .delete(quizTemplates)
- .where(eq(quizTemplates.id, id));
+  await deleteAssessmentWithLegacyProjection(id);
 
- return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true });
 }
 
 export async function PATCH(req: NextRequest, { params }: Context) {
@@ -116,7 +118,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   if (parsed.data.showDiscussion !== undefined) {
     updateData.showDiscussion = parsed.data.showDiscussion;
   }
-  updateData.updatedAt = new Date();
+  updateData.actorId = session.user.id;
 
   // If status is changing, read the current row so we only notify on a
   // transition into "published" (never on every save or re-publish).
@@ -129,10 +131,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
         .then((rows) => rows[0] ?? null)
     : null;
 
-  await db
-    .update(quizTemplates)
-    .set(updateData)
-    .where(eq(quizTemplates.id, id));
+  await updateAssessmentWithLegacyProjection(id, updateData);
 
   if (parsed.data.status === 'published' && previous && previous.status !== 'published') {
     const quizTitle = typeof parsed.data.title === 'string' ? parsed.data.title : previous.title;
