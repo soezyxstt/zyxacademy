@@ -315,7 +315,7 @@ export async function startAuthoringWorkflow(input: {
     source: { packId: source.packId, name: source.name, checksum: source.checksum },
     next: workflow.key === "idea_product"
       ? ["authoring.validate_idea_bundle", "authoring.submit_idea_bundle", "authoring.validate_product_bundle", "authoring.submit_product_bundle"]
-      : ["assessment.validate_quiz_draft", "assessment.submit_quiz_draft"],
+      : ["assessment.list_ideas", "assessment.validate_quiz_draft", "assessment.submit_quiz_draft"],
   };
 }
 
@@ -396,7 +396,35 @@ export function workflowContract(runToken: string) {
         productBundle: { validationTool: "authoring.validate_product_bundle", reviewRequired: true, ideaPublicationRequired: true },
       }
       : {
-        quizDraft: { validationTool: "assessment.validate_quiz_draft", submitTool: "assessment.submit_quiz_draft", reviewRequired: true, publicationTarget: "question_bank", initialStatus: "generated" },
+        quizDraft: {
+          schemaVersion: "question-bank-draft.v2",
+          ideaCatalogTool: "assessment.list_ideas",
+          validationTool: "assessment.validate_quiz_draft",
+          submitTool: "assessment.submit_quiz_draft",
+          ideaLinksRequired: false,
+          linkedIdeaWeightRule: "Positive weights must sum to 1 when Idea links are present.",
+          draftExample: {
+            schemaVersion: "question-bank-draft.v2",
+            draftId: "draft-local-1",
+            questions: [{
+              id: "question-1",
+              questionType: "multiple_choice",
+              difficulty: "medium",
+              cognitiveLevel: "apply",
+              reasoningPattern: "direct_application",
+              tags: [],
+              prompt: "Tulis pertanyaan di sini.",
+              options: ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
+              correctIndices: [0],
+              acceptableAnswers: [],
+              explanation: "Tulis pembahasan di sini.",
+              ideaLinks: [],
+            }],
+          },
+          reviewRequired: true,
+          publicationTarget: "question_bank",
+          initialStatus: "generated",
+        },
       },
   };
 }

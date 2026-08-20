@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { aiQuestionBank, bab, courses, ide, knowledgeObjects, mataKuliah } from "@/db/schema";
+import { ide } from "@/db/schema";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
 import { stageIdeaBundle } from "@/lib/bundle/staging";
@@ -12,7 +12,8 @@ import { stageProductBundle } from "@/lib/bundle/product-staging";
 import { evaluateIdeaBundleQuality } from "@/lib/authoring/quality/idea-bundle";
 import { evaluateProductBundleQuality } from "@/lib/authoring/quality/product-bundle";
 import { sha256Text } from "@/lib/bundle/validator";
-import { validateQuestion } from "@/lib/question-validator";
+import { createCanonicalQuestionBatch, QuestionAuthoringError, validateCanonicalQuestionBatch } from "@/lib/question-authoring";
+import { normalizeQuestionBankDraft, parseQuestionBankDraftJson, type NormalizedQuestionBankDraft } from "@/lib/authoring/question-bank-draft";
 import {
   AUTHORING_MCP_MAX_BUNDLE_BYTES,
   AUTHORING_MCP_MAX_ORIGINAL_BYTES,
@@ -63,27 +64,6 @@ function schemaVersionNumber(value: string): number {
   const match = value.match(/\.v(\d+)$/);
   return match ? Number(match[1]) : 2;
 }
-
-const quizDraftSchema = z.object({
-  schemaVersion: z.literal("quiz-bank-draft.v1"),
-  draftId: z.string().min(1),
-  questions: z.array(z.object({
-    id: z.string().min(1),
-    knowledgeObjectId: z.string().min(1),
-    itemFormat: z.enum(["multiple_choice", "multiple_choices"]),
-    prompt: z.string().min(1),
-    options: z.array(z.string().min(1)),
-    correctIndices: z.array(z.number().int().nonnegative()),
-    explanation: z.string().min(1),
-    difficulty: z.enum(["easy", "medium", "hard"]),
-    cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]),
-    reasoningPattern: z.string().min(1),
-    tags: z.array(z.string()).default([]),
-    acceptableAnswers: z.array(z.string()).default([]),
-    applicationLevel: z.number().int().min(0).max(5).optional(),
-    estimatedSteps: z.number().int().positive().optional(),
-  }).strict()).min(1),
-}).strict();
 
 const sourceOriginalSchema = z.array(z.object({
   documentId: z.string().min(1),
@@ -142,93 +122,94 @@ function validateProductChapterScope(run: ReturnType<typeof readMcpRunToken>, bu
   return { valid: issues.length === 0, issues };
 }
 
-async function legacyScopeForRun(courseId: string, chapterId: string): Promise<{ courseId: string; chapterId: string }> {
-  const [course] = await db.select({ id: courses.id }).from(courses).where(eq(courses.id, courseId)).limit(1);
-  const [courseTarget] = await db.select({ legacyCourseId: mataKuliah.legacyCourseId }).from(mataKuliah).where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId))).limit(1);
-  const legacyCourseId = course?.id ?? courseTarget?.legacyCourseId;
-  if (!legacyCourseId) throw new Error("AUTHORING_MCP_COURSE_NOT_FOUND");
-  const [chapter] = await db.select({ legacyChapterId: bab.legacyChapterId }).from(bab).where(and(eq(bab.id, chapterId), eq(bab.mataKuliahId, courseId))).limit(1);
-  if (!chapter?.legacyChapterId) throw new Error("AUTHORING_MCP_CHAPTER_MAPPING_MISSING");
-  return { courseId: legacyCourseId, chapterId: chapter.legacyChapterId };
+function questionIdForRun(runId: string, externalId: string): string {
+  return `mcp-q-${sha256Text(`${runId}:${externalId}`).slice(0, 32)}`;
 }
 
-async function stageQuizDraft(principal: McpPrincipal, runToken: string, draft: z.infer<typeof quizDraftSchema>) {
+function canonicalBatchForRun(run: ReturnType<typeof readMcpRunToken>, draft: NormalizedQuestionBankDraft) {
+  return {
+    courseId: run.courseId,
+    chapterId: run.chapterId,
+    reviewStatus: "generated" as const,
+    items: draft.items.map((item) => ({
+      questionId: questionIdForRun(run.runId, item.externalId),
+      question: item.question,
+      ideaLinks: item.ideaLinks,
+    })),
+  };
+}
+
+function questionAuthoringIssue(error: unknown) {
+  if (error instanceof QuestionAuthoringError) {
+    return { code: error.code, message: error.message };
+  }
+  return { code: "QUESTION_BANK_DRAFT_VALIDATION_FAILED", message: error instanceof Error ? error.message : "Validasi soal gagal." };
+}
+
+async function validateQuestionBankDraft(runToken: string, draft: NormalizedQuestionBankDraft) {
+  const run = readMcpRunToken(runToken);
+  if (run.workflow !== "quiz_bank") return { ok: false, valid: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+  try {
+    await validateCanonicalQuestionBatch(canonicalBatchForRun(run, draft));
+    return {
+      ok: true,
+      valid: true,
+      draftId: draft.draftId,
+      schemaVersion: draft.schemaVersion,
+      questionCount: draft.items.length,
+      linkedQuestionCount: draft.items.filter((item) => item.ideaLinks.length > 0).length,
+      issues: [],
+      next: "admin_review",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      valid: false,
+      draftId: draft.draftId,
+      schemaVersion: draft.schemaVersion,
+      questionCount: draft.items.length,
+      issues: [questionAuthoringIssue(error)],
+      next: "agent_revision",
+    };
+  }
+}
+
+async function stageQuestionBankDraft(principal: McpPrincipal, runToken: string, draft: NormalizedQuestionBankDraft) {
   requireMcpScope(principal, "authoring:stage");
   const run = readMcpRunToken(runToken);
-  if (run.workflow !== "quiz_bank") throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
-  const scope = await legacyScopeForRun(run.courseId, run.chapterId);
-  const checks = await Promise.all(draft.questions.map(async (question) => {
-    const [knowledgeObject] = await db
-      .select({ courseId: knowledgeObjects.courseId, chapterId: knowledgeObjects.chapterId, status: knowledgeObjects.status })
-      .from(knowledgeObjects)
-      .where(eq(knowledgeObjects.id, question.knowledgeObjectId))
-      .limit(1);
-    const result = await validateQuestion(question);
-    const errors = [...result.errors];
-    if (!knowledgeObject) errors.push("Knowledge Object tidak ditemukan.");
-    else {
-      if (knowledgeObject.status !== "active") errors.push("Knowledge Object tidak aktif.");
-      if (knowledgeObject.courseId !== scope.courseId) errors.push("Knowledge Object berada di mata kuliah lain.");
-      if (knowledgeObject.chapterId !== scope.chapterId) errors.push("Knowledge Object berada di bab lain.");
-    }
-    return { question, errors, warnings: result.warnings };
-  }));
-  const issues = checks.flatMap((check) => [
-    ...check.errors.map((message) => ({ code: "QUIZ_DRAFT_INVALID", message, path: check.question.id })),
-    ...check.warnings.map((message) => ({ code: "QUIZ_DRAFT_WARNING", message, path: check.question.id })),
-  ]);
-  if (checks.some((check) => check.errors.length > 0)) return { ok: false, valid: false, staged: false, draftId: draft.draftId, questionCount: draft.questions.length, issues, next: "agent_revision" };
-
-  const rows = draft.questions.map((question) => {
-    const generationHash = sha256Text(serializeDeterministically({ runId: run.runId, question }));
-    const id = `mcp-q-${sha256Text(`${run.runId}:${question.id}`).slice(0, 32)}`;
-    return {
-      id,
-      courseId: scope.courseId,
-      origin: "zyx_original" as const,
-      sourceEventName: null,
-      sourceReferenceId: null,
-      knowledgeObjectId: question.knowledgeObjectId,
-      status: "active",
-      isStale: false,
-      difficulty: question.difficulty,
-      questionType: question.itemFormat,
-      tags: question.tags,
-      prompt: question.prompt,
-      options: question.options,
-      correctIndices: question.correctIndices,
-      acceptableAnswers: question.acceptableAnswers,
-      explanation: question.explanation,
-      generationHash,
-      reviewStatus: "generated" as const,
-      pattern: question.reasoningPattern,
-      applicationLevel: question.applicationLevel,
-      estimatedSteps: question.estimatedSteps,
-    };
-  });
-  const existing = await db.select({ id: aiQuestionBank.id, generationHash: aiQuestionBank.generationHash }).from(aiQuestionBank).where(inArray(aiQuestionBank.id, rows.map((row) => row.id)));
-  const existingById = new Map(existing.map((row) => [row.id, row.generationHash]));
-  for (const row of rows) {
-    const existingHash = existingById.get(row.id);
-    if (existingHash && existingHash !== row.generationHash) throw new Error(`QUIZ_DRAFT_CONFLICT:${row.id}`);
-  }
-  const pendingRows = rows.filter((row) => !existingById.has(row.id));
-  if (pendingRows.length > 0) {
-    await db.transaction(async (tx) => {
-      await tx.insert(aiQuestionBank).values(pendingRows);
+  if (run.workflow !== "quiz_bank") return { ok: false, valid: false, staged: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+  try {
+    const results = await createCanonicalQuestionBatch({
+      ...canonicalBatchForRun(run, draft),
+      creatorId: principal.actorId,
+      createOnly: true,
     });
+    return {
+      ok: true,
+      valid: true,
+      staged: true,
+      draftId: draft.draftId,
+      schemaVersion: draft.schemaVersion,
+      questionCount: results.length,
+      linkedQuestionCount: draft.items.filter((item) => item.ideaLinks.length > 0).length,
+      createdCount: results.filter((result) => result.created).length,
+      existingCount: results.filter((result) => result.unchanged).length,
+      questionIds: results.map((result) => result.id),
+      issues: [],
+      next: "admin_review",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      valid: false,
+      staged: false,
+      draftId: draft.draftId,
+      schemaVersion: draft.schemaVersion,
+      questionCount: draft.items.length,
+      issues: [questionAuthoringIssue(error)],
+      next: "agent_revision",
+    };
   }
-  return {
-    ok: true,
-    valid: true,
-    staged: true,
-    draftId: draft.draftId,
-    questionCount: rows.length,
-    createdCount: pendingRows.length,
-    existingCount: rows.length - pendingRows.length,
-    issues,
-    next: "admin_review",
-  };
 }
 
 function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void {
@@ -467,9 +448,42 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     return { ok: true, valid: true, staged: true, result, quality, next: "admin_review" };
   }));
 
+  (server as any).registerTool("assessment.list_ideas", {
+    title: "List published Ideas for question authoring",
+    description: "Mengembalikan Idea published dalam mata kuliah dan bab yang dikunci oleh run bank soal.",
+    inputSchema: { runToken: z.string().min(1) },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ runToken }: { runToken: string }) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const run = readMcpRunToken(runToken);
+    if (run.workflow !== "quiz_bank") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+    const ideas = await db
+      .select({
+        ideaId: ide.id,
+        code: ide.code,
+        statement: ide.canonicalStatement,
+        explanation: ide.conciseExplanation,
+        latex: ide.latex,
+        knowledgeKind: ide.knowledgeKind,
+        instructionalRole: ide.instructionalRole,
+        version: ide.version,
+        semanticHash: ide.semanticHash,
+      })
+      .from(ide)
+      .where(and(eq(ide.mataKuliahId, run.courseId), eq(ide.babId, run.chapterId), eq(ide.status, "published")))
+      .orderBy(ide.code);
+    return {
+      ok: true,
+      scope: { course: run.courseLabel, chapter: run.chapterLabel },
+      ideaCount: ideas.length,
+      ideas,
+      linking: { required: false, weightRule: "Jika satu atau lebih Idea dipilih, bobot positif harus berjumlah 1." },
+    };
+  }));
+
   (server as any).registerTool("assessment.validate_quiz_draft", {
-    title: "Validate quiz bank draft",
-    description: "Memeriksa draft soal kuis secara terstruktur sebelum masuk ke review bank soal.",
+    title: "Validate question bank draft",
+    description: "Memeriksa draft soal terstruktur, relasi Idea opsional, dan scope sebelum masuk ke review bank soal.",
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
@@ -477,57 +491,23 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async ({ runToken, draftJson }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
-    const run = readMcpRunToken(runToken);
-    if (run.workflow !== "quiz_bank") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(draftJson);
-    } catch {
-      return { ok: false, valid: false, issues: [{ code: "QUIZ_DRAFT_INVALID_JSON", message: "Draft JSON tidak valid" }] };
-    }
-    const draft = quizDraftSchema.safeParse(parsed);
-    if (!draft.success) {
-      return { ok: false, valid: false, issues: draft.error.issues.map((issue) => ({ code: "QUIZ_DRAFT_SCHEMA_INVALID", message: issue.message, path: issue.path.join(".") })) };
-    }
-    const checks = await Promise.all(draft.data.questions.map(async (question) => ({
-      id: question.id,
-      result: await validateQuestion(question),
-    })));
-    const issues = checks.flatMap((check) => [
-      ...check.result.errors.map((message) => ({ code: "QUIZ_DRAFT_INVALID", message, path: check.id })),
-      ...check.result.warnings.map((message) => ({ code: "QUIZ_DRAFT_WARNING", message, path: check.id })),
-    ]);
-    const errors = checks.reduce((total, check) => total + check.result.errors.length, 0);
-    return {
-      ok: errors === 0,
-      valid: errors === 0,
-      draftId: draft.data.draftId,
-      questionCount: draft.data.questions.length,
-      issues,
-      next: errors === 0 ? "admin_review" : "agent_revision",
-    };
+    const parsed = parseQuestionBankDraftJson(draftJson);
+    if (!parsed.success) return { ok: false, valid: false, issues: parsed.issues, next: "agent_revision" };
+    return validateQuestionBankDraft(runToken, normalizeQuestionBankDraft(parsed.data));
   }));
 
   (server as any).registerTool("assessment.submit_quiz_draft", {
-    title: "Submit quiz bank draft for review",
-    description: "Memvalidasi lalu menaruh draft soal kuis sebagai generated di bank soal. Tool ini tidak dapat mempublikasikan soal.",
+    title: "Submit question bank draft for review",
+    description: "Memvalidasi lalu menyimpan soal canonical dan projection kompatibilitas sebagai generated. Tool ini tidak dapat mempublikasikan soal.",
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async ({ runToken, draftJson }: any) => safeTool(async () => {
-    const run = readMcpRunToken(runToken);
-    if (run.workflow !== "quiz_bank") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(draftJson);
-    } catch {
-      return { ok: false, valid: false, staged: false, issues: [{ code: "QUIZ_DRAFT_INVALID_JSON", message: "Draft JSON tidak valid" }] };
-    }
-    const draft = quizDraftSchema.safeParse(parsed);
-    if (!draft.success) return { ok: false, valid: false, staged: false, issues: draft.error.issues.map((issue) => ({ code: "QUIZ_DRAFT_SCHEMA_INVALID", message: issue.message, path: issue.path.join(".") })) };
-    return stageQuizDraft(principal, runToken, draft.data);
+    const parsed = parseQuestionBankDraftJson(draftJson);
+    if (!parsed.success) return { ok: false, valid: false, staged: false, issues: parsed.issues, next: "agent_revision" };
+    return stageQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data));
   }));
 }
 

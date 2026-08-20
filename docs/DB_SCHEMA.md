@@ -391,7 +391,7 @@ Plan 004 adds the normalized target tables below. Plan 005 owns deterministic ma
 * `set_flashcard`, `flashcard`, `flashcard_ide`: Versioned flashcard sets and multi-Idea links.
 * `kemajuan_flashcard_murid`, `review_flashcard`: Per-murid scheduling state and review history.
 
-Published article, material, question, solution, and flashcard records are required by the contract layer to reference at least one published Idea. `soal_ide.weight` has a database range check and the per-question sum is validated within `0.000001` by the domain contract.
+Published Product Bundle article, material, question, solution, and flashcard records are required by the Product contract layer to reference at least one published Idea. Manual, Markdown, and MCP Bank Soal authoring may store a canonical question with zero `soal_ide` rows. When question links are present, `soal_ide.weight` has a database range check and the per-question sum is validated within `0.000001` by the authoring service.
 
 Manual and Markdown question authoring uses these canonical tables first. `ai_question_bank` remains the compatibility projection for the current quiz readers; its row uses the canonical question ID and mirrors the lifecycle, prompt, options, answer keys, explanation, and generation hash.
 
