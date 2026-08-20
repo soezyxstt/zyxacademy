@@ -33,11 +33,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatIsoDate, formatIsoDateUtc } from "@/lib/date-utils";
 import {
+  formatIsoDate,
+  formatIsoDateUtc,
   getJakartaNow,
   type IndonesianDay,
-} from "@/lib/schedule-lock";
+} from "@/lib/date-utils";
 
 // Tutor distinct color styling
 const TUTOR_COLORS = [
