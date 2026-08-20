@@ -266,4 +266,49 @@ describe("Canonical-First Assessment & Quiz Sync", () => {
     expect(reconciledAsm.title).toBe("Orphaned Legacy Quiz");
     expect(reconciledAsm.status).toBe("published");
   });
+
+  it("automatically heals orphaned quiz template during dualWriteQuizAttempt on student attempt start", async () => {
+    const orphanedTemplateId = `orphaned-lazy-${Date.now()}`;
+
+    // Direct insert into quizTemplates only
+    await db.insert(quizTemplates).values({
+      id: orphanedTemplateId,
+      courseId: testCourseId,
+      title: "Lazy Orphaned Quiz",
+      category: "chapter",
+      visibility: "free",
+      status: "published",
+      manualStatus: "open",
+      selectionRules: { count: 5, chapterIds: [testChapterId] },
+    });
+
+    // Ensure asesmen row does not exist
+    const [initialAsm] = await db.select().from(asesmen).where(eq(asesmen.id, orphanedTemplateId)).limit(1);
+    expect(initialAsm).toBeUndefined();
+
+    const attemptId = `attempt-lazy-${Date.now()}`;
+
+    // Attempt start dual-write should NOT throw and should auto-heal
+    await db.transaction(async (tx) => {
+      await dualWriteQuizAttempt(tx, {
+        id: attemptId,
+        templateId: orphanedTemplateId,
+        studentId: testUserId,
+        status: "in_progress",
+        questionsSnapshot: [{ id: "q1", prompt: "Hello" }],
+        answersSnapshot: null,
+        startedAt: new Date(),
+        submittedAt: null,
+      }, testUserId);
+    });
+
+    // Verify asesmen and percobaanAsesmen rows were created
+    const [healedAsm] = await db.select().from(asesmen).where(eq(asesmen.id, orphanedTemplateId)).limit(1);
+    expect(healedAsm).toBeTruthy();
+    expect(healedAsm.title).toBe("Lazy Orphaned Quiz");
+
+    const [createdAttempt] = await db.select().from(percobaanAsesmen).where(eq(percobaanAsesmen.id, attemptId)).limit(1);
+    expect(createdAttempt).toBeTruthy();
+    expect(createdAttempt.asesmenId).toBe(orphanedTemplateId);
+  });
 });

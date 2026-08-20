@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   CheckSquare,
   Square,
-  AlertTriangle,
   Send,
   BookOpen,
   Shuffle,

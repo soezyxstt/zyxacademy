@@ -20,6 +20,7 @@ import {
   penugasanTutor,
   percobaanAsesmen,
   pengguna,
+  quizTemplates,
   reviewFlashcard,
   studentConceptMastery,
   tutorCourses,
@@ -27,6 +28,7 @@ import {
 } from "@/db/schema";
 import { stableStringify } from "@/lib/staging/migration-ledger";
 import { PEMAHAMAN_RUBRIC_VERSION } from "@/lib/pemahaman/engine";
+import { createAssessmentWithLegacyProjection } from "@/lib/asesmen/quiz-canonical-sync";
 
 type CompatibilityTx = {
   insert: (...args: any[]) => any;
@@ -299,8 +301,31 @@ export async function dualWriteQuizAttempt(
 ): Promise<void> {
   if (!isEnabled()) return;
   await requirePengguna(tx, attempt.studentId);
-  const [targetAssessment] = await tx.select({ id: asesmen.id }).from(asesmen).where(eq(asesmen.id, attempt.templateId)).limit(1);
-  if (!targetAssessment) throw new Error(`Dual-write target assessment is missing for ${attempt.templateId}`);
+  let [targetAssessment] = await tx.select({ id: asesmen.id }).from(asesmen).where(eq(asesmen.id, attempt.templateId)).limit(1);
+  if (!targetAssessment) {
+    const [template] = await tx.select().from(quizTemplates).where(eq(quizTemplates.id, attempt.templateId)).limit(1);
+    if (template) {
+      await createAssessmentWithLegacyProjection({
+        id: template.id,
+        courseId: template.courseId,
+        title: template.title,
+        category: template.category,
+        visibility: template.visibility,
+        status: template.status,
+        manualStatus: template.manualStatus,
+        timeLimitSeconds: template.timeLimitSeconds,
+        maxAttempts: template.maxAttempts,
+        selectionRules: (template.selectionRules ?? {}) as Record<string, unknown>,
+        openAt: template.openAt,
+        closeAt: template.closeAt,
+        showDiscussion: template.showDiscussion ?? undefined,
+        creatorId: actorId ?? null,
+      }, tx as any);
+      targetAssessment = { id: template.id };
+    } else {
+      throw new Error(`Dual-write target assessment is missing for ${attempt.templateId}`);
+    }
+  }
   const status = attempt.status === "completed" ? "submitted" as const : attempt.status === "abandoned" ? "cancelled" as const : "in_progress" as const;
   const targetRows = await tx.select({ id: percobaanAsesmen.id }).from(percobaanAsesmen).where(eq(percobaanAsesmen.id, attempt.id)).limit(1);
   const snapshotHash = createHash("sha256").update(stableStringify(attempt.questionsSnapshot)).digest("hex");
