@@ -24,6 +24,7 @@ import {
   Search,
   BarChart3,
   Users,
+  Bell,
 } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { useTutor } from "@/components/course/tutor-drawer";
@@ -352,6 +353,14 @@ export function StudentSidebar({
           icon={User}
           label="Profile"
           active={pathname === "/profile"}
+          collapsed={c}
+        />
+
+        <NavItem
+          href="/settings/notifications"
+          icon={Bell}
+          label="Notification preferences"
+          active={pathname === "/settings/notifications"}
           collapsed={c}
         />
 

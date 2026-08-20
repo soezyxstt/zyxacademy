@@ -24,6 +24,18 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `createdAt`
 * `updatedAt`
 
+### emailNotificationPreferences
+* `userId`: Primary key and cascading foreign key to `user.id`.
+* `emailEnabled`: Master control for all optional email categories.
+* `courseUpdates`: Course publication and announcement emails.
+* `eventsAndSchedules`: Course event, schedule, and meeting emails.
+* `learningReminders`: Study and reflection reminder emails.
+* `newsAndOffers`: Zyx news and promotional emails.
+* `createdAt`
+* `updatedAt`
+
+The row is created on the first explicit save or unsubscribe. A missing row derives initial course and event values from the legacy Tutorial PKA `receiveAnnouncements` choice; learning reminders default on and news and offers default off. This table never controls essential account, security, payment, or enrollment email.
+
 ### session
 * `id`
 * `userId`

@@ -72,6 +72,7 @@ Assessment-specific (for type="assessment" MTDs):
 | Table | Purpose |
 |---|---|
 | `user` | Better Auth users and temporary legacy `role` compatibility projection |
+| `email_notification_preferences` | Per-user master optional-email state and four global email categories |
 | `session` | Auth sessions |
 | `account` | OAuth/password accounts |
 | `verification` | Email verification tokens |
@@ -640,8 +641,10 @@ Mastery System (background, Inngest cron):
 | **Inngest** | Background job orchestration: vector sync (learning + assessment namespaces), generation pipelines, mastery recompute, assessment ingest, analytics snapshots, weekly reflections |
 | **Firebase Admin** | FCM push notifications |
 | **Puppeteer** | PDF generation for diktats (runs as separate Railway service at `DIKTAT_RENDERER_URL`) |
-| **Resend** | Transactional emails |
+| **Resend** | Essential and preference-gated optional emails |
 | **Sentry** | Error tracking |
+
+Optional application emails enter through `lib/email-preferences/send.ts`. The always-on sender resolves the authenticated account email, reads the global preference row or the legacy PKA fallback, suppresses disabled categories, and adds a 30-day signed unsubscribe contract. The visible `/unsubscribe` route confirms before changing state. `POST /api/email/unsubscribe` implements RFC 8058 one-click unsubscribe for the token category. Preference lookup failure suppresses optional delivery. Essential transactional senders remain outside this optional boundary.
 
 ---
 

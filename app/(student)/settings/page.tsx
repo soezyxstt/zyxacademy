@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Bell } from "lucide-react";
 import { ShellPage } from "@/components/shell-page";
+import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -14,6 +17,12 @@ export default function SettingsPage() {
         <p className="text-body-base text-muted-foreground">
           Pengaturan preferensi akun dan tema.
         </p>
+        <Button asChild variant="outline" size="lg" className="mt-5">
+          <Link href="/settings/notifications">
+            <Bell className="size-4" aria-hidden />
+            Notification preferences
+          </Link>
+        </Button>
       </div>
     </ShellPage>
   );

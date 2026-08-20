@@ -194,6 +194,10 @@ The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
 3. Seed quiz templates for each stage
 4. Enable registration window via admin announcements
 
+## Email Notification Preferences
+
+Migration `0073_flashy_spitfire.sql` adds `email_notification_preferences`. Apply it before deploying the always-on settings, delivery, and unsubscribe workflow. Verify the settings page with a Google-authenticated account, then send one message from each optional category. Each delivered message must contain its visible unsubscribe link, a `List-Unsubscribe` URL, and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`.
+
 ## Feature Flags
 
 Feature flags are exception-based rollout controls, not a requirement for every new capability. Foundational authorization, canonical retrieval, assessment, learning, and pedagogy behavior is always-on. Before implementing a new capability or material behavior change, confirm whether it should be always-on or flag-gated. Any new flag needs a clear reason, default, scope, rollback behavior, owner, and removal condition. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the current approved list.

@@ -189,6 +189,15 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Google Meet review session scheduling
 - Admin broadcast announcements
 
+### Email Notification Preferences
+- Authenticated users manage optional email at `/settings/notifications` using their Google account email.
+- One master control covers four global categories: course updates, events and schedules, learning reminders, and news and offers.
+- Essential account, security, payment, and enrollment emails remain mandatory and are outside the optional preference system.
+- Optional email delivery always uses one shared sender and fails closed if preferences cannot be loaded.
+- Every optional email includes a visible category unsubscribe link plus RFC 8058 one-click headers. Signed links expire after 30 days.
+- A browser visit shows a confirmation page and does not mutate preferences. Gmail and compatible clients unsubscribe the linked category through POST.
+- Tutorial PKA email uses the central preferences. The legacy PKA opt-in remains only as the initial fallback for existing rows; push preferences are unchanged.
+
 ### Learning Outcomes & Career Paths
 - CPL/CPMK/Sub-CPMK hierarchy mapped to concepts
 - Career path templates with concept prerequisites

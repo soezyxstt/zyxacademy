@@ -49,9 +49,9 @@ export async function registerPkaAction(
 
     const fullName = formData.get("fullName")?.toString().trim() ?? "";
     const faculty = formData.get("faculty")?.toString().trim() ?? "";
-    const emailRaw = formData.get("email")?.toString().trim() ?? "";
+    const emailRaw = session.user.email?.trim() ?? "";
     const instagramRaw = formData.get("instagram")?.toString() ?? "";
-    const receiveAnnouncements = formData.get("receiveAnnouncements") === "on";
+    const receiveAnnouncements = true;
     const proof = formData.get("proof");
 
     if (!fullName) return { error: "Nama lengkap wajib diisi." };

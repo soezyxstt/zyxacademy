@@ -15,9 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/toast";
-import { cn } from "@/lib/utils";
 import { registerPkaAction } from "../daftar/actions";
 
 const IG_HANDLE = "zyx_academy";
@@ -37,14 +35,9 @@ export function PkaRegistrationForm({
 
   const [fullName, setFullName] = useState(defaultName);
   const [faculty, setFaculty] = useState("");
-  const [useGoogleEmail, setUseGoogleEmail] = useState(true);
-  const [email, setEmail] = useState(googleEmail);
   const [instagram, setInstagram] = useState("");
-  const [receiveAnnouncements, setReceiveAnnouncements] = useState(true);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  const effectiveEmail = useGoogleEmail ? googleEmail : email;
 
   const handleFile = (file: File | null) => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -75,16 +68,14 @@ export function PkaRegistrationForm({
 
     if (!fullName.trim()) return toast.error("Nama lengkap wajib diisi.");
     if (!faculty.trim()) return toast.error("Fakultas wajib diisi.");
-    if (!effectiveEmail.trim()) return toast.error("Email wajib diisi.");
+    if (!googleEmail.trim()) return toast.error("Email wajib diisi.");
     if (!instagram.trim()) return toast.error("Username Instagram wajib diisi.");
     if (!proofFile) return toast.error("Unggah screenshot bukti follow terlebih dahulu.");
 
     const fd = new FormData();
     fd.set("fullName", fullName.trim());
     fd.set("faculty", faculty.trim());
-    fd.set("email", effectiveEmail.trim());
     fd.set("instagram", instagram.trim());
-    if (receiveAnnouncements) fd.set("receiveAnnouncements", "on");
     fd.set("proof", proofFile);
 
     startTransition(async () => {
@@ -164,24 +155,14 @@ export function PkaRegistrationForm({
           <Input
             id="pka-email"
             type="email"
-            value={effectiveEmail}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={useGoogleEmail}
-            placeholder="nama@email.com"
+            value={googleEmail}
+            disabled
             required
-            className={cn("rounded-md", useGoogleEmail && "opacity-70")}
+            className="rounded-md opacity-70"
           />
-          <label className="flex items-center gap-2 pt-1 text-body-sm text-muted-foreground">
-            <Checkbox
-              checked={useGoogleEmail}
-              onCheckedChange={(v) => {
-                const on = v === true;
-                setUseGoogleEmail(on);
-                if (on) setEmail(googleEmail);
-              }}
-            />
-            Gunakan email Google saya ({googleEmail})
-          </label>
+          <p className="pt-1 text-body-sm text-muted-foreground">
+            Email dikirim ke akun Google yang digunakan untuk masuk.
+          </p>
         </div>
 
         <div className="space-y-1.5">
@@ -248,20 +229,6 @@ export function PkaRegistrationForm({
           )}
         </div>
 
-        {/* Announcement opt-in */}
-        <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-4">
-          <Checkbox
-            checked={receiveAnnouncements}
-            onCheckedChange={(v) => setReceiveAnnouncements(v === true)}
-            className="mt-0.5"
-          />
-          <span className="text-body-sm">
-            <span className="block font-medium text-foreground">Terima email pengumuman & jadwal</span>
-            <span className="block text-muted-foreground">
-              Kami kirim notifikasi setiap ada sesi live baru atau pengumuman penting. Bisa dimatikan.
-            </span>
-          </span>
-        </label>
       </div>
 
       <div className="flex items-center justify-end gap-3">

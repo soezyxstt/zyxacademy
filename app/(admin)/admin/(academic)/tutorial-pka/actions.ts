@@ -7,12 +7,12 @@ import { db } from "@/db";
 import { enrollments, pkaAnnouncements, pkaRegistrations, pkaSchedules, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { resend } from "@/lib/resend";
 import { storage } from "@/lib/storage";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { sendToMany } from "@/lib/notifications/send";
 import { pkaAnnouncementPayload } from "@/lib/notifications/templates";
 import { pkaAnnouncementEmailHtml, scheduleEmailHtml } from "@/lib/pka-email-template";
+import { sendOptionalEmail } from "@/lib/email-preferences/send";
 
 export interface PkaActionState {
   success?: boolean;
@@ -40,14 +40,17 @@ function requirePkaFeature(): string | null {
   return null;
 }
 
-/**
- * Broadcast recipients for announcements and schedules. Students who opted out
- * of announcements on the intake form (receiveAnnouncements = false) are
- * excluded; legacy enrollments without a registration row default to included.
- */
-async function getEnrolledStudents() {
+async function getAllEnrolledStudents() {
   return db
-    .select({ userId: enrollments.userId, email: user.email })
+    .select({ userId: enrollments.userId })
+    .from(enrollments)
+    .innerJoin(user, eq(user.id, enrollments.userId))
+    .where(eq(enrollments.courseId, PKA_COURSE_ID));
+}
+
+async function getLegacyPkaNotificationRecipients() {
+  return db
+    .select({ userId: enrollments.userId })
     .from(enrollments)
     .innerJoin(user, eq(user.id, enrollments.userId))
     .leftJoin(pkaRegistrations, eq(pkaRegistrations.userId, enrollments.userId))
@@ -58,8 +61,6 @@ async function getEnrolledStudents() {
       ),
     );
 }
-
-const FROM_EMAIL = () => env.NEXT_PUBLIC_BRAND_EMAIL || "contact@zyxacademy.com";
 
 // ─── ANNOUNCEMENTS ──────────────────────────────────────────────────────────
 
@@ -81,7 +82,10 @@ export async function createAndSendPkaAnnouncementAction(
     }
 
     const announcementId = randomUUID();
-    const enrolled = await getEnrolledStudents();
+    const [enrolled, pushRecipients] = await Promise.all([
+      getAllEnrolledStudents(),
+      getLegacyPkaNotificationRecipients(),
+    ]);
 
     await db.insert(pkaAnnouncements).values({
       id: announcementId,
@@ -91,22 +95,24 @@ export async function createAndSendPkaAnnouncementAction(
     });
 
     const notificationResult = await sendToMany(
-      enrolled.map((e) => e.userId),
+      pushRecipients.map((e) => e.userId),
       pkaAnnouncementPayload(title, body, `/courses/${PKA_COURSE_ID}`),
     );
 
     const emailHtml = pkaAnnouncementEmailHtml(title, body);
     const emailResults = await Promise.allSettled(
       enrolled.map((student) =>
-        resend.emails.send({
-          from: `Zyx Academy <${FROM_EMAIL()}>`,
-          to: student.email,
+        sendOptionalEmail({
+          userId: student.userId,
+          category: "course_updates",
           subject: `Pengumuman PKA - ${title}`,
           html: emailHtml,
         }),
       ),
     );
-    const emailsSucceeded = emailResults.filter((r) => r.status === "fulfilled").length;
+    const emailsSucceeded = emailResults.filter(
+      (result) => result.status === "fulfilled" && result.value.status === "sent",
+    ).length;
 
     await db
       .update(pkaAnnouncements)
@@ -284,7 +290,10 @@ export async function createPkaScheduleAction(
       };
     }
 
-    const enrolled = await getEnrolledStudents();
+    const [enrolled, pushRecipients] = await Promise.all([
+      getAllEnrolledStudents(),
+      getLegacyPkaNotificationRecipients(),
+    ]);
     const sessionLabel = sessionAt.toLocaleString("id-ID", {
       dateStyle: "full",
       timeStyle: "short",
@@ -292,7 +301,7 @@ export async function createPkaScheduleAction(
     });
 
     const notificationResult = await sendToMany(
-      enrolled.map((e) => e.userId),
+      pushRecipients.map((e) => e.userId),
       pkaAnnouncementPayload(
         `Sesi baru: ${title}`,
         `${sessionLabel} WIB. Cek tab Jadwal untuk detail dan link Meet.`,
@@ -303,15 +312,17 @@ export async function createPkaScheduleAction(
     const emailHtml = scheduleEmailHtml(title, sessionAt, meetLink);
     const emailResults = await Promise.allSettled(
       enrolled.map((student) =>
-        resend.emails.send({
-          from: `Zyx Academy <${FROM_EMAIL()}>`,
-          to: student.email,
+        sendOptionalEmail({
+          userId: student.userId,
+          category: "events_and_schedules",
           subject: `Sesi Review PKA - ${title}`,
           html: emailHtml,
         }),
       ),
     );
-    const emailsSucceeded = emailResults.filter((r) => r.status === "fulfilled").length;
+    const emailsSucceeded = emailResults.filter(
+      (result) => result.status === "fulfilled" && result.value.status === "sent",
+    ).length;
 
     await db
       .update(pkaSchedules)
@@ -356,7 +367,10 @@ export async function updatePkaScheduleAction(
       .where(eq(pkaSchedules.id, scheduleId));
 
     if (meetLink && existing.meetLink !== meetLink && sessionAt.getTime() > Date.now()) {
-      const enrolled = await getEnrolledStudents();
+      const [enrolled, pushRecipients] = await Promise.all([
+        getAllEnrolledStudents(),
+        getLegacyPkaNotificationRecipients(),
+      ]);
       const sessionLabel = sessionAt.toLocaleString("id-ID", {
         dateStyle: "full",
         timeStyle: "short",
@@ -364,7 +378,7 @@ export async function updatePkaScheduleAction(
       });
 
       await sendToMany(
-        enrolled.map((e) => e.userId),
+        pushRecipients.map((e) => e.userId),
         pkaAnnouncementPayload(
           `Update Link Meet: ${title}`,
           `Link Meet telah ditambahkan untuk sesi ${sessionLabel}.`,
@@ -375,9 +389,9 @@ export async function updatePkaScheduleAction(
       const emailHtml = scheduleEmailHtml(title, sessionAt, meetLink);
       await Promise.allSettled(
         enrolled.map((student) =>
-          resend.emails.send({
-            from: `Zyx Academy <${FROM_EMAIL()}>`,
-            to: student.email,
+          sendOptionalEmail({
+            userId: student.userId,
+            category: "events_and_schedules",
             subject: `Update Link Meet PKA - ${title}`,
             html: emailHtml,
           }),
