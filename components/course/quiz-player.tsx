@@ -9,6 +9,7 @@ import { Flag, Timer, Clock, BookOpen, AlertCircle, ChevronLeft, ChevronRight, L
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/quiz-option-styles";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
+import { useTutor } from "@/components/course/tutor-drawer";
 import {
   Dialog,
   DialogContent,
@@ -60,8 +61,14 @@ type QuizPlayerProps = {
 
 export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirectBasePath, initialAnswers, startedAtMs, closeAtMs }: QuizPlayerProps) {
   const router = useRouter();
+  const { setSuppressPet } = useTutor();
   const durationSeconds = (exam.settings?.timeLimitMinutes ?? 15) * 60;
   const timerStorageKey = useMemo(() => `zyx-quiz-timer-deadline-${attemptId}`, [attemptId]);
+
+  useEffect(() => {
+    setSuppressPet(true);
+    return () => setSuppressPet(false);
+  }, [setSuppressPet]);
 
   const canGoBack = exam.settings?.canGoBack ?? true;
   const requireAllAnswered = exam.settings?.requireAllAnswered ?? false;
@@ -190,8 +197,12 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       });
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Gagal mengumpulkan kuis");
+        let message = "Gagal mengumpulkan kuis";
+        try {
+          const errData = await res.json();
+          if (errData?.error) message = typeof errData.error === "string" ? errData.error : "Terjadi kesalahan";
+        } catch { /* empty or non-JSON body */ }
+        throw new Error(message);
       }
 
       setIsSubmitted(true);

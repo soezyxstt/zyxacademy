@@ -13,6 +13,7 @@ import { headers } from 'next/headers';
 import { and, eq, desc } from 'drizzle-orm';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
 import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
+import { createAssessmentWithLegacyProjection } from '@/lib/asesmen/quiz-canonical-sync';
 
 const CreateTemplateSchema = z.object({
   courseId: z.string().min(1),
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     ? showDiscussion
     : selectionRules.explanationRelease !== 'never';
 
-  await db.insert(quizTemplates).values({
+  await createAssessmentWithLegacyProjection({
     id,
     courseId,
     title,
@@ -134,6 +135,7 @@ export async function POST(req: NextRequest) {
     manualStatus,
     showDiscussion: derivedShowDiscussion,
     status,
+    creatorId: session.user.id,
   });
 
   if (status === 'published') {

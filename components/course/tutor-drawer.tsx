@@ -85,6 +85,9 @@ interface TutorContextType {
   close: () => void;
   isOpen: boolean;
   activeMode: TutorMode;
+  /** When true the floating pet and drawer are suppressed (e.g. during an active quiz). */
+  suppressPet: boolean;
+  setSuppressPet: (v: boolean) => void;
 }
 
 const TutorContext = React.createContext<TutorContextType | undefined>(undefined);
@@ -108,6 +111,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
+  const [suppressPet, setSuppressPet] = React.useState(false);
   const imageInputEnabled = caps.imageInput && activeMode === "chat";
 
   // Variables and results states
@@ -240,6 +244,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const openChat = React.useCallback(async () => {
+    if (suppressPet) return;
     setKoId(null);
     setQuestionId(null);
     setUserAnswer(null);
@@ -285,7 +290,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         content: "Halo! Aku Zyra, asisten belajar buatan Zyx. Tanyakan apa saja seputar materi kuliah atau soal latihan, aku siap membimbingmu dengan pendekatan Socratic!",
       }]);
     }
-  }, [pathname]);
+  }, [pathname, suppressPet]);
 
   const openChatWithQuestion = React.useCallback(async (question: string) => {
     await openChat();
@@ -296,6 +301,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }, [openChat]);
 
   const openExplain = React.useCallback((id: string, initialMode: "content" | "analogy" | "simplification" = "content") => {
+    if (suppressPet) return;
     if (!caps.explain) {
       openChat();
       return;
@@ -308,9 +314,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setActiveAction("none");
     setMessages([]);
     setIsOpen(true);
-  }, [caps.explain, openChat]);
+  }, [caps.explain, openChat, suppressPet]);
 
   const openMistake = React.useCallback((qId: string, answerText: string) => {
+    if (suppressPet) return;
     setKoId(null);
     setQuestionId(qId);
     setUserAnswer(answerText);
@@ -318,9 +325,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setActiveAction("none");
     setMessages([]);
     setIsOpen(true);
-  }, []);
+  }, [suppressPet]);
 
   const openStudyPlan = React.useCallback(() => {
+    if (suppressPet) return;
     if (!caps.studyPlan) {
       openChat();
       return;
@@ -332,7 +340,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setActiveAction("none");
     setMessages([]);
     setIsOpen(true);
-  }, [caps.studyPlan, openChat]);
+  }, [caps.studyPlan, openChat, suppressPet]);
 
   const close = React.useCallback(() => {
     setIsOpen(false);
@@ -342,6 +350,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setErrors([]);
     setSessionId(null);
   }, []);
+
+  React.useEffect(() => {
+    if (suppressPet && isOpen) close();
+  }, [suppressPet, isOpen, close]);
 
   // Sync execution from backend services on mode triggers
   React.useEffect(() => {
@@ -589,13 +601,14 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <TutorContext.Provider value={{ openExplain, openMistake, openStudyPlan, openChat, openChatWithQuestion, close, isOpen, activeMode }}>
+    <TutorContext.Provider value={{ openExplain, openMistake, openStudyPlan, openChat, openChatWithQuestion, close, isOpen, activeMode, suppressPet, setSuppressPet }}>
       {children}
 
       {/* Global floating Zyra trigger */}
       {pathname?.startsWith("/courses/") &&
         !pathname.includes("/live/host") &&
         !pathname.endsWith("/daftar") &&
+        !suppressPet &&
         !isOpen && (caps.pet ? (
           <ZyraFloatingPet state={petState} onOpen={openChat} />
         ) : (

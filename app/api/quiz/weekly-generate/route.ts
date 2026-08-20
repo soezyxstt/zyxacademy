@@ -15,6 +15,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, or, eq, count, sql } from 'drizzle-orm';
 import { startGenerationJob } from '@/lib/generation-pipeline';
+import { createAssessmentWithLegacyProjection } from '@/lib/asesmen/quiz-canonical-sync';
 
 const Schema = z.object({
  courseId: z.string().min(1),
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
  if (total >= targetCount) {
  // Enough questions ; create template directly without vector retrieval or Gemini
  const templateId = randomUUID();
- await db.insert(quizTemplates).values({
+ await createAssessmentWithLegacyProjection({
  id: templateId,
  courseId,
  title,
@@ -106,7 +107,9 @@ export async function POST(req: NextRequest) {
  hard: targetCount - Math.round(targetCount * 0.3) - Math.round(targetCount * 0.5),
  }
  : { [difficulty]: targetCount },
- } as unknown as Record<string, unknown>,
+ },
+ status: 'published',
+ creatorId: session.user.id,
  });
 
  return NextResponse.json({ mode: 'bank_reuse', templateId }, { status: 201 });

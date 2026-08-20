@@ -376,8 +376,8 @@ The compatibility submit route keeps the legacy quiz as the source of the user-v
 #### Quiz System
 | Table | Purpose |
 |---|---|
-| `quiz_templates` | Quiz config: selection rules (difficulty mix, tag filters), time limits, category (daily/weekly/chapter/premium) |
-| `student_quiz_attempts` | Per-student quiz session with deep question/answer snapshots, masteryBefore snapshot, strong/weak areas |
+| `quiz_templates` | Legacy compatibility projection of canonical `asesmen` and `blueprint_asesmen`: selection rules, time limits, category (daily/weekly/chapter/premium) |
+| `student_quiz_attempts` | Per-student quiz session with deep question/answer snapshots, masteryBefore snapshot, strong/weak areas (dual-written to `percobaan_asesmen`) |
 | `attempt_feedback` | Per-question feedback payloads |
 | `live_quiz_sessions` | Real-time tutor-led quiz (code, state: lobby→question→reveal→ended) |
 | `live_quiz_results` | Per-student results for live quizzes |
