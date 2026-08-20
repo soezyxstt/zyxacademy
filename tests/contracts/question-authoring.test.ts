@@ -61,16 +61,18 @@ Berapakah hasilnya?
     expect(validateExtractedQuestion(questions[1], 2)).toBeNull();
   });
 
-  it("rejects a canonical payload without Idea links or complete answer data", () => {
+  it("accepts a canonical payload without Idea links and still rejects incomplete answer data", () => {
     const parsed = questionAuthoringInputSchema.safeParse({
       courseId: "course-1",
+      ideaLinks: [],
       prompt: "Pertanyaan",
       questionType: "multiple_choice",
       difficulty: "medium",
       options: ["A", "B"],
       correctIndices: [0],
     });
-    expect(parsed.success).toBe(false);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.ideaLinks).toEqual([]);
 
     const questions = parseQuestionsMarkdown(`
 ## Soal 1
@@ -81,6 +83,18 @@ A. A
 B. B
 `);
     expect(validateExtractedQuestion(questions[0], 1)).toContain("kunci jawaban");
+  });
+
+  it("defaults omitted Idea links to an empty array", () => {
+    const parsed = questionAuthoringInputSchema.parse({
+      courseId: "course-1",
+      prompt: "Pertanyaan",
+      questionType: "multiple_choice",
+      difficulty: "medium",
+      options: ["A", "B"],
+      correctIndices: [0],
+    });
+    expect(parsed.ideaLinks).toEqual([]);
   });
 
   it("maps compatibility review status to canonical status", () => {

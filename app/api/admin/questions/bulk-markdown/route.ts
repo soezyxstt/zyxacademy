@@ -9,7 +9,7 @@ import { parseQuestionsMarkdown, validateExtractedQuestion } from "@/lib/questio
 const RequestSchema = z.object({
   courseId: z.string().trim().min(1),
   chapterId: z.string().trim().min(1).nullable().optional(),
-  ideaLinks: z.array(questionIdeaLinkSchema).min(1),
+  ideaLinks: z.array(questionIdeaLinkSchema).default([]),
   rawMarkdown: z.string().min(1),
   reviewStatus: questionReviewStatusSchema.default("generated"),
 });
@@ -51,8 +51,10 @@ export async function POST(req: NextRequest) {
     const results = await createCanonicalQuestionBatch({
       courseId: parsed.data.courseId,
       chapterId: parsed.data.chapterId,
-      ideaLinks: parsed.data.ideaLinks,
-      questions: parsedQuestions.map(({ sourceIndex: _sourceIndex, ...question }) => question),
+      items: parsedQuestions.map(({ sourceIndex: _sourceIndex, ...question }) => ({
+        question,
+        ideaLinks: parsed.data.ideaLinks,
+      })),
       reviewStatus: parsed.data.reviewStatus,
       creatorId: session.user.id,
     });
