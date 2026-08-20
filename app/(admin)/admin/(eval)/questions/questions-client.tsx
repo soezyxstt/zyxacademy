@@ -575,7 +575,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         />
 
         <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ReviewStatus | "all")}>
-          <SelectTrigger aria-label="Filter status" className="w-[110px] sm:w-[120px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter status" className="w-[110px] sm:w-[120px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -589,7 +589,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </Select>
 
         <Select value={filterCourse} onValueChange={setFilterCourse}>
-          <SelectTrigger aria-label="Filter mata kuliah" className="w-[125px] sm:w-[145px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter mata kuliah" className="w-[125px] sm:w-[145px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Mata kuliah" />
           </SelectTrigger>
           <SelectContent>
@@ -603,7 +603,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </Select>
 
         <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
-          <SelectTrigger aria-label="Filter asal soal" className="w-[105px] sm:w-[115px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter asal soal" className="w-[105px] sm:w-[115px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Asal soal" />
           </SelectTrigger>
           <SelectContent>
@@ -614,7 +614,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </Select>
 
         <Select value={filterQuestionType} onValueChange={(value) => setFilterQuestionType(value as QuestionType | "all")}>
-          <SelectTrigger aria-label="Filter tipe soal" className="w-[105px] sm:w-[115px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter tipe soal" className="w-[105px] sm:w-[115px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Tipe soal" />
           </SelectTrigger>
           <SelectContent>
@@ -627,7 +627,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </Select>
 
         <Select value={filterDifficulty} onValueChange={(value) => setFilterDifficulty(value as Difficulty | "all")}>
-          <SelectTrigger aria-label="Filter tingkat kesulitan" className="w-[100px] sm:w-[110px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter tingkat kesulitan" className="w-[100px] sm:w-[110px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Kesulitan" />
           </SelectTrigger>
           <SelectContent>

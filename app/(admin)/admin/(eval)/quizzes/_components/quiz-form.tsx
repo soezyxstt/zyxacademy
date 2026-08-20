@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Loader2,
   NotebookPen,
+  Layers,
 } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SearchBar } from "@/components/ui/search-bar";
 import { PageHeader } from "@/components/page-header";
 import { MathText } from "@/components/course/math-text";
+import { DifficultyProportionSlider } from "@/components/admin/difficulty-proportion-slider";
 import { formatDatetimeLocal } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
@@ -205,6 +207,47 @@ export function QuizForm({
   const [medium, setMedium] = useState(String(initialData?.selectionRules?.difficulty_proportions?.medium ?? 5));
   const [hard, setHard] = useState(String(initialData?.selectionRules?.difficulty_proportions?.hard ?? 2));
 
+  // Sync and scale easy, medium, hard when count changes
+  const handleCountChange = (newCountStr: string) => {
+    setCount(newCountStr);
+    const newCountNum = Number(newCountStr);
+    if (Number.isFinite(newCountNum) && newCountNum > 0) {
+      const currentEasy = Number(easy) || 0;
+      const currentMed = Number(medium) || 0;
+      const currentHard = Number(hard) || 0;
+      const currentSum = currentEasy + currentMed + currentHard;
+
+      if (currentSum > 0) {
+        const rEasy = currentEasy / currentSum;
+        const rMed = currentMed / currentSum;
+        const newEasy = Math.round(newCountNum * rEasy);
+        const newMed = Math.round(newCountNum * rMed);
+        let newHard = newCountNum - newEasy - newMed;
+        let finalE = newEasy;
+        let finalM = newMed;
+        let finalH = newHard;
+        if (finalH < 0) {
+          finalH = 0;
+          finalM = Math.max(0, newCountNum - finalE);
+        }
+        if (finalM < 0) {
+          finalM = 0;
+          finalE = newCountNum;
+        }
+        setEasy(String(finalE));
+        setMedium(String(finalM));
+        setHard(String(finalH));
+      } else {
+        const newEasy = Math.round(newCountNum * 0.33);
+        const newMed = Math.round(newCountNum * 0.34);
+        const newHard = Math.max(0, newCountNum - newEasy - newMed);
+        setEasy(String(newEasy));
+        setMedium(String(newMed));
+        setHard(String(newHard));
+      }
+    }
+  };
+
   // Specific Question Picker States
   const [selectedQIds, setSelectedQIds] = useState<string[]>(
     initialData?.selectionRules?.fixedQuestionIds || []
@@ -264,6 +307,20 @@ export function QuizForm({
     }
     return Array.from(tagSet);
   }, [courseQuestions]);
+
+  // Selected Questions Difficulty Breakdown (for Specific Mode)
+  const selectedDifficultyCounts = useMemo(() => {
+    const counts = { easy: 0, medium: 0, hard: 0 };
+    const selectedSet = new Set(selectedQIds);
+    for (const q of courseQuestions) {
+      if (selectedSet.has(q.id)) {
+        if (q.difficulty === "easy") counts.easy++;
+        else if (q.difficulty === "hard") counts.hard++;
+        else counts.medium++;
+      }
+    }
+    return counts;
+  }, [selectedQIds, courseQuestions]);
 
   // Filtered Questions List
   const filteredQuestions = useMemo(() => {
@@ -1169,7 +1226,7 @@ export function QuizForm({
                       min={1}
                       max={100}
                       value={count}
-                      onChange={(e) => setCount(e.target.value)}
+                      onChange={(e) => handleCountChange(e.target.value)}
                       className="mt-1 rounded-lg border-border h-9"
                     />
                   </div>
@@ -1188,57 +1245,24 @@ export function QuizForm({
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-border/80 bg-muted/20 p-3.5 space-y-2.5">
+                <div className="rounded-lg border border-border/80 bg-muted/20 p-3.5 space-y-3">
                   <Label className="text-body-sm font-semibold text-foreground">
                     Proporsi Tingkat Kesulitan Soal
                   </Label>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <div>
-                      <span className="text-body-xs font-semibold text-status-success uppercase">Mudah</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={easy}
-                        onChange={(e) => setEasy(e.target.value)}
-                        className="mt-1 rounded-lg border-border h-8 text-body-xs"
-                      />
-                    </div>
-                    <div>
-                      <span className="text-body-xs font-semibold text-status-warning uppercase">Sedang</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={medium}
-                        onChange={(e) => setMedium(e.target.value)}
-                        className="mt-1 rounded-lg border-border h-8 text-body-xs"
-                      />
-                    </div>
-                    <div>
-                      <span className="text-body-xs font-semibold text-status-error uppercase">Sulit</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={hard}
-                        onChange={(e) => setHard(e.target.value)}
-                        className="mt-1 rounded-lg border-border h-8 text-body-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="text-body-xs text-muted-foreground flex items-center justify-between pt-1">
-                    <span>
-                      Total Proporsi:{" "}
-                      <strong className="text-foreground">
-                        {(Number(easy) || 0) + (Number(medium) || 0) + (Number(hard) || 0)}
-                      </strong>{" "}
-                      / Target: <strong className="text-foreground">{Number(count) || 0}</strong>
-                    </span>
-                    {(Number(easy) || 0) + (Number(medium) || 0) + (Number(hard) || 0) !== (Number(count) || 0) && (
-                      <span className="text-status-error font-medium flex items-center gap-1">
-                        <AlertTriangle className="size-3.5" /> Total proporsi belum sesuai
-                      </span>
-                    )}
-                  </div>
+                  <DifficultyProportionSlider
+                    totalCount={Number(count) || 10}
+                    easy={Number(easy) || 0}
+                    medium={Number(medium) || 0}
+                    hard={Number(hard) || 0}
+                    onChange={(p) => {
+                      setEasy(String(p.easy));
+                      setMedium(String(p.medium));
+                      setHard(String(p.hard));
+                    }}
+                    onTotalCountChange={(newTotal) => {
+                      setCount(String(newTotal));
+                    }}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -1247,6 +1271,36 @@ export function QuizForm({
           {/* SPECIFIC QUESTION PICKER MODE */}
           {selectionMode === "specific" && (
             <div className="space-y-3">
+              {/* Live Selected Questions Difficulty Breakdown */}
+              {selectedQIds.length > 0 && (
+                <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-body-xs font-semibold text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-foreground font-bold">
+                      <Layers className="size-3.5 text-brand-primary" />
+                      Komposisi Kesulitan Soal Terpilih ({selectedQIds.length} Soal)
+                    </span>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-status-success font-medium flex items-center gap-1">
+                        <span className="size-2 rounded-full bg-emerald-500" />
+                        Mudah: {selectedDifficultyCounts.easy} ({Math.round((selectedDifficultyCounts.easy / selectedQIds.length) * 100)}%)
+                      </span>
+                      <span className="text-status-warning font-medium flex items-center gap-1">
+                        <span className="size-2 rounded-full bg-amber-500" />
+                        Sedang: {selectedDifficultyCounts.medium} ({Math.round((selectedDifficultyCounts.medium / selectedQIds.length) * 100)}%)
+                      </span>
+                      <span className="text-status-error font-medium flex items-center gap-1">
+                        <span className="size-2 rounded-full bg-rose-500" />
+                        Sulit: {selectedDifficultyCounts.hard} ({Math.round((selectedDifficultyCounts.hard / selectedQIds.length) * 100)}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-2 w-full rounded-md bg-muted overflow-hidden flex">
+                    <div style={{ width: `${(selectedDifficultyCounts.easy / selectedQIds.length) * 100}%` }} className="h-full bg-emerald-500 transition-all" />
+                    <div style={{ width: `${(selectedDifficultyCounts.medium / selectedQIds.length) * 100}%` }} className="h-full bg-amber-500 transition-all" />
+                    <div style={{ width: `${(selectedDifficultyCounts.hard / selectedQIds.length) * 100}%` }} className="h-full bg-rose-500 transition-all" />
+                  </div>
+                </div>
+              )}
 
               {/* Space-Efficient Inline Search & Filter Toolbar */}
               <div className="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2.5">

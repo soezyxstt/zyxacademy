@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
-import { AdminStatCard } from "@/components/admin/stat-card";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -397,37 +397,37 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* 1. KPI Cards Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <AdminStatCard
+      {/* 1. KPI Strip */}
+      <AdminStatStrip className="lg:grid-cols-4">
+        <AdminStatStripItem
           label="Total Kelompok"
           value={totalGroups}
           caption="Kelompok terdaftar"
           icon={Users}
           tone="brand"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Kelompok Aktif"
           value={activeGroups}
           caption="Semester ini"
           icon={CheckCircle2}
           tone="success"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Mahasiswa Tergabung"
           value={totalMembers}
           caption="Anggota aktif"
           icon={GraduationCap}
           tone="info"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Pemakaian Kuota"
           value={`${avgQuotaUsed}%`}
           caption="Rata-rata sesi semester"
           icon={Percent}
           tone="warning"
         />
-      </div>
+      </AdminStatStrip>
 
       {/* 2. Search, Filter, and Action Bar */}
       <div className="flex items-center gap-2">
@@ -444,7 +444,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
         {/* Status Filter */}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-xs bg-card border-border">
+          <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-sm bg-card border-border">
             <SelectValue placeholder="Semua Status" />
           </SelectTrigger>
           <SelectContent>
@@ -457,7 +457,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
         {/* Package Filter */}
         <Select value={packageFilter} onValueChange={setPackageFilter}>
-          <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-xs bg-card border-border">
+          <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm bg-card border-border">
             <SelectValue placeholder="Semua Paket" />
           </SelectTrigger>
           <SelectContent>
@@ -471,7 +471,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
         {/* Course Filter */}
         <Select value={courseFilter} onValueChange={setCourseFilter}>
-          <SelectTrigger className="h-9 w-[160px] sm:w-[180px] shrink-0 rounded-lg text-body-xs bg-card border-border truncate">
+          <SelectTrigger className="h-9 w-[160px] sm:w-[180px] shrink-0 rounded-lg text-body-sm bg-card border-border truncate">
             <SelectValue placeholder="Semua Mata Kuliah" />
           </SelectTrigger>
           <SelectContent>
@@ -882,7 +882,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       key={c.id}
                       className={`flex items-center gap-2 p-2 rounded-md border text-body-xs cursor-pointer transition-colors ${
                         checked
-                          ? "border-brand-primary bg-brand-primary/10 text-foreground font-medium"
+                          ? "border-brand-primary bg-brand-primary/10 text-foreground"
                           : "border-border bg-card text-muted-foreground"
                       }`}
                     >
@@ -1071,7 +1071,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       key={c.id}
                       className={`flex items-center gap-2 p-2 rounded-md border text-body-xs cursor-pointer transition-colors ${
                         checked
-                          ? "border-brand-primary bg-brand-primary/10 text-foreground font-medium"
+                          ? "border-brand-primary bg-brand-primary/10 text-foreground"
                           : "border-border bg-card text-muted-foreground"
                       }`}
                     >

@@ -349,12 +349,12 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
         {/* Quick Dropdown Selector */}
         <div className="min-w-0 flex-1 max-w-md">
           <Select value={activeIdea?.id ?? ""} onValueChange={(id) => { setSelectedIdeaId(id); setEditing(false); }}>
-            <SelectTrigger className="h-8 text-body-xs">
+            <SelectTrigger className="h-8 text-body-sm">
               <SelectValue placeholder="Pilih Idea..." />
             </SelectTrigger>
             <SelectContent className="max-h-72">
               {ideasList.map((idea, idx) => (
-                <SelectItem key={idea.id} value={idea.id} className="text-body-xs">
+                <SelectItem key={idea.id} value={idea.id} className="text-body-sm">
                   <span className="font-semibold">{idea.code || `Idea ${idx + 1}`}</span>: {idea.canonicalStatement.slice(0, 50)}...
                 </SelectItem>
               ))}
@@ -365,7 +365,7 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
         {/* Drawer Trigger for 60+ Items Search List */}
         <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
           <SheetTrigger asChild>
-            <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-body-xs">
+            <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-body-sm">
               <ListFilter className="size-3.5" />
               Daftar Idea ({ideasList.length})
             </Button>
@@ -421,7 +421,7 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
             <div className="flex items-center gap-2">
               <Badge variant="outline">{activeIdea.provenance.length} bukti sumber</Badge>
               {!editing && payload.bundle.status !== "published" && (
-                <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-xs">Edit isi</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">Edit isi</Button>
               )}
             </div>
           </div>
@@ -1115,12 +1115,12 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
             {/* Quick Dropdown Selector */}
             <div className="min-w-0 flex-1 max-w-md">
               <Select value={activePreview?.id ?? ""} onValueChange={handleSelectProduct}>
-                <SelectTrigger className="h-8 text-body-xs">
+                <SelectTrigger className="h-8 text-body-sm">
                   <SelectValue placeholder="Pilih bagian..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
                   {visiblePreviews.map((preview, idx) => (
-                    <SelectItem key={preview.id} value={preview.id} className="text-body-xs">
+                    <SelectItem key={preview.id} value={preview.id} className="text-body-sm">
                       <span className="font-semibold">#{idx + 1}</span> {preview.title || preview.id} ({productLabels[preview.productType] ?? preview.productType})
                     </SelectItem>
                   ))}
@@ -1131,7 +1131,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
             {/* Drawer for 60+ Items Search List */}
             <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
               <SheetTrigger asChild>
-                <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-body-xs">
+                <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-body-sm">
                   <ListFilter className="size-3.5" />
                   Daftar ({visiblePreviews.length})
                 </Button>
@@ -1184,7 +1184,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
                   <span className="text-body-xs text-muted-foreground font-mono">ID: {activePreview.id} · Versi {activePreview.version}</span>
                 </div>
                 {!editing && payload.bundle.status === "draft" && (
-                  <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-xs">Edit isi</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">Edit isi</Button>
                 )}
               </div>
 

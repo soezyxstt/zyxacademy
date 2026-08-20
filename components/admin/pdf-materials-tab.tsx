@@ -345,7 +345,7 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
                       key={chapter.id}
                       className={`flex items-start gap-2 p-2 rounded-lg border text-body-xs cursor-pointer select-none transition-colors ${
                         selectedChapters.has(chapter.id)
-                          ? "border-brand-primary bg-brand-primary/10 text-foreground font-medium"
+                          ? "border-brand-primary bg-brand-primary/10 text-foreground"
                           : "border-border/60 hover:bg-muted/20 text-muted-foreground"
                       }`}
                     >

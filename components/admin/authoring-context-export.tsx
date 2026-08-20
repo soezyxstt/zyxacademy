@@ -85,7 +85,7 @@ export function AuthoringContextExport({
         <div className="flex-1 space-y-1.5 min-w-0">
           <Label htmlFor="context-course" className="text-body-sm font-semibold">Mata kuliah</Label>
           <Select value={courseId} onValueChange={setCourseId}>
-            <SelectTrigger id="context-course" className="h-9 text-body-xs rounded-lg">
+            <SelectTrigger id="context-course" className="h-9 text-body-sm rounded-lg">
               <SelectValue placeholder="Pilih mata kuliah" />
             </SelectTrigger>
             <SelectContent>

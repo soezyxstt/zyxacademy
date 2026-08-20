@@ -8,6 +8,8 @@ import {
   Eye,
   SlidersHorizontal,
   X,
+  BarChart3,
+  ArrowRight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,10 @@ import { SearchBar } from "@/components/ui/search-bar";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
-import { CourseCombobox, type CourseOption } from "@/components/admin/course-combobox";
+import {
+  CourseCombobox,
+  type CourseOption,
+} from "@/components/admin/course-combobox";
 import {
   Dialog,
   DialogContent,
@@ -61,6 +66,15 @@ interface RankedStudent {
   attempts: StudentAttemptItem[];
 }
 
+interface CourseInsight {
+  courseId: string;
+  courseTitle: string;
+  participatingStudents: number;
+  attemptCount: number;
+  averageScore: number;
+  highestScore: number;
+}
+
 interface LeaderboardSummary {
   totalStudents: number;
   totalAttempts: number;
@@ -88,6 +102,7 @@ function getInitials(name: string): string {
 
 export function AdminLeaderboardClient() {
   const [courses, setCourses] = useState<CourseOption[]>([]);
+  const [courseInsights, setCourseInsights] = useState<CourseInsight[]>([]);
   const [students, setStudents] = useState<RankedStudent[]>([]);
   const [summary, setSummary] = useState<LeaderboardSummary>({
     totalStudents: 0,
@@ -96,13 +111,14 @@ export function AdminLeaderboardClient() {
     highestScore: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [responseMode, setResponseMode] = useState<"overview" | "course">(
+    "overview"
+  );
 
-  // Filters
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
   const [search, setSearch] = useState("");
 
-  // Modal detail
   const [detailStudent, setDetailStudent] = useState<RankedStudent | null>(null);
 
   const fetchLeaderboard = useCallback(async () => {
@@ -123,6 +139,8 @@ export function AdminLeaderboardClient() {
       if (res.ok) {
         const data = await res.json();
         setCourses(data.courses || []);
+        setResponseMode(data.mode || "overview");
+        setCourseInsights(data.courseInsights || []);
         setStudents(data.students || []);
         setSummary(
           data.summary || {
@@ -144,6 +162,8 @@ export function AdminLeaderboardClient() {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
+  const isOverview = responseMode === "overview";
+
   const hasActiveFilters =
     selectedCourse !== "all" || selectedType !== "all" || search.trim() !== "";
 
@@ -152,6 +172,10 @@ export function AdminLeaderboardClient() {
     setSelectedType("all");
     setSearch("");
   };
+
+  const scopeLabel = isOverview
+    ? "Semua mata kuliah"
+    : courses.find((c) => c.id === selectedCourse)?.title || "Mata Kuliah";
 
   return (
     <div className="space-y-4">
@@ -164,37 +188,39 @@ export function AdminLeaderboardClient() {
             size="sm"
             onClick={fetchLeaderboard}
             disabled={loading}
-            className="gap-2 rounded-lg"
+            className="gap-2 rounded-lg text-body-sm"
           >
-            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+            <RefreshCw
+              className={cn("size-3.5", loading && "animate-spin")}
+            />
             <span>Perbarui Data</span>
           </Button>
         }
       />
 
-      {/* Minimal KPI Stats Bar */}
+      {/* KPI Stats Bar */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-border bg-card/60 px-3.5 py-2 text-body-xs shadow-2xs">
         <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground">Siswa Dinilai:</span>
+          <span className="text-muted-foreground">{isOverview ? "Siswa Unik:" : "Siswa Dinilai:"}</span>
           <span className="font-bold tabular-nums text-foreground">
             {summary.totalStudents}
           </span>
         </div>
-        <span className="text-border hidden sm:inline">•</span>
+        <span className="text-border hidden sm:inline">&bull;</span>
         <div className="flex items-center gap-1.5">
           <span className="text-muted-foreground">Total Pengerjaan:</span>
           <span className="font-bold tabular-nums text-foreground">
             {summary.totalAttempts}
           </span>
         </div>
-        <span className="text-border hidden sm:inline">•</span>
+        <span className="text-border hidden sm:inline">&bull;</span>
         <div className="flex items-center gap-1.5">
           <span className="text-muted-foreground">Rata-rata Nilai:</span>
           <span className="font-bold tabular-nums text-brand-primary">
             {summary.avgOverallScore}%
           </span>
         </div>
-        <span className="text-border hidden sm:inline">•</span>
+        <span className="text-border hidden sm:inline">&bull;</span>
         <div className="flex items-center gap-1.5">
           <span className="text-muted-foreground">Skor Tertinggi:</span>
           <span className="font-bold tabular-nums text-status-success">
@@ -203,27 +229,38 @@ export function AdminLeaderboardClient() {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+      <p className="text-body-xs text-muted-foreground">
+        {isOverview
+          ? "Perbandingan antar mata kuliah. Pilih satu mata kuliah untuk melihat peringkat siswa."
+          : `Menampilkan peringkat siswa untuk ${scopeLabel}. Pilih "Semua Mata Kuliah" untuk kembali ke ringkasan.`}
+      </p>
+
+      {/* Toolbar: single row on desktop, wraps near 380px */}
+      <div className="flex flex-row flex-wrap items-center gap-2">
         <SearchBar
           size="sm"
-          placeholder="Cari nama atau email siswa..."
+          placeholder={
+            isOverview
+              ? "Cari judul mata kuliah..."
+              : "Cari nama atau email siswa..."
+          }
           value={search}
           onSearch={setSearch}
           onClear={() => setSearch("")}
-          containerClassName="flex-1 min-w-0"
+          containerClassName="flex-1 min-w-[140px]"
         />
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
           <CourseCombobox
             courses={courses}
             value={selectedCourse}
             onValueChange={setSelectedCourse}
             allLabel="Semua Mata Kuliah"
+            className="text-body-sm"
           />
 
           <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0">
+            <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
               <SelectValue placeholder="Tipe Asesmen" />
             </SelectTrigger>
             <SelectContent>
@@ -239,7 +276,7 @@ export function AdminLeaderboardClient() {
               size="sm"
               onClick={resetFilters}
               title="Reset filter"
-              className="h-9 px-2.5 text-body-xs text-muted-foreground hover:text-foreground rounded-lg"
+              className="h-9 px-2.5 text-body-sm text-muted-foreground hover:text-foreground rounded-lg"
             >
               <X className="size-3.5 mr-1" />
               <span>Reset</span>
@@ -248,14 +285,84 @@ export function AdminLeaderboardClient() {
         </div>
       </div>
 
-      {/* Leaderboard Table */}
+      {/* Content: Overview or Course leaderboard */}
       <AdminTable>
         {loading ? (
           <div className="p-12 text-center text-body-sm text-muted-foreground space-y-3">
             <RefreshCw className="size-6 animate-spin mx-auto text-brand-primary" />
             <p>Memuat data papan peringkat...</p>
           </div>
-        ) : students.length === 0 ? (
+        ) : isOverview ? (
+          /* ====== OVERVIEW MODE ====== */
+          courseInsights.length === 0 ? (
+            <AdminEmptyState
+              icon={BarChart3}
+              title="Tidak ada data perbandingan"
+              description="Belum ada pengerjaan yang tercatat. Data akan muncul setelah siswa menyelesaikan kuis."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-body-sm">
+                <AdminTableHead className="text-body-xs font-semibold text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">Mata Kuliah</th>
+                    <th className="px-4 py-3 text-center">Siswa</th>
+                    <th className="px-4 py-3 text-center">Pengerjaan</th>
+                    <th className="px-4 py-3 text-center">Rata-rata Nilai</th>
+                    <th className="px-4 py-3 text-center">Skor Tertinggi</th>
+                    <th className="px-4 py-3 text-right">Aksi</th>
+                  </tr>
+                </AdminTableHead>
+                <tbody className="divide-y divide-border">
+                  {courseInsights.map((ci) => (
+                    <tr
+                      key={ci.courseId}
+                      className="hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <span className="font-semibold text-foreground">
+                          {ci.courseTitle}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center tabular-nums font-medium">
+                        {ci.participatingStudents}
+                      </td>
+                      <td className="px-4 py-3 text-center tabular-nums font-medium">
+                        {ci.attemptCount}
+                      </td>
+                      <td className="px-4 py-3 text-center tabular-nums font-semibold">
+                        <span
+                          className={
+                            ci.averageScore >= 70
+                              ? "text-status-success"
+                              : "text-status-warning"
+                          }
+                        >
+                          {ci.averageScore}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center tabular-nums text-foreground font-medium">
+                        {ci.highestScore}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedCourse(ci.courseId)}
+                          className="h-8 gap-1.5 px-2 text-body-sm text-brand-primary hover:text-brand-primary rounded-lg"
+                        >
+                          <span>Lihat Peringkat</span>
+                          <ArrowRight className="size-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : /* ====== COURSE MODE ====== */
+        students.length === 0 ? (
           <AdminEmptyState
             icon={SlidersHorizontal}
             title="Tidak ada data peringkat"
@@ -268,7 +375,6 @@ export function AdminLeaderboardClient() {
                 <tr>
                   <th className="px-4 py-3 w-16 text-center">#</th>
                   <th className="px-4 py-3">Siswa</th>
-                  <th className="px-4 py-3">Mata Kuliah</th>
                   <th className="px-4 py-3 text-center">Pengerjaan</th>
                   <th className="px-4 py-3 text-center">Rata-rata Nilai</th>
                   <th className="px-4 py-3 text-center">Skor Terbaik</th>
@@ -288,7 +394,6 @@ export function AdminLeaderboardClient() {
                       key={student.studentId}
                       className="hover:bg-muted/30 transition-colors"
                     >
-                      {/* Rank Column */}
                       <td className="px-4 py-3.5 text-center">
                         <span
                           className={cn(
@@ -309,7 +414,6 @@ export function AdminLeaderboardClient() {
                         </span>
                       </td>
 
-                      {/* Student Info */}
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           {student.studentImage ? (
@@ -337,34 +441,10 @@ export function AdminLeaderboardClient() {
                         </div>
                       </td>
 
-                      {/* Courses */}
-                      <td className="px-4 py-3.5">
-                        {student.courseNames.length === 1 ? (
-                          <Badge
-                            variant="outline"
-                            className="rounded-md font-normal text-body-xs truncate max-w-[180px]"
-                          >
-                            {student.courseNames[0]}
-                          </Badge>
-                        ) : student.courseNames.length > 1 ? (
-                          <Badge
-                            variant="secondary"
-                            className="rounded-md font-normal text-body-xs"
-                            title={student.courseNames.join(", ")}
-                          >
-                            {student.courseNames.length} mata kuliah
-                          </Badge>
-                        ) : (
-                          <span className="text-body-xs text-muted-foreground">-</span>
-                        )}
-                      </td>
-
-                      {/* Total Attempts */}
                       <td className="px-4 py-3.5 text-center tabular-nums font-medium">
                         {student.attemptCount} kuis
                       </td>
 
-                      {/* Average Score */}
                       <td className="px-4 py-3.5 text-center tabular-nums font-semibold">
                         <span
                           className={
@@ -377,17 +457,14 @@ export function AdminLeaderboardClient() {
                         </span>
                       </td>
 
-                      {/* Best Score */}
                       <td className="px-4 py-3.5 text-center tabular-nums text-foreground font-medium">
                         {student.bestScore}
                       </td>
 
-                      {/* Average Duration */}
                       <td className="px-4 py-3.5 text-center tabular-nums text-muted-foreground text-body-xs">
                         {formatDuration(student.avgDuration)}
                       </td>
 
-                      {/* Last Attempt */}
                       <td className="px-4 py-3.5 text-muted-foreground text-body-xs whitespace-nowrap">
                         {student.lastAttemptAt ? (
                           <FormattedDate
@@ -403,7 +480,6 @@ export function AdminLeaderboardClient() {
                         )}
                       </td>
 
-                      {/* Actions */}
                       <td className="px-4 py-3.5 text-right">
                         <Button
                           variant="ghost"
@@ -434,10 +510,13 @@ export function AdminLeaderboardClient() {
         >
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Riwayat Pengerjaan: {detailStudent.studentName}</DialogTitle>
+              <DialogTitle>
+                Riwayat Pengerjaan: {detailStudent.studentName}
+              </DialogTitle>
               <DialogDescription>
-                {detailStudent.studentEmail} • {detailStudent.attemptCount} pengerjaan selesai
-                • Rata-rata skor {detailStudent.avgScore}%
+                {detailStudent.studentEmail} &bull;{" "}
+                {detailStudent.attemptCount} pengerjaan selesai &bull;
+                Rata-rata skor {detailStudent.avgScore}%
               </DialogDescription>
             </DialogHeader>
 
@@ -463,8 +542,13 @@ export function AdminLeaderboardClient() {
                         {att.courseTitle}
                       </td>
                       <td className="px-3.5 py-2.5">
-                        <Badge variant="secondary" className="rounded-md text-body-xs capitalize">
-                          {att.category === "simulation" ? "Simulasi" : att.category}
+                        <Badge
+                          variant="secondary"
+                          className="rounded-md text-body-xs capitalize"
+                        >
+                          {att.category === "simulation"
+                            ? "Simulasi"
+                            : att.category}
                         </Badge>
                       </td>
                       <td className="px-3.5 py-2.5 text-center font-semibold tabular-nums">

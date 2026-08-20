@@ -87,7 +87,7 @@ export function QuestionsTab({
         />
 
         <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
-          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Tingkat Kesulitan" />
           </SelectTrigger>
           <SelectContent>

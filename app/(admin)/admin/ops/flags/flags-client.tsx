@@ -315,7 +315,7 @@ export function FlagsClient() {
 
         {/* Category Select */}
         <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val as any)}>
-          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Semua Kategori" />
           </SelectTrigger>
           <SelectContent>

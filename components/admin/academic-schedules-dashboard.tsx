@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
-import { AdminStatCard } from "@/components/admin/stat-card";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -218,41 +218,37 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* 1. Compact Minimal KPI Cards Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-        <AdminStatCard
+      {/* 1. KPI Strip */}
+      <AdminStatStrip className="lg:grid-cols-4">
+        <AdminStatStripItem
           label="Total Tutorial"
           value={totalBookings}
           caption="Pemesanan kelompok"
           icon={Users}
           tone="brand"
-          size="sm"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Sesi Selesai"
           value={completedBookings}
           caption="Telah terlaksana"
           icon={CheckCircle2}
           tone="success"
-          size="sm"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Tiket Pending"
           value={pendingTickets}
           caption="Permohonan reschedule"
           icon={MessageSquare}
           tone="warning"
-          size="sm"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Jadwal Akademik"
           value={totalAcademic}
           caption="Ujian ITB, Tryout, Kuis"
           icon={CalendarDays}
           tone="info"
-          size="sm"
         />
-      </div>
+      </AdminStatStrip>
 
       {/* 2. Top Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">

@@ -101,7 +101,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
   |---|---|
   | Header | `PageHeader` or `AdminPageHeader` |
   | Tabs | `AdminTabs`, `AdminTabsList`, `AdminTabsTrigger`, `AdminTabsContent` |
-  | KPI cards | `AdminStatCard` |
+  | KPI cards | `AdminStatCard` or `AdminStatStrip`/`AdminStatStripItem` |
   | Section headings | `AdminSectionTitle` |
   | Destructive confirmation | `AdminConfirmDialog` |
   | Status and difficulty | `StatusBadge`, `DifficultyBadge`, `CourseBadge` |
@@ -109,6 +109,29 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
   | Tables | `AdminTable`, `AdminTableHead` |
   | Question option letters | `AdminOptionLetter` |
 
+### State-invariant typography
+
+- Interactive controls (selects, inputs, buttons, combobox triggers) must use `text-body-sm` at all states. Never change font size or font weight between selected/unselected, checked/unchecked, active/inactive, or open/closed states. State changes may only affect color, background, border, or icon.
+- Checkbox and combobox list-item labels must keep the same font size and weight across checked and unchecked states. Changing `font-medium` on selection is a bug.
+- Badges, prose, relationship rows, and descriptive metadata retain `text-body-xs` even when nearby controls use `text-body-sm`. Do not widen badge or prose typography as a side effect of fixing control typography.
+
+### Inline responsive filter toolbars
+
+- Keep related search, select, filter, and action controls in one inline row when the viewport allows it. Use `flex flex-wrap items-center gap-2` on the toolbar container and `shrink-0` on fixed-width controls.
+- Set `min-w` on the search input low enough that the toolbar wraps cleanly at 380px without horizontal overflow. Prefer `min-w-[140px]` over wider values for two-control toolbars.
+- When a toolbar has more than two fixed-width controls, allow the controls group to wrap independently with `flex-wrap`.
+
+### Grouped KPI strips
+
+- Use `AdminStatStrip` and `AdminStatStripItem` from `components/admin/stat-card` for grouped KPI metrics on admin pages. Do not create local stat-card variants or nest `AdminStatCard` inside a grid for the same purpose.
+- KPI strip labels use `text-body-sm`. KPI values use `font-heading text-h5`. KPI captions use `text-body-xs`. Do not change these across states.
+
+### Apples-to-apples ranking
+
+- Overview or cross-course aggregate views must never rank individual students across courses. Per-course or single-course views may rank students.
+- When an overview aggregates metrics per entity (e.g. per course), include all entities eligible for the view from the source table, even those with zero activity, so the administrator sees the full scope.
+- Sort overview rows alphabetically by entity label unless an explicit metric sort is requested.
+- Count unique users across the visible set using a single Set, not by summing per-entity unique counts which double-count shared users.
 - Do not use pill-shaped UI. `rounded-full` is allowed only for a true 1:1 circle such as an avatar or status dot. Use `rounded-md` or `rounded-lg` for controls and badges, and `rounded-xl` or larger for structured cards.
 - Do not create nested cards, local stat-card variants, new fonts, purple themes, or gradient backgrounds. `PageOrnaments` radial glows are the exception.
 - Dense admin and lesson-reader surfaces may skip `PageOrnaments`. Marketing and other standalone pages should use an existing ornament variant inside `relative overflow-hidden`.

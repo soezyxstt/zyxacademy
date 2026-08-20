@@ -39,9 +39,9 @@ const variantStyles = {
 
 const sizeStyles = {
   sm: {
-    container: "min-h-9 px-3 rounded-lg text-body-xs",
+    container: "min-h-9 px-3 rounded-lg text-body-sm",
     icon: "size-3.5",
-    input: "min-h-0 py-1 pl-2.5 pr-1.5 text-body-xs",
+    input: "min-h-0 py-1 pl-2.5 pr-1.5 text-body-sm",
     clear: "p-0.5",
   },
   md: {

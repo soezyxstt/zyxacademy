@@ -21,7 +21,7 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
 import { QuizAttemptsSpreadsheet } from "./_components/quiz-attempts-spreadsheet";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { AdminStatCard } from "@/components/admin/stat-card";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
 
@@ -247,16 +247,14 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
         </div>
       )}
 
-      {/* Summary KPI Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <AdminStatCard
-          size="sm"
+      {/* Summary KPI Strip */}
+      <AdminStatStrip className="lg:grid-cols-6">
+        <AdminStatStripItem
           label="Total Selesai"
           value={summary.totalCompleted}
           caption={`dari ${summary.totalStarted} dimulai (${summary.completionRate}%)`}
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Rata-rata Skor"
           value={
             <>
@@ -267,8 +265,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
           caption={`Median: ${summary.medianScore}`}
           tone="brand"
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Tertinggi / Terendah"
           value={
             <>
@@ -278,20 +275,17 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
           }
           caption="Rentang nilai siswa"
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Rata-rata Durasi"
           value={formatDuration(summary.avgDurationSeconds)}
           caption="Waktu pengerjaan"
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Total Soal"
           value={questionAnalysis.length}
           caption="Butir soal teruji"
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Status Insight"
           value={
             <div className="mt-1">
@@ -306,7 +300,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
             latestAiInsight ? `Sampel: ${latestAiInsight.sampleSize} siswa` : "Belum dianalisis"
           }
         />
-      </div>
+      </AdminStatStrip>
 
       {/* Tabs Component */}
       <AdminTabs value={activeTab} onValueChange={setActiveTab}>

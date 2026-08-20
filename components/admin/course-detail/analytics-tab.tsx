@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AdminStatCard } from "@/components/admin/stat-card";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import {
   BarChart3,
   TrendingUp,
@@ -37,30 +37,30 @@ export function AnalyticsTab({
 
   return (
     <div className="space-y-4">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <AdminStatCard
+      {/* KPI Strip */}
+      <AdminStatStrip className="lg:grid-cols-4">
+        <AdminStatStripItem
           label="Total Pengerjaan Siswa"
           value={stats.totalAttempts}
           caption={`Pada ${quizzes.length} kuis`}
           icon={TrendingUp}
           iconClassName="text-brand-primary"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Rata-rata Nilai"
           value={`${stats.avgScore} / 100`}
           caption="Nilai pengerjaan siswa"
           icon={Award}
           iconClassName="text-brand-secondary"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Tingkat Kelulusan"
           value={`${stats.passRate}%`}
           caption="Siswa nilai ≥ 70"
           icon={CheckCircle2}
           iconClassName="text-status-success"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Dianalisis"
           value={
             <>
@@ -72,7 +72,7 @@ export function AnalyticsTab({
           icon={Sparkles}
           iconClassName="text-brand-primary"
         />
-      </div>
+      </AdminStatStrip>
 
       {/* Per Quiz Performance Table */}
       <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden">

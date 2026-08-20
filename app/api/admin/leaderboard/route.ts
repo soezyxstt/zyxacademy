@@ -15,8 +15,9 @@ export async function GET(req: NextRequest) {
   const courseIdParam = searchParams.get("courseId");
   const typeParam = searchParams.get("type");
   const searchParam = searchParams.get("search")?.toLowerCase().trim();
+  const isOverviewMode = !courseIdParam || courseIdParam === "all";
 
-  // 1. Fetch all active courses for combobox selector
+  // 1. Fetch all courses for combobox selector
   const allCourses = await db
     .select({
       id: courses.id,
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
   // 2. Build attempt query conditions
   const conditions = [eq(studentQuizAttempts.status, "completed")];
 
-  if (courseIdParam && courseIdParam !== "all") {
+  if (!isOverviewMode) {
     conditions.push(eq(quizTemplates.courseId, courseIdParam));
   }
 
@@ -38,7 +39,112 @@ export async function GET(req: NextRequest) {
     conditions.push(eq(quizTemplates.category, "simulation"));
   }
 
-  // 3. Fetch completed attempts with relations
+  if (isOverviewMode) {
+    // OVERVIEW MODE: per-course aggregate metrics, no student ranking
+    const groupedAttempts = await db
+      .select({
+        courseId: quizTemplates.courseId,
+        courseTitle: courses.title,
+        studentId: studentQuizAttempts.studentId,
+        score: studentQuizAttempts.score,
+      })
+      .from(studentQuizAttempts)
+      .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
+      .innerJoin(user, eq(studentQuizAttempts.studentId, user.id))
+      .leftJoin(courses, eq(quizTemplates.courseId, courses.id))
+      .where(and(...conditions));
+
+    // Seed courseMap from allCourses so zero-activity courses appear
+    const courseMap = new Map<
+      string,
+      { title: string; studentSet: Set<string>; attemptCount: number; totalScore: number; highestScore: number }
+    >();
+
+    for (const c of allCourses) {
+      courseMap.set(c.id, {
+        title: c.title,
+        studentSet: new Set(),
+        attemptCount: 0,
+        totalScore: 0,
+        highestScore: 0,
+      });
+    }
+
+    for (const row of groupedAttempts) {
+      const cid = row.courseId;
+      const title = row.courseTitle || row.courseId || "Umum";
+      const score = row.score ?? 0;
+
+      if (!courseMap.has(cid)) {
+        courseMap.set(cid, {
+          title,
+          studentSet: new Set(),
+          attemptCount: 0,
+          totalScore: 0,
+          highestScore: 0,
+        });
+      }
+
+      const entry = courseMap.get(cid)!;
+      entry.studentSet.add(row.studentId);
+      entry.attemptCount += 1;
+      entry.totalScore += score;
+      if (score > entry.highestScore) entry.highestScore = score;
+    }
+
+    let courseInsights = Array.from(courseMap.entries()).map(([courseId, data]) => ({
+      courseId,
+      courseTitle: data.title,
+      participatingStudents: data.studentSet.size,
+      attemptCount: data.attemptCount,
+      averageScore:
+        data.attemptCount > 0
+          ? Number((data.totalScore / data.attemptCount).toFixed(1))
+          : 0,
+      highestScore: data.highestScore,
+    }));
+
+    // Search filters course titles in overview mode
+    if (searchParam) {
+      courseInsights = courseInsights.filter((c) =>
+        c.courseTitle.toLowerCase().includes(searchParam)
+      );
+    }
+
+    courseInsights.sort((a, b) => a.courseTitle.localeCompare(b.courseTitle, "id"));
+
+    const visibleCourseIds = new Set(courseInsights.map((ci) => ci.courseId));
+    const uniqueAcrossVisible = new Set<string>();
+    for (const row of groupedAttempts) {
+      if (visibleCourseIds.has(row.courseId)) {
+        uniqueAcrossVisible.add(row.studentId);
+      }
+    }
+    const totalStudents = uniqueAcrossVisible.size;
+    const totalAttempts = courseInsights.reduce((sum, c) => sum + c.attemptCount, 0);
+    const totalScoreSum = courseInsights.reduce(
+      (sum, c) => sum + (c.attemptCount > 0 ? c.averageScore * c.attemptCount : 0),
+      0
+    );
+
+    return NextResponse.json({
+      mode: "overview",
+      courses: allCourses,
+      courseInsights,
+      summary: {
+        totalStudents,
+        totalAttempts,
+        avgOverallScore:
+          totalAttempts > 0 ? Number((totalScoreSum / totalAttempts).toFixed(1)) : 0,
+        highestScore:
+          courseInsights.length > 0
+            ? Math.max(...courseInsights.map((c) => c.highestScore))
+            : 0,
+      },
+    });
+  }
+
+  // 3. Fetch completed attempts with relations (course-scoped student ranking)
   const rawAttempts = await db
     .select({
       attemptId: studentQuizAttempts.id,
@@ -199,6 +305,7 @@ export async function GET(req: NextRequest) {
     totalAttempts > 0 ? Math.max(...rawAttempts.map((a) => a.score ?? 0)) : 0;
 
   return NextResponse.json({
+    mode: "course",
     courses: allCourses,
     students: studentsWithRank,
     summary: {
