@@ -6,14 +6,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "nextjs-toploader/app";
 import { Command } from "cmdk";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   BookOpen,
   ChevronRight,
+  CircleHelp,
   Compass,
   FileText,
   FolderSearch,
@@ -34,7 +36,11 @@ import {
 import type { SiteSearchDocument } from "@/lib/site-search-index";
 import { cn } from "@/lib/utils";
 import { getStudentSearchDocuments } from "@/app/(student)/dashboard/search-actions";
-import { parseSearchQueryString } from "@/lib/search/parser";
+import {
+  parseSearchQueryString,
+  SEARCH_PREFIX_DEFINITIONS,
+} from "@/lib/search/parser";
+import { rankSearchDocuments } from "@/lib/search/ranking";
 import Fuse from "fuse.js";
 
 export interface SearchItem {
@@ -154,6 +160,34 @@ function groupIcon(group?: string) {
     default:
       return getCategoryIcon(normalizeCategory(group));
   }
+}
+
+function getNavigationSurface(href: string) {
+  if (href === "/admin" || href.startsWith("/admin/")) return "Admin";
+  if (href === "/tutor" || href.startsWith("/tutor/")) return "Tutor";
+  if (
+    href === "/dashboard" ||
+    href.startsWith("/dashboard/") ||
+    href === "/leaderboard" ||
+    href.startsWith("/leaderboard/") ||
+    href === "/calendar" ||
+    href.startsWith("/calendar/") ||
+    href === "/profile" ||
+    href.startsWith("/profile/") ||
+    href === "/settings" ||
+    href.startsWith("/settings/")
+  ) {
+    return "Murid";
+  }
+  return "Publik";
+}
+
+function NavigationSurfaceBadge({ href }: { href: string }) {
+  return (
+    <span className="shrink-0 rounded-md border border-border bg-background/70 px-1.5 py-0.5 text-body-xs font-semibold text-muted-foreground group-aria-selected:border-primary-foreground/30 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground">
+      {getNavigationSurface(href)}
+    </span>
+  );
 }
 
 interface SearchItemCluster {
@@ -343,6 +377,7 @@ export function CommandMenuProvider({
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [apiResults, setApiResults] = useState<SiteSearchDocument[]>([]);
+  const resultListRef = useRef<HTMLDivElement>(null);
 
   // Local storage states
   const [recentItems, setRecentItems] = useState<SearchItem[]>([]);
@@ -411,10 +446,17 @@ export function CommandMenuProvider({
 
   const trimmed = search.trim();
   const parsedQuery = useMemo(() => parseSearchQueryString(trimmed), [trimmed]);
+  const isHelpMode = trimmed === "?";
+
+  useEffect(() => {
+    if (resultListRef.current) {
+      resultListRef.current.scrollTop = 0;
+    }
+  }, [search]);
 
   // Instant local Fuse search with prefix scope awareness
   const fuseResults = useMemo(() => {
-    if (!trimmed || !fuse) return [];
+    if (!trimmed || isHelpMode || !fuse) return [];
     const queryText = parsedQuery.isScoped ? (parsedQuery.cleanQuery || "") : trimmed;
     if (!queryText) {
       if (parsedQuery.isScoped && parsedQuery.entityType) {
@@ -427,20 +469,24 @@ export function CommandMenuProvider({
       return hits.filter((d) => normalizeCategory(d.group) === "Administrasi" || d.href.includes(parsedQuery.entityType!));
     }
     return hits;
-  }, [trimmed, fuse, parsedQuery, docs]);
+  }, [trimmed, isHelpMode, fuse, parsedQuery, docs]);
 
   // Debounced API search (250ms)
   useEffect(() => {
-    if (!trimmed) {
+    if (!trimmed || isHelpMode) {
       setApiResults([]);
       setIsLoading(false);
       return;
     }
 
+    setApiResults([]);
     setIsLoading(true);
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, {
+          signal: controller.signal,
+        });
         if (res.ok) {
           const data = await res.json();
           if (data?.grouped) {
@@ -472,17 +518,21 @@ export function CommandMenuProvider({
       } catch {
         // Fallback gracefully on local fuse results
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     }, 250);
 
-    return () => clearTimeout(timer);
-  }, [trimmed]);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [trimmed, isHelpMode]);
 
-  // Combined results: prioritize API hits if available, merged with local Fuse hits
+  // Merge API and local hits, then apply deterministic lexical ranking
   const flatResults = useMemo(() => {
-    if (!trimmed) return [];
-    if (apiResults.length === 0) return fuseResults;
+    if (!trimmed || isHelpMode) return [];
 
     const seenHrefs = new Set<string>();
     const merged: SiteSearchDocument[] = [];
@@ -501,8 +551,9 @@ export function CommandMenuProvider({
       }
     }
 
-    return merged;
-  }, [trimmed, apiResults, fuseResults]);
+    const rankingQuery = parsedQuery.cleanQuery || trimmed;
+    return rankSearchDocuments(rankingQuery, merged);
+  }, [trimmed, isHelpMode, apiResults, fuseResults, parsedQuery.cleanQuery]);
 
   // Group search hits by normalized category
   const groupedResults = useMemo(() => {
@@ -644,7 +695,7 @@ export function CommandMenuProvider({
                     placeholder={
                       parsedQuery.isScoped && parsedQuery.prefixLabel
                         ? `Cari dalam ${parsedQuery.prefixLabel.toLowerCase()}...`
-                        : "Cari materi, soal, modul, atau halaman..."
+                        : "Cari di Zyx, atau ketik ? untuk bantuan..."
                     }
                     value={parsedQuery.isScoped ? parsedQuery.cleanQuery : search}
                     onValueChange={(val) => {
@@ -685,7 +736,10 @@ export function CommandMenuProvider({
                 </div>
 
                 {/* Search Body / Results List */}
-                <Command.List className="max-h-[min(460px,calc(100dvh-13rem))] scroll-py-2 overflow-y-auto p-3 outline-none">
+                <Command.List
+                  ref={resultListRef}
+                  className="max-h-[min(460px,calc(100dvh-13rem))] scroll-py-2 overflow-y-auto p-3 outline-none"
+                >
                   {/* State 1: Zero-State (search === "") */}
                   {!trimmed && (
                     <>
@@ -967,7 +1021,7 @@ export function CommandMenuProvider({
                   )}
 
                   {/* State 3: Empty / No Results (search !== "" && flatResults.length === 0 && !loading) */}
-                  {trimmed && flatResults.length === 0 && !isLoading && (
+                  {trimmed && !isHelpMode && flatResults.length === 0 && !isLoading && (
                     <div className="py-4">
                       <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
                         <FolderSearch
@@ -1041,8 +1095,76 @@ export function CommandMenuProvider({
                     </div>
                   )}
 
+                  {isHelpMode && (
+                    <div className="py-1">
+                      <div className="mx-2 mb-3 flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                        <CircleHelp
+                          className="mt-0.5 size-5 shrink-0 text-primary"
+                          aria-hidden
+                        />
+                        <div className="min-w-0">
+                          <div className="font-heading text-body-sm font-bold text-foreground">
+                            Panduan pencarian
+                          </div>
+                          <p className="mt-1 text-body-xs text-muted-foreground">
+                            Cari langsung untuk semua hasil, atau pilih prefiks untuk membatasi pencarian.
+                          </p>
+                        </div>
+                      </div>
+
+                      <Command.Group
+                        heading="Prefiks"
+                        className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
+                      >
+                        {SEARCH_PREFIX_DEFINITIONS.map((definition) => (
+                          <Command.Item
+                            key={definition.type}
+                            value={`help ${definition.aliases.join(" ")} ${definition.label}`}
+                            onSelect={() =>
+                              setSearch(`${definition.aliases[0]}: `)
+                            }
+                            className={cn(
+                              "group flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-body-sm outline-none transition-colors select-none cursor-pointer",
+                              "bg-muted/40 hover:bg-muted/80 text-foreground",
+                              "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20"
+                            )}
+                          >
+                            <kbd className="mt-0.5 min-w-20 shrink-0 rounded-md border border-border bg-background px-2 py-1 font-mono text-body-xs font-semibold text-foreground group-aria-selected:border-primary-foreground/30 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground">
+                              {definition.aliases[0]}:
+                            </kbd>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-medium text-body-sm">
+                                {definition.label}
+                              </div>
+                              {definition.aliases.length > 1 && (
+                                <div className="text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
+                                  Alias lain: {definition.aliases
+                                    .slice(1)
+                                    .map((alias) => `${alias}:`)
+                                    .join(", ")}
+                                </div>
+                              )}
+                              <div className="truncate text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
+                                Contoh: {definition.example}
+                              </div>
+                            </div>
+                            <ChevronRight
+                              className="size-4 shrink-0 text-muted-foreground/50 group-aria-selected:text-primary-foreground"
+                              aria-hidden
+                            />
+                          </Command.Item>
+                        ))}
+                      </Command.Group>
+
+                      <div className="mx-2 mt-3 border-t border-border/60 px-1 pt-3 text-body-xs text-muted-foreground">
+                        Gunakan tombol panah untuk memilih, Enter untuk membuka, dan Esc untuk menutup.
+                      </div>
+                    </div>
+                  )}
+
                   {/* State 2: Active Search Results with Parent-Children Hierarchy */}
                   {trimmed &&
+                    !isHelpMode &&
                     flatResults.length > 0 &&
                     CATEGORY_ORDER.map((cat) => {
                       const items = groupedResults?.get(cat) ?? [];
@@ -1084,11 +1206,18 @@ export function CommandMenuProvider({
                                       </div>
 
                                       <div className="min-w-0 flex-1 flex flex-col justify-center">
-                                        <div className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
-                                          <HighlightText
-                                            text={cluster.parent.title}
-                                            query={trimmed}
-                                          />
+                                        <div className="flex min-w-0 items-center gap-2">
+                                          <div className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
+                                            <HighlightText
+                                              text={cluster.parent.title}
+                                              query={trimmed}
+                                            />
+                                          </div>
+                                          {cat === "Navigasi" && (
+                                            <NavigationSurfaceBadge
+                                              href={cluster.parent.href}
+                                            />
+                                          )}
                                         </div>
                                         {cluster.children.length === 0 && cluster.parent.subtitle && (
                                           <div className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
@@ -1152,11 +1281,18 @@ export function CommandMenuProvider({
                                                 />
                                               </div>
                                             )}
-                                            <div className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground mt-0.5">
-                                              <HighlightText
-                                                text={child.title}
-                                                query={trimmed}
-                                              />
+                                            <div className="mt-0.5 flex min-w-0 items-center gap-2">
+                                              <div className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
+                                                <HighlightText
+                                                  text={child.title}
+                                                  query={trimmed}
+                                                />
+                                              </div>
+                                              {cat === "Navigasi" && (
+                                                <NavigationSurfaceBadge
+                                                  href={child.href}
+                                                />
+                                              )}
                                             </div>
                                           </div>
                                         </div>
@@ -1180,6 +1316,17 @@ export function CommandMenuProvider({
                 {/* Footer Bar */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/20 px-4 py-2.5 text-body-xs text-muted-foreground select-none">
                   <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSearch("?")}
+                      className="inline-flex items-center gap-1 rounded-md text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+                      aria-label="Buka panduan pencarian"
+                    >
+                      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
+                        ?
+                      </kbd>
+                      <span className="ml-0.5">Bantuan</span>
+                    </button>
                     <span className="inline-flex items-center gap-1">
                       <kbd className="rounded border border-border bg-background px-1 py-0.5 text-[10px] font-mono font-medium shadow-2xs text-foreground">
                         ↑
