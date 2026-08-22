@@ -132,7 +132,7 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
   },
   {
     title: "Papan peringkat",
-    subtitle: "Leaderboard",
+    subtitle: "Murid · Leaderboard",
     href: "/leaderboard",
     group: "Halaman",
     keywords: "leaderboard ranking peringkat skor poin trophy juara",
@@ -319,6 +319,14 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     group: "Halaman",
     keywords: "quiz kuis rule seleksi jadwal bank soal ujian evaluasi",
     content: "Manajemen kuis, jadwal, aturan pengerjaan, dan butir soal",
+  },
+  {
+    title: "Papan peringkat",
+    subtitle: "Admin · Evaluasi",
+    href: "/admin/leaderboard",
+    group: "Halaman",
+    keywords: "admin leaderboard ranking peringkat skor kuis siswa",
+    content: "Papan peringkat dan performa kuis siswa untuk administrator",
   },
   {
     title: "Analisis kuis & wawasan AI",

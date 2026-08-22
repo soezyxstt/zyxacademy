@@ -47,6 +47,13 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 ## Core Pipelines
 
+### Site-wide command search
+
+- `Ctrl+K` or `Cmd+K` opens the site-wide command search. Results combine the local index with authenticated API matches, then apply deterministic lexical ranking so exact titles, complete token matches, and matching numbers appear before semantic neighbors.
+- Navigation results show their Admin, Tutor, Murid, or Publik surface so identical sidebar labels remain distinguishable.
+- Typing `?` opens the search guide. It documents and applies the `group:`, `meet:`, `user:`, `form:`, `token:`, and `schedule:` prefixes, and shows every accepted alias for each prefix.
+- Changing the query resets the result list to the top. Selecting a result triggers the global route progress bar before navigation.
+
 ### MTD → Knowledge Objects (KO)
 1. Admin uploads a markdown master document
 2. Preprocessed and normalized with deterministic semantic chunking preserving headings, formulas, and tables without 30k char truncation
