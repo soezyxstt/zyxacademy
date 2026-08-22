@@ -809,15 +809,17 @@
  display: none;
  }
 
- /* KaTeX overflow formatting overrides */
+  /* KaTeX overflow formatting overrides. Vertical overflow stays visible so
+   tall glyphs (integrals, stacked limits) are never clipped; horizontal
+   scrolling remains for long equations. */
  .katex-display {
- overflow-x: auto;
- overflow-y: hidden;
- max-width: 100%;
+  overflow-x: auto;
+  max-width: 100%;
+  padding: 0.15em 0;
  }
 
  .katex-display > .katex {
- white-space: nowrap;
+  white-space: nowrap;
  }
 
  /* Zebra rhythm for data tables and row-based lists. Keep this selector
@@ -863,4 +865,14 @@
 
 .animate-zyra-shadow {
   animation: zyra-shadow 3s ease-in-out infinite;
+}
+
+/* Hide scrollbars while keeping the element scrollable (used by chip rows
+   and math blocks inside the Zyra drawer). */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
