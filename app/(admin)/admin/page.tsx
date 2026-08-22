@@ -38,6 +38,7 @@ import {
   Image,
   Link as LinkIcon,
   Trophy,
+  MousePointerClick,
 } from "lucide-react";
 
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -343,6 +344,14 @@ export default async function AdminHomePage() {
           iconColor: "text-brand-primary",
           href: "/admin/ops/web-analytics",
           label: "Buka web analytics",
+          stat: null,
+        },
+        {
+          title: "Penggunaan Fitur",
+          icon: MousePointerClick,
+          iconColor: "text-status-info",
+          href: "/admin/ops/feature-usage",
+          label: "Lihat aktivitas fitur murid",
           stat: null,
         },
       ],
