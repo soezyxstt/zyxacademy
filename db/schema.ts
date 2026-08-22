@@ -3242,6 +3242,7 @@ export const courseMaterials = sqliteTable(
 		>(),
 		year: integer("year"),
 		fileUrl: text("file_url").notNull(),
+		checksum: text("checksum"),
 		chapterIds: text("chapter_ids", { mode: "json" }).$type<string[]>().notNull(),
 		thumbnailUrl: text("thumbnail_url"),
 		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),

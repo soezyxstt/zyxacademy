@@ -18,6 +18,7 @@ import {
   saveCourseMaterial,
   deleteCourseMaterial,
 } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { BatchUploadDialog } from "@/components/admin/course-detail/batch-upload-dialog";
 import {
   FileText,
   Upload,
@@ -25,6 +26,7 @@ import {
   Trash2,
   ExternalLink,
   Loader2,
+  Layers,
 } from "lucide-react";
 import {
   Tooltip,
@@ -80,6 +82,7 @@ export function MaterialsTab({
   const [materials] = useState<UploadedMaterial[]>(initialMaterials);
   const [loading, setLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -229,10 +232,22 @@ export function MaterialsTab({
     <div className="space-y-4">
       {/* Direct PDF Upload Form */}
       <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
-        <h3 className="font-heading text-body-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Upload className="size-4 text-brand-secondary" />
-          Unggah Dokumen PDF untuk {courseTitle}
-        </h3>
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+          <h3 className="font-heading text-body-sm font-semibold text-foreground flex items-center gap-2">
+            <Upload className="size-4 text-brand-secondary" />
+            Unggah Dokumen PDF untuk {courseTitle}
+          </h3>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-lg text-body-sm"
+            onClick={() => setBatchOpen(true)}
+          >
+            <Layers className="size-3.5" />
+            Unggah Batch
+          </Button>
+        </div>
 
         <form onSubmit={handleUpload} className="space-y-3">
           <div className="flex flex-wrap items-end gap-2.5">
@@ -498,6 +513,14 @@ export function MaterialsTab({
           </table>
         )}
       </div>
+
+      <BatchUploadDialog
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        courseId={courseId}
+        courseTitle={courseTitle}
+        chapters={chapters}
+      />
     </div>
   );
 }

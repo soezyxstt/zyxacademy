@@ -519,6 +519,13 @@
       "when": 1787204930570,
       "tag": "0073_flashy_spitfire",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "6",
+      "when": 1787413148357,
+      "tag": "0074_regular_ken_ellis",
+      "breakpoints": true
     }
   ]
 }
