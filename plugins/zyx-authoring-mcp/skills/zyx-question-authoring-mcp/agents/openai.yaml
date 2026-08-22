@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Question Authoring MCP"
+  short_description: "Author Idea-linked quiz drafts through MCP"
+  default_prompt: "Use $zyx-question-authoring-mcp to author an Idea-linked quiz draft and iterate until the Zyx MCP validation passes, then submit it for admin review."
