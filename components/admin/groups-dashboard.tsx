@@ -68,8 +68,18 @@ type GroupItem = {
   packageType: string;
   packageName: string;
   totalQuotaSessions: number;
+  weeklyQuotaSessions: number;
   usedQuotaSessions: number;
   remainingQuota: number;
+  weeklyUsedSessions?: number;
+  weeklyStats?: Array<{
+    weekStartIso: string;
+    label: string;
+    booked: number;
+    attended: number;
+    missed: number;
+    cancelled: number;
+  }>;
   academicYear: string;
   semester: string;
   startDate: Date | null;
@@ -136,6 +146,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
   const [formName, setFormName] = useState("");
   const [formPackageType, setFormPackageType] = useState<PackageType>("reguler_15");
   const [formCustomQuota, setFormCustomQuota] = useState(15);
+  const [formWeeklyQuota, setFormWeeklyQuota] = useState(1);
   const [formSemester, setFormSemester] = useState("Ganjil");
   const [formAcademicYear, setFormAcademicYear] = useState("2026/2027");
   const [formStartDate, setFormStartDate] = useState("");
@@ -188,6 +199,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
     setFormName("");
     setFormPackageType("reguler_15");
     setFormCustomQuota(15);
+    setFormWeeklyQuota(PACKAGE_PRESETS.reguler_15.weeklySessions);
     setFormSemester("Ganjil");
     setFormAcademicYear("2026/2027");
     setFormStartDate("");
@@ -215,6 +227,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         name: formName.trim(),
         packageType: formPackageType,
         totalQuotaSessions: quota,
+        weeklyQuotaSessions: Math.max(1, formWeeklyQuota),
         academicYear: formAcademicYear,
         semester: formSemester,
         startDate: formStartDate || null,
@@ -245,6 +258,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       (group.packageType as PackageType) || "reguler_15"
     );
     setFormCustomQuota(group.totalQuotaSessions);
+    setFormWeeklyQuota(group.weeklyQuotaSessions ?? 2);
     setFormSemester(group.semester);
     setFormAcademicYear(group.academicYear);
     setFormStartDate(group.startDate ? formatIsoDate(new Date(group.startDate)) : "");
@@ -268,6 +282,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         name: formName.trim(),
         packageType: formPackageType,
         totalQuotaSessions: quota,
+        weeklyQuotaSessions: Math.max(1, formWeeklyQuota),
         academicYear: formAcademicYear,
         semester: formSemester,
         startDate: formStartDate || null,
@@ -783,7 +798,11 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => setFormPackageType(p.id)}
+                      onClick={() => {
+                        setFormPackageType(p.id);
+                        const preset = PACKAGE_PRESETS[p.id];
+                        if (preset) setFormWeeklyQuota(preset.weeklySessions);
+                      }}
                       className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-center transition-all ${
                         active
                           ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
@@ -812,6 +831,21 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                   />
                 </div>
               )}
+
+              <div className="mt-2 flex items-center gap-3">
+                <label className="text-body-xs text-muted-foreground shrink-0">
+                  Kuota sesi per minggu:
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={7}
+                  value={formWeeklyQuota}
+                  onChange={(e) => setFormWeeklyQuota(parseInt(e.target.value, 10) || 1)}
+                  aria-label="Kuota sesi per minggu kelompok"
+                  className="w-20 h-9 rounded-lg text-body-sm"
+                />
+              </div>
             </div>
 
             {/* Semester & Tahun Akademik */}
@@ -976,7 +1010,11 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => setFormPackageType(p.id)}
+                      onClick={() => {
+                        setFormPackageType(p.id);
+                        const preset = PACKAGE_PRESETS[p.id];
+                        if (preset) setFormWeeklyQuota(preset.weeklySessions);
+                      }}
                       className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-center transition-all ${
                         active
                           ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
@@ -1005,6 +1043,21 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                   />
                 </div>
               )}
+
+              <div className="mt-2 flex items-center gap-3">
+                <label className="text-body-xs text-muted-foreground shrink-0">
+                  Kuota sesi per minggu:
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={7}
+                  value={formWeeklyQuota}
+                  onChange={(e) => setFormWeeklyQuota(parseInt(e.target.value, 10) || 1)}
+                  aria-label="Kuota sesi per minggu kelompok"
+                  className="w-20 h-9 rounded-lg text-body-sm"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1134,29 +1187,28 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               {/* Quota Summary Box */}
               <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
                 <div className="flex items-center justify-between text-body-sm font-semibold">
-                  <span className="text-foreground">Kuota Pertemuan Semester</span>
+                  <span className="text-foreground">Kuota Mingguan</span>
                   <span className="text-brand-primary font-bold">
-                    {detailGroup.usedQuotaSessions} / {detailGroup.totalQuotaSessions} Sesi Selesai
+                    {detailGroup.weeklyUsedSessions ?? 0} / {detailGroup.weeklyQuotaSessions ?? 2} Sesi Minggu Ini
                   </span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                  <div
-                    className="h-full bg-brand-primary rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        Math.round(
-                          (detailGroup.usedQuotaSessions / Math.max(1, detailGroup.totalQuotaSessions)) *
-                            100
-                        )
-                      )}%`,
-                    }}
-                  />
-                </div>
                 <div className="flex items-center justify-between text-body-xs text-muted-foreground">
-                  <span>Sisa kuota: {detailGroup.remainingQuota} sesi</span>
+                  <span>Total terlaksana: {detailGroup.usedQuotaSessions} dari {detailGroup.totalQuotaSessions} sesi paket</span>
                   <span>Frekuensi: {PACKAGE_PRESETS[detailGroup.packageType as PackageType]?.frequencyLabel || "1x seminggu"}</span>
                 </div>
+                {detailGroup.weeklyStats && detailGroup.weeklyStats.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/60">
+                    {detailGroup.weeklyStats.map((w) => (
+                      <div key={w.weekStartIso} className="p-2 rounded-lg bg-card border border-border text-center">
+                        <span className="text-[11px] font-semibold text-foreground block">{w.label}</span>
+                        <div className="flex items-center justify-center gap-2 text-[11px] mt-0.5">
+                          <span className="text-emerald-600 dark:text-emerald-400">{w.attended} hadir</span>
+                          <span className="text-red-500">{w.missed + w.cancelled} lewat</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Mata Kuliah */}

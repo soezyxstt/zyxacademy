@@ -19,13 +19,15 @@ import {
   academicSchedules,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, gte, lte } from "drizzle-orm";
 import {
   getJakartaNow,
   getWeekScheduleDays,
   isSessionLocked,
   ensureGoogleMeetForBooking,
   fetchLinkPreview,
+  isNinetyMinuteSlot,
+  getIsoWeekRange,
 } from "@/lib/schedule-lock";
 
 async function requireUser() {
@@ -232,6 +234,34 @@ export async function getScheduleData(weekOffset = 0) {
   const myGroups = myMemberships.map((m) => m.group).filter(Boolean);
   const myGroupIds = myGroups.map((g) => g.id);
 
+  // 1b. Weekly usage per group for the viewed week (derived quota display)
+  const { startIso: viewWeekStart, endIso: viewWeekEnd } = getIsoWeekRange(
+    weekInfo.days[0].dateIso
+  );
+  const weeklyCounts = myGroupIds.length
+    ? await db
+        .select({
+          groupId: bookings.groupId,
+          count: sql<number>`count(*)`,
+        })
+        .from(bookings)
+        .where(
+          and(
+            inArray(bookings.groupId, myGroupIds),
+            gte(bookings.sessionDate, viewWeekStart),
+            lte(bookings.sessionDate, viewWeekEnd)
+          )
+        )
+        .groupBy(bookings.groupId)
+    : [];
+
+  const groupsWithWeeklyUsage = myGroups.map((g) => ({
+    ...g,
+    weeklyUsedSessions: Number(
+      weeklyCounts.find((c) => c.groupId === g.id)?.count ?? 0
+    ),
+  }));
+
   // 2. Get student active enrollments
   const now = new Date();
   const activeEnrollments = await db.query.enrollments.findMany({
@@ -341,7 +371,8 @@ export async function getScheduleData(weekOffset = 0) {
     },
     weekInfo,
     isWeekLocked,
-    groups: myGroups,
+    weekRange: { startIso: viewWeekStart, endIso: viewWeekEnd },
+    groups: groupsWithWeeklyUsage,
     enrollments: activeEnrollments,
     availableSlots: allTutorSlots,
     groupBookings,
@@ -406,7 +437,7 @@ export async function collaborativeBookSlot(
         };
       }
 
-      // 5. Verify group quota
+      // 5. Verify weekly quota (derived from booking rows in the target week)
       const groupData = await tx.query.groups.findFirst({
         where: eq(groups.id, groupId),
       });
@@ -415,10 +446,23 @@ export async function collaborativeBookSlot(
         return { success: false, error: "Data kelompok belajar tidak ditemukan" };
       }
 
-      if (groupData.usedQuotaSessions >= groupData.totalQuotaSessions) {
+      const { startIso, endIso } = getIsoWeekRange(targetDateIso);
+      const weekBookings = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.groupId, groupId),
+            gte(bookings.sessionDate, startIso),
+            lte(bookings.sessionDate, endIso)
+          )
+        );
+
+      const weeklyQuota = groupData.weeklyQuotaSessions ?? 2;
+      if (weekBookings.length >= weeklyQuota) {
         return {
           success: false,
-          error: `Kuota pertemuan kelompok Anda untuk semester ini telah habis (${groupData.usedQuotaSessions}/${groupData.totalQuotaSessions} sesi)`,
+          error: `Kuota sesi minggu ini sudah habis (${weekBookings.length}/${weeklyQuota}). Beralihlah ke pekan berikutnya.`,
         };
       }
 
@@ -455,16 +499,7 @@ export async function collaborativeBookSlot(
         bookedAt: now,
       });
 
-      // 8. Deduct group quota
-      await tx
-        .update(groups)
-        .set({
-          usedQuotaSessions: groupData.usedQuotaSessions + 1,
-          updatedAt: now,
-        })
-        .where(eq(groups.id, groupId));
-
-      // 9. Insert Audit Log
+      // 8. Insert Audit Log
       const courseItem = await tx.query.courses.findFirst({
         where: eq(courses.id, courseId),
       });
@@ -687,19 +722,7 @@ export async function collaborativeCancelSlot(bookingId: string) {
         };
       }
 
-      // Return group quota
-      const now = new Date();
-      if (booking.group.usedQuotaSessions > 0) {
-        await tx
-          .update(groups)
-          .set({
-            usedQuotaSessions: booking.group.usedQuotaSessions - 1,
-            updatedAt: now,
-          })
-          .where(eq(groups.id, booking.groupId));
-      }
-
-      // Delete booking
+      // Delete booking (weekly quota is derived, so the freed slot is automatic)
       await tx.delete(bookings).where(eq(bookings.id, bookingId));
 
       revalidatePath("/dashboard/schedule");
@@ -901,6 +924,30 @@ export async function sendTicketMessage(ticketId: string, message: string) {
       return { success: false, error: "Tiket tidak ditemukan" };
     }
 
+    const booking = await db.query.bookings.findFirst({
+      where: eq(bookings.id, ticket.bookingId),
+      columns: { groupId: true },
+      with: { slot: { columns: { tutorId: true } } },
+    });
+
+    if (!booking) {
+      return { success: false, error: "Jadwal tutorial tidak ditemukan" };
+    }
+
+    const membership = await db.query.groupMembers.findFirst({
+      where: and(
+        eq(groupMembers.groupId, booking.groupId),
+        eq(groupMembers.userId, currentUser.id)
+      ),
+    });
+
+    if (!membership && booking.slot?.tutorId !== currentUser.id) {
+      return {
+        success: false,
+        error: "Hanya anggota kelompok atau tutor pengampu yang dapat mengirim pesan",
+      };
+    }
+
     const now = new Date();
     await db.insert(bookingTicketMessages).values({
       id: randomUUID(),
@@ -945,6 +992,10 @@ export async function tutorAddSlot(
   const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
   if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
     return { success: false, error: "Format waktu harus HH:MM (contoh: 09:00)" };
+  }
+
+  if (!isNinetyMinuteSlot(startTime, endTime)) {
+    return { success: false, error: "Durasi slot harus tepat 90 menit" };
   }
 
   if (mode === "offline" && !location?.trim()) {
@@ -996,23 +1047,34 @@ export async function tutorDeleteSlot(slotId: string) {
   }
 }
 
-export async function updateTutorCourses(courseIds: string[]) {
+export async function updateTutorCourses(targetTutorId: string, courseIds: string[]) {
   const currentUser = await requireUser();
 
+  const adminCheck = await db
+    .select({ role: user.role })
+    .from(user)
+    .where(eq(user.id, currentUser.id))
+    .limit(1);
+
+  if (adminCheck[0]?.role !== "admin") {
+    return { success: false, error: "Hanya admin yang dapat mengatur sertifikasi mata kuliah tutor" };
+  }
+
   try {
-    await db.delete(tutorCourses).where(eq(tutorCourses.tutorId, currentUser.id));
+    await db.delete(tutorCourses).where(eq(tutorCourses.tutorId, targetTutorId));
 
     if (courseIds.length > 0) {
       await db.insert(tutorCourses).values(
         courseIds.map((courseId) => ({
           id: randomUUID(),
-          tutorId: currentUser.id,
+          tutorId: targetTutorId,
           courseId,
         }))
       );
     }
 
     revalidatePath("/dashboard/schedule");
+    revalidatePath("/admin/schedules");
     return { success: true };
   } catch (err: any) {
     console.error("Update tutor courses error:", err);

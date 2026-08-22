@@ -8,7 +8,6 @@ import {
   Video,
   MapPin,
   GraduationCap,
-  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,22 +23,28 @@ import { toast } from "@/components/ui/toast";
 import {
   tutorAddSlot,
   tutorDeleteSlot,
-  updateTutorCourses,
 } from "@/app/(student)/dashboard/schedule/actions";
 
 type Props = {
   mySlots: any[];
   certifiedCourses: any[];
-  allCourses: any[];
   onRefresh: () => void;
 };
 
 const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 
+function computeEndTime(start: string): string {
+  const [h, m] = start.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return start;
+  const total = h * 60 + m + 90;
+  const hh = String(Math.floor(total / 60) % 24).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
 export function TutorAvailabilityPanel({
   mySlots,
   certifiedCourses,
-  allCourses,
   onRefresh,
 }: Props) {
   const [dayOfWeek, setDayOfWeek] = useState("Senin");
@@ -48,7 +53,6 @@ export function TutorAvailabilityPanel({
   const [mode, setMode] = useState<"online" | "offline">("online");
   const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(false);
-  const [certLoading, setCertLoading] = useState(false);
 
   const handleAddSlot = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,31 +89,6 @@ export function TutorAvailabilityPanel({
       }
     } catch {
       toast.error("Terjadi kesalahan koneksi");
-    }
-  };
-
-  const handleToggleCert = async (courseId: string) => {
-    const isAlready = certifiedCourses.some((c) => c.id === courseId);
-    let newCourseIds = [];
-    if (isAlready) {
-      newCourseIds = certifiedCourses.filter((c) => c.id !== courseId).map((c) => c.id);
-    } else {
-      newCourseIds = [...certifiedCourses.map((c) => c.id), courseId];
-    }
-
-    setCertLoading(true);
-    try {
-      const res = await updateTutorCourses(newCourseIds);
-      if (res.success) {
-        toast.success("Mata kuliah tutorial diperbarui");
-        onRefresh();
-      } else {
-        toast.error(res.error || "Gagal memperbarui");
-      }
-    } catch {
-      toast.error("Terjadi kesalahan koneksi");
-    } finally {
-      setCertLoading(false);
     }
   };
 
@@ -152,7 +131,11 @@ export function TutorAvailabilityPanel({
               <Input
                 type="time"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setStartTime(value);
+                  setEndTime(computeEndTime(value));
+                }}
                 required
                 className="h-10 rounded-lg text-body-sm"
               />
@@ -164,10 +147,15 @@ export function TutorAvailabilityPanel({
               <Input
                 type="time"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                readOnly
                 required
-                className="h-10 rounded-lg text-body-sm"
+                aria-label="Jam selesai otomatis 90 menit dari jam mulai"
+                title="Otomatis: durasi slot tepat 90 menit"
+                className="h-10 rounded-lg text-body-sm bg-muted/40 text-muted-foreground cursor-not-allowed"
               />
+              <p className="text-[10px] text-muted-foreground">
+                Durasi slot tetap 90 menit.
+              </p>
             </div>
           </div>
 
@@ -292,43 +280,29 @@ export function TutorAvailabilityPanel({
         )}
       </div>
 
-      {/* 3. Subject Certifications (1 col) */}
+      {/* 3. Subject Certifications (1 col, read-only) */}
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
         <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
           <GraduationCap className="size-5 text-brand-primary" />
           Mata Kuliah Diampu ({certifiedCourses.length})
         </h3>
         <p className="text-body-xs text-muted-foreground">
-          Pilih mata kuliah yang Anda ampu agar murid dari kelas tersebut dapat memesan slot Anda.
+          Sertifikasi mata kuliah dikelola oleh admin. Murid hanya dapat memesan slot Anda untuk mata kuliah yang tersertifikasi.
         </p>
 
-        <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-          {allCourses.map((c) => {
-            const isChecked = certifiedCourses.some((cc) => cc.id === c.id);
-            return (
-              <label
-                key={c.id}
-                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
-                  isChecked
-                    ? "border-brand-primary bg-brand-primary/10 text-foreground font-semibold"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-                }`}
-              >
-                <div className="flex items-center gap-2 text-body-sm">
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    disabled={certLoading}
-                    onChange={() => handleToggleCert(c.id)}
-                    className="size-4 accent-brand-primary rounded"
-                  />
-                  <span>{c.title}</span>
-                </div>
-                {isChecked && <Check className="size-4 text-brand-primary" />}
-              </label>
-            );
-          })}
-        </div>
+        {certifiedCourses.length === 0 ? (
+          <div className="p-6 text-center text-body-xs text-muted-foreground italic border border-dashed border-border rounded-xl">
+            Belum ada mata kuliah yang disertifikasi admin untuk Anda.
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {certifiedCourses.map((c) => (
+              <Badge key={c.id} variant="outline" className="text-body-xs rounded-lg px-2.5 py-1">
+                {c.title}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

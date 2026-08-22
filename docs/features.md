@@ -358,19 +358,19 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 ### Kelompok Belajar (Study Groups)
 
 - Students enroll in and access courses through Study Groups configured on the platform.
-- Study groups use a semester session quota model rather than pure calendar duration:
-  - Paket Reguler: 15 sessions per semester (target 1x per week).
-  - Paket Intensif: 30 sessions per semester (target 2x per week).
-  - Paket Super Intensif: 45 sessions per semester (target 3x per week).
-  - Paket Kustom: Configurable session quota.
+- Study groups combine a semester package with a weekly booking allowance derived from the package:
+  - Paket Reguler: 15 sessions per semester, 1 session per week.
+  - Paket Intensif: 30 sessions per semester, 2 sessions per week.
+  - Paket Super Intensif: 45 sessions per semester, 3 sessions per week.
+  - Paket Kustom: Configurable totals with an admin-set weekly allowance.
 - Admin portal (`/admin/groups`) provides comprehensive management:
   - KPI strip for total groups, active groups, enrolled students, and average quota usage.
   - Interactive table filtering by status, package tier, and course.
   - Create and edit dialogs with package selection, semester dates, and course assignments.
-  - Group detail modal with session quota gauges, student membership manager (search, add, remove, promote leader), linked activation tokens, and booked tutor session history.
+  - Group detail modal with weekly quota usage, 4-week attended versus missed history, student membership manager (search, add, remove, promote leader), linked activation tokens, and booked tutor session history.
 - Student portal (`/dashboard/groups`) provides a dedicated study group dashboard:
   - Active group overview with status and semester badges.
-  - Quota and session tracker displaying completed sessions, remaining quota, target weekly frequency, and visual usage progress.
+  - Weekly quota tracker showing sessions booked this week against the group weekly allowance, plus attended versus missed counts for the last 4 weeks.
   - Associated courses grid with direct navigation to class materials, quizzes, and tryouts.
   - Peer study mates roster with roles (leader, member) and joined dates.
   - Group session booking and schedule history integrated with the tutor scheduling calendar.
@@ -382,20 +382,30 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Group Ownership & Collaborative Booking:
   - Tutoring sessions are booked on behalf of Study Groups.
   - All group members have equal rights to choose, move, or cancel slots before the weekly lock cut-off.
+- Weekly Quota (Derived, Per Group):
+  - Each group carries a weekly session quota (`weeklyQuotaSessions`) set by admins according to the purchased package preset (1 to 3 sessions per week; custom values allowed).
+  - Usage is derived by counting booking rows of the group inside the target week. Pre-lock cancellations delete the row and free the quota; post-lock approved cancellations keep the row so the quota stays consumed.
+  - Students see "Terpakai minggu ini X/Y" when booking and on the Groups page; the last 4 weeks show attended versus missed/cancelled counts for traceability.
 - Weekly Lock & Automated Cut-Off:
   - Next week's scheduling selection opens throughout the current week and automatically locks every Saturday at 23:59 WIB (Asia/Jakarta).
   - Post-lock schedule adjustments require formal Reschedule or Cancellation tickets.
+- Fixed 90-Minute Slots:
+  - Tutors open availability slots of exactly 90 minutes. The server rejects other durations and the availability panel auto-computes the end time.
 - Google Meet Automation:
-  - Online sessions automatically provision dedicated Google Meet spaces upon booking and lock cut-off, with meeting links immediately rendered for tutors and students.
+  - Online sessions provision a dedicated Google Meet space lazily as soon as the slot is booked, moved, or a reschedule ticket is approved; links render immediately for tutors and students. Admins can batch-generate missing links from the admin dashboard.
   - Offline sessions require tutors to specify explicit physical room or branch locations.
+- Session Attachments:
+  - Pre-session materials upload through `POST /api/upload` into `schedules/{bookingId}/materials`, post-session notes into `schedules/{bookingId}/notes`. Only PDF/PNG/JPG/WebP up to 10 MB is accepted; uploads are authorized per booking (group members or the assigned tutor).
 - Pre-Session & Post-Session Workflows:
   - Pre-Session: Any group member can define the discussion topic and upload question files (PDF/images), with uploader identity logged.
   - Post-Session: Tutors mark sessions complete, upload handwritten photo notes or answer PDFs, and embed external links with automated OpenGraph metadata previews.
 - Reschedule, Cancellation, and Discussion Threads:
-  - Post-lock ticket requests open an integrated discussion chat between group members, the tutor, and administrators.
+  - Post-lock ticket requests open an integrated discussion chat restricted to group members and the assigned tutor.
   - The assigned tutor holds sole approval authority. Approval migrates the booking to the proposed slot and regenerates Meet links; cancellations forfeit the week's quota without refund.
+- Tutor Course Certifications:
+  - Only admins assign the courses a tutor may teach (admin schedules dashboard, Tutor tab). The tutor availability panel displays certifications read-only.
 - Audit Trail & Activity Log:
-  - Every card displays a last-modified indicator: "Terakhir diubah oleh: [Nama Murid], [Hari, Tanggal, Jam]".
+  - Every calendar card displays a last-modified indicator: "Diubah oleh [Nama] • [Tanggal]" with full details in the audit drawer.
   - A chronological audit trail records slot selections, migrations, pre-session uploads, and ticket decisions.
 - Multi-Level Filter System:
   - Student: Filter by Course and Tutor.

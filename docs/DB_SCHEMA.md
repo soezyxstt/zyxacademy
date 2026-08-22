@@ -112,8 +112,9 @@ The row is created on the first explicit save or unsubscribe. A missing row deri
 * `name`: Study group name (e.g. Kelompok Belajar Alpha).
 * `packageType`: Package tier ("reguler_15", "intensif_30", "super_intensif_45", "custom").
 * `packageName`: Display package label (e.g. Paket Reguler (15 Sesi)).
-* `totalQuotaSessions`: Total meeting quota per semester (default 15).
-* `usedQuotaSessions`: Total meeting sessions used in the current semester (default 0).
+* `totalQuotaSessions`: Total meeting quota per semester (default 15). Deprecated for enforcement: booking no longer decrements it.
+* `usedQuotaSessions`: Legacy counter kept read-only. Weekly usage is now derived from `bookings` rows per target week.
+* `weeklyQuotaSessions`: Sessions the group may book per target week (default 2; presets set 1-3). Enforcement derives usage by counting bookings in that ISO week, so pre-lock cancellations free quota while post-lock cancellations keep it consumed.
 * `academicYear`: Academic year string (e.g. 2026/2027).
 * `semester`: Active semester label (e.g. Ganjil, Genap, Pendek).
 * `startDate`: Semester start timestamp.
@@ -869,12 +870,12 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 ### pkaSchedules
 * `id`
 * `title`
-* `description`
-* `googleMeetLink`: URL for the video conference.
-* `scheduledAt`: Date and time of the review session.
-* `durationMinutes`: Session length in minutes.
+* `sessionAt`: Timestamp of the live session.
+* `meetLink`: Optional Google Meet URL.
+* `createdBy`: Admin user who created the schedule.
+* `sentAt`: Broadcast completion timestamp (email/push).
+* `recipientCount`: Number of recipients the broadcast reached.
 * `createdAt`
-* `updatedAt`
 
 ### pkaRegistrations
 * `id`

@@ -125,7 +125,6 @@ export default function SchedulePage() {
         <TutorAvailabilityPanel
           mySlots={data.mySlots || []}
           certifiedCourses={data.certifiedCourses || []}
-          allCourses={data.allCourses || []}
           onRefresh={() => fetchData(weekOffset)}
         />
       ) : (

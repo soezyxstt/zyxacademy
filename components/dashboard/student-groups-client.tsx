@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Brain,
   Activity,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +37,17 @@ type StudentGroup = {
   usedQuotaSessions: number;
   remainingQuota: number;
   usedPercentage: number;
+  weeklyQuotaSessions: number;
+  weeklyUsedSessions: number;
+  weeklyRemainingQuota: number;
+  weeklyStats: Array<{
+    weekStartIso: string;
+    label: string;
+    booked: number;
+    attended: number;
+    missed: number;
+    cancelled: number;
+  }>;
   academicYear: string;
   semester: string;
   startDate: Date | null;
@@ -265,21 +278,21 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-body-xs font-semibold text-muted-foreground block">
-                  Status Kuota Pertemuan Semester
+                  Sesi Minggu Ini
                 </span>
                 <span className="font-heading text-h4 font-bold text-foreground">
-                  {activeGroup.usedQuotaSessions}{" "}
+                  {activeGroup.weeklyUsedSessions}{" "}
                   <span className="text-body-base font-normal text-muted-foreground">
-                    / {activeGroup.totalQuotaSessions} Sesi Terlaksana
+                    / {activeGroup.weeklyQuotaSessions} Sesi Dipesan
                   </span>
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-body-xs font-semibold text-muted-foreground block">
-                  Sisa Kuota
+                  Sisa Minggu Ini
                 </span>
                 <span className="font-heading text-h4 font-bold text-brand-primary">
-                  {activeGroup.remainingQuota}{" "}
+                  {activeGroup.weeklyRemainingQuota}{" "}
                   <span className="text-body-xs font-normal text-muted-foreground">Sesi</span>
                 </span>
               </div>
@@ -287,14 +300,25 @@ export function StudentGroupsClient({ initialGroups }: Props) {
 
             {/* Progress Bar */}
             <div className="space-y-1.5">
-              <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+              <div
+                className="w-full bg-muted rounded-full h-3 overflow-hidden"
+                role="progressbar"
+                aria-valuenow={Math.min(
+                  100,
+                  Math.round((activeGroup.weeklyUsedSessions / Math.max(1, activeGroup.weeklyQuotaSessions)) * 100)
+                )}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
                 <div
                   className="h-full bg-brand-primary rounded-full transition-all duration-500"
-                  style={{ width: `${activeGroup.usedPercentage}%` }}
+                  style={{
+                    width: `${Math.min(100, (activeGroup.weeklyUsedSessions / Math.max(1, activeGroup.weeklyQuotaSessions)) * 100)}%`,
+                  }}
                 />
               </div>
               <div className="flex items-center justify-between text-body-xs text-muted-foreground">
-                <span>{activeGroup.usedPercentage}% Selesai</span>
+                <span>Kuota mingguan mengikuti paket kelompok</span>
                 <span>Target: {activeGroup.frequencyLabel}</span>
               </div>
             </div>
@@ -302,7 +326,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             <p className="text-body-xs text-muted-foreground flex items-center gap-1.5 pt-1 border-t border-border/50">
               <Activity className="size-3.5 text-brand-primary shrink-0" />
               <span>
-                Setiap pemesanan sesi kelompok yang disetujui akan memotong kuota semester kelompok Anda.
+                Total {activeGroup.usedQuotaSessions} sesi terlaksana dari paket {activeGroup.totalQuotaSessions} sesi.
               </span>
             </p>
           </div>
@@ -354,6 +378,35 @@ export function StudentGroupsClient({ initialGroups }: Props) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Weekly Attendance Traceability */}
+        <div className="p-5 rounded-xl border border-border bg-muted/10">
+          <span className="text-body-xs font-semibold text-muted-foreground block mb-3">
+            Riwayat 4 Minggu Terakhir
+          </span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {activeGroup.weeklyStats.map((w) => (
+              <div
+                key={w.weekStartIso}
+                className="p-2.5 rounded-lg border border-border bg-card text-center space-y-1"
+              >
+                <span className="text-[11px] font-semibold text-foreground block">
+                  {w.label}
+                </span>
+                <div className="flex items-center justify-center gap-2 text-[11px]">
+                  <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="size-3" />
+                    {w.attended} hadir
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 text-red-500">
+                    <XCircle className="size-3" />
+                    {w.missed + w.cancelled} batal/lewat
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

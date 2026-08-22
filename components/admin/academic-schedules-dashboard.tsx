@@ -11,6 +11,7 @@ import {
   Trash2,
   Edit3,
   Bot,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,7 @@ import {
   deleteAcademicSchedule,
   adminBatchGenerateMeet,
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
+import { updateTutorCourses } from "@/app/(student)/dashboard/schedule/actions";
 import { formatIsoDate } from "@/lib/date-utils";
 
 type Props = {
@@ -86,6 +88,11 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
 
   // Batch Meet Loading
   const [batchMeetLoading, setBatchMeetLoading] = useState(false);
+
+  // Tutor Certification Management
+  const [editingTutor, setEditingTutor] = useState<any | null>(null);
+  const [certSelectedIds, setCertSelectedIds] = useState<string[]>([]);
+  const [certSaving, setCertSaving] = useState(false);
 
   // Metrics
   const totalBookings = data.bookings.length;
@@ -216,6 +223,39 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
     }
   };
 
+  const handleOpenCertDialog = (tutor: any) => {
+    setEditingTutor(tutor);
+    setCertSelectedIds((tutor.tutorCourses || []).map((tc: any) => tc.courseId));
+  };
+
+  const handleToggleCourse = (courseId: string) => {
+    setCertSelectedIds((prev) =>
+      prev.includes(courseId)
+        ? prev.filter((id) => id !== courseId)
+        : [...prev, courseId]
+    );
+  };
+
+  const handleSaveCerts = async () => {
+    if (!editingTutor) return;
+
+    setCertSaving(true);
+    try {
+      const res = await updateTutorCourses(editingTutor.id, certSelectedIds);
+      if (res.success) {
+        toast.success("Sertifikasi mata kuliah tutor diperbarui");
+        setEditingTutor(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Gagal memperbarui sertifikasi");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan koneksi");
+    } finally {
+      setCertSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* 1. KPI Strip */}
@@ -256,6 +296,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
           <AdminTabsList>
             <AdminTabsTrigger value="calendar">Master Kalender</AdminTabsTrigger>
             <AdminTabsTrigger value="academic">Jadwal Akademik ({totalAcademic})</AdminTabsTrigger>
+            <AdminTabsTrigger value="tutors">Tutor ({data.tutors.length})</AdminTabsTrigger>
             <AdminTabsTrigger value="tickets">Monitoring Tiket ({data.tickets.length})</AdminTabsTrigger>
             <AdminTabsTrigger value="audit">Jejak Audit ({data.auditLogs.length})</AdminTabsTrigger>
           </AdminTabsList>
@@ -541,6 +582,86 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
             </tbody>
           </table>
         </AdminTable>
+      )}
+
+      {/* TAB 5: Tutor Certification Management */}
+      {activeTab === "tutors" && (
+        <div className="space-y-3">
+          <p className="text-body-xs text-muted-foreground">
+            Atur mata kuliah yang disertifikasi untuk setiap tutor. Murid hanya dapat memesan slot tutor untuk mata kuliah yang tersertifikasi.
+          </p>
+          <AdminTable>
+            <table className="w-full min-w-3xl text-left text-body-sm">
+              <AdminTableHead>
+                <tr>
+                  <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Tutor
+                  </th>
+                  <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Mata Kuliah Tersertifikasi
+                  </th>
+                  <th scope="col" className="px-5 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Slot Dibuka
+                  </th>
+                  <th scope="col" className="px-5 py-3.5 text-right text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Aksi
+                  </th>
+                </tr>
+              </AdminTableHead>
+              <tbody className="divide-y divide-border">
+                {data.tutors.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-12 text-center text-muted-foreground text-body-sm">
+                      Belum ada tutor terdaftar.
+                    </td>
+                  </tr>
+                ) : (
+                  data.tutors.map((tutor: any) => {
+                    const slotCount = data.slots.filter(
+                      (s: any) => s.tutorId === tutor.id
+                    ).length;
+                    return (
+                      <tr key={tutor.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-5 py-4 text-body-xs font-semibold text-foreground">
+                          {tutor.name}
+                        </td>
+                        <td className="px-5 py-4">
+                          {(tutor.tutorCourses || []).length === 0 ? (
+                            <span className="text-body-xs text-muted-foreground italic">
+                              Belum ada sertifikasi
+                            </span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {(tutor.tutorCourses || []).map((tc: any) => (
+                                <Badge key={tc.courseId} variant="outline" className="text-[10px] rounded-md">
+                                  {tc.course?.title}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-body-xs text-muted-foreground">
+                          {slotCount}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenCertDialog(tutor)}
+                            className="h-8 rounded-lg gap-1.5 text-[11px]"
+                          >
+                            <GraduationCap className="size-3.5" />
+                            <span>Kelola Sertifikasi</span>
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </AdminTable>
+        </div>
       )}
 
       {/* Create Academic Schedule Dialog */}
@@ -843,6 +964,69 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
         currentUserId=""
         onSuccess={() => router.refresh()}
       />
+
+      {/* Tutor Certification Dialog */}
+      <Dialog
+        open={Boolean(editingTutor)}
+        onOpenChange={(open) => !open && setEditingTutor(null)}
+      >
+        <DialogContent className="max-w-lg rounded-xl border border-border p-6 shadow-xl text-left max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
+              <GraduationCap className="size-5 text-brand-primary" />
+              Sertifikasi Mata Kuliah: {editingTutor?.name}
+            </DialogTitle>
+            <DialogDescription className="text-body-xs text-muted-foreground">
+              Pilih mata kuliah yang boleh diampu tutor ini. Murid hanya dapat memesan slot untuk mata kuliah yang tersertifikasi.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 my-2 max-h-80 overflow-y-auto pr-1">
+            {data.courses.map((c: any) => {
+              const isChecked = certSelectedIds.includes(c.id);
+              return (
+                <label
+                  key={c.id}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                    isChecked
+                      ? "border-brand-primary bg-brand-primary/10 text-foreground"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-body-sm font-semibold">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleToggleCourse(c.id)}
+                      className="size-4 accent-brand-primary rounded"
+                    />
+                    <span>{c.title}</span>
+                  </div>
+                  {isChecked && (
+                    <CheckCircle2 className="size-4 text-brand-primary shrink-0" />
+                  )}
+                </label>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="gap-2 pt-2">
+            <DialogClose asChild>
+              <Button variant="outline" type="button">
+                Batal
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              disabled={certSaving}
+              onClick={handleSaveCerts}
+              className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
+            >
+              {certSaving ? "Menyimpan..." : "Simpan Sertifikasi"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

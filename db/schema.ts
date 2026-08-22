@@ -454,6 +454,7 @@ export const groups = sqliteTable("groups", {
 	packageName: text("package_name").notNull().default("Paket Reguler (15 Sesi)"),
 	totalQuotaSessions: integer("total_quota_sessions").default(15).notNull(),
 	usedQuotaSessions: integer("used_quota_sessions").default(0).notNull(),
+	weeklyQuotaSessions: integer("weekly_quota_sessions").default(2).notNull(),
 	academicYear: text("academic_year").default("2026/2027").notNull(),
 	semester: text("semester").default("Ganjil").notNull(),
 	startDate: integer("start_date", { mode: "timestamp" }),

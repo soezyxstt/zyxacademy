@@ -860,6 +860,16 @@ export function ScheduleCalendarView({
                                 <History className="size-3" />
                               </button>
                             </div>
+
+                            {b.lastModifiedAt && (
+                              <div
+                                className="pl-1.5 mt-0.5 text-[8px] text-muted-foreground truncate"
+                                title={`Terakhir diubah oleh ${b.lastModifier?.name || "Sistem"}`}
+                              >
+                                Diubah oleh {b.lastModifier?.name || "Sistem"} •{" "}
+                                {formatIsoDate(new Date(b.lastModifiedAt))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -1068,6 +1078,15 @@ export function ScheduleCalendarView({
                             {b.topic && (
                               <p className="text-body-xs text-foreground font-medium pt-0.5 truncate">
                                 💬 Topik: {b.topic}
+                              </p>
+                            )}
+                            {b.lastModifiedAt && (
+                              <p
+                                className="text-[10px] text-muted-foreground truncate"
+                                title={`Terakhir diubah oleh ${b.lastModifier?.name || "Sistem"}`}
+                              >
+                                Diubah oleh {b.lastModifier?.name || "Sistem"} •{" "}
+                                {formatIsoDate(new Date(b.lastModifiedAt))}
                               </p>
                             )}
                           </div>

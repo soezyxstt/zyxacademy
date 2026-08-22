@@ -156,7 +156,7 @@ export function CollaborativeBookingModal({
                   <SelectContent>
                     {groups.map((g) => (
                       <SelectItem key={g.id} value={g.id}>
-                        {g.name} (Sisa: {Math.max(0, g.totalQuotaSessions - g.usedQuotaSessions)} sesi)
+                        {g.name} (Minggu ini: {g.weeklyUsedSessions ?? 0}/{g.weeklyQuotaSessions ?? 2} sesi)
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -167,9 +167,9 @@ export function CollaborativeBookingModal({
             {/* Quota indicator */}
             {activeGroup && (
               <div className="flex items-center justify-between p-2.5 rounded-lg border border-border/80 bg-card text-body-xs">
-                <span className="text-muted-foreground">Sisa Kuota Semester:</span>
+                <span className="text-muted-foreground">Terpakai minggu ini:</span>
                 <span className="font-bold text-foreground">
-                  {Math.max(0, activeGroup.totalQuotaSessions - activeGroup.usedQuotaSessions)} / {activeGroup.totalQuotaSessions} Sesi
+                  {activeGroup.weeklyUsedSessions ?? 0} / {activeGroup.weeklyQuotaSessions ?? 2} Sesi
                 </span>
               </div>
             )}
