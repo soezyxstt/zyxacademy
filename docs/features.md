@@ -299,6 +299,18 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - All public form file response uploads and admin form builder question attachments are saved under a structured R2 storage key hierarchy: `forms/[slugified-judul-forms]/question-[number]/[timestamp]-[hash]-[filename]`.
 - Path key resolution is handled deterministically via `lib/forms/storage-utils.ts` (`buildFormStorageKey`) and `/api/forms/upload`.
 
+### Course Material Batch Upload (Admin)
+
+- The course detail Materials tab offers `Unggah Batch` alongside the single-file form. The batch dialog ingests many PDFs at once with a 200-file cap and the existing 50 MB per-file limit.
+- Ingestion accepts multi-file pickers, folder pickers (`webkitdirectory`), and drag-and-drop of folders using recursive entry traversal. Hidden and system files (.DS_Store, Thumbs.db, dotfiles) are skipped silently; unsupported extensions and oversize files are logged as skipped warnings.
+- Each file is hashed to SHA-256 on the client, in a Web Worker for files above 10 MB, before any network call. Hashes are verified against existing `course_materials.checksum` rows for the course via `POST /api/admin/course-materials/batch/check-duplicates`, plus duplicate detection inside the staged set.
+- Duplicates show warning badges and a per-card action: skip, overwrite the existing material (replaces file and metadata), or upload as an additional row.
+- Filenames feed a heuristic parser that pre-fills category (materi/soal/pembahasan_soal), subcategory (uts/uas/kuis/kbf/tutorial/modul/ebook/ppt_dosen/catatan/lainnya), year (first 19xx/20xx token), and title.
+- Staged files appear as cards in three kanban columns by level-1 category. Cards move between columns via drag-and-drop, individually or as a multi-selection. A bulk bar applies category, year, or subcategory to all selected cards and removes them from the queue. Year inputs appear only for time-related categories (soal, pembahasan_soal); materi cards keep year null.
+- A rename preview table shows original versus generated names with inline override. Generated names follow `{course}_{kategori}[_{subkategori}][_{year}]_{judul}.pdf` deterministically; manual overrides win until the metadata changes again.
+- Uploads stream straight from the browser to Cloudflare R2 through presigned PUT URLs from `POST /api/admin/course-materials/batch/presign`, with a concurrency queue of four, per-file progress bars, total progress, and up to three exponential-backoff retries. Object keys stay under the existing `courses/{course-slug}/materials/{timestamp}-{hash}-{sanitized-name}.pdf` convention built by `lib/storage/keys.ts`.
+- After transfers finish, `POST /api/admin/course-materials/batch/commit` validates keys against the course prefix and persists all metadata rows in one transaction. Metadata is only written for files R2 accepted. Overwrite targets update in place and their replaced objects are deleted best-effort. A failed commit keeps uploaded binaries recoverable via a retry button.
+
 ### Push Notifications & In-App Inbox
 
 - Users get an in-app notification bell (unread badge, list, mark-as-read) in the marketing navbar and the app sidebar, backed by `GET /api/notifications/history` and `PATCH /api/notifications/read`.

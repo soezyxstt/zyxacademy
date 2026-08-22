@@ -604,6 +604,7 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `subcategory`: Level 2 subcategory ('ppt_dosen', 'ebook', 'catatan', 'kuis', 'kbf', 'tutorial', 'modul', 'uts', 'uas', 'lainnya').
 * `year`: Optional academic year (integer).
 * `fileUrl`: Public URL or storage key pointing to uploaded asset.
+* `checksum`: Optional SHA-256 hex of the stored file, used by the admin batch upload duplicate check. Null for rows created before batch upload.
 * `chapterIds`: Associated chapter list stored as a JSON array.
 * `thumbnailUrl`: Page 1 thumbnail preview image path.
 * `createdAt`
