@@ -57,15 +57,12 @@ import {
   BATCH_MAX_FILES,
   BATCH_MAX_FILE_BYTES,
   UPLOAD_CONCURRENCY,
-  detectCategoryFromFilename,
   detectChaptersFromFilename,
-  detectYear,
-  extensionOf,
+  detectMetadataFromFilename,
   formatBytes,
   generateFileName,
   isHiddenOrSystemFile,
   isSupportedBatchFile,
-  stripPdfExtension,
   type BatchChapterInfo,
   type DuplicateAction,
   type StagedBatchDocument,
@@ -218,14 +215,6 @@ async function collectFilesFromDataTransfer(
   return out;
 }
 
-function deriveTitle(filename: string): string {
-  const base = stripPdfExtension(filename)
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return base || stripPdfExtension(filename);
-}
-
 export function BatchUploadDialog({
   open,
   onOpenChange,
@@ -251,7 +240,6 @@ export function BatchUploadDialog({
   const [dragActive, setDragActive] = useState(false);
   const [categoryDragOver, setCategoryDragOver] = useState<MaterialLevel1Category | null>(null);
   const [chapterDragOver, setChapterDragOver] = useState<string | null>(null);
-  const [showRenameMatrix, setShowRenameMatrix] = useState(false);
   const [uploadRunning, setUploadRunning] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [summary, setSummary] = useState<UploadSummary | null>(null);
@@ -295,7 +283,6 @@ export function BatchUploadDialog({
     setDragActive(false);
     setCategoryDragOver(null);
     setChapterDragOver(null);
-    setShowRenameMatrix(false);
     setUploadRunning(false);
     setCommitError(null);
     setSummary(null);
@@ -331,19 +318,19 @@ export function BatchUploadDialog({
 
   const createStagedDoc = useCallback(
     (file: File, path: string): StagedBatchDocument => {
-      const detected = detectCategoryFromFilename(file.name);
-      const detectedYear = detectYear(file.name);
-      const year = detected.category === "materi" ? null : detectedYear;
-      const title = deriveTitle(file.name);
-      const detectedChapterIds = detectChaptersFromFilename(
-        file.name,
-        sortedChapters,
-        detected.subcategory
-      );
-
-      const primaryChap = detectedChapterIds.length === 1
-        ? sortedChapters.find((c) => c.id === detectedChapterIds[0])
+      const meta = detectMetadataFromFilename(file.name, sortedChapters);
+      const primaryChap = meta.chapterIds.length === 1
+        ? sortedChapters.find((c) => c.id === meta.chapterIds[0])
         : null;
+
+      const generatedName = generateFileName({
+        courseCode: courseId,
+        category: meta.category,
+        subcategory: meta.subcategory,
+        chapterIndex: primaryChap?.orderIndex ?? meta.primaryChapterIndex,
+        year: meta.year,
+        title: meta.title,
+      });
 
       return {
         id: crypto.randomUUID(),
@@ -356,19 +343,12 @@ export function BatchUploadDialog({
         uploadProgress: 0,
         duplicateOf: null,
         duplicateAction: "keep",
-        category: detected.category,
-        subcategory: detected.subcategory,
-        year,
-        title,
-        generatedName: generateFileName({
-          courseCode: courseId,
-          category: detected.category,
-          subcategory: detected.subcategory,
-          chapterIndex: primaryChap?.orderIndex ?? null,
-          year,
-          title,
-        }),
-        chapterIds: detectedChapterIds,
+        category: meta.category,
+        subcategory: meta.subcategory,
+        year: meta.year,
+        title: meta.title,
+        generatedName,
+        chapterIds: meta.chapterIds,
       };
     },
     [courseId, sortedChapters]
@@ -956,15 +936,6 @@ export function BatchUploadDialog({
     []
   );
 
-  const handleInlineRename = useCallback(
-    (id: string, name: string) => {
-      const withExt = name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`;
-      renamedOverrideRef.current.add(id);
-      updateDoc(id, { generatedName: withExt });
-    },
-    [updateDoc]
-  );
-
   const hashingCount = docs.filter((d) => d.status === "hashing").length;
 
   return (
@@ -988,7 +959,7 @@ export function BatchUploadDialog({
               <button
                 type="button"
                 onClick={() => setStep("category")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-body-xs font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-body-sm font-semibold transition-all cursor-pointer ${
                   step === "category"
                     ? "bg-primary text-primary-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -1001,7 +972,7 @@ export function BatchUploadDialog({
                 type="button"
                 onClick={() => setStep("chapters")}
                 disabled={docs.length === 0}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-body-xs font-semibold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-body-sm font-semibold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                   step === "chapters"
                     ? "bg-primary text-primary-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -1010,7 +981,7 @@ export function BatchUploadDialog({
                 <BookOpen className="size-3.5" />
                 2. Distribusi Bab
                 {unassignedDocs.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-status-warning/20 text-status-warning border border-status-warning/40">
+                  <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-md bg-status-warning/20 text-status-warning border border-status-warning/40">
                     {unassignedDocs.length}
                   </span>
                 )}
@@ -1130,6 +1101,20 @@ export function BatchUploadDialog({
                 </div>
               )}
 
+              {/* Standard Naming Guide Banner */}
+              <div className="flex items-center gap-2 rounded-xl border border-brand-primary/25 bg-brand-primary/[0.05] px-3.5 py-2.5 text-body-xs text-foreground">
+                <Sparkles className="size-4 text-brand-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="font-semibold text-brand-primary">Format Standar Zyx:</span>{" "}
+                  <code className="font-mono text-[11px] bg-background/80 px-1.5 py-0.5 rounded border border-border">
+                    {courseId.toLowerCase()}_[bab]_[kategori]_[topik]_[role]_[tahun].pdf
+                  </code>
+                  <span className="text-muted-foreground ml-1.5">
+                    Nama target disusun otomatis saat Anda memilih kategori, bab, dan judul topik.
+                  </span>
+                </div>
+              </div>
+
               {docs.length > 0 && (
                 <>
                   {/* Category Step Toolbar */}
@@ -1138,15 +1123,6 @@ export function BatchUploadDialog({
                       <Badge variant="secondary" className="rounded-md text-body-xs font-semibold bg-muted/60 border border-border text-foreground">
                         {docs.length} dokumen ({formatBytes(totalBytes)})
                       </Badge>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 rounded-lg text-body-sm text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowRenameMatrix((v) => !v)}
-                      >
-                        {showRenameMatrix ? "Sembunyikan Pratinjau Nama" : "Pratinjau Nama Berkas"}
-                      </Button>
                       {selection.size > 0 && (
                         <Button
                           type="button"
@@ -1167,12 +1143,10 @@ export function BatchUploadDialog({
                       disabled={uploadRunning || ingestPhase !== "idle" || chapters.length === 0}
                       onClick={() => setStep("chapters")}
                     >
-                      Lanjut: Distribusi Bab ({docs.length})
+                      Lanjut ke Distribusi Bab ({docs.length})
                       <ArrowRight className="size-4 ml-1.5" />
                     </Button>
                   </div>
-
-                  {showRenameMatrix && <RenameMatrix docs={docs} onRename={handleInlineRename} />}
 
                   {/* Category Kanban Columns */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -1300,8 +1274,8 @@ export function BatchUploadDialog({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className={`h-7 px-2.5 rounded-md text-body-xs transition-all ${
-                          viewMode === "kanban" ? "bg-card text-foreground shadow-xs font-bold border border-border/60" : "text-muted-foreground"
+                        className={`h-7 px-2.5 rounded-md text-body-sm font-medium transition-all ${
+                          viewMode === "kanban" ? "bg-card text-foreground shadow-xs border border-border/60" : "text-muted-foreground"
                         }`}
                         onClick={() => setViewMode("kanban")}
                       >
@@ -1312,8 +1286,8 @@ export function BatchUploadDialog({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className={`h-7 px-2.5 rounded-md text-body-xs transition-all ${
-                          viewMode === "table" ? "bg-card text-foreground shadow-xs font-bold border border-border/60" : "text-muted-foreground"
+                        className={`h-7 px-2.5 rounded-md text-body-sm font-medium transition-all ${
+                          viewMode === "table" ? "bg-card text-foreground shadow-xs border border-border/60" : "text-muted-foreground"
                         }`}
                         onClick={() => setViewMode("table")}
                       >
@@ -1358,7 +1332,7 @@ export function BatchUploadDialog({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 rounded-md text-body-xs bg-card hover:bg-muted font-medium"
+                      className="h-8 rounded-lg text-body-sm bg-card hover:bg-muted font-medium"
                       onClick={() => {
                         const allChapterIds = chapters.map((c) => c.id);
                         setDocs((prev) =>
@@ -1686,8 +1660,11 @@ function StagedCard({
           className="shrink-0"
         />
         <GripVertical className="size-3 shrink-0 text-muted-foreground/60 cursor-grab" />
-        <span className="min-w-0 flex-1 truncate text-body-xs font-semibold text-foreground" title={doc.originalName}>
-          {doc.originalName}
+        <span
+          className="min-w-0 flex-1 truncate font-mono text-body-xs font-semibold text-foreground"
+          title={`Target: ${doc.generatedName}\nBerkas asli: ${doc.originalName}`}
+        >
+          {doc.generatedName}
         </span>
         <span className="shrink-0 font-mono text-[10px] text-muted-foreground font-medium">{formatBytes(doc.size)}</span>
         <Button
@@ -1703,14 +1680,16 @@ function StagedCard({
         </Button>
       </div>
 
-      <Input
-        value={doc.title}
-        disabled={disabled || doc.status === "hashing"}
-        placeholder="Judul dokumen"
-        onChange={(e) => onMetaChange(doc.id, { title: e.target.value })}
-        className="h-8 rounded-lg text-body-sm bg-background border-border/80 font-medium"
-        aria-label="Judul dokumen"
-      />
+      <div className="space-y-1">
+        <Input
+          value={doc.title}
+          disabled={disabled || doc.status === "hashing"}
+          placeholder="Judul topik materi"
+          onChange={(e) => onMetaChange(doc.id, { title: e.target.value })}
+          className="h-8 rounded-lg text-body-sm bg-background border-border/80 font-medium"
+          aria-label="Judul dokumen"
+        />
+      </div>
 
       <div className="flex items-center gap-1.5">
         <Select
@@ -1747,18 +1726,23 @@ function StagedCard({
         )}
       </div>
 
-      {doc.subcategory && (
-        <div className="flex items-center gap-1.5">
-          <span className={`px-2 py-0.5 rounded-md text-[10px] border ${subcatBadgeClass}`}>
-            {doc.subcategory.toUpperCase()}
-          </span>
+      <div className="flex items-center justify-between gap-1.5 text-[10px] text-muted-foreground flex-wrap">
+        <div className="flex items-center gap-1">
+          {doc.subcategory && (
+            <span className={`px-1.5 py-0.5 rounded-md text-[10px] border ${subcatBadgeClass}`}>
+              {doc.subcategory.toUpperCase()}
+            </span>
+          )}
           {doc.year && (
             <span className="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-muted/60 text-muted-foreground border border-border">
               {doc.year}
             </span>
           )}
         </div>
-      )}
+        <span className="truncate max-w-[130px]" title={doc.originalName}>
+          Asli: {doc.originalName}
+        </span>
+      </div>
 
       {hasDuplicateFlag && (
         <div className="space-y-1 bg-muted/30 p-1.5 rounded-lg border border-border/60">
@@ -1883,14 +1867,19 @@ function ChapterKanbanCard({
           disabled={disabled}
           onCheckedChange={() => onToggleSelect(doc.id, true)}
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Pilih ${doc.title || doc.originalName}`}
+          aria-label={`Pilih ${doc.generatedName}`}
           className="shrink-0 mt-0.5"
         />
         <GripVertical className="size-3 shrink-0 text-muted-foreground/60 mt-0.5 cursor-grab" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-body-xs font-semibold text-foreground" title={doc.title || doc.originalName}>
-            {doc.title || doc.originalName}
+          <p className="truncate font-mono text-body-xs font-semibold text-foreground" title={doc.generatedName}>
+            {doc.generatedName}
           </p>
+          {doc.title && (
+            <p className="truncate text-[10px] text-muted-foreground" title={doc.title}>
+              {doc.title}
+            </p>
+          )}
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
             <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border capitalize ${catTheme.badgeBg}`}>
               {doc.category.replace("_", " ")}
@@ -1938,12 +1927,12 @@ function ChapterKanbanCard({
         <div className="flex items-center justify-between gap-1">
           <div className="flex items-center gap-1 flex-wrap">
             {isMultiChapter && (
-              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
+              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
                 Multi-Bab ({doc.chapterIds.length})
               </span>
             )}
             {isExamType && !isMultiChapter && (
-              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-status-error/10 text-status-error border border-status-error/20">
                 Ujian Single Bab
               </span>
             )}
@@ -1955,7 +1944,7 @@ function ChapterKanbanCard({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-6 px-2 rounded-md text-[11px] font-semibold border-brand-primary/40 text-brand-primary hover:bg-brand-primary/10"
+                className="h-7 px-2 rounded-lg text-body-xs font-medium border-brand-primary/40 text-brand-primary hover:bg-brand-primary/10"
                 disabled={disabled}
               >
                 <Plus className="size-3 mr-0.5" />
@@ -1976,9 +1965,9 @@ function ChapterKanbanCard({
                   return (
                     <label
                       key={ch.id}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-body-xs cursor-pointer select-none transition-colors ${
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-body-xs font-medium cursor-pointer select-none transition-colors ${
                         isChecked
-                          ? "bg-brand-primary/15 text-foreground font-semibold border border-brand-primary/30"
+                          ? "bg-brand-primary/15 text-foreground border border-brand-primary/30"
                           : "hover:bg-muted/50 text-muted-foreground border border-transparent"
                       }`}
                     >
@@ -1999,7 +1988,7 @@ function ChapterKanbanCard({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-6 text-[10px] px-1 rounded-sm justify-center font-medium hover:bg-muted"
+                  className="h-7 text-body-xs px-1.5 rounded-md justify-center font-medium hover:bg-muted"
                   onClick={() => onSetChapters(chapters.map((c) => c.id))}
                 >
                   Semua Bab
@@ -2009,7 +1998,7 @@ function ChapterKanbanCard({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-6 text-[10px] px-1 rounded-sm justify-center font-medium hover:bg-muted"
+                    className="h-7 text-body-xs px-1.5 rounded-md justify-center font-medium hover:bg-muted"
                     onClick={() => onSetChapters(utsChapters)}
                   >
                     Bab 1 s.d. UTS
@@ -2020,7 +2009,7 @@ function ChapterKanbanCard({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-6 text-[10px] px-1 rounded-sm justify-center font-medium hover:bg-muted"
+                    className="h-7 text-body-xs px-1.5 rounded-md justify-center font-medium hover:bg-muted"
                     onClick={() => onSetChapters([currentColumnChapterId])}
                   >
                     Hanya Bab Ini
@@ -2030,7 +2019,7 @@ function ChapterKanbanCard({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-6 text-[10px] px-1 rounded-sm justify-center text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className="h-7 text-body-xs px-1.5 rounded-md justify-center font-medium text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={() => onSetChapters([])}
                 >
                   Kosongkan
@@ -2138,15 +2127,15 @@ function ChapterTableView({
                     checked={isSelected}
                     disabled={disabled}
                     onCheckedChange={() => onToggleSelect(doc.id, true)}
-                    aria-label={`Pilih ${doc.title || doc.originalName}`}
+                    aria-label={`Pilih ${doc.generatedName}`}
                   />
                 </td>
-                <td className="px-3.5 py-2.5 max-w-[240px]">
-                  <p className="truncate font-semibold text-foreground" title={doc.title || doc.originalName}>
-                    {doc.title || doc.originalName}
+                <td className="px-3.5 py-2.5 max-w-[260px]">
+                  <p className="truncate font-mono text-body-xs font-semibold text-foreground" title={doc.generatedName}>
+                    {doc.generatedName}
                   </p>
-                  <p className="truncate font-mono text-[10px] text-muted-foreground mt-0.5" title={doc.originalName}>
-                    {doc.originalName}
+                  <p className="truncate text-[10px] text-muted-foreground mt-0.5" title={`Topik: ${doc.title}\nAsli: ${doc.originalName}`}>
+                    {doc.title ? `${doc.title} (${doc.originalName})` : doc.originalName}
                   </p>
                 </td>
                 <td className="px-3.5 py-2.5 whitespace-nowrap">
@@ -2470,48 +2459,6 @@ function ChapterBulkActionBar({
           Hapus
         </Button>
       </div>
-    </div>
-  );
-}
-
-function RenameMatrix({
-  docs,
-  onRename,
-}: {
-  docs: StagedBatchDocument[];
-  onRename: (id: string, name: string) => void;
-}) {
-  return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
-      <table className="w-full text-left text-body-xs">
-        <thead className="bg-muted font-bold text-foreground border-b border-border">
-          <tr>
-            <th className="px-3.5 py-2">Nama Asli</th>
-            <th className="px-3.5 py-2">Nama Baru (Otomatis / Kustom)</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/50">
-          {docs.map((doc) => (
-            <tr key={doc.id} className="hover:bg-muted/20">
-              <td className="max-w-[280px] truncate px-3.5 py-2 text-muted-foreground font-medium" title={doc.originalName}>
-                {doc.originalName}
-              </td>
-              <td className="px-3.5 py-1.5">
-                <Input
-                  value={doc.generatedName}
-                  disabled={doc.status === "uploading" || doc.status === "completed"}
-                  onChange={(e) => onRename(doc.id, e.target.value)}
-                  onBlur={(e) => {
-                    if (!extensionOf(e.target.value)) onRename(doc.id, e.target.value);
-                  }}
-                  className="h-7 max-w-md rounded-md font-mono text-body-xs bg-background"
-                  aria-label={`Nama baru untuk ${doc.originalName}`}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

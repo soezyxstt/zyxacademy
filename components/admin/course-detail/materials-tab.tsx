@@ -28,6 +28,7 @@ import {
   Loader2,
   Layers,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import {
   Tooltip,
@@ -356,6 +357,19 @@ export function MaterialsTab({
             <Layers className="size-3.5" />
             Unggah Batch
           </Button>
+        </div>
+
+        <div className="mb-3 flex items-center gap-2 rounded-lg border border-brand-primary/20 bg-brand-primary/[0.04] px-3 py-2 text-body-xs text-foreground">
+          <Sparkles className="size-3.5 text-brand-primary shrink-0" />
+          <div className="min-w-0">
+            <span className="font-semibold text-brand-primary">Format Standar Zyx:</span>{" "}
+            <code className="font-mono text-[11px] bg-background/80 px-1 py-0.5 rounded border border-border">
+              {courseId.toLowerCase()}_[bab]_[kategori]_[topik]_[role]_[tahun].pdf
+            </code>
+            <span className="text-muted-foreground ml-1">
+              Nama berkas target disusun otomatis saat Anda melengkapi form.
+            </span>
+          </div>
         </div>
 
         <form onSubmit={handleUpload} className="space-y-3">

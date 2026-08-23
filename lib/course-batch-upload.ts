@@ -427,16 +427,39 @@ export function detectMetadataFromFilename(
     }
   }
 
-  // Clean title: remove year, file extensions, and common prefix markers
-  let title = base
+  // Clean title: remove course code, bab markers, years, semester, and clean whitespace
+  let cleanTitle = base
     .replace(/[_-]+/g, " ")
-    .replace(/\b(19|20)\d{2}\b/g, "")
+    .replace(/\b[a-zA-Z]{2}\d{4}\b/gi, "") // e.g. MA1101, FI1101
+    .replace(/\b(19|20)\d{2}\s*[-/]?\s*(19|20)?\d{2}\b/g, "") // e.g. 2022 2023, 2022-2023
+    .replace(/\b(19|20)\d{2}\b/g, "") // e.g. 2024
     .replace(/\b(sem(ester)?\s*[12]|gasal|genap|ganjil|sp)\b/gi, "")
+    .replace(/^(?:bab|chapter|ch|modul|module)\s*[-_:]?\s*([0-9]+|[ivxlcdm]+)\s*[-_:]?\s*/i, "")
     .replace(/\s+/g, " ")
     .trim();
 
-  if (!title) {
-    title = base;
+  // If title was stripped down completely or only has punctuation, fall back
+  if (!cleanTitle || /^[-_:\s]+$/.test(cleanTitle)) {
+    cleanTitle = detectedCategory.subcategory
+      ? detectedCategory.subcategory.replace("_", " ")
+      : detectedCategory.category;
+  }
+
+  // Convert ALL CAPS title to Title Case for cleaner readability
+  if (cleanTitle === cleanTitle.toUpperCase() && cleanTitle.length > 3 && /[A-Z]/.test(cleanTitle)) {
+    cleanTitle = cleanTitle
+      .toLowerCase()
+      .split(" ")
+      .map((word) => {
+        const lower = word.toLowerCase();
+        if (["dan", "atau", "di", "ke", "dari", "pada", "untuk", "dengan", "the", "of", "and", "in", "on"].includes(lower)) {
+          return lower;
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      })
+      .join(" ");
+    // Capitalize first character
+    cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
   }
 
   let role: string | null = null;
@@ -447,7 +470,7 @@ export function detectMetadataFromFilename(
   }
 
   return {
-    title,
+    title: cleanTitle,
     category: detectedCategory.category,
     subcategory: detectedCategory.subcategory,
     year,
