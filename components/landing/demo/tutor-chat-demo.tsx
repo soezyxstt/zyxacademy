@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { RotateCcw, Sparkles } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DemoFrame } from "@/components/landing/demo/demo-frame";
+import { ZyraMark } from "@/components/course/zyra-mark";
 
 export type TutorChatMessage = {
   id: string;
@@ -98,7 +99,7 @@ export function TutorChatDemo({ messages }: TutorChatDemoProps) {
         title="Zyra"
         meta={
           <span className="flex items-center gap-1 text-[var(--zx-accent)]">
-            <Sparkles className="size-3.5" aria-hidden />
+            <ZyraMark className="size-3.5" aria-hidden />
             Gemini
           </span>
         }

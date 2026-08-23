@@ -69,6 +69,7 @@ export type AdminStatStripItemProps = {
   icon?: React.ComponentType<{ className?: string }>;
   iconClassName?: string;
   tone?: StatTone;
+  compact?: boolean;
 };
 
 export type AdminStatStripProps = {
@@ -96,7 +97,22 @@ export function AdminStatStripItem({
   icon: Icon,
   iconClassName,
   tone = "default",
+  compact,
 }: AdminStatStripItemProps) {
+  if (compact) {
+    return (
+      <div className="flex items-center justify-between gap-2 p-2.5 px-3.5 bg-card min-w-0">
+        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+          {Icon && <Icon className={cn("size-4 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
+          <span className="font-medium text-body-sm text-foreground truncate">{label}</span>
+        </div>
+        <div className={cn("font-heading font-bold text-body-base shrink-0", toneClasses[tone])}>
+          {value}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-0.5 p-3.5 bg-card min-w-0">
       <div className="flex items-center justify-between gap-1.5 text-muted-foreground">

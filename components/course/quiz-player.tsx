@@ -235,8 +235,13 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             toast.info("Waktu untuk butir soal ini telah habis. Beralih ke soal berikutnya.");
             setIndex((i) => i + 1);
           } else {
-            toast.warning("Waktu soal terakhir habis! Jawaban Anda otomatis terkirim.");
-            handleSubmit(true);
+            const totalDeadline = Number(window.localStorage.getItem(timerStorageKey));
+            const totalRemaining = Number.isFinite(totalDeadline)
+              ? Math.max(0, Math.ceil((totalDeadline - Date.now()) / 1000))
+              : 0;
+            if (totalRemaining > 0) {
+              toast.info("Waktu untuk butir soal ini telah habis. Periksa jawaban Anda dan kumpulkan sebelum waktu total berakhir.");
+            }
           }
           return 0;
         }
@@ -245,7 +250,7 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
     }, 1000);
 
     return () => clearInterval(qTimer);
-  }, [perQuestionTimerEnabled, isSubmitted, submitting, index, sorted.length, handleSubmit]);
+  }, [perQuestionTimerEnabled, isSubmitted, submitting, index, sorted.length, timerStorageKey]);
 
   useEffect(() => {
     const rawDeadline = window.localStorage.getItem(timerStorageKey);

@@ -34,7 +34,7 @@ Plan 017 is local-only until a separate staging review authorizes remote actions
 3. Load `.env.staging` and pass the staging identity guard before every remote staging action.
 4. Never expose secrets, authenticated URLs, raw conversations, or raw user IDs in evidence.
 5. Edit `db/schema.ts`, generate migrations, and never hand-edit `drizzle/`.
-6. Keep every new user-visible feature behind its declared `FEATURE_*` flag. Missing or `0` means invisible.
+6. Keep optional, risky, or reversible behavior behind its declared `FEATURE_*` flag. Foundational behavior is always-on and intentionally has no env flag.
 7. Turso remains the source of truth. Vectorize stores searchable representations and identifiers only.
 8. Preserve rollback assets until a separately authorized contraction.
 9. Run lint, targeted tests, typecheck, and `git diff --check` before integration.

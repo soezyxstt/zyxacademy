@@ -11,6 +11,7 @@ import { headers } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
+import { getQuizTimingMismatch } from '@/lib/asesmen/quiz-timing';
 import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
 import {
   deleteAssessmentWithLegacyProjection,
@@ -109,6 +110,17 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       if (!scope.success) {
         return NextResponse.json({ error: 'Assessment scope must match quiz or tryout chapter rules.' }, { status: 400 });
       }
+    }
+    const timingMismatch = getQuizTimingMismatch({
+      timeLimitSeconds: parsed.data.timeLimitSeconds,
+      count: parsed.data.selectionRules.count,
+      fixedQuestionIds: parsed.data.selectionRules.fixedQuestionIds,
+      perQuestionTimerEnabled: parsed.data.selectionRules.perQuestionTimerEnabled,
+      perQuestionTimers: parsed.data.selectionRules.perQuestionTimers,
+      defaultQuestionTimerSeconds: parsed.data.selectionRules.defaultQuestionTimerSeconds,
+    });
+    if (timingMismatch) {
+      return NextResponse.json({ error: timingMismatch }, { status: 400 });
     }
     updateData.selectionRules = parsed.data.selectionRules;
     if (parsed.data.showDiscussion === undefined && parsed.data.selectionRules.explanationRelease !== undefined) {

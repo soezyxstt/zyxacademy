@@ -15,12 +15,12 @@ Contracts under test: `docs/bundle/idea-bundle-v2.md`, `docs/bundle/product-bund
 | Item | Value |
 |---|---|
 | Branch | `staging` |
-| Flags | `FEATURE_IDEA_BUNDLE_V2=1`, `FEATURE_PRODUCT_BUNDLE_V2=1` |
+| Flags | None. Both bundle workflows are always-on; the retained `FEATURE_*` catalog no longer gates them. |
 | Admin guard | Canonical `pengguna_peran` membership authorization |
 | Database | Local `dev.db`, or staging Turso. Never production. |
 | App | `bun run dev` |
 
-Restart the dev server after changing the retained bundle flags; they are read through `lib/env.ts` and route handlers. Canonical membership authorization is not flag-gated.
+The bundle workflows are read directly by route handlers with no flag gate. Canonical membership authorization is not flag-gated either.
 
 ### 1.2 Accounts
 
@@ -73,12 +73,12 @@ Every mutation of a fixture invalidates two layers: the per-file checksum in `ma
 
 ## 2. Idea Bundle
 
-Panel: `/admin/bundles/idea`. API base: `/api/admin/bundles/idea`.
+Panel: `/admin/materials/review?section=idea` (legacy `/admin/bundles/idea` redirects there). API base: `/api/admin/bundles/idea`.
 
 ### 2.1 Happy path
 
 **IB-01 Panel renders.**
-Sign in as A1, open `/admin/bundles/idea`. Expect heading "Idea Bundle", a file input restricted to `.zip`, and an import list. With no prior imports the list reads "Belum ada Idea Bundle."
+Sign in as A1, open `/admin/materials/review?section=idea`. Expect the Source Pack + Idea review inventory, a `.zip` upload action, and an import list. With no prior imports the list reads "Belum ada Idea Bundle."
 
 **IB-02 Valid upload analyzes without persistence.**
 Select `idea-valid.zip`, submit "Analisis ZIP". Expect HTTP 200, the message "ZIP lolos pemeriksaan awal. Belum ada data yang disimpan.", and a workspace showing the bundle summary, every Idea, source evidence, and relation. Confirm R2 object count plus `impor_bundle`, `item_impor_bundle`, `ide`, `sumber_materi`, and `chunk` counts are unchanged.
@@ -156,14 +156,14 @@ This is the single most important manual case; it proves no partial publication 
 
 ## 3. Product Bundle
 
-Panel: `/admin/bundles/product`. API base: `/api/admin/bundles/product`.
+Panel: `/admin/materials/review?section=product` (legacy `/admin/bundles/product` redirects there). API base: `/api/admin/bundles/product`.
 
 Requires the fixture from 1.4. The valid fixture covers all seven product types: `article`, `diktat`, `question`, `solution`, `flashcard_set`, `flashcard`, `assessment_blueprint`.
 
 ### 3.1 Happy path
 
 **PB-01 Panel renders.**
-As A1, open `/admin/bundles/product`. Expect heading "Product Bundle" and, unlike the Idea panel, a "Preview" button on every row.
+As A1, open `/admin/materials/review?section=product`. Expect the Product review inventory and, unlike the Idea inventory, a "Preview" action on product rows.
 
 **PB-02 Valid upload analyzes without persistence.** Select the ZIP and click "Analisis ZIP". Expect a non-persistent summary of all seven product types, search and type filtering, editable content, Product to Idea mapping, and dependency mapping. Confirm no R2 object or Turso row was created.
 
@@ -320,16 +320,13 @@ The panels live under `app/(admin)/layout.tsx`, which redirects any non-admin to
 
 RM-12 matters because the review schema rejects unknown fields; a client sending extra keys fails rather than silently dropping them.
 
-### 4.3 Feature flag rollback
+### 4.3 Rollback path
+
+The retired `FEATURE_IDEA_BUNDLE_V2` / `FEATURE_PRODUCT_BUNDLE_V2` env gates no longer exist in runtime code, so flag-flip cases are obsolete. The remaining contract:
 
 | Case | Setup | Expected |
 |---|---|---|
-| FF-01 | `FEATURE_IDEA_BUNDLE_V2=0`, restart | `/admin/bundles/idea` returns 404; sidebar entry gone |
-| FF-02 | Same | All four idea API routes return 404 `IDEA_BUNDLE_V2_DISABLED` |
-| FF-03 | `FEATURE_PRODUCT_BUNDLE_V2=0`, restart | `/admin/bundles/product` returns 404 |
-| FF-04 | Same | All four product API routes return 404 `PRODUCT_BUNDLE_V2_DISABLED` |
-| FF-05 | Flags off | Legacy importers still reachable as the rollback path |
-| FF-06 | Flags back on | Previously published imports and their audit records are intact; nothing was deleted |
+| FF-06 | Normal operation | Previously published imports and their audit records are intact; nothing was deleted |
 
 FF-06 is the contract requirement that published evidence is never deleted as a rollback mechanism.
 

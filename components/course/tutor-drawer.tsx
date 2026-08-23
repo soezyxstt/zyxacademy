@@ -22,7 +22,6 @@ import {
   Copy,
   Trash2,
   Send,
-  GripVertical,
   HelpCircle,
   Paperclip,
 } from "lucide-react";
@@ -53,7 +52,6 @@ import {
   type ZyraAttachmentComposerHandle,
 } from "@/components/course/zyra-attachment-composer";
 import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
-import { ZyraPet } from "@/components/course/zyra-pet";
 import { ZyraMathPalette } from "@/components/course/zyra-math-palette";
 import { ZyraMark } from "@/components/course/zyra-mark";
 import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
@@ -804,21 +802,33 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
             onMouseDown={startResize}
             onTouchStart={startResizeTouch}
             onDoubleClick={toggleExpand}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+              event.preventDefault();
+              setIsExpanded(false);
+              const delta = event.key === "ArrowLeft" ? 40 : -40;
+              setSidebarWidth((width) => Math.min(window.innerWidth - 24, Math.max(MIN_SIDEBAR_WIDTH, width + delta)));
+              persistWidth();
+            }}
             role="separator"
             aria-orientation="vertical"
             aria-label="Ubah lebar sidebar Zyra"
-            title="Seret ke kiri/kanan untuk mengubah lebar, atau klik dua kali untuk layar penuh"
+            aria-valuemin={MIN_SIDEBAR_WIDTH}
+            aria-valuemax={typeof window === "undefined" ? DEFAULT_SIDEBAR_WIDTH : window.innerWidth - 24}
+            aria-valuenow={sidebarWidth}
+            tabIndex={0}
+            title="Seret untuk mengubah lebar, klik dua kali untuk layar penuh, panah kiri/kanan untuk mengatur"
             className={cn(
-              "absolute left-0 top-0 bottom-0 z-50 w-4 cursor-col-resize touch-none select-none group hidden md:flex items-center justify-center -translate-x-2 hover:bg-brand-primary/20 transition-colors",
-              isDragging && "bg-brand-primary/30 w-5 -translate-x-2.5"
+              "absolute left-0 top-0 bottom-0 z-50 hidden w-4 cursor-col-resize touch-none select-none items-center justify-center outline-none transition-colors group hover:bg-brand-primary/15 focus-visible:bg-brand-primary/25 md:flex",
+              isDragging && "bg-brand-primary/30"
             )}
           >
-            <div className={cn(
-              "h-12 w-1 rounded-full bg-border-strong group-hover:bg-brand-primary transition-all flex items-center justify-center",
-              isDragging && "bg-brand-primary h-16 w-1.5"
-            )}>
-              <GripVertical className="size-3 text-background/70 group-hover:text-white" />
-            </div>
+            <div
+              className={cn(
+                "h-12 w-1 rounded-full bg-border-strong transition-colors group-hover:bg-brand-primary group-focus-visible:bg-brand-primary",
+                isDragging && "h-16 w-1.5 bg-brand-primary"
+              )}
+            />
           </div>
 
           {/* Top Header & Ergonomic Activity Rail */}
@@ -826,13 +836,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
             {/* Top Row: Brand, Capabilities, Controls */}
             <div className="flex items-center justify-between px-3.5 py-2.5 gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
-                {caps.pet ? (
-                  <ZyraPet state={petState} />
-                ) : (
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-                    <ZyraMark className="size-4.5" />
-                  </div>
-                )}
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+                  <ZyraMark className="size-4.5" />
+                </div>
                 <div className="min-w-0 flex flex-col">
                   <div className="flex items-center gap-1.5">
                     <span className="font-heading text-body-sm font-bold text-foreground truncate">

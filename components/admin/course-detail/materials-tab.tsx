@@ -27,6 +27,7 @@ import {
   ExternalLink,
   Loader2,
   Layers,
+  RotateCcw,
 } from "lucide-react";
 import {
   Tooltip,
@@ -43,6 +44,10 @@ import {
   type MaterialLevel1Category,
   type CourseMaterialSubcategory,
 } from "@/lib/course-materials";
+import {
+  detectMetadataFromFilename,
+  generateFileName,
+} from "@/lib/course-batch-upload";
 
 const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -91,14 +96,65 @@ export function MaterialsTab({
   const [year, setYear] = useState<string>("");
   const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [customFilename, setCustomFilename] = useState<string>("");
+  const [isCustomFilenameEdited, setIsCustomFilenameEdited] = useState(false);
 
   const availableSubcategories = getSubcategoriesForLevel1(type);
+
+  const computeStandardFilename = (
+    currentTitle = title,
+    currentType = type,
+    currentSub = subcategory,
+    currentYear = year,
+    currentChapters = selectedChapters,
+    file = selectedFile
+  ) => {
+    if (!file) return "";
+    const primaryChap = currentChapters.size === 1
+      ? chapters.find((c) => currentChapters.has(c.id))
+      : null;
+    const parsedYear = currentYear.trim() ? parseInt(currentYear.trim(), 10) : null;
+    return generateFileName({
+      courseCode: courseId,
+      category: currentType,
+      subcategory: currentSub,
+      chapterIndex: primaryChap?.orderIndex ?? null,
+      year: isNaN(parsedYear!) ? null : parsedYear,
+      title: currentTitle.trim() || file.name,
+    });
+  };
 
   const handleTypeChange = (newType: MaterialLevel1Category) => {
     setType(newType);
     const subcats = getSubcategoriesForLevel1(newType);
+    let nextSub = subcategory;
     if (subcats.length > 0 && !subcats.some((s) => s.value === subcategory)) {
-      setSubcategory(subcats[0].value);
+      nextSub = subcats[0].value;
+      setSubcategory(nextSub);
+    }
+    if (!isCustomFilenameEdited && selectedFile) {
+      setCustomFilename(computeStandardFilename(title, newType, nextSub, year, selectedChapters));
+    }
+  };
+
+  const handleSubcategoryChange = (newSub: CourseMaterialSubcategory) => {
+    setSubcategory(newSub);
+    if (!isCustomFilenameEdited && selectedFile) {
+      setCustomFilename(computeStandardFilename(title, type, newSub, year, selectedChapters));
+    }
+  };
+
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (!isCustomFilenameEdited && selectedFile) {
+      setCustomFilename(computeStandardFilename(newTitle, type, subcategory, year, selectedChapters));
+    }
+  };
+
+  const handleYearChange = (newYear: string) => {
+    setYear(newYear);
+    if (!isCustomFilenameEdited && selectedFile) {
+      setCustomFilename(computeStandardFilename(title, type, subcategory, newYear, selectedChapters));
     }
   };
 
@@ -110,16 +166,64 @@ export function MaterialsTab({
       } else {
         next.add(chapterId);
       }
+      if (!isCustomFilenameEdited && selectedFile) {
+        setCustomFilename(computeStandardFilename(title, type, subcategory, year, next));
+      }
       return next;
     });
   };
 
   const handleSelectAllChapters = () => {
+    let next: Set<string>;
     if (selectedChapters.size === chapters.length) {
-      setSelectedChapters(new Set());
+      next = new Set();
     } else {
-      setSelectedChapters(new Set(chapters.map((c) => c.id)));
+      next = new Set(chapters.map((c) => c.id));
     }
+    setSelectedChapters(next);
+    if (!isCustomFilenameEdited && selectedFile) {
+      setCustomFilename(computeStandardFilename(title, type, subcategory, year, next));
+    }
+  };
+
+  const handleFileChange = (file: File | null) => {
+    setSelectedFile(file);
+    if (!file) {
+      setCustomFilename("");
+      setIsCustomFilenameEdited(false);
+      return;
+    }
+
+    const metadata = detectMetadataFromFilename(file.name, chapters);
+    const nextTitle = title.trim() ? title : metadata.title;
+    const nextType = metadata.category;
+    const nextSub = metadata.subcategory ?? subcategory;
+    const nextYear = metadata.year ? String(metadata.year) : year;
+    const nextChapters =
+      metadata.chapterIds.length > 0 && selectedChapters.size === 0
+        ? new Set(metadata.chapterIds)
+        : selectedChapters;
+
+    setTitle(nextTitle);
+    setType(nextType);
+    setSubcategory(nextSub);
+    if (metadata.year && !year) {
+      setYear(String(metadata.year));
+    }
+    if (metadata.chapterIds.length > 0 && selectedChapters.size === 0) {
+      setSelectedChapters(nextChapters);
+    }
+
+    const generated = computeStandardFilename(
+      nextTitle,
+      nextType,
+      nextSub,
+      nextYear,
+      nextChapters,
+      file
+    );
+    setCustomFilename(generated);
+    setIsCustomFilenameEdited(false);
   };
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -152,6 +256,9 @@ export function MaterialsTab({
       const uploadForm = new FormData();
       uploadForm.append("file", selectedFile);
       uploadForm.append("courseId", courseId);
+      if (customFilename.trim()) {
+        uploadForm.append("filename", customFilename.trim());
+      }
 
       const uploadResponse = await fetch("/api/admin/upload-pdf", {
         method: "POST",
@@ -180,6 +287,8 @@ export function MaterialsTab({
         setYear("");
         setSelectedChapters(new Set());
         setSelectedFile(null);
+        setCustomFilename("");
+        setIsCustomFilenameEdited(false);
         const fileInput = document.getElementById("course-pdf-input") as HTMLInputElement;
         if (fileInput) fileInput.value = "";
         router.refresh();
@@ -256,7 +365,7 @@ export function MaterialsTab({
               <Input
                 placeholder="Contoh: Slide Perkuliahan Pertemuan 1"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => handleTitleChange(e.target.value)}
                 disabled={loading}
                 className="h-9 text-body-sm rounded-lg"
               />
@@ -286,7 +395,7 @@ export function MaterialsTab({
               <Label className="text-body-sm font-semibold text-foreground">Sub-kategori</Label>
               <Select
                 value={subcategory}
-                onValueChange={(v: CourseMaterialSubcategory) => setSubcategory(v)}
+                onValueChange={(v: CourseMaterialSubcategory) => handleSubcategoryChange(v)}
                 disabled={loading}
               >
                 <SelectTrigger className="h-9 text-body-sm rounded-lg">
@@ -312,7 +421,7 @@ export function MaterialsTab({
                 min={1900}
                 max={2100}
                 value={year}
-                onChange={(e) => setYear(e.target.value)}
+                onChange={(e) => handleYearChange(e.target.value)}
                 disabled={loading}
                 className="h-9 text-body-sm rounded-lg"
               />
@@ -324,7 +433,7 @@ export function MaterialsTab({
                 id="course-pdf-input"
                 type="file"
                 accept="application/pdf"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                 disabled={loading}
                 className="cursor-pointer file:rounded-md file:bg-muted file:border-0 file:px-2 file:py-0.5 file:text-body-xs file:font-semibold h-9 rounded-lg text-body-xs"
               />
@@ -355,6 +464,43 @@ export function MaterialsTab({
               </TooltipProvider>
             </div>
           </div>
+
+          {/* Standardized Filename Review & Override */}
+          {selectedFile && (
+            <div className="rounded-xl border border-border/80 bg-muted/20 p-3 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-body-xs font-semibold text-foreground">
+                  Nama Berkas Terstandar (Disimpan ke Storage)
+                </Label>
+                {isCustomFilenameEdited && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomFilenameEdited(false);
+                      setCustomFilename(computeStandardFilename());
+                    }}
+                    className="flex items-center gap-1 text-body-xs text-brand-primary hover:underline cursor-pointer"
+                  >
+                    <RotateCcw className="size-3" />
+                    Reset ke Default
+                  </button>
+                )}
+              </div>
+              <Input
+                value={customFilename}
+                onChange={(e) => {
+                  setCustomFilename(e.target.value);
+                  setIsCustomFilenameEdited(true);
+                }}
+                disabled={loading}
+                className="h-8 font-mono text-body-xs rounded-lg bg-background"
+                placeholder="nama_file_standar.pdf"
+              />
+              <p className="text-body-xs text-muted-foreground">
+                Otomatis disusun mengikuti hierarki: kode MK, bab, kategori, deskripsi, role, dan tahun di akhir. Anda dapat mengedit nama ini sebelum mengunggah.
+              </p>
+            </div>
+          )}
 
           {/* Chapter Selector */}
           <div className="rounded-xl border border-border/70 bg-muted/10 p-3 space-y-2">

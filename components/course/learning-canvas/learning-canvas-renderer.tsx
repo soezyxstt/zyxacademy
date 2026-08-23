@@ -1,6 +1,17 @@
 "use client";
 
-import { useId, useMemo, useState, useCallback, type MouseEvent, type TouchEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MathText } from "@/components/course/math-text";
@@ -9,8 +20,8 @@ import {
   evaluateFunctionPlot,
   resetCanvasValues,
   safeExpressionToLatex,
-  type ChemistryCanvas,
   type CanvasSpec,
+  type ChemistryCanvas,
   type DataPlotCanvas,
   type DerivationCanvas,
   type DiagramCanvas,
@@ -26,12 +37,234 @@ const MAJOR_GRID = "var(--color-border-strong)";
 const AXIS = "var(--color-foreground)";
 const LABEL = "var(--color-muted-foreground)";
 
-function valuesForSpec(spec: CanvasSpec): Record<string, number> {
-  return resetCanvasValues(spec.variables);
+const PAD_L = 46;
+const PAD_R = 18;
+const PAD_T = 16;
+const PAD_B = 36;
+const SVG_W = 600;
+const SVG_H = 312;
+const PLOT_W = SVG_W - PAD_L - PAD_R;
+const PLOT_H = SVG_H - PAD_T - PAD_B;
+
+const VIEW_SPAN_MIN = 1e-2;
+const VIEW_SPAN_MAX = 1e6;
+
+interface Viewport {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function clamp01(value: number) {
+  return clamp(value, 0, 1);
+}
+
+function finiteSpan(min: number, max: number): number {
+  const span = max - min;
+  if (!Number.isFinite(span) || span <= 0) return 1;
+  return Math.min(VIEW_SPAN_MAX, Math.max(VIEW_SPAN_MIN, span));
+}
+
+function anchoredZoom(view: Viewport, factor: number, fx: number, fy: number): Viewport {
+  const spanX = clamp(finiteSpan(view.xMin, view.xMax) * factor, VIEW_SPAN_MIN, VIEW_SPAN_MAX);
+  const spanY = clamp(finiteSpan(view.yMin, view.yMax) * factor, VIEW_SPAN_MIN, VIEW_SPAN_MAX);
+  const anchorX = view.xMin + fx * (view.xMax - view.xMin);
+  const anchorY = view.yMax - fy * (view.yMax - view.yMin);
+  const xMin = anchorX - fx * spanX;
+  const yMax = anchorY + fy * spanY;
+  return { xMin, xMax: xMin + spanX, yMin: yMax - spanY, yMax };
+}
+
+function translated(view: Viewport, dx: number, dy: number): Viewport {
+  return {
+    xMin: view.xMin + dx,
+    xMax: view.xMax + dx,
+    yMin: view.yMin + dy,
+    yMax: view.yMax + dy,
+  };
+}
+
+type PlotGesture =
+  | { mode: "pan"; startClientX: number; startClientY: number; startView: Viewport }
+  | {
+      mode: "pinch";
+      startDistPx: number;
+      startFx: number;
+      startFy: number;
+      startMidClientX: number;
+      startMidClientY: number;
+      startView: Viewport;
+    };
+
+/**
+ * Shared pan/zoom viewport for Learning Canvas plots. Drag pans, scroll or
+ * pinch zooms around the pointer, double-click resets to the fitted view.
+ */
+function useInteractiveViewport(defaultView: Viewport) {
+  const [view, setView] = useState<Viewport>(defaultView);
+  const [isDragging, setIsDragging] = useState(false);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const gestureRef = useRef<PlotGesture | null>(null);
+  const defaultViewRef = useRef(defaultView);
+
+  useEffect(() => {
+    defaultViewRef.current = defaultView;
+    setView(defaultView);
+    pointersRef.current.clear();
+    gestureRef.current = null;
+    setIsDragging(false);
+  }, [defaultView]);
+
+  const resetView = useCallback(() => {
+    setView({ ...defaultViewRef.current });
+  }, []);
+
+  const svgScale = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return { sx: 1, sy: 1 };
+    const rect = svg.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return { sx: 1, sy: 1 };
+    return { sx: SVG_W / rect.width, sy: SVG_H / rect.height };
+  }, []);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      const px = ((event.clientX - rect.left) / rect.width) * SVG_W;
+      const py = ((event.clientY - rect.top) / rect.height) * SVG_H;
+      const fx = clamp01((px - PAD_L) / PLOT_W);
+      const fy = clamp01((py - PAD_T) / PLOT_H);
+      const factor = Math.exp(event.deltaY * 0.0012);
+      setView((current) => anchoredZoom(current, factor, fx, fy));
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  }, []);
+
+  const onPointerDown = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {}
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (pointersRef.current.size === 1) {
+      gestureRef.current = {
+        mode: "pan",
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startView: view,
+      };
+      setIsDragging(true);
+      return;
+    }
+
+    if (pointersRef.current.size >= 2) {
+      const points = [...pointersRef.current.values()];
+      const first = points[points.length - 2];
+      const second = points[points.length - 1];
+      if (!first || !second) return;
+      const distPx = Math.hypot(second.x - first.x, second.y - first.y);
+      if (distPx < 8) return;
+      const scale = svgScale();
+      const midPx = ((first.x + second.x) / 2 - (svgRef.current?.getBoundingClientRect().left ?? 0)) * scale.sx;
+      const midPy = ((first.y + second.y) / 2 - (svgRef.current?.getBoundingClientRect().top ?? 0)) * scale.sy;
+      gestureRef.current = {
+        mode: "pinch",
+        startDistPx: distPx,
+        startFx: clamp01((midPx - PAD_L) / PLOT_W),
+        startFy: clamp01((midPy - PAD_T) / PLOT_H),
+        startMidClientX: (first.x + second.x) / 2,
+        startMidClientY: (first.y + second.y) / 2,
+        startView: view,
+      };
+      setIsDragging(true);
+    }
+  }, [svgScale, view]);
+
+  const onPointerMove = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    const gesture = gestureRef.current;
+    if (!gesture || !pointersRef.current.has(event.pointerId)) return;
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (gesture.mode === "pan") {
+      const { sx, sy } = svgScale();
+      const dxWorld = -(((event.clientX - gesture.startClientX) * sx) / PLOT_W)
+        * finiteSpan(gesture.startView.xMin, gesture.startView.xMax);
+      const dyWorld = (((event.clientY - gesture.startClientY) * sy) / PLOT_H)
+        * finiteSpan(gesture.startView.yMin, gesture.startView.yMax);
+      setView(translated(gesture.startView, dxWorld, dyWorld));
+      return;
+    }
+
+    const points = [...pointersRef.current.values()];
+    if (points.length < 2) return;
+    const first = points[points.length - 2];
+    const second = points[points.length - 1];
+    if (!first || !second) return;
+    const distPx = Math.hypot(second.x - first.x, second.y - first.y) || 1;
+    const zoomFactor = gesture.startDistPx / distPx;
+
+    const { sx } = svgScale();
+    const midDxPx = (first.x + second.x) / 2 - gesture.startMidClientX;
+    const zoomed = anchoredZoom(gesture.startView, zoomFactor, gesture.startFx, gesture.startFy);
+    const panWorldX = -((midDxPx * sx) / PLOT_W) * finiteSpan(zoomed.xMin, zoomed.xMax);
+    setView(translated(zoomed, panWorldX, 0));
+  }, [svgScale]);
+
+  const endPointer = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {}
+    pointersRef.current.delete(event.pointerId);
+    if (pointersRef.current.size === 0) {
+      gestureRef.current = null;
+      setIsDragging(false);
+    } else if (pointersRef.current.size === 1 && gestureRef.current?.mode === "pinch") {
+      const remaining = [...pointersRef.current.values()][0];
+      if (remaining) {
+        gestureRef.current = {
+          mode: "pan",
+          startClientX: remaining.x,
+          startClientY: remaining.y,
+          startView: view,
+        };
+      }
+    }
+  }, [view]);
+
+  return {
+    view,
+    isDragging,
+    resetView,
+    bind: {
+      ref: svgRef,
+      className: cn(
+        "h-[260px] w-full max-w-full touch-none select-none md:h-[300px]",
+        isDragging ? "cursor-grabbing" : "cursor-grab",
+      ),
+      onPointerDown,
+      onPointerMove,
+      onPointerUp: endPointer,
+      onPointerCancel: endPointer,
+      onLostPointerCapture: endPointer,
+      onDoubleClick: resetView,
+    },
+  };
+}
+
+function valuesForSpec(spec: CanvasSpec): Record<string, number> {
+  return resetCanvasValues(spec.variables);
 }
 
 function formatNum(n: number) {
@@ -40,12 +273,257 @@ function formatNum(n: number) {
   return Number.isInteger(r) ? String(r) : r.toFixed(2).replace(/\.?0+$/, "");
 }
 
+function formatTick(value: number, step: number): string {
+  const decimals = clamp(Math.ceil(-Math.log10(step) + 1e-9), 0, 4);
+  const rounded = Number(value.toFixed(decimals));
+  if (Object.is(rounded, -0)) return "0";
+  return rounded.toFixed(decimals);
+}
+
 function niceStep(range: number) {
-  if (range <= 6) return 1;
-  if (range <= 16) return 2;
-  if (range <= 40) return 5;
-  if (range <= 100) return 10;
-  return Math.pow(10, Math.floor(Math.log10(range))) || 1;
+  const raw = range / 8;
+  if (!Number.isFinite(raw) || raw <= 0) return 1;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const multiplier of [1, 2, 5, 10]) {
+    if (raw <= multiplier * magnitude) return multiplier * magnitude;
+  }
+  return 10 * magnitude;
+}
+
+function tickValues(min: number, max: number, step: number): number[] {
+  const ticks: number[] = [];
+  const epsilon = step * 1e-6;
+  for (let value = Math.ceil((min + epsilon) / step) * step; value <= max + epsilon; value += step) {
+    ticks.push(Math.round(value / step) * step);
+    if (ticks.length > 64) break;
+  }
+  return ticks;
+}
+
+function fitFunctionViewport(spec: FunctionPlotCanvas): Viewport {
+  const evaluated = evaluateFunctionPlot(spec, {}, {});
+  const allY = evaluated.flatMap((series) =>
+    series.points.flatMap((point) => (point.y !== null && Number.isFinite(point.y) ? [point.y] : [])),
+  );
+  let yMin = -8;
+  let yMax = 8;
+  if (allY.length > 0) {
+    const sorted = [...allY].sort((a, b) => a - b);
+    const q05 = sorted[Math.floor(sorted.length * 0.05)] ?? -8;
+    const q95 = sorted[Math.floor(sorted.length * 0.95)] ?? 8;
+    let min = Math.max(Math.min(...allY), q05 - Math.abs(q95 - q05) * 0.5);
+    let max = Math.min(Math.max(...allY), q95 + Math.abs(q95 - q05) * 0.5);
+    if (min === max) {
+      min -= 4;
+      max += 4;
+    }
+    const span = Math.max(1, max - min);
+    let plotMin = Math.floor(min - span * 0.12);
+    let plotMax = Math.ceil(max + span * 0.12);
+    if (plotMin > -1 && plotMax > 1) plotMin = -2;
+    if (plotMax < 1 && plotMin < -1) plotMax = 2;
+    yMin = clamp(plotMin, -100, 100);
+    yMax = clamp(plotMax, -100, 100);
+  }
+  return { xMin: spec.domain.min, xMax: spec.domain.max, yMin, yMax };
+}
+
+function GridLayer({
+  view,
+  mapX,
+  mapY,
+}: {
+  view: Viewport;
+  mapX: (x: number) => number;
+  mapY: (y: number) => number;
+}) {
+  const xSpan = finiteSpan(view.xMin, view.xMax);
+  const ySpan = finiteSpan(view.yMin, view.yMax);
+  const xStep = useMemo(() => niceStep(xSpan), [xSpan]);
+  const yStep = useMemo(() => niceStep(ySpan), [ySpan]);
+  const xTicks = useMemo(() => tickValues(view.xMin, view.xMax, xStep), [view.xMin, view.xMax, xStep]);
+  const yTicks = useMemo(() => tickValues(view.yMin, view.yMax, yStep), [view.yMin, view.yMax, yStep]);
+  const showXAxis = view.yMin < 0 && view.yMax > 0;
+  const showYAxis = view.xMin < 0 && view.xMax > 0;
+  const y0 = mapY(0);
+  const x0 = mapX(0);
+
+  return (
+    <>
+      <g aria-hidden>
+        {xTicks.map((gx) => {
+          const major = Math.abs(gx) < 1e-9 || (xStep >= 1 && Math.abs(gx % (xStep * 2)) < 1e-9);
+          return (
+            <line
+              key={`vx-${gx}`}
+              x1={mapX(gx)}
+              y1={PAD_T}
+              x2={mapX(gx)}
+              y2={PAD_T + PLOT_H}
+              stroke={major ? MAJOR_GRID : MINOR_GRID}
+              strokeWidth={major ? 1 : 0.65}
+            />
+          );
+        })}
+        {yTicks.map((gy) => {
+          const major = Math.abs(gy) < 1e-9 || (yStep >= 1 && Math.abs(gy % (yStep * 2)) < 1e-9);
+          return (
+            <line
+              key={`hy-${gy}`}
+              x1={PAD_L}
+              y1={mapY(gy)}
+              x2={PAD_L + PLOT_W}
+              y2={mapY(gy)}
+              stroke={major ? MAJOR_GRID : MINOR_GRID}
+              strokeWidth={major ? 1 : 0.65}
+            />
+          );
+        })}
+      </g>
+
+      {showXAxis && <line x1={PAD_L} y1={y0} x2={PAD_L + PLOT_W} y2={y0} stroke={AXIS} strokeWidth={1.75} />}
+      {showYAxis && <line x1={x0} y1={PAD_T} x2={x0} y2={PAD_T + PLOT_H} stroke={AXIS} strokeWidth={1.75} />}
+
+      {xTicks.map((xv) => (
+        <text
+          key={`xt-${xv}`}
+          x={mapX(xv)}
+          y={PAD_T + PLOT_H + 22}
+          textAnchor="middle"
+          fill={LABEL}
+          fontSize={11}
+          fontFamily='system-ui, "Segoe UI", sans-serif'
+        >
+          {formatTick(xv, xStep)}
+        </text>
+      ))}
+      {yTicks.map((yv) => (
+        <text
+          key={`yt-${yv}`}
+          x={PAD_L - 10}
+          y={mapY(yv)}
+          textAnchor="end"
+          dominantBaseline="middle"
+          fill={LABEL}
+          fontSize={11}
+          fontFamily='system-ui, "Segoe UI", sans-serif'
+        >
+          {formatTick(yv, yStep)}
+        </text>
+      ))}
+    </>
+  );
+}
+
+function SeriesLegend({
+  spec,
+  expressions,
+}: {
+  spec: FunctionPlotCanvas;
+  expressions: Record<string, string>;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 min-w-0">
+      {spec.series.map((series, idx) => {
+        const rawExpr = expressions[series.id] ?? series.expression;
+        const latexFormatted = safeExpressionToLatex(
+          rawExpr,
+          ["x", ...spec.variables.map((v) => v.id)],
+        );
+        return (
+          <div key={series.id} className="inline-flex items-center gap-2 min-w-0">
+            <span
+              className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded border border-transparent px-1.5 text-body-xs font-bold text-white shadow-xs"
+              style={{ backgroundColor: idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY }}
+              aria-hidden
+            >
+              {series.label.length <= 2 ? series.label : `f${idx + 1}`}
+            </span>
+            <code className="min-w-0 max-w-full truncate font-mono text-body-sm font-semibold tracking-tight text-foreground">
+              {`y = ${latexFormatted}`}
+            </code>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VariableControls({
+  spec,
+  values,
+  setValues,
+  onResetAll,
+}: {
+  spec: FunctionPlotCanvas;
+  values: Record<string, number>;
+  setValues: Dispatch<SetStateAction<Record<string, number>>>;
+  onResetAll: () => void;
+}) {
+  if (spec.controls.length === 0) return null;
+  return (
+    <div className="border-t border-border bg-card px-4 py-3.5 md:px-5 space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {spec.controls.map((control) => {
+          const variable = spec.variables.find((item) => item.id === control.variableId);
+          if (!variable) return null;
+          const value = values[variable.id] ?? variable.defaultValue;
+          return (
+            <div key={control.variableId} className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-body-sm font-semibold text-foreground">
+                  {control.label}: <span className="text-brand-primary font-bold">{formatNum(value)}</span>
+                </span>
+                {control.presets && control.presets.length > 0 && (
+                  <div className="flex gap-1">
+                    {control.presets.slice(0, 4).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setValues((curr) => ({ ...curr, [variable.id]: p }))}
+                        className={cn(
+                          "rounded px-1.5 py-0.5 text-[10px] font-mono transition-colors",
+                          value === p
+                            ? "bg-brand-primary text-white font-bold"
+                            : "bg-muted text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <input
+                type="range"
+                min={control.min}
+                max={control.max}
+                step={control.step}
+                value={value}
+                aria-label={`Ubah nilai ${control.label}`}
+                className="h-1.5 w-full cursor-pointer accent-brand-secondary"
+                onChange={(event) => setValues((current) => ({
+                  ...current,
+                  [variable.id]: Number(event.target.value),
+                }))}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between gap-2 pt-1 text-body-xs text-muted-foreground">
+        <span>Geser koefisien untuk melihat perubahan kurva secara interaktif.</span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onResetAll}
+        >
+          Reset visual
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
@@ -57,69 +535,42 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
   const [showFormulaInput, setShowFormulaInput] = useState(false);
   const [hoverData, setHoverData] = useState<{ x: number; y: number; px: number; py: number } | null>(null);
 
+  const defaultView = useMemo(() => fitFunctionViewport(spec), [spec]);
+  const { view, isDragging, resetView, bind } = useInteractiveViewport(defaultView);
+
+  const sampledSpec = useMemo(
+    () => ({
+      ...spec,
+      domain: { ...spec.domain, min: view.xMin, max: view.xMax, sampleCount: 241 },
+    }),
+    [spec, view.xMin, view.xMax],
+  );
+
   const evaluated = useMemo(
-    () => evaluateFunctionPlot(spec, values, expressions),
-    [expressions, spec, values],
+    () => evaluateFunctionPlot(sampledSpec, values, expressions),
+    [sampledSpec, values, expressions],
   );
 
   const invalidSeries = evaluated.filter((series) => series.points.every((point) => point.y === null));
 
-  const xMin = spec.domain.min;
-  const xMax = spec.domain.max;
-  const allY = evaluated.flatMap((series) => series.points.flatMap((point) => point.y !== null && Number.isFinite(point.y) ? [point.y] : []));
-
-  const { yMin, yMax } = useMemo(() => {
-    if (allY.length === 0) return { yMin: -8, yMax: 8 };
-    const sorted = [...allY].sort((a, b) => a - b);
-    const q10 = sorted[Math.floor(sorted.length * 0.05)] ?? -8;
-    const q90 = sorted[Math.floor(sorted.length * 0.95)] ?? 8;
-    let min = Math.max(Math.min(...allY), q10 - Math.abs(q90 - q10) * 0.5);
-    let max = Math.min(Math.max(...allY), q90 + Math.abs(q90 - q10) * 0.5);
-
-    if (min === max) {
-      min -= 4;
-      max += 4;
-    }
-    const span = Math.max(1, max - min);
-    let plotMin = Math.floor(min - span * 0.12);
-    let plotMax = Math.ceil(max + span * 0.12);
-
-    if (plotMin > -1 && plotMax > 1) plotMin = -2;
-    if (plotMax < 1 && plotMin < -1) plotMax = 2;
-
-    return { yMin: Math.max(-100, plotMin), yMax: Math.min(100, plotMax) };
-  }, [allY]);
-
-  const padL = 46;
-  const padR = 18;
-  const padT = 16;
-  const padB = 36;
-  const svgW = 600;
-  const svgH = 312;
-  const plotW = svgW - padL - padR;
-  const plotH = svgH - padT - padB;
-
-  const mapX = useCallback((x: number) => padL + ((x - xMin) / (xMax - xMin)) * plotW, [xMin, xMax, plotW]);
-  const mapY = useCallback((y: number) => padT + ((yMax - y) / (yMax - yMin)) * plotH, [yMin, yMax, plotH]);
-  const invX = useCallback((px: number) => xMin + ((px - padL) / plotW) * (xMax - xMin), [xMin, xMax, plotW]);
+  const mapX = useCallback((x: number) => PAD_L + ((x - view.xMin) / (view.xMax - view.xMin)) * PLOT_W, [view.xMin, view.xMax]);
+  const mapY = useCallback((y: number) => PAD_T + ((view.yMax - y) / (view.yMax - view.yMin)) * PLOT_H, [view.yMin, view.yMax]);
 
   const seriesPaths = useMemo(() => {
     return evaluated.map((series) => {
       let path = "";
       let started = false;
       const points = series.points;
-
+      const marginY = finiteSpan(view.yMin, view.yMax);
       for (let i = 0; i < points.length; i += 1) {
         const pt = points[i];
         if (!pt || pt.y === null || !Number.isFinite(pt.y)) {
           started = false;
           continue;
         }
-
-        const clampedY = clamp(pt.y, yMin - 10, yMax + 10);
+        const clampedY = clamp(pt.y, view.yMin - marginY, view.yMax + marginY);
         const px = mapX(pt.x);
         const py = mapY(clampedY);
-
         if (!started) {
           path += `M ${px.toFixed(1)} ${py.toFixed(1)}`;
           started = true;
@@ -127,9 +578,9 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
           path += ` L ${px.toFixed(1)} ${py.toFixed(1)}`;
         }
       }
-      return { id: series.id, label: series.label, path };
+      return { id: series.id, path };
     });
-  }, [evaluated, mapX, mapY, yMin, yMax]);
+  }, [evaluated, mapX, mapY, view.yMin, view.yMax]);
 
   const roots = useMemo(() => {
     return evaluated.flatMap((series, seriesIndex) => {
@@ -139,11 +590,10 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
         const curr = series.points[i];
         if (!prev || !curr || prev.y === null || curr.y === null) continue;
         if (Math.sign(prev.y) === Math.sign(curr.y)) continue;
-        if (Math.abs(prev.y - curr.y) > (yMax - yMin) * 0.8) continue;
-
+        if (Math.abs(prev.y - curr.y) > (view.yMax - view.yMin) * 0.8) continue;
         const ratio = Math.abs(prev.y) / (Math.abs(prev.y) + Math.abs(curr.y));
         const rootX = prev.x + (curr.x - prev.x) * ratio;
-        if (Number.isFinite(rootX) && rootX >= xMin && rootX <= xMax) {
+        if (Number.isFinite(rootX) && rootX >= view.xMin && rootX <= view.xMax) {
           result.push({
             id: `${series.id}-root-${i}`,
             x: rootX,
@@ -153,97 +603,72 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
       }
       return result;
     });
-  }, [evaluated, xMin, xMax, yMin, yMax]);
+  }, [evaluated, view.xMin, view.xMax, view.yMin, view.yMax]);
 
-  const xStep = niceStep(xMax - xMin);
-  const yStep = niceStep(yMax - yMin);
-
-  const xTicks = useMemo(() => {
-    const ticks: number[] = [];
-    for (let x = Math.ceil(xMin / xStep) * xStep; x <= xMax; x += xStep) {
-      ticks.push(x);
-    }
-    return ticks;
-  }, [xMin, xMax, xStep]);
-
-  const yTicks = useMemo(() => {
-    const ticks: number[] = [];
-    for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax; y += yStep) {
-      ticks.push(y);
-    }
-    return ticks;
-  }, [yMin, yMax, yStep]);
-
-  const showXAxis = yMin < 0 && yMax > 0;
-  const showYAxis = xMin < 0 && xMax > 0;
-  const y0 = mapY(0);
-  const x0 = mapX(0);
-
-  const handlePointerMove = (e: MouseEvent<SVGSVGElement> | TouchEvent<SVGSVGElement>) => {
+  const handleHoverMove = (e: ReactMouseEvent<SVGSVGElement>) => {
+    if (isDragging) return;
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const px = ((clientX - rect.left) / rect.width) * svgW;
-
-    if (px >= padL && px <= padL + plotW) {
-      const curX = invX(px);
-      const activeSeries = evaluated.find((s) => s.points.some((p) => p.y !== null));
-      if (activeSeries) {
-        let closestPoint = activeSeries.points[0];
-        let minDist = Infinity;
-        for (const pt of activeSeries.points) {
-          if (pt.y !== null && Math.abs(pt.x - curX) < minDist) {
-            minDist = Math.abs(pt.x - curX);
-            closestPoint = pt;
-          }
-        }
-        if (closestPoint && closestPoint.y !== null) {
-          setHoverData({
-            x: closestPoint.x,
-            y: closestPoint.y,
-            px: mapX(closestPoint.x),
-            py: mapY(closestPoint.y),
-          });
-          return;
-        }
+    if (rect.width === 0) return;
+    const px = ((e.clientX - rect.left) / rect.width) * SVG_W;
+    if (px < PAD_L || px > PAD_L + PLOT_W) {
+      setHoverData(null);
+      return;
+    }
+    const curX = view.xMin + ((px - PAD_L) / PLOT_W) * (view.xMax - view.xMin);
+    const activeSeries = evaluated.find((s) => s.points.some((p) => p.y !== null));
+    if (!activeSeries) {
+      setHoverData(null);
+      return;
+    }
+    let closestPoint = activeSeries.points[0];
+    let minDist = Infinity;
+    for (const pt of activeSeries.points) {
+      if (pt.y !== null && Math.abs(pt.x - curX) < minDist) {
+        minDist = Math.abs(pt.x - curX);
+        closestPoint = pt;
       }
+    }
+    if (closestPoint && closestPoint.y !== null) {
+      setHoverData({
+        x: closestPoint.x,
+        y: closestPoint.y,
+        px: mapX(closestPoint.x),
+        py: mapY(closestPoint.y),
+      });
+      return;
     }
     setHoverData(null);
   };
 
+  const hasPlottableCurve = evaluated.some((series) => series.points.some((point) => point.y !== null));
+
+  const resetAll = useCallback(() => {
+    setValues(valuesForSpec(spec));
+    setExpressions(Object.fromEntries(spec.series.map((s) => [s.id, s.expression])));
+    resetView();
+  }, [spec, resetView]);
+
   return (
     <div className="relative mx-auto w-full max-w-full overflow-hidden rounded-xl border border-border bg-card shadow-md ring-1 ring-black/5">
       <div className="flex max-w-full min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-b border-border bg-muted/40 px-3.5 py-2.5">
-        <div className="flex flex-wrap items-center gap-2 min-w-0">
-          {spec.series.map((series, idx) => {
-            const rawExpr = expressions[series.id] ?? series.expression;
-            const latexFormatted = safeExpressionToLatex(
-              rawExpr,
-              ["x", ...spec.variables.map((v) => v.id)],
-            );
-            return (
-              <div key={series.id} className="inline-flex items-center gap-2 min-w-0">
-                <span
-                  className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded border border-transparent px-1.5 text-body-xs font-bold text-white shadow-xs"
-                  style={{ backgroundColor: idx === 0 ? GRAPH_BLUE : GRAPH_SECONDARY }}
-                  aria-hidden
-                >
-                  {series.label.length <= 2 ? series.label : `f${idx + 1}`}
-                </span>
-                <code className="min-w-0 max-w-full truncate font-mono text-body-sm font-semibold tracking-tight text-foreground">
-                  {`y = ${latexFormatted}`}
-                </code>
-              </div>
-            );
-          })}
+        <SeriesLegend spec={spec} expressions={expressions} />
+        <div className="flex shrink-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={resetView}
+            className="text-body-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Reset tampilan
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowFormulaInput((prev) => !prev)}
+            className="text-body-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showFormulaInput ? "Sembunyikan edit rumus" : "Ubah rumus"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowFormulaInput((prev) => !prev)}
-          className="text-body-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {showFormulaInput ? "Sembunyikan edit rumus" : "Ubah rumus"}
-        </button>
       </div>
 
       {showFormulaInput && (
@@ -273,87 +698,19 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
 
       <div className="relative w-full bg-card overflow-hidden select-none">
         <svg
-          viewBox={`0 0 ${svgW} ${svgH}`}
-          className="h-[260px] w-full max-w-full md:h-[300px] touch-none"
+          {...bind}
+          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
           role="img"
-          aria-label={spec.altText}
-          onMouseMove={handlePointerMove}
+          aria-label={`${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang.`}
+          onMouseMove={handleHoverMove}
           onMouseLeave={() => setHoverData(null)}
-          onTouchMove={handlePointerMove}
-          onTouchEnd={() => setHoverData(null)}
         >
-          <rect x="0" y="0" width={svgW} height={svgH} fill={BG} />
+          <rect x="0" y="0" width={SVG_W} height={SVG_H} fill={BG} />
 
-          <g aria-hidden>
-            {xTicks.map((gx) => {
-              const major = gx === 0 || (xStep >= 2 && gx % (xStep * 2) === 0);
-              return (
-                <line
-                  key={`vx-${gx}`}
-                  x1={mapX(gx)}
-                  y1={padT}
-                  x2={mapX(gx)}
-                  y2={padT + plotH}
-                  stroke={major ? MAJOR_GRID : MINOR_GRID}
-                  strokeWidth={major ? 1 : 0.65}
-                />
-              );
-            })}
-
-            {yTicks.map((gy) => {
-              const major = gy === 0 || (yStep >= 2 && gy % (yStep * 2) === 0);
-              return (
-                <line
-                  key={`hy-${gy}`}
-                  x1={padL}
-                  y1={mapY(gy)}
-                  x2={padL + plotW}
-                  y2={mapY(gy)}
-                  stroke={major ? MAJOR_GRID : MINOR_GRID}
-                  strokeWidth={major ? 1 : 0.65}
-                />
-              );
-            })}
-          </g>
-
-          {showXAxis && (
-            <line x1={padL} y1={y0} x2={padL + plotW} y2={y0} stroke={AXIS} strokeWidth={1.75} />
-          )}
-          {showYAxis && (
-            <line x1={x0} y1={padT} x2={x0} y2={padT + plotH} stroke={AXIS} strokeWidth={1.75} />
-          )}
-
-          {xTicks.map((xv) => (
-            <text
-              key={`xt-${xv}`}
-              x={mapX(xv)}
-              y={padT + plotH + 22}
-              textAnchor="middle"
-              fill={LABEL}
-              fontSize={11}
-              fontFamily='system-ui, "Segoe UI", sans-serif'
-            >
-              {xv}
-            </text>
-          ))}
-
-          {yTicks.map((yv) => (
-            <text
-              key={`yt-${yv}`}
-              x={padL - 10}
-              y={mapY(yv)}
-              textAnchor="end"
-              dominantBaseline="middle"
-              fill={LABEL}
-              fontSize={11}
-              fontFamily='system-ui, "Segoe UI", sans-serif'
-            >
-              {yv}
-            </text>
-          ))}
+          <GridLayer view={view} mapX={mapX} mapY={mapY} />
 
           <clipPath id={`plot-clip-${uid}`}>
-            <rect x={padL} y={padT} width={plotW} height={plotH} />
+            <rect x={PAD_L} y={PAD_T} width={PLOT_W} height={PLOT_H} />
           </clipPath>
 
           {seriesPaths.map((series, idx) => (
@@ -373,7 +730,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
             <circle
               key={root.id}
               cx={mapX(root.x)}
-              cy={y0}
+              cy={mapY(0)}
               r={4}
               fill="var(--color-card)"
               stroke={root.color}
@@ -386,17 +743,17 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
             <g clipPath={`url(#plot-clip-${uid})`}>
               <line
                 x1={hoverData.px}
-                y1={padT}
+                y1={PAD_T}
                 x2={hoverData.px}
-                y2={padT + plotH}
+                y2={PAD_T + PLOT_H}
                 stroke="var(--color-muted-foreground)"
                 strokeWidth={1}
                 strokeDasharray="3 3"
               />
               <line
-                x1={padL}
+                x1={PAD_L}
                 y1={hoverData.py}
-                x2={padL + plotW}
+                x2={PAD_L + PLOT_W}
                 y2={hoverData.py}
                 stroke="var(--color-muted-foreground)"
                 strokeWidth={1}
@@ -414,6 +771,12 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
           )}
         </svg>
 
+        {!hasPlottableCurve && (
+          <div className="absolute inset-x-6 bottom-3 rounded-lg border border-status-warning/30 bg-background/95 p-2.5 text-left text-body-xs text-foreground shadow-sm">
+            Grafik belum dapat digambar pada tampilan ini. Coba geser atau atur ulang tampilan, atau periksa kembali rumusnya.
+          </div>
+        )}
+
         {hoverData && (
           <div className="pointer-events-none absolute right-3 top-3 rounded-md border border-border bg-popover/90 px-2.5 py-1 text-body-xs font-mono font-medium text-popover-foreground shadow-sm backdrop-blur-xs">
             x: {formatNum(hoverData.x)}, y: {formatNum(hoverData.y)}
@@ -421,72 +784,12 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
         )}
       </div>
 
-      {spec.controls.length > 0 && (
-        <div className="border-t border-border bg-card px-4 py-3.5 md:px-5 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {spec.controls.map((control) => {
-              const variable = spec.variables.find((item) => item.id === control.variableId);
-              if (!variable) return null;
-              const value = values[variable.id] ?? variable.defaultValue;
-              return (
-                <div key={control.variableId} className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-body-sm font-semibold text-foreground">
-                      {control.label}: <span className="text-brand-primary font-bold">{formatNum(value)}</span>
-                    </span>
-                    {control.presets && control.presets.length > 0 && (
-                      <div className="flex gap-1">
-                        {control.presets.slice(0, 4).map((p) => (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => setValues((curr) => ({ ...curr, [variable.id]: p }))}
-                            className={cn(
-                              "rounded px-1.5 py-0.5 text-[10px] font-mono transition-colors",
-                              value === p
-                                ? "bg-brand-primary text-white font-bold"
-                                : "bg-muted text-muted-foreground hover:text-foreground",
-                            )}
-                          >
-                            {p}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    type="range"
-                    min={control.min}
-                    max={control.max}
-                    step={control.step}
-                    value={value}
-                    aria-label={`Ubah nilai ${control.label}`}
-                    className="h-1.5 w-full cursor-pointer accent-brand-secondary"
-                    onChange={(event) => setValues((current) => ({
-                      ...current,
-                      [variable.id]: Number(event.target.value),
-                    }))}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center justify-between gap-2 pt-1 text-body-xs text-muted-foreground">
-            <span>Geser koefisien untuk melihat perubahan kurva grafik secara interaktif.</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setValues(valuesForSpec(spec));
-                setExpressions(Object.fromEntries(spec.series.map((s) => [s.id, s.expression])));
-              }}
-            >
-              Reset visual
-            </Button>
-          </div>
-        </div>
-      )}
+      <VariableControls
+        spec={spec}
+        values={values}
+        setValues={setValues}
+        onResetAll={resetAll}
+      />
 
       <div className="border-t border-border bg-muted/10 px-4 py-3">
         <details className="text-body-sm group">
@@ -507,7 +810,7 @@ function FunctionPlot({ spec }: { spec: FunctionPlotCanvas }) {
                 {evaluated.map((series) => (
                   <tr key={series.id} className="border-b border-border/60">
                     <td className="px-2 py-1 font-mono">{series.label}</td>
-                    <td className="px-2 py-1 font-mono">{spec.domain.min} sampai {spec.domain.max}</td>
+                    <td className="px-2 py-1 font-mono">{formatTick(view.xMin, 0.01)} sampai {formatTick(view.xMax, 0.01)}</td>
                     <td className="px-2 py-1">{series.points.filter((point) => point.y !== null).length}</td>
                   </tr>
                 ))}
@@ -553,10 +856,7 @@ function FallbackTable({ spec }: { spec: CanvasSpec }) {
   );
 }
 
-function DataPlot({ spec }: { spec: DataPlotCanvas }) {
-  const uid = useId().replace(/:/g, "");
-  const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number; px: number; py: number } | null>(null);
-
+function fitDataViewport(spec: DataPlotCanvas): Viewport {
   const xValues = spec.points.map((point) => point.x);
   const yValues = spec.points.map((point) => point.y);
   const rawXMin = Math.min(...xValues);
@@ -565,35 +865,23 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
   const rawYMax = Math.max(...yValues);
   const xSpan = Math.max(1, rawXMax - rawXMin);
   const ySpan = Math.max(1, rawYMax - rawYMin);
+  return {
+    xMin: rawXMin - xSpan * 0.15,
+    xMax: rawXMax + xSpan * 0.15,
+    yMin: rawYMin - ySpan * 0.15,
+    yMax: rawYMax + ySpan * 0.15,
+  };
+}
 
-  const xMin = rawXMin - xSpan * 0.1;
-  const xMax = rawXMax + xSpan * 0.1;
-  const yMin = rawYMin - ySpan * 0.1;
-  const yMax = rawYMax + ySpan * 0.1;
+function DataPlot({ spec }: { spec: DataPlotCanvas }) {
+  const uid = useId().replace(/:/g, "");
+  const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number; px: number; py: number } | null>(null);
 
-  const padL = 46;
-  const padR = 18;
-  const padT = 16;
-  const padB = 36;
-  const svgW = 600;
-  const svgH = 312;
-  const plotW = svgW - padL - padR;
-  const plotH = svgH - padT - padB;
+  const defaultView = useMemo(() => fitDataViewport(spec), [spec]);
+  const { view, isDragging, resetView, bind } = useInteractiveViewport(defaultView);
 
-  const mapX = useCallback((x: number) => padL + ((x - xMin) / (xMax - xMin)) * plotW, [xMin, xMax, plotW]);
-  const mapY = useCallback((y: number) => padT + ((yMax - y) / (yMax - yMin)) * plotH, [yMin, yMax, plotH]);
-
-  const xStep = niceStep(xMax - xMin);
-  const yStep = niceStep(yMax - yMin);
-
-  const xTicks: number[] = [];
-  for (let x = Math.ceil(xMin / xStep) * xStep; x <= xMax; x += xStep) xTicks.push(x);
-
-  const yTicks: number[] = [];
-  for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax; y += yStep) yTicks.push(y);
-
-  const showXAxis = yMin < 0 && yMax > 0;
-  const showYAxis = xMin < 0 && xMax > 0;
+  const mapX = useCallback((x: number) => PAD_L + ((x - view.xMin) / (view.xMax - view.xMin)) * PLOT_W, [view.xMin, view.xMax]);
+  const mapY = useCallback((y: number) => PAD_T + ((view.yMax - y) / (view.yMax - view.yMin)) * PLOT_H, [view.yMin, view.yMax]);
 
   const linePath = useMemo(() => {
     if (spec.points.length === 0) return "";
@@ -606,44 +894,31 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
 
   return (
     <div className="relative mx-auto w-full max-w-full overflow-hidden rounded-xl border border-border bg-card shadow-md ring-1 ring-black/5">
-      <div className="flex max-w-full min-w-0 items-center justify-between border-b border-border bg-muted/40 px-3.5 py-2.5">
-        <span className="font-mono text-body-sm font-semibold text-foreground">
+      <div className="flex max-w-full min-w-0 items-center justify-between gap-2 border-b border-border bg-muted/40 px-3.5 py-2.5">
+        <span className="min-w-0 truncate font-mono text-body-sm font-semibold text-foreground">
           {spec.xLabel} vs {spec.yLabel}
         </span>
+        <button
+          type="button"
+          onClick={resetView}
+          className="shrink-0 pl-3 text-body-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Reset tampilan
+        </button>
       </div>
       <div className="relative w-full bg-card overflow-hidden select-none">
         <svg
-          viewBox={`0 0 ${svgW} ${svgH}`}
-          className="h-[260px] w-full max-w-full md:h-[300px] touch-none"
+          {...bind}
+          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
           role="img"
-          aria-label={spec.altText}
+          aria-label={`${spec.altText} Seret untuk menggeser, scroll untuk memperbesar, klik dua kali untuk mengatur ulang.`}
         >
-          <rect x="0" y="0" width={svgW} height={svgH} fill={BG} />
-          <g aria-hidden>
-            {xTicks.map((gx) => (
-              <line key={`vx-${gx}`} x1={mapX(gx)} y1={padT} x2={mapX(gx)} y2={padT + plotH} stroke={MINOR_GRID} strokeWidth={0.65} />
-            ))}
-            {yTicks.map((gy) => (
-              <line key={`hy-${gy}`} x1={padL} y1={mapY(gy)} x2={padL + plotW} y2={mapY(gy)} stroke={MINOR_GRID} strokeWidth={0.65} />
-            ))}
-          </g>
+          <rect x="0" y="0" width={SVG_W} height={SVG_H} fill={BG} />
 
-          {showXAxis && <line x1={padL} y1={mapY(0)} x2={padL + plotW} y2={mapY(0)} stroke={AXIS} strokeWidth={1.75} />}
-          {showYAxis && <line x1={mapX(0)} y1={padT} x2={mapX(0)} y2={padT + plotH} stroke={AXIS} strokeWidth={1.75} />}
-
-          {xTicks.map((xv) => (
-            <text key={`xt-${xv}`} x={mapX(xv)} y={padT + plotH + 22} textAnchor="middle" fill={LABEL} fontSize={11} fontFamily='system-ui, "Segoe UI", sans-serif'>
-              {formatNum(xv)}
-            </text>
-          ))}
-          {yTicks.map((yv) => (
-            <text key={`yt-${yv}`} x={padL - 10} y={mapY(yv)} textAnchor="end" dominantBaseline="middle" fill={LABEL} fontSize={11} fontFamily='system-ui, "Segoe UI", sans-serif'>
-              {formatNum(yv)}
-            </text>
-          ))}
+          <GridLayer view={view} mapX={mapX} mapY={mapY} />
 
           <clipPath id={`data-clip-${uid}`}>
-            <rect x={padL} y={padT} width={plotW} height={plotH} />
+            <rect x={PAD_L} y={PAD_T} width={PLOT_W} height={PLOT_H} />
           </clipPath>
 
           {linePath && (
@@ -653,6 +928,7 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
           {spec.points.map((pt, idx) => {
             const px = mapX(pt.x);
             const py = mapY(pt.y);
+            if (px < PAD_L || px > PAD_L + PLOT_W || py < PAD_T || py > PAD_T + PLOT_H) return null;
             return (
               <circle
                 key={idx}
@@ -663,6 +939,7 @@ function DataPlot({ spec }: { spec: DataPlotCanvas }) {
                 stroke="var(--color-card)"
                 strokeWidth={2}
                 className="cursor-pointer transition-transform hover:scale-125"
+                style={{ pointerEvents: isDragging ? "none" : undefined }}
                 onMouseEnter={() => setHoverPoint({ x: pt.x, y: pt.y, px, py })}
                 onMouseLeave={() => setHoverPoint(null)}
               />

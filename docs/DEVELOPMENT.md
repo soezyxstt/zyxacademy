@@ -87,7 +87,7 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `CF_ACCOUNT_ID`, `CF_KV_NAMESPACE_ID`, `CF_API_TOKEN` ; KV cache for tutor
 
 ### Optional ; Authoring MCP
-The endpoint uses Streamable HTTP and returns JSON responses. MCP hosts discover the protected resource and authorization server metadata, then open the Zyx sign-in page. The authenticated principal must be an active admin. `source.ingest` accepts the Source Pack and ephemeral original binaries for independent checksum verification. Idea and Product tools return canonical technical and content quality reports and refuse staging when blocking issues remain. For `quiz_bank`, call `assessment.list_ideas` after `workflow.start`, send `question-bank-draft.v2` to `assessment.validate_quiz_draft`, then submit the same JSON to `assessment.submit_quiz_draft`. Each question may omit `ideaLinks`; non-empty links require positive weights summing to one. The legacy KO-based `quiz-bank-draft.v1` remains accepted. The instruction skills are `.temp/skill/zyx-source-pack-mcp`, `.temp/skill/zyx-idea-bundle-mcp`, and `.temp/skill/zyx-product-bundle-mcp`; they guide agents but MCP remains authoritative. For a host without interactive OAuth support, an authenticated admin can call `POST /api/mcp/authoring/connection` and configure the returned short-lived bearer token; the token is bound to the Better Auth session and cannot be issued by an unauthenticated caller.
+The endpoint uses Streamable HTTP and returns JSON responses. MCP hosts discover the protected resource and authorization server metadata, then open the Zyx sign-in page. The authenticated principal must be an active admin. `source.ingest` accepts the Source Pack and ephemeral original binaries for independent checksum verification. Idea and Product tools return canonical technical and content quality reports and refuse staging when blocking issues remain. For `quiz_bank`, call `assessment.list_ideas` after `workflow.start`, send `question-bank-draft.v2` to `assessment.validate_quiz_draft`, then submit the same JSON to `assessment.submit_quiz_draft`. Each question may omit `ideaLinks`; non-empty links require positive weights summing to one. The legacy KO-based `quiz-bank-draft.v1` remains accepted. The instruction skills live under `plugins/zyx-authoring-mcp/skills/zyx-source-pack-mcp`, `plugins/zyx-authoring-mcp/skills/zyx-idea-bundle-mcp`, and `plugins/zyx-authoring-mcp/skills/zyx-product-bundle-mcp`; they guide agents but MCP remains authoritative. For a host without interactive OAuth support, an authenticated admin can call `POST /api/mcp/authoring/connection` and configure the returned short-lived bearer token; the token is bound to the Better Auth session and cannot be issued by an unauthenticated caller.
 
 ```text
 https://<zyx-origin>/api/mcp/authoring
@@ -165,7 +165,7 @@ bun run typecheck
 bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course tutorial-pka
 ```
 
-`FEATURE_ZYRA_PERSONALIZATION_V1` controls the optional personalization layer. The additive migration is `0067_zyra_continuation.sql`; staging schema reconciliation completed on 2026-08-12. The synthetic smoke uses no provider calls, database writes, trace writes, or learner side effects. Profile inference uses bounded allowlisted event fields, keeps explicit preferences separate, expires evidence, supports reset, and composes only after the shared profile-free scaffold. Functional staging verification and rollout remain separate gates.
+The personalization layer is always-on. The additive migration is `0067_zyra_continuation.sql`; staging schema reconciliation completed on 2026-08-12. The synthetic smoke uses no provider calls, database writes, trace writes, or learner side effects. Profile inference uses bounded allowlisted event fields, keeps explicit preferences separate, expires evidence, supports reset, and composes only after the shared profile-free scaffold. Functional staging verification and rollout remain separate gates.
 
 Plan 009 local canvas checks are:
 
@@ -175,7 +175,7 @@ bun run eval:zyra-canvas
 bun --env-file=.env.staging run staging:smoke-zyra-canvas -- --run-id <runId> --course tutorial-pka
 ```
 
-`FEATURE_ZYRA_LEARNING_CANVAS_V1` controls the optional canvas layer. Canvas specs are typed, claim-scoped, profile-free, and rendered through application-owned components. Expression controls are evaluated locally through an allowlisted AST. Invalid expressions produce fallback points and table or text fallbacks remain available. The smoke makes zero provider calls and zero writes.
+The canvas layer is always-on. Canvas specs are typed, claim-scoped, profile-free, and rendered through application-owned components. Expression controls are evaluated locally through an allowlisted AST. Invalid expressions produce fallback points and table or text fallbacks remain available. The smoke makes zero provider calls and zero writes.
 
 ### Zyra Plans 010 through 014
 
@@ -200,7 +200,7 @@ bun test tests/contracts/zyra-murid-client.test.ts tests/contracts/zyra-selectio
 bun --env-file=.env.staging run staging:smoke-zyra-murid -- --run-id <runId> --course tutorial-pka --synthetic-user
 ```
 
-The integrated murid Zyra experience is foundational. `FEATURE_ZYRA_SELECTION_ASK_V1` and `FEATURE_ZYRA_PET_V1` remain optional granular controls. Public mirrors use the corresponding `NEXT_PUBLIC_FEATURE_ZYRA_*` names. The allowance component reads only the authenticated user's summary, selection-to-ask sends a bounded quote, and the pet receives state from request, upload, response, quota, and error events.
+The integrated murid Zyra experience is foundational; selection-to-ask and the Zyra pet are always-on. The only public mirror is `NEXT_PUBLIC_FEATURE_ZYRA_IMAGE_INPUT_V1` for the image capability. The allowance component reads only the authenticated user's summary, selection-to-ask sends a bounded quote, and the pet receives state from request, upload, response, quota, and error events.
 
 Plan 012 copilot checks:
 
@@ -210,7 +210,7 @@ bun run eval:zyra-copilots
 bun --env-file=.env.staging run staging:smoke-zyra-copilots -- --run-id <runId> --course tutorial-pka --no-auto-apply
 ```
 
-`FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` control optional proposal surfaces. Proposals use typed operations, scope and precondition snapshots, expiry, and audit events. The currently registered operation is read-only; unregistered mutation operations are rejected before persistence. Applying a proposal is intentionally blocked until the accepted Overhaul mutation boundary is available.
+`FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for proposal surfaces. Proposals use typed operations, scope and precondition snapshots, expiry, and audit events. The currently registered operation is read-only; unregistered mutation operations are rejected before persistence. Applying a proposal is intentionally blocked until the accepted Overhaul mutation boundary is available.
 
 Plan 013 operations checks:
 

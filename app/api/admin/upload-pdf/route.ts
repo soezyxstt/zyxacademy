@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
   }
 
   const courseId = formData.get('courseId')?.toString().trim();
-  const leaf = userFileLeaf(file.name);
+  const customFilename = formData.get('filename')?.toString().trim();
+  const targetFilename =
+    customFilename && customFilename.toLowerCase().endsWith('.pdf')
+      ? customFilename
+      : file.name;
+  const leaf = userFileLeaf(targetFilename);
 
   const storageKey = courseId
     ? joinKey("courses", slugifySegment(courseId), "materials", leaf)

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   detectCategoryFromFilename,
+  detectMetadataFromFilename,
   detectYear,
   generateFileName,
   isHiddenOrSystemFile,
@@ -85,61 +86,83 @@ describe("filename heuristics", () => {
     });
   });
 
-  test("falls back to materi lainnya", () => {
-    expect(detectCategoryFromFilename("tabel-uap-air.pdf")).toEqual({
-      category: "materi",
-      subcategory: null,
-    });
+  test("detects full metadata from filename", () => {
+    const chapters = [
+      { id: "ch-1", title: "Bab 1 Limit", orderIndex: 1 },
+      { id: "ch-2", title: "Bab 2 Turunan", orderIndex: 2 },
+    ];
+    const meta = detectMetadataFromFilename("Bab 01 Limit dan Kontinu 2025.pdf", chapters);
+    expect(meta.category).toBe("materi");
+    expect(meta.year).toBe(2025);
+    expect(meta.chapterIds).toEqual(["ch-1"]);
+    expect(meta.primaryChapterIndex).toBe(1);
   });
 });
 
-describe("rename engine", () => {
+describe("standard renaming engine", () => {
   test("sanitizes tokens to kebab-case", () => {
     expect(sanitizeNameToken("Hukum Pertama! (rev 2)")).toBe("hukum-pertama-rev-2");
     expect(sanitizeNameToken("---")).toBe("dokumen");
   });
 
-  test("embeds year and subcategory for time-related categories", () => {
+  test("embeds 2-digit bab padding and places year at the end", () => {
     expect(
       generateFileName({
-        courseCode: "MS2100",
-        category: "soal",
-        subcategory: "uts",
-        year: 2023,
-        title: "Termodinamika 1",
+        courseCode: "MA1101",
+        category: "materi",
+        subcategory: "diktat",
+        chapterIndex: 1,
+        year: 2025,
+        title: "Limit dan Kekontinuan",
       })
-    ).toBe("ms2100_soal_uts_2023_termodinamika-1.pdf");
+    ).toBe("ma1101_bab01_diktat_limit-dan-kekontinuan_2025.pdf");
 
     expect(
       generateFileName({
-        courseCode: "MS2100",
-        category: "pembahasan_soal",
-        subcategory: null,
-        year: 2023,
-        title: "UAS",
+        courseCode: "MA1101",
+        category: "soal",
+        subcategory: "tutorial",
+        chapterIndex: 2,
+        year: 2025,
+        semester: "sem1",
+        title: "Turunan",
       })
-    ).toBe("ms2100_pembahasan_lainnya_2023_uas.pdf");
+    ).toBe("ma1101_bab02_tutorial_turunan_soal_2025-sem1.pdf");
   });
 
-  test("keeps materi names static without a year", () => {
+  test("generates exam filenames with role and year at the end without redundant bab", () => {
     expect(
       generateFileName({
-        courseCode: "MS2100",
-        category: "materi",
-        subcategory: "ebook",
-        year: null,
-        title: "Engineering Thermodynamics",
+        courseCode: "MA1101",
+        category: "soal",
+        subcategory: "uts",
+        year: 2024,
+        semester: "sem1",
+        title: "UTS",
       })
-    ).toBe("ms2100_materi_ebook_engineering-thermodynamics.pdf");
+    ).toBe("ma1101_uts_soal_2024-sem1.pdf");
 
     expect(
       generateFileName({
-        courseCode: "MS2100",
-        category: "materi",
-        subcategory: "lainnya",
-        year: 2020,
-        title: "Tabel Uap Air",
+        courseCode: "FI1101",
+        category: "pembahasan_soal",
+        subcategory: "uas",
+        year: 2024,
+        title: "Paket A Solusi",
       })
-    ).toBe("ms2100_materi_tabel-uap-air.pdf");
+    ).toBe("fi1101_uas_paket-a_solusi_2024.pdf");
+  });
+
+  test("handles slide, catatan, and static documents", () => {
+    expect(
+      generateFileName({
+        courseCode: "KI1001",
+        category: "materi",
+        subcategory: "catatan",
+        chapterIndex: 3,
+        year: 2025,
+        title: "Stoikiometri",
+      })
+    ).toBe("ki1001_bab03_catatan_stoikiometri_2025.pdf");
   });
 });

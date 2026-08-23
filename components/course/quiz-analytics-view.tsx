@@ -12,7 +12,6 @@ import {
   Lightbulb,
   Loader2,
   RefreshCw,
-  Sparkles,
   Target,
   TrendingUp,
   TriangleAlert,
@@ -23,6 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { MathText } from "@/components/course/math-text";
+import { ZyraMark } from "@/components/course/zyra-mark";
 
 interface QuizAnalyticsViewProps {
   attemptId: string;
@@ -101,7 +101,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
     return (
       <div className="rounded-2xl border border-brand-primary/30 bg-gradient-to-br from-brand-primary/5 via-card to-card p-8 text-center space-y-5 shadow-xs">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary mx-auto ring-1 ring-brand-primary/20">
-          <Sparkles className="size-7" />
+          <ZyraMark className="size-7" />
         </div>
         <div className="space-y-2 max-w-lg mx-auto">
           <h3 className="font-heading text-body-base font-bold text-foreground">Diagnosis Pembelajaran Belum Dihasilkan</h3>
@@ -114,7 +114,11 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
           disabled={recomputing}
           className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90 font-semibold px-6 py-2.5 shadow-sm"
         >
-          <Sparkles className={`mr-2 size-4 ${recomputing ? "animate-spin" : ""}`} />
+          {recomputing ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <ZyraMark className="mr-2 size-4" />
+          )}
           {recomputing ? "Menghasilkan Diagnosis..." : "Hasilkan Diagnosis Pembelajaran Sekarang"}
         </Button>
       </div>
@@ -148,7 +152,7 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="rounded-md border-brand-primary/40 bg-brand-primary/10 text-brand-primary text-body-xs font-semibold uppercase tracking-wider">
-                  <Sparkles className="mr-1 size-3" /> Diagnosis Pembelajaran Zyx
+                  <ZyraMark className="mr-1 size-3" /> Diagnosis Pembelajaran Zyx
                 </Badge>
                 {metrics && (
                   <Badge variant="outline" className="rounded-md border-border bg-card text-muted-foreground text-body-xs">

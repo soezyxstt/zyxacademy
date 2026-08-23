@@ -14,7 +14,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - When no class is active, can compare a compact Minimal, Essential, and Premium plan preview while retaining enrollment-code activation
 - Reads interactive course materials (markdown, PDFs, images, embedded video)
 - Takes daily/weekly quizzes and timed tryouts
-- Views dedicated AI-powered Quiz Learning Analytics & Diagnosis page (`/summary`) upon quiz completion (3-layer executive summary, deterministic concept mastery, AI error pattern detection, cognitive skill breakdown, time/speed insights, and personalized 3-step action plan)
+- Views the AI-powered Quiz Learning Analytics & Diagnosis summary page after quiz completion (3-layer executive summary, deterministic concept mastery, AI error pattern detection, cognitive skill breakdown, time/speed insights, and personalized 3-step action plan)
 - Reviews flashcards with SM-2 spaced repetition
 - Chats with AI tutor for concept help
 - Books real tutor sessions
@@ -40,7 +40,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Manages career path templates
 - Monitors content quality flags (auto-detected issues)
 - Views coaching analytics dashboards
-- Accesses dedicated Quiz & Exam Analytics & Insight portal (`/admin/ai/quiz-insights`) for real-time item/distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV / Google Spreadsheet, and on-demand Gemini AI deep pedagogical insights
+- Accesses the Quiz & Exam Analytics & Insight portal (`/admin/quiz-insights`) for real-time item/distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV / Google Spreadsheet, and on-demand Gemini AI deep pedagogical insights
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
 - Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
 - Manages admin leaderboard (`/admin/leaderboard`) with overview mode showing per-course aggregate metrics (all courses including zero-activity, sorted alphabetically, unique student count across visible set) and course-selected mode for per-student ranking within a single course
@@ -86,7 +86,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 2. The review page is a searchable, filterable inventory by course, author, and status. Artifact cards lead with course, creation time, author, and content summary; bundle IDs and checksums remain secondary technical details. `Buka review` navigates to `/admin/materials/review/idea/[slug]`, where the three-step workflow, Idea list, relations, source evidence, KaTeX preview, focused one-Idea editing, reviewer note, approval, rejection, and publication actions are presented together.
 3. The detail page reads the staged ZIP from R2 and reconstructs the validated preview before showing it. Stable identities and source spans stay locked. Identical upload retries are no-ops and a different checksum for the same bundle ID is blocked.
 4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically.
-5. `FEATURE_IDEA_BUNDLE_V2` controls the workflow. When absent or `0`, the legacy JSON importer remains visible for rollback.
+5. The workflow is always-on; the legacy JSON importer remains visible for rollback.
 
 ### Upload Manual and Authoring Context Pack V1
 
@@ -97,7 +97,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 5. Holdout content, murid data, credentials, signed URLs, embeddings, and unpublished or stale content are excluded and counted or scanned before storage.
 6. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata. An authenticated admin can download the artifact until retention expires; internal R2 keys are not returned by the listing API.
 7. External agents use `$UPLOADER` and `$APPROVING_REVIEWER` for attribution without receiving private Zyx identity IDs. Publication resolves those sentinels to the accountable uploader and approving admin.
-8. `FEATURE_AUTHORING_CONTEXT_V1` is admin-only by default and disables both manual processes and their APIs when absent or `0`.
+8. Both manual processes and their APIs are admin-only and always-on.
 
 ### Provider-neutral Authoring MCP V1
 
@@ -120,7 +120,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 6. Every Diktat declares its source Article ID, version, and generation hash. The bundle must include the matching Article dependency so the Diktat cannot silently drift from its Article.
 7. Product Bundle lifecycle is only `draft -> published -> withdrawn`. Explicit save stores a draft. A draft can be replaced with the same bundle ID, deleted, or published directly by an admin. Published bundles cannot be overwritten. Withdrawal keeps canonical and audit history while removing the products from active publication state.
 8. Publication verifies current published Ideas, active source excerpts, identities, dependency freshness, and ITB source identity before one transaction writes products, links, dependencies, the legacy bank compatibility projection, canonical vector outbox entries, publication state, and mutation audit records. Question answer-key fields are removed from runtime and Vectorize content. Only articles, questions, and solutions request runtime vectors; flashcards, Diktat, and assessment blueprints do not create generic product vectors.
-9. `FEATURE_PRODUCT_BUNDLE_V2` hides the page and API when absent or `0`; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
+9. The workflow is always-on; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
 
 ### Question origin and citation
 
@@ -226,6 +226,12 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Deterministic assistance policy engine (`lib/assessment-assistance-policy.ts`): gates AI tutor and mistake feedback based on activity kind (study, practice, quiz, simulation, exam), attempt state, answer release state, and match state.
 - Answer release state matrix: active attempts enforce `socratic_only` or `refuse_answer_reveal`; completed attempts follow release settings (`hidden`, `rationale_only`, `released`).
 
+### Quiz Timing Rules
+- The total time limit (`quizTemplates.timeLimitSeconds`) is the authoritative session cap. When it reaches zero the player auto-submits the attempt.
+- Per-question timers (`selectionRules.perQuestionTimerEnabled`, `perQuestionTimers`, `defaultQuestionTimerSeconds`) are pacing aids only. Expiry advances to the next question and never force-submits the quiz while total time remains; revisiting a question restarts its allowance.
+- Coherence validation (`lib/asesmen/quiz-timing.ts`): when both timers are active, the sum of per-question allowances must equal the total limit. The admin quiz form blocks save with an error toast, and POST/PATCH `/api/quiz/templates` reject mismatched payloads with 400.
+- Late submission guard: POST `/api/quiz/attempts/[id]` rejects submissions that arrive more than 120 seconds after the total deadline with status 403 and code `QUIZ_TIME_EXPIRED`. Attempts without a total limit are unaffected.
+
 ### Assessment Integrity V2
 - `lib/asesmen/blueprint.ts` compiles quiz and tryout blueprints with exact largest-remainder dimension allocation, explicit chapter scope, reproducible seeds, and publication eligibility checks.
 - `lib/asesmen/evidence-rubric.ts` derives versioned per-Idea evidence from stable option IDs. Ambiguous evidence and misconception mappings never affect mastery, and free-response evidence requires a reviewed rubric or grading result.
@@ -249,9 +255,9 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 ### Zyra Allowance Ledger V2
 
-- `FEATURE_ZYRA_ALLOWANCE_V2` enables role-aware application leases for murid, tutor, and admin requests.
+- Role-aware application leases for murid, tutor, and admin requests are always-on.
 - Provider-backed turns and total interactions are counted separately; cache hits and deterministic actions spend zero provider units.
-- Provider Router V2 owns the allowance lease when both flags are active, so a single learner request consumes exactly one provider turn. Visual requests use the same published daily provider allowance and are not stopped by a smaller hidden premium balance.
+- Provider Router V2 owns the allowance lease, so a single learner request consumes exactly one provider turn. Visual requests use the same published daily provider allowance and are not stopped by a smaller hidden premium balance.
 
 ### Zyra Semantic Cache V1
 
@@ -270,7 +276,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 ### Zyra Personalization V1
 
-- `FEATURE_ZYRA_PERSONALIZATION_V1` enables deterministic adaptation from bounded learner evidence.
+- Deterministic adaptation from bounded learner evidence is always-on.
 - Recent evidence can select pacing, representation, support intensity, explanation length, and checkpoint type while leaving canonical truth, grades, mastery, and assessment policy unchanged.
 - Explicit learner preferences are stored separately from inferred fields. Learners can view, update, and reset their course-scoped adaptation through authenticated API routes.
 - Shared cache scaffolds remain profile-free. Personalization is composed only after cache retrieval and fails back to the grounded base answer on profile errors.
@@ -278,12 +284,13 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 ### Zyra Learning Canvas V1
 
-- `FEATURE_ZYRA_LEARNING_CANVAS_V1` enables typed application-owned visual specs for plots, derivations, tables, diagrams, vectors, and chemistry relationships.
+- Typed application-owned visual specs for plots, derivations, tables, diagrams, vectors, and chemistry relationships are always-on.
 - Function expressions use a bounded allowlist parser. Controls, presets, reset, and invalid-expression fallback run locally and spend zero AI quota.
-- Every canvas includes alt text and a table or textual fallback. Grounded visuals include canonical claim references; a plot recovered only from a learner-provided equation keeps an empty claim-reference list instead of inventing provenance. Shared specs contain no learner profile or interaction state.
+- Every canvas includes alt text and a table or textual fallback. Grounded visuals include canonical claim references validated against the retrieved evidence set. Shared specs contain no learner profile or interaction state.
 - The renderer uses semantic tokens and keyboard-operable native controls. Arbitrary model-generated JavaScript, HTML, SVG, or unrestricted Mermaid is rejected.
-- Function and data plots use responsive Recharts surfaces with labeled axes, grid lines, tooltips, visible zero crossings, and local controls. Common Gemini notation such as `y = 2x²` is normalized before semantic validation and rendering. Evaluator syntax is separately formatted as readable mathematical notation, so `a*x^2 + b*x + c` is presented as `ax² + bx + c`. Invalid expressions produce a visible recovery message. Legacy typed visuals and explicit visual requests are upgraded into Learning Canvas specs after provider and cache handling. A learner equation or known deterministic concept visual is preferred over the model canvas, so a valid graph still renders when Gemini omits or returns an invalid `canvasSpec`, including when RAG has no matching source. The quadratic theory visual uses `y = ax^2 + bx + c` with local controls for `a`, `b`, and `c`.
-- The murid drawer can be resized by dragging its left handle (mouse or touch, width persisted) up to the viewport, or expanded with a dedicated button. Each current Zyra answer offers short follow-up actions that adapt to the answer: when Zyra ends with a comprehension-check question the chips become Socratic scaffolds (first-step hint, slower guidance, full worked discussion); otherwise they stay generic accelerators for an example, a comprehension check, or another representation. The drawer header shows the human-readable course title instead of the internal slug. The composer keeps a compact footprint and opens an on-demand tabbed math input palette (Populer, Trig & Log, Kalkulus, Relasi & Himpunan, Yunani) that inserts symbols at the caret, plus background scroll lock so only the drawer scrolls.
+- The harness renders exactly one interactive visual per answer: the validated `canvasSpec` emitted by the model through a structured channel. It never mines equations out of prose, so an answer without a structured spec has no canvas instead of a guessed plot. Tutor prompts no longer request `:::graph`, `:::chart`, or `:::flowchart` markdown blocks; legacy persisted answers with those blocks still render for backward compatibility.
+- Function and data plots use custom SVG surfaces with labeled adaptive axes, grid lines, hover crosshair tooltips, visible zero crossings, local expression editing, and coefficient controls. Plots are directly manipulable: drag pans the view, scroll wheel or pinch zooms around the pointer, double-click or Reset tampilan restores the fitted view, and axis labels keep precision at deep zoom levels. Common Gemini notation such as `y = 2x²` is normalized before semantic validation and rendering. Evaluator syntax is separately formatted as readable mathematical notation, so `a*x^2 + b*x + c` is presented as `ax² + bx + c`. Invalid expressions produce a visible recovery message.
+- The murid drawer can be resized by dragging its left handle (mouse or touch, width persisted, keyboard arrows supported) up to the viewport, or expanded with a dedicated button or double-click on the handle. Each current Zyra answer offers short follow-up actions that adapt to the answer: when Zyra ends with a comprehension-check question the chips become Socratic scaffolds (first-step hint, slower guidance, full worked discussion); otherwise they stay generic accelerators for an example, a comprehension check, or another representation. The drawer header shows the human-readable course title instead of the internal slug. The composer keeps a compact footprint and opens an on-demand tabbed math input palette (Populer, Trig & Log, Kalkulus, Relasi & Himpunan, Yunani) that inserts symbols at the caret, plus background scroll lock so only the drawer scrolls.
 - The `desmos` markdown block renders a local multi-expression graph editor at zero AI cost: each row accepts a bounded function of `x` or a named point such as `A = (1, 2)`, rows can be added or removed inline, points are drag-editable on the plot, the vertical domain auto-fits the content, and invalid rows are flagged without blocking valid ones.
 - Static Zyra entry points use one application-owned hexagonal `Z` mark across the sidebar, material selection, mistake feedback, and drawer fallback. The mark does not reuse the generic four-point sparkle associated with other AI products. Drawer sizing uses labeled `Perbesar` and `Kecilkan` controls on desktop.
 - When the pet capability is enabled, the course launcher becomes a draggable fox-like Zyra companion with ears, tail, paws, face, and state-specific expressions. Thinking, listening, uploading, explaining, checking, success, confusion, rest, and error are communicated through its eyes, mouth, status glyph, accessible label, and semantic color. A murid can place it within the viewport, click it to open chat, hide it, and restore it from a compact character control. Position and visibility persist in browser storage.
@@ -367,7 +374,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
   - KPI strip for total groups, active groups, enrolled students, and average quota usage.
   - Interactive table filtering by status, package tier, and course.
   - Create and edit dialogs with package selection, semester dates, and course assignments.
-  - Group detail modal with weekly quota usage, 4-week attended versus missed history, student membership manager (search, add, remove, promote leader), linked activation tokens, and booked tutor session history.
+   - Group detail modal with weekly quota usage, 4-week attended versus missed history, student membership manager (search, add, remove, promote leader), linked activation tokens, and booked tutor session history.
 - Student portal (`/dashboard/groups`) provides a dedicated study group dashboard:
   - Active group overview with status and semester badges.
   - Weekly quota tracker showing sessions booked this week against the group weekly allowance, plus attended versus missed counts for the last 4 weeks.
@@ -414,12 +421,12 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 ### Zyra tutor and admin copilots
 
-- `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` expose scoped proposal-first workflows. They show evidence, preconditions, impact, warnings, and lifecycle state before any future mutation integration.
+- `FEATURE_ZYRA_TUTOR_COPILOT_V1` and `FEATURE_ZYRA_ADMIN_COPILOT_V1` are opt-out switches (enabled unless explicitly `0`) for scoped proposal-first workflows. They show evidence, preconditions, impact, warnings, and lifecycle state before any future mutation integration.
 - Proposals never auto-apply. The current mutation call fails closed until the accepted mutation boundary is available.
 
 ### Zyra operations
 
-- `FEATURE_ZYRA_AI_OPS_V1` exposes admin-only privacy-safe operational metrics. It separates Zyx-recorded usage from configured limits and marks external provider usage unknown when no authoritative balance exists.
+- The admin-only privacy-safe operations dashboard is always-on and guarded by admin authorization. It separates Zyx-recorded usage from configured limits and marks external provider usage unknown when no authoritative balance exists.
 - Metrics use the Asia/Jakarta day boundary and expose deduplicated quota, provider, cache, image, assessment, telemetry, and proposal alerts. Each alert carries a rollback flag and a versioned runbook reference; no raw learner or provider payload is shown.
 
 ### Student Feature Usage Monitor

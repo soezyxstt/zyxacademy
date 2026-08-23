@@ -170,9 +170,30 @@ export async function POST(req: NextRequest, { params }: Context) {
  )
  .limit(1);
 
- if (!attempt) {
- return NextResponse.json({ error: 'Attempt not found or already submitted' }, { status: 404 });
- }
+  if (!attempt) {
+  return NextResponse.json({ error: 'Attempt not found or already submitted' }, { status: 404 });
+  }
+
+  const [templateMeta] = await db
+    .select({ timeLimitSeconds: quizTemplates.timeLimitSeconds })
+    .from(quizTemplates)
+    .where(eq(quizTemplates.id, attempt.templateId))
+    .limit(1);
+
+  if (templateMeta?.timeLimitSeconds != null) {
+    const startedMs = normalizeDate(attempt.startedAt).getTime();
+    const expiryGraceSeconds = 120;
+    const expiresAtMs = startedMs + (templateMeta.timeLimitSeconds + expiryGraceSeconds) * 1000;
+    if (Date.now() > expiresAtMs) {
+      return NextResponse.json(
+        {
+          error: 'Waktu pengerjaan kuis telah berakhir. Jawaban tidak dapat dikumpulkan.',
+          code: 'QUIZ_TIME_EXPIRED',
+        },
+        { status: 403 },
+      );
+    }
+  }
 
  const body = await req.json();
  const parsed = SubmitSchema.safeParse(body);

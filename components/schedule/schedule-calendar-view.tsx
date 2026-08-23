@@ -39,6 +39,7 @@ import {
   getJakartaNow,
   type IndonesianDay,
 } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 
 // Tutor distinct color styling
 const TUTOR_COLORS = [
@@ -145,6 +146,7 @@ export type ScheduleCalendarProps = {
   bookings: any[];
   academicSchedules?: any[];
   onSelectSlotToBook?: (slot: any, dateIso: string) => void;
+  onCreateScheduleDirect?: (dateIso: string, timeStr?: string) => void;
   onOpenPreSession?: (booking: any) => void;
   onOpenPostSession?: (booking: any) => void;
   onOpenRescheduleTicket?: (booking: any) => void;
@@ -223,6 +225,7 @@ export function ScheduleCalendarView({
   bookings,
   academicSchedules = [],
   onSelectSlotToBook,
+  onCreateScheduleDirect,
   onOpenPreSession,
   onOpenPostSession,
   onOpenRescheduleTicket,
@@ -366,7 +369,7 @@ export function ScheduleCalendarView({
     // Week mode
     const first = weekInfo.days[0];
     const last = weekInfo.days[6];
-    return `${first.dayOfMonth} ${first.monthName} – ${last.dayOfMonth} ${last.monthName}`;
+    return `${first.dayOfMonth} ${first.monthName} - ${last.dayOfMonth} ${last.monthName}`;
   }, [viewMode, activeDate, weekInfo]);
 
   // Day View specific day object
@@ -389,74 +392,52 @@ export function ScheduleCalendarView({
     <TooltipProvider delayDuration={150}>
       <div className="space-y-3 font-sans">
         {/* 1. SINGLE-ROW COMPACT TOOLBAR (G-Calendar Style) */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 rounded-xl border border-border bg-card shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-border bg-card shadow-xs">
           {/* Left: View Switcher & Navigation */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {/* View Mode Toggle */}
-            <div className="flex items-center p-0.5 rounded-lg bg-muted/60 border border-border/80">
-              <button
-                type="button"
-                onClick={() => setViewMode("day")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                  viewMode === "day"
-                    ? "bg-card text-foreground shadow-xs font-bold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Mode Select */}
+            <div className="w-[110px] shrink-0">
+              <Select
+                value={viewMode}
+                onValueChange={(val: "day" | "week" | "month") => setViewMode(val)}
               >
-                Hari
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("week")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                  viewMode === "week"
-                    ? "bg-card text-foreground shadow-xs font-bold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Minggu
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("month")}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                  viewMode === "month"
-                    ? "bg-card text-foreground shadow-xs font-bold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Bulan
-              </button>
+                <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">Minggu</SelectItem>
+                  <SelectItem value="day">Hari</SelectItem>
+                  <SelectItem value="month">Bulan</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-
-            <div className="h-4 w-px bg-border mx-0.5" />
 
             {/* Today Button */}
             <Button
               variant="outline"
-              size="xs"
+              size="sm"
               onClick={handleToday}
-              className="h-8 px-2.5 rounded-lg text-body-xs font-semibold text-foreground hover:bg-muted"
+              className="h-9 px-3 rounded-lg text-body-sm font-semibold text-foreground hover:bg-muted shrink-0"
             >
               Hari Ini
             </Button>
 
             {/* Prev & Next Arrows */}
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5 shrink-0">
               <Button
                 variant="ghost"
-                size="xs"
+                size="icon"
                 onClick={handlePrev}
-                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground"
                 aria-label="Sebelumnya"
               >
                 <ChevronLeft className="size-4" />
               </Button>
               <Button
                 variant="ghost"
-                size="xs"
+                size="icon"
                 onClick={handleNext}
-                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground"
                 aria-label="Berikutnya"
               >
                 <ChevronRight className="size-4" />
@@ -464,9 +445,9 @@ export function ScheduleCalendarView({
             </div>
 
             {/* Date Range Text */}
-            <div className="flex items-center gap-1.5 px-2 py-1">
-              <CalendarIcon className="size-3.5 text-brand-primary shrink-0" />
-              <span className="text-body-xs font-bold text-foreground capitalize whitespace-nowrap">
+            <div className="flex items-center gap-1.5 px-1 py-1 shrink-0">
+              <CalendarIcon className="size-4 text-brand-primary shrink-0" />
+              <span className="text-body-sm font-bold text-foreground capitalize whitespace-nowrap">
                 {headerDateLabel}
               </span>
             </div>
@@ -475,12 +456,12 @@ export function ScheduleCalendarView({
             {isWeekLocked && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center justify-center size-7 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-help ml-1">
-                    <Lock className="size-3.5" />
+                  <div className="flex items-center justify-center size-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-help shrink-0">
+                    <Lock className="size-4" />
                     <span className="sr-only">Jadwal Minggu Ini Terkunci</span>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-[11px]">
+                <TooltipContent side="bottom" className="text-body-xs">
                   Jadwal minggu ini telah dikunci (Sabtu 23:59 WIB). Perubahan jadwal wajib melalui tiket reschedule.
                 </TooltipContent>
               </Tooltip>
@@ -488,14 +469,14 @@ export function ScheduleCalendarView({
           </div>
 
           {/* Right: Compact Multi-Filters (Using Shadcn Select) */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Course Filter */}
-            <div className="w-[150px] sm:w-[165px]">
+            <div className="min-w-[140px] max-w-[180px]">
               <Select
                 value={selectedCourseFilter}
                 onValueChange={setSelectedCourseFilter}
               >
-                <SelectTrigger className="h-8 text-[11px] rounded-lg bg-card">
+                <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
                   <SelectValue placeholder="Mata Kuliah" />
                 </SelectTrigger>
                 <SelectContent>
@@ -511,12 +492,12 @@ export function ScheduleCalendarView({
 
             {/* Tutor Filter */}
             {(role === "student" || role === "admin") && tutorsList.length > 0 && (
-              <div className="w-[130px] sm:w-[145px]">
+              <div className="min-w-[130px] max-w-[160px]">
                 <Select
                   value={selectedTutorFilter}
                   onValueChange={setSelectedTutorFilter}
                 >
-                  <SelectTrigger className="h-8 text-[11px] rounded-lg bg-card">
+                  <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
                     <SelectValue placeholder="Tutor" />
                   </SelectTrigger>
                   <SelectContent>
@@ -533,12 +514,12 @@ export function ScheduleCalendarView({
 
             {/* Group Filter */}
             {(role === "teacher" || role === "admin") && groupsList.length > 0 && (
-              <div className="w-[135px] sm:w-[150px]">
+              <div className="min-w-[130px] max-w-[160px]">
                 <Select
                   value={selectedGroupFilter}
                   onValueChange={setSelectedGroupFilter}
                 >
-                  <SelectTrigger className="h-8 text-[11px] rounded-lg bg-card">
+                  <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
                     <SelectValue placeholder="Kelompok" />
                   </SelectTrigger>
                   <SelectContent>
@@ -555,12 +536,12 @@ export function ScheduleCalendarView({
 
             {/* Schedule Type Filter (for Admin) */}
             {role === "admin" && (
-              <div className="w-[135px] sm:w-[145px]">
+              <div className="min-w-[130px] max-w-[160px]">
                 <Select
                   value={selectedTypeFilter}
                   onValueChange={setSelectedTypeFilter}
                 >
-                  <SelectTrigger className="h-8 text-[11px] rounded-lg bg-card">
+                  <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
                     <SelectValue placeholder="Jenis Jadwal" />
                   </SelectTrigger>
                   <SelectContent>
@@ -686,7 +667,17 @@ export function ScheduleCalendarView({
                         <div
                           key={hour}
                           style={{ height: `${HOUR_HEIGHT}px` }}
-                          className="border-b border-border/30 w-full"
+                          onClick={() => {
+                            if (role === "admin" && onCreateScheduleDirect) {
+                              const timeStr = `${String(hour).padStart(2, "0")}:00`;
+                              onCreateScheduleDirect(day.dateIso, timeStr);
+                            }
+                          }}
+                          className={cn(
+                            "border-b border-border/30 w-full transition-colors",
+                            role === "admin" && onCreateScheduleDirect && "cursor-pointer hover:bg-brand-primary/10"
+                          )}
+                          title={role === "admin" && onCreateScheduleDirect ? `Buat jadwal pada ${day.dayName}, ${String(hour).padStart(2, "0")}:00` : undefined}
                         />
                       ))}
 
@@ -990,7 +981,17 @@ export function ScheduleCalendarView({
                     <div
                       key={hour}
                       style={{ height: `${HOUR_HEIGHT}px` }}
-                      className="border-b border-border/30 w-full"
+                      onClick={() => {
+                        if (role === "admin" && onCreateScheduleDirect) {
+                          const timeStr = `${String(hour).padStart(2, "0")}:00`;
+                          onCreateScheduleDirect(activeDayIso, timeStr);
+                        }
+                      }}
+                      className={cn(
+                        "border-b border-border/30 w-full transition-colors",
+                        role === "admin" && onCreateScheduleDirect && "cursor-pointer hover:bg-brand-primary/10"
+                      )}
+                      title={role === "admin" && onCreateScheduleDirect ? `Buat jadwal pada ${activeDayName}, ${String(hour).padStart(2, "0")}:00` : undefined}
                     />
                   ))}
 
@@ -1244,35 +1245,59 @@ export function ScheduleCalendarView({
                 return (
                   <div
                     key={cell.dateIso}
-                    className={`min-h-[105px] p-1.5 flex flex-col justify-between transition-colors ${
+                    onClick={(e) => {
+                      if (e.target === e.currentTarget && role === "admin" && onCreateScheduleDirect) {
+                        onCreateScheduleDirect(cell.dateIso, "09:00");
+                      }
+                    }}
+                    className={cn(
+                      "min-h-[105px] p-1.5 flex flex-col justify-between transition-colors",
                       cell.isCurrentMonth
                         ? "bg-card hover:bg-muted/10"
-                        : "bg-muted/30 opacity-60"
-                    } ${cell.isToday ? "bg-brand-primary/[0.04]" : ""}`}
+                        : "bg-muted/30 opacity-60",
+                      cell.isToday && "bg-brand-primary/[0.04]",
+                      role === "admin" && onCreateScheduleDirect && "cursor-pointer"
+                    )}
                   >
                     {/* Cell Day Header */}
                     <div className="flex items-center justify-between mb-1">
                       <span
-                        className={`inline-flex items-center justify-center size-5 text-[11px] font-bold rounded-full ${
+                        className={cn(
+                          "inline-flex items-center justify-center size-5 text-[11px] font-bold rounded-full",
                           cell.isToday
                             ? "bg-brand-primary text-white"
                             : "text-foreground"
-                        }`}
+                        )}
                       >
                         {cell.dayOfMonth}
                       </span>
 
-                      {/* Quick jump to Day view */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveDate(cell.date);
-                          setViewMode("day");
-                        }}
-                        className="text-[9px] text-muted-foreground hover:text-brand-primary font-medium"
-                      >
-                        Detail
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {role === "admin" && onCreateScheduleDirect && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCreateScheduleDirect(cell.dateIso, "09:00");
+                            }}
+                            className="text-muted-foreground hover:text-brand-primary font-bold p-0.5 rounded transition-colors"
+                            title="Buat Jadwal pada tanggal ini"
+                          >
+                            <Plus className="size-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDate(cell.date);
+                            setViewMode("day");
+                          }}
+                          className="text-[9px] text-muted-foreground hover:text-brand-primary font-medium"
+                        >
+                          Detail
+                        </button>
+                      </div>
                     </div>
 
                     {/* Events List in Day Cell */}

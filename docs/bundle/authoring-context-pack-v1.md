@@ -1,6 +1,6 @@
 # Authoring Context Pack V1
 
-Plan 007 defines a deterministic, redacted export for external authoring. The boundary is enabled by `FEATURE_AUTHORING_CONTEXT_V1=1` and is admin-only by default.
+Plan 007 defines a deterministic, redacted export for external authoring. The boundary is always-on and admin-only by default.
 
 ## Included content
 
@@ -18,7 +18,7 @@ The content scanner fails closed on forbidden fields, secret canaries, signed UR
 
 The same snapshot ID, request policy, input content, creation timestamp, and retention timestamp produce identical entity checksums, pack checksum, and ZIP bytes. Files are sorted and JSON keys are serialized deterministically.
 
-Private artifacts use the exact staging key `overhaul/<runId>/authoring-context/<packId>.zip`. The key is recorded in `audit_mutasi` with actor, policy version, source entity versions, holdout exclusion count, artifact checksum, correlation ID, and retention timestamp. The artifact is never exposed through a public URL. Rollback disables `FEATURE_AUTHORING_CONTEXT_V1` and removes only explicitly named test objects by exact key.
+Private artifacts use the exact staging key `overhaul/<runId>/authoring-context/<packId>.zip`. The key is recorded in `audit_mutasi` with actor, policy version, source entity versions, holdout exclusion count, artifact checksum, correlation ID, and retention timestamp. The artifact is never exposed through a public URL. Rollback removes only explicitly named test objects by exact key.
 
 ## Commands
 

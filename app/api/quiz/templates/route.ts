@@ -12,6 +12,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, desc } from 'drizzle-orm';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
+import { getQuizTimingMismatch } from '@/lib/asesmen/quiz-timing';
 import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
 import { createAssessmentWithLegacyProjection } from '@/lib/asesmen/quiz-canonical-sync';
 
@@ -92,6 +93,18 @@ export async function POST(req: NextRequest) {
     if (!scope.success) {
       return NextResponse.json({ error: 'Assessment scope must match quiz or tryout chapter rules.' }, { status: 400 });
     }
+  }
+
+  const timingMismatch = getQuizTimingMismatch({
+    timeLimitSeconds: timeLimitSeconds ?? null,
+    count: selectionRules.count,
+    fixedQuestionIds: selectionRules.fixedQuestionIds,
+    perQuestionTimerEnabled: selectionRules.perQuestionTimerEnabled,
+    perQuestionTimers: selectionRules.perQuestionTimers,
+    defaultQuestionTimerSeconds: selectionRules.defaultQuestionTimerSeconds,
+  });
+  if (timingMismatch) {
+    return NextResponse.json({ error: timingMismatch }, { status: 400 });
   }
 
   // Uniqueness check for tags per course

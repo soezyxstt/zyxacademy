@@ -5,6 +5,14 @@
 Production runs on Vercel (Next.js) + Turso (DB) with supporting Cloudflare services.
 
 ```
+Vercel (Next.js App Router)
+ ├── Turso (libsql database)
+ ├── Cloudflare R2 (object storage)
+ ├── Inngest Cloud (background jobs)
+ ├── Cloudflare AI Gateway (Gemini proxy)
+ ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
+ └── Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
+```
 
 ## Staging overhaul execution
 
@@ -19,14 +27,6 @@ bun --env-file=.env.staging run staging:reconcile -- --run-id <runId> --expect a
 ```
 
 The old production-to-staging sync is not part of the overhaul. Any exceptional destructive sync must use the dedicated `db:sync-prod-to-staging:destructive` command and an explicit confirmation phrase after a separate operator review.
-Vercel (Next.js App Router)
- ├── Turso (libsql database)
- ├── Cloudflare R2 (object storage)
- ├── Inngest Cloud (background jobs)
- ├── Cloudflare AI Gateway (Gemini proxy)
- ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
- └── Cloudflare Workers (3 services)
-```
 
 ## Vercel Deployment
 
@@ -203,7 +203,7 @@ Migration `0073_flashy_spitfire.sql` adds `email_notification_preferences`. Appl
 Feature flags are exception-based rollout controls, not a requirement for every new capability. Foundational authorization, canonical retrieval, assessment, learning, and pedagogy behavior is always-on. Before implementing a new capability or material behavior change, confirm whether it should be always-on or flag-gated. Any new flag needs a clear reason, default, scope, rollback behavior, owner, and removal condition. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the current approved list.
 ## Authoring Context Pack V1
 
-Keep `FEATURE_AUTHORING_CONTEXT_V1` absent or `0` until the local contract suite and staging round trip pass. The export API is admin-only by default, stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.
+The export workflow is always-on and admin-only. Before any staging round trip, the local contract suite must pass. The export API stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.
 
 The artifact must use the private R2 staging bucket and must not use a public URL. The authenticated Wrangler adapter is limited to the staging test process when normal R2 credentials are unavailable; production runtime keeps the standard R2 provider. Rollback disables the flag and deletes only an explicitly named test object by exact key.
 
@@ -297,7 +297,7 @@ The fixture shadow validates 40 of 40 cases with zero provider calls. Remote sha
 
 ## Zyra evidence-based personalization
 
-Plan 008 uses additive migration `0067_zyra_continuation.sql` for bounded learning evidence, inferred profiles, explicit preferences, and the Plan 010 through 013 records. Keep `FEATURE_ZYRA_PERSONALIZATION_V1` absent or `0` until the Plan 008 staging gate is approved. The local synthetic smoke is privacy-safe and makes zero provider calls and zero database writes:
+Plan 008 uses additive migration `0067_zyra_continuation.sql` for bounded learning evidence, inferred profiles, explicit preferences, and the Plan 010 through 013 records. Personalization is always-on; the Plan 008 staging gate is a process gate, not an env flag. The local synthetic smoke is privacy-safe and makes zero provider calls and zero database writes:
 
 ```bash
 bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course tutorial-pka
@@ -307,7 +307,7 @@ The smoke does not deploy a Worker, enable a public flag, or mutate staging. Sch
 
 ## Zyra typed Learning Canvas
 
-Plan 009 is currently local-ready. Keep `FEATURE_ZYRA_LEARNING_CANVAS_V1` absent or `0` until the visual staging gate is approved. The local evaluation and synthetic staging smoke are:
+Plan 009 is local-ready and the canvas layer is always-on; the visual staging gate is a process gate, not an env flag. The local evaluation and synthetic staging smoke are:
 
 ```bash
 bun run eval:zyra-canvas
@@ -339,7 +339,7 @@ This procedure mutates only the verified staging database. It does not deploy th
 
 ## Product Bundle V2
 
-Keep `FEATURE_PRODUCT_BUNDLE_V2` optional until local contract gates and the staging product-bundle rehearsal pass. The workflow uses the normal private R2 storage abstraction for staged ZIP artifacts and writes product publication, dependency, audit, and vector outbox records transactionally. Run the staging test with `.env.staging` and the authenticated Wrangler fallback only when the script explicitly enables it. Do not enable the flag in production as part of Plan 008; production rollout remains out of scope.
+The Product Bundle workflow is always-on; the staging product-bundle rehearsal remains a required process gate. The workflow uses the normal private R2 storage abstraction for staged ZIP artifacts and writes product publication, dependency, audit, and vector outbox records transactionally. Run the staging test with `.env.staging` and the authenticated Wrangler fallback only when the script explicitly enables it; production rollout review remains out of scope for local work.
 
 ## Provider-neutral Authoring MCP
 
@@ -351,4 +351,4 @@ The current transport is stateless and does not require a database migration. OA
 
 ## Plan 017 audit rework
 
-The branch-local rework adds no table, migration, provider, or deployment requirement. Keep `FEATURE_PRODUCT_BUNDLE_V2` optional until the local gates pass and a separate staging rehearsal is approved; canonical Idea, assessment, evidence, and Vectorize runtimes are always-on. The rework routes only approved Article, question, and solution products to canonical Vectorize namespaces, excludes holdout references, and appends per-Idea evidence only for exact published mappings. Rollback is branch-only during this phase; switching back to `staging` requires no data rollback.
+The branch-local rework adds no table, migration, provider, or deployment requirement. The staging product-bundle rehearsal remains a separately approved process gate; canonical Idea, assessment, evidence, and Vectorize runtimes are always-on. The rework routes only approved Article, question, and solution products to canonical Vectorize namespaces, excludes holdout references, and appends per-Idea evidence only for exact published mappings. Rollback is branch-only during this phase; switching back to `staging` requires no data rollback.

@@ -37,6 +37,7 @@ import { PageHeader } from "@/components/page-header";
 import { MathText } from "@/components/course/math-text";
 import { DifficultyProportionSlider } from "@/components/admin/difficulty-proportion-slider";
 import { formatDatetimeLocal } from "@/lib/date-utils";
+import { getQuizTimingMismatch } from "@/lib/asesmen/quiz-timing";
 import { cn } from "@/lib/utils";
 
 export interface CourseOption {
@@ -462,6 +463,19 @@ export function QuizForm({
           }) harus sama dengan total soal (${qCount}).`
         );
       }
+    }
+
+    const timingMismatch = getQuizTimingMismatch({
+      timeLimitSeconds: hasGlobalTimeLimit && timeLimitMinutes ? Number(timeLimitMinutes) * 60 : null,
+      count: selectionMode === "specific" ? selectedQIds.length : Number(count) || 10,
+      fixedQuestionIds: selectionMode === "specific" ? selectedQIds : undefined,
+      perQuestionTimerEnabled,
+      perQuestionTimers,
+      defaultQuestionTimerSeconds: Number(defaultQuestionTimerSeconds) || 60,
+    });
+    if (timingMismatch) {
+      handleTabChange("pengaturan");
+      return toast.error(timingMismatch);
     }
 
     try {

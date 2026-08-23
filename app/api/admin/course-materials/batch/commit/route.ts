@@ -28,11 +28,12 @@ const ItemSchema = z.object({
   year: z.number().int().min(1900).max(2100).nullable().optional(),
   checksum: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
   size: z.number().int().nonnegative(),
+  chapterIds: z.array(z.string().min(1)).min(1).optional(),
 });
 
 const BodySchema = z.object({
   courseId: z.string().min(1),
-  chapterIds: z.array(z.string().min(1)).min(1),
+  chapterIds: z.array(z.string().min(1)).optional(),
   items: z.array(ItemSchema).min(1).max(MAX_BATCH_FILES),
 });
 
@@ -89,6 +90,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const itemChapterIds =
+      item.chapterIds && item.chapterIds.length > 0
+        ? item.chapterIds
+        : chapterIds ?? [];
+
+    if (itemChapterIds.length === 0) {
+      return NextResponse.json(
+        { error: `Dokumen belum dikaitkan dengan bab: ${item.title}` },
+        { status: 400 }
+      );
+    }
+
     if (item.action === "overwrite" && !item.targetId) {
       return NextResponse.json(
         { error: `Timpa memerlukan ID dokumen sasaran: ${item.id}` },
@@ -137,6 +150,11 @@ export async function POST(req: NextRequest) {
           ? (item.subcategory.trim() as CourseMaterialSubcategory)
           : null;
 
+      const itemChapterIds =
+        item.chapterIds && item.chapterIds.length > 0
+          ? item.chapterIds
+          : chapterIds ?? [];
+
       if (item.action === "overwrite" && item.targetId) {
         const target = existingById.get(item.targetId)!;
         replacedKeys.add(target.fileUrl);
@@ -149,6 +167,7 @@ export async function POST(req: NextRequest) {
             year: item.year ?? null,
             fileUrl: item.key,
             checksum: item.checksum ?? null,
+            ...(itemChapterIds.length > 0 ? { chapterIds: itemChapterIds } : {}),
             updatedAt: new Date(),
           })
           .where(eq(courseMaterials.id, item.targetId));
@@ -163,7 +182,7 @@ export async function POST(req: NextRequest) {
           year: item.year ?? null,
           fileUrl: item.key,
           checksum: item.checksum ?? null,
-          chapterIds,
+          chapterIds: itemChapterIds,
         });
         created += 1;
       }

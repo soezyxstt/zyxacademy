@@ -22,15 +22,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
   CheckCircle2,
   Eye,
+  FileQuestion,
   FileText,
   FolderOpen,
   GripVertical,
+  Layers,
+  LayoutGrid,
+  List,
   Loader2,
+  Plus,
+  Sparkles,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import {
   LEVEL1_CATEGORIES,
@@ -43,6 +58,7 @@ import {
   BATCH_MAX_FILE_BYTES,
   UPLOAD_CONCURRENCY,
   detectCategoryFromFilename,
+  detectChaptersFromFilename,
   detectYear,
   extensionOf,
   formatBytes,
@@ -50,6 +66,7 @@ import {
   isHiddenOrSystemFile,
   isSupportedBatchFile,
   stripPdfExtension,
+  type BatchChapterInfo,
   type DuplicateAction,
   type StagedBatchDocument,
 } from "@/lib/course-batch-upload";
@@ -59,11 +76,7 @@ import {
   runWithConcurrency,
 } from "@/lib/batch-client";
 
-type Chapter = {
-  id: string;
-  title: string;
-  orderIndex: number;
-};
+type Chapter = BatchChapterInfo;
 
 type IngestEntry = { file: File; path: string };
 
@@ -78,6 +91,10 @@ type UploadSummary = {
 
 type PreviewState = { url: string; name: string };
 
+type UploadStep = "category" | "chapters";
+
+type ChapterViewMode = "kanban" | "table";
+
 const TIME_RELATED_CATEGORIES: MaterialLevel1Category[] = [
   "soal",
   "pembahasan_soal",
@@ -88,6 +105,64 @@ const DUPLICATE_ACTION_LABELS: Record<DuplicateAction, string> = {
   overwrite: "Timpa dokumen lama",
   keep: "Unggah sebagai versi baru",
 };
+
+const CATEGORY_THEME: Record<
+  MaterialLevel1Category,
+  {
+    borderTop: string;
+    border: string;
+    bg: string;
+    badgeBg: string;
+    text: string;
+    icon: typeof BookOpen;
+  }
+> = {
+  materi: {
+    borderTop: "border-t-sky-500",
+    border: "border-sky-500/25",
+    bg: "bg-sky-500/[0.03]",
+    badgeBg: "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30",
+    text: "text-sky-600 dark:text-sky-400",
+    icon: BookOpen,
+  },
+  soal: {
+    borderTop: "border-t-amber-500",
+    border: "border-amber-500/25",
+    bg: "bg-amber-500/[0.03]",
+    badgeBg: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+    text: "text-amber-600 dark:text-amber-400",
+    icon: FileQuestion,
+  },
+  pembahasan_soal: {
+    borderTop: "border-t-emerald-500",
+    border: "border-emerald-500/25",
+    bg: "bg-emerald-500/[0.03]",
+    badgeBg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+    text: "text-emerald-600 dark:text-emerald-400",
+    icon: CheckCircle2,
+  },
+};
+
+function getSubcategoryBadgeClass(subcategory?: string | null): string {
+  if (!subcategory) return "bg-muted text-muted-foreground border-border";
+  switch (subcategory) {
+    case "uts":
+    case "uas":
+      return "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-semibold";
+    case "kuis":
+    case "kbf":
+      return "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold";
+    case "tutorial":
+    case "modul":
+      return "bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30 font-semibold";
+    case "ppt_dosen":
+    case "ebook":
+    case "catatan":
+      return "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 font-semibold";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
+}
 
 function readAllDirectoryEntries(
   reader: FileSystemDirectoryReader
@@ -166,14 +241,16 @@ export function BatchUploadDialog({
 }) {
   const router = useRouter();
 
+  const [step, setStep] = useState<UploadStep>("category");
+  const [viewMode, setViewMode] = useState<ChapterViewMode>("kanban");
   const [docs, setDocs] = useState<StagedBatchDocument[]>([]);
   const [selection, setSelection] = useState<Set<string>>(new Set());
-  const [selectedChapters, setSelectedChapters] = useState<Set<string>>(new Set());
   const [skippedLog, setSkippedLog] = useState<SkippedEntry[]>([]);
   const [showSkipped, setShowSkipped] = useState(false);
   const [ingestPhase, setIngestPhase] = useState<"idle" | "hashing" | "checking">("idle");
   const [dragActive, setDragActive] = useState(false);
-  const [columnDragOver, setColumnDragOver] = useState<MaterialLevel1Category | null>(null);
+  const [categoryDragOver, setCategoryDragOver] = useState<MaterialLevel1Category | null>(null);
+  const [chapterDragOver, setChapterDragOver] = useState<string | null>(null);
   const [showRenameMatrix, setShowRenameMatrix] = useState(false);
   const [uploadRunning, setUploadRunning] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
@@ -188,6 +265,17 @@ export function BatchUploadDialog({
   const docsRef = useRef<StagedBatchDocument[]>([]);
   const selectionRef = useRef<Set<string>>(new Set());
 
+  const sortedChapters = useMemo(
+    () => [...chapters].sort((a, b) => a.orderIndex - b.orderIndex),
+    [chapters]
+  );
+
+  const chapterMap = useMemo(() => {
+    const map = new Map<string, Chapter>();
+    for (const ch of chapters) map.set(ch.id, ch);
+    return map;
+  }, [chapters]);
+
   useEffect(() => {
     docsRef.current = docs;
   }, [docs]);
@@ -197,14 +285,16 @@ export function BatchUploadDialog({
   }, [selection]);
 
   const resetAll = useCallback(() => {
+    setStep("category");
+    setViewMode("kanban");
     setDocs([]);
     setSelection(new Set());
-    setSelectedChapters(new Set());
     setSkippedLog([]);
     setShowSkipped(false);
     setIngestPhase("idle");
     setDragActive(false);
-    setColumnDragOver(null);
+    setCategoryDragOver(null);
+    setChapterDragOver(null);
     setShowRenameMatrix(false);
     setUploadRunning(false);
     setCommitError(null);
@@ -245,6 +335,16 @@ export function BatchUploadDialog({
       const detectedYear = detectYear(file.name);
       const year = detected.category === "materi" ? null : detectedYear;
       const title = deriveTitle(file.name);
+      const detectedChapterIds = detectChaptersFromFilename(
+        file.name,
+        sortedChapters,
+        detected.subcategory
+      );
+
+      const primaryChap = detectedChapterIds.length === 1
+        ? sortedChapters.find((c) => c.id === detectedChapterIds[0])
+        : null;
+
       return {
         id: crypto.randomUUID(),
         file,
@@ -264,12 +364,14 @@ export function BatchUploadDialog({
           courseCode: courseId,
           category: detected.category,
           subcategory: detected.subcategory,
+          chapterIndex: primaryChap?.orderIndex ?? null,
           year,
           title,
         }),
+        chapterIds: detectedChapterIds,
       };
     },
-    [courseId]
+    [courseId, sortedChapters]
   );
 
   const runHashAndDedup = useCallback(
@@ -405,6 +507,7 @@ export function BatchUploadDialog({
         subcategory: CourseMaterialSubcategory | null;
         year: number | null;
         title: string;
+        chapterIds: string[];
       }>
     ) => {
       setDocs((prev) =>
@@ -426,11 +529,22 @@ export function BatchUploadDialog({
             }
           }
 
+          if (patch.subcategory && patch.subcategory !== doc.subcategory) {
+            if ((patch.subcategory === "uts" || patch.subcategory === "uas") && next.chapterIds.length === 0) {
+              next.chapterIds = detectChaptersFromFilename(next.originalName, sortedChapters, patch.subcategory);
+            }
+          }
+
           if (!renamedOverrideRef.current.has(doc.id)) {
+            const primaryChap = next.chapterIds.length === 1
+              ? sortedChapters.find((c) => c.id === next.chapterIds[0])
+              : null;
+
             next.generatedName = generateFileName({
               courseCode: courseId,
               category: next.category,
               subcategory: next.subcategory,
+              chapterIndex: primaryChap?.orderIndex ?? null,
               year: next.year,
               title: next.title,
             });
@@ -439,7 +553,7 @@ export function BatchUploadDialog({
         })
       );
     },
-    [courseId]
+    [courseId, sortedChapters]
   );
 
   const moveDocsToCategory = useCallback(
@@ -452,6 +566,45 @@ export function BatchUploadDialog({
       });
     },
     [applyMetadataChange]
+  );
+
+  const assignDocsToChapter = useCallback(
+    (ids: string[], targetChapterId: string, mode: "replace" | "add" = "replace") => {
+      setDocs((prev) =>
+        prev.map((doc) => {
+          if (!ids.includes(doc.id)) return doc;
+          let nextChapters: string[];
+          if (mode === "add") {
+            nextChapters = Array.from(new Set([...doc.chapterIds, targetChapterId]));
+          } else {
+            nextChapters = [targetChapterId];
+          }
+          return { ...doc, chapterIds: nextChapters };
+        })
+      );
+      setSelection((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) next.delete(id);
+        return next;
+      });
+    },
+    []
+  );
+
+  const toggleDocChapter = useCallback(
+    (docId: string, chapterId: string) => {
+      setDocs((prev) =>
+        prev.map((doc) => {
+          if (doc.id !== docId) return doc;
+          const has = doc.chapterIds.includes(chapterId);
+          const next = has
+            ? doc.chapterIds.filter((id) => id !== chapterId)
+            : [...doc.chapterIds, chapterId];
+          return { ...doc, chapterIds: next };
+        })
+      );
+    },
+    []
   );
 
   const removeDocs = useCallback((ids: string[]) => {
@@ -472,13 +625,12 @@ export function BatchUploadDialog({
     });
   }, []);
 
-  const toggleChapter = useCallback((chapterId: string) => {
-    setSelectedChapters((prev) => {
-      const next = new Set(prev);
-      if (next.has(chapterId)) next.delete(chapterId);
-      else next.add(chapterId);
-      return next;
-    });
+  const selectAll = useCallback(() => {
+    setSelection(new Set(docs.map((d) => d.id)));
+  }, [docs]);
+
+  const clearSelection = useCallback(() => {
+    setSelection(new Set());
   }, []);
 
   const openPreview = useCallback((doc: StagedBatchDocument) => {
@@ -513,6 +665,11 @@ export function BatchUploadDialog({
     [uploadableDocs]
   );
 
+  const unassignedDocs = useMemo(
+    () => docs.filter((d) => d.chapterIds.length === 0),
+    [docs]
+  );
+
   const overallProgress = useMemo(() => {
     if (!uploadableDocs.length) return 0;
     const done = uploadableDocs.reduce(
@@ -523,7 +680,7 @@ export function BatchUploadDialog({
   }, [uploadableDocs]);
 
   const commitCompletedUploads = useCallback(
-    async (chapterIds: Set<string>): Promise<{ created: number; updated: number } | null> => {
+    async (): Promise<{ created: number; updated: number } | null> => {
       const uploads = completedUploadsRef.current;
       if (!uploads.length) return { created: 0, updated: 0 };
 
@@ -544,6 +701,7 @@ export function BatchUploadDialog({
         year: doc.category === "materi" ? null : doc.year,
         checksum: doc.checksum,
         size: doc.size,
+        chapterIds: doc.chapterIds,
       }));
 
       try {
@@ -552,7 +710,6 @@ export function BatchUploadDialog({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             courseId,
-            chapterIds: Array.from(chapterIds),
             items,
           }),
         });
@@ -573,16 +730,33 @@ export function BatchUploadDialog({
   const startUpload = useCallback(async () => {
     if (uploadRunning || ingestPhase !== "idle") return;
 
-    if (selectedChapters.size === 0) {
-      toast.error("Pilih minimal satu bab untuk seluruh dokumen dalam batch ini.");
+    if (docs.length === 0) {
+      toast.error("Tidak ada dokumen untuk diunggah.");
+      return;
+    }
+    if (chapters.length === 0) {
+      toast.error("Mata kuliah belum memiliki bab.");
       return;
     }
     if (docs.some((d) => !d.title.trim())) {
       toast.error("Semua dokumen memerlukan judul.");
       return;
     }
+    const missingChapters = docs.filter(
+      (d) =>
+        d.status === "ready" &&
+        !(d.duplicateOf && d.duplicateAction === "skip") &&
+        d.chapterIds.length === 0
+    );
+    if (missingChapters.length > 0) {
+      toast.error(
+        `${missingChapters.length} dokumen belum dikaitkan ke bab manapun. Atur bab terlebih dahulu.`
+      );
+      setStep("chapters");
+      return;
+    }
     if (!uploadableDocs.length) {
-      toast.error("Tidak ada dokumen untuk diunggah.");
+      toast.error("Tidak ada dokumen siap unggah.");
       return;
     }
 
@@ -650,7 +824,7 @@ export function BatchUploadDialog({
         }
       });
 
-      const result = await commitCompletedUploads(selectedChapters);
+      const result = await commitCompletedUploads();
       if (result) {
         setSummary({
           created: result.created,
@@ -671,10 +845,10 @@ export function BatchUploadDialog({
   }, [
     commitCompletedUploads,
     courseId,
+    chapters.length,
     docs,
     ingestPhase,
     router,
-    selectedChapters,
     updateDoc,
     uploadRunning,
     uploadableDocs,
@@ -685,7 +859,7 @@ export function BatchUploadDialog({
     setCommitError(null);
     setUploadRunning(true);
     try {
-      const result = await commitCompletedUploads(selectedChapters);
+      const result = await commitCompletedUploads();
       if (result) {
         setSummary({
           created: result.created,
@@ -701,7 +875,7 @@ export function BatchUploadDialog({
     } finally {
       setUploadRunning(false);
     }
-  }, [commitCompletedUploads, docs, router, selectedChapters]);
+  }, [commitCompletedUploads, docs, router]);
 
   const bulkApplyYear = useCallback(
     (raw: string) => {
@@ -735,342 +909,701 @@ export function BatchUploadDialog({
     [applyMetadataChange]
   );
 
+  const bulkSetChapters = useCallback(
+    (targetChapterIds: string[]) => {
+      const ids = Array.from(selectionRef.current);
+      setDocs((prev) =>
+        prev.map((doc) =>
+          ids.includes(doc.id) ? { ...doc, chapterIds: [...targetChapterIds] } : doc
+        )
+      );
+      toast.success(`${ids.length} dokumen diperbarui babnya.`);
+    },
+    []
+  );
+
+  const bulkAddChapter = useCallback(
+    (chapterId: string) => {
+      const ids = Array.from(selectionRef.current);
+      setDocs((prev) =>
+        prev.map((doc) => {
+          if (!ids.includes(doc.id)) return doc;
+          return {
+            ...doc,
+            chapterIds: Array.from(new Set([...doc.chapterIds, chapterId])),
+          };
+        })
+      );
+      toast.success(`Bab ditambahkan ke ${ids.length} dokumen.`);
+    },
+    []
+  );
+
+  const bulkRemoveChapter = useCallback(
+    (chapterId: string) => {
+      const ids = Array.from(selectionRef.current);
+      setDocs((prev) =>
+        prev.map((doc) => {
+          if (!ids.includes(doc.id)) return doc;
+          return {
+            ...doc,
+            chapterIds: doc.chapterIds.filter((cid) => cid !== chapterId),
+          };
+        })
+      );
+      toast.success(`Bab dilepas dari ${ids.length} dokumen.`);
+    },
+    []
+  );
+
+  const handleInlineRename = useCallback(
+    (id: string, name: string) => {
+      const withExt = name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`;
+      renamedOverrideRef.current.add(id);
+      updateDoc(id, { generatedName: withExt });
+    },
+    [updateDoc]
+  );
+
   const hashingCount = docs.filter((d) => d.status === "hashing").length;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-5xl">
-        <DialogHeader>
-          <DialogTitle>Unggah Batch Dokumen</DialogTitle>
-          <DialogDescription>
-            Unggah banyak PDF sekaligus untuk {courseTitle}. Atur kategori, tahun, dan nama berkas sebelum eksekusi.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-4">
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => filesInputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (e.target === e.currentTarget && e.code === "Enter") filesInputRef.current?.click();
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragActive(true);
-            }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={handleDrop}
-            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed p-6 text-center cursor-pointer transition-colors ${
-              dragActive ? "border-brand-primary bg-brand-primary/10" : "border-border hover:bg-muted/20"
-            }`}
-          >
-            <Upload className="size-5 text-muted-foreground" />
-            <p className="text-body-sm font-semibold text-foreground">
-              Tarik berkas atau folder PDF ke sini
-            </p>
-            <p className="text-body-xs text-muted-foreground">
-              Maksimal {BATCH_MAX_FILES} dokumen, 50 MB per berkas. Sub-folder dipindai otomatis.
-            </p>
-            <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-lg text-body-sm"
-                onClick={() => filesInputRef.current?.click()}
-              >
-                <FileText className="size-3.5" />
-                Pilih Berkas
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-lg text-body-sm"
-                onClick={() => folderInputRef.current?.click()}
-              >
-                <FolderOpen className="size-3.5" />
-                Pilih Folder
-              </Button>
+      <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col p-6 bg-background/95 backdrop-blur-sm border-border/80 shadow-2xl">
+        <DialogHeader className="shrink-0 space-y-2 border-b border-border/60 pb-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="space-y-0.5">
+              <DialogTitle className="text-h5 font-heading font-bold text-foreground">
+                Unggah Batch Dokumen
+              </DialogTitle>
+              <DialogDescription className="text-body-xs text-muted-foreground">
+                {step === "category"
+                  ? `Atur kategori (Materi, Soal, Pembahasan) dan tahun untuk ${courseTitle}.`
+                  : `Kaitkan setiap dokumen ke bab spesifik atau multi-bab untuk tipe ujian (UTS/UAS).`}
+              </DialogDescription>
             </div>
-          </div>
 
-          <input
-            ref={filesInputRef}
-            type="file"
-            accept="application/pdf,.pdf"
-            multiple
-            hidden
-            onChange={(e) => {
-              void handleInputFiles(e.target.files);
-              e.target.value = "";
-            }}
-          />
-          <input
-            ref={folderInputRef}
-            type="file"
-            multiple
-            hidden
-            onChange={(e) => {
-              void handleInputFiles(e.target.files);
-              e.target.value = "";
-            }}
-            {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
-          />
-
-          {(ingestPhase !== "idle" || hashingCount > 0) && (
-            <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" />
-              {ingestPhase === "checking" ? "Memeriksa duplikasi" : "Menghitung checksum"}
-            </div>
-          )}
-
-          {skippedLog.length > 0 && (
-            <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 text-body-xs text-muted-foreground">
+            {/* Stepper Tabs */}
+            <div className="flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/30 p-1">
               <button
                 type="button"
-                className="font-semibold text-foreground hover:underline cursor-pointer"
-                onClick={() => setShowSkipped((v) => !v)}
+                onClick={() => setStep("category")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-body-xs font-semibold transition-all cursor-pointer ${
+                  step === "category"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
               >
-                {skippedLog.length} berkas dilewati
+                <Layers className="size-3.5" />
+                1. Kategori & Metadata
               </button>
-              {showSkipped && (
-                <ul className="mt-1.5 space-y-0.5 list-disc list-inside">
-                  {skippedLog.map((s, i) => (
-                    <li key={`${s.name}-${i}`}>
-                      <span className="text-foreground">{s.name}</span>, {s.reason}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {docs.length > 0 && (
-            <>
-              <div className="rounded-xl border border-border bg-card p-3 space-y-2">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="text-body-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    Kaitkan dengan Bab ({selectedChapters.size} dipilih)
+              <button
+                type="button"
+                onClick={() => setStep("chapters")}
+                disabled={docs.length === 0}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-body-xs font-semibold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                  step === "chapters"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+              >
+                <BookOpen className="size-3.5" />
+                2. Distribusi Bab
+                {unassignedDocs.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-status-warning/20 text-status-warning border border-status-warning/40">
+                    {unassignedDocs.length}
                   </span>
-                  {chapters.length > 0 && (
-                    <button
-                      type="button"
-                      className="text-body-xs text-brand-primary font-medium hover:underline cursor-pointer"
-                      onClick={() =>
-                        setSelectedChapters(
-                          selectedChapters.size === chapters.length
-                            ? new Set()
-                            : new Set(chapters.map((c) => c.id))
-                        )
-                      }
-                    >
-                      {selectedChapters.size === chapters.length ? "Batalkan Semua" : "Pilih Semua Bab"}
-                    </button>
+                )}
+              </button>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto pr-1 space-y-4 min-h-0 pt-2">
+          {step === "category" ? (
+            <>
+              {/* Dropzone with enhanced contrast */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => filesInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.target === e.currentTarget && e.code === "Enter") filesInputRef.current?.click();
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragActive(true);
+                }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={handleDrop}
+                className={`relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all ${
+                  dragActive
+                    ? "border-brand-primary bg-brand-primary/10 ring-2 ring-brand-primary/30"
+                    : "border-border/80 bg-muted/20 hover:bg-muted/40 hover:border-brand-primary/50"
+                }`}
+              >
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+                  <Upload className="size-5" />
+                </div>
+                <div>
+                  <p className="text-body-sm font-semibold text-foreground">
+                    Tarik berkas atau folder PDF ke sini
+                  </p>
+                  <p className="text-body-xs text-muted-foreground mt-0.5">
+                    Maksimal ${BATCH_MAX_FILES} dokumen, 50 MB per berkas. Kategori & tahun terdeteksi otomatis.
+                  </p>
+                </div>
+                <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg text-body-sm bg-card hover:bg-muted/60"
+                    onClick={() => filesInputRef.current?.click()}
+                  >
+                    <FileText className="size-3.5 mr-1" />
+                    Pilih Berkas
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg text-body-sm bg-card hover:bg-muted/60"
+                    onClick={() => folderInputRef.current?.click()}
+                  >
+                    <FolderOpen className="size-3.5 mr-1" />
+                    Pilih Folder
+                  </Button>
+                </div>
+              </div>
+
+              <input
+                ref={filesInputRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                multiple
+                hidden
+                onChange={(e) => {
+                  void handleInputFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <input
+                ref={folderInputRef}
+                type="file"
+                multiple
+                hidden
+                onChange={(e) => {
+                  void handleInputFiles(e.target.files);
+                  e.target.value = "";
+                }}
+                {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+              />
+
+              {(ingestPhase !== "idle" || hashingCount > 0) && (
+                <div className="flex items-center gap-2 text-body-xs font-medium text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-3 py-2 rounded-lg">
+                  <Loader2 className="size-3.5 animate-spin shrink-0" />
+                  <span>
+                    {ingestPhase === "checking" ? "Memeriksa duplikasi di server..." : "Menghitung checksum berkas..."}
+                  </span>
+                </div>
+              )}
+
+              {skippedLog.length > 0 && (
+                <div className="rounded-xl border border-border bg-muted/30 px-3.5 py-2 text-body-xs text-muted-foreground">
+                  <button
+                    type="button"
+                    className="font-semibold text-foreground hover:underline cursor-pointer"
+                    onClick={() => setShowSkipped((v) => !v)}
+                  >
+                    {skippedLog.length} berkas dilewati (klik untuk melihat)
+                  </button>
+                  {showSkipped && (
+                    <ul className="mt-1.5 space-y-0.5 list-disc list-inside text-muted-foreground">
+                      {skippedLog.map((s, i) => (
+                        <li key={`${s.name}-${i}`}>
+                          <span className="text-foreground font-medium">{s.name}</span>: {s.reason}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
-                {chapters.length === 0 ? (
-                  <p className="text-body-xs text-status-warning py-1">
-                    Mata kuliah ini belum memiliki bab. Tambahkan bab terlebih dahulu di tab Bab.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-32 overflow-y-auto">
-                    {chapters.map((ch) => {
-                      const isChecked = selectedChapters.has(ch.id);
+              )}
+
+              {docs.length > 0 && (
+                <>
+                  {/* Category Step Toolbar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className="rounded-md text-body-xs font-semibold bg-muted/60 border border-border text-foreground">
+                        {docs.length} dokumen ({formatBytes(totalBytes)})
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 rounded-lg text-body-sm text-muted-foreground hover:text-foreground"
+                        onClick={() => setShowRenameMatrix((v) => !v)}
+                      >
+                        {showRenameMatrix ? "Sembunyikan Pratinjau Nama" : "Pratinjau Nama Berkas"}
+                      </Button>
+                      {selection.size > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 rounded-lg text-body-sm text-muted-foreground hover:text-foreground"
+                          onClick={clearSelection}
+                        >
+                          Bersihkan Seleksi ({selection.size})
+                        </Button>
+                      )}
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-9 px-4 rounded-lg text-body-sm font-semibold shadow-xs"
+                      disabled={uploadRunning || ingestPhase !== "idle" || chapters.length === 0}
+                      onClick={() => setStep("chapters")}
+                    >
+                      Lanjut: Distribusi Bab ({docs.length})
+                      <ArrowRight className="size-4 ml-1.5" />
+                    </Button>
+                  </div>
+
+                  {showRenameMatrix && <RenameMatrix docs={docs} onRename={handleInlineRename} />}
+
+                  {/* Category Kanban Columns */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                    {LEVEL1_CATEGORIES.map((col) => {
+                      const theme = CATEGORY_THEME[col.value];
+                      const Icon = theme.icon;
+                      const columnDocs = docs.filter((d) => d.category === col.value);
+                      const isOver = categoryDragOver === col.value;
+
                       return (
-                        <label
-                          key={ch.id}
-                          className={`flex items-start gap-2 p-2 rounded-lg border text-body-xs cursor-pointer select-none transition-colors ${
-                            isChecked
-                              ? "border-brand-primary bg-brand-primary/10 text-foreground"
-                              : "border-border/60 hover:bg-muted/20 text-muted-foreground"
+                        <div
+                          key={col.value}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setCategoryDragOver(col.value);
+                          }}
+                          onDragLeave={() => setCategoryDragOver((c) => (c === col.value ? null : c))}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setCategoryDragOver(null);
+                            const ids = draggingIdsRef.current;
+                            if (ids.length) moveDocsToCategory(ids, col.value);
+                            draggingIdsRef.current = [];
+                          }}
+                          className={`rounded-xl border ${theme.border} ${theme.borderTop} border-t-4 ${theme.bg} p-2.5 min-h-56 transition-all ${
+                            isOver ? "ring-2 ring-brand-primary/50 bg-brand-primary/10" : ""
                           }`}
                         >
-                          <Checkbox checked={isChecked} onCheckedChange={() => toggleChapter(ch.id)} className="mt-0.5" />
-                          <span className="truncate">
-                            Bab {ch.orderIndex}: {ch.title}
-                          </span>
-                        </label>
+                          <div className="flex items-center justify-between px-1 pb-2.5 mb-2 border-b border-border/40">
+                            <div className="flex items-center gap-1.5">
+                              <div className={`flex size-6 items-center justify-center rounded-md ${theme.badgeBg}`}>
+                                <Icon className="size-3.5" />
+                              </div>
+                              <span className={`font-heading text-body-sm font-bold ${theme.text}`}>
+                                {col.label}
+                              </span>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${theme.badgeBg}`}>
+                              {columnDocs.length}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            {columnDocs.map((doc) => (
+                              <StagedCard
+                                key={doc.id}
+                                doc={doc}
+                                selected={selection.has(doc.id)}
+                                inBatchDuplicate={inBatchDuplicateIds.has(doc.id)}
+                                disabled={uploadRunning}
+                                onToggleSelect={toggleSelection}
+                                onMetaChange={applyMetadataChange}
+                                onDuplicateAction={(action) =>
+                                  updateDoc(doc.id, { duplicateAction: action })
+                                }
+                                onPreview={() => openPreview(doc)}
+                                onKeyDown={(e) => handleCardKeyDown(e, doc)}
+                                onDragStartCard={(id) => {
+                                  draggingIdsRef.current = selectionRef.current.has(id)
+                                    ? Array.from(selectionRef.current)
+                                    : [id];
+                                }}
+                              />
+                            ))}
+                            {columnDocs.length === 0 && (
+                              <div className="rounded-lg border border-dashed border-border/60 p-5 text-center text-body-xs text-muted-foreground/80 bg-background/30">
+                                Tarik dokumen ke kategori {col.label}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="rounded-md text-body-xs">
-                  {docs.length} dokumen, {formatBytes(totalBytes)}
-                </Badge>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 rounded-lg text-body-sm"
-                  onClick={() => setShowRenameMatrix((v) => !v)}
-                >
-                  {showRenameMatrix ? "Sembunyikan Pratinjau Nama" : "Pratinjau Nama Berkas"}
-                </Button>
-                {selection.size > 0 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 rounded-lg text-body-sm"
-                    onClick={() => setSelection(new Set())}
-                  >
-                    Bersihkan Seleksi ({selection.size})
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  className="ml-auto h-9 rounded-lg text-body-sm font-semibold"
-                  disabled={
-                    uploadRunning ||
-                    ingestPhase !== "idle" ||
-                    !uploadableDocs.length ||
-                    chapters.length === 0
-                  }
-                  onClick={() => void startUpload()}
-                >
-                  {uploadRunning ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Upload className="size-4" />
-                  )}
-                  Unggah {uploadableDocs.length} Dokumen
-                </Button>
-              </div>
-
-              {uploadRunning && (
-                <div className="space-y-1">
-                  <div className="h-1.5 w-full overflow-hidden rounded-md bg-muted">
-                    <div
-                      className="h-full bg-primary transition-all duration-200"
-                      style={{ width: `${overallProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-body-xs text-muted-foreground">Progres total {overallProgress}%</p>
-                </div>
+                </>
               )}
-
-              {commitError && (
-                <div className="rounded-xl border border-status-error/40 bg-status-error/10 p-3 space-y-2">
-                  <div className="flex items-start gap-2 text-body-xs text-foreground">
-                    <AlertTriangle className="size-4 shrink-0 text-status-error" />
-                    <span>{commitError} Berkas yang sudah terunggah dapat dicoba disimpan ulang.</span>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 rounded-lg text-body-sm"
-                    disabled={uploadRunning}
-                    onClick={() => void retryCommit()}
-                  >
-                    Coba Simpan Metadata Lagi
-                  </Button>
-                </div>
-              )}
-
-              {summary && (
-                <div className="rounded-xl border border-border bg-card p-3">
-                  <div className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
-                    <CheckCircle2 className="size-4 text-status-success" />
-                    Selesai
-                  </div>
-                  <p className="mt-1 text-body-xs text-muted-foreground">
-                    {summary.created} dokumen baru, {summary.updated} ditimpa.
-                    {summary.skippedDuplicates > 0 && ` ${summary.skippedDuplicates} duplikat dilewati.`}
-                    {summary.failedUploads > 0 && ` ${summary.failedUploads} unggahan gagal.`}
-                  </p>
-                </div>
-              )}
-
-              {showRenameMatrix && <RenameMatrix docs={docs} onRename={handleInlineRename} />}
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                {LEVEL1_CATEGORIES.map((col) => {
-                  const columnDocs = docs.filter((d) => d.category === col.value);
-                  const isOver = columnDragOver === col.value;
-                  return (
-                    <div
-                      key={col.value}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        setColumnDragOver(col.value);
-                      }}
-                      onDragLeave={() => setColumnDragOver((c) => (c === col.value ? null : c))}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        setColumnDragOver(null);
-                        const ids = draggingIdsRef.current;
-                        if (ids.length) moveDocsToCategory(ids, col.value);
-                        draggingIdsRef.current = [];
-                      }}
-                      className={`rounded-xl border p-2 min-h-40 transition-colors ${
-                        isOver ? "border-brand-primary bg-brand-primary/5" : "border-border bg-muted/10"
-                      }`}
+            </>
+          ) : (
+            <>
+              {/* STEP 2: DISTRIBUSI BAB */}
+              <div className="space-y-3">
+                {/* Step 2 Toolbar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-lg text-body-sm bg-card"
+                      onClick={() => setStep("category")}
                     >
-                      <div className="flex items-center justify-between px-1 pb-2">
-                        <span className="font-heading text-body-sm font-bold text-foreground">{col.label}</span>
-                        <Badge variant="outline" className="rounded-md text-[10px]">
-                          {columnDocs.length}
-                        </Badge>
-                      </div>
-                      <div className="space-y-2">
-                        {columnDocs.map((doc) => (
-                          <StagedCard
-                            key={doc.id}
-                            doc={doc}
-                            selected={selection.has(doc.id)}
-                            inBatchDuplicate={inBatchDuplicateIds.has(doc.id)}
-                            disabled={uploadRunning}
-                            onToggleSelect={toggleSelection}
-                            onMetaChange={applyMetadataChange}
-                            onDuplicateAction={(action) =>
-                              updateDoc(doc.id, { duplicateAction: action })
-                            }
-                            onPreview={() => openPreview(doc)}
-                            onKeyDown={(e) => handleCardKeyDown(e, doc)}
-                            onDragStartCard={(id) => {
-                              draggingIdsRef.current = selectionRef.current.has(id)
-                                ? Array.from(selectionRef.current)
-                                : [id];
-                            }}
-                          />
-                        ))}
-                        {columnDocs.length === 0 && (
-                          <div className="rounded-lg border border-dashed border-border/60 p-4 text-center text-body-xs text-muted-foreground">
-                            Tarik kartu ke sini
-                          </div>
-                        )}
-                      </div>
+                      <ArrowLeft className="size-3.5 mr-1" />
+                      Kembali ke Kategori
+                    </Button>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-body-xs font-semibold bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+                      <Sparkles className="size-3 shrink-0" />
+                      {docs.length - unassignedDocs.length}/{docs.length} dokumen terkait bab
+                    </span>
+                    {selection.size < docs.length ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 rounded-lg text-body-sm"
+                        onClick={selectAll}
+                      >
+                        Pilih Semua ({docs.length})
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 rounded-lg text-body-sm"
+                        onClick={clearSelection}
+                      >
+                        Bersihkan Seleksi ({selection.size})
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 ml-auto">
+                    <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 px-2.5 rounded-md text-body-xs transition-all ${
+                          viewMode === "kanban" ? "bg-card text-foreground shadow-xs font-bold border border-border/60" : "text-muted-foreground"
+                        }`}
+                        onClick={() => setViewMode("kanban")}
+                      >
+                        <LayoutGrid className="size-3 mr-1" />
+                        Papan Kanban
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 px-2.5 rounded-md text-body-xs transition-all ${
+                          viewMode === "table" ? "bg-card text-foreground shadow-xs font-bold border border-border/60" : "text-muted-foreground"
+                        }`}
+                        onClick={() => setViewMode("table")}
+                      >
+                        <List className="size-3 mr-1" />
+                        Tabel Matriks
+                      </Button>
                     </div>
-                  );
-                })}
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-9 px-4 rounded-lg text-body-sm font-semibold shadow-xs"
+                      disabled={
+                        uploadRunning ||
+                        ingestPhase !== "idle" ||
+                        !uploadableDocs.length ||
+                        chapters.length === 0 ||
+                        unassignedDocs.length > 0
+                      }
+                      onClick={() => void startUpload()}
+                    >
+                      {uploadRunning ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Upload className="size-4" />
+                      )}
+                      Unggah {uploadableDocs.length} Dokumen
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Warning banner for unassigned docs */}
+                {unassignedDocs.length > 0 && (
+                  <div className="flex items-center justify-between flex-wrap gap-2 rounded-xl border border-status-warning/40 bg-status-warning/10 px-3.5 py-2.5 text-body-xs">
+                    <div className="flex items-center gap-2 text-foreground">
+                      <AlertTriangle className="size-4 shrink-0 text-status-warning" />
+                      <span>
+                        Terdapat <strong>{unassignedDocs.length} dokumen</strong> yang belum dikaitkan dengan bab.
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-md text-body-xs bg-card hover:bg-muted font-medium"
+                      onClick={() => {
+                        const allChapterIds = chapters.map((c) => c.id);
+                        setDocs((prev) =>
+                          prev.map((d) =>
+                            d.chapterIds.length === 0 ? { ...d, chapterIds: allChapterIds } : d
+                          )
+                        );
+                        toast.success("Dokumen tanpa bab telah dikaitkan ke semua bab.");
+                      }}
+                    >
+                      Kaitkan Semua yang Belum ke Semua Bab
+                    </Button>
+                  </div>
+                )}
+
+                {uploadRunning && (
+                  <div className="space-y-1 bg-card border border-border p-3 rounded-xl">
+                    <div className="h-2 w-full overflow-hidden rounded-md bg-muted">
+                      <div
+                        className="h-full bg-primary transition-all duration-200"
+                        style={{ width: `${overallProgress}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-body-xs text-muted-foreground font-medium">
+                      <span>Mengunggah dokumen ke penyimpanan...</span>
+                      <span>{overallProgress}%</span>
+                    </div>
+                  </div>
+                )}
+
+                {commitError && (
+                  <div className="rounded-xl border border-status-error/40 bg-status-error/10 p-3 space-y-2">
+                    <div className="flex items-start gap-2 text-body-xs text-foreground font-medium">
+                      <AlertTriangle className="size-4 shrink-0 text-status-error" />
+                      <span>{commitError} Berkas yang sudah terunggah dapat dicoba disimpan ulang.</span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-lg text-body-sm"
+                      disabled={uploadRunning}
+                      onClick={() => void retryCommit()}
+                    >
+                      Coba Simpan Metadata Lagi
+                    </Button>
+                  </div>
+                )}
+
+                {summary && (
+                  <div className="rounded-xl border border-status-success/40 bg-status-success/10 p-3">
+                    <div className="flex items-center gap-2 text-body-sm font-semibold text-foreground">
+                      <CheckCircle2 className="size-4 text-status-success" />
+                      Unggahan Selesai
+                    </div>
+                    <p className="mt-1 text-body-xs text-muted-foreground">
+                      {summary.created} dokumen baru disimpan, {summary.updated} ditimpa.
+                      {summary.skippedDuplicates > 0 && ` ${summary.skippedDuplicates} duplikat dilewati.`}
+                      {summary.failedUploads > 0 && ` ${summary.failedUploads} unggahan gagal.`}
+                    </p>
+                  </div>
+                )}
+
+                {viewMode === "kanban" ? (
+                  <div className="flex gap-3 overflow-x-auto pb-4 pt-1">
+                    {/* Unassigned column if any */}
+                    {unassignedDocs.length > 0 && (
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setChapterDragOver("__unassigned__");
+                        }}
+                        onDragLeave={() => setChapterDragOver((c) => (c === "__unassigned__" ? null : c))}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setChapterDragOver(null);
+                          const ids = draggingIdsRef.current;
+                          if (ids.length) {
+                            setDocs((prev) =>
+                              prev.map((d) => (ids.includes(d.id) ? { ...d, chapterIds: [] } : d))
+                            );
+                          }
+                          draggingIdsRef.current = [];
+                        }}
+                        className={`w-76 shrink-0 rounded-xl border border-amber-500/40 border-t-4 border-t-amber-500 bg-amber-500/[0.04] p-2.5 transition-all ${
+                          chapterDragOver === "__unassigned__" ? "ring-2 ring-status-warning bg-amber-500/10" : ""
+                        }`}
+                      >
+                        <div className="flex items-center justify-between px-1 pb-2 border-b border-amber-500/30 mb-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <AlertTriangle className="size-3.5 text-status-warning" />
+                            <span className="font-heading text-body-sm font-bold text-status-warning">
+                              Belum Terkait Bab
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30">
+                            {unassignedDocs.length}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {unassignedDocs.map((doc) => (
+                            <ChapterKanbanCard
+                              key={doc.id}
+                              doc={doc}
+                              chapters={sortedChapters}
+                              chapterMap={chapterMap}
+                              selected={selection.has(doc.id)}
+                              disabled={uploadRunning}
+                              onToggleSelect={toggleSelection}
+                              onToggleChapter={toggleDocChapter}
+                              onSetChapters={(cids) => applyMetadataChange(doc.id, { chapterIds: cids })}
+                              onPreview={() => openPreview(doc)}
+                              onRemove={() => removeDocs([doc.id])}
+                              onDragStartCard={(id) => {
+                                draggingIdsRef.current = selectionRef.current.has(id)
+                                  ? Array.from(selectionRef.current)
+                                  : [id];
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Chapter Columns */}
+                    {sortedChapters.map((ch) => {
+                      const chapterDocs = docs.filter((d) => d.chapterIds.includes(ch.id));
+                      const isOver = chapterDragOver === ch.id;
+
+                      return (
+                        <div
+                          key={ch.id}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setChapterDragOver(ch.id);
+                          }}
+                          onDragLeave={() => setChapterDragOver((c) => (c === ch.id ? null : c))}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setChapterDragOver(null);
+                            const ids = draggingIdsRef.current;
+                            if (ids.length) {
+                              assignDocsToChapter(ids, ch.id, "add");
+                            }
+                            draggingIdsRef.current = [];
+                          }}
+                          className={`w-76 shrink-0 rounded-xl border border-border/80 border-t-4 border-t-brand-primary/80 bg-card/60 p-2.5 min-h-64 transition-all ${
+                            isOver ? "border-brand-primary bg-brand-primary/10 ring-2 ring-brand-primary/40" : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-between px-1 pb-2 border-b border-border/60 mb-2.5">
+                            <div className="min-w-0 pr-1 flex items-center gap-1.5">
+                              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-brand-primary/15 text-brand-primary border border-brand-primary/30 shrink-0">
+                                B{ch.orderIndex}
+                              </span>
+                              <span className="font-heading text-body-sm font-bold text-foreground truncate" title={`Bab ${ch.orderIndex}: ${ch.title}`}>
+                                {ch.title}
+                              </span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-muted/60 text-muted-foreground border border-border shrink-0">
+                              {chapterDocs.length}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            {chapterDocs.map((doc) => (
+                              <ChapterKanbanCard
+                                key={`${ch.id}-${doc.id}`}
+                                doc={doc}
+                                currentColumnChapterId={ch.id}
+                                chapters={sortedChapters}
+                                chapterMap={chapterMap}
+                                selected={selection.has(doc.id)}
+                                disabled={uploadRunning}
+                                onToggleSelect={toggleSelection}
+                                onToggleChapter={toggleDocChapter}
+                                onSetChapters={(cids) => applyMetadataChange(doc.id, { chapterIds: cids })}
+                                onPreview={() => openPreview(doc)}
+                                onRemove={() => removeDocs([doc.id])}
+                                onDragStartCard={(id) => {
+                                  draggingIdsRef.current = selectionRef.current.has(id)
+                                    ? Array.from(selectionRef.current)
+                                    : [id];
+                                }}
+                              />
+                            ))}
+
+                            {chapterDocs.length === 0 && (
+                              <div className="rounded-lg border border-dashed border-border/60 p-5 text-center text-body-xs text-muted-foreground/70 bg-background/20">
+                                Tarik berkas ke Bab {ch.orderIndex}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <ChapterTableView
+                    docs={docs}
+                    chapters={sortedChapters}
+                    selection={selection}
+                    disabled={uploadRunning}
+                    onToggleSelect={toggleSelection}
+                    onToggleChapter={toggleDocChapter}
+                    onPreview={openPreview}
+                    onRemove={(id) => removeDocs([id])}
+                  />
+                )}
               </div>
             </>
           )}
         </div>
 
+        {/* BOTTOM FLOATING BULK ACTION BARS */}
         {selection.size > 0 && !uploadRunning && (
-          <BulkActionBar
-            count={selection.size}
-            onMove={(cat) => moveDocsToCategory(Array.from(selectionRef.current), cat)}
-            onApplyYear={bulkApplyYear}
-            onApplySubcategory={bulkApplySubcategory}
-            onRemove={() => removeDocs(Array.from(selectionRef.current))}
-          />
+          step === "category" ? (
+            <BulkActionBar
+              count={selection.size}
+              onMove={(cat) => moveDocsToCategory(Array.from(selectionRef.current), cat)}
+              onApplyYear={bulkApplyYear}
+              onApplySubcategory={bulkApplySubcategory}
+              onRemove={() => removeDocs(Array.from(selectionRef.current))}
+            />
+          ) : (
+            <ChapterBulkActionBar
+              count={selection.size}
+              chapters={sortedChapters}
+              onAddChapter={bulkAddChapter}
+              onSetChapters={bulkSetChapters}
+              onRemoveChapter={bulkRemoveChapter}
+              onRemove={() => removeDocs(Array.from(selectionRef.current))}
+            />
+          )
         )}
 
-        <Dialog open={Boolean(preview)} onOpenChange={(next) => {
-          if (!next && preview) {
-            URL.revokeObjectURL(preview.url);
-            setPreview(null);
-          }
-        }}>
+        <Dialog
+          open={Boolean(preview)}
+          onOpenChange={(next) => {
+            if (!next && preview) {
+              URL.revokeObjectURL(preview.url);
+              setPreview(null);
+            }
+          }}
+        >
           <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>{preview?.name}</DialogTitle>
@@ -1088,12 +1621,6 @@ export function BatchUploadDialog({
       </DialogContent>
     </Dialog>
   );
-
-  function handleInlineRename(id: string, name: string) {
-    const withExt = name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`;
-    renamedOverrideRef.current.add(id);
-    updateDoc(id, { generatedName: withExt });
-  }
 }
 
 function StagedCard({
@@ -1120,6 +1647,7 @@ function StagedCard({
       subcategory: CourseMaterialSubcategory | null;
       year: number | null;
       title: string;
+      chapterIds: string[];
     }>
   ) => void;
   onDuplicateAction: (action: DuplicateAction) => void;
@@ -1130,6 +1658,7 @@ function StagedCard({
   const showYear = TIME_RELATED_CATEGORIES.includes(doc.category);
   const subcategories = getSubcategoriesForLevel1(doc.category);
   const hasDuplicateFlag = Boolean(doc.duplicateOf) || inBatchDuplicate;
+  const subcatBadgeClass = getSubcategoryBadgeClass(doc.subcategory);
 
   return (
     <div
@@ -1141,8 +1670,10 @@ function StagedCard({
         window.getSelection()?.removeAllRanges();
         onDragStartCard(doc.id);
       }}
-      className={`space-y-1.5 rounded-lg border bg-card p-2 shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-zx-accent ${
-        selected ? "border-brand-primary ring-1 ring-brand-primary" : "border-border"
+      className={`space-y-2 rounded-xl border bg-card p-2.5 shadow-2xs outline-none transition-all focus-visible:ring-2 focus-visible:ring-zx-accent ${
+        selected
+          ? "border-brand-primary ring-2 ring-brand-primary/40 bg-brand-primary/[0.04]"
+          : "border-border/80 hover:border-border hover:shadow-xs"
       }`}
     >
       <div className="flex items-center gap-1.5 min-w-0">
@@ -1154,11 +1685,11 @@ function StagedCard({
           aria-label={`Pilih ${doc.originalName}`}
           className="shrink-0"
         />
-        <GripVertical className="size-3 shrink-0 text-muted-foreground/60" />
-        <span className="min-w-0 flex-1 truncate text-body-xs font-medium text-foreground" title={doc.originalName}>
+        <GripVertical className="size-3 shrink-0 text-muted-foreground/60 cursor-grab" />
+        <span className="min-w-0 flex-1 truncate text-body-xs font-semibold text-foreground" title={doc.originalName}>
           {doc.originalName}
         </span>
-        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{formatBytes(doc.size)}</span>
+        <span className="shrink-0 font-mono text-[10px] text-muted-foreground font-medium">{formatBytes(doc.size)}</span>
         <Button
           type="button"
           size="icon"
@@ -1177,7 +1708,7 @@ function StagedCard({
         disabled={disabled || doc.status === "hashing"}
         placeholder="Judul dokumen"
         onChange={(e) => onMetaChange(doc.id, { title: e.target.value })}
-        className="h-8 rounded-md text-body-sm"
+        className="h-8 rounded-lg text-body-sm bg-background border-border/80 font-medium"
         aria-label="Judul dokumen"
       />
 
@@ -1187,7 +1718,7 @@ function StagedCard({
           disabled={disabled || doc.status === "hashing"}
           onValueChange={(v) => onMetaChange(doc.id, { subcategory: v as CourseMaterialSubcategory })}
         >
-          <SelectTrigger className="h-8 min-w-0 flex-1 rounded-md text-body-sm">
+          <SelectTrigger className="h-8 min-w-0 flex-1 rounded-lg text-body-sm bg-background border-border/80">
             <SelectValue placeholder="Sub-kategori" />
           </SelectTrigger>
           <SelectContent>
@@ -1210,24 +1741,37 @@ function StagedCard({
               const raw = e.target.value;
               onMetaChange(doc.id, { year: raw ? Number(raw) : null });
             }}
-            className="h-8 w-20 shrink-0 rounded-md text-body-sm"
+            className="h-8 w-20 shrink-0 rounded-lg text-body-sm bg-background border-border/80 text-center font-medium"
             aria-label="Tahun"
           />
         )}
       </div>
 
+      {doc.subcategory && (
+        <div className="flex items-center gap-1.5">
+          <span className={`px-2 py-0.5 rounded-md text-[10px] border ${subcatBadgeClass}`}>
+            {doc.subcategory.toUpperCase()}
+          </span>
+          {doc.year && (
+            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-mono bg-muted/60 text-muted-foreground border border-border">
+              {doc.year}
+            </span>
+          )}
+        </div>
+      )}
+
       {hasDuplicateFlag && (
-        <div className="space-y-1">
+        <div className="space-y-1 bg-muted/30 p-1.5 rounded-lg border border-border/60">
           <div className="flex items-center gap-1.5 flex-wrap">
             {inBatchDuplicate && (
-              <Badge className="rounded-md bg-status-error/15 text-status-error border border-status-error/30 text-[10px]">
+              <span className="px-1.5 py-0.5 rounded-md bg-status-error/15 text-status-error border border-status-error/30 text-[10px] font-bold">
                 Duplikat dalam batch
-              </Badge>
+              </span>
             )}
             {doc.duplicateOf && (
-              <Badge className="rounded-md bg-status-warning/15 text-foreground border border-status-warning/40 text-[10px]" title={doc.duplicateOf.title}>
+              <span className="px-1.5 py-0.5 rounded-md bg-status-warning/15 text-foreground border border-status-warning/40 text-[10px]" title={doc.duplicateOf.title}>
                 Duplikat: {doc.duplicateOf.title}
-              </Badge>
+              </span>
             )}
           </div>
           <Select
@@ -1235,12 +1779,12 @@ function StagedCard({
             disabled={disabled}
             onValueChange={(v) => onDuplicateAction(v as DuplicateAction)}
           >
-            <SelectTrigger className="h-8 w-full rounded-md text-body-sm">
+            <SelectTrigger className="h-7 w-full rounded-md text-body-xs bg-background">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {(Object.keys(DUPLICATE_ACTION_LABELS) as DuplicateAction[]).map((action) => (
-                <SelectItem key={action} value={action} className="text-body-sm">
+                <SelectItem key={action} value={action} className="text-body-xs">
                   {DUPLICATE_ACTION_LABELS[action]}
                 </SelectItem>
               ))}
@@ -1249,13 +1793,13 @@ function StagedCard({
         </div>
       )}
 
-      <div className="min-w-0">
+      <div className="min-w-0 pt-0.5">
         <p className="truncate font-mono text-[10px] text-muted-foreground" title={doc.generatedName}>
           {doc.generatedName}
         </p>
         {doc.status === "hashing" && (
-          <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Loader2 className="size-2.5 animate-spin" /> Menghitung checksum
+          <p className="flex items-center gap-1 text-[10px] text-brand-primary font-medium">
+            <Loader2 className="size-2.5 animate-spin" /> Menghitung checksum...
           </p>
         )}
         {doc.status === "uploading" && (
@@ -1263,20 +1807,412 @@ function StagedCard({
             <div className="h-1 w-full overflow-hidden rounded-sm bg-muted">
               <div className="h-full bg-primary transition-all" style={{ width: `${doc.uploadProgress}%` }} />
             </div>
-            <p className="text-[10px] text-muted-foreground">{doc.uploadProgress}%</p>
+            <p className="text-[10px] text-muted-foreground font-mono">{doc.uploadProgress}%</p>
           </div>
         )}
         {doc.status === "completed" && (
-          <p className="flex items-center gap-1 text-[10px] text-status-success">
+          <p className="flex items-center gap-1 text-[10px] text-status-success font-semibold">
             <CheckCircle2 className="size-2.5" /> Terunggah
           </p>
         )}
         {doc.status === "error" && (
-          <p className="flex items-center gap-1 text-[10px] text-status-error">
+          <p className="flex items-center gap-1 text-[10px] text-status-error font-medium">
             <AlertTriangle className="size-2.5" /> {doc.errorMessage || "Gagal"}
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function ChapterKanbanCard({
+  doc,
+  currentColumnChapterId,
+  chapters,
+  chapterMap,
+  selected,
+  disabled,
+  onToggleSelect,
+  onToggleChapter,
+  onSetChapters,
+  onPreview,
+  onRemove,
+  onDragStartCard,
+}: {
+  doc: StagedBatchDocument;
+  currentColumnChapterId?: string;
+  chapters: Chapter[];
+  chapterMap: Map<string, Chapter>;
+  selected: boolean;
+  disabled: boolean;
+  onToggleSelect: (id: string, additive: boolean) => void;
+  onToggleChapter: (docId: string, chapterId: string) => void;
+  onSetChapters: (chapterIds: string[]) => void;
+  onPreview: () => void;
+  onRemove: () => void;
+  onDragStartCard: (id: string) => void;
+}) {
+  const isMultiChapter = doc.chapterIds.length > 1;
+  const isExamType = doc.subcategory === "uts" || doc.subcategory === "uas";
+  const catTheme = CATEGORY_THEME[doc.category];
+  const subcatBadgeClass = getSubcategoryBadgeClass(doc.subcategory);
+
+  const utsChapters = useMemo(() => {
+    const midpoint = Math.max(1, Math.ceil(chapters.length / 2));
+    return chapters.slice(0, midpoint).map((c) => c.id);
+  }, [chapters]);
+
+  return (
+    <div
+      tabIndex={0}
+      draggable={!disabled}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        window.getSelection()?.removeAllRanges();
+        onDragStartCard(doc.id);
+      }}
+      className={`space-y-2 rounded-xl border bg-card p-2.5 shadow-2xs outline-none transition-all focus-visible:ring-2 focus-visible:ring-zx-accent ${
+        selected
+          ? "border-brand-primary ring-2 ring-brand-primary/40 bg-brand-primary/[0.04]"
+          : "border-border/80 hover:border-border hover:shadow-xs"
+      }`}
+    >
+      <div className="flex items-start gap-1.5 min-w-0">
+        <Checkbox
+          checked={selected}
+          disabled={disabled}
+          onCheckedChange={() => onToggleSelect(doc.id, true)}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Pilih ${doc.title || doc.originalName}`}
+          className="shrink-0 mt-0.5"
+        />
+        <GripVertical className="size-3 shrink-0 text-muted-foreground/60 mt-0.5 cursor-grab" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-body-xs font-semibold text-foreground" title={doc.title || doc.originalName}>
+            {doc.title || doc.originalName}
+          </p>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border capitalize ${catTheme.badgeBg}`}>
+              {doc.category.replace("_", " ")}
+            </span>
+            {doc.subcategory && (
+              <span className={`px-1.5 py-0.2 rounded text-[10px] border ${subcatBadgeClass}`}>
+                {doc.subcategory.toUpperCase()}
+              </span>
+            )}
+            {doc.year && (
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-muted/60 text-muted-foreground border border-border">
+                {doc.year}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-6 rounded-md text-muted-foreground hover:text-foreground"
+            onClick={onPreview}
+            disabled={disabled}
+            aria-label="Pratinjau berkas"
+          >
+            <Eye className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-6 rounded-md text-muted-foreground hover:text-destructive"
+            onClick={onRemove}
+            disabled={disabled}
+            aria-label="Hapus dokumen dari antrean"
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Chapters linked badges and Multi-Bab Popover */}
+      <div className="space-y-1.5 pt-1 border-t border-border/50">
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex items-center gap-1 flex-wrap">
+            {isMultiChapter && (
+              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
+                Multi-Bab ({doc.chapterIds.length})
+              </span>
+            )}
+            {isExamType && !isMultiChapter && (
+              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                Ujian Single Bab
+              </span>
+            )}
+          </div>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-6 px-2 rounded-md text-[11px] font-semibold border-brand-primary/40 text-brand-primary hover:bg-brand-primary/10"
+                disabled={disabled}
+              >
+                <Plus className="size-3 mr-0.5" />
+                Atur Bab
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-2.5 space-y-2 bg-popover border-border shadow-xl">
+              <div className="flex items-center justify-between pb-1.5 border-b border-border text-body-xs font-bold">
+                <span>Kaitkan ke Bab</span>
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  {doc.chapterIds.length} bab aktif
+                </span>
+              </div>
+
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {chapters.map((ch) => {
+                  const isChecked = doc.chapterIds.includes(ch.id);
+                  return (
+                    <label
+                      key={ch.id}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-body-xs cursor-pointer select-none transition-colors ${
+                        isChecked
+                          ? "bg-brand-primary/15 text-foreground font-semibold border border-brand-primary/30"
+                          : "hover:bg-muted/50 text-muted-foreground border border-transparent"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => onToggleChapter(doc.id, ch.id)}
+                      />
+                      <span className="truncate">
+                        Bab {ch.orderIndex}: {ch.title}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="grid grid-cols-2 gap-1 pt-1.5 border-t border-border">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] px-1 rounded-sm justify-center font-medium hover:bg-muted"
+                  onClick={() => onSetChapters(chapters.map((c) => c.id))}
+                >
+                  Semua Bab
+                </Button>
+                {chapters.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[10px] px-1 rounded-sm justify-center font-medium hover:bg-muted"
+                    onClick={() => onSetChapters(utsChapters)}
+                  >
+                    Bab 1 s.d. UTS
+                  </Button>
+                )}
+                {currentColumnChapterId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[10px] px-1 rounded-sm justify-center font-medium hover:bg-muted"
+                    onClick={() => onSetChapters([currentColumnChapterId])}
+                  >
+                    Hanya Bab Ini
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] px-1 rounded-sm justify-center text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => onSetChapters([])}
+                >
+                  Kosongkan
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Render chips of linked chapters with enhanced contrast */}
+        <div className="flex flex-wrap gap-1">
+          {doc.chapterIds.map((cid) => {
+            const ch = chapterMap.get(cid);
+            if (!ch) return null;
+            return (
+              <span
+                key={cid}
+                className="inline-flex items-center gap-1 rounded-md border border-brand-primary/40 bg-brand-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-foreground"
+              >
+                <span className="truncate max-w-[120px]">Bab {ch.orderIndex}</span>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleChapter(doc.id, cid)}
+                    className="text-muted-foreground hover:text-foreground cursor-pointer rounded-xs"
+                    aria-label={`Lepas bab ${ch.orderIndex}`}
+                  >
+                    <X className="size-2.5" />
+                  </button>
+                )}
+              </span>
+            );
+          })}
+          {doc.chapterIds.length === 0 && (
+            <span className="text-[10px] font-semibold text-status-warning flex items-center gap-1">
+              <AlertTriangle className="size-2.5 shrink-0" /> Belum dikaitkan
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChapterTableView({
+  docs,
+  chapters,
+  selection,
+  disabled,
+  onToggleSelect,
+  onToggleChapter,
+  onPreview,
+  onRemove,
+}: {
+  docs: StagedBatchDocument[];
+  chapters: Chapter[];
+  selection: Set<string>;
+  disabled: boolean;
+  onToggleSelect: (id: string, additive: boolean) => void;
+  onToggleChapter: (docId: string, chapterId: string) => void;
+  onPreview: (doc: StagedBatchDocument) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
+      <table className="w-full text-left text-body-xs">
+        <thead className="bg-muted/80 font-bold text-foreground border-b border-border">
+          <tr>
+            <th className="w-8 px-3.5 py-2.5">
+              <Checkbox
+                checked={docs.length > 0 && selection.size === docs.length}
+                onCheckedChange={() => {
+                  if (selection.size === docs.length) {
+                    for (const d of docs) onToggleSelect(d.id, true);
+                  } else {
+                    for (const d of docs) {
+                      if (!selection.has(d.id)) onToggleSelect(d.id, true);
+                    }
+                  }
+                }}
+                aria-label="Pilih semua"
+              />
+            </th>
+            <th className="px-3.5 py-2.5">Nama Dokumen</th>
+            <th className="px-3.5 py-2.5">Kategori</th>
+            <th className="px-3.5 py-2.5">Terkait Bab</th>
+            <th className="w-20 px-3.5 py-2.5 text-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/50">
+          {docs.map((doc) => {
+            const isSelected = selection.has(doc.id);
+            const catTheme = CATEGORY_THEME[doc.category];
+            const subcatBadgeClass = getSubcategoryBadgeClass(doc.subcategory);
+
+            return (
+              <tr
+                key={doc.id}
+                className={`hover:bg-muted/30 transition-colors ${
+                  isSelected ? "bg-brand-primary/[0.06]" : ""
+                }`}
+              >
+                <td className="px-3.5 py-2.5">
+                  <Checkbox
+                    checked={isSelected}
+                    disabled={disabled}
+                    onCheckedChange={() => onToggleSelect(doc.id, true)}
+                    aria-label={`Pilih ${doc.title || doc.originalName}`}
+                  />
+                </td>
+                <td className="px-3.5 py-2.5 max-w-[240px]">
+                  <p className="truncate font-semibold text-foreground" title={doc.title || doc.originalName}>
+                    {doc.title || doc.originalName}
+                  </p>
+                  <p className="truncate font-mono text-[10px] text-muted-foreground mt-0.5" title={doc.originalName}>
+                    {doc.originalName}
+                  </p>
+                </td>
+                <td className="px-3.5 py-2.5 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border capitalize ${catTheme.badgeBg}`}>
+                      {doc.category.replace("_", " ")}
+                    </span>
+                    {doc.subcategory && (
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] border uppercase ${subcatBadgeClass}`}>
+                        {doc.subcategory}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-3.5 py-2.5">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {chapters.map((ch) => {
+                      const isLinked = doc.chapterIds.includes(ch.id);
+                      return (
+                        <button
+                          key={ch.id}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => onToggleChapter(doc.id, ch.id)}
+                          className={`px-2.5 py-1 rounded-md border text-[11px] font-semibold transition-all cursor-pointer ${
+                            isLinked
+                              ? "border-brand-primary bg-primary text-primary-foreground shadow-2xs"
+                              : "border-border/80 bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                          title={`Bab ${ch.orderIndex}: ${ch.title}`}
+                        >
+                          Bab {ch.orderIndex}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </td>
+                <td className="px-3.5 py-2.5 text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                      onClick={() => onPreview(doc)}
+                      aria-label="Pratinjau berkas"
+                    >
+                      <Eye className="size-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => onRemove(doc.id)}
+                      aria-label="Hapus dari antrean"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1308,12 +2244,14 @@ function BulkActionBar({
   }, []);
 
   return (
-    <div className="sticky bottom-0 z-10 mt-2 rounded-xl border border-border bg-popover p-2 shadow-lg">
+    <div className="sticky bottom-0 z-10 mt-2 rounded-xl border border-border/80 bg-popover/95 backdrop-blur-md p-2.5 shadow-xl ring-1 ring-black/5 dark:ring-white/10">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-body-xs font-semibold text-foreground">{count} dipilih</span>
+        <span className="px-2.5 py-1 rounded-md text-body-xs font-bold bg-brand-primary/15 text-brand-primary border border-brand-primary/30">
+          {count} dipilih
+        </span>
 
         <Select value={moveTarget} onValueChange={(v) => setMoveTarget(v as MaterialLevel1Category)}>
-          <SelectTrigger className="h-8 w-40 rounded-md text-body-sm">
+          <SelectTrigger className="h-8 w-40 rounded-lg text-body-sm bg-background">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1328,7 +2266,7 @@ function BulkActionBar({
           type="button"
           size="sm"
           variant="outline"
-          className="h-8 rounded-md text-body-sm"
+          className="h-8 rounded-lg text-body-sm bg-background"
           onClick={() => onMove(moveTarget)}
         >
           Terapkan Kategori
@@ -1341,14 +2279,14 @@ function BulkActionBar({
           value={bulkYear}
           placeholder="Tahun massal"
           onChange={(e) => setBulkYear(e.target.value)}
-          className="h-8 w-28 rounded-md text-body-sm"
+          className="h-8 w-28 rounded-lg text-body-sm bg-background text-center"
           aria-label="Tahun massal"
         />
         <Button
           type="button"
           size="sm"
           variant="outline"
-          className="h-8 rounded-md text-body-sm"
+          className="h-8 rounded-lg text-body-sm bg-background"
           onClick={() => {
             onApplyYear(bulkYear);
             setBulkYear("");
@@ -1361,7 +2299,7 @@ function BulkActionBar({
           value={bulkSubcategory}
           onValueChange={(v) => setBulkSubcategory(v as CourseMaterialSubcategory)}
         >
-          <SelectTrigger className="h-8 w-44 rounded-md text-body-sm">
+          <SelectTrigger className="h-8 w-44 rounded-lg text-body-sm bg-background">
             <SelectValue placeholder="Sub-kategori massal" />
           </SelectTrigger>
           <SelectContent>
@@ -1376,7 +2314,7 @@ function BulkActionBar({
           type="button"
           size="sm"
           variant="outline"
-          className="h-8 rounded-md text-body-sm"
+          className="h-8 rounded-lg text-body-sm bg-background"
           disabled={!bulkSubcategory}
           onClick={() => {
             if (bulkSubcategory) onApplySubcategory(bulkSubcategory);
@@ -1390,11 +2328,146 @@ function BulkActionBar({
           type="button"
           size="sm"
           variant="outline"
-          className="ml-auto h-8 rounded-md text-destructive hover:text-destructive"
+          className="ml-auto h-8 rounded-lg text-destructive border-destructive/30 hover:bg-destructive/10"
           onClick={onRemove}
         >
-          <Trash2 className="size-3.5" />
-          Hapus dari Antrean
+          <Trash2 className="size-3.5 mr-1" />
+          Hapus
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ChapterBulkActionBar({
+  count,
+  chapters,
+  onAddChapter,
+  onSetChapters,
+  onRemoveChapter,
+  onRemove,
+}: {
+  count: number;
+  chapters: Chapter[];
+  onAddChapter: (chapterId: string) => void;
+  onSetChapters: (chapterIds: string[]) => void;
+  onRemoveChapter: (chapterId: string) => void;
+  onRemove: () => void;
+}) {
+  const [selectedTargetChapter, setSelectedTargetChapter] = useState<string>("");
+
+  const utsChapters = useMemo(() => {
+    const midpoint = Math.max(1, Math.ceil(chapters.length / 2));
+    return chapters.slice(0, midpoint).map((c) => c.id);
+  }, [chapters]);
+
+  return (
+    <div className="sticky bottom-0 z-10 mt-2 rounded-xl border border-border/80 bg-popover/95 backdrop-blur-md p-2.5 shadow-xl ring-1 ring-black/5 dark:ring-white/10">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="px-2.5 py-1 rounded-md text-body-xs font-bold bg-brand-primary/15 text-brand-primary border border-brand-primary/30">
+          {count} dipilih
+        </span>
+
+        <Select value={selectedTargetChapter} onValueChange={setSelectedTargetChapter}>
+          <SelectTrigger className="h-8 w-44 rounded-lg text-body-sm bg-background">
+            <SelectValue placeholder="Pilih Bab sasaran" />
+          </SelectTrigger>
+          <SelectContent>
+            {chapters.map((ch) => (
+              <SelectItem key={ch.id} value={ch.id} className="text-body-sm">
+                Bab {ch.orderIndex}: {ch.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-lg text-body-sm bg-background"
+          disabled={!selectedTargetChapter}
+          onClick={() => {
+            if (selectedTargetChapter) {
+              onAddChapter(selectedTargetChapter);
+            }
+          }}
+        >
+          <Plus className="size-3.5 mr-1" />
+          Tambah Bab
+        </Button>
+
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-lg text-body-sm bg-background"
+          disabled={!selectedTargetChapter}
+          onClick={() => {
+            if (selectedTargetChapter) {
+              onSetChapters([selectedTargetChapter]);
+            }
+          }}
+        >
+          Set Hanya Bab Ini
+        </Button>
+
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-lg text-body-sm bg-background"
+          disabled={!selectedTargetChapter}
+          onClick={() => {
+            if (selectedTargetChapter) {
+              onRemoveChapter(selectedTargetChapter);
+            }
+          }}
+        >
+          Lepas Bab Ini
+        </Button>
+
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-lg text-body-sm bg-background"
+          onClick={() => onSetChapters(chapters.map((c) => c.id))}
+        >
+          Set Semua Bab
+        </Button>
+
+        {chapters.length > 1 && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-lg text-body-sm bg-background"
+            onClick={() => onSetChapters(utsChapters)}
+          >
+            Set Bab 1 s.d. UTS
+          </Button>
+        )}
+
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-lg text-body-sm bg-background"
+          onClick={() => onSetChapters([])}
+        >
+          Kosongkan Bab
+        </Button>
+
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="ml-auto h-8 rounded-lg text-destructive border-destructive/30 hover:bg-destructive/10"
+          onClick={onRemove}
+        >
+          <Trash2 className="size-3.5 mr-1" />
+          Hapus
         </Button>
       </div>
     </div>
@@ -1409,21 +2482,21 @@ function RenameMatrix({
   onRename: (id: string, name: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-card">
+    <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
       <table className="w-full text-left text-body-xs">
-        <thead className="bg-muted font-semibold text-muted-foreground">
+        <thead className="bg-muted font-bold text-foreground border-b border-border">
           <tr>
-            <th className="px-3 py-2">Nama Asli</th>
-            <th className="px-3 py-2">Nama Baru</th>
+            <th className="px-3.5 py-2">Nama Asli</th>
+            <th className="px-3.5 py-2">Nama Baru (Otomatis / Kustom)</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
           {docs.map((doc) => (
             <tr key={doc.id} className="hover:bg-muted/20">
-              <td className="max-w-[280px] truncate px-3 py-2 text-muted-foreground" title={doc.originalName}>
+              <td className="max-w-[280px] truncate px-3.5 py-2 text-muted-foreground font-medium" title={doc.originalName}>
                 {doc.originalName}
               </td>
-              <td className="px-3 py-1.5">
+              <td className="px-3.5 py-1.5">
                 <Input
                   value={doc.generatedName}
                   disabled={doc.status === "uploading" || doc.status === "completed"}
@@ -1431,7 +2504,7 @@ function RenameMatrix({
                   onBlur={(e) => {
                     if (!extensionOf(e.target.value)) onRename(doc.id, e.target.value);
                   }}
-                  className="h-7 max-w-md rounded-md font-mono text-body-xs"
+                  className="h-7 max-w-md rounded-md font-mono text-body-xs bg-background"
                   aria-label={`Nama baru untuk ${doc.originalName}`}
                 />
               </td>

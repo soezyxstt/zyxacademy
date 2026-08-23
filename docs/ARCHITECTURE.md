@@ -180,7 +180,7 @@ flowchart LR
     P --> X[audit_mutasi and publikasi_bundle]
 ```
 
-`impor_bundle` stores the checksum identity, legacy course association, and immutable validation report. `review_bundle` stores one immutable decision per reviewer. Publication is idempotent and compares existing target versions field by field; conflicts fail rather than overwrite. The transaction also inserts deterministic vector jobs for embedding-eligible source chunks and published Ideas. `FEATURE_IDEA_BUNDLE_V2` gates the admin API and panel, while the legacy importer remains the rollback path.
+`impor_bundle` stores the checksum identity, legacy course association, and immutable validation report. `review_bundle` stores one immutable decision per reviewer. Publication is idempotent and compares existing target versions field by field; conflicts fail rather than overwrite. The transaction also inserts deterministic vector jobs for embedding-eligible source chunks and published Ideas. The Idea Bundle workflow is always-on, while the legacy importer remains the rollback path.
 
 The admin presentation boundary for this workflow is split into `/admin/materials/review` and `/admin/materials/manual`. The Review page contains separate `Source Pack + Idea` and `Product` tabs, a filtered inventory, and a compact upload dialog. Artifact cards use stored creation time, requested-by identity, and course association as the primary review context; bundle IDs and checksums remain secondary technical details. Review actions navigate to dedicated `/admin/materials/review/idea/[slug]` or `/admin/materials/review/product/[slug]` pages, where the three-step indicator, focused one-item editing, product-family separation, relation and dependency context, KaTeX previews, reviewer notes, server-side draft reconstruction, and lifecycle actions live. The Upload Manual page contains the paginated Source Pack handoff and the preserved Context Pack export as internal process choices.
 
@@ -212,7 +212,7 @@ flowchart LR
     Z --> L[audit_mutasi with retention]
 ```
 
-The exporter does not call an external model and never includes user, credential, attempt, answer, mastery, chat, embedding, signed URL, or holdout content. `FEATURE_AUTHORING_CONTEXT_V1` is disabled by default and tutor access remains disabled until a separate assigned-course policy test is added.
+The exporter does not call an external model and never includes user, credential, attempt, answer, mastery, chat, embedding, signed URL, or holdout content. The Context Pack workflow is always-on and admin-only; tutor access remains disabled until a separate assigned-course policy test is added.
 
 The private download route resolves an audited pack ID to its exact R2 key, checks retention, and streams the ZIP only to an authenticated admin with `private, no-store` caching. Every pack carries generated JSON Schemas for both bundle families and a deterministic external-authoring workflow. Privacy-safe `$UPLOADER` and `$APPROVING_REVIEWER` sentinels are resolved only inside the atomic publication transaction.
 
@@ -259,13 +259,13 @@ flowchart LR
     T --> W[Audited withdrawal]
 ```
 
-The public lifecycle is `draft -> published -> withdrawn`. A draft may be replaced in place by the same bundle ID or deleted. Publishing creates or refreshes an internal approved review record as accountability evidence and commits canonical products atomically. Published bundles cannot be replaced or deleted. Withdrawal retains rows and audit history, marks learner-facing products inactive, and queues removal for vectorized article, question, and solution content. `FEATURE_PRODUCT_BUNDLE_V2` is disabled by default. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
+The public lifecycle is `draft -> published -> withdrawn`. A draft may be replaced in place by the same bundle ID or deleted. Publishing creates or refreshes an internal approved review record as accountability evidence and commits canonical products atomically. Published bundles cannot be replaced or deleted. Withdrawal retains rows and audit history, marks learner-facing products inactive, and queues removal for vectorized article, question, and solution content. The Product Bundle workflow is always-on. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
 
 The Product review inventory uses `/admin/materials/review`, while detail review uses `/admin/materials/review/product/[slug]`. Product-family tabs prevent a generated Article, Diktat, question, or solution from being presented as one unstructured vertical stream. Preview content uses the shared `MathText` KaTeX renderer, including formula-only fields that arrive without delimiters.
 
 Question provenance crosses the compatibility boundary as data, not presentation-only state. `soal` and `ai_question_bank` store `origin`, `source_event_name`, and `source_reference_id`. Quiz attempts, tryout submissions, PKA attempts, and live quiz sessions carry the same fields in JSON snapshots. `QuestionSourceCitation` is the shared student renderer and shows a lower-right source line only for `itb_example`. The admin question bank exposes origin filtering, while the tutor tryout action copies a published bank question and its provenance into the per-exam question snapshot.
 
-External authoring has three active MCP instruction skills under `.temp/skill`: `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, and `zyx-product-bundle-mcp`. They guide the agent through Source Pack, Idea, and Product workflows while MCP calls canonical repository quality modules. The prior `source-pack-translator`, `zyx-idea-authoring`, and `zyx-product-authoring` directories remain migration references only. Product authoring requires published Idea identity and fresh dependency checks, preventing unpublished candidate Ideas from leaking into products. It copies ITB questions from the Source Pack, matches the exact event label to an allowed context reference, and never substitutes a benchmark ID for the dedicated source reference ID. Preference profiles do not alter source truth, schemas, or quality gates and create no additional pack lifecycle.
+External authoring has three active MCP instruction skills under `plugins/zyx-authoring-mcp/skills`: `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, and `zyx-product-bundle-mcp`. They guide the agent through Source Pack, Idea, and Product workflows while MCP calls canonical repository quality modules. The prior `source-pack-translator`, `zyx-idea-authoring`, and `zyx-product-authoring` directories remain migration references only. Product authoring requires published Idea identity and fresh dependency checks, preventing unpublished candidate Ideas from leaking into products. It copies ITB questions from the Source Pack, matches the exact event label to an allowed context reference, and never substitutes a benchmark ID for the dedicated source reference ID. Preference profiles do not alter source truth, schemas, or quality gates and create no additional pack lifecycle.
 
 ### Article and Diktat Quality Compiler
 
@@ -636,7 +636,7 @@ Mastery System (background, Inngest cron):
 | **Cloudflare Vectorize** | Canonical vector store through `zyx-vector-api`, profile `canonical-content-v2`, 768 dimensions, cosine metric, versioned IDs, and allowlisted metadata |
 | **Cloudflare R2** | S3-compatible object storage for diktat PDFs, long-term assets, course materials (via `lib/storage/index.ts`) |
 | **Cloudflare KV** | AI response cache (used by AI tutor for repeated questions) |
-| **Cloudflare Workers** | Three dedicated Workers: `zyx-vector-api` (Vectorize proxy), `zyxrealtime` (live quiz WebSocket/SSE), `zyxacademydiktat` (Puppeteer PDF, hosted on Railway) |
+| **Cloudflare Workers** | Four Worker packages: `zyx-vector-api` (Vectorize proxy), `zyxrealtime` (live quiz WebSocket/SSE), `zyxacademydiktat` (Puppeteer PDF, hosted on Railway, local copy in `workers/diktat-renderer`), and the staging-only Zyra control plane (`workers/zyra-control-plane`) |
 | **UploadThing** | Browser file uploads (dev fallback); production prefers direct R2 via storage abstraction |
 | **Inngest** | Background job orchestration: vector sync (learning + assessment namespaces), generation pipelines, mastery recompute, assessment ingest, analytics snapshots, weekly reflections |
 | **Firebase Admin** | FCM push notifications |
@@ -650,38 +650,55 @@ Optional application emails enter through `lib/email-preferences/send.ts`. The a
 
 ## 8. Directory Map
 
+The app uses Next.js route groups. Admin routes live under `app/(admin)/admin/` and student surfaces under `app/(student)/`, so the group parentheses do not appear in URLs.
+
 ```
 app/
-├── courses/[id]/        ; Course portal (material, quiz, tryout, flashcard, live, mastery, path, leaderboard, my-results)
-├── dashboard/           ; Student hub (active classes, weak concepts, recommendations)
-├── admin/
-│   ├── ai/              ; AI generation: materials, questions, quizzes, diktats, distractors, jobs, keys, analytics
-│   ├── courses/         ; Course CRUD
-│   ├── files/           ; UploadThing drive explorer
-│   ├── meet/            ; Meet Studio (sessions, hosts, co-hosts, invited emails)
-│   ├── forms/           ; Form Studio & Visualizer (builder, presets, spreadsheet export)
-│   ├── media/           ; Media Library (R2 shared media browser, upload, preview)
-│   ├── tautan/          ; Tautan (important links manager)
-│   └── tokens/          ; Enrollment token management
+├── (marketing)/           ; Public marketing site (about, plans, testimonial, blog)
+├── (student)/             ; Student portal
+│   ├── courses/[id]/      ; Course portal (material, quiz, tryout, flashcard, live, mastery, path, leaderboard, my-results)
+│   ├── dashboard/         ; Student hub (active classes, weak concepts, recommendations)
+│   ├── profile/           ; User profile
+│   └── settings/          ; User settings
+├── (murid)/               ; Canonical murid read model
+├── (tutor)/               ; Tutor portal
+├── (admin)/admin/
+│   ├── (academic)/        ; Courses, groups, tokens, materials (+ manual, review), schedules, notifications, bundles, authoring-context, tutorial-pka
+│   ├── (content)/         ; Assessments, diktats, AST inspector
+│   ├── (eval)/            ; Questions, quizzes, quiz-insights, jobs, distractors, leaderboard
+│   ├── ops/               ; Flags, keys, analytics, short-links, web-analytics
+│   ├── blog/              ; Blog management
+│   ├── forms/             ; Form Studio & Visualizer (builder, presets, spreadsheet export)
+│   ├── media/             ; Media Library (R2 shared media browser, upload, preview)
+│   ├── meet/              ; Meet Studio (sessions, hosts, co-hosts, invited emails)
+│   └── tautan/            ; Tautan (important links manager)
 ├── api/
-│   ├── uploadthing/     ; UploadThing route handler
-│   ├── inngest/         ; Inngest serve endpoint
-│   ├── admin/           ; Admin API routes (materials, canonical validation, type selection)
-│   ├── quiz/            ; Quiz submission endpoints
-│   └── storage/         ; R2 signed URLs
-├── about/               ; About page
-├── plans/               ; Pricing plans
-├── testimonial/         ; Testimonials
-├── profile/             ; User profile
-├── settings/            ; User settings
-├── tutor/               ; Tutor portal
-└── feedback/            ; Feedback forms
+│   ├── uploadthing/       ; UploadThing route handler
+│   ├── inngest/           ; Inngest serve endpoint
+│   ├── admin/             ; Admin API routes (materials, canonical validation, type selection)
+│   ├── mcp/authoring/     ; Provider-neutral Authoring MCP endpoint
+│   ├── quiz/              ; Quiz submission endpoints
+│   └── storage/           ; R2 signed URLs
+├── f/[slug]/              ; Shared Form / Meet slug resolver
+├── tautan/                ; Public link page
+└── s/[slug]/              ; Short links
 
 lib/
 ├── db/                  ; Database client & schema
 ├── ai/                  ; AI utilities & analytics
 ├── storage/             ; Storage abstraction (UploadThing + R2 providers)
-
+├── zyra/                ; Zyra runtime: provider router, cache, pedagogy, canvas, images, proposals, ops, runtime-env
+├── asesmen/             ; Assessment blueprints, evidence rubric, benchmark policy (canonical)
+├── authoring/           ; Authoring Context Pack snapshot, projection, redaction, export
+├── bundle/              ; Idea and Product Bundle validators, staging, publication, drafts
+├── migrasi/             ; Legacy backfill engine and identity mapping
+├── questions/           ; Blueprint engine, option shuffle, distractor provenance
+├── knowledge/           ; KO extraction stages (chunker, candidates, reconciler, canonicalizer, runs)
+├── materials/           ; Article contract, quality gates, diktat compression, compiler
+├── email-preferences/   ; Optional email preference resolution and send boundary
+├── vectorize/           ; Canonical Vectorize contracts and outbox processing
+├── notifications/       ; Server-side FCM delivery layer, payload builders, shared types
+│
 ├── (AI Core)
 │   ├── gemini.ts                ; Gemini provider (generateContentWithFallback, embedText)
 │   ├── ai-router.ts             ; Use-case → model routing with fallback chains
@@ -692,11 +709,13 @@ lib/
 │   ├── question-validator.ts    ; Structural validation of generated questions
 │   ├── distractor-mapper.ts     ; Maps wrong options to misconception KOs
 │   ├── generation-pipeline.ts   ; Question generation orchestration
+│   ├── question-authoring.ts    ; Canonical-first manual and Markdown question authoring
 │   ├── ko-extractor.ts          ; KO extraction from learning-type MTDs
 │   ├── ko-utils.ts              ; Shared utilities (repairJson, slugify, etc.)
 │   ├── material-generator.ts    ; Website material generation (Gemini → markdown)
 │   ├── material-storage.ts      ; Save compiled material + AST + versioning
 │   ├── flashcard-generator.ts   ; Flashcard generation
+│   ├── flashcard-scheduler.ts   ; SM-2 scheduling engine
 │   ├── question-generator.ts    ; Question generation + validation
 │   ├── diktat-generator.ts      ; PDF compilation via Puppeteer
 │   ├── ingestion-parser.ts      ; Markdown → sections → chunks
@@ -733,13 +752,13 @@ lib/
 │   ├── uploadthing.ts           ; UploadThing client components
 │   ├── kv-cache.ts              ; KV cache wrapper
 │   ├── env.ts                   ; Environment variables & feature flags
+│   ├── feature-flags.ts         ; Admin flag catalog metadata (lib/feature-flags.ts)
+│   ├── date-utils.ts            ; Date handling utilities (lib/date-utils.ts)
+│   ├── google-sheets.ts         ; Spreadsheet export with fingerprint conflict detection
+│   ├── google-meet.ts / google-forms.ts / google-drive-permissions.ts ; Google Workspace integrations
 │   ├── auth.ts / auth-client.ts / auth-redirect.ts ; Auth helpers
-│   ├── pubic-app-url.ts         ; Public URL helper
+│   ├── public-app-url.ts        ; Public URL helper
 │   └── whatsapp-admin.ts        ; WhatsApp admin notifications
-├── notifications/
-│   ├── send.ts                 ; Server-side FCM delivery layer (multicast, prune, persist)
-│   ├── templates.ts            ; Pure payload builders per event type
-│   └── types.ts                ; Shared notification payload/result types
 └── site.ts, site-search.ts, testimonials.ts, youtube.ts ; Static content
 ```
 
@@ -918,19 +937,19 @@ The legacy tutor route distinguishes evidence grounding from learning scope. Emp
 
 Plan 008 adds additive `zyra_learning_events`, `zyra_learner_profiles`, and `zyra_learner_preferences` tables. Events use a strict allowlist of bounded event kinds, outcomes, latency buckets, hint levels, representations, weights, and optional opaque evidence references. Raw chat, assessment answers, and sensitive traits are not ingested into the profile. Events expire, queries are scoped by murid and course, and a learner reset moves the profile watermark forward without deleting historical evidence.
 
-The aggregator is deterministic. It requires at least three recent events for inference, keeps uncertain fields as `unknown`, records evidence count, confidence, expiry, and reason codes, and stores inferred fields separately from explicit presentation preferences. Explicit preferences can select pace, representation, explanation length, or checkpoint type, but cannot change canonical content, grades, mastery, or assessment policy. The feature flag is `FEATURE_ZYRA_PERSONALIZATION_V1`, disabled unless explicitly enabled.
+The aggregator is deterministic. It requires at least three recent events for inference, keeps uncertain fields as `unknown`, records evidence count, confidence, expiry, and reason codes, and stores inferred fields separately from explicit presentation preferences. Explicit preferences can select pace, representation, explanation length, or checkpoint type, but cannot change canonical content, grades, mastery, or assessment policy. The personalization layer is always-on.
 
 Personalization is composed after shared-cache retrieval. The Tier 1 scaffold is asserted profile-free before caching, while the adaptation decision remains in the current learner response only. A failure to load or aggregate the profile falls back to the grounded base answer, so personalization cannot make the tutor less safe or less evidence-grounded.
 
 ### Zyra typed Learning Canvas
 
-Plan 009 adds `lib/zyra/canvas` as the application-owned visual protocol. A canvas spec is a discriminated, versioned object with a bounded visual type, purpose, learner-safe alt text, optional canonical claim references, controls, and an accessible fallback table or explanation. Claim references are required by policy for grounded model claims but may be empty for a graph deterministically recovered from the learner's own equation. Function expressions are parsed into an allowlisted AST supporting only numeric constants, declared variables, arithmetic, and bounded approved functions. No model-provided JavaScript, HTML, SVG markup, or unrestricted diagram language is executed.
+Plan 009 adds `lib/zyra/canvas` as the application-owned visual protocol. A canvas spec is a discriminated, versioned object with a bounded visual type, purpose, learner-safe alt text, optional canonical claim references, controls, and an accessible fallback table or explanation. Claim references are required by policy for grounded model claims. Function expressions are parsed into an allowlisted AST supporting only numeric constants, declared variables, arithmetic, and bounded approved functions. No model-provided JavaScript, HTML, SVG markup, or unrestricted diagram language is executed.
 
-`LearningCanvasRenderer` keeps control values and editable expressions in local component state. Function and data plots render through responsive Recharts surfaces with labeled axes, tooltips, reference axes, zero crossings, and semantic theme tokens. Sampling, reset, invalid-expression handling, and table fallback use local computation and make no provider or network call. Structured function plots normalize common Gemini equation notation before semantic validation and persistence. Bidirectional compatibility upgrades older typed visual intents into Canvas specs. After cache and provider handling, an explicit visual request can recover a bounded function plot from a valid equation in the learner question, answer, or canonical evidence. Known concept recovery includes an interactive quadratic plot of `y = ax^2 + bx + c`; deterministic recovery is preferred over the provider canvas. This post-response recovery also covers ungrounded teaching responses and does not mutate shared-cache bytes. `FEATURE_ZYRA_LEARNING_CANVAS_V1` is disabled by default.
+`LearningCanvasRenderer` keeps control values and editable expressions in local component state. Function and data plots render through custom SVG surfaces with labeled adaptive axes, hover crosshair tooltips, reference axes, zero crossings, and semantic theme tokens. Plots are directly manipulable in the client: drag pans, scroll or pinch zooms around the pointer, and double-click restores the fitted view. Sampling, reset, invalid-expression handling, and table fallback use local computation and make no provider or network call. Structured function plots normalize common Gemini equation notation before semantic validation and persistence. The tutor harness renders exactly one visual per answer: the validated `canvasSpec` from the model's structured output channel. It never synthesizes a canvas from prose, so an answer without a structured spec has no interactive visual. Legacy persisted answers containing markdown visual blocks still render through the backward-compatible renderer. The Learning Canvas layer is always-on.
 
 Legacy graph blocks remain readable for historical and ungrounded responses, but their expressions are normalized and evaluated by the bounded Learning Canvas expression AST. The compatibility parser accepts plural and singular function fields plus inline or expanded domains. A failed expression renders an explicit learner-facing error instead of an empty plot.
 
-The course shell renders a draggable pet launcher when `FEATURE_ZYRA_PET_V1` is enabled. `ZyraCharacter` is an application-owned fox-like SVG companion whose ears, tail, paws, facial expression, and bounded status glyph are derived from the typed `ZyraPetState`; it does not execute or render provider-authored SVG. Its clamped viewport position and visibility preference are browser-local presentation state. They are not sent to the server or learner profile. Quiz-review page context is resolved server-side from the authenticated route, student, and course. Only a bounded title and prompt list enters the tutoring request, and any response using this attempt-specific context bypasses shared cache reads and writes.
+The course shell renders a draggable pet launcher as part of the always-on murid experience. `ZyraCharacter` is an application-owned fox-like SVG companion whose ears, tail, paws, facial expression, and bounded status glyph are derived from the typed `ZyraPetState`; it does not execute or render provider-authored SVG. Its clamped viewport position and visibility preference are browser-local presentation state. They are not sent to the server or learner profile. Quiz-review page context is resolved server-side from the authenticated route, student, and course. Only a bounded title and prompt list enters the tutoring request, and any response using this attempt-specific context bypasses shared cache reads and writes.
 
 Staging shadow mode is an explicit internal execution mode, not a public feature flag. It requires `ZYX_ENVIRONMENT=staging` and an exact match with `STAGING_ZYRA_PEDAGOGY_USER_ID`. The legacy and candidate generations run beside one another with one attempt each; only the legacy answer is returned. Learner summary and learning-event writes are suppressed, while comparison metadata stores only hashes, stable outcomes, state, hint level, violation codes, counts, and an opaque trace ID. Synthetic review output is available only to the local staging runner and is not added to the application response.
 

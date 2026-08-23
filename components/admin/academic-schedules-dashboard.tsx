@@ -30,11 +30,6 @@ import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import {
-  AdminTabs,
-  AdminTabsList,
-  AdminTabsTrigger,
-} from "@/components/admin/tabs";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -43,6 +38,12 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
 import { AuditLogDrawer } from "@/components/schedule/audit-log-drawer";
 import { RescheduleTicketModal } from "@/components/schedule/reschedule-ticket-modal";
@@ -64,7 +65,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
   const data = initialData;
   const [weekOffset, setWeekOffset] = useState(0);
 
-  // Tabs
+  // Tabs / Active View
   const [activeTab, setActiveTab] = useState("calendar");
 
   // Dialog States for Academic Schedules CRUD
@@ -107,6 +108,24 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
     setFormDescription("");
     setFormStartDate("");
     setFormEndDate("");
+    setFormLocation("");
+    setIsCreateOpen(true);
+  };
+
+  const handleCreateDirect = (dateIso: string, timeStr?: string) => {
+    const startT = timeStr || "09:00";
+    const [h, m] = startT.split(":").map(Number);
+    const endH = Math.min(23, (h || 0) + 1);
+    const endM = (m || 0) + 30 >= 60 ? (m || 0) + 30 - 60 : (m || 0) + 30;
+    const adjustedEndH = (m || 0) + 30 >= 60 ? Math.min(23, endH + 1) : endH;
+    const endT = `${String(adjustedEndH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+
+    setFormType("official_exam");
+    setFormTitle("");
+    setFormCourseId("");
+    setFormDescription("");
+    setFormStartDate(`${dateIso}T${startT}`);
+    setFormEndDate(`${dateIso}T${endT}`);
     setFormLocation("");
     setIsCreateOpen(true);
   };
@@ -257,96 +276,116 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
   };
 
   return (
-    <div className="space-y-4">
-      {/* 1. KPI Strip */}
-      <AdminStatStrip className="lg:grid-cols-4">
-        <AdminStatStripItem
-          label="Total Tutorial"
-          value={totalBookings}
-          caption="Pemesanan kelompok"
-          icon={Users}
-          tone="brand"
-        />
-        <AdminStatStripItem
-          label="Sesi Selesai"
-          value={completedBookings}
-          caption="Telah terlaksana"
-          icon={CheckCircle2}
-          tone="success"
-        />
-        <AdminStatStripItem
-          label="Tiket Pending"
-          value={pendingTickets}
-          caption="Permohonan reschedule"
-          icon={MessageSquare}
-          tone="warning"
-        />
-        <AdminStatStripItem
-          label="Jadwal Akademik"
-          value={totalAcademic}
-          caption="Ujian ITB, Tryout, Kuis"
-          icon={CalendarDays}
-          tone="info"
-        />
-      </AdminStatStrip>
+    <TooltipProvider delayDuration={150}>
+      <div className="space-y-3 font-sans">
+        {/* 1. Compact One-Line KPI Strip */}
+        <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
+          <AdminStatStripItem
+            label="Total Tutorial"
+            value={totalBookings}
+            icon={Users}
+            tone="brand"
+            compact
+          />
+          <AdminStatStripItem
+            label="Sesi Selesai"
+            value={completedBookings}
+            icon={CheckCircle2}
+            tone="success"
+            compact
+          />
+          <AdminStatStripItem
+            label="Tiket Pending"
+            value={pendingTickets}
+            icon={MessageSquare}
+            tone="warning"
+            compact
+          />
+          <AdminStatStripItem
+            label="Jadwal Akademik"
+            value={totalAcademic}
+            icon={CalendarDays}
+            tone="info"
+            compact
+          />
+        </AdminStatStrip>
 
-      {/* 2. Top Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <AdminTabs value={activeTab} onValueChange={setActiveTab}>
-          <AdminTabsList>
-            <AdminTabsTrigger value="calendar">Master Kalender</AdminTabsTrigger>
-            <AdminTabsTrigger value="academic">Jadwal Akademik ({totalAcademic})</AdminTabsTrigger>
-            <AdminTabsTrigger value="tutors">Tutor ({data.tutors.length})</AdminTabsTrigger>
-            <AdminTabsTrigger value="tickets">Monitoring Tiket ({data.tickets.length})</AdminTabsTrigger>
-            <AdminTabsTrigger value="audit">Jejak Audit ({data.auditLogs.length})</AdminTabsTrigger>
-          </AdminTabsList>
-        </AdminTabs>
+        {/* 2. Top Action Bar */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="w-[230px] shrink-0">
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="calendar">Master Kalender</SelectItem>
+                <SelectItem value="academic">Jadwal Akademik ({totalAcademic})</SelectItem>
+                <SelectItem value="tutors">Tutor ({data.tutors.length})</SelectItem>
+                <SelectItem value="tickets">Monitoring Tiket ({data.tickets.length})</SelectItem>
+                <SelectItem value="audit">Jejak Audit ({data.auditLogs.length})</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={batchMeetLoading}
-            onClick={handleBatchMeetAutomation}
-            className="rounded-lg gap-1.5 h-8 text-[11px] text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30"
-            title="Generate Google Meet untuk semua sesi online yang terisi"
-          >
-            <Bot className="size-3.5" />
-            <span>{batchMeetLoading ? "Memproses..." : "Otomasi Google Meet"}</span>
-          </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={batchMeetLoading}
+                  onClick={handleBatchMeetAutomation}
+                  className="h-9 w-9 rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30"
+                  aria-label="Otomasi Google Meet"
+                >
+                  <Bot className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="text-body-xs">
+                Otomasi Google Meet
+              </TooltipContent>
+            </Tooltip>
 
-          <Button
-            size="sm"
-            onClick={handleOpenCreate}
-            className="rounded-lg gap-1.5 h-8 text-[11px] bg-brand-primary text-white hover:bg-brand-primary/95"
-          >
-            <Plus className="size-3.5" />
-            <span>Buat Jadwal Akademik</span>
-          </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  onClick={handleOpenCreate}
+                  className="h-9 w-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
+                  aria-label="Buat Jadwal Akademik"
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="text-body-xs">
+                Buat Jadwal Akademik
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
-      </div>
 
-      {/* 3. Tab Contents */}
+        {/* 3. Tab Contents */}
 
-      {/* TAB 1: Master Calendar */}
-      {activeTab === "calendar" && (
-        <ScheduleCalendarView
-          role="admin"
-          currentUserId=""
-          weekInfo={data.weekInfo}
-          isWeekLocked={data.isWeekLocked}
-          weekOffset={weekOffset}
-          onWeekChange={(offset) => setWeekOffset(offset)}
-          coursesList={data.courses}
-          tutorsList={data.tutors}
-          groupsList={data.groups}
-          slots={data.slots}
-          bookings={data.bookings}
-          academicSchedules={data.academicSchedules}
-          onOpenAuditLog={(booking) => setSelectedAuditBooking(booking)}
-          onOpenRescheduleTicket={(booking) => setSelectedTicketBooking(booking)}
-        />
-      )}
+        {/* TAB 1: Master Calendar */}
+        {activeTab === "calendar" && (
+          <ScheduleCalendarView
+            role="admin"
+            currentUserId=""
+            weekInfo={data.weekInfo}
+            isWeekLocked={data.isWeekLocked}
+            weekOffset={weekOffset}
+            onWeekChange={(offset) => setWeekOffset(offset)}
+            coursesList={data.courses}
+            tutorsList={data.tutors}
+            groupsList={data.groups}
+            slots={data.slots}
+            bookings={data.bookings}
+            academicSchedules={data.academicSchedules}
+            onCreateScheduleDirect={handleCreateDirect}
+            onOpenAuditLog={(booking) => setSelectedAuditBooking(booking)}
+            onOpenRescheduleTicket={(booking) => setSelectedTicketBooking(booking)}
+          />
+        )}
 
       {/* TAB 2: Academic Schedules CRUD */}
       {activeTab === "academic" && (
@@ -413,7 +452,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
                         <td className="px-5 py-4 text-body-xs text-muted-foreground">
                           <span>{formatIsoDate(new Date(sched.startDate))}</span>
                           {sched.endDate && (
-                            <span> – {formatIsoDate(new Date(sched.endDate))}</span>
+                            <span> - {formatIsoDate(new Date(sched.endDate))}</span>
                           )}
                         </td>
                         <td className="px-5 py-4 text-body-xs text-muted-foreground">
@@ -1027,6 +1066,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

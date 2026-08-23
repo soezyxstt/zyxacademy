@@ -1171,7 +1171,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               <DialogHeader>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <DialogTitle className="font-heading text-h5 font-bold text-foreground">
+                    <DialogTitle className="font-heading text-body-base font-bold text-foreground">
                       {detailGroup.name}
                     </DialogTitle>
                     <DialogDescription className="text-body-xs text-muted-foreground mt-1">

@@ -40,6 +40,7 @@ export interface StagedBatchDocument {
   year: number | null;
   title: string;
   generatedName: string;
+  chapterIds: string[];
 }
 
 const HIDDEN_FILE_BASENAMES = new Set([
@@ -149,40 +150,143 @@ export function sanitizeNameToken(input: string): string {
 export interface GenerateFileNameInput {
   courseCode: string;
   category: MaterialLevel1Category;
-  subcategory?: CourseMaterialSubcategory | null;
-  year?: number | null;
+  subcategory?: CourseMaterialSubcategory | string | null;
+  chapterIndex?: number | null;
+  chapterNumber?: number | string | null;
+  year?: number | string | null;
+  semester?: string | null;
   title: string;
   extension?: string;
+  role?: string | null;
 }
 
-const CATEGORY_LABELS: Record<MaterialLevel1Category, string> = {
+const CATEGORY_MAP: Record<string, string> = {
   materi: "materi",
   soal: "soal",
   pembahasan_soal: "pembahasan",
+  ebook: "diktat",
+  diktat: "diktat",
+  catatan: "catatan",
+  silabus: "silabus",
+  ppt_dosen: "materi",
+  tutorial: "tutorial",
+  latihan: "latihan",
+  pr: "pr",
+  kuis: "kuis",
+  kbf: "kbf",
+  uts: "uts",
+  uas: "uas",
+  tryout: "tryout",
+  modul: "modul",
 };
 
 /**
- * Deterministic renaming engine adapted to the existing taxonomy:
- * soal/pembahasan embed year and subcategory when known, materi stays static.
+ * Deterministic standard naming engine:
+ * Formula: [KODE_MK]_[BAB]_[KATEGORI]_[DESKRIPSI]_[ROLE]_[TAHUN-SEMESTER].[ext]
  */
 export function generateFileName(input: GenerateFileNameInput): string {
   const ext = (input.extension || ".pdf").toLowerCase();
   const code = sanitizeNameToken(input.courseCode) || "mk";
-  const label = CATEGORY_LABELS[input.category];
-  const title = sanitizeNameToken(input.title);
-  const parts: string[] = [code, label];
+  const parts: string[] = [code];
 
-  if (input.category === "materi") {
-    if (input.subcategory && input.subcategory !== "lainnya") {
-      parts.push(input.subcategory);
-    }
-    parts.push(title);
-    return `${parts.join("_")}${ext}`;
+  // 1. Chapter segment (bab01, bab02, etc.)
+  let chapNum: number | null = null;
+  if (typeof input.chapterIndex === "number" && input.chapterIndex >= 0) {
+    chapNum = input.chapterIndex;
+  } else if (input.chapterNumber !== undefined && input.chapterNumber !== null) {
+    chapNum = parseChapterNumber(String(input.chapterNumber));
   }
 
-  parts.push(input.subcategory ?? "lainnya");
-  if (input.year) parts.push(String(input.year));
-  parts.push(title);
+  const isComprehensiveExam =
+    input.subcategory === "uts" || input.subcategory === "uas";
+
+  if (chapNum !== null && !isComprehensiveExam) {
+    parts.push(`bab${String(chapNum).padStart(2, "0")}`);
+  }
+
+  // 2. Category segment
+  let catSegment = "materi";
+  if (input.category === "materi") {
+    if (input.subcategory && ["ebook", "diktat", "catatan", "silabus"].includes(input.subcategory)) {
+      catSegment = CATEGORY_MAP[input.subcategory] || "materi";
+    } else {
+      catSegment = "materi";
+    }
+  } else if (input.subcategory && input.subcategory !== "lainnya") {
+    catSegment = CATEGORY_MAP[input.subcategory] || input.subcategory;
+  } else if (input.category === "pembahasan_soal") {
+    catSegment = "soal";
+  } else {
+    catSegment = "soal";
+  }
+  parts.push(catSegment);
+
+  // 3. Description / Topic (cleaned, avoiding redundant category repetition)
+  const rawTitleToken = sanitizeNameToken(input.title);
+  const redundantTokens = new Set([
+    code,
+    catSegment,
+    "soal",
+    "solusi",
+    "pembahasan",
+    "uts",
+    "uas",
+    "kuis",
+    "dokumen",
+  ]);
+  if (chapNum !== null) {
+    redundantTokens.add(`bab-${chapNum}`);
+    redundantTokens.add(`bab-${String(chapNum).padStart(2, "0")}`);
+    redundantTokens.add(`bab${chapNum}`);
+    redundantTokens.add(`bab${String(chapNum).padStart(2, "0")}`);
+  }
+
+  let descToken = rawTitleToken;
+  if (redundantTokens.has(descToken)) {
+    descToken = "";
+  } else {
+    // Strip redundant prefix/suffix matching category or code
+    descToken = descToken
+      .replace(new RegExp(`^${code}-?`, "i"), "")
+      .replace(new RegExp(`^${catSegment}-?`, "i"), "")
+      .replace(/-(soal|solusi|pembahasan)$/i, "")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  if (descToken) {
+    parts.push(descToken);
+  }
+
+  // 4. Role (soal / solusi / slide)
+  let role = input.role ? sanitizeNameToken(input.role) : null;
+  if (!role) {
+    if (input.category === "pembahasan_soal") {
+      role = "solusi";
+    } else if (
+      input.category === "soal" &&
+      ["uts", "uas", "kuis", "tutorial", "kbf", "latihan"].includes(input.subcategory || "")
+    ) {
+      role = "soal";
+    }
+  }
+
+  if (role && role !== catSegment && role !== descToken) {
+    parts.push(role);
+  }
+
+  // 5. Year & Semester at the end
+  let yearStr = "";
+  if (input.year) {
+    yearStr = String(input.year).trim();
+    if (input.semester && !yearStr.includes("-")) {
+      yearStr = `${yearStr}-${input.semester.toLowerCase()}`;
+    }
+  }
+
+  if (yearStr) {
+    parts.push(yearStr);
+  }
+
   return `${parts.join("_")}${ext}`;
 }
 
@@ -195,4 +299,160 @@ export function formatBytes(bytes: number): string {
   );
   const value = bytes / 1024 ** exponent;
   return `${value >= 10 || exponent === 0 ? Math.round(value) : value.toFixed(1)} ${units[exponent]}`;
+}
+
+export type BatchChapterInfo = {
+  id: string;
+  title: string;
+  orderIndex: number;
+};
+
+const ROMAN_NUMERALS: Record<string, number> = {
+  i: 1,
+  ii: 2,
+  iii: 3,
+  iv: 4,
+  v: 5,
+  vi: 6,
+  vii: 7,
+  viii: 8,
+  ix: 9,
+  x: 10,
+  xi: 11,
+  xii: 12,
+  xiii: 13,
+  xiv: 14,
+  xv: 15,
+};
+
+export function parseChapterNumber(raw: string): number | null {
+  const trimmed = raw.trim().toLowerCase();
+  if (/^\d+$/.test(trimmed)) {
+    return Number(trimmed);
+  }
+  if (ROMAN_NUMERALS[trimmed] !== undefined) {
+    return ROMAN_NUMERALS[trimmed];
+  }
+  return null;
+}
+
+export function detectChaptersFromFilename(
+  filename: string,
+  chapters: BatchChapterInfo[],
+  subcategory?: CourseMaterialSubcategory | null
+): string[] {
+  if (!chapters.length) return [];
+  if (chapters.length === 1) return [chapters[0].id];
+
+  const base = stripPdfExtension(filename).toLowerCase();
+
+  // 1. Check for UTS / UAS exam subcategory auto-assignment
+  if (subcategory === "uts" || /\buts\b|ujian\s*tengah\s*semester/i.test(base)) {
+    const midpoint = Math.max(1, Math.ceil(chapters.length / 2));
+    const sorted = [...chapters].sort((a, b) => a.orderIndex - b.orderIndex);
+    return sorted.slice(0, midpoint).map((c) => c.id);
+  }
+  if (subcategory === "uas" || /\buas\b|ujian\s*akhir\s*semester/i.test(base)) {
+    const sorted = [...chapters].sort((a, b) => a.orderIndex - b.orderIndex);
+    return sorted.map((c) => c.id);
+  }
+
+  // 2. Direct chapter patterns: "bab 0", "bab 1", "chapter 2", "ch 3", "modul 1", "tutorial 2", "kbf 1"
+  const pattern = /(?:bab|chapter|ch|modul|module|minggu|week|w|tutorial|tut|kbf|kuis|quiz)\s*[-_:]?\s*([0-9]+|[ivxlcdm]+)\b/i;
+  const match = base.match(pattern);
+  if (match) {
+    const num = parseChapterNumber(match[1]);
+    if (num !== null) {
+      const found = chapters.find(
+        (c) =>
+          c.orderIndex === num ||
+          new RegExp(`\\bbab\\s*${num}\\b`, "i").test(c.title) ||
+          new RegExp(`^${num}[\\.:\\s]`, "i").test(c.title)
+      );
+      if (found) return [found.id];
+    }
+  }
+
+  // 3. Fallback: Check if chapter title words appear in filename (e.g. "Pertaksamaan dan Fungsi", "Limit")
+  for (const ch of chapters) {
+    const cleanTitle = ch.title
+      .replace(/^bab\s*\d+\s*[:\.-]?\s*/i, "")
+      .trim()
+      .toLowerCase();
+    if (cleanTitle.length >= 4 && base.includes(cleanTitle)) {
+      return [ch.id];
+    }
+  }
+
+  return [];
+}
+
+export interface DetectedFileMetadata {
+  title: string;
+  category: MaterialLevel1Category;
+  subcategory: CourseMaterialSubcategory | null;
+  year: number | null;
+  chapterIds: string[];
+  primaryChapterIndex: number | null;
+  role: string | null;
+}
+
+/**
+ * Comprehensive heuristic metadata extractor from a filename.
+ * Used for both single upload auto-fill and batch upload ingestion.
+ */
+export function detectMetadataFromFilename(
+  filename: string,
+  chapters: BatchChapterInfo[] = []
+): DetectedFileMetadata {
+  const base = stripPdfExtension(filename);
+  const detectedCategory = detectCategoryFromFilename(filename);
+  const year = detectYear(filename);
+  const chapterIds = detectChaptersFromFilename(
+    filename,
+    chapters,
+    detectedCategory.subcategory
+  );
+
+  let primaryChapterIndex: number | null = null;
+  if (chapterIds.length === 1) {
+    const matched = chapters.find((c) => c.id === chapterIds[0]);
+    if (matched) primaryChapterIndex = matched.orderIndex;
+  }
+
+  if (primaryChapterIndex === null) {
+    const match = base.match(/(?:bab|chapter|ch|modul|module)\s*[-_:]?\s*([0-9]+|[ivxlcdm]+)\b/i);
+    if (match) {
+      primaryChapterIndex = parseChapterNumber(match[1]);
+    }
+  }
+
+  // Clean title: remove year, file extensions, and common prefix markers
+  let title = base
+    .replace(/[_-]+/g, " ")
+    .replace(/\b(19|20)\d{2}\b/g, "")
+    .replace(/\b(sem(ester)?\s*[12]|gasal|genap|ganjil|sp)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!title) {
+    title = base;
+  }
+
+  let role: string | null = null;
+  if (detectedCategory.category === "pembahasan_soal") {
+    role = "solusi";
+  } else if (detectedCategory.category === "soal") {
+    role = "soal";
+  }
+
+  return {
+    title,
+    category: detectedCategory.category,
+    subcategory: detectedCategory.subcategory,
+    year,
+    chapterIds,
+    primaryChapterIndex,
+    role,
+  };
 }
