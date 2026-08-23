@@ -6,11 +6,7 @@ import type {
 } from "./contracts";
 import type { TeachingPlan } from "./state-machine";
 import type { CanvasSpec } from "@/lib/zyra/canvas";
-import {
-  functionPlotFromTutorText,
-  parseCanvasSpec,
-  visualSpecToCanvasSpec,
-} from "@/lib/zyra/canvas";
+import { parseCanvasSpec } from "@/lib/zyra/canvas";
 
 export interface LegacyTutorAnswer {
   answer: string;
@@ -135,7 +131,6 @@ export function composeSafeTeachingResponse(
 export function teachingResponseToTutorAnswer(
   response: ZyraTeachingResponse,
   evidence: readonly PedagogySource[],
-  learnerQuestion?: string,
 ): LegacyTutorAnswer {
   const byId = new Map(evidence.map((source) => [source.id, source]));
   const sources = response.citations
@@ -154,15 +149,11 @@ export function teachingResponseToTutorAnswer(
     confidence: sources.length > 0 ? 0.85 : 0,
     grounded: sources.length > 0,
     coverageState: sources.length > 0 ? "full" : "none",
+    // The harness renders exactly the validated canvasSpec emitted by the
+    // model. It never synthesizes a visual from prose: no structured spec
+    // means no interactive canvas, only the textual answer.
     canvasSpec: parseCanvasSpec(response.canvasSpec, evidence.map((source) => source.id))
       ?? (response.canvasSpec && typeof response.canvasSpec === "object" ? parseCanvasSpec({ ...response.canvasSpec, claimRefs: [] }) : null)
-      ?? visualSpecToCanvasSpec(response.visualSpec)
-      ?? functionPlotFromTutorText({
-        learnerQuestion,
-        answer: response.learnerFacingText,
-        evidenceText: evidence.map((source) => source.content),
-        claimRefs: evidence.map((source) => source.id),
-      })
       ?? null,
   };
 }

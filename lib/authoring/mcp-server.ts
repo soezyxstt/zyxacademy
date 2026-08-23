@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { aiQuestionBank, bab, courses, ide, knowledgeObjects, mataKuliah } from "@/db/schema";
+import { asalIde, ide, relasiIde } from "@/db/schema";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
 import { stageIdeaBundle } from "@/lib/bundle/staging";
@@ -12,7 +12,20 @@ import { stageProductBundle } from "@/lib/bundle/product-staging";
 import { evaluateIdeaBundleQuality } from "@/lib/authoring/quality/idea-bundle";
 import { evaluateProductBundleQuality } from "@/lib/authoring/quality/product-bundle";
 import { sha256Text } from "@/lib/bundle/validator";
-import { validateQuestion } from "@/lib/question-validator";
+import { createCanonicalQuestionBatch, QuestionAuthoringError, validateCanonicalQuestionBatch } from "@/lib/question-authoring";
+import { normalizeQuestionBankDraft, parseQuestionBankDraftJson, type NormalizedQuestionBankDraft } from "@/lib/authoring/question-bank-draft";
+import {
+  computeIdeaFacets,
+  filterIdeaRecords,
+  normalizeIdeaDifficultyLevel,
+  normalizeIdeaInstructionalRole,
+  normalizeIdeaKnowledgeKind,
+  paginateIdeaRecords,
+  IDEA_DIFFICULTY_LEVELS,
+  IDEA_INSTRUCTIONAL_ROLES,
+  IDEA_KNOWLEDGE_KINDS,
+} from "@/lib/authoring/question-catalog";
+import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
 import {
   AUTHORING_MCP_MAX_BUNDLE_BYTES,
   AUTHORING_MCP_MAX_ORIGINAL_BYTES,
@@ -44,9 +57,19 @@ async function safeTool(handler: () => Promise<ToolPayload> | ToolPayload) {
     return toolResult(await handler());
   } catch (error) {
     const message = error instanceof Error ? error.message : "AUTHORING_MCP_REQUEST_FAILED";
-    const [code, ...details] = message.split(":");
-    return toolResult({ ok: false, error: code, detail: details.join(":") || undefined }, true);
+    const [rawCode, ...details] = message.split(":");
+    const code = rawCode.slice(0, 120);
+    const detail = details.join(":").slice(0, 600);
+    return toolResult({ ok: false, error: code, detail: detail || undefined }, true);
   }
+}
+
+function chunkValues<T>(values: readonly T[], size = 200): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
 }
 
 function ideaStageItems(bundle: ValidatedIdeaBundle) {
@@ -63,27 +86,6 @@ function schemaVersionNumber(value: string): number {
   const match = value.match(/\.v(\d+)$/);
   return match ? Number(match[1]) : 2;
 }
-
-const quizDraftSchema = z.object({
-  schemaVersion: z.literal("quiz-bank-draft.v1"),
-  draftId: z.string().min(1),
-  questions: z.array(z.object({
-    id: z.string().min(1),
-    knowledgeObjectId: z.string().min(1),
-    itemFormat: z.enum(["multiple_choice", "multiple_choices"]),
-    prompt: z.string().min(1),
-    options: z.array(z.string().min(1)),
-    correctIndices: z.array(z.number().int().nonnegative()),
-    explanation: z.string().min(1),
-    difficulty: z.enum(["easy", "medium", "hard"]),
-    cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]),
-    reasoningPattern: z.string().min(1),
-    tags: z.array(z.string()).default([]),
-    acceptableAnswers: z.array(z.string()).default([]),
-    applicationLevel: z.number().int().min(0).max(5).optional(),
-    estimatedSteps: z.number().int().positive().optional(),
-  }).strict()).min(1),
-}).strict();
 
 const sourceOriginalSchema = z.array(z.object({
   documentId: z.string().min(1),
@@ -111,7 +113,10 @@ function scopeIssue(code: string, message: string, path: string) {
 async function validateProductIdeaScope(run: ReturnType<typeof readMcpRunToken>, bundle: Extract<ReturnType<typeof validateProductBundle>, { success: true }>['data']) {
   const links = [...new Map(bundle.products.flatMap((product) => product.ideaLinks.map((link) => [link.id, link] as const))).values()];
   if (links.length === 0) return { valid: false, issues: [scopeIssue("PRODUCT_IDEA_LINK_MISSING", "Product Bundle must reference at least one Idea.", "entities/products.json")] };
-  const rows = await db.select({ id: ide.id, courseId: ide.mataKuliahId, version: ide.version, semanticHash: ide.semanticHash, status: ide.status }).from(ide).where(inArray(ide.id, links.map((link) => link.id)));
+  const rows = [];
+  for (const chunk of chunkValues(links.map((link) => link.id))) {
+    rows.push(...await db.select({ id: ide.id, courseId: ide.mataKuliahId, version: ide.version, semanticHash: ide.semanticHash, status: ide.status }).from(ide).where(inArray(ide.id, chunk)));
+  }
   const byId = new Map(rows.map((row) => [row.id, row]));
   const issues = [];
   for (const link of links) {
@@ -142,93 +147,211 @@ function validateProductChapterScope(run: ReturnType<typeof readMcpRunToken>, bu
   return { valid: issues.length === 0, issues };
 }
 
-async function legacyScopeForRun(courseId: string, chapterId: string): Promise<{ courseId: string; chapterId: string }> {
-  const [course] = await db.select({ id: courses.id }).from(courses).where(eq(courses.id, courseId)).limit(1);
-  const [courseTarget] = await db.select({ legacyCourseId: mataKuliah.legacyCourseId }).from(mataKuliah).where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId))).limit(1);
-  const legacyCourseId = course?.id ?? courseTarget?.legacyCourseId;
-  if (!legacyCourseId) throw new Error("AUTHORING_MCP_COURSE_NOT_FOUND");
-  const [chapter] = await db.select({ legacyChapterId: bab.legacyChapterId }).from(bab).where(and(eq(bab.id, chapterId), eq(bab.mataKuliahId, courseId))).limit(1);
-  if (!chapter?.legacyChapterId) throw new Error("AUTHORING_MCP_CHAPTER_MAPPING_MISSING");
-  return { courseId: legacyCourseId, chapterId: chapter.legacyChapterId };
+function questionIdForRun(runId: string, externalId: string): string {
+  return `mcp-q-${sha256Text(`${runId}:${externalId}`).slice(0, 32)}`;
 }
 
-async function stageQuizDraft(principal: McpPrincipal, runToken: string, draft: z.infer<typeof quizDraftSchema>) {
-  requireMcpScope(principal, "authoring:stage");
-  const run = readMcpRunToken(runToken);
-  if (run.workflow !== "quiz_bank") throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
-  const scope = await legacyScopeForRun(run.courseId, run.chapterId);
-  const checks = await Promise.all(draft.questions.map(async (question) => {
-    const [knowledgeObject] = await db
-      .select({ courseId: knowledgeObjects.courseId, chapterId: knowledgeObjects.chapterId, status: knowledgeObjects.status })
-      .from(knowledgeObjects)
-      .where(eq(knowledgeObjects.id, question.knowledgeObjectId))
-      .limit(1);
-    const result = await validateQuestion(question);
-    const errors = [...result.errors];
-    if (!knowledgeObject) errors.push("Knowledge Object tidak ditemukan.");
-    else {
-      if (knowledgeObject.status !== "active") errors.push("Knowledge Object tidak aktif.");
-      if (knowledgeObject.courseId !== scope.courseId) errors.push("Knowledge Object berada di mata kuliah lain.");
-      if (knowledgeObject.chapterId !== scope.chapterId) errors.push("Knowledge Object berada di bab lain.");
-    }
-    return { question, errors, warnings: result.warnings };
-  }));
-  const issues = checks.flatMap((check) => [
-    ...check.errors.map((message) => ({ code: "QUIZ_DRAFT_INVALID", message, path: check.question.id })),
-    ...check.warnings.map((message) => ({ code: "QUIZ_DRAFT_WARNING", message, path: check.question.id })),
-  ]);
-  if (checks.some((check) => check.errors.length > 0)) return { ok: false, valid: false, staged: false, draftId: draft.draftId, questionCount: draft.questions.length, issues, next: "agent_revision" };
+function canonicalBatchForRun(run: ReturnType<typeof readMcpRunToken>, draft: NormalizedQuestionBankDraft) {
+  return {
+    courseId: run.courseId,
+    chapterId: run.chapterId,
+    reviewStatus: "generated" as const,
+    items: draft.items.map((item) => ({
+      questionId: questionIdForRun(run.runId, item.externalId),
+      question: item.question,
+      ideaLinks: item.ideaLinks,
+    })),
+  };
+}
 
-  const rows = draft.questions.map((question) => {
-    const generationHash = sha256Text(serializeDeterministically({ runId: run.runId, question }));
-    const id = `mcp-q-${sha256Text(`${run.runId}:${question.id}`).slice(0, 32)}`;
-    return {
-      id,
-      courseId: scope.courseId,
-      origin: "zyx_original" as const,
-      sourceEventName: null,
-      sourceReferenceId: null,
-      knowledgeObjectId: question.knowledgeObjectId,
-      status: "active",
-      isStale: false,
-      difficulty: question.difficulty,
-      questionType: question.itemFormat,
-      tags: question.tags,
-      prompt: question.prompt,
-      options: question.options,
-      correctIndices: question.correctIndices,
-      acceptableAnswers: question.acceptableAnswers,
-      explanation: question.explanation,
-      generationHash,
-      reviewStatus: "generated" as const,
-      pattern: question.reasoningPattern,
-      applicationLevel: question.applicationLevel,
-      estimatedSteps: question.estimatedSteps,
-    };
-  });
-  const existing = await db.select({ id: aiQuestionBank.id, generationHash: aiQuestionBank.generationHash }).from(aiQuestionBank).where(inArray(aiQuestionBank.id, rows.map((row) => row.id)));
-  const existingById = new Map(existing.map((row) => [row.id, row.generationHash]));
-  for (const row of rows) {
-    const existingHash = existingById.get(row.id);
-    if (existingHash && existingHash !== row.generationHash) throw new Error(`QUIZ_DRAFT_CONFLICT:${row.id}`);
+function questionAuthoringIssue(error: unknown) {
+  if (error instanceof QuestionAuthoringError) {
+    return { code: error.code, message: error.message };
   }
-  const pendingRows = rows.filter((row) => !existingById.has(row.id));
-  if (pendingRows.length > 0) {
-    await db.transaction(async (tx) => {
-      await tx.insert(aiQuestionBank).values(pendingRows);
-    });
+  return { code: "QUESTION_BANK_DRAFT_VALIDATION_FAILED", message: error instanceof Error ? error.message : "Validasi soal gagal." };
+}
+
+async function loadQuizScopeIdeaRows(courseId: string, chapterId: string, referencedIds: readonly string[]) {
+  const catalogRows = await db
+    .select({
+      id: ide.id,
+      code: ide.code,
+      courseId: ide.mataKuliahId,
+      chapterId: ide.babId,
+      status: ide.status,
+      statement: ide.canonicalStatement,
+      explanation: ide.conciseExplanation,
+      latex: ide.latex,
+      knowledgeKind: ide.knowledgeKind,
+      instructionalRole: ide.instructionalRole,
+      difficultyMetadata: ide.difficultyMetadata,
+      version: ide.version,
+      semanticHash: ide.semanticHash,
+    })
+    .from(ide)
+    .where(and(eq(ide.mataKuliahId, courseId), eq(ide.babId, chapterId), eq(ide.status, "published")))
+    .orderBy(ide.code);
+
+  const referencedRows = [];
+  const knownIds = new Set(catalogRows.map((row) => row.id));
+  const extraIds = [...new Set(referencedIds)].filter((id) => !knownIds.has(id));
+  for (const chunk of chunkValues(extraIds)) {
+    referencedRows.push(...await db
+      .select({
+        id: ide.id,
+        code: ide.code,
+        courseId: ide.mataKuliahId,
+        chapterId: ide.babId,
+        status: ide.status,
+        statement: ide.canonicalStatement,
+        explanation: ide.conciseExplanation,
+        latex: ide.latex,
+        knowledgeKind: ide.knowledgeKind,
+        instructionalRole: ide.instructionalRole,
+        difficultyMetadata: ide.difficultyMetadata,
+        version: ide.version,
+        semanticHash: ide.semanticHash,
+      })
+      .from(ide)
+      .where(inArray(ide.id, chunk)));
+  }
+  return { catalogRows, referencedRows };
+}
+
+type QuizIdeaRow = Awaited<ReturnType<typeof loadQuizScopeIdeaRows>>["catalogRows"][number];
+
+function reviewRowsForScope(rows: readonly QuizIdeaRow[]) {
+  return rows.map((row) => ({
+    id: row.id,
+    code: row.code,
+    courseId: row.courseId,
+    chapterId: row.chapterId,
+    status: row.status,
+  }));
+}
+
+async function reviewDraftAgainstScope(run: ReturnType<typeof readMcpRunToken>, draft: NormalizedQuestionBankDraft) {
+  const referencedIds = draft.items.flatMap((item) => item.ideaLinks.map((link) => link.ideaId));
+  const { catalogRows, referencedRows } = await loadQuizScopeIdeaRows(run.courseId, run.chapterId, referencedIds);
+  const review = reviewQuestionBankDraft({
+    draft,
+    scopeCourseId: run.courseId,
+    scopeChapterId: run.chapterId,
+    ideas: reviewRowsForScope([...catalogRows, ...referencedRows]),
+  });
+  return { review, catalogCount: catalogRows.length };
+}
+
+async function validateQuestionBankDraft(runToken: string, draft: NormalizedQuestionBankDraft) {
+  const run = readMcpRunToken(runToken);
+  if (run.workflow !== "quiz_bank") return { ok: false, valid: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+  const { review } = await reviewDraftAgainstScope(run, draft);
+  if (!review.valid) {
+    return {
+      ok: false,
+      valid: false,
+      draftId: draft.draftId,
+      schemaVersion: draft.schemaVersion,
+      questionCount: review.stats.questionCount,
+      linkedQuestionCount: review.stats.linkedQuestionCount,
+      issues: review.issues.filter((issue) => issue.severity === "blocking"),
+      warnings: review.issues.filter((issue) => issue.severity === "warning"),
+      issuesTruncated: review.issuesTruncated,
+      stats: review.stats,
+      next: "agent_revision",
+    };
+  }
+  try {
+    await validateCanonicalQuestionBatch(canonicalBatchForRun(run, draft));
+  } catch (error) {
+    return {
+      ok: false,
+      valid: false,
+      draftId: draft.draftId,
+      schemaVersion: draft.schemaVersion,
+      questionCount: review.stats.questionCount,
+      linkedQuestionCount: review.stats.linkedQuestionCount,
+      issues: [{ ...questionAuthoringIssue(error), severity: "blocking" as const }],
+      warnings: review.issues.filter((issue) => issue.severity === "warning"),
+      issuesTruncated: false,
+      stats: review.stats,
+      next: "agent_revision",
+    };
   }
   return {
     ok: true,
     valid: true,
-    staged: true,
     draftId: draft.draftId,
-    questionCount: rows.length,
-    createdCount: pendingRows.length,
-    existingCount: rows.length - pendingRows.length,
-    issues,
+    schemaVersion: draft.schemaVersion,
+    questionCount: review.stats.questionCount,
+    linkedQuestionCount: review.stats.linkedQuestionCount,
+    issues: [],
+    warnings: review.issues.filter((issue) => issue.severity === "warning"),
+    issuesTruncated: false,
+    stats: review.stats,
     next: "admin_review",
   };
+}
+
+async function stageQuestionBankDraft(principal: McpPrincipal, runToken: string, draft: NormalizedQuestionBankDraft) {
+  requireMcpScope(principal, "authoring:stage");
+  const run = readMcpRunToken(runToken);
+  if (run.workflow !== "quiz_bank") return { ok: false, valid: false, staged: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+  const { review } = await reviewDraftAgainstScope(run, draft);
+  if (!review.valid) {
+    return {
+      ok: false,
+      valid: false,
+      staged: false,
+      draftId: draft.draftId,
+      schemaVersion: draft.schemaVersion,
+      questionCount: review.stats.questionCount,
+      linkedQuestionCount: review.stats.linkedQuestionCount,
+      issues: review.issues.filter((issue) => issue.severity === "blocking"),
+      warnings: review.issues.filter((issue) => issue.severity === "warning"),
+      issuesTruncated: review.issuesTruncated,
+      stats: review.stats,
+      next: "agent_revision",
+    };
+  }
+  try {
+    const results = await createCanonicalQuestionBatch({
+      ...canonicalBatchForRun(run, draft),
+      creatorId: principal.actorId,
+      createOnly: true,
+    });
+    return {
+      ok: true,
+      valid: true,
+      staged: true,
+      draftId: draft.draftId,
+      schemaVersion: draft.schemaVersion,
+      questionCount: results.length,
+      linkedQuestionCount: review.stats.linkedQuestionCount,
+      createdCount: results.filter((result) => result.created).length,
+      existingCount: results.filter((result) => result.unchanged).length,
+      questionIds: results.map((result) => result.id),
+      warnings: review.issues.filter((issue) => issue.severity === "warning"),
+      stats: review.stats,
+      issues: [],
+      next: "admin_review",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      valid: false,
+      staged: false,
+      draftId: draft.draftId,
+      schemaVersion: draft.schemaVersion,
+      questionCount: review.stats.questionCount,
+      linkedQuestionCount: review.stats.linkedQuestionCount,
+      issues: [{ ...questionAuthoringIssue(error), severity: "blocking" as const }],
+      warnings: review.issues.filter((issue) => issue.severity === "warning"),
+      issuesTruncated: false,
+      stats: review.stats,
+      next: "agent_revision",
+    };
+  }
 }
 
 function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void {
@@ -276,10 +399,10 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
 
   (server as any).registerTool("workflow.start", {
     title: "Start authoring workflow",
-    description: "Mengunci Source Pack, mata kuliah, bab, dan salah satu dari dua workflow authoring.",
+    description: "Mengunci mata kuliah, bab, dan workflow authoring. Source Pack wajib untuk idea_product dan opsional untuk quiz_bank.",
     inputSchema: {
       workflow: authoringWorkflowSchema,
-      sourcePackToken: z.string().min(1),
+      sourcePackToken: z.string().min(1).optional(),
       courseKey: z.string().min(1),
       chapterKey: z.string().min(1),
     },
@@ -467,9 +590,157 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     return { ok: true, valid: true, staged: true, result, quality, next: "admin_review" };
   }));
 
+  (server as any).registerTool("assessment.list_ideas", {
+    title: "List published Ideas for question authoring",
+    description: "Mengembalikan katalog Idea published pada mata kuliah dan bab yang dikunci, dengan pencarian teks, filter knowledge kind, instructional role, difficulty level, facets distribusi, dan paging.",
+    inputSchema: {
+      runToken: z.string().min(1),
+      query: z.string().trim().max(200).optional(),
+      knowledgeKinds: z.array(z.enum(IDEA_KNOWLEDGE_KINDS)).max(IDEA_KNOWLEDGE_KINDS.length).optional(),
+      instructionalRoles: z.array(z.enum(IDEA_INSTRUCTIONAL_ROLES)).max(IDEA_INSTRUCTIONAL_ROLES.length).optional(),
+      difficultyLevels: z.array(z.enum(IDEA_DIFFICULTY_LEVELS)).max(IDEA_DIFFICULTY_LEVELS.length).optional(),
+      limit: z.number().int().min(1).max(200).default(100),
+      offset: z.number().int().min(0).default(0),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ runToken, query, knowledgeKinds, instructionalRoles, difficultyLevels, limit, offset }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const run = readMcpRunToken(runToken);
+    if (run.workflow !== "quiz_bank") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+    const rows = await db
+      .select({
+        id: ide.id,
+        code: ide.code,
+        statement: ide.canonicalStatement,
+        explanation: ide.conciseExplanation,
+        latex: ide.latex,
+        knowledgeKind: ide.knowledgeKind,
+        instructionalRole: ide.instructionalRole,
+        difficultyMetadata: ide.difficultyMetadata,
+        version: ide.version,
+        semanticHash: ide.semanticHash,
+      })
+      .from(ide)
+      .where(and(eq(ide.mataKuliahId, run.courseId), eq(ide.babId, run.chapterId), eq(ide.status, "published")))
+      .orderBy(ide.code);
+    const records = rows.map((row) => ({
+      id: row.id,
+      code: row.code,
+      statement: row.statement,
+      explanation: row.explanation,
+      latex: row.latex,
+      knowledgeKind: normalizeIdeaKnowledgeKind(row.knowledgeKind),
+      instructionalRole: normalizeIdeaInstructionalRole(row.instructionalRole),
+      difficultyLevel: normalizeIdeaDifficultyLevel((row.difficultyMetadata as Record<string, unknown> | null)?.level),
+      version: row.version,
+      semanticHash: row.semanticHash,
+    }));
+    const filtered = filterIdeaRecords(records, { query, knowledgeKinds, instructionalRoles, difficultyLevels });
+    const page = paginateIdeaRecords(filtered, limit, offset);
+    return {
+      ok: true,
+      scope: { course: run.courseLabel, chapter: run.chapterLabel },
+      totalIdeaCount: records.length,
+      ideaCount: page.total,
+      ideas: page.items,
+      facets: computeIdeaFacets(filtered),
+      paging: { limit: page.limit, offset: page.offset, nextOffset: page.nextOffset },
+      filters: {
+        query: query ?? null,
+        knowledgeKinds: knowledgeKinds ?? [],
+        instructionalRoles: instructionalRoles ?? [],
+        difficultyLevels: difficultyLevels ?? [],
+      },
+      linking: { required: false, weightRule: "Jika satu atau lebih Idea dipilih, bobot positif harus berjumlah 1." },
+    };
+  }));
+
+  (server as any).registerTool("assessment.get_idea", {
+    title: "Get published Idea detail",
+    description: "Mengembalikan detail satu Idea published dalam scope run, termasuk relations aktif dan ringkasan provenance sumber.",
+    inputSchema: {
+      runToken: z.string().min(1),
+      ideaId: z.string().trim().min(1),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ runToken, ideaId }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const run = readMcpRunToken(runToken);
+    if (run.workflow !== "quiz_bank") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
+    const [idea] = await db
+      .select({
+        id: ide.id,
+        code: ide.code,
+        statement: ide.canonicalStatement,
+        explanation: ide.conciseExplanation,
+        latex: ide.latex,
+        knowledgeKind: ide.knowledgeKind,
+        instructionalRole: ide.instructionalRole,
+        difficultyMetadata: ide.difficultyMetadata,
+        version: ide.version,
+        status: ide.status,
+        semanticHash: ide.semanticHash,
+        courseId: ide.mataKuliahId,
+        chapterId: ide.babId,
+      })
+      .from(ide)
+      .where(eq(ide.id, ideaId))
+      .limit(1);
+    if (!idea || idea.courseId !== run.courseId || idea.chapterId !== run.chapterId || idea.status !== "published") {
+      throw new Error("AUTHORING_MCP_IDEA_NOT_IN_SCOPE");
+    }
+    const outgoingRows = await db
+      .select({
+        relationType: relasiIde.relationType,
+        counterpartId: relasiIde.targetIdeaId,
+        counterpartCode: ide.code,
+        explanation: relasiIde.explanation,
+      })
+      .from(relasiIde)
+      .innerJoin(ide, eq(ide.id, relasiIde.targetIdeaId))
+      .where(and(eq(relasiIde.status, "active"), eq(relasiIde.sourceIdeaId, ideaId), eq(ide.status, "published")));
+    const incomingRows = await db
+      .select({
+        relationType: relasiIde.relationType,
+        counterpartId: relasiIde.sourceIdeaId,
+        counterpartCode: ide.code,
+        explanation: relasiIde.explanation,
+      })
+      .from(relasiIde)
+      .innerJoin(ide, eq(ide.id, relasiIde.sourceIdeaId))
+      .where(and(eq(relasiIde.status, "active"), eq(relasiIde.targetIdeaId, ideaId), eq(ide.status, "published")));
+    const provenanceCounts: Array<{ role: string; count: number }> = await db
+      .select({ role: asalIde.provenanceRole, count: sql<number>`count(*)` })
+      .from(asalIde)
+      .where(eq(asalIde.ideId, ideaId))
+      .groupBy(asalIde.provenanceRole);
+    return {
+      ok: true,
+      scope: { course: run.courseLabel, chapter: run.chapterLabel },
+      idea: {
+        id: idea.id,
+        code: idea.code,
+        statement: idea.statement,
+        explanation: idea.explanation,
+        latex: idea.latex,
+        knowledgeKind: normalizeIdeaKnowledgeKind(idea.knowledgeKind),
+        instructionalRole: normalizeIdeaInstructionalRole(idea.instructionalRole),
+        difficultyLevel: normalizeIdeaDifficultyLevel((idea.difficultyMetadata as Record<string, unknown> | null)?.level),
+        version: idea.version,
+        semanticHash: idea.semanticHash,
+      },
+      relations: [
+        ...outgoingRows.map((row) => ({ relationType: row.relationType, direction: "outgoing", counterpart: { id: row.counterpartId, code: row.counterpartCode }, explanation: row.explanation })),
+        ...incomingRows.map((row) => ({ relationType: row.relationType, direction: "incoming", counterpart: { id: row.counterpartId, code: row.counterpartCode }, explanation: row.explanation })),
+      ],
+      provenance: { counts: provenanceCounts.map((row) => ({ role: row.role, count: Number(row.count) })) },
+      linking: { required: false, weightRule: "Jika satu atau lebih Idea dipilih, bobot positif harus berjumlah 1." },
+    };
+  }));
+
   (server as any).registerTool("assessment.validate_quiz_draft", {
-    title: "Validate quiz bank draft",
-    description: "Memeriksa draft soal kuis secara terstruktur sebelum masuk ke review bank soal.",
+    title: "Validate question bank draft",
+    description: "Memeriksa draft soal terstruktur, relasi Idea opsional, dan scope sebelum masuk ke review bank soal.",
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
@@ -477,57 +748,23 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async ({ runToken, draftJson }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
-    const run = readMcpRunToken(runToken);
-    if (run.workflow !== "quiz_bank") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(draftJson);
-    } catch {
-      return { ok: false, valid: false, issues: [{ code: "QUIZ_DRAFT_INVALID_JSON", message: "Draft JSON tidak valid" }] };
-    }
-    const draft = quizDraftSchema.safeParse(parsed);
-    if (!draft.success) {
-      return { ok: false, valid: false, issues: draft.error.issues.map((issue) => ({ code: "QUIZ_DRAFT_SCHEMA_INVALID", message: issue.message, path: issue.path.join(".") })) };
-    }
-    const checks = await Promise.all(draft.data.questions.map(async (question) => ({
-      id: question.id,
-      result: await validateQuestion(question),
-    })));
-    const issues = checks.flatMap((check) => [
-      ...check.result.errors.map((message) => ({ code: "QUIZ_DRAFT_INVALID", message, path: check.id })),
-      ...check.result.warnings.map((message) => ({ code: "QUIZ_DRAFT_WARNING", message, path: check.id })),
-    ]);
-    const errors = checks.reduce((total, check) => total + check.result.errors.length, 0);
-    return {
-      ok: errors === 0,
-      valid: errors === 0,
-      draftId: draft.data.draftId,
-      questionCount: draft.data.questions.length,
-      issues,
-      next: errors === 0 ? "admin_review" : "agent_revision",
-    };
+    const parsed = parseQuestionBankDraftJson(draftJson);
+    if (!parsed.success) return { ok: false, valid: false, issues: parsed.issues, next: "agent_revision" };
+    return validateQuestionBankDraft(runToken, normalizeQuestionBankDraft(parsed.data));
   }));
 
   (server as any).registerTool("assessment.submit_quiz_draft", {
-    title: "Submit quiz bank draft for review",
-    description: "Memvalidasi lalu menaruh draft soal kuis sebagai generated di bank soal. Tool ini tidak dapat mempublikasikan soal.",
+    title: "Submit question bank draft for review",
+    description: "Memvalidasi lalu menyimpan soal canonical dan projection kompatibilitas sebagai generated. Tool ini tidak dapat mempublikasikan soal.",
     inputSchema: {
       runToken: z.string().min(1),
       draftJson: z.string().min(1).max(8 * 1024 * 1024),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async ({ runToken, draftJson }: any) => safeTool(async () => {
-    const run = readMcpRunToken(runToken);
-    if (run.workflow !== "quiz_bank") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(draftJson);
-    } catch {
-      return { ok: false, valid: false, staged: false, issues: [{ code: "QUIZ_DRAFT_INVALID_JSON", message: "Draft JSON tidak valid" }] };
-    }
-    const draft = quizDraftSchema.safeParse(parsed);
-    if (!draft.success) return { ok: false, valid: false, staged: false, issues: draft.error.issues.map((issue) => ({ code: "QUIZ_DRAFT_SCHEMA_INVALID", message: issue.message, path: issue.path.join(".") })) };
-    return stageQuizDraft(principal, runToken, draft.data);
+    const parsed = parseQuestionBankDraftJson(draftJson);
+    if (!parsed.success) return { ok: false, valid: false, staged: false, issues: parsed.issues, next: "agent_revision" };
+    return stageQuestionBankDraft(principal, runToken, normalizeQuestionBankDraft(parsed.data));
   }));
 }
 

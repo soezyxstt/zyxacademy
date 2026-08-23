@@ -4,7 +4,7 @@ import {
  Layers,
  Lock,
  Minus,
- Sparkles,
+ ClipboardList,
  TrendingDown,
  TrendingUp,
 } from "lucide-react";
@@ -96,7 +96,7 @@ function MasteryPane() {
 
 const planItems = [
  { icon: Layers, label: "12 flashcard jatuh tempo", meta: "± 5 mnt", done: true },
- { icon: Sparkles, label: "Kuis: Integral Parsial", meta: "10 soal", done: false },
+ { icon: ClipboardList, label: "Kuis: Integral Parsial", meta: "10 soal", done: false },
  { icon: BookOpen, label: "Materi: Volume Benda Putar", meta: "12 mnt baca", done: false },
 ];
 

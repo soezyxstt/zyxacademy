@@ -13,6 +13,9 @@ export const questionIdeaLinkSchema = z.object({
 });
 
 export const questionAuthoringQuestionSchema = z.object({
+  knowledgeObjectId: z.string().trim().min(1).nullable().optional(),
+  applicationLevel: z.number().int().min(0).max(5).optional(),
+  estimatedSteps: z.number().int().positive().optional(),
   difficulty: difficultySchema,
   questionType: questionTypeSchema,
   cognitiveLevel: cognitiveLevelSchema.default("understand"),
@@ -28,7 +31,7 @@ export const questionAuthoringQuestionSchema = z.object({
 export const questionAuthoringInputSchema = questionAuthoringQuestionSchema.extend({
   courseId: z.string().trim().min(1),
   chapterId: z.string().trim().min(1).nullable().optional(),
-  ideaLinks: z.array(questionIdeaLinkSchema).min(1),
+  ideaLinks: z.array(questionIdeaLinkSchema).default([]),
   reviewStatus: questionReviewStatusSchema.default("generated"),
 });
 

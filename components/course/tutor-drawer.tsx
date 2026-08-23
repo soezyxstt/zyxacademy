@@ -18,11 +18,9 @@ import {
   FileQuestion,
   Maximize2,
   Minimize2,
-  Sparkles,
   Copy,
   Trash2,
   Send,
-  GripVertical,
   HelpCircle,
   Paperclip,
 } from "lucide-react";
@@ -41,6 +39,7 @@ import {
   saveTutorMessagesAction,
   loadTutorHistoryAction,
   clearTutorHistoryAction,
+  getTutorCourseContextAction,
 } from "@/app/actions/tutor";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
@@ -52,7 +51,7 @@ import {
   type ZyraAttachmentComposerHandle,
 } from "@/components/course/zyra-attachment-composer";
 import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
-import { ZyraPet } from "@/components/course/zyra-pet";
+import { ZyraMathPalette } from "@/components/course/zyra-math-palette";
 import { ZyraMark } from "@/components/course/zyra-mark";
 import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
 import { petStateForTutorEvent } from "@/lib/zyra/murid";
@@ -85,6 +84,9 @@ interface TutorContextType {
   close: () => void;
   isOpen: boolean;
   activeMode: TutorMode;
+  /** When true the floating pet and drawer are suppressed (e.g. during an active quiz). */
+  suppressPet: boolean;
+  setSuppressPet: (v: boolean) => void;
 }
 
 const TutorContext = React.createContext<TutorContextType | undefined>(undefined);
@@ -98,8 +100,72 @@ export function useTutor() {
 }
 
 const MIN_SIDEBAR_WIDTH = 340;
-const DEFAULT_SIDEBAR_WIDTH = 520;
+const DEFAULT_SIDEBAR_WIDTH = 600;
 const STORAGE_KEY_WIDTH = "zyra_tutor_sidebar_width";
+
+/** Returns a trimmed string or a fallback when the value is missing/blank. */
+function safeText(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+}
+
+/**
+ * Heuristic for the latest assistant turn asking the student a question
+ * (comprehension check). When true, follow-up chips switch from generic
+ * accelerators to Socratic hint scaffolds.
+ */
+function isComprehensionCheck(content: string): boolean {
+  if (/cek pemahaman|uji pemahaman/i.test(content)) return true;
+  const tail = content.trimEnd().slice(-400);
+  return /\?/.test(tail.replace(/[$`\\]/g, ""));
+}
+
+const GENERIC_CHIPS = [
+  { icon: "example", label: "Contoh Soal", prompt: "Berikan contoh soal serupa dan tuntun aku langkah demi langkah." },
+  { icon: "help", label: "Uji Pemahaman", prompt: "Uji pemahamanku dengan 1 pertanyaan konsep singkat tanpa memberi kunci jawaban langsung." },
+  { icon: "compass", label: "Analogi", prompt: "Jelaskan dengan analogi sehari-hari yang mudah dibayangkan." },
+] as const;
+
+/** Socratic scaffold ladder shown while Zyra waits for a student answer. */
+const CHECK_CHIPS = [
+  { icon: "help", label: "Beri hint langkah pertama", prompt: "Beri hint untuk langkah pertama saja tanpa mengungkap jawaban akhirnya." },
+  { icon: "refresh", label: "Bimbing aku lebih pelan", prompt: "Aku masih bingung. Bimbing aku ulangi penjelasannya lebih pelan, satu langkah pada satu waktu." },
+  { icon: "arrow", label: "Tampilkan pembahasan", prompt: "Aku belum bisa menjawab. Tampilkan pembahasan lengkapnya lalu uji aku dengan soal serupa." },
+] as const;
+
+function FollowUpChipIcon({ name }: { name: "example" | "help" | "compass" | "refresh" | "arrow" }) {
+  if (name === "example") return <FileQuestion className="size-3 text-brand-primary" />;
+  if (name === "compass") return <Compass className="size-3 text-brand-primary" />;
+  if (name === "refresh") return <RefreshCw className="size-3 text-brand-secondary" />;
+  if (name === "arrow") return <ArrowRight className="size-3 text-brand-secondary" />;
+  return <HelpCircle className="size-3 text-brand-secondary" />;
+}
+
+function FollowUpChips({
+  comprehensionCheck,
+  onSend,
+}: {
+  comprehensionCheck: boolean;
+  onSend: (prompt: string) => void;
+}) {
+  const chips = comprehensionCheck ? CHECK_CHIPS : GENERIC_CHIPS;
+  return (
+    <div className="mt-2 pt-1.5 flex items-center gap-0.5 overflow-x-auto no-scrollbar" aria-label="Aksi belajar lanjutan">
+      {chips.map((chip) => (
+        <button
+          key={chip.label}
+          type="button"
+          onClick={() => onSend(chip.prompt)}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+        >
+          <FollowUpChipIcon name={chip.icon} />
+          <span>{chip.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function TutorProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -108,6 +174,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeMode, setActiveMode] = React.useState<TutorMode>(null);
+  const [suppressPet, setSuppressPet] = React.useState(false);
   const imageInputEnabled = caps.imageInput && activeMode === "chat";
 
   // Variables and results states
@@ -143,6 +210,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const [isDragging, setIsDragging] = React.useState(false);
   const isResizingRef = React.useRef(false);
 
+  // Human-readable course label for the drawer header
+  const [courseLabel, setCourseLabel] = React.useState<string | null>(null);
+
   // Micro-apps inside drawer
   const [activeAction, setActiveAction] = React.useState<ActiveAction>("none");
   const [actionData, setActionData] = React.useState<any[]>([]);
@@ -163,6 +233,34 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {}
   }, []);
+
+  // Resolve the academic course label for the header context line
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!courseIdFromPath) {
+      setCourseLabel(null);
+      return;
+    }
+    getTutorCourseContextAction(courseIdFromPath)
+      .then((title) => {
+        if (!cancelled) setCourseLabel(title);
+      })
+      .catch(() => {
+        if (!cancelled) setCourseLabel(null);
+      });
+    return () => { cancelled = true; };
+  }, [courseIdFromPath]);
+
+  // Lock background page scroll while the drawer is open so only the drawer
+  // body scrolls (prevents the double-scrollbar effect on desktop).
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [isOpen]);
 
   const petState = petStateForTutorEvent({
     isOpen,
@@ -197,49 +295,85 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     textareaRef.current.style.height = `${Math.max(42, nextHeight)}px`;
   }, [inputVal]);
 
-  // Handle drag to resize
-  const startResize = React.useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+  // Handle drag to resize (mouse and touch share the same width logic)
+  const applyResizeClientX = React.useCallback((clientX: number) => {
+    const maxWidth = window.innerWidth - 24;
+    const targetWidth = window.innerWidth - clientX;
+    const clamped = Math.min(maxWidth, Math.max(MIN_SIDEBAR_WIDTH, targetWidth));
+    setIsExpanded(false);
+    setSidebarWidth(clamped);
+  }, []);
+
+  const persistWidth = React.useCallback(() => {
+    try {
+      setSidebarWidth((current) => {
+        localStorage.setItem(STORAGE_KEY_WIDTH, String(current));
+        return current;
+      });
+    } catch {}
+  }, []);
+
+  const beginResize = React.useCallback(() => {
     isResizingRef.current = true;
     setIsDragging(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+  }, []);
+
+  const endResize = React.useCallback(() => {
+    if (!isResizingRef.current) return;
+    isResizingRef.current = false;
+    setIsDragging(false);
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    persistWidth();
+  }, [persistWidth]);
+
+  const startResize = React.useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    beginResize();
 
     const onMove = (ev: MouseEvent) => {
       if (!isResizingRef.current) return;
-      const maxWidth = window.innerWidth - 24;
-      const targetWidth = window.innerWidth - ev.clientX;
-      const clamped = Math.min(maxWidth, Math.max(MIN_SIDEBAR_WIDTH, targetWidth));
-      setIsExpanded(false);
-      setSidebarWidth(clamped);
+      applyResizeClientX(ev.clientX);
     };
 
     const onUp = () => {
-      if (isResizingRef.current) {
-        isResizingRef.current = false;
-        setIsDragging(false);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        try {
-          setSidebarWidth((current) => {
-            localStorage.setItem(STORAGE_KEY_WIDTH, String(current));
-            return current;
-          });
-        } catch {}
-      }
+      endResize();
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
     };
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }, []);
+  }, [applyResizeClientX, beginResize, endResize]);
+
+  const startResizeTouch = React.useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    beginResize();
+
+    const onMove = (ev: TouchEvent) => {
+      if (!isResizingRef.current) return;
+      const touch = ev.touches[0];
+      if (touch) applyResizeClientX(touch.clientX);
+    };
+
+    const onEnd = () => {
+      endResize();
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+    };
+
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onEnd);
+  }, [applyResizeClientX, beginResize, endResize]);
 
   const toggleExpand = React.useCallback(() => {
     setIsExpanded((prev) => !prev);
   }, []);
 
   const openChat = React.useCallback(async () => {
+    if (suppressPet) return;
     setKoId(null);
     setQuestionId(null);
     setUserAnswer(null);
@@ -285,7 +419,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         content: "Halo! Aku Zyra, asisten belajar buatan Zyx. Tanyakan apa saja seputar materi kuliah atau soal latihan, aku siap membimbingmu dengan pendekatan Socratic!",
       }]);
     }
-  }, [pathname]);
+  }, [pathname, suppressPet]);
 
   const openChatWithQuestion = React.useCallback(async (question: string) => {
     await openChat();
@@ -296,6 +430,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   }, [openChat]);
 
   const openExplain = React.useCallback((id: string, initialMode: "content" | "analogy" | "simplification" = "content") => {
+    if (suppressPet) return;
     if (!caps.explain) {
       openChat();
       return;
@@ -308,9 +443,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setActiveAction("none");
     setMessages([]);
     setIsOpen(true);
-  }, [caps.explain, openChat]);
+  }, [caps.explain, openChat, suppressPet]);
 
   const openMistake = React.useCallback((qId: string, answerText: string) => {
+    if (suppressPet) return;
     setKoId(null);
     setQuestionId(qId);
     setUserAnswer(answerText);
@@ -318,9 +454,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setActiveAction("none");
     setMessages([]);
     setIsOpen(true);
-  }, []);
+  }, [suppressPet]);
 
   const openStudyPlan = React.useCallback(() => {
+    if (suppressPet) return;
     if (!caps.studyPlan) {
       openChat();
       return;
@@ -332,7 +469,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setActiveAction("none");
     setMessages([]);
     setIsOpen(true);
-  }, [caps.studyPlan, openChat]);
+  }, [caps.studyPlan, openChat, suppressPet]);
 
   const close = React.useCallback(() => {
     setIsOpen(false);
@@ -342,6 +479,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setErrors([]);
     setSessionId(null);
   }, []);
+
+  React.useEffect(() => {
+    if (suppressPet && isOpen) close();
+  }, [suppressPet, isOpen, close]);
 
   // Sync execution from backend services on mode triggers
   React.useEffect(() => {
@@ -391,16 +532,19 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     let newMessages: ChatMessage[] = [];
 
     if (activeMode === "explain") {
+      const conceptTitle = safeText(data.title, "");
       newMessages = [
         {
           id: `initial-q-${Date.now()}`,
           role: "student",
-          content: `Jelaskan konsep: ${data.title}`,
+          content: conceptTitle
+            ? `Jelaskan konsep: ${conceptTitle}`
+            : "Jelaskan konsep ini.",
         },
         {
           id: `initial-a-${Date.now()}`,
           role: "ai",
-          content: data.content,
+          content: safeText(data.content, "Materi konsep ini belum tersedia. Coba buka ulang materi atau tanyakan lewat chat."),
           sources: data.sources || [],
         }
       ];
@@ -414,11 +558,11 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         {
           id: `initial-a-${Date.now()}`,
           role: "ai",
-          content: `### Temuan Miskonsepsi Utama:\n${data.detectedMisconception}\n\n### Kesalahan Perhitungan / Substitusi:\n${data.mathematicalError}\n\n### Panduan Berpikir (Socratic):\n${data.socraticGuidance}`,
+          content: `### Temuan Miskonsepsi Utama:\n${safeText(data.detectedMisconception, "Belum terdeteksi dari jawabanmu.")}\n\n### Kesalahan Perhitungan / Substitusi:\n${safeText(data.mathematicalError, "Tidak ditemukan kesalahan hitung yang spesifik.")}\n\n### Panduan Berpikir (Socratic):\n${safeText(data.socraticGuidance, "Coba telusuri ulang langkah penyelesaianmu satu per satu.")}`,
         }
       ];
     } else if (activeMode === "study-plan") {
-      const formattedPlan = data.map((step: string) => step).join("\n\n");
+      const planSteps = Array.isArray(data) ? data : [];
       newMessages = [
         {
           id: `initial-q-${Date.now()}`,
@@ -428,7 +572,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         {
           id: `initial-a-${Date.now()}`,
           role: "ai",
-          content: `### Rencana Studi Mandiri Anda:\n\n${formattedPlan}`,
+          content: planSteps.length > 0
+            ? `### Rencana Studi Mandiri Anda:\n\n${planSteps.map((step: unknown) => safeText(step, "")).filter(Boolean).join("\n\n")}`
+            : "Belum ada rencana belajar yang bisa disusun saat ini.",
         }
       ];
     }
@@ -588,14 +734,30 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     }, 2000);
   };
 
+  // Insert a math symbol at the textarea caret position
+  const insertMathSnippet = (snippet: string) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? inputVal.length;
+    const end = el.selectionEnd ?? inputVal.length;
+    const next = inputVal.slice(0, start) + snippet + inputVal.slice(end);
+    setInputVal(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const caret = start + snippet.length;
+      el.setSelectionRange(caret, caret);
+    });
+  };
+
   return (
-    <TutorContext.Provider value={{ openExplain, openMistake, openStudyPlan, openChat, openChatWithQuestion, close, isOpen, activeMode }}>
+    <TutorContext.Provider value={{ openExplain, openMistake, openStudyPlan, openChat, openChatWithQuestion, close, isOpen, activeMode, suppressPet, setSuppressPet }}>
       {children}
 
       {/* Global floating Zyra trigger */}
       {pathname?.startsWith("/courses/") &&
         !pathname.includes("/live/host") &&
         !pathname.endsWith("/daftar") &&
+        !suppressPet &&
         !isOpen && (caps.pet ? (
           <ZyraFloatingPet state={petState} onOpen={openChat} />
         ) : (
@@ -637,22 +799,35 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           {/* Drag-to-Resize Handle */}
           <div
             onMouseDown={startResize}
+            onTouchStart={startResizeTouch}
             onDoubleClick={toggleExpand}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+              event.preventDefault();
+              setIsExpanded(false);
+              const delta = event.key === "ArrowLeft" ? 40 : -40;
+              setSidebarWidth((width) => Math.min(window.innerWidth - 24, Math.max(MIN_SIDEBAR_WIDTH, width + delta)));
+              persistWidth();
+            }}
             role="separator"
             aria-orientation="vertical"
             aria-label="Ubah lebar sidebar Zyra"
-            title="Seret ke kiri/kanan untuk mengubah lebar, atau klik dua kali untuk layar penuh"
+            aria-valuemin={MIN_SIDEBAR_WIDTH}
+            aria-valuemax={typeof window === "undefined" ? DEFAULT_SIDEBAR_WIDTH : window.innerWidth - 24}
+            aria-valuenow={sidebarWidth}
+            tabIndex={0}
+            title="Seret untuk mengubah lebar, klik dua kali untuk layar penuh, panah kiri/kanan untuk mengatur"
             className={cn(
-              "absolute left-0 top-0 bottom-0 z-50 w-3 cursor-col-resize select-none group hidden md:flex items-center justify-center -translate-x-1.5 hover:bg-brand-primary/20 transition-colors",
-              isDragging && "bg-brand-primary/30 w-4 -translate-x-2"
+              "absolute left-0 top-0 bottom-0 z-50 hidden w-4 cursor-col-resize touch-none select-none items-center justify-center outline-none transition-colors group hover:bg-brand-primary/15 focus-visible:bg-brand-primary/25 md:flex",
+              isDragging && "bg-brand-primary/30"
             )}
           >
-            <div className={cn(
-              "h-12 w-1 rounded-full bg-border/80 group-hover:bg-brand-primary transition-all flex items-center justify-center",
-              isDragging && "bg-brand-primary h-16 w-1.5"
-            )}>
-              <GripVertical className="size-3 text-muted-foreground group-hover:text-white" />
-            </div>
+            <div
+              className={cn(
+                "h-12 w-1 rounded-full bg-border-strong transition-colors group-hover:bg-brand-primary group-focus-visible:bg-brand-primary",
+                isDragging && "h-16 w-1.5 bg-brand-primary"
+              )}
+            />
           </div>
 
           {/* Top Header & Ergonomic Activity Rail */}
@@ -660,30 +835,28 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
             {/* Top Row: Brand, Capabilities, Controls */}
             <div className="flex items-center justify-between px-3.5 py-2.5 gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
-                {caps.pet ? (
-                  <ZyraPet state={petState} />
-                ) : (
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-                    <ZyraMark className="size-4.5" />
-                  </div>
-                )}
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+                  <ZyraMark className="size-4.5" />
+                </div>
                 <div className="min-w-0 flex flex-col">
                   <div className="flex items-center gap-1.5">
                     <span className="font-heading text-body-sm font-bold text-foreground truncate">
                       Zyra
                     </span>
-                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 font-sans font-medium rounded-md bg-brand-primary/10 text-brand-primary border-brand-primary/25">
+                    <Badge className="text-[10px] px-2 py-0.5 font-sans font-semibold rounded-md shrink-0">
                       Asisten Belajar
                     </Badge>
                   </div>
                   <span className="text-body-xs text-muted-foreground truncate">
-                    {courseIdFromPath ? `Konteks: ${courseIdFromPath}` : "Pedagogi Socratic ITB"}
+                    {courseIdFromPath
+                      ? (courseLabel ?? courseIdFromPath)
+                      : "Pedagogi Socratic ITB"}
                   </span>
                 </div>
               </div>
 
               {/* Window Controls */}
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <Button
                   variant="ghost"
                   size="icon-xs"
@@ -718,6 +891,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                   </Button>
                 )}
 
+                <div aria-hidden="true" className="h-5 w-px bg-border mx-0.5" />
+
                 <Button
                   variant="ghost"
                   size="icon-xs"
@@ -738,7 +913,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           )}
 
           {/* Body Content Area */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-4 flex flex-col justify-start select-text">
+          <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] p-4 md:p-5 space-y-4 flex flex-col justify-start select-text">
             {/* Loading Indicator */}
             {loading && messages.length === 0 && (
               <div className="flex flex-col items-center justify-center py-24 text-center space-y-3">
@@ -784,7 +959,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                         "max-w-[92%] rounded-2xl p-4 text-body-sm leading-relaxed text-left flex flex-col gap-2 relative group",
                         isStudent
                           ? "w-fit bg-brand-primary text-white self-end rounded-tr-xs shadow-xs"
-                          : "w-full bg-muted/60 text-foreground self-start rounded-tl-xs border border-border/70 shadow-xs"
+                          : "w-full bg-muted/60 text-foreground self-start rounded-tl-xs"
                       )}
                     >
                       {/* Copy Action Button */}
@@ -844,34 +1019,14 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                         </div>
                       )}
 
-                      {/* Socratic Accelerator Follow-up Chips on latest AI message */}
+                      {/* Socratic Follow-up Chips on latest AI message. When the
+                          assistant just asked a comprehension-check question,
+                          swap generic accelerators for hint scaffolds. */}
                       {isLatestAssistant && activeMode === "chat" && !chatLoading && (
-                        <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar" aria-label="Aksi belajar lanjutan">
-                          <button
-                            type="button"
-                            onClick={() => void handleSend("Berikan contoh soal serupa dan tuntun aku langkah demi langkah.")}
-                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/70 bg-background/90 px-2.5 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 hover:border-brand-primary/40 transition-colors shadow-2xs"
-                          >
-                            <Sparkles className="size-3 text-brand-primary" />
-                            <span>Contoh Soal</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleSend("Uji pemahamanku dengan 1 pertanyaan konsep singkat tanpa memberi kunci jawaban langsung.")}
-                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/70 bg-background/90 px-2.5 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 hover:border-brand-primary/40 transition-colors shadow-2xs"
-                          >
-                            <HelpCircle className="size-3 text-brand-secondary" />
-                            <span>Uji Pemahaman</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleSend("Jelaskan dengan analogi sehari-hari yang mudah dibayangkan.")}
-                            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/70 bg-background/90 px-2.5 py-1 text-body-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 hover:border-brand-primary/40 transition-colors shadow-2xs"
-                          >
-                            <Compass className="size-3 text-brand-primary" />
-                            <span>Analogi</span>
-                          </button>
-                        </div>
+                        <FollowUpChips
+                          comprehensionCheck={isComprehensionCheck(msg.content)}
+                          onSend={(prompt) => void handleSend(prompt)}
+                        />
                       )}
                     </div>
                   );
@@ -994,8 +1149,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
           {/* Multiline Socratic Input Composer */}
           {messages.length > 0 && activeAction === "none" && (
-            <div className="p-2.5 sm:p-3 border-t border-border/80 bg-background shrink-0 select-text">
-              <div className="relative flex flex-col gap-1.5 bg-muted/40 border border-border/80 focus-within:border-brand-primary/80 focus-within:ring-1 focus-within:ring-brand-primary/30 rounded-xl p-2 transition-all">
+            <div className="p-2.5 sm:p-3 border-t border-border/80 bg-card shrink-0 select-text">
+              <div className="flex flex-col rounded-xl border border-border bg-background focus-within:border-brand-primary/70 focus-within:ring-1 focus-within:ring-brand-primary/25 transition-colors">
                 {imageInputEnabled && sessionId && courseIdFromPath && (
                   <ZyraAttachmentComposer
                     key={attachmentComposerKey}
@@ -1010,7 +1165,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                   />
                 )}
 
-                <div className="flex items-end gap-1.5">
+                <div className="flex items-end gap-1.5 px-1.5 pb-1.5">
                   <textarea
                     ref={textareaRef}
                     placeholder="Tanyakan rumus, konsep, atau paste screenshot soal..."
@@ -1030,11 +1185,13 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                       }
                     }}
                     disabled={chatLoading}
-                    className="flex-1 max-h-[160px] min-h-[36px] resize-none bg-transparent px-2 py-1 text-body-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-hidden"
+                    className="flex-1 max-h-[160px] min-h-[36px] resize-none bg-transparent px-1.5 py-2 text-body-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-hidden"
                   />
 
-                  {/* Inline Composer Controls */}
-                  <div className="flex items-center gap-1 shrink-0 pb-0.5">
+                {/* Math Input Palette + Inline Composer Controls */}
+                  <div className="flex items-center gap-1 shrink-0 pb-1">
+                    <ZyraMathPalette onInsert={insertMathSnippet} disabled={chatLoading} />
+
                     {imageInputEnabled && (
                       <TooltipProvider>
                         <Tooltip>

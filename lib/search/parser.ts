@@ -1,48 +1,55 @@
 import type { ParsedSearchQuery, SearchPrefixType } from "@/lib/search/contracts";
 
-interface PrefixDefinition {
+export interface SearchPrefixDefinition {
   type: SearchPrefixType;
   entityType: string;
   label: string;
   aliases: string[];
+  example: string;
 }
 
-const PREFIX_DEFINITIONS: PrefixDefinition[] = [
+export const SEARCH_PREFIX_DEFINITIONS: SearchPrefixDefinition[] = [
   {
     type: "group",
     entityType: "group",
     label: "Kelompok Belajar",
     aliases: ["group", "grup", "kelompok"],
+    example: "group: kimia",
   },
   {
     type: "meet",
     entityType: "meet",
     label: "Google Meet & Sesi",
     aliases: ["meet", "meeting", "sesi"],
+    example: "meet: kalkulus",
   },
   {
     type: "user",
     entityType: "user",
     label: "Akun Pengguna",
     aliases: ["user", "pengguna", "murid", "tutor", "admin"],
+    example: "user: nama atau email",
   },
   {
     type: "form",
     entityType: "form",
     label: "Formulir",
     aliases: ["form", "formulir"],
+    example: "form: evaluasi",
   },
   {
     type: "token",
     entityType: "token",
     label: "Token Aktivasi",
     aliases: ["token", "voucher"],
+    example: "token: Zyx-XXXXXXXX-5-1",
   },
   {
     type: "schedule",
     entityType: "schedule",
     label: "Jadwal & Agenda",
     aliases: ["schedule", "jadwal", "agenda"],
+    example: "schedule: UTS",
   },
 ];
 
@@ -73,7 +80,7 @@ export function parseSearchQueryString(raw: string): ParsedSearchQuery {
   const [, rawPrefix, restQuery] = prefixMatch;
   const normalizedPrefix = rawPrefix.toLowerCase();
 
-  const matchedDef = PREFIX_DEFINITIONS.find((def) =>
+  const matchedDef = SEARCH_PREFIX_DEFINITIONS.find((def) =>
     def.aliases.includes(normalizedPrefix)
   );
 

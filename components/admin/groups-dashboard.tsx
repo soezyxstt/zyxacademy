@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
-import { AdminStatCard } from "@/components/admin/stat-card";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -68,8 +68,18 @@ type GroupItem = {
   packageType: string;
   packageName: string;
   totalQuotaSessions: number;
+  weeklyQuotaSessions: number;
   usedQuotaSessions: number;
   remainingQuota: number;
+  weeklyUsedSessions?: number;
+  weeklyStats?: Array<{
+    weekStartIso: string;
+    label: string;
+    booked: number;
+    attended: number;
+    missed: number;
+    cancelled: number;
+  }>;
   academicYear: string;
   semester: string;
   startDate: Date | null;
@@ -136,6 +146,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
   const [formName, setFormName] = useState("");
   const [formPackageType, setFormPackageType] = useState<PackageType>("reguler_15");
   const [formCustomQuota, setFormCustomQuota] = useState(15);
+  const [formWeeklyQuota, setFormWeeklyQuota] = useState(1);
   const [formSemester, setFormSemester] = useState("Ganjil");
   const [formAcademicYear, setFormAcademicYear] = useState("2026/2027");
   const [formStartDate, setFormStartDate] = useState("");
@@ -188,6 +199,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
     setFormName("");
     setFormPackageType("reguler_15");
     setFormCustomQuota(15);
+    setFormWeeklyQuota(PACKAGE_PRESETS.reguler_15.weeklySessions);
     setFormSemester("Ganjil");
     setFormAcademicYear("2026/2027");
     setFormStartDate("");
@@ -215,6 +227,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         name: formName.trim(),
         packageType: formPackageType,
         totalQuotaSessions: quota,
+        weeklyQuotaSessions: Math.max(1, formWeeklyQuota),
         academicYear: formAcademicYear,
         semester: formSemester,
         startDate: formStartDate || null,
@@ -245,6 +258,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       (group.packageType as PackageType) || "reguler_15"
     );
     setFormCustomQuota(group.totalQuotaSessions);
+    setFormWeeklyQuota(group.weeklyQuotaSessions ?? 2);
     setFormSemester(group.semester);
     setFormAcademicYear(group.academicYear);
     setFormStartDate(group.startDate ? formatIsoDate(new Date(group.startDate)) : "");
@@ -268,6 +282,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
         name: formName.trim(),
         packageType: formPackageType,
         totalQuotaSessions: quota,
+        weeklyQuotaSessions: Math.max(1, formWeeklyQuota),
         academicYear: formAcademicYear,
         semester: formSemester,
         startDate: formStartDate || null,
@@ -397,37 +412,37 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* 1. KPI Cards Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <AdminStatCard
+      {/* 1. KPI Strip */}
+      <AdminStatStrip className="lg:grid-cols-4">
+        <AdminStatStripItem
           label="Total Kelompok"
           value={totalGroups}
           caption="Kelompok terdaftar"
           icon={Users}
           tone="brand"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Kelompok Aktif"
           value={activeGroups}
           caption="Semester ini"
           icon={CheckCircle2}
           tone="success"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Mahasiswa Tergabung"
           value={totalMembers}
           caption="Anggota aktif"
           icon={GraduationCap}
           tone="info"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Pemakaian Kuota"
           value={`${avgQuotaUsed}%`}
           caption="Rata-rata sesi semester"
           icon={Percent}
           tone="warning"
         />
-      </div>
+      </AdminStatStrip>
 
       {/* 2. Search, Filter, and Action Bar */}
       <div className="flex items-center gap-2">
@@ -444,7 +459,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
         {/* Status Filter */}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-xs bg-card border-border">
+          <SelectTrigger className="h-9 w-[130px] shrink-0 rounded-lg text-body-sm bg-card border-border">
             <SelectValue placeholder="Semua Status" />
           </SelectTrigger>
           <SelectContent>
@@ -457,7 +472,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
         {/* Package Filter */}
         <Select value={packageFilter} onValueChange={setPackageFilter}>
-          <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-xs bg-card border-border">
+          <SelectTrigger className="h-9 w-[140px] shrink-0 rounded-lg text-body-sm bg-card border-border">
             <SelectValue placeholder="Semua Paket" />
           </SelectTrigger>
           <SelectContent>
@@ -471,7 +486,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
         {/* Course Filter */}
         <Select value={courseFilter} onValueChange={setCourseFilter}>
-          <SelectTrigger className="h-9 w-[160px] sm:w-[180px] shrink-0 rounded-lg text-body-xs bg-card border-border truncate">
+          <SelectTrigger className="h-9 w-[160px] sm:w-[180px] shrink-0 rounded-lg text-body-sm bg-card border-border truncate">
             <SelectValue placeholder="Semua Mata Kuliah" />
           </SelectTrigger>
           <SelectContent>
@@ -783,7 +798,11 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => setFormPackageType(p.id)}
+                      onClick={() => {
+                        setFormPackageType(p.id);
+                        const preset = PACKAGE_PRESETS[p.id];
+                        if (preset) setFormWeeklyQuota(preset.weeklySessions);
+                      }}
                       className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-center transition-all ${
                         active
                           ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
@@ -812,6 +831,21 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                   />
                 </div>
               )}
+
+              <div className="mt-2 flex items-center gap-3">
+                <label className="text-body-xs text-muted-foreground shrink-0">
+                  Kuota sesi per minggu:
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={7}
+                  value={formWeeklyQuota}
+                  onChange={(e) => setFormWeeklyQuota(parseInt(e.target.value, 10) || 1)}
+                  aria-label="Kuota sesi per minggu kelompok"
+                  className="w-20 h-9 rounded-lg text-body-sm"
+                />
+              </div>
             </div>
 
             {/* Semester & Tahun Akademik */}
@@ -882,7 +916,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       key={c.id}
                       className={`flex items-center gap-2 p-2 rounded-md border text-body-xs cursor-pointer transition-colors ${
                         checked
-                          ? "border-brand-primary bg-brand-primary/10 text-foreground font-medium"
+                          ? "border-brand-primary bg-brand-primary/10 text-foreground"
                           : "border-border bg-card text-muted-foreground"
                       }`}
                     >
@@ -976,7 +1010,11 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => setFormPackageType(p.id)}
+                      onClick={() => {
+                        setFormPackageType(p.id);
+                        const preset = PACKAGE_PRESETS[p.id];
+                        if (preset) setFormWeeklyQuota(preset.weeklySessions);
+                      }}
                       className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-center transition-all ${
                         active
                           ? "border-brand-primary bg-brand-primary/10 text-brand-primary font-semibold"
@@ -1005,6 +1043,21 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                   />
                 </div>
               )}
+
+              <div className="mt-2 flex items-center gap-3">
+                <label className="text-body-xs text-muted-foreground shrink-0">
+                  Kuota sesi per minggu:
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={7}
+                  value={formWeeklyQuota}
+                  onChange={(e) => setFormWeeklyQuota(parseInt(e.target.value, 10) || 1)}
+                  aria-label="Kuota sesi per minggu kelompok"
+                  className="w-20 h-9 rounded-lg text-body-sm"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1071,7 +1124,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       key={c.id}
                       className={`flex items-center gap-2 p-2 rounded-md border text-body-xs cursor-pointer transition-colors ${
                         checked
-                          ? "border-brand-primary bg-brand-primary/10 text-foreground font-medium"
+                          ? "border-brand-primary bg-brand-primary/10 text-foreground"
                           : "border-border bg-card text-muted-foreground"
                       }`}
                     >
@@ -1118,7 +1171,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               <DialogHeader>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <DialogTitle className="font-heading text-h5 font-bold text-foreground">
+                    <DialogTitle className="font-heading text-body-base font-bold text-foreground">
                       {detailGroup.name}
                     </DialogTitle>
                     <DialogDescription className="text-body-xs text-muted-foreground mt-1">
@@ -1134,29 +1187,28 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
               {/* Quota Summary Box */}
               <div className="p-4 rounded-xl border border-border bg-muted/20 space-y-3">
                 <div className="flex items-center justify-between text-body-sm font-semibold">
-                  <span className="text-foreground">Kuota Pertemuan Semester</span>
+                  <span className="text-foreground">Kuota Mingguan</span>
                   <span className="text-brand-primary font-bold">
-                    {detailGroup.usedQuotaSessions} / {detailGroup.totalQuotaSessions} Sesi Selesai
+                    {detailGroup.weeklyUsedSessions ?? 0} / {detailGroup.weeklyQuotaSessions ?? 2} Sesi Minggu Ini
                   </span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                  <div
-                    className="h-full bg-brand-primary rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        Math.round(
-                          (detailGroup.usedQuotaSessions / Math.max(1, detailGroup.totalQuotaSessions)) *
-                            100
-                        )
-                      )}%`,
-                    }}
-                  />
-                </div>
                 <div className="flex items-center justify-between text-body-xs text-muted-foreground">
-                  <span>Sisa kuota: {detailGroup.remainingQuota} sesi</span>
+                  <span>Total terlaksana: {detailGroup.usedQuotaSessions} dari {detailGroup.totalQuotaSessions} sesi paket</span>
                   <span>Frekuensi: {PACKAGE_PRESETS[detailGroup.packageType as PackageType]?.frequencyLabel || "1x seminggu"}</span>
                 </div>
+                {detailGroup.weeklyStats && detailGroup.weeklyStats.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/60">
+                    {detailGroup.weeklyStats.map((w) => (
+                      <div key={w.weekStartIso} className="p-2 rounded-lg bg-card border border-border text-center">
+                        <span className="text-[11px] font-semibold text-foreground block">{w.label}</span>
+                        <div className="flex items-center justify-center gap-2 text-[11px] mt-0.5">
+                          <span className="text-emerald-600 dark:text-emerald-400">{w.attended} hadir</span>
+                          <span className="text-red-500">{w.missed + w.cancelled} lewat</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Mata Kuliah */}

@@ -75,7 +75,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
         />
 
         <Select value={filterCourse} onValueChange={setFilterCourse}>
-          <SelectTrigger className="w-[150px] sm:w-[170px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[150px] sm:w-[170px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Mata Kuliah" />
           </SelectTrigger>
           <SelectContent>
@@ -89,7 +89,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
         </Select>
 
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Kategori" />
           </SelectTrigger>
           <SelectContent>
@@ -102,7 +102,7 @@ export function HistoricalQuestionsClient({ questions, courses, courseMap }: Pro
         </Select>
 
         <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
-          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Tingkat Kesulitan" />
           </SelectTrigger>
           <SelectContent>

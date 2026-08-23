@@ -131,7 +131,7 @@ function rebalanceIdeaLinks(current: IdeaLink[], ideaId: string, checked: boolea
 }
 
 function hasValidIdeaWeights(links: IdeaLink[]): boolean {
-  return links.length > 0 && Math.abs(links.reduce((sum, link) => sum + link.weight, 0) - 1) <= 0.000001;
+  return links.length === 0 || Math.abs(links.reduce((sum, link) => sum + link.weight, 0) - 1) <= 0.000001;
 }
 
 export function QuestionBankClient({ questions, courses, courseMap, authoringCourses, authoringChapters, authoringIdeas }: Props) {
@@ -324,7 +324,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
     if (!createPrompt.trim()) return toast.error("Prompt soal wajib diisi.");
 
     const reviewStatus = reviewStatusFromSubmit(e);
-    if (!hasValidIdeaWeights(createIdeaLinks)) return toast.error("Pilih minimal satu Idea dan pastikan total bobotnya 100%.");
+    if (!hasValidIdeaWeights(createIdeaLinks)) return toast.error("Jika Idea dipilih, total bobotnya harus 100%.");
     if (createQuestionType === "multiple_choice" || createQuestionType === "multiple_choices") {
       if (createOptions.some((opt) => !opt.trim())) return toast.error("Semua empat opsi harus diisi.");
       if (createCorrectIndices.length === 0) return toast.error("Pilih minimal satu opsi yang benar.");
@@ -412,7 +412,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   const handleBulkSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!bulkCourseId) return toast.error("Silakan pilih mata kuliah.");
-    if (!hasValidIdeaWeights(bulkIdeaLinks)) return toast.error("Pilih minimal satu Idea dan pastikan total bobotnya 100%.");
+    if (!hasValidIdeaWeights(bulkIdeaLinks)) return toast.error("Jika Idea dipilih, total bobotnya harus 100%.");
     if (!bulkMarkdown.trim()) return toast.error("Konten markdown tidak boleh kosong.");
     const reviewStatus = reviewStatusFromSubmit(e);
 
@@ -469,7 +469,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
     if (!editingQuestion) return;
     if (!editPrompt.trim()) return toast.error("Prompt soal wajib diisi.");
     const reviewStatus = reviewStatusFromSubmit(e);
-    if (!hasValidIdeaWeights(editIdeaLinks)) return toast.error("Pilih minimal satu Idea dan pastikan total bobotnya 100%.");
+    if (!hasValidIdeaWeights(editIdeaLinks)) return toast.error("Jika Idea dipilih, total bobotnya harus 100%.");
 
     if (editQuestionType === "multiple_choice" || editQuestionType === "multiple_choices") {
       if (editOptions.some((opt) => !opt.trim())) return toast.error("Semua empat opsi harus diisi.");
@@ -575,7 +575,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         />
 
         <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as ReviewStatus | "all")}>
-          <SelectTrigger aria-label="Filter status" className="w-[110px] sm:w-[120px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter status" className="w-[110px] sm:w-[120px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -589,7 +589,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </Select>
 
         <Select value={filterCourse} onValueChange={setFilterCourse}>
-          <SelectTrigger aria-label="Filter mata kuliah" className="w-[125px] sm:w-[145px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter mata kuliah" className="w-[125px] sm:w-[145px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Mata kuliah" />
           </SelectTrigger>
           <SelectContent>
@@ -603,7 +603,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </Select>
 
         <Select value={filterOrigin} onValueChange={(value) => setFilterOrigin(value as QuestionOrigin | "all")}>
-          <SelectTrigger aria-label="Filter asal soal" className="w-[105px] sm:w-[115px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter asal soal" className="w-[105px] sm:w-[115px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Asal soal" />
           </SelectTrigger>
           <SelectContent>
@@ -614,7 +614,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </Select>
 
         <Select value={filterQuestionType} onValueChange={(value) => setFilterQuestionType(value as QuestionType | "all")}>
-          <SelectTrigger aria-label="Filter tipe soal" className="w-[105px] sm:w-[115px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter tipe soal" className="w-[105px] sm:w-[115px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Tipe soal" />
           </SelectTrigger>
           <SelectContent>
@@ -627,7 +627,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
         </Select>
 
         <Select value={filterDifficulty} onValueChange={(value) => setFilterDifficulty(value as Difficulty | "all")}>
-          <SelectTrigger aria-label="Filter tingkat kesulitan" className="w-[100px] sm:w-[110px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger aria-label="Filter tingkat kesulitan" className="w-[100px] sm:w-[110px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Kesulitan" />
           </SelectTrigger>
           <SelectContent>
@@ -1245,28 +1245,50 @@ function IdeaAssignmentFields({
   links: IdeaLink[];
   onChange: (links: IdeaLink[]) => void;
 }) {
+  const [expanded, setExpanded] = useState(links.length > 0);
   const selected = new Map(links.map((link) => [link.ideaId, link]));
   const totalWeight = links.reduce((sum, link) => sum + link.weight, 0);
   const valid = hasValidIdeaWeights(links);
 
   return (
     <section className="space-y-3 rounded-xl border border-border bg-muted/5 p-5" aria-labelledby={`${idPrefix}-idea-heading`}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 id={`${idPrefix}-idea-heading`} className="text-body-sm font-semibold text-foreground">Hubungkan ke Idea</h3>
-          <p className="mt-1 text-body-xs text-muted-foreground">Pilih Idea yang menjadi dasar soal. Bobot semua link harus berjumlah 100%.</p>
+          <div className="flex items-center gap-2">
+            <h3 id={`${idPrefix}-idea-heading`} className="text-body-sm font-semibold text-foreground">Koneksi Idea</h3>
+            <StatusBadge tone="muted" subtle>Opsional</StatusBadge>
+          </div>
+          <p className="mt-1 text-body-xs text-muted-foreground">
+            {links.length > 0 ? `${links.length} Idea terhubung.` : "Biarkan kosong jika soal belum terkait Idea tertentu."}
+          </p>
         </div>
-        <span className={cn("text-body-xs font-semibold", valid ? "text-status-success" : "text-status-warning")}>
-          Bobot {Math.round(totalWeight * 100)}%
-        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 gap-2 text-body-xs"
+          aria-expanded={expanded}
+          aria-controls={`${idPrefix}-idea-options`}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? "Tutup" : "Atur Idea"}
+          {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </Button>
       </div>
 
-      {ideas.length === 0 ? (
-        <p className="rounded-lg border border-status-warning/30 bg-status-warning/10 p-3 text-body-xs text-status-warning">
-          Belum ada Idea published untuk konteks mata kuliah dan bab ini.
-        </p>
-      ) : (
-        <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+      {expanded ? (
+        <div id={`${idPrefix}-idea-options`} className="space-y-3">
+          {links.length > 0 ? (
+            <p className={cn("text-body-xs font-semibold", valid ? "text-status-success" : "text-status-warning")}>
+              Total bobot {Math.round(totalWeight * 100)}%. {valid ? "Siap disimpan." : "Bobot harus berjumlah 100%."}
+            </p>
+          ) : null}
+          {ideas.length === 0 ? (
+            <p className="rounded-lg border border-border bg-muted/30 p-3 text-body-xs text-muted-foreground">
+              Belum ada Idea published untuk mata kuliah dan bab ini. Soal tetap dapat disimpan tanpa Idea.
+            </p>
+          ) : (
+            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
           {ideas.map((idea) => {
             const link = selected.get(idea.id);
             return (
@@ -1317,8 +1339,10 @@ function IdeaAssignmentFields({
               </div>
             );
           })}
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -1385,7 +1409,7 @@ function QuestionRow({
             </StatusBadge>
 
             <DifficultyBadge difficulty={question.difficulty} subtle />
-            <StatusBadge tone={question.ideaLinks && question.ideaLinks.length > 0 ? "success" : "warning"} subtle>
+            <StatusBadge tone={question.ideaLinks && question.ideaLinks.length > 0 ? "success" : "muted"} subtle>
               {question.ideaLinks && question.ideaLinks.length > 0 ? `${question.ideaLinks.length} Idea` : "Tanpa Idea"}
             </StatusBadge>
             <span className="text-muted-foreground font-medium">

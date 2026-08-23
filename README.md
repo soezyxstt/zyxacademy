@@ -1,16 +1,21 @@
 # Zyx Academy
 
-**Stack:** Next.js 16 (App Router), Drizzle ORM + Turso/SQLite, Better-Auth, Google Gemini, Pinecone/Vectorize, Cloudflare R2, Inngest.
+**Stack:** Next.js 16 (App Router), Drizzle ORM + Turso/SQLite, Better-Auth, Google Gemini, Cloudflare Vectorize, Cloudflare R2, Inngest.
 
 ## Docs
 
 | File | What it covers |
 |---|---|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full system architecture: 4-layer design, all database tables, AI pipelines, directory map, data flows |
-| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Dev setup, commands, env vars, feature flags, code conventions |
-| [DATABASE.md](docs/DATABASE.md) | Schema domains, migration workflow, key design decisions |
-| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production architecture, Turso, Cloudflare Workers, services |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full system architecture: 4-layer design, database domains, AI pipelines, directory map, data flows |
 | [features.md](docs/features.md) | User-facing workflows: roles, pipelines, quota rules |
+| [DB_SCHEMA.md](docs/DB_SCHEMA.md) | Detailed table-by-table schema reference |
+| [DATABASE.md](docs/DATABASE.md) | Database setup, migration workflow, key design decisions |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Dev setup, commands, env vars, feature flags, code conventions |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production architecture, staging overhaul, Turso, Cloudflare Workers, services |
+| [docs/bundle/](docs/bundle/) | Idea Bundle V2, Product Bundle V2, and Authoring Pack ZIP contracts |
+| [docs/operations/](docs/operations/) | Production readiness checklist, Zyra runbooks, bundle manual test plan |
+| [docs/audit/](docs/audit/) | Historical use-case audit snapshots (read-only record) |
+| [plans/](plans/) | Active plan specs; completed program notes in [plans/README.md](plans/README.md) |
 
 ## Quick Start
 
@@ -116,5 +121,5 @@ Gunakan struktur berikut dalam deskripsi PR:
 
 ## Reference
 
-- **[AGENT_CONTEXT.md](AGENT_CONTEXT.md)**; current development state, blockers, standing decisions
 - **[AGENTS.md](AGENTS.md)**; coding rules and conventions for AI agents
+- **[plans/README.md](plans/README.md)**; completed program invariants and the active plan

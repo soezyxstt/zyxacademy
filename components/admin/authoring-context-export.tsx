@@ -6,7 +6,6 @@ import { AdminSectionTitle } from "@/components/admin/section-title";
 import { AdminTable } from "@/components/admin/table";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { AuthoringCourseOption } from "@/lib/authoring/catalog";
 
@@ -81,42 +80,89 @@ export function AuthoringContextExport({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="flex-1 space-y-1.5 min-w-0">
-          <Label htmlFor="context-course" className="text-body-sm font-semibold">Mata kuliah</Label>
-          <Select value={courseId} onValueChange={setCourseId}>
-            <SelectTrigger id="context-course" className="h-9 text-body-xs rounded-lg">
-              <SelectValue placeholder="Pilih mata kuliah" />
-            </SelectTrigger>
-            <SelectContent>
-              {courses.map((course) => <SelectItem key={course.id} value={course.id}>{course.code} · {course.title}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button type="button" size="sm" className="h-9 rounded-lg gap-1.5 shrink-0 font-semibold" disabled={!courseId || loading} isLoading={loading} onClick={() => void exportPack()}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={courseId} onValueChange={setCourseId}>
+          <SelectTrigger id="context-course" className="w-[240px] sm:w-[280px] h-9 text-body-sm rounded-lg shrink-0" aria-label="Pilih mata kuliah">
+            <SelectValue placeholder="Pilih mata kuliah" />
+          </SelectTrigger>
+          <SelectContent>
+            {courses.map((course) => (
+              <SelectItem key={course.id} value={course.id}>
+                {course.code} · {course.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          type="button"
+          size="sm"
+          className="h-9 rounded-lg gap-1.5 shrink-0"
+          disabled={!courseId || loading}
+          isLoading={loading}
+          onClick={() => void exportPack()}
+        >
           <ShieldCheck className="size-4" />
           Buat Context Pack
         </Button>
       </div>
 
       {message && <p className="text-body-sm text-status-success">{message}</p>}
-      {latestDownloadHref && <Button asChild size="sm" variant="outline"><a href={latestDownloadHref}><Download className="size-4" />Unduh pack baru</a></Button>}
+      {latestDownloadHref && (
+        <Button asChild size="sm" variant="outline" className="gap-1.5 w-fit">
+          <a href={latestDownloadHref}>
+            <Download className="size-4" />
+            Unduh pack baru
+          </a>
+        </Button>
+      )}
       {error && <p className="text-body-sm text-status-error">{error}</p>}
 
       <section className="space-y-3">
-        <AdminSectionTitle as="h2" size="h6" border title="Riwayat Context Pack" right={<span className="text-body-xs text-muted-foreground">{exports.length} pack</span>} />
+        <AdminSectionTitle
+          as="h2"
+          size="h6"
+          border
+          title="Riwayat Context Pack"
+          right={<span className="text-body-xs text-muted-foreground">{exports.length} pack</span>}
+        />
         <AdminTable className="divide-y divide-border">
-          {exports.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada Context Pack.</p>}
+          {exports.length === 0 && (
+            <p className="px-4 py-6 text-body-sm text-muted-foreground">Belum ada Context Pack.</p>
+          )}
           {exports.map((item) => {
             const course = courses.find((candidate) => candidate.id === item.courseId);
             return (
-              <div key={item.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                key={item.id}
+                className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div className="min-w-0 space-y-1">
-                  <p className="text-body-sm font-semibold text-foreground">{course ? `${course.code} · ${course.title}` : "Mata kuliah tidak tersedia"}</p>
-                  <p className="text-body-xs text-muted-foreground">Dibuat <FormattedDate date={item.createdAt} options={dateOptions} /> · berlaku sampai {item.retentionUntil ? <FormattedDate date={item.retentionUntil} options={dateOptions} /> : "tidak diketahui"}</p>
-                  <p className="break-all font-mono text-body-xs text-muted-foreground">Checksum: {item.artifactChecksum ?? "tidak tersedia"}</p>
+                  <p className="text-body-sm font-semibold text-foreground">
+                    {course ? `${course.code} · ${course.title}` : "Mata kuliah tidak tersedia"}
+                  </p>
+                  <p className="text-body-xs text-muted-foreground">
+                    Dibuat <FormattedDate date={item.createdAt} options={dateOptions} /> · berlaku sampai{" "}
+                    {item.retentionUntil ? (
+                      <FormattedDate date={item.retentionUntil} options={dateOptions} />
+                    ) : (
+                      "tidak diketahui"
+                    )}
+                  </p>
+                  <p className="break-all font-mono text-body-xs text-muted-foreground">
+                    Checksum: {item.artifactChecksum ?? "tidak tersedia"}
+                  </p>
                 </div>
-                <Button asChild size="sm" variant="outline"><a href={`/api/admin/authoring-context/${encodeURIComponent(item.packId)}`}><Download className="size-4" />Unduh</a></Button>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 shrink-0 self-start sm:self-center"
+                >
+                  <a href={`/api/admin/authoring-context/${encodeURIComponent(item.packId)}`}>
+                    <Download className="size-4" />
+                    Unduh
+                  </a>
+                </Button>
               </div>
             );
           })}

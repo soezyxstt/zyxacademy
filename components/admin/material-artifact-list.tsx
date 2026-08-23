@@ -87,7 +87,7 @@ export function MaterialArtifactList({
           containerClassName="flex-1 min-w-0"
         />
         <Select value={courseFilter} onValueChange={setCourseFilter}>
-          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0" aria-label="Filter mata kuliah">
+          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0" aria-label="Filter mata kuliah">
             <SelectValue placeholder="Semua mata kuliah" />
           </SelectTrigger>
           <SelectContent>
@@ -96,7 +96,7 @@ export function MaterialArtifactList({
           </SelectContent>
         </Select>
         <Select value={authorFilter} onValueChange={setAuthorFilter}>
-          <SelectTrigger className="w-[130px] sm:w-[150px] h-9 text-body-xs rounded-lg shrink-0" aria-label="Filter pembuat">
+          <SelectTrigger className="w-[130px] sm:w-[150px] h-9 text-body-sm rounded-lg shrink-0" aria-label="Filter pembuat">
             <SelectValue placeholder="Semua pembuat" />
           </SelectTrigger>
           <SelectContent>
@@ -105,7 +105,7 @@ export function MaterialArtifactList({
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[120px] sm:w-[140px] h-9 text-body-xs rounded-lg shrink-0" aria-label="Filter status">
+          <SelectTrigger className="w-[120px] sm:w-[140px] h-9 text-body-sm rounded-lg shrink-0" aria-label="Filter status">
             <SelectValue placeholder="Semua status" />
           </SelectTrigger>
           <SelectContent>

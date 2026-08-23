@@ -7,6 +7,7 @@ import {
   bab,
   courses,
   ide,
+  knowledgeObjects,
   mataKuliah,
   pembahasanSoal,
   pengguna,
@@ -19,6 +20,7 @@ import {
   questionAuthoringInputSchema,
   type QuestionAuthoringInput,
   type QuestionAuthoringQuestion,
+  type QuestionIdeaLink,
   type QuestionReviewStatus,
 } from "@/lib/question-authoring-contract";
 import { validateExtractedQuestion, type ExtractedQuestion } from "@/lib/question-markdown";
@@ -39,15 +41,33 @@ type AuthoringContext = {
   canonicalCourseId: string;
   legacyCourseId: string;
   chapterId: string | null;
+  legacyChapterId: string | null;
 };
 
-type PersistResult = {
+export type PersistResult = {
   id: string;
   canonicalCourseId: string;
   legacyCourseId: string;
   chapterId: string | null;
   version: number;
   reviewStatus: QuestionReviewStatus;
+  created: boolean;
+  unchanged: boolean;
+};
+
+export type QuestionAuthoringBatchItem = {
+  question: QuestionAuthoringQuestion;
+  ideaLinks?: QuestionIdeaLink[];
+  questionId?: string;
+};
+
+export type QuestionAuthoringBatchInput = {
+  courseId: string;
+  chapterId?: string | null;
+  items: QuestionAuthoringBatchItem[];
+  reviewStatus: QuestionReviewStatus;
+  creatorId: string;
+  createOnly?: boolean;
 };
 
 function fail(code: string, message: string): never {
@@ -85,7 +105,7 @@ async function requireCreator(tx: Tx, creatorId: string): Promise<void> {
   if (!identity || identity.status !== "active") fail("QUESTION_AUTHORING_CREATOR_NOT_FOUND", "Identitas pembuat soal tidak aktif.");
 }
 
-async function resolveContext(tx: Tx, courseId: string, chapterId: string | null | undefined, ideaLinks: QuestionAuthoringInput["ideaLinks"]): Promise<AuthoringContext> {
+async function resolveContext(tx: Tx, courseId: string, chapterId: string | null | undefined): Promise<AuthoringContext> {
   const [course] = await tx
     .select({ id: mataKuliah.id, legacyCourseId: mataKuliah.legacyCourseId, status: mataKuliah.status })
     .from(mataKuliah)
@@ -98,9 +118,10 @@ async function resolveContext(tx: Tx, courseId: string, chapterId: string | null
   if (!legacyCourse) fail("QUESTION_AUTHORING_LEGACY_COURSE_NOT_FOUND", "Course kompatibilitas tidak ditemukan.");
 
   let resolvedChapterId: string | null = null;
+  let legacyChapterId: string | null = null;
   if (chapterId) {
     const [chapter] = await tx
-      .select({ id: bab.id, courseId: bab.mataKuliahId, status: bab.status })
+      .select({ id: bab.id, legacyChapterId: bab.legacyChapterId, courseId: bab.mataKuliahId, status: bab.status })
       .from(bab)
       .where(or(eq(bab.id, chapterId), eq(bab.legacyChapterId, chapterId)))
       .limit(1);
@@ -108,8 +129,14 @@ async function resolveContext(tx: Tx, courseId: string, chapterId: string | null
       fail("QUESTION_AUTHORING_CHAPTER_NOT_FOUND", "Bab tidak ditemukan dalam mata kuliah yang dipilih.");
     }
     resolvedChapterId = chapter.id;
+    legacyChapterId = chapter.legacyChapterId;
   }
 
+  return { canonicalCourseId: course.id, legacyCourseId: legacyCourse.id, chapterId: resolvedChapterId, legacyChapterId };
+}
+
+async function validateIdeaLinks(tx: Tx, context: AuthoringContext, ideaLinks: QuestionAuthoringInput["ideaLinks"]): Promise<void> {
+  if (ideaLinks.length === 0) return;
   const uniqueIdeaIds = [...new Set(ideaLinks.map((link) => link.ideaId))];
   if (uniqueIdeaIds.length !== ideaLinks.length) fail("QUESTION_AUTHORING_DUPLICATE_IDEA", "Idea yang sama tidak boleh dipilih lebih dari sekali.");
   const weightSum = ideaLinks.reduce((sum, link) => sum + link.weight, 0);
@@ -123,11 +150,25 @@ async function resolveContext(tx: Tx, courseId: string, chapterId: string | null
 
   for (const idea of ideaRows) {
     if (idea.status !== "published") fail("QUESTION_AUTHORING_IDEA_NOT_PUBLISHED", "Semua Idea harus berstatus published.");
-    if (idea.courseId !== course.id) fail("QUESTION_AUTHORING_IDEA_COURSE_MISMATCH", "Idea harus berasal dari mata kuliah yang sama.");
-    if (resolvedChapterId && idea.chapterId !== resolvedChapterId) fail("QUESTION_AUTHORING_IDEA_CHAPTER_MISMATCH", "Idea harus berasal dari bab yang dipilih.");
+    if (idea.courseId !== context.canonicalCourseId) fail("QUESTION_AUTHORING_IDEA_COURSE_MISMATCH", "Idea harus berasal dari mata kuliah yang sama.");
+    if (context.chapterId && idea.chapterId !== context.chapterId) fail("QUESTION_AUTHORING_IDEA_CHAPTER_MISMATCH", "Idea harus berasal dari bab yang dipilih.");
   }
+}
 
-  return { canonicalCourseId: course.id, legacyCourseId: legacyCourse.id, chapterId: resolvedChapterId };
+async function validateKnowledgeObject(tx: Tx, context: AuthoringContext, knowledgeObjectId: string | null | undefined): Promise<void> {
+  if (knowledgeObjectId === undefined || knowledgeObjectId === null) return;
+  const [knowledgeObject] = await tx
+    .select({ courseId: knowledgeObjects.courseId, chapterId: knowledgeObjects.chapterId, status: knowledgeObjects.status })
+    .from(knowledgeObjects)
+    .where(eq(knowledgeObjects.id, knowledgeObjectId))
+    .limit(1);
+  if (!knowledgeObject) fail("QUESTION_AUTHORING_KO_NOT_FOUND", "Knowledge Object tidak ditemukan.");
+  if (knowledgeObject.status !== "active") fail("QUESTION_AUTHORING_KO_NOT_ACTIVE", "Knowledge Object tidak aktif.");
+  if (knowledgeObject.courseId !== context.legacyCourseId) fail("QUESTION_AUTHORING_KO_COURSE_MISMATCH", "Knowledge Object berasal dari mata kuliah lain.");
+  if (context.chapterId && !context.legacyChapterId) fail("QUESTION_AUTHORING_CHAPTER_MAPPING_MISSING", "Bab belum memiliki pemetaan ke bab lama untuk Knowledge Object.");
+  if (context.legacyChapterId && knowledgeObject.chapterId !== context.legacyChapterId) {
+    fail("QUESTION_AUTHORING_KO_CHAPTER_MISMATCH", "Knowledge Object berasal dari bab lain.");
+  }
 }
 
 function optionSnapshot(question: QuestionAuthoringQuestion): Array<{ id: string; text: string; isCorrect: boolean }> {
@@ -146,6 +187,7 @@ async function persistQuestion(
   creatorId: string,
   reviewStatus: QuestionReviewStatus,
   questionId?: string,
+  createOnly = false,
 ): Promise<PersistResult> {
   const canonicalId = questionId ?? `soal-manual-${randomUUID()}`;
   const [existingCanonical] = await tx
@@ -156,6 +198,7 @@ async function persistQuestion(
       courseId: soal.mataKuliahId,
       creatorId: soal.creatorId,
       status: soal.status,
+      generationHash: soal.generationHash,
     })
     .from(soal)
     .where(eq(soal.id, canonicalId))
@@ -164,12 +207,50 @@ async function persistQuestion(
   if (existingCanonical && existingCanonical.courseId !== context.canonicalCourseId) fail("QUESTION_AUTHORING_COURSE_CHANGE_FORBIDDEN", "Soal tidak dapat dipindahkan ke mata kuliah lain saat diedit.");
 
   const [existingCompatibility] = await tx
-    .select({ id: aiQuestionBank.id, origin: aiQuestionBank.origin, courseId: aiQuestionBank.courseId, createdAt: aiQuestionBank.createdAt })
+    .select({
+      id: aiQuestionBank.id,
+      origin: aiQuestionBank.origin,
+      courseId: aiQuestionBank.courseId,
+      generationHash: aiQuestionBank.generationHash,
+      reviewStatus: aiQuestionBank.reviewStatus,
+      createdAt: aiQuestionBank.createdAt,
+    })
     .from(aiQuestionBank)
     .where(eq(aiQuestionBank.id, canonicalId))
     .limit(1);
   if (existingCompatibility?.origin === "itb_example") fail("QUESTION_AUTHORING_ITB_IMMUTABLE", "Soal contoh ITB tidak dapat diedit dari authoring manual.");
   if (existingCompatibility && existingCompatibility.courseId !== context.legacyCourseId) fail("QUESTION_AUTHORING_COURSE_CHANGE_FORBIDDEN", "Soal tidak dapat dipindahkan ke course lain saat diedit.");
+
+  const canonicalStatus = canonicalQuestionStatus(reviewStatus);
+  if (existingCanonical && existingCompatibility) {
+    const existingInputHash = hashQuestion({
+      courseId: context.canonicalCourseId,
+      chapterId: context.chapterId,
+      ideaLinks,
+      question,
+      version: existingCanonical.version,
+    });
+    if (
+      existingCanonical.generationHash === existingInputHash
+      && existingCompatibility.generationHash === existingInputHash
+      && existingCanonical.status === canonicalStatus
+      && existingCompatibility.reviewStatus === reviewStatus
+    ) {
+      return {
+        id: canonicalId,
+        canonicalCourseId: context.canonicalCourseId,
+        legacyCourseId: context.legacyCourseId,
+        chapterId: context.chapterId,
+        version: existingCanonical.version,
+        reviewStatus,
+        created: false,
+        unchanged: true,
+      };
+    }
+    if (createOnly) fail("QUESTION_AUTHORING_CONFLICT", `Soal ${canonicalId} sudah ada dengan isi yang berbeda.`);
+  } else if (existingCanonical && createOnly) {
+    fail("QUESTION_AUTHORING_CONFLICT", `Soal ${canonicalId} sudah ada tanpa projection kompatibilitas yang lengkap.`);
+  }
 
   const version = existingCanonical ? existingCanonical.version + 1 : 1;
   const generationHash = hashQuestion({
@@ -179,7 +260,6 @@ async function persistQuestion(
     question,
     version,
   });
-  const canonicalStatus = canonicalQuestionStatus(reviewStatus);
   const now = new Date();
   const publishedAt = canonicalStatus === "published" ? now : null;
   const options = optionSnapshot(question);
@@ -204,7 +284,6 @@ async function persistQuestion(
         updatedAt: now,
       })
       .where(eq(soal.id, canonicalId));
-    await tx.delete(soalIde).where(eq(soalIde.soalId, canonicalId));
   } else {
     await tx.insert(soal).values({
       id: canonicalId,
@@ -251,6 +330,7 @@ async function persistQuestion(
     origin: "zyx_original" as const,
     sourceEventName: null,
     sourceReferenceId: null,
+    ...(question.knowledgeObjectId !== undefined ? { knowledgeObjectId: question.knowledgeObjectId } : {}),
     generationHash,
     status: canonicalStatus === "retired" ? "retired" : "active",
     isStale: false,
@@ -264,7 +344,10 @@ async function persistQuestion(
     distractorMap: [],
     explanation: question.explanation,
     reviewStatus,
+    pattern: question.reasoningPattern,
     reasoningType: question.reasoningPattern,
+    ...(question.applicationLevel !== undefined ? { applicationLevel: question.applicationLevel } : {}),
+    ...(question.estimatedSteps !== undefined ? { estimatedSteps: question.estimatedSteps } : {}),
     createdAt: existingCompatibility?.createdAt ?? now,
   };
   if (existingCompatibility) {
@@ -300,6 +383,8 @@ async function persistQuestion(
     chapterId: context.chapterId,
     version,
     reviewStatus,
+    created: !existingCanonical,
+    unchanged: false,
   };
 }
 
@@ -313,28 +398,78 @@ export async function createCanonicalQuestion(input: QuestionAuthoringInput, cre
   const question = await prepareQuestion(parsed, 1);
   return db.transaction(async (tx) => {
     await requireCreator(tx, creatorId);
-    const context = await resolveContext(tx, parsed.courseId, parsed.chapterId, parsed.ideaLinks);
+    const context = await resolveContext(tx, parsed.courseId, parsed.chapterId);
+    await validateIdeaLinks(tx, context, parsed.ideaLinks);
+    await validateKnowledgeObject(tx, context, question.knowledgeObjectId);
     return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, creatorId, parsed.reviewStatus);
   });
 }
 
-export async function createCanonicalQuestionBatch(input: {
+type PreparedBatch = {
   courseId: string;
-  chapterId?: string | null;
-  ideaLinks: QuestionAuthoringInput["ideaLinks"];
-  questions: QuestionAuthoringQuestion[];
+  chapterId: string | null;
   reviewStatus: QuestionReviewStatus;
-  creatorId: string;
-}): Promise<PersistResult[]> {
-  if (input.questions.length === 0) fail("QUESTION_AUTHORING_EMPTY_BATCH", "Tidak ada soal untuk disimpan.");
-  const base = questionAuthoringInputSchema.pick({ courseId: true, chapterId: true, ideaLinks: true, reviewStatus: true }).parse(input);
-  const questions = await Promise.all(input.questions.map((question, index) => prepareQuestion(question, index + 1)));
+  items: Array<{ question: QuestionAuthoringQuestion; ideaLinks: QuestionIdeaLink[]; questionId?: string }>;
+};
+
+async function prepareBatch(input: Omit<QuestionAuthoringBatchInput, "creatorId"> | QuestionAuthoringBatchInput): Promise<PreparedBatch> {
+  if (input.items.length === 0) fail("QUESTION_AUTHORING_EMPTY_BATCH", "Tidak ada soal untuk disimpan.");
+  const base = questionAuthoringInputSchema.pick({ courseId: true, chapterId: true, reviewStatus: true }).parse(input);
+  const items = await Promise.all(input.items.map(async (item, index) => ({
+    question: await prepareQuestion(item.question, index + 1),
+    ideaLinks: questionAuthoringInputSchema.shape.ideaLinks.parse(item.ideaLinks ?? []),
+    ...(item.questionId ? { questionId: item.questionId.trim() } : {}),
+  })));
+  if (items.some((item) => item.questionId === "")) fail("QUESTION_AUTHORING_ID_INVALID", "ID soal tidak boleh kosong.");
+  const explicitIds = items.flatMap((item) => item.questionId ? [item.questionId] : []);
+  if (new Set(explicitIds).size !== explicitIds.length) fail("QUESTION_AUTHORING_DUPLICATE_ID", "ID soal dalam satu batch harus unik.");
+  return { courseId: base.courseId, chapterId: base.chapterId ?? null, reviewStatus: base.reviewStatus, items };
+}
+
+async function validatePreparedBatch(tx: Tx, prepared: PreparedBatch): Promise<AuthoringContext> {
+  const context = await resolveContext(tx, prepared.courseId, prepared.chapterId);
+  for (const item of prepared.items) {
+    await validateIdeaLinks(tx, context, item.ideaLinks);
+    await validateKnowledgeObject(tx, context, item.question.knowledgeObjectId);
+  }
+  return context;
+}
+
+export async function validateCanonicalQuestionBatch(input: Omit<QuestionAuthoringBatchInput, "creatorId">): Promise<{
+  canonicalCourseId: string;
+  legacyCourseId: string;
+  chapterId: string | null;
+  questionCount: number;
+}> {
+  const prepared = await prepareBatch(input);
+  return db.transaction(async (tx) => {
+    const context = await validatePreparedBatch(tx, prepared);
+    return {
+      canonicalCourseId: context.canonicalCourseId,
+      legacyCourseId: context.legacyCourseId,
+      chapterId: context.chapterId,
+      questionCount: prepared.items.length,
+    };
+  });
+}
+
+export async function createCanonicalQuestionBatch(input: QuestionAuthoringBatchInput): Promise<PersistResult[]> {
+  const prepared = await prepareBatch(input);
   return db.transaction(async (tx) => {
     await requireCreator(tx, input.creatorId);
-    const context = await resolveContext(tx, base.courseId, base.chapterId, base.ideaLinks);
+    const context = await validatePreparedBatch(tx, prepared);
     const results: PersistResult[] = [];
-    for (const question of questions) {
-      results.push(await persistQuestionWithLinks(tx, context, question, base.ideaLinks, input.creatorId, base.reviewStatus));
+    for (const item of prepared.items) {
+      results.push(await persistQuestionWithLinks(
+        tx,
+        context,
+        item.question,
+        item.ideaLinks,
+        input.creatorId,
+        prepared.reviewStatus,
+        item.questionId,
+        input.createOnly ?? false,
+      ));
     }
     return results;
   });
@@ -348,8 +483,10 @@ async function persistQuestionWithLinks(
   creatorId: string,
   reviewStatus: QuestionReviewStatus,
   questionId?: string,
+  createOnly = false,
 ): Promise<PersistResult> {
-  const result = await persistQuestion(tx, context, question, ideaLinks, creatorId, reviewStatus, questionId);
+  const result = await persistQuestion(tx, context, question, ideaLinks, creatorId, reviewStatus, questionId, createOnly);
+  if (result.unchanged) return result;
   await tx.delete(soalIde).where(eq(soalIde.soalId, result.id));
   const now = new Date();
   for (const link of ideaLinks) {
@@ -370,7 +507,9 @@ export async function updateCanonicalQuestion(input: QuestionAuthoringInput, cre
   const question = await prepareQuestion(parsed, 1);
   return db.transaction(async (tx) => {
     await requireCreator(tx, creatorId);
-    const context = await resolveContext(tx, parsed.courseId, parsed.chapterId, parsed.ideaLinks);
+    const context = await resolveContext(tx, parsed.courseId, parsed.chapterId);
+    await validateIdeaLinks(tx, context, parsed.ideaLinks);
+    await validateKnowledgeObject(tx, context, question.knowledgeObjectId);
     return persistQuestionWithLinks(tx, context, question, parsed.ideaLinks, creatorId, parsed.reviewStatus, questionId);
   });
 }

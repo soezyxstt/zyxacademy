@@ -17,7 +17,7 @@ import {
   ChevronDown,
   FileCheck2,
   Layers,
-  Sparkles,
+  Tag,
   Check,
   Send,
   Eraser,
@@ -732,7 +732,7 @@ export function PublicFormViewer({ idOrSlug }: { idOrSlug: string }) {
                 className="space-y-6 text-left"
               >
                 <div className="inline-flex items-center gap-2 rounded-md bg-brand-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary">
-                  <Sparkles className="size-3.5" />
+                  <Tag className="size-3.5" />
                   {form.category}
                 </div>
 

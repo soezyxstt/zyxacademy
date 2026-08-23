@@ -66,10 +66,12 @@ export function CoursesPageTabs({
             <span>Import Learning Bundle</span>
           </AdminTabsTrigger>
         )}
-        <AdminTabsTrigger value="assessment-bundle-importer" className="gap-1.5 px-3 py-1.5 font-semibold rounded-lg">
-          <HelpCircle className="size-3.5" />
-          <span>Import Assessment Bundle</span>
-        </AdminTabsTrigger>
+        {!ideaBundleV2Enabled && (
+          <AdminTabsTrigger value="assessment-bundle-importer" className="gap-1.5 px-3 py-1.5 font-semibold rounded-lg">
+            <HelpCircle className="size-3.5" />
+            <span>Import Assessment Bundle</span>
+          </AdminTabsTrigger>
+        )}
       </AdminTabsList>
 
       <AdminTabsContent value="courses">
@@ -90,9 +92,11 @@ export function CoursesPageTabs({
         </AdminTabsContent>
       )}
 
-      <AdminTabsContent value="assessment-bundle-importer">
-        <AssessmentBundleImporterTab />
-      </AdminTabsContent>
+      {!ideaBundleV2Enabled && (
+        <AdminTabsContent value="assessment-bundle-importer">
+          <AssessmentBundleImporterTab />
+        </AdminTabsContent>
+      )}
     </AdminTabs>
   );
 }

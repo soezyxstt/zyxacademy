@@ -47,10 +47,10 @@ export async function registerPkaAction(
 
     const fullName = formData.get("fullName")?.toString().trim() ?? "";
     const faculty = formData.get("faculty")?.toString().trim() ?? "";
-    const emailRaw = formData.get("email")?.toString().trim() ?? "";
+    const emailRaw = session.user.email?.trim() ?? "";
     const instagramRaw = formData.get("instagram")?.toString() ?? "";
     const receiveAnnouncements = formData.get("receiveAnnouncements") === "on";
-    const proof = formData.get("proof") as File;
+    const proof = formData.get("proof");
 
     if (!fullName) return { error: "Nama lengkap wajib diisi." };
     if (!faculty) return { error: "Fakultas wajib diisi." };
@@ -59,10 +59,7 @@ export async function registerPkaAction(
     const instagram = normalizeInstagram(instagramRaw);
     if (!instagram) return { error: "Username Instagram wajib diisi." };
 
-    if (!proof) {
-      return { error: "Unggah screenshot bukti follow @zyx_academy." };
-    }
-    if (proof.size === 0) {
+    if (!(proof instanceof File) || proof.size === 0) {
       return { error: "Unggah screenshot bukti follow @zyx_academy." };
     }
     if (!ALLOWED_PROOF_TYPES.includes(proof.type)) {

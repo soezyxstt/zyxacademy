@@ -229,7 +229,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
         />
 
         <Select value={filterCourse} onValueChange={setFilterCourse}>
-          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Semua Mata Kuliah" />
           </SelectTrigger>
           <SelectContent>
@@ -243,7 +243,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
         </Select>
 
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Semua Kategori" />
           </SelectTrigger>
           <SelectContent>
@@ -257,7 +257,7 @@ export function AssessmentsClient({ sources, courses, courseMap }: Props) {
         </Select>
 
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[110px] sm:w-[130px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Semua Status" />
           </SelectTrigger>
           <SelectContent>

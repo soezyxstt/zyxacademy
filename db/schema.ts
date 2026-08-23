@@ -30,6 +30,23 @@ export const user = sqliteTable("user", {
  lastActivityAt: integer("last_activity_at", { mode: "timestamp" }),
 });
 
+/** User-controlled optional email categories. Essential transactional email bypasses this table. */
+export const emailNotificationPreferences = sqliteTable("email_notification_preferences", {
+ userId: text("user_id")
+  .primaryKey()
+  .references(() => user.id, { onDelete: "cascade" }),
+ emailEnabled: integer("email_enabled", { mode: "boolean" }).default(true).notNull(),
+ courseUpdates: integer("course_updates", { mode: "boolean" }).default(true).notNull(),
+ eventsAndSchedules: integer("events_and_schedules", { mode: "boolean" }).default(true).notNull(),
+ learningReminders: integer("learning_reminders", { mode: "boolean" }).default(true).notNull(),
+ newsAndOffers: integer("news_and_offers", { mode: "boolean" }).default(false).notNull(),
+ createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ updatedAt: integer("updated_at", { mode: "timestamp" })
+  .defaultNow()
+  .$onUpdate(() => /* @__PURE__ */ new Date())
+  .notNull(),
+});
+
 /** Canonical domain identity for a Better Auth user. */
 export const pengguna = sqliteTable(
  "pengguna",
@@ -437,6 +454,7 @@ export const groups = sqliteTable("groups", {
 	packageName: text("package_name").notNull().default("Paket Reguler (15 Sesi)"),
 	totalQuotaSessions: integer("total_quota_sessions").default(15).notNull(),
 	usedQuotaSessions: integer("used_quota_sessions").default(0).notNull(),
+	weeklyQuotaSessions: integer("weekly_quota_sessions").default(2).notNull(),
 	academicYear: text("academic_year").default("2026/2027").notNull(),
 	semester: text("semester").default("Ganjil").notNull(),
 	startDate: integer("start_date", { mode: "timestamp" }),
@@ -755,9 +773,20 @@ export const userRelations = relations(user, ({ many, one }) => ({
   tutorCourses: many(tutorCourses),
   tutorSlots: many(tutorSlots),
   enrollments: many(enrollments),
+  emailNotificationPreferences: one(emailNotificationPreferences, {
+    fields: [user.id],
+    references: [emailNotificationPreferences.userId],
+  }),
   pengguna: one(pengguna, {
     fields: [user.id],
     references: [pengguna.id],
+  }),
+}));
+
+export const emailNotificationPreferencesRelations = relations(emailNotificationPreferences, ({ one }) => ({
+  user: one(user, {
+    fields: [emailNotificationPreferences.userId],
+    references: [user.id],
   }),
 }));
 
@@ -3214,6 +3243,7 @@ export const courseMaterials = sqliteTable(
 		>(),
 		year: integer("year"),
 		fileUrl: text("file_url").notNull(),
+		checksum: text("checksum"),
 		chapterIds: text("chapter_ids", { mode: "json" }).$type<string[]>().notNull(),
 		thumbnailUrl: text("thumbnail_url"),
 		createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
@@ -4952,9 +4982,10 @@ export const pkaSchedules = sqliteTable("pka_schedules", {
 });
 
 // Gated enrollment intake: incoming students fill this form (name, faculty,
-// contact, Instagram follow proof) before an enrollment row is created. The
-// receiveAnnouncements opt-in controls whether they get schedule/announcement
-// broadcasts. One row per user (uniqueIndex on user_id).
+// account email, Instagram follow proof) before an enrollment row is created.
+// receiveAnnouncements remains a legacy fallback for existing rows and still
+// controls push delivery. Central preferences govern optional email delivery.
+// One row per user (uniqueIndex on user_id).
 export const pkaRegistrations = sqliteTable(
   "pka_registrations",
   {

@@ -33,7 +33,7 @@ Additional product invariants are explicit in the bundle contract:
 
 ## Lifecycle
 
-1. An admin uploads a ZIP at `/admin/bundles/product`. The first request validates and returns a complete editable projection without writing R2 or Turso.
+1. An admin uploads a ZIP at `/admin/materials/review?section=product` (the legacy `/admin/bundles/product` route redirects there). The first request validates and returns a complete editable projection without writing R2 or Turso.
 2. The workspace maps product counts, dependencies, Idea and source traceability, options, reasoning, relations, curation, and every content block. Admins edit the renderable content and allowed relationship metadata in place while identity, source, version, and attribution fields remain locked.
 3. Explicit save resubmits the original ZIP and browser draft. The server allowlist-merges edits, recomputes generation hashes and checksums, refreshes Article to Diktat lineage and product dependency hashes, repeats strict validation, then stores a draft ZIP and inventory.
 4. A draft may be replaced with the same bundle ID and a new checksum, deleted, or published directly by an admin. Internal review evidence is created at publication and is not a separate public state.
@@ -49,7 +49,7 @@ The only public lifecycle is:
 draft -> published -> withdrawn
 ```
 
-The public API remains gated by the explicitly approved optional flag `FEATURE_PRODUCT_BUNDLE_V2`. Setting the flag to `0` hides the page and disables the routes. Learner and bank provenance labels render whenever provenance metadata exists. Legacy importers remain available as rollback paths.
+The workflow is always-on. Learner and bank provenance labels render whenever provenance metadata exists. Legacy importers remain available as rollback paths.
 
 ## ITB question source contract
 
@@ -103,4 +103,4 @@ The staging fixture exercises all seven product types, identical retry, draft re
 
 ## Rollback
 
-Set `FEATURE_PRODUCT_BUNDLE_V2=0` to hide the workflow. Do not delete imported versions or audit records. If a published test bundle must be withdrawn, use the normal audited lifecycle operation.
+Use the legacy importers as the rollback path. Do not delete imported versions or audit records. If a published test bundle must be withdrawn, use the normal audited lifecycle operation.

@@ -76,6 +76,8 @@ Hanya kembalikan teks ringkasan itu sendiri tanpa tambahan penjelasan, kutipan, 
 
     try {
       const response = await generateContentWithFallback({
+        userId: user.id,
+        feature: "blog-summary",
         useCase: "chapter-summary",
         contents: `Tolong buatkan ringkasan untuk artikel berikut:\n\n${content}`,
         config: {

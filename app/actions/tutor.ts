@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { TutorActionService } from "@/lib/tutor-actions";
 import { db } from "@/db";
-import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments } from "@/db/schema";
+import { aiQuestionBank, knowledgeObjects, tutorChatMessages, chatSessions, studentQuizAttempts, quizTemplates, zyraMessageAttachments, courses } from "@/db/schema";
 import { eq, and, asc, desc, gt, inArray, isNull, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { exams } from "@/lib/student-course-fixtures";
@@ -218,6 +218,21 @@ export async function findKoForMaterialSectionAction(courseId: string, selectedT
   }
 
   return { success: false, error: "No KOs found for this course" };
+}
+
+/**
+ * Resolves the human-readable course label for the drawer header so students
+ * see an academic context (course title) instead of the internal slug.
+ * Returns null when the course does not exist; the UI falls back to the slug.
+ */
+export async function getTutorCourseContextAction(courseId: string) {
+  await requireUser();
+  const [row] = await db
+    .select({ title: courses.title })
+    .from(courses)
+    .where(eq(courses.id, courseId))
+    .limit(1);
+  return row?.title ?? null;
 }
 
 export async function askTutorRagAction(

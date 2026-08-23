@@ -1,138 +1,171 @@
 import { db } from "@/db";
 import { bookings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { createGoogleMeetSpace } from "@/lib/google-meet";
-import { formatIsoDateUtc, normalizeDate } from "@/lib/date-utils";
+import {
+  INDONESIAN_DAYS,
+  type IndonesianDay,
+  getJakartaNow,
+  parseDateInput,
+  getMondayOfWeek,
+  getWeeklyLockCutoff,
+  isSessionLocked,
+  getWeekScheduleDays,
+  formatIsoDateUtc,
+} from "@/lib/date-utils";
 
-export const INDONESIAN_DAYS = [
-  "Senin",
-  "Selasa",
-  "Rabu",
-  "Kamis",
-  "Jumat",
-  "Sabtu",
-  "Minggu",
-] as const;
-
-export type IndonesianDay = (typeof INDONESIAN_DAYS)[number];
-
-const DAY_MAP_ID: Record<number, IndonesianDay> = {
-  0: "Minggu",
-  1: "Senin",
-  2: "Selasa",
-  3: "Rabu",
-  4: "Kamis",
-  5: "Jumat",
-  6: "Sabtu",
+export {
+  INDONESIAN_DAYS,
+  type IndonesianDay,
+  getJakartaNow,
+  parseDateInput,
+  getMondayOfWeek,
+  getWeeklyLockCutoff,
+  isSessionLocked,
+  getWeekScheduleDays,
 };
 
 /**
- * Returns current timestamp in milliseconds adjusted for Asia/Jakarta timezone (UTC+7).
+ * Parses an HH:MM time string into minutes since midnight.
  */
-export function getJakartaNow(): Date {
-  const now = new Date();
-  return new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+export function timeToMinutes(time: string): number | null {
+  const match = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/.exec(time);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
 }
 
 /**
- * Parse an ISO date string or Date object to a normalized Date.
+ * Validates that a tutor availability slot spans exactly 90 minutes.
  */
-export function parseDateInput(input: Date | string): Date {
-  if (typeof input === "string") {
-    // If it's YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
-      const [y, m, d] = input.split("-").map(Number);
-      return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-    }
-    return new Date(input);
-  }
-  return normalizeDate(input);
+export function isNinetyMinuteSlot(startTime: string, endTime: string): boolean {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  if (start === null || end === null) return false;
+  return end - start === 90;
 }
 
 /**
- * Given a target session date (or day in a week), returns the Monday of that week.
+ * Returns the Monday and Sunday ISO dates of the week containing the given date.
  */
-export function getMondayOfWeek(targetDate: Date | string): Date {
-  const d = parseDateInput(targetDate);
-  const day = d.getDay(); // 0 is Sunday, 1 is Monday...
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-  const monday = new Date(d);
-  monday.setDate(diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday;
+export function getIsoWeekRange(
+  dateInput: Date | string
+): { startIso: string; endIso: string } {
+  const monday = getMondayOfWeek(dateInput);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return {
+    startIso: formatIsoDateUtc(monday),
+    endIso: formatIsoDateUtc(sunday),
+  };
 }
 
 /**
- * Weekly lock cut-off: The Saturday at 23:59:59 WIB directly preceding the Monday of the session week.
+ * Counts every booking row of a group inside the week containing sessionDateIso.
+ * Rows are counted regardless of status on purpose: pre-lock cancellations delete
+ * the row (quota freed), while post-lock approved cancellations keep it as
+ * "cancelled" so the weekly quota stays consumed (hangus).
  */
-export function getWeeklyLockCutoff(targetSessionDate: Date | string): Date {
-  const monday = getMondayOfWeek(targetSessionDate);
-  // Saturday preceding this Monday is Monday minus 2 days
-  const saturday = new Date(monday);
-  saturday.setDate(monday.getDate() - 2);
-  saturday.setHours(23, 59, 59, 999);
-  return saturday;
+export async function countGroupBookingsInWeek(
+  groupId: string,
+  sessionDateIso: string
+): Promise<number> {
+  const { startIso, endIso } = getIsoWeekRange(sessionDateIso);
+  const rows = await db
+    .select({ id: bookings.id })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.groupId, groupId),
+        gte(bookings.sessionDate, startIso),
+        lte(bookings.sessionDate, endIso)
+      )
+    );
+  return rows.length;
 }
 
-/**
- * Checks if a session on targetSessionDate is currently locked.
- * Sessions are locked after Saturday 23:59 WIB before the target week starts.
- */
-export function isSessionLocked(targetSessionDate: Date | string, customNow?: Date): boolean {
-  const cutoff = getWeeklyLockCutoff(targetSessionDate);
-  const now = customNow || getJakartaNow();
-  return now.getTime() > cutoff.getTime();
-}
+export type WeeklySessionStat = {
+  weekStartIso: string;
+  weekEndIso: string;
+  label: string;
+  booked: number;
+  attended: number;
+  missed: number;
+  cancelled: number;
+};
 
 /**
- * Generates an array of 7 days (Monday to Sunday) for the week containing anchorDate.
+ * Derives per-week session traceability for the last N weeks (oldest first):
+ * attended = completed sessions; cancelled = forfeited post-lock rows; missed =
+ * scheduled rows whose session time has passed without completion.
  */
-export function getWeekScheduleDays(anchorDate?: Date | string): {
-  startOfWeekIso: string;
-  endOfWeekIso: string;
-  mondayDate: Date;
-  days: Array<{
-    dateIso: string;
-    dayName: IndonesianDay;
-    dayOfMonth: number;
-    monthName: string;
-    isToday: boolean;
-    isPast: boolean;
-  }>;
-} {
-  const refDate = anchorDate ? parseDateInput(anchorDate) : getJakartaNow();
-  const monday = getMondayOfWeek(refDate);
-  const now = getJakartaNow();
+export function computeWeeklySessionStats(
+  bookingRows: Array<{
+    sessionDate: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+    status: string;
+  }>,
+  weeksCount = 4,
+  now: Date = getJakartaNow()
+): WeeklySessionStat[] {
   const todayIso = formatIsoDateUtc(now);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentMonday = getMondayOfWeek(now);
 
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    const dateIso = formatIsoDateUtc(d);
-    const dayName = DAY_MAP_ID[d.getDay()] || "Senin";
-    const isToday = dateIso === todayIso;
-    const isPast = dateIso < todayIso;
+  const monthFormatter = new Intl.DateTimeFormat("id-ID", { month: "short" });
+  const stats: WeeklySessionStat[] = [];
 
-    days.push({
-      dateIso,
-      dayName,
-      dayOfMonth: d.getDate(),
-      monthName: d.toLocaleDateString("id-ID", { month: "short" }),
-      isToday,
-      isPast,
+  for (let i = weeksCount - 1; i >= 0; i--) {
+    const monday = new Date(currentMonday);
+    monday.setDate(currentMonday.getDate() - i * 7);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const startIso = formatIsoDateUtc(monday);
+    const endIso = formatIsoDateUtc(sunday);
+
+    const rows = bookingRows.filter(
+      (b) => b.sessionDate && b.sessionDate >= startIso && b.sessionDate <= endIso
+    );
+
+    let attended = 0;
+    let missed = 0;
+    let cancelled = 0;
+
+    for (const row of rows) {
+      if (row.status === "completed") {
+        attended++;
+        continue;
+      }
+      if (row.status === "cancelled") {
+        cancelled++;
+        continue;
+      }
+      const endMin = timeToMinutes(row.endTime || row.startTime || "00:00") ?? 0;
+      const isPastDay = Boolean(row.sessionDate && row.sessionDate < todayIso);
+      const isTodayPastTime = row.sessionDate === todayIso && endMin < nowMinutes;
+      if (isPastDay || isTodayPastTime) {
+        missed++;
+      }
+    }
+
+    const label =
+      monday.getDate() === sunday.getDate()
+        ? `${sunday.getDate()} ${monthFormatter.format(sunday)}`
+        : `${monday.getDate()}-${sunday.getDate()} ${monthFormatter.format(sunday)}`;
+
+    stats.push({
+      weekStartIso: startIso,
+      weekEndIso: endIso,
+      label,
+      booked: rows.length,
+      attended,
+      missed,
+      cancelled,
     });
   }
 
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-
-  return {
-    startOfWeekIso: formatIsoDateUtc(monday),
-    endOfWeekIso: formatIsoDateUtc(sunday),
-    mondayDate: monday,
-    days,
-  };
+  return stats;
 }
 
 /**

@@ -6,11 +6,11 @@ These runbooks apply to staging and production operations review. They use the p
 
 ## Active reservation spike
 
-Compare active reservations with the accepted allowance and control-plane diagnostics. If the count is not explainable, disable `FEATURE_ZYRA_ALLOWANCE_V2` and preserve the lease evidence for reconciliation.
+Compare active reservations with the accepted allowance and control-plane diagnostics. If the count is not explainable, roll back to the last verified application version, preserve the lease evidence for reconciliation, and note that the allowance ledger no longer has an env kill switch.
 
 ## Quota oversubscription
 
-Stop promotion of the affected canary, reconcile application leases with control-plane commits, and disable `FEATURE_ZYRA_ALLOWANCE_V2` if the invariant is not restored. Never delete lease rows.
+Stop promotion of the affected canary, reconcile application leases with control-plane commits, and roll back to the last verified application version if the invariant is not restored. Never delete lease rows.
 
 ## Reconciliation drift
 
@@ -18,15 +18,15 @@ Keep the authoritative allowance ledger enabled, repair only the documented comp
 
 ## All projects degraded
 
-Keep new rollout flags off, inspect masked project health and provider outcome buckets, and use the router fallback policy. Disable `FEATURE_ZYRA_PROVIDER_ROUTER_V2` if safe fallback cannot be demonstrated.
+Keep new rollout flags off, inspect masked project health and provider outcome buckets, and use the router fallback policy. Roll back to the last verified application version if safe fallback cannot be demonstrated; the router is always-on and has no env kill switch.
 
 ## Provider 429 or timeout
 
-Slow or stop the synthetic canary, verify the bounded request cap, and allow health-aware fallback to settle. Disable `FEATURE_ZYRA_PROVIDER_ROUTER_V2` if the accepted text path cannot meet its fallback gate.
+Slow or stop the synthetic canary, verify the bounded request cap, and allow health-aware fallback to settle. Roll back to the last verified application version if the accepted text path cannot meet its fallback gate.
 
 ## Premium reserve
 
-Stop premium-only experiments and verify that ordinary tutoring still has its declared reserve. Disable `FEATURE_ZYRA_ALLOWANCE_V2` for the affected canary if reserve accounting is not exact.
+Stop premium-only experiments and verify that ordinary tutoring still has its declared reserve. Roll back to the last verified application version if reserve accounting is not exact.
 
 ## Cache isolation
 
@@ -54,7 +54,7 @@ Keep the typed response boundary fail-closed, inspect stable violation codes, an
 
 ## Telemetry loss
 
-Keep quota and learner responses authoritative, check database write health and bounded failure counts, and disable `FEATURE_ZYRA_AI_OPS_V1` if the operations path causes request failures. Never replace ledger truth with telemetry estimates.
+Keep quota and learner responses authoritative, check database write health and bounded failure counts, and restrict or roll back the operations route if it causes request failures. The dashboard is admin-gated and always-on with no env kill switch. Never replace ledger truth with telemetry estimates.
 
 ## Proposal safety
 

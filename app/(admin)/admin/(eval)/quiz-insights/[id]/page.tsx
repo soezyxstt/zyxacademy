@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, use } from "react";
 import Link from "next/link";
 import {
-  Sparkles,
+  BrainCircuit,
   BarChart3,
   CheckCircle2,
   AlertTriangle,
@@ -21,7 +21,7 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
 import { QuizAttemptsSpreadsheet } from "./_components/quiz-attempts-spreadsheet";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { AdminStatCard } from "@/components/admin/stat-card";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
 
@@ -233,7 +233,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
             {analyzingAi ? (
               <RefreshCw className="size-4 animate-spin" />
             ) : (
-              <Sparkles className="size-4 text-amber-300" />
+              <BrainCircuit className="size-4 text-amber-300" />
             )}
             <span>{analyzingAi ? "Menganalisis..." : "Jalankan Analisis Performa"}</span>
           </Button>
@@ -247,16 +247,14 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
         </div>
       )}
 
-      {/* Summary KPI Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <AdminStatCard
-          size="sm"
+      {/* Summary KPI Strip */}
+      <AdminStatStrip className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+        <AdminStatStripItem
           label="Total Selesai"
           value={summary.totalCompleted}
-          caption={`dari ${summary.totalStarted} dimulai (${summary.completionRate}%)`}
+          caption={`${summary.completionRate}% (${summary.totalStarted} dimulai)`}
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Rata-rata Skor"
           value={
             <>
@@ -267,31 +265,27 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
           caption={`Median: ${summary.medianScore}`}
           tone="brand"
         />
-        <AdminStatCard
-          size="sm"
-          label="Tertinggi / Terendah"
+        <AdminStatStripItem
+          label="Rentang Skor"
           value={
             <>
               {summary.maxScore}{" "}
               <span className="text-body-xs text-muted-foreground font-normal">/ {summary.minScore}</span>
             </>
           }
-          caption="Rentang nilai siswa"
+          caption="Maks / Min"
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Rata-rata Durasi"
           value={formatDuration(summary.avgDurationSeconds)}
           caption="Waktu pengerjaan"
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Total Soal"
           value={questionAnalysis.length}
-          caption="Butir soal teruji"
+          caption="Butir teruji"
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Status Insight"
           value={
             <div className="mt-1">
@@ -303,36 +297,38 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
             </div>
           }
           caption={
-            latestAiInsight ? `Sampel: ${latestAiInsight.sampleSize} siswa` : "Belum dianalisis"
+            latestAiInsight ? `${latestAiInsight.sampleSize} siswa` : "Belum dianalisis"
           }
         />
-      </div>
+      </AdminStatStrip>
 
       {/* Tabs Component */}
       <AdminTabs value={activeTab} onValueChange={setActiveTab}>
-        <AdminTabsList>
-          <AdminTabsTrigger value="attempts-sheet">
-            <FileSpreadsheet className="size-4 text-emerald-500" />
-            <span>Sheet Attempt &amp; Jawaban Siswa</span>
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="ai-insights">
-            <Sparkles className="size-4 text-amber-400" />
-            <span>Analisis Performa &amp; Rekomendasi</span>
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="questions">
-            <FileSpreadsheet className="size-4 text-brand-primary" />
-            <span>Analisis Butir Soal &amp; Distraktor</span>
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="concepts" className="gap-1.5">
-            <Target className="size-4 text-brand-secondary" />
-            <span>Analisis Konsep &amp; Topik</span>
-            <BetaBadge />
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="distribution">
-            <BarChart3 className="size-4 text-status-info" />
-            <span>Distribusi &amp; Statistik Nilai</span>
-          </AdminTabsTrigger>
-        </AdminTabsList>
+        <div className="overflow-x-auto pb-1 max-w-full">
+          <AdminTabsList>
+            <AdminTabsTrigger value="attempts-sheet">
+              <FileSpreadsheet className="size-4 text-emerald-500" />
+              <span>Sheet Jawaban</span>
+            </AdminTabsTrigger>
+            <AdminTabsTrigger value="ai-insights">
+              <BrainCircuit className="size-4 text-brand-primary" />
+              <span>Analisis Performa</span>
+            </AdminTabsTrigger>
+            <AdminTabsTrigger value="questions">
+              <FileSpreadsheet className="size-4 text-brand-primary" />
+              <span>Butir Soal &amp; Distraktor</span>
+            </AdminTabsTrigger>
+            <AdminTabsTrigger value="concepts" className="gap-1.5">
+              <Target className="size-4 text-brand-secondary" />
+              <span>Konsep &amp; Topik</span>
+              <BetaBadge />
+            </AdminTabsTrigger>
+            <AdminTabsTrigger value="distribution">
+              <BarChart3 className="size-4 text-status-info" />
+              <span>Distribusi Nilai</span>
+            </AdminTabsTrigger>
+          </AdminTabsList>
+        </div>
 
         {/* TAB 0: SPREADSHEET ATTEMPT SISWA */}
         <AdminTabsContent value="attempts-sheet" className="space-y-6">
@@ -344,7 +340,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
           {!latestAiInsight ? (
             <div className="bg-card border border-border rounded-xl p-10 text-center space-y-4">
               <div className="size-12 rounded-full bg-brand-primary/10 flex items-center justify-center mx-auto text-brand-primary">
-                <Sparkles className="size-6 text-amber-400" />
+                <BrainCircuit className="size-6 text-brand-primary" />
               </div>
               <div className="max-w-md mx-auto space-y-2">
                 <h3 className="font-heading text-body-base font-bold text-foreground">Belum Ada Analisis Performa</h3>
@@ -357,7 +353,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
                 disabled={analyzingAi || summary.totalCompleted === 0}
                 className="gap-2 bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
               >
-                {analyzingAi ? <RefreshCw className="size-4 animate-spin" /> : <Sparkles className="size-4 text-amber-300" />}
+                {analyzingAi ? <RefreshCw className="size-4 animate-spin" /> : <BrainCircuit className="size-4 text-amber-300" />}
                 <span>{analyzingAi ? "Menganalisis..." : "Jalankan Analisis Performa Sekarang"}</span>
               </Button>
               {summary.totalCompleted === 0 && (

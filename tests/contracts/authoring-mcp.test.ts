@@ -2,6 +2,15 @@ import { describe, expect, it } from "bun:test";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
 import { ingestMcpSourcePack, listAuthoringWorkflows } from "@/lib/authoring/mcp-workflows";
+import { normalizeQuestionBankDraft, parseQuestionBankDraftJson } from "@/lib/authoring/question-bank-draft";
+import {
+  computeIdeaFacets,
+  filterIdeaRecords,
+  normalizeIdeaDifficultyLevel,
+  paginateIdeaRecords,
+  type CatalogIdeaRecord,
+} from "@/lib/authoring/question-catalog";
+import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
 
 const testPrincipal = {
   userId: "test-admin",
@@ -11,12 +20,58 @@ const testPrincipal = {
   authMethod: "session" as const,
 };
 
+function catalogRecord(overrides: Partial<CatalogIdeaRecord> = {}): CatalogIdeaRecord {
+  return {
+    id: "idea-1",
+    code: "MA1101-01",
+    statement: "Definisi limit barisan",
+    explanation: "Limit barisan didefinisikan dengan epsilon.",
+    latex: null,
+    knowledgeKind: "definition",
+    instructionalRole: "core",
+    difficultyLevel: "introductory",
+    version: 2,
+    semanticHash: "a".repeat(64),
+    ...overrides,
+  };
+}
+
+function draftJson(questions: unknown[]): string {
+  return JSON.stringify({ schemaVersion: "question-bank-draft.v2", draftId: "draft-1", questions });
+}
+
+function multipleChoice(id: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    questionType: "multiple_choice",
+    difficulty: "medium",
+    cognitiveLevel: "apply",
+    reasoningPattern: "direct_application",
+    tags: [],
+    prompt: `Pertanyaan untuk ${id}?`,
+    options: ["A", "B", "C", "D"],
+    correctIndices: [0],
+    acceptableAnswers: [],
+    explanation: "Karena A benar.",
+    ideaLinks: [],
+    ...overrides,
+  };
+}
+
 describe("provider-neutral authoring MCP workflow registry", () => {
   it("exposes exactly the two supported workflow choices", () => {
     const workflows = listAuthoringWorkflows();
     expect(workflows.map((workflow) => workflow.key)).toEqual(["idea_product", "quiz_bank"]);
     expect(workflows.some((workflow) => workflow.key.includes("both"))).toBe(false);
     expect(workflows).toHaveLength(2);
+  });
+
+  it("keeps the Source Pack mandatory for idea_product and optional for quiz_bank", () => {
+    const workflows = listAuthoringWorkflows();
+    const ideaProduct = workflows.find((workflow) => workflow.key === "idea_product");
+    const quizBank = workflows.find((workflow) => workflow.key === "quiz_bank");
+    expect(ideaProduct?.sourcePackRequired).toBe(true);
+    expect(quizBank?.sourcePackRequired).toBe(false);
   });
 
   it("returns a structured compatibility failure for an invalid Source Pack", () => {
@@ -27,6 +82,57 @@ describe("provider-neutral authoring MCP workflow registry", () => {
   it("rejects malformed artifact encoding before validation", () => {
     expect(() => ingestMcpSourcePack("invalid.zip", "%%%invalid%%%"))
       .toThrow("AUTHORING_MCP_BASE64_INVALID");
+  });
+
+  it("accepts question bank draft v2 with optional per-question Idea links", () => {
+    const parsed = parseQuestionBankDraftJson(JSON.stringify({
+      schemaVersion: "question-bank-draft.v2",
+      draftId: "draft-1",
+      questions: [{
+        id: "question-1",
+        difficulty: "medium",
+        questionType: "multiple_choice",
+        cognitiveLevel: "apply",
+        reasoningPattern: "direct_application",
+        tags: [],
+        prompt: "Berapa hasil 2 + 2?",
+        options: ["3", "4"],
+        correctIndices: [1],
+        acceptableAnswers: [],
+        explanation: "Hasilnya 4.",
+      }],
+    }));
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      const normalized = normalizeQuestionBankDraft(parsed.data);
+      expect(normalized.items[0]?.ideaLinks).toEqual([]);
+      expect(normalized.items[0]?.question.questionType).toBe("multiple_choice");
+    }
+  });
+
+  it("normalizes the legacy KO-based quiz draft into canonical authoring input", () => {
+    const parsed = parseQuestionBankDraftJson(JSON.stringify({
+      schemaVersion: "quiz-bank-draft.v1",
+      draftId: "legacy-draft",
+      questions: [{
+        id: "legacy-question",
+        knowledgeObjectId: "ko-1",
+        itemFormat: "multiple_choice",
+        prompt: "Pilih jawaban.",
+        options: ["A", "B"],
+        correctIndices: [0],
+        explanation: "A benar.",
+        difficulty: "easy",
+        cognitiveLevel: "remember",
+        reasoningPattern: "recall",
+      }],
+    }));
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      const normalized = normalizeQuestionBankDraft(parsed.data);
+      expect(normalized.items[0]?.question.knowledgeObjectId).toBe("ko-1");
+      expect(normalized.items[0]?.ideaLinks).toEqual([]);
+    }
   });
 
   it("serves the MCP initialize handshake over Streamable HTTP", async () => {
@@ -65,8 +171,114 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     const names = body.result?.tools?.map((tool) => tool.name) ?? [];
     expect(names).toContain("authoring.submit_idea_bundle");
     expect(names).toContain("authoring.submit_product_bundle");
+    expect(names).toContain("assessment.list_ideas");
+    expect(names).toContain("assessment.get_idea");
     expect(names).toContain("assessment.validate_quiz_draft");
     expect(names).toContain("assessment.submit_quiz_draft");
     expect(names.some((name) => name.includes("both"))).toBe(false);
+  });
+});
+
+describe("question authoring idea catalog", () => {
+  const records = [
+    catalogRecord(),
+    catalogRecord({ id: "idea-2", code: "MA1101-02", statement: "Rumus turunan fungsi komposisi", explanation: "Gunakan aturan rantai.", knowledgeKind: "formula", difficultyLevel: "advanced" }),
+    catalogRecord({ id: "idea-3", code: "MA1101-03", statement: "Prosedur sketsa grafik", explanation: "Tentukan titik kritis lalu uji tanda.", instructionalRole: "prerequisite", knowledgeKind: "procedure", difficultyLevel: "intermediate" }),
+  ];
+
+  it("normalizes unknown difficulty metadata to unspecified", () => {
+    expect(normalizeIdeaDifficultyLevel(undefined)).toBe("unspecified");
+    expect(normalizeIdeaDifficultyLevel({ level: "introductory" })).toBe("unspecified");
+    expect(normalizeIdeaDifficultyLevel("intermediate")).toBe("intermediate");
+  });
+
+  it("filters by query, knowledge kind, role, and difficulty level", () => {
+    expect(filterIdeaRecords(records, { query: "epsilon" }).map((record) => record.id)).toEqual(["idea-1"]);
+    expect(filterIdeaRecords(records, { knowledgeKinds: ["formula"] }).map((record) => record.id)).toEqual(["idea-2"]);
+    expect(filterIdeaRecords(records, { instructionalRoles: ["prerequisite"] }).map((record) => record.id)).toEqual(["idea-3"]);
+    expect(filterIdeaRecords(records, { difficultyLevels: ["introductory", "advanced"] })).toHaveLength(2);
+    expect(filterIdeaRecords(records, {})).toHaveLength(3);
+  });
+
+  it("computes facets over the filtered set", () => {
+    const facets = computeIdeaFacets(filterIdeaRecords(records, { knowledgeKinds: ["definition", "formula"] }));
+    expect(facets.knowledgeKind).toEqual({ definition: 1, formula: 1 });
+    expect(facets.instructionalRole).toEqual({ core: 2 });
+  });
+
+  it("paginates with a next offset", () => {
+    const page = paginateIdeaRecords(records, 2, 0);
+    expect(page.total).toBe(3);
+    expect(page.items).toHaveLength(2);
+    expect(page.nextOffset).toBe(2);
+    const lastPage = paginateIdeaRecords(records, 2, 2);
+    expect(lastPage.items).toHaveLength(1);
+    expect(lastPage.nextOffset).toBeNull();
+  });
+});
+
+describe("aggregated question bank draft review", () => {
+  const scopeIdeas = [
+    { id: "idea-1", code: "MA1101-01", courseId: "course-1", chapterId: "chapter-1", status: "published" },
+    { id: "idea-2", code: "MA1101-02", courseId: "course-1", chapterId: "chapter-1", status: "published" },
+    { id: "idea-3", code: "MA1101-03", courseId: "course-1", chapterId: "chapter-2", status: "published" },
+    { id: "idea-4", code: "MA1101-04", courseId: "course-1", chapterId: "chapter-1", status: "draft" },
+  ];
+
+  function reviewDraft(questions: unknown[]) {
+    const parsed = parseQuestionBankDraftJson(draftJson(questions));
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) throw new Error("draft should parse");
+    return reviewQuestionBankDraft({
+      draft: normalizeQuestionBankDraft(parsed.data),
+      scopeCourseId: "course-1",
+      scopeChapterId: "chapter-1",
+      ideas: scopeIdeas,
+    });
+  }
+
+  it("accepts a linked draft that satisfies scope and weight rules", () => {
+    const review = reviewDraft([
+      multipleChoice("q1", { ideaLinks: [
+        { ideaId: "idea-1", weight: 0.7, role: "primary" },
+        { ideaId: "idea-2", weight: 0.3, role: "supporting" },
+      ] }),
+    ]);
+    expect(review.valid).toBe(true);
+    expect(review.blockingIssueCount).toBe(0);
+    expect(review.stats.linkedQuestionCount).toBe(1);
+    expect(review.stats.coverage.coveredIdeaIds).toEqual(["idea-1", "idea-2"]);
+    expect(review.stats.coverage.uncoveredIdeaIds).toEqual([]);
+    expect(review.issues.some((issue) => issue.code === "QUESTION_COVERAGE_GAP")).toBe(false);
+  });
+
+  it("reports every blocking issue in one pass without failing fast", () => {
+    const review = reviewDraft([
+      multipleChoice("q1"),
+      multipleChoice("q1", { correctIndices: [0, 0] }),
+      multipleChoice("q2", { ideaLinks: [{ ideaId: "idea-missing", weight: 0.5, role: "primary" }] }),
+      multipleChoice("q3", { ideaLinks: [
+        { ideaId: "idea-3", weight: 0.5, role: "primary" },
+        { ideaId: "idea-4", weight: 0.5, role: "required" },
+      ] }),
+    ]);
+    const codes = review.issues.filter((issue) => issue.severity === "blocking").map((issue) => issue.code);
+    expect(codes).toContain("QUESTION_BANK_DRAFT_DUPLICATE_ID");
+    expect(codes).toContain("QUESTION_AUTHORING_INVALID_QUESTION");
+    expect(codes).toContain("QUESTION_AUTHORING_DUPLICATE_ANSWER");
+    expect(codes).toContain("QUESTION_AUTHORING_IDEA_NOT_FOUND");
+    expect(codes).toContain("QUESTION_AUTHORING_IDEA_WEIGHT_INVALID");
+    expect(codes).toContain("QUESTION_AUTHORING_IDEA_CHAPTER_MISMATCH");
+    expect(codes).toContain("QUESTION_AUTHORING_IDEA_NOT_PUBLISHED");
+    expect(review.valid).toBe(false);
+  });
+
+  it("warns about uncovered catalog ideas and empty explanations without blocking", () => {
+    const review = reviewDraft([multipleChoice("q1", { explanation: "" })]);
+    expect(review.valid).toBe(true);
+    expect(review.blockingIssueCount).toBe(0);
+    const warningCodes = review.issues.filter((issue) => issue.severity === "warning").map((issue) => issue.code);
+    expect(warningCodes).toContain("QUESTION_EXPLANATION_EMPTY");
+    expect(warningCodes.filter((code) => code === "QUESTION_COVERAGE_GAP")).toHaveLength(2);
   });
 });

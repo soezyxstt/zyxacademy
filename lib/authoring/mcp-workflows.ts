@@ -31,6 +31,13 @@ type SourceTokenPayload = SignedTokenPayload & {
   summary: SourcePackSummary;
 };
 
+type RunSourceFields = {
+  sourcePackChecksum: string | null;
+  sourcePackId: string | null;
+  sourcePackName: string | null;
+  sourcePackSummary: SourcePackSummary | null;
+};
+
 type RunTokenPayload = SignedTokenPayload & {
   kind: "run";
   runId: string;
@@ -39,11 +46,7 @@ type RunTokenPayload = SignedTokenPayload & {
   chapterId: string;
   courseLabel: string;
   chapterLabel: string;
-  sourcePackChecksum: string;
-  sourcePackId: string;
-  sourcePackName: string;
-  sourcePackSummary: SourcePackSummary;
-};
+} & RunSourceFields;
 
 export type McpConnectionTokenPayload = SignedTokenPayload & {
   kind: "connection";
@@ -87,7 +90,7 @@ export type AuthoringWorkflowOption = {
   key: AuthoringWorkflow;
   label: string;
   description: string;
-  sourcePackRequired: true;
+  sourcePackRequired: boolean;
   scope: ["course", "chapter"];
   reviewRequired: true;
   publicationTarget: "idea_and_product_review" | "quiz_bank_review";
@@ -106,8 +109,8 @@ const WORKFLOW_OPTIONS: readonly AuthoringWorkflowOption[] = [
   {
     key: "quiz_bank",
     label: "Bank soal kuis",
-    description: "Menyiapkan draft soal kuis untuk ditinjau sebelum masuk ke bank soal.",
-    sourcePackRequired: true,
+    description: "Menyusun draft soal yang terhubung ke Idea published, dengan atau tanpa Source Pack konteks.",
+    sourcePackRequired: false,
     scope: ["course", "chapter"],
     reviewRequired: true,
     publicationTarget: "quiz_bank_review",
@@ -278,20 +281,26 @@ export function ingestMcpSourcePack(filename: string, contentBase64: string, ori
 
 export async function startAuthoringWorkflow(input: {
   workflow: AuthoringWorkflow;
-  sourcePackToken: string;
+  sourcePackToken?: string;
   courseKey: string;
   chapterKey: string;
 }) {
-  const source = verifyToken<SourceTokenPayload>(input.sourcePackToken, "source");
   const courseChoice = verifyToken<SignedTokenPayload & { kind: "course_choice"; courseId: string }>(input.courseKey, "course_choice");
   const chapterChoice = verifyToken<SignedTokenPayload & { kind: "chapter_choice"; courseId: string; chapterId: string }>(input.chapterKey, "chapter_choice");
   if (chapterChoice.courseId !== courseChoice.courseId) throw new Error("AUTHORING_MCP_SCOPE_MISMATCH");
+
+  const workflow = getAuthoringWorkflow(input.workflow);
+  let source: Pick<SourceTokenPayload, "checksum" | "packId" | "name" | "summary"> | null = null;
+  if (input.sourcePackToken) {
+    source = verifyToken<SourceTokenPayload>(input.sourcePackToken, "source");
+  } else if (workflow.sourcePackRequired) {
+    throw new Error("AUTHORING_MCP_SOURCE_PACK_REQUIRED");
+  }
 
   const course = await getAuthoringCourseOption(courseChoice.courseId);
   if (!course) throw new Error("AUTHORING_MCP_COURSE_NOT_FOUND");
   const chapter = course.chapters.find((item) => item.id === chapterChoice.chapterId);
   if (!chapter) throw new Error("AUTHORING_MCP_CHAPTER_NOT_FOUND");
-  const workflow = getAuthoringWorkflow(input.workflow);
   const runId = `mcp-run-${randomUUID()}`;
   const runToken = issueToken({
     kind: "run",
@@ -301,10 +310,10 @@ export async function startAuthoringWorkflow(input: {
     chapterId: chapter.id,
     courseLabel: course.title,
     chapterLabel: chapter.title,
-    sourcePackChecksum: source.checksum,
-    sourcePackId: source.packId,
-    sourcePackName: source.name,
-    sourcePackSummary: source.summary,
+    sourcePackChecksum: source?.checksum ?? null,
+    sourcePackId: source?.packId ?? null,
+    sourcePackName: source?.name ?? null,
+    sourcePackSummary: source?.summary ?? null,
     ttlMs: 7 * 24 * 60 * 60 * 1000,
   });
   return {
@@ -312,10 +321,10 @@ export async function startAuthoringWorkflow(input: {
     runId,
     workflow,
     scope: { course: course.title, chapter: chapter.title },
-    source: { packId: source.packId, name: source.name, checksum: source.checksum },
+    source: source ? { packId: source.packId, name: source.name, checksum: source.checksum } : null,
     next: workflow.key === "idea_product"
       ? ["authoring.validate_idea_bundle", "authoring.submit_idea_bundle", "authoring.validate_product_bundle", "authoring.submit_product_bundle"]
-      : ["assessment.validate_quiz_draft", "assessment.submit_quiz_draft"],
+      : ["assessment.list_ideas", "assessment.get_idea", "assessment.validate_quiz_draft", "assessment.submit_quiz_draft"],
   };
 }
 
@@ -364,12 +373,33 @@ export function publicMcpRun(runToken: string) {
     runId: run.runId,
     workflow: getAuthoringWorkflow(run.workflow),
     scope: { course: run.courseLabel, chapter: run.chapterLabel },
-    source: {
-      packId: run.sourcePackId,
-      name: run.sourcePackName,
-      checksum: run.sourcePackChecksum,
-      summary: run.sourcePackSummary,
+    source: run.sourcePackId
+      ? {
+        packId: run.sourcePackId,
+        name: run.sourcePackName,
+        checksum: run.sourcePackChecksum,
+        summary: run.sourcePackSummary,
+      }
+      : null,
+  };
+}
+
+export function quizBankScopeGuidance() {
+  return {
+    difficulty: ["easy", "medium", "hard"],
+    cognitiveLevel: ["remember", "understand", "apply", "analyze", "evaluate", "create"],
+    questionType: ["multiple_choice", "multiple_choices", "short_answer", "essay"],
+    ideaRole: ["primary", "supporting", "required"],
+    linkingPolicy: {
+      required: false,
+      recommended: true,
+      weightRule: "Jika satu atau lebih Idea dipilih, bobot positif harus berjumlah tepat 1.",
+      scopeRule: "Idea yang dirujuk wajib published, satu mata kuliah, dan satu bab dengan run yang dikunci.",
     },
+    tagsRule: "Tag bebas berupa string singkat; gunakan huruf kecil dan konsisten, misalnya nama subtopik bab.",
+    catalogTool: "assessment.list_ideas",
+    detailTool: "assessment.get_idea",
+    coverageHint: "Setiap Idea pada katalog sebaiknya dicover minimal satu soal; MCP melaporkan gap sebagai warning.",
   };
 }
 
@@ -380,7 +410,7 @@ export function workflowContract(runToken: string) {
     version: AUTHORING_MCP_VERSION,
     workflow,
     scope: { course: run.courseLabel, chapter: run.chapterLabel },
-    source: { packId: run.sourcePackId, checksum: run.sourcePackChecksum },
+    source: run.sourcePackId ? { packId: run.sourcePackId, checksum: run.sourcePackChecksum } : null,
     rules: [
       "Gunakan hanya source pack yang telah divalidasi oleh MCP.",
       "Source Pack harus dikirim bersama binary asli setiap dokumen agar originalSha256 dapat diverifikasi independen.",
@@ -396,7 +426,37 @@ export function workflowContract(runToken: string) {
         productBundle: { validationTool: "authoring.validate_product_bundle", reviewRequired: true, ideaPublicationRequired: true },
       }
       : {
-        quizDraft: { validationTool: "assessment.validate_quiz_draft", submitTool: "assessment.submit_quiz_draft", reviewRequired: true, publicationTarget: "question_bank", initialStatus: "generated" },
+        quizDraft: {
+          schemaVersion: "question-bank-draft.v2",
+          ideaCatalogTool: "assessment.list_ideas",
+          ideaDetailTool: "assessment.get_idea",
+          validationTool: "assessment.validate_quiz_draft",
+          submitTool: "assessment.submit_quiz_draft",
+          ideaLinksRequired: false,
+          linkedIdeaWeightRule: "Positive weights must sum to 1 when Idea links are present.",
+          scopeGuidance: quizBankScopeGuidance(),
+          draftExample: {
+            schemaVersion: "question-bank-draft.v2",
+            draftId: "draft-local-1",
+            questions: [{
+              id: "question-1",
+              questionType: "multiple_choice",
+              difficulty: "medium",
+              cognitiveLevel: "apply",
+              reasoningPattern: "direct_application",
+              tags: [],
+              prompt: "Tulis pertanyaan di sini.",
+              options: ["Opsi A", "Opsi B", "Opsi C", "Opsi D"],
+              correctIndices: [0],
+              acceptableAnswers: [],
+              explanation: "Tulis pembahasan di sini.",
+              ideaLinks: [],
+            }],
+          },
+          reviewRequired: true,
+          publicationTarget: "question_bank",
+          initialStatus: "generated",
+        },
       },
   };
 }

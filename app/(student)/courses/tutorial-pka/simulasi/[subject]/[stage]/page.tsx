@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pkaSimulationStages, quizTemplates, studentQuizAttempts } from "@/db/schema";
@@ -18,6 +18,7 @@ import { quizOptionClasses, quizOptionLetterClasses } from "@/components/course/
 import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button";
 import { Reveal } from "@/components/ui/reveal";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
+import { ZyraMark } from "@/components/course/zyra-mark";
 
 import { normalizeDate } from "@/lib/date-utils";
 
@@ -184,7 +185,7 @@ export default async function PkaStagePage({ params, searchParams }: Props) {
                       {q.explanation && (
                         <div className="mt-4 ml-9 space-y-3 border-t border-border/80 pt-4">
                           <div className="flex items-center gap-2 text-brand-primary">
-                            <Sparkles className="size-4 animate-pulse" />
+                            <ZyraMark className="size-4" />
                             <h4 className="font-heading text-body-xs font-bold uppercase tracking-wider">Pembahasan Soal oleh Zyra</h4>
                           </div>
                           <div className="text-body-sm text-muted-foreground leading-relaxed">

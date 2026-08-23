@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { AiStats, AiRequestLog } from "@/lib/ai/analytics";
 import { ZyraUsageCharts } from "@/components/admin/zyra-usage-charts";
-import { AdminStatCard } from "@/components/admin/stat-card";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types
@@ -154,33 +154,29 @@ export function AiAnalyticsClient() {
         </div>
       </div>
 
-      {/* Summary cards ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <AdminStatCard
-          size="sm"
+      {/* Summary strip */}
+      <AdminStatStrip className="lg:grid-cols-4">
+        <AdminStatStripItem
           label="Total Requests"
           value={stats.totalRequests}
           tone="brand"
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Successful"
           value={stats.successfulRequests}
           caption={`${((stats.successfulRequests / stats.totalRequests) * 100).toFixed(1)}%`}
           tone="success"
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Failed"
           value={stats.failedRequests}
           tone={stats.failedRequests > 0 ? "error" : "default"}
         />
-        <AdminStatCard
-          size="sm"
+        <AdminStatStripItem
           label="Avg Latency"
           value={formatLatency(stats.averageLatencyMs)}
         />
-      </div>
+      </AdminStatStrip>
 
       {/* Gateway vs Direct breakdown ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

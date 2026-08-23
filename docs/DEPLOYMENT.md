@@ -5,6 +5,14 @@
 Production runs on Vercel (Next.js) + Turso (DB) with supporting Cloudflare services.
 
 ```
+Vercel (Next.js App Router)
+ ├── Turso (libsql database)
+ ├── Cloudflare R2 (object storage)
+ ├── Inngest Cloud (background jobs)
+ ├── Cloudflare AI Gateway (Gemini proxy)
+ ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
+ └── Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
+```
 
 ## Staging overhaul execution
 
@@ -19,14 +27,6 @@ bun --env-file=.env.staging run staging:reconcile -- --run-id <runId> --expect a
 ```
 
 The old production-to-staging sync is not part of the overhaul. Any exceptional destructive sync must use the dedicated `db:sync-prod-to-staging:destructive` command and an explicit confirmation phrase after a separate operator review.
-Vercel (Next.js App Router)
- ├── Turso (libsql database)
- ├── Cloudflare R2 (object storage)
- ├── Inngest Cloud (background jobs)
- ├── Cloudflare AI Gateway (Gemini proxy)
- ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
- └── Cloudflare Workers (3 services)
-```
 
 ## Vercel Deployment
 
@@ -194,12 +194,16 @@ The PKA (Tutorial Akademik) campaign is a seasonal product. Deploy steps:
 3. Seed quiz templates for each stage
 4. Enable registration window via admin announcements
 
+## Email Notification Preferences
+
+Migration `0073_flashy_spitfire.sql` adds `email_notification_preferences`. Apply it before deploying the always-on settings, delivery, and unsubscribe workflow. Verify the settings page with a Google-authenticated account, then send one message from each optional category. Each delivered message must contain its visible unsubscribe link, a `List-Unsubscribe` URL, and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`.
+
 ## Feature Flags
 
 Feature flags are exception-based rollout controls, not a requirement for every new capability. Foundational authorization, canonical retrieval, assessment, learning, and pedagogy behavior is always-on. Before implementing a new capability or material behavior change, confirm whether it should be always-on or flag-gated. Any new flag needs a clear reason, default, scope, rollback behavior, owner, and removal condition. See [DEVELOPMENT.md](./DEVELOPMENT.md#feature-flags) for the current approved list.
 ## Authoring Context Pack V1
 
-Keep `FEATURE_AUTHORING_CONTEXT_V1` absent or `0` until the local contract suite and staging round trip pass. The export API is admin-only by default, stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.
+The export workflow is always-on and admin-only. Before any staging round trip, the local contract suite must pass. The export API stores artifacts under the exact run-specific prefix `overhaul/<runId>/authoring-context/`, and records the object key, checksum, policy version, holdout exclusion count, and retention timestamp in `audit_mutasi`.
 
 The artifact must use the private R2 staging bucket and must not use a public URL. The authenticated Wrangler adapter is limited to the staging test process when normal R2 credentials are unavailable; production runtime keeps the standard R2 provider. Rollback disables the flag and deletes only an explicitly named test object by exact key.
 
@@ -293,7 +297,7 @@ The fixture shadow validates 40 of 40 cases with zero provider calls. Remote sha
 
 ## Zyra evidence-based personalization
 
-Plan 008 uses additive migration `0067_zyra_continuation.sql` for bounded learning evidence, inferred profiles, explicit preferences, and the Plan 010 through 013 records. Keep `FEATURE_ZYRA_PERSONALIZATION_V1` absent or `0` until the Plan 008 staging gate is approved. The local synthetic smoke is privacy-safe and makes zero provider calls and zero database writes:
+Plan 008 uses additive migration `0067_zyra_continuation.sql` for bounded learning evidence, inferred profiles, explicit preferences, and the Plan 010 through 013 records. Personalization is always-on; the Plan 008 staging gate is a process gate, not an env flag. The local synthetic smoke is privacy-safe and makes zero provider calls and zero database writes:
 
 ```bash
 bun --env-file=.env.staging run staging:smoke-zyra-personalization -- --run-id <runId> --course tutorial-pka
@@ -303,7 +307,7 @@ The smoke does not deploy a Worker, enable a public flag, or mutate staging. Sch
 
 ## Zyra typed Learning Canvas
 
-Plan 009 is currently local-ready. Keep `FEATURE_ZYRA_LEARNING_CANVAS_V1` absent or `0` until the visual staging gate is approved. The local evaluation and synthetic staging smoke are:
+Plan 009 is local-ready and the canvas layer is always-on; the visual staging gate is a process gate, not an env flag. The local evaluation and synthetic staging smoke are:
 
 ```bash
 bun run eval:zyra-canvas
@@ -335,16 +339,16 @@ This procedure mutates only the verified staging database. It does not deploy th
 
 ## Product Bundle V2
 
-Keep `FEATURE_PRODUCT_BUNDLE_V2` optional until local contract gates and the staging product-bundle rehearsal pass. The workflow uses the normal private R2 storage abstraction for staged ZIP artifacts and writes product publication, dependency, audit, and vector outbox records transactionally. Run the staging test with `.env.staging` and the authenticated Wrangler fallback only when the script explicitly enables it. Do not enable the flag in production as part of Plan 008; production rollout remains out of scope.
+The Product Bundle workflow is always-on; the staging product-bundle rehearsal remains a required process gate. The workflow uses the normal private R2 storage abstraction for staged ZIP artifacts and writes product publication, dependency, audit, and vector outbox records transactionally. Run the staging test with `.env.staging` and the authenticated Wrangler fallback only when the script explicitly enables it; production rollout review remains out of scope for local work.
 
 ## Provider-neutral Authoring MCP
 
 The MCP endpoint is deployed as the Node.js route `/api/mcp/authoring` and uses the official Streamable HTTP transport. It is always available after deployment, but every request still requires a valid admin session or an MCP access token issued after an admin login. Source Pack ingestion requires ephemeral original binaries for independent `originalSha256` verification; those binaries are not stored in the Source Pack ZIP.
 
-When enabling the endpoint, no MCP-specific static token or actor ID is configured. MCP authorization uses the existing Better Auth session through `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`, `/api/mcp/oauth/register`, `/api/mcp/oauth/authorize`, and `/api/mcp/oauth/token`. The authorization code flow requires PKCE S256, checks the active admin role, binds the access token to the Better Auth session, and scopes it to the MCP resource. For clients without interactive OAuth support, an authenticated admin can call `/api/mcp/authoring/connection` to receive a short-lived per-session bearer token. The endpoint exposes exactly two workflow choices, `idea_product` and `quiz_bank`; it does not expose a combined workflow or product-family selection. MCP submission can stage valid Idea and Product artifacts and generated quiz questions, but no MCP tool can publish canonical content. Admin review and publication remain on the existing authenticated application boundary.
+When enabling the endpoint, no MCP-specific static token or actor ID is configured. MCP authorization uses the existing Better Auth session through `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`, `/api/mcp/oauth/register`, `/api/mcp/oauth/authorize`, and `/api/mcp/oauth/token`. The authorization code flow requires PKCE S256, checks the active admin role, binds the access token to the Better Auth session, and scopes it to the MCP resource. For clients without interactive OAuth support, an authenticated admin can call `/api/mcp/authoring/connection` to receive a short-lived per-session bearer token. The endpoint exposes exactly two workflow choices, `idea_product` and `quiz_bank`; it does not expose a combined workflow or product-family selection. The quiz workflow exposes scoped Idea retrieval, accepts V2 question drafts with optional per-question Idea links, and writes canonical plus compatibility records as generated review items. MCP submission can stage valid Idea and Product artifacts and generated questions, but no MCP tool can publish canonical content. Admin review and publication remain on the existing authenticated application boundary.
 
 The current transport is stateless and does not require a database migration. OAuth authorization codes use the existing Better Auth verification store and are single-use. Short-lived signed access tokens are derived from `BETTER_AUTH_SECRET`, carry the authenticated user and session identity, and are checked against the live session and admin role on every MCP request. Short-lived workflow tokens carry the selected course, chapter, Source Pack checksum, and quality summary without exposing raw internal IDs. Canonical quality modules validate Source Pack originals and content, Idea coverage and duplicate candidates, and Product published-Idea scope, dependency freshness, and content density before staging. A later persistence phase can add run audit rows without changing the MCP tool contract.
 
 ## Plan 017 audit rework
 
-The branch-local rework adds no table, migration, provider, or deployment requirement. Keep `FEATURE_PRODUCT_BUNDLE_V2` optional until the local gates pass and a separate staging rehearsal is approved; canonical Idea, assessment, evidence, and Vectorize runtimes are always-on. The rework routes only approved Article, question, and solution products to canonical Vectorize namespaces, excludes holdout references, and appends per-Idea evidence only for exact published mappings. Rollback is branch-only during this phase; switching back to `staging` requires no data rollback.
+The branch-local rework adds no table, migration, provider, or deployment requirement. The staging product-bundle rehearsal remains a separately approved process gate; canonical Idea, assessment, evidence, and Vectorize runtimes are always-on. The rework routes only approved Article, question, and solution products to canonical Vectorize namespaces, excludes holdout references, and appends per-Idea evidence only for exact published mappings. Rollback is branch-only during this phase; switching back to `staging` requires no data rollback.

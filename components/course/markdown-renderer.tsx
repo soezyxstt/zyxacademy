@@ -7,18 +7,19 @@ import {
   Lightbulb, 
   AlertTriangle, 
   AlertOctagon, 
-  Sparkles, 
+  AlertCircle,
+  Compass,
   Copy, 
   Check 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
-import { Input } from "@/components/ui/input";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
 import { getLayoutedGraph, LayoutDiagnostics } from "@/lib/visual-layout-service";
 import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyra/canvas";
 import { MathText } from "@/components/course/math-text";
+import { InteractiveGraphWidget } from "@/components/course/interactive-graph-widget";
 import ReactFlow, { Edge, Node } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -96,7 +97,7 @@ function parseInline(text: string): ReactNode[] {
       result.push(
         <span
           key={`mathblk-${index}`}
-          className="my-2 block overflow-x-auto overflow-y-hidden py-1 text-left"
+          className="my-2 block max-w-full overflow-x-auto no-scrollbar py-1 text-left"
           dangerouslySetInnerHTML={{ __html: renderMath(content, true) }}
         />
       );
@@ -341,10 +342,10 @@ function AlertCallout({
       labelColor: "text-status-success dark:text-emerald-400",
     },
     important: {
-      border: "border-violet-500/25 bg-violet-500/5 text-violet-950 dark:text-violet-50",
-      icon: <Sparkles className="size-5 text-violet-500 shrink-0 mt-0.5" />,
+      border: "border-status-warning/30 bg-status-warning/10 text-amber-950 dark:text-amber-50",
+      icon: <AlertCircle className="size-5 text-status-warning shrink-0 mt-0.5" />,
       label: "Penting",
-      labelColor: "text-violet-600 dark:text-violet-400",
+      labelColor: "text-status-warning dark:text-amber-400",
     },
     warning: {
       border: "border-status-warning/25 bg-status-warning/5 text-amber-950 dark:text-amber-50",
@@ -374,163 +375,6 @@ function AlertCallout({
     </div>
   );
 }
-
-function InteractiveGraphWidget({ initialFormula }: { initialFormula: string }) {
-  const [formula, setFormula] = useState(initialFormula || "x^2 - 2");
-  const compiledFormula = React.useMemo(() => {
-    try {
-      return compileSafeExpression(formula, { variables: ["x"] });
-    } catch {
-      return null;
-    }
-  }, [formula]);
-  
-  const padL = 46;
-  const padR = 18;
-  const padT = 16;
-  const padB = 36;
-  const svgW = 600;
-  const svgH = 312;
-  const plotW = svgW - padL - padR;
-  const plotH = svgH - padT - padB;
-  
-  const xMin = -10;
-  const xMax = 10;
-  const yMin = -8;
-  const yMax = 8;
-
-  const mapX = (x: number) => padL + ((x - xMin) / (xMax - xMin)) * plotW;
-  const mapY = (y: number) => padT + ((yMax - y) / (yMax - yMin)) * plotH;
-
-  const graphPath = React.useMemo(() => {
-    const steps = 200;
-    let path = "";
-    let started = false;
-
-    for (let i = 0; i <= steps; i++) {
-      const xVal = xMin + (i / steps) * (xMax - xMin);
-      let yVal = Number.NaN;
-      try {
-        yVal = compiledFormula?.evaluate({ x: xVal }) ?? Number.NaN;
-      } catch {
-        yVal = Number.NaN;
-      }
-
-      if (isNaN(yVal)) continue;
-
-      const px = mapX(xVal);
-      const py = mapY(Math.min(yMax + 2, Math.max(yMin - 2, yVal)));
-
-      if (!started) {
-        path += `M ${px} ${py}`;
-        started = true;
-      } else {
-        path += ` L ${px} ${py}`;
-      }
-    }
-    return path;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compiledFormula]);
-
-  const xTicks = React.useMemo(() => {
-    const ticks = [];
-    for (let x = -10; x <= 10; x += 2) ticks.push(x);
-    return ticks;
-  }, []);
-
-  const yTicks = React.useMemo(() => {
-    const ticks = [];
-    for (let y = -8; y <= 8; y += 2) ticks.push(y);
-    return ticks;
-  }, []);
-
-  const showXAxis = yMin < 0 && yMax > 0;
-  const showYAxis = xMin < 0 && xMax > 0;
-  const y0 = mapY(0);
-  const x0 = mapX(0);
-
-  const gridLines: React.ReactNode[] = [];
-
-  for (let gx = -10; gx <= 10; gx++) {
-    const major = gx % 5 === 0;
-    gridLines.push(
-      <line
-        key={`vx-${gx}`}
-        x1={mapX(gx)}
-        y1={padT}
-        x2={mapX(gx)}
-        y2={padT + plotH}
-        stroke={major ? "var(--color-border-strong)" : "var(--color-border)"}
-        strokeWidth={major ? 1 : 0.65}
-      />
-    );
-  }
-
-  for (let gy = -8; gy <= 8; gy++) {
-    const major = gy % 4 === 0;
-    gridLines.push(
-      <line
-        key={`hy-${gy}`}
-        x1={padL}
-        y1={mapY(gy)}
-        x2={padL + plotW}
-        y2={mapY(gy)}
-        stroke={major ? "var(--color-border-strong)" : "var(--color-border)"}
-        strokeWidth={major ? 1 : 0.65}
-      />
-    );
-  }
-
-  return (
-    <div className="my-6 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-md">
-      <div className="flex items-center gap-3 border-b bg-muted/20 px-4 py-2 font-sans select-none">
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-primary text-white text-[10px] font-bold font-mono">f</span>
-        <span className="text-body-sm font-mono text-muted-foreground">y =</span>
-        <Input
-          value={formula}
-          onChange={(e) => setFormula(e.target.value)}
-          placeholder="e.g. x^2 - 4"
-          className="h-8 font-mono text-body-sm rounded-lg bg-background border-border/80 focus-visible:ring-brand-primary py-1"
-        />
-      </div>
-      <div className="relative bg-card">
-        <svg viewBox="0 0 600 312" className="h-[240px] w-full max-w-full md:h-[278px]">
-          <g aria-hidden>{gridLines}</g>
-          {showXAxis && <line x1={padL} y1={y0} x2={padL + plotW} y2={y0} stroke="var(--color-foreground)" strokeWidth={1.75} />}
-          {showYAxis && <line x1={x0} y1={padT} x2={x0} y2={padT + plotH} stroke="var(--color-foreground)" strokeWidth={1.75} />}
-          
-          {xTicks.map((xv) => (
-            <text key={`xt-${xv}`} x={mapX(xv)} y={padT + plotH + 22} textAnchor="middle" fill="var(--color-muted-foreground)" fontSize={11} fontFamily="system-ui">
-              {xv}
-            </text>
-          ))}
-          {yTicks.map((yv) => (
-            <text key={`yt-${yv}`} x={padL - 10} y={mapY(yv)} textAnchor="end" dominantBaseline="middle" fill="var(--color-muted-foreground)" fontSize={11} fontFamily="system-ui">
-              {yv}
-            </text>
-          ))}
-
-          <clipPath id="plot-clip-embed">
-            <rect x={padL} y={padT} width={plotW} height={plotH} />
-          </clipPath>
-
-          {graphPath && (
-            <path
-              d={graphPath}
-              fill="none"
-              stroke="var(--color-brand-primary)"
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              clipPath="url(#plot-clip-embed)"
-            />
-          )}
-        </svg>
-      </div>
-    </div>
-  );
-}
-
 
 function BoxPlotChart({ data, xLabel, yLabel }: { data: any[]; xLabel?: string; yLabel?: string }) {
   const padding = { top: 20, right: 30, bottom: 50, left: 55 };
@@ -1496,9 +1340,9 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
 
     case "engineering_insight":
       return (
-        <div className="my-6 p-5 border border-violet-500/20 bg-violet-500/5 text-violet-950 dark:text-violet-50 rounded-xl">
-          <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 font-heading font-bold uppercase tracking-wider text-body-xs mb-2">
-            <Sparkles className="size-4 shrink-0" />
+        <div className="my-6 p-5 border border-brand-primary/20 bg-brand-primary/[0.04] text-foreground rounded-xl">
+          <div className="flex items-center gap-2 text-brand-primary font-heading font-bold uppercase tracking-wider text-body-xs mb-2">
+            <Compass className="size-4 shrink-0" />
             <span>Wawasan Teknik ({block.metadata.discipline})</span>
           </div>
           <h4 className="text-body-base font-bold mb-2 text-foreground">{renderRichText(block.content.title)}</h4>

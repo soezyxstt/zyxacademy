@@ -111,6 +111,7 @@ export async function generateEnrollmentToken(
         packageType,
         packageName: preset.name,
         totalQuotaSessions: preset.quota,
+        weeklyQuotaSessions: preset.weeklySessions,
         usedQuotaSessions: 0,
         academicYear: "2026/2027",
         semester: "Ganjil",

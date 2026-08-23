@@ -15,6 +15,7 @@ import { eq, desc, and, like, or } from "drizzle-orm";
 import { getSemesterEndDate } from "@/lib/utils";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
+import { computeWeeklySessionStats } from "@/lib/schedule-lock";
 
 /**
  * Get all study groups for admin dashboard with summary metrics
@@ -88,6 +89,7 @@ export async function getAdminStudyGroups() {
       packageType: g.packageType,
       packageName: g.packageName,
       totalQuotaSessions: g.totalQuotaSessions,
+      weeklyQuotaSessions: g.weeklyQuotaSessions,
       usedQuotaSessions: effectiveUsedQuota,
       remainingQuota,
       academicYear: g.academicYear,
@@ -201,8 +203,27 @@ export async function getAdminGroupDetail(groupId: string) {
     packageType: g.packageType,
     packageName: g.packageName,
     totalQuotaSessions: g.totalQuotaSessions,
+    weeklyQuotaSessions: g.weeklyQuotaSessions,
     usedQuotaSessions: effectiveUsedQuota,
     remainingQuota,
+    weeklyUsedSessions: computeWeeklySessionStats(
+      (g.bookings || []).map((b) => ({
+        sessionDate: b.sessionDate,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        status: b.status,
+      })),
+      1
+    )[0]?.booked ?? 0,
+    weeklyStats: computeWeeklySessionStats(
+      (g.bookings || []).map((b) => ({
+        sessionDate: b.sessionDate,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        status: b.status,
+      })),
+      4
+    ),
     academicYear: g.academicYear,
     semester: g.semester,
     startDate: g.startDate,
@@ -267,6 +288,7 @@ export type CreateGroupInput = {
   packageType?: PackageType;
   packageName?: string;
   totalQuotaSessions?: number;
+  weeklyQuotaSessions?: number;
   academicYear?: string;
   semester?: string;
   startDate?: string | null;
@@ -291,6 +313,7 @@ export async function createStudyGroup(data: CreateGroupInput) {
   const defaultPkg = PACKAGE_PRESETS[pkgType] || PACKAGE_PRESETS.reguler_15;
   const pkgName = data.packageName?.trim() || defaultPkg.name;
   const totalQuota = data.totalQuotaSessions ?? defaultPkg.quota;
+  const weeklyQuota = data.weeklyQuotaSessions ?? defaultPkg.weeklySessions;
 
   const now = new Date();
   const semesterEnd = getSemesterEndDate(now);
@@ -308,6 +331,7 @@ export async function createStudyGroup(data: CreateGroupInput) {
         packageType: pkgType,
         packageName: pkgName,
         totalQuotaSessions: Math.max(1, totalQuota),
+        weeklyQuotaSessions: Math.max(1, weeklyQuota),
         usedQuotaSessions: 0,
         academicYear: data.academicYear?.trim() || "2026/2027",
         semester: data.semester?.trim() || "Ganjil",
@@ -381,6 +405,7 @@ export type UpdateGroupInput = {
   packageType?: PackageType;
   packageName?: string;
   totalQuotaSessions?: number;
+  weeklyQuotaSessions?: number;
   usedQuotaSessions?: number;
   academicYear?: string;
   semester?: string;
@@ -418,6 +443,7 @@ export async function updateStudyGroup(groupId: string, data: UpdateGroupInput) 
       }
       if (data.packageName !== undefined) updateData.packageName = data.packageName.trim();
       if (data.totalQuotaSessions !== undefined) updateData.totalQuotaSessions = Math.max(1, data.totalQuotaSessions);
+      if (data.weeklyQuotaSessions !== undefined) updateData.weeklyQuotaSessions = Math.max(1, data.weeklyQuotaSessions);
       if (data.usedQuotaSessions !== undefined) updateData.usedQuotaSessions = Math.max(0, data.usedQuotaSessions);
       if (data.academicYear !== undefined) updateData.academicYear = data.academicYear.trim();
       if (data.semester !== undefined) updateData.semester = data.semester.trim();

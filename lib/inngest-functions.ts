@@ -489,7 +489,7 @@ import { computeWeeklyReflection, getPreviousWeekRange, formatDateStr } from "@/
 import { learningEvents, weeklyReflections } from "@/db/schema";
 import { env } from "@/lib/env";
 import { gte, lte } from "drizzle-orm";
-import { resend } from "@/lib/resend";
+import { sendOptionalEmail } from "@/lib/email-preferences/send";
 
 export const weeklyReflectionCron = inngest.createFunction(
   {
@@ -538,13 +538,13 @@ export const weeklyReflectionCron = inngest.createFunction(
           await step.run(`send-reflection-email-${studentId}-${weekStartStr}`, async () => {
             // 1. Fetch student details
             const [student] = await db
-              .select({ name: user.name, email: user.email })
+              .select({ name: user.name })
               .from(user)
               .where(eq(user.id, studentId))
               .limit(1);
 
-            if (!student || !student.email) {
-              console.warn(`No email found for student ${studentId}`);
+            if (!student) {
+              console.warn(`No account found for student ${studentId}`);
               return;
             }
 
@@ -570,11 +570,9 @@ export const weeklyReflectionCron = inngest.createFunction(
             const streak = payload.streak;
 
             // 3. Construct email html and send
-            const fromEmail = env.NEXT_PUBLIC_BRAND_EMAIL || "contact@zyxacademy.com";
-
-            await resend.emails.send({
-              from: `Zyx Academy <${fromEmail}>`,
-              to: student.email,
+            await sendOptionalEmail({
+              userId: studentId,
+              category: "learning_reminders",
               subject: `Weekly Learning Reflection: ${weekStartStr}`,
               html: `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff;">

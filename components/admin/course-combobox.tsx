@@ -51,7 +51,7 @@ export function CourseCombobox({
           aria-haspopup="listbox"
           aria-controls="course-combobox-list"
           className={cn(
-            "flex h-9 w-[190px] sm:w-[220px] items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-1.5 text-body-xs font-medium text-foreground shadow-2xs hover:bg-muted/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none shrink-0 transition-colors text-left",
+            "flex h-9 w-[190px] sm:w-[220px] items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-1.5 text-body-sm font-medium text-foreground shadow-2xs hover:bg-muted/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none shrink-0 transition-colors text-left",
             className
           )}
         >
@@ -74,7 +74,7 @@ export function CourseCombobox({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari mata kuliah..."
-            className="w-full bg-transparent text-body-xs outline-none placeholder:text-muted-foreground"
+            className="w-full bg-transparent text-body-sm outline-none placeholder:text-muted-foreground"
             autoFocus
           />
         </div>
@@ -90,9 +90,9 @@ export function CourseCombobox({
                 setSearch("");
               }}
               className={cn(
-                "relative flex w-full cursor-pointer select-none items-center justify-between rounded-md px-2.5 py-1.5 text-body-xs text-left outline-none transition-colors",
+                "relative flex w-full cursor-pointer select-none items-center justify-between rounded-md px-2.5 py-1.5 text-body-sm text-left outline-none transition-colors",
                 value === "all" || !value
-                  ? "bg-brand-primary/10 text-brand-primary font-semibold"
+                  ? "bg-brand-primary/10 text-brand-primary"
                   : "hover:bg-muted text-foreground"
               )}
             >
@@ -116,9 +116,9 @@ export function CourseCombobox({
                   setSearch("");
                 }}
                 className={cn(
-                  "relative flex w-full cursor-pointer select-none items-center justify-between rounded-md px-2.5 py-1.5 text-body-xs text-left outline-none transition-colors",
+                  "relative flex w-full cursor-pointer select-none items-center justify-between rounded-md px-2.5 py-1.5 text-body-sm text-left outline-none transition-colors",
                   isSelected
-                    ? "bg-brand-primary/10 text-brand-primary font-semibold"
+                    ? "bg-brand-primary/10 text-brand-primary"
                     : "hover:bg-muted text-foreground"
                 )}
               >
@@ -131,7 +131,7 @@ export function CourseCombobox({
           })}
 
           {filteredCourses.length === 0 && search.trim() !== "" && (
-            <div className="py-4 text-center text-body-xs text-muted-foreground">
+            <div className="py-4 text-center text-body-sm text-muted-foreground">
               Mata kuliah tidak ditemukan.
             </div>
           )}

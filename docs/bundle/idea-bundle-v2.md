@@ -1,6 +1,6 @@
 # Idea Bundle V2 Contract
 
-Idea Bundle V2 is a strict, ZIP-based import boundary for source-grounded Ideas. It is enabled by `FEATURE_IDEA_BUNDLE_V2=1`. The legacy JSON importer remains available while this flag is absent or `0`.
+Idea Bundle V2 is a strict, ZIP-based import boundary for source-grounded Ideas. The workflow is always-on. The legacy JSON importer remains available as the rollback path.
 
 ## ZIP security boundary
 
@@ -49,7 +49,7 @@ Unknown manifest fields fail closed. The bundle checksum is deterministic over t
 5. Only an admin can publish an approved import. Publication resolves legacy course and chapter identities, writes all source, chunk, Idea, provenance, and relation rows in one Turso transaction, and records `publikasi_bundle` plus mutation audits.
 6. Vector work is inserted into `vector_sync_queue` as deterministic, conflict-safe outbox jobs for embedding-eligible source chunks and published Ideas. Source chunks use `source_materials` and Ideas use `canonical_ideas`; each job carries the content needed to build the canonical provider-neutral payload. No partial publication is visible after a transaction failure.
 
-The admin panel is available at `/admin/bundles/idea` while the feature flag is enabled. Disabling the flag hides the V2 panel and leaves the legacy importer available for rollback. Published evidence is never deleted as a rollback mechanism.
+The review inventory lives at `/admin/materials/review?section=idea` (the legacy `/admin/bundles/idea` route redirects there). Published evidence is never deleted as a rollback mechanism.
 
 The panel loads the immutable staged ZIP for review and displays every Idea, source excerpt, provenance role, relation, and AI generation label before approval or publication controls are available. External agents may use `$UPLOADER` for creator fields and `$APPROVING_REVIEWER` for curator fields; the values are resolved to real accountable identities only at publication.
 

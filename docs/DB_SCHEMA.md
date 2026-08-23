@@ -9,6 +9,7 @@ This document provides a detailed reference of the SQLite/Turso database schema 
 The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. Migrations are managed via Drizzle ORM. 
 - **Time Representation**: All timestamps are stored as SQLite `integer` values representing Unix milliseconds and are mapped to Javascript `Date` objects.
 - **Foreign Keys**: Cascade deletes are used extensively to maintain integrity across course-specific content.
+- **Coverage note**: `db/schema.ts` is authoritative; this document documents every table's columns. When this document and `db/schema.ts` disagree, trust `db/schema.ts`.
 
 ---
 
@@ -23,6 +24,18 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `role`: Temporary compatibility projection, which can be 'admin', 'teacher', or 'student' during the expand phase. Canonical authorization always uses `pengguna_peran`.
 * `createdAt`
 * `updatedAt`
+
+### emailNotificationPreferences
+* `userId`: Primary key and cascading foreign key to `user.id`.
+* `emailEnabled`: Master control for all optional email categories.
+* `courseUpdates`: Course publication and announcement emails.
+* `eventsAndSchedules`: Course event, schedule, and meeting emails.
+* `learningReminders`: Study and reflection reminder emails.
+* `newsAndOffers`: Zyx news and promotional emails.
+* `createdAt`
+* `updatedAt`
+
+The row is created on the first explicit save or unsubscribe. A missing row derives initial course and event values from the legacy Tutorial PKA `receiveAnnouncements` choice; learning reminders default on and news and offers default off. This table never controls essential account, security, payment, or enrollment email.
 
 ### session
 * `id`
@@ -84,8 +97,6 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `title`
 * `description`
 * `category`: Categorization indicating the major or study field (from a predefined set of majors).
-* `createdAt`
-* `updatedAt`
 
 ### enrollments
 * `id`
@@ -100,8 +111,9 @@ The Zyx ecosystem relies on SQLite locally (`dev.db`) and Turso in production. M
 * `name`: Study group name (e.g. Kelompok Belajar Alpha).
 * `packageType`: Package tier ("reguler_15", "intensif_30", "super_intensif_45", "custom").
 * `packageName`: Display package label (e.g. Paket Reguler (15 Sesi)).
-* `totalQuotaSessions`: Total meeting quota per semester (default 15).
-* `usedQuotaSessions`: Total meeting sessions used in the current semester (default 0).
+* `totalQuotaSessions`: Total meeting quota per semester (default 15). Deprecated for enforcement: booking no longer decrements it.
+* `usedQuotaSessions`: Legacy counter kept read-only. Weekly usage is now derived from `bookings` rows per target week.
+* `weeklyQuotaSessions`: Sessions the group may book per target week (default 2; presets set 1-3). Enforcement derives usage by counting bookings in that ISO week, so pre-lock cancellations free quota while post-lock cancellations keep it consumed.
 * `academicYear`: Academic year string (e.g. 2026/2027).
 * `semester`: Active semester label (e.g. Ganjil, Genap, Pendek).
 * `startDate`: Semester start timestamp.
@@ -367,13 +379,6 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 * `mappingVersion`, `sourceChecksum`, `targetChecksum`, `runId`
 * Legacy and target identity pairs are each unique.
 
-### conceptGraphEdges
-* `id`
-* `courseId`
-* `sourceConcept`: Starting concept slug.
-* `targetConcept`: Destination concept slug.
-* `type`: Dependency relation ('prerequisite', 'related').
-
 ### chapterAliases
 * `id`
 * `chapterId`
@@ -385,27 +390,181 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 Plan 004 adds the normalized target tables below. Plan 005 owns deterministic mapping and backfill. Existing English product, assessment, attempt, flashcard, learning-event, and mastery tables remain active and authoritative for reads during the expand phase.
 
 ### Product tables
-* `artikel`, `artikel_ide`, `blok_artikel`: Markdown article versions, Idea links, and ordered blocks.
-* `diktat_materi`, `diktat_ide`, `diktat_pembahasan`, `item_diktat_pembahasan`: Material and explanation versions with Idea links and question snapshots.
-* `soal`, `soal_ide`, `soal_relasi_ide`, `pembahasan_soal`: Versioned questions, `zyx_original` or `itb_example` origin, optional ITB source event and reference, multi-Idea weights, independent relation metadata, and solutions.
-* `set_flashcard`, `flashcard`, `flashcard_ide`: Versioned flashcard sets and multi-Idea links.
-* `kemajuan_flashcard_murid`, `review_flashcard`: Per-murid scheduling state and review history.
 
-Published article, material, question, solution, and flashcard records are required by the contract layer to reference at least one published Idea. `soal_ide.weight` has a database range check and the per-question sum is validated within `0.000001` by the domain contract.
+Canonical published products share a common shape: versioned rows with `status` lifecycle, `generationHash`, creator and optional curator attribution, and typed Idea links.
+
+### artikel
+* `id`, `mataKuliahId`, optional `babId`
+* `slug`, `title`, `contentMarkdown`, `version`, `status`
+* `sourceHash`, `generationHash`
+* `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
+
+### artikel_ide
+* `id`, `artikelId`, `ideId`, `weight` (default 1)
+* Article-to-Idea coverage links used by quality gates.
+
+### blok_artikel
+* `id`, `artikelId`, `blockKey`, `blockType`, `orderIndex`, `content`
+* `version`, `generationHash`, `status`, `createdAt`, `updatedAt`
+* Ordered typed blocks compiled through the article quality contract.
+
+### diktat_materi
+* `id`, `mataKuliahId`, optional `babId`
+* `title`, `contentMarkdown`, optional `fileKey`
+* `version`, `status`, `sourceHash`, `generationHash`
+* `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
+
+### diktat_ide
+* `id`, `diktatMateriId`, `ideId`, `weight` (default 1)
+
+### soal
+* `id`, `mataKuliahId`, optional `babId`
+* `questionType`, `prompt`
+* `optionsSnapshot`: JSON options including stable IDs; correct-answer markers live only here and are redacted from runtime and vector payloads.
+* `origin`: `zyx_original` (default) or `itb_example`; `sourceEventName` and `sourceReferenceId` are required for `itb_example`.
+* `version`, `status`, `difficulty`, `cognitiveLevel`, `reasoningPattern`, `generationHash`
+* `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
+
+### soal_ide
+* `id`, `soalId`, `ideId`, `weight`
+* `role`: default `supporting`.
+* Weights are positive and must sum to one per question (service-validated within `0.000001`).
+
+### soal_relasi_ide
+* `id`, `soalId`, `ideId`, `relationType`, optional `rationale`
+* `status`: default `active`.
+* Per-Idea relation metadata for multi-Idea questions; not attached to the first link implicitly.
+
+### pembahasan_soal
+* `id`, `soalId`, `version`, `content`, `status`, `generationHash`
+* `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
+* Exactly one solution per question enforced by the bundle contract.
+
+### diktat_pembahasan
+* `id`, `diktatMateriId`, `title`, `content`
+* `version`, `status`, `generationHash`
+* `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
+
+### item_diktat_pembahasan
+* `id`, `diktatPembahasanId`, `soalId`, `orderIndex`
+* Optional `contentSnapshot`, `createdAt`
+
+### Canonical flashcard tables
+
+### set_flashcard
+* `id`, `mataKuliahId`, optional `babId`, `title`
+* `version`, `status`, `generationHash`
+* `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
+
+### flashcard
+* `id`, `setFlashcardId`, `front`, `back`, optional `explanation`
+* `version`, `status`, `generationHash`, `createdAt`, `updatedAt`
+
+### flashcard_ide
+* `id`, `flashcardId`, `ideId`, `weight` (default 1)
+* Atomic cards reference exactly one Idea.
+
+### kemajuan_flashcard_murid
+Per-murid canonical scheduling state (SM-2 fields).
+* `id`, `penggunaId`, `flashcardId`
+* `dueAt`, `intervalDays` (default 0), `easeFactor` (default 2.5), `repetitions`, `lapses`
+* `lastReviewedAt`, `status` (default `active`), `createdAt`, `updatedAt`
+
+### review_flashcard
+Append-only canonical review history.
+* `id`, `kemajuanFlashcardMuridId`, `grade`
+* Optional `responseMs`, plus `previousDueAt`, `nextDueAt`, `reviewedAt`
+
+Published Product Bundle article, material, question, solution, and flashcard records are required by the Product contract layer to reference at least one published Idea. Manual, Markdown, and MCP Bank Soal authoring may store a canonical question with zero `soal_ide` rows. When question links are present, `soal_ide.weight` has a database range check and the per-question sum is validated within `0.000001` by the authoring service.
 
 Manual and Markdown question authoring uses these canonical tables first. `ai_question_bank` remains the compatibility projection for the current quiz readers; its row uses the canonical question ID and mirrors the lifecycle, prompt, options, answer keys, explanation, and generation hash.
 
 ### Assessment tables
-* `blueprint_asesmen`, `asesmen`, `cakupan_asesmen`: Assessment definition, version, lifecycle, and chapter scope.
-* `item_asesmen`: Ordered question membership with rendered question, option order, grading policy, content version, and generation snapshots.
-* `percobaan_asesmen`, `jawaban_murid`: Historical attempt and answer records with required immutable snapshot fields.
+
+### blueprint_asesmen
+* `id`, `mataKuliahId`, `title`, `assessmentType`
+* Optional `blueprint` (dimension allocation JSON)
+* `version`, `status`, `generationHash`
+* `creatorId`, optional `curatorId`, `createdAt`, `updatedAt`
+
+### asesmen
+* `id`, `blueprintAsesmenId`, `mataKuliahId`, `title`, `assessmentType`
+* `version`, `status`, `generationHash`
+* `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
+
+### cakupan_asesmen
+* `id`, `asesmenId`, `babId`, `orderIndex`, `createdAt`
+* Quiz scope is exactly one row; tryout scope has one or more.
+
+### item_asesmen
+* `id`, `asesmenId`, `soalId`, `orderIndex`
+* Immutable snapshots: optional `renderedQuestionSnapshot`, required `optionOrderSnapshot`, optional `gradingPolicySnapshot`, plus `contentVersion` and `generationHash`.
+* `createdAt`
+
+### percobaan_asesmen
+Per-murid attempt record with the same immutable snapshot fields.
+* `id`, `asesmenId`, `penggunaId`, `status` (default `in_progress`)
+* `renderedQuestionSnapshot`, `optionOrderSnapshot`, `gradingPolicySnapshot`, `contentVersion`
+* `startedAt`, optional `submittedAt`, `createdAt`
+
+### jawaban_murid
+Per-item answer with grading state.
+* `id`, `percobaanAsesmenId`, `itemAsesmenId`
+* Snapshots: optional `renderedQuestionSnapshot`, required `optionOrderSnapshot`, optional `responseSnapshot` and `gradingPolicySnapshot`, `contentVersion`.
+* Optional `score`; `status` default `ungraded`; `answeredAt`.
 
 Quiz and tryout cardinality is enforced by the assessment contract: a quiz has exactly one chapter and a tryout has at least one chapter. Foreign keys and unique indexes protect assessment item and answer membership.
 
 ### Evidence and mastery tables
-* `bukti_ide_jawaban`, `bukti_pembelajaran`: Idea-level evidence with contribution, confidence, source, rubric version, and derivation status. `bukti_pembelajaran` has a unique idempotency key across source, Idea, and rubric.
-* `pemahaman_ide`: Separate `skor` and `keyakinan` values, each bounded from 0 to 100, plus `algorithm_version` and `input_watermark` for deterministic replay.
-* `perubahan_pemahaman`, `rekomendasi_flashcard`: History-safe mastery transitions and due recommendations. Change rows retain `evidence_ids`, algorithm version, and watermark.
+
+### bukti_ide_jawaban
+Answer-derived per-Idea evidence.
+* `id`, `jawabanMuridId`, `ideId`
+* `scoreContribution`, `weight`, `confidence`, `evidenceSource`, `rubricVersion`, `derivationStatus`
+* `ambiguous` (default false) and `affectsMastery` (default false); ambiguous evidence cannot affect mastery.
+
+### bukti_pembelajaran
+General learning evidence with a unique idempotency key across source, Idea, and rubric.
+* `id`, `penggunaId`, `ideId`
+* `evidenceSource`, `sourceId`, `scoreContribution`, `confidence`, `rubricVersion`, `derivationStatus`
+* `ambiguous` (default false), `affectsMastery` (default false)
+* `occurredAt`, `createdAt`
+
+### pemahaman_ide
+Current per-(murid, Idea) mastery state; score and confidence are separate 0-100 integers.
+* `id`, `penggunaId`, `ideId`
+* `skor`, `keyakinan`, `evidenceCount` (default 0), `version`
+* `algorithmVersion` (default `per-idea.v1`) and `inputWatermark` make every stored state replayable.
+* `createdAt`, `updatedAt`
+
+### perubahan_pemahaman
+Append-only mastery transition history.
+* `id`, `pemahamanIdeId`, optional `evidenceId`
+* `previousScore`, `nextScore`, `previousConfidence`, `nextConfidence`, `reason`
+* `evidenceIds`: JSON list of the complete contributing evidence IDs (default empty).
+* `algorithmVersion` (default `per-idea.v1`), `inputWatermark`, `createdAt`
+
+### rekomendasi_flashcard
+Deterministic due recommendations derived from mastery state.
+* `id`, `penggunaId`, `flashcardId`, optional `ideId`
+* `dueAt`, `reason`, `status` (default `pending`), `createdAt`
+* Cards for Ideas with mastery score 80 or higher are suppressed.
+
+### Protected ITB references and benchmarks
+
+### soal_itb_referensi
+Protected ITB question snapshot bound to its published `soal` row.
+* `id`, optional `soalId`: The single source reference link to the published question.
+* `sourceLabel`: Exact source event label that must match the bundle's `itbSource.eventName`.
+* `authoringVisibility`: `allowed` or `holdout` (database check). Holdout rows are excluded from runtime indexing and external authoring projections.
+* Optional `contentSnapshot`, plus `checksum`, `version`, `createdAt`.
+
+### benchmark_soal
+Versioned benchmark snapshots with unique checksums.
+* `id`, optional `soalItbReferensiId`
+* `datasetKey`, `authoringVisibility` (`allowed` | `holdout`)
+* JSON `questionSnapshot` and `answerSnapshot`
+* `version` (positive, database check), unique `checksum`, `status` (`active` | `retired`), `createdAt`.
 
 ### Zyra personalization tables
 
@@ -417,23 +576,84 @@ AI Plan 008 adds three additive tables through migration `0067_zyra_continuation
 
 The migration adds foreign keys and query indexes only. Existing attempt, learning-event, mastery, recommendation, and assessment tables are unchanged. Personalization reads are deterministic and do not replace the authoritative mastery or assessment systems.
 
+### zyra_learning_events
+Course-scoped bounded learner evidence; never stores raw conversation content.
+* `id`, `studentId`, `courseId`, optional `ideaId`
+* `eventKind`, `sourceType`, optional `evidenceRef` and `outcome`
+* Optional `correctness`; `responseLatencyBucket`, `hintLevel`, `representation` default `unknown`
+* `weight` (default 1), `createdAt`, `expiresAt`
+* Events expire; the aggregator requires at least three recent events before inference.
+
+### zyra_learner_profiles
+One inferred adaptation profile per murid and course.
+* `id`, `studentId`, `courseId`, `profileVersion` (default `zyra-personalization-v1`)
+* Inferred fields each defaulting to `unknown`: `inferredPace`, `inferredRepresentation`, `supportIntensity`, `explanationLength`, `checkpointType`
+* `confidence` (default 0), `evidenceCount` (default 0), `reasonCodes`
+* `lastEvidenceAt`, `expiresAt`, `resetAt`, `createdAt`, `updatedAt`
+
+### zyra_learner_preferences
+One explicit presentation preference record per murid and course, kept separate from inferred fields.
+* `id`, `studentId`, `courseId`
+* Optional `pace`, `representation`, `explanationLength`, `checkpointType`
+* `createdAt`, `updatedAt`
+
 Ambiguous evidence is stored with explicit status and the schema check prevents it from being marked as mastery-affecting. Plan 011 recomputes only the additive per-Idea tables; no legacy mastery, learning-event, answer, or review row is rewritten.
 
 ### Bundle and audit tables
-* `impor_bundle`, `item_impor_bundle`: Checksum-identified import and entity inventory, optional legacy course association, JSON validation report, and public Product Bundle status `draft`, `published`, or `withdrawn`. Legacy Idea workflow status values remain readable.
-* `review_bundle`, `publikasi_bundle`: Internal review evidence and publication record. Product publication records or refreshes the responsible admin approval without exposing review as a separate public lifecycle state.
-* `audit_mutasi`: Actor, entity, action, snapshots, correlation ID, and timestamp for mutation auditability.
 
-Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. A matching bundle ID and checksum is idempotent; a different checksum is a conflict. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
+### impor_bundle
+Checksum-identified import record; public Product status is `draft`, `published`, or `withdrawn` (legacy Idea workflow statuses remain readable).
+* `id`, `bundleId`, `checksum`, `bundleType`
+* Optional legacy `courseId`, required `sourceUriOrKey`
+* `version`, `status` (default `received`), optional JSON `validationReport`
+* `requestedBy`, `createdAt`, `updatedAt`
+* A matching bundle ID and checksum is idempotent; a reused ID with a different checksum is a conflict.
+
+### item_impor_bundle
+Entity inventory for one import.
+* `id`, `imporBundleId`, `entityType`, `entityId`, `entityVersion`, `entityHash`
+* `status` (default `pending`), optional `errorMessage`, `createdAt`
+
+### review_bundle
+Internal review evidence; one immutable decision per reviewer, never a separate public lifecycle state.
+* `id`, `imporBundleId`, `reviewerId`
+* `status` (default `pending`), optional `notes`, optional `reviewedAt`, `createdAt`
+
+### publikasi_bundle
+Publication record created or refreshed at atomic publication.
+* `id`, `imporBundleId`, `approvedReviewId`, `version`
+* `publicationHash`, `status` (default `pending`)
+* `publishedBy`, optional `publishedAt`, `createdAt`
+
+Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
 
 Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Draft replacement rewrites only the import inventory and R2 artifact before publication. Publication inserts canonical article, diktat, question, solution, flashcard, and assessment blueprint rows after traceability and dependency checks pass. Withdrawal marks canonical rows inactive or retired according to their existing table contract and adds vector delete jobs. Question products are exclusively ITB examples and require `itbSource`, ITB curation, typed option IDs with deterministic correct markers, exactly one paired solution, and a HOT cognitive level for multi-Idea questions. Correct markers remain inside the private `soal.options_snapshot` grading representation and are redacted from runtime and vector content. Versions greater than one use versioned product IDs so prior rows remain queryable.
 
 Migration `0068_typical_warbird.sql` adds `origin`, `source_event_name`, and `source_reference_id` to both `soal` and `ai_question_bank`, with `zyx_original` as the non-null default and an origin plus event index on each table. Existing rows therefore remain Zyx originals without a data rewrite. Product publication validates ITB completeness before writing and creates the `ai_question_bank` compatibility projection. Product Bundle source and curation data are retained in the publication audit snapshot, while `soal_itb_referensi.soal_id` links the single source reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
 
 ### Plan 005 migration tables
-* `legacy_backfill_exceptions`: Zero-loss preservation ledger for a legacy row that has no exact additive representation. It stores `runId`, source table and ID, reason code, preservation path, source checksum, details, and `blocksCutover`.
-* `peta_id_legacy`: One-to-one source and target identity mapping with mapping version and source and target checksums.
-* `migration_runs`, `migration_checkpoints`: Resumable run state and bounded batch checkpoints used by the staging backfill engine.
+
+### legacy_backfill_exceptions
+Zero-loss preservation ledger for a legacy row that has no exact additive representation.
+* `id`, `runId`, `legacyTable`, `legacyId`
+* `reasonCode`, `preservationPath`, optional `details`
+* `blocksCutover` (default false), `sourceChecksum`, `createdAt`, `updatedAt`
+
+### migration_runs
+Resumable backfill run state used by the staging backfill engine.
+* `id`, `planNumber`, `sourceCommit`, `schemaVersion`, `databaseFingerprint`
+* `phase`, `status`
+* `startedAt`, optional `completedAt`, optional `rowCountManifestHash`, optional `errorCode`
+
+### migration_checkpoints
+Bounded batch checkpoints inside one run.
+* `id`, `runId`, `phase`, `checkpoint`, `status`
+* Optional `manifestHash`, `rowCount`, `details`, `createdAt`
+
+### peta_id_legacy
+* `legacyTable`, `legacyId`, `targetTable`, `targetId`
+* `mappingVersion`, `sourceChecksum`, `targetChecksum`, `runId`
+* Legacy and target identity pairs are each unique.
 
 Plan 005 populated the additive targets where the mapping was exact and recorded compatibility-only rows instead of inventing target data. Legacy source tables remain queryable during the expand phase. The no-read-switch rule remains in force until a later plan.
 
@@ -592,10 +812,38 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `subcategory`: Level 2 subcategory ('ppt_dosen', 'ebook', 'catatan', 'kuis', 'kbf', 'tutorial', 'modul', 'uts', 'uas', 'lainnya').
 * `year`: Optional academic year (integer).
 * `fileUrl`: Public URL or storage key pointing to uploaded asset.
+* `checksum`: Optional SHA-256 hex of the stored file, used by the admin batch upload duplicate check. Null for rows created before batch upload.
 * `chapterIds`: Associated chapter list stored as a JSON array.
 * `thumbnailUrl`: Page 1 thumbnail preview image path.
 * `createdAt`
 * `updatedAt`
+
+### studentFlashcardProgress
+SM-2 spaced-repetition scheduling state per (student, flashcard).
+* `id`
+* `studentId`, `flashcardId`: Unique pair per card per student.
+* `easeFactor` (default 2.5), `intervalDays`, `repetitions`, `lapses`
+* `dueDate`: Next scheduled review timestamp.
+* `lastReviewedAt`
+* `createdAt`, `updatedAt`
+
+### flashcardReviews
+Append-only review log feeding SM-2 updates and analytics.
+* `id`
+* `studentId`, `flashcardId`
+* `grade`: Recall grade 1 to 4 ('Again', 'Hard', 'Good', 'Easy').
+* `responseTimeMs`
+* `reviewedAt`
+
+### studentMaterialProgress
+Reading progress for interactive website materials.
+* `id`
+* `studentId`, `materialId`: FK to `websiteMaterials.id`.
+* `completionPercent`: 0-100.
+* `lastPosition`: JSON pointer into the content (`type: 'pdf' | 'article'`, optional page or section). Legacy `lastSectionId` remains but is deprecated.
+* `timeSpentSeconds`: Accumulated reading time.
+* `lastOpenedAt`
+* `createdAt`, `updatedAt`
 
 ---
 
@@ -605,12 +853,20 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `id`
 * `courseId`
 * `title`
-* `description`
-* `timeLimit`: Countdown duration allowed for the quiz in seconds.
-* `selectionRules`: Selection parameter guidelines for picking questions stored as JSON.
 * `category`: Quiz type classification ('daily', 'weekly', 'chapter', 'premium', 'simulation').
+* `visibility`: 'free' or 'paid'.
+* `status`: Authoring state, 'draft' or 'published'.
+* `timeLimitSeconds`: Countdown duration allowed for the quiz in seconds. This is the authoritative session cap; submissions arriving more than 120 seconds after expiry are rejected.
+* `maxAttempts`: Optional attempt cap per student.
+* `selectionRules`: Selection parameter guidelines for picking questions stored as JSON. Timer fields inside this JSON: `perQuestionTimerEnabled`, `perQuestionTimers` (per-question overrides in seconds), and `defaultQuestionTimerSeconds`. When the per-question timer is enabled together with `timeLimitSeconds`, the sum of per-question allowances must equal the total limit (enforced at authoring time and by the template APIs). Per-question timers pace individual questions only; they never shorten a session below the total limit.
+* `openAt` / `closeAt`: Optional visibility window timestamps.
+* `manualStatus`: Tutor-controlled state, 'open', 'closed', or 'scheduled'.
+* `showDiscussion`: Whether the discussion panel is shown for this quiz.
+* `spreadsheetId` / `spreadsheetUrl`: Linked Google Spreadsheet export target.
 * `createdAt`
 * `updatedAt`
+
+This table is a compatibility projection of canonical `asesmen` and `blueprint_asesmen`; new quizzes write to the canonical assessment tables first and project here.
 
 ### studentQuizAttempts
 * `id`
@@ -631,6 +887,17 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `attemptId`
 * `questionIndex`: Sequence index of the target question.
 * `payload`: Structured AI analysis feedback data stored as JSON.
+
+### studentQuizAnalytics
+Per-attempt detailed deterministic facts plus AI pedagogical diagnosis for the analytics and insights portals.
+* `id`
+* `attemptId`: Unique FK to `studentQuizAttempts.id`.
+* `studentId`, `templateId`, `courseId`
+* `status`: 'processing', 'completed', or 'failed'.
+* `computedMetrics`: Deterministic metrics JSON (item difficulty, distractor selection, timing).
+* `aiDiagnosis`: Optional AI pedagogical diagnosis JSON.
+* `errorMessage`: Failure details when status is 'failed'.
+* `createdAt`, `updatedAt`
 
 ### liveQuizSessions
 * `id`
@@ -764,6 +1031,32 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `createdAt`
 * `updatedAt`
 
+### studentChapterMastery
+Per-chapter mastery rollup derived from per-Idea and per-concept evidence.
+* `id`
+* `studentId`, `courseId`, `chapterId`
+* `masteryScore`, `confidence`, `evidenceCount`
+* `trend`: 'improving', 'stable', 'declining', or null when unknown.
+* `lastEvidenceAt`
+* `createdAt`, `updatedAt`
+
+### chatSessions
+Tutor chat conversation grouping per (student, course).
+* `id`
+* `studentId`, `courseId`
+* `title`: Conversation title.
+* `startedAt`, `lastMessageAt`
+* `createdAt`, `updatedAt`
+
+### chatMessageSources
+Retrieved-source citations attached to a tutor chat message.
+* `id`
+* `messageId`: FK to `tutorChatMessages.id`.
+* `sourceType`: 'knowledge_object', 'website_material', 'flashcard', 'concept', or 'assessment_question'.
+* `sourceId`: Referenced row identifier.
+* `relevanceScore` (default 1.0)
+* `createdAt`
+
 ### masteryRecomputeQueue
 * `id`
 * `studentId`
@@ -853,15 +1146,20 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `createdAt`
 * `updatedAt`
 
+### pkaAnnouncementReads
+Per-user read receipts for PKA announcements; composite primary key.
+* (`announcementId`, `userId`): Composite primary key, both cascading FKs.
+* `readAt`
+
 ### pkaSchedules
 * `id`
 * `title`
-* `description`
-* `googleMeetLink`: URL for the video conference.
-* `scheduledAt`: Date and time of the review session.
-* `durationMinutes`: Session length in minutes.
+* `sessionAt`: Timestamp of the live session.
+* `meetLink`: Optional Google Meet URL.
+* `createdBy`: Admin user who created the schedule.
+* `sentAt`: Broadcast completion timestamp (email/push).
+* `recipientCount`: Number of recipients the broadcast reached.
 * `createdAt`
-* `updatedAt`
 
 ### pkaRegistrations
 * `id`
@@ -1014,6 +1312,22 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `requestType`: Task type signature (e.g. 'explain_concept', 'analyze_mistake').
 * `createdAt`
 
+### aiAllowanceLeases
+Application-side lease ledger for the Zyra allowance system. One lease per provider-backed request, reserved before dispatch and resolved to exactly one terminal state.
+* `id`
+* `idempotencyKey`: Unique key; committed leases derive a compatibility usage event from it.
+* `userId`: FK to `pengguna.id`.
+* `peran`: Resolved canonical role ('admin', 'tutor', 'murid').
+* `feature`, `requestType`, `model`
+* `appDay`: Jakarta calendar day string used for daily ceilings.
+* `units`, `interactionUnits`: Provider turns and total interaction units (counted separately).
+* `premium`: Boolean premium classification.
+* `status`: 'reserved', 'dispatched', 'committed', or 'refunded'.
+* `controlPlaneLeaseId`: Linked staging control-plane lease when the router path is used.
+* `inputTokens`, `outputTokens`
+* `runId`: Optional staging run correlation.
+* `createdAt`, `dispatchedAt`, `resolvedAt`, `expiresAt`
+
 ### aiExtractionFailures
 * `id`
 * `courseId`
@@ -1030,12 +1344,13 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 ### vectorSyncQueue
 * `id`
 * `courseId`
-* `koId`
+* `koId`: Optional Knowledge Object reference (set null on KO delete).
 * `action`: Mutation command ('upsert', 'delete').
-* `status`: Sync state ('pending', 'synced', 'failed').
-* `error`: Log messages if sync action failed.
-* `retries`: Re-attempt count pointer.
-* `namespace`: Canonical Vectorize namespace routing pointer.
+* `namespace`: Canonical Vectorize namespace routing pointer (default 'learning').
+* `payload`: Provider-neutral vector payload JSON (required).
+* `status`: Sync state ('pending', 'processing', 'completed', 'failed').
+* `attempts`: Re-attempt count.
+* `lastError`: Log message if the last sync attempt failed.
 * `createdAt`
 * `updatedAt`
 
@@ -1087,6 +1402,15 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `createdAt`, `updatedAt`
 
 The table is additive and does not replace historical content tables. Transitions are enforced by `lib/workflow/content-workflow.ts` and every mutation writes a structured `audit_mutasi` envelope.
+
+### audit_mutasi
+Structured mutation-audit envelope written by every guarded canonical transition.
+* `id`
+* Optional `actorId`: Acting `pengguna` reference.
+* `entityType`, `entityId`, `action`: What changed and how.
+* Optional `beforeSnapshot` / `afterSnapshot`: JSON state envelopes.
+* Optional `correlationId`: Cross-table correlation for one logical operation (bundle run, publication, review).
+* `createdAt`
 
 ### exams
 * `id`
@@ -1220,6 +1544,7 @@ Plan 010 reuses the additive assessment tables without changing legacy quiz snap
 * `item_asesmen` stores rendered question, option order, grading policy, content version, and generation hash snapshots.
 * `percobaan_asesmen` and `jawaban_murid` preserve the rendered question, option order, response, grading policy, and content version at attempt time.
 * `bukti_ide_jawaban` stores per-Idea score contribution, weight, confidence, rubric version, derivation status, and the invariant that ambiguous evidence cannot affect mastery.
+* `quiz_templates` acts as a legacy compatibility projection; all quiz creation flows write canonical `asesmen` and `blueprint_asesmen` first, then mirror to `quiz_templates`.
 
 The runtime adds stable option IDs inside the existing JSON snapshots as an additive compatibility field and does not rewrite historical `questions_snapshot`, `answers_snapshot`, or `mastery_before` values.
 
@@ -1256,7 +1581,7 @@ Extension columns on the PKA Google Meet review session table (migration 0065).
 * `invitedEmails`: JSON array of emails successfully provisioned as Meet space members.
 
 ### custom_form_presets
-Reusable Form Studio presets (question blueprints + settings) that admins can save and re-apply. Gated by `FEATURE_FORM_PRESETS=1`.
+Reusable Form Studio presets (question blueprints + settings) that admins can save and re-apply. Standard admin capability, always-on.
 
 * `id`: Primary key.
 * `name`: Preset name.
@@ -1268,8 +1593,38 @@ Reusable Form Studio presets (question blueprints + settings) that admins can sa
 * `createdAt` / `updatedAt`: Timestamps.
 * Index: `idx_custom_form_presets_category`.
 
+### google_forms
+Google Forms registry for forms created through the Google Forms API.
+* `id`
+* `formId`: Unique Google Forms form identifier.
+* `title`, `description`
+* `responderUri`, optional `editUri`
+* `category`: 'survey', 'quiz', 'feedback', or 'registration'.
+* `createdById`: Optional creator user reference.
+* `deletedAt`: Soft-delete timestamp.
+* `createdAt` / `updatedAt`
+
+### custom_forms
+Zyx-owned Form Studio definitions sharing the `/f/[slug]` resolver with Meet sessions.
+* `id`
+* `slug`: Unique stable slug; active slugs cannot collide with active Meet sessions.
+* `title`, `description`
+* `category`: 'survey', 'quiz', 'feedback', or 'registration'.
+* `questions`: JSON array of question blueprints.
+* `settings`: JSON payload (acceptingResponses, collectEmail, schedule windows, shuffle, file size limit, response copy, etc.).
+* Timestamps plus lifecycle fields per the schema definition.
+
+### custom_form_responses
+Submitted answers for custom forms; file uploads use the structured `forms/` R2 key hierarchy.
+* `id`
+* `formId`: FK to `customForms.id`.
+* `responderUserId`: Optional authenticated responder.
+* `responderEmail`: Optional collected email.
+* `answers`: JSON map of question answer payloads.
+* `submittedAt`, `createdAt`
+
 ### important_links
-Curated important links library (Tautan) managed by admins. Gated by `FEATURE_LINK_LIBRARY=1`.
+Curated important links library (Tautan) managed by admins. Always-on.
 
 * `id`: Primary key.
 * `title`: Link title.

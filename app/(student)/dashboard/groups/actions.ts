@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq, and, desc } from "drizzle-orm";
+import { getJakartaNow, getIsoWeekRange, computeWeeklySessionStats } from "@/lib/schedule-lock";
 import { getSemesterEndDate } from "@/lib/utils";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
@@ -110,6 +111,28 @@ export async function getStudentStudyGroups() {
     const remainingQuota = Math.max(0, totalQuota - effectiveUsed);
     const usedPercentage = Math.min(100, Math.round((effectiveUsed / totalQuota) * 100));
 
+    // Weekly quota (derived from bookings in the current Jakarta week)
+    const { startIso: weekStartIso, endIso: weekEndIso } = getIsoWeekRange(getJakartaNow());
+    const weeklyQuotaSessions = g.weeklyQuotaSessions ?? 2;
+    const weeklyUsedSessions = (g.bookings || []).filter(
+      (b) =>
+        b.sessionDate &&
+        b.sessionDate >= weekStartIso &&
+        b.sessionDate <= weekEndIso
+    ).length;
+    const weeklyRemainingQuota = Math.max(0, weeklyQuotaSessions - weeklyUsedSessions);
+
+    // Weekly attendance traceability (last 4 weeks)
+    const weeklyStats = computeWeeklySessionStats(
+      (g.bookings || []).map((b) => ({
+        sessionDate: b.sessionDate,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        status: b.status,
+      })),
+      4
+    );
+
     // Frequency estimate
     const pkgType = (g.packageType as PackageType) || "reguler_15";
     const preset = PACKAGE_PRESETS[pkgType] || PACKAGE_PRESETS.reguler_15;
@@ -132,6 +155,10 @@ export async function getStudentStudyGroups() {
       usedQuotaSessions: effectiveUsed,
       remainingQuota,
       usedPercentage,
+      weeklyQuotaSessions,
+      weeklyUsedSessions,
+      weeklyRemainingQuota,
+      weeklyStats,
       academicYear: g.academicYear,
       semester: g.semester,
       startDate: g.startDate,

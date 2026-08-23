@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   BarChart3,
-  Sparkles,
+  BrainCircuit,
   BookOpen,
   ArrowRight,
   TrendingUp,
@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { SearchBar } from "@/components/ui/search-bar";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { AdminStatCard } from "@/components/admin/stat-card";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTable, AdminTableHead } from "@/components/admin/table";
 
@@ -115,42 +115,42 @@ export default function AdminQuizInsightsOverviewPage() {
         }
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <AdminStatCard
+      {/* KPI Strip */}
+      <AdminStatStrip className="lg:grid-cols-4">
+        <AdminStatStripItem
           label="Total Kuis & Simulasi"
           value={totalQuizzes}
           caption="Terdaftar di sistem Zyx"
           icon={BookOpen}
           iconClassName="text-brand-primary"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Total Pengerjaan"
           value={totalAttemptsSum}
           caption="Pengerjaan selesai oleh siswa"
           icon={TrendingUp}
           iconClassName="text-status-info"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Rata-rata Nilai"
           value={`${avgOverallScore} / 100`}
           caption="Rata-rata dari seluruh kuis"
           icon={Award}
           iconClassName="text-brand-secondary"
         />
-        <AdminStatCard
+        <AdminStatStripItem
           label="Dianalisis"
           value={
             <>
               {analyzedWithAiCount}{" "}
-              <span className="text-body-sm text-muted-foreground font-normal">/ {totalQuizzes}</span>
+              <span className="text-body-xs text-muted-foreground font-normal">/ {totalQuizzes}</span>
             </>
           }
           caption="Kuis memiliki laporan insight"
-          icon={Sparkles}
+          icon={BrainCircuit}
           iconClassName="text-brand-primary"
         />
-      </div>
+      </AdminStatStrip>
 
       {/* Filter and Search Bar */}
       <div className="flex items-center gap-2">
@@ -164,7 +164,7 @@ export default function AdminQuizInsightsOverviewPage() {
         />
 
         <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-          <SelectTrigger className="w-[160px] sm:w-[180px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[160px] sm:w-[180px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Mata Kuliah" />
           </SelectTrigger>
           <SelectContent>
@@ -178,7 +178,7 @@ export default function AdminQuizInsightsOverviewPage() {
         </Select>
 
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-xs rounded-lg shrink-0">
+          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
             <SelectValue placeholder="Kategori Kuis" />
           </SelectTrigger>
           <SelectContent>
@@ -261,7 +261,7 @@ export default function AdminQuizInsightsOverviewPage() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5 text-muted-foreground text-body-xs">
-                          <Sparkles className="size-3.5 text-muted-foreground/60 shrink-0" />
+                          <HelpCircle className="size-3.5 text-muted-foreground/60 shrink-0" />
                           <span>Belum dianalisis</span>
                         </div>
                       )}

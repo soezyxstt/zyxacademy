@@ -12,7 +12,9 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { and, eq, desc } from 'drizzle-orm';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
+import { getQuizTimingMismatch } from '@/lib/asesmen/quiz-timing';
 import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
+import { createAssessmentWithLegacyProjection } from '@/lib/asesmen/quiz-canonical-sync';
 
 const CreateTemplateSchema = z.object({
   courseId: z.string().min(1),
@@ -93,6 +95,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const timingMismatch = getQuizTimingMismatch({
+    timeLimitSeconds: timeLimitSeconds ?? null,
+    count: selectionRules.count,
+    fixedQuestionIds: selectionRules.fixedQuestionIds,
+    perQuestionTimerEnabled: selectionRules.perQuestionTimerEnabled,
+    perQuestionTimers: selectionRules.perQuestionTimers,
+    defaultQuestionTimerSeconds: selectionRules.defaultQuestionTimerSeconds,
+  });
+  if (timingMismatch) {
+    return NextResponse.json({ error: timingMismatch }, { status: 400 });
+  }
+
   // Uniqueness check for tags per course
   const tags = (selectionRules.tags as string[] | undefined) || [];
   if (tags.length > 0) {
@@ -120,7 +134,7 @@ export async function POST(req: NextRequest) {
     ? showDiscussion
     : selectionRules.explanationRelease !== 'never';
 
-  await db.insert(quizTemplates).values({
+  await createAssessmentWithLegacyProjection({
     id,
     courseId,
     title,
@@ -134,6 +148,7 @@ export async function POST(req: NextRequest) {
     manualStatus,
     showDiscussion: derivedShowDiscussion,
     status,
+    creatorId: session.user.id,
   });
 
   if (status === 'published') {

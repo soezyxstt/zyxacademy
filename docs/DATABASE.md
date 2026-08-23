@@ -23,39 +23,20 @@ bun run db:push:prod
 
 Never hand-edit files in `drizzle/`.
 
-## Schema Domains
+## Schema Reference
 
-Full table reference in [ARCHITECTURE.md](./ARCHITECTURE.md#3-database-schema--all-tables). High-level domains:
+The table-by-table reference lives in [DB_SCHEMA.md](./DB_SCHEMA.md). High-level domains:
 
-### Auth (Better-Auth)
-`user`, `session`, `account`, `verification` ; auto-managed by Better-Auth adapter.
-
-### Course & Enrollment
-`courses`, `enrollments`, `groups`, `group_members`, `enrollment_tokens` ; course catalog, cohort management, token-based enrollment.
-
-### Content (vNext Architecture)
-| Table | Role |
-|---|---|
-| `master_teaching_documents` | Source-of-truth markdown, typed `learning` or `assessment`, dual-hashed |
-| `knowledge_objects` | Atomic learning units ; typed, bloom-leveled, linked to concept + MTD + chapter |
-| `assessment_objects` | Extracted assessment metadata per MTD |
-| `assessment_profiles` | Per-course auto-computed metrics |
-| `course_policies` | Per-course teacher-defined constraints |
-
-### Published Assets
-`website_materials`, `flashcard_sets`, `flashcards`, `diktats`, `course_materials` ; compiled student-facing content.
-
-### AI Generation
-`ai_generation_jobs`, `ai_question_bank`, `ai_usage_events` ; tracks Gemini work, question repository, token usage.
-
-### Quiz & Assessment
-`quiz_templates`, `student_quiz_attempts`, `attempt_feedback`, `live_quiz_sessions` ; quiz config, attempts, feedback, live classroom.
-
-### Mastery & Analytics
-`learning_events`, `student_concept_mastery`, `student_streaks`, `daily_recommendations`, `study_paths`, `student_flashcard_progress` ; mastery computation, spaced repetition, personalization.
-
-### Storage
-`drive_item` ; legacy read-only file pointers, no longer surfaced in the admin UI. R2 browsing moved to the admin Media page "Storage R2" tab. New uploads store R2 keys in the owning tables (`course_materials.fileUrl`, `diktats.fileUrl`, `pka_registrations.proof_key`, `blog_articles.thumbnail_url`).
+- **Auth** ; Better-Auth tables plus the canonical Indonesian identity layer (`pengguna`, `peran`, `pengguna_peran`).
+- **Course and enrollment** ; catalog, cohorts, tokens.
+- **Canonical source, Idea, product, assessment, mastery** ; the additive Indonesian learning-domain layer (`sumber_materi`, `potongan_sumber`, `ide`, products, evidence).
+- **Content** ; MTDs, Knowledge Objects, assessment objects, profiles, policies.
+- **Published assets** ; website materials, flashcards, diktats, course materials.
+- **AI generation** ; jobs, question bank, usage events, traces, allowance leases.
+- **Quiz and live classroom** ; templates (compatibility projection), attempts, feedback.
+- **Mastery and analytics** ; learning events, mastery, streaks, recommendations, study paths.
+- **Zyra runtime** ; learner profiles, preferences, attachments, proposals, operational telemetry.
+- **Platform** ; blog, short links, forms, Meet sessions, media, push notifications.
 
 ## Key Design Decisions
 

@@ -4,11 +4,12 @@ This package connects an MCP host to the Zyx Authoring MCP at:
 
 `https://staging.zyxacademy.com/api/mcp/authoring`
 
-It includes the three active authoring skills from this repository:
+It includes the four active authoring skills from this repository:
 
 - `zyx-source-pack-mcp`
 - `zyx-idea-bundle-mcp`
 - `zyx-product-bundle-mcp`
+- `zyx-question-authoring-mcp`
 
 ## Host manifests
 
@@ -35,6 +36,10 @@ The Claude Desktop Code tab can load the `.claude-plugin` manifest, the root `sk
 
 ## Claude chat tab
 
-The chat tab has a separate MCP configuration from the Code tab. Use `claude-desktop-config.example.json` as the server entry if the installed Claude Desktop version supports file-based remote MCP configuration. Otherwise add a custom remote connector in Claude Desktop and use the endpoint URL above. The three Claude Code skills are not automatically loaded into the chat tab by the MCP connection alone.
+The chat tab has a separate MCP configuration from the Code tab. Use `claude-desktop-config.example.json` as the server entry if the installed Claude Desktop version supports file-based remote MCP configuration. Otherwise add a custom remote connector in Claude Desktop and use the endpoint URL above. The Claude Code skills are not automatically loaded into the chat tab by the MCP connection alone.
+
+## ChatGPT
+
+Enable Developer mode, add an MCP connector pointing at the endpoint URL above, and authenticate with the Zyx admin OAuth flow. Hosts without interactive OAuth can use the short-lived connection token from `/api/mcp/authoring/connection`. Paste `skills/zyx-question-authoring-mcp/SKILL.md` (or another skill body) into custom GPT or project instructions so the agent follows the same tool sequence.
 
 The MCP server remains authoritative for admin access, workflow scope, checksums, provenance, quality reports, and staging. The client skills only provide workflow instructions.
