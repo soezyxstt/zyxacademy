@@ -210,12 +210,13 @@ Update only documents made relevant or inaccurate by the change:
 | Bundle contract | the matching file under `docs/bundle/` |
 | Operational validation | `docs/operations/production-readiness-checklist.md` or the matching runbook |
 
-After a meaningful code edit batch:
+Validation should be pragmatic and proportional:
 
-1. Run `bun run lint`.
-2. Run focused tests and `bun run typecheck` when the changed surface warrants them.
-3. Use `git diff --check` before handoff.
-4. Run `bun run build` only when requested or when the change affects a build or runtime boundary.
+- Do not run `bun run lint` or `bun run typecheck` for minor edits, documentation, UI tweaks, or non-crucial changes.
+- Run `bun run lint` and `bun run typecheck` only when changes are substantial, complex, cross-cutting (e.g. database schema, core library changes, widespread refactors), or when explicitly requested.
+- Run focused tests when the changed logic warrants them.
+- Use `git diff --check` before handoff when verifying whitespace or formatting.
+- Run `bun run build` only when requested or when the change affects a build or runtime boundary.
 
 Report pre-existing failures separately from regressions introduced by the change. Do not claim staging, production, visual, OAuth, or external-service success without actually exercising that boundary.
 
@@ -223,11 +224,11 @@ Report pre-existing failures separately from regressions introduced by the chang
 
 When the task involves global multi-model delegation (e.g., parallel subagents or worker dispatch), the delegating agent must:
 
-1. Require each dispatched worker (AGY or OpenCode, never GPT or the delegating agent itself) to run and analyze `bun run lint`, `bun run typecheck`, and `bun run build`.
-2. Record every command exit status and failure output. A zero exit code is success; non-zero is failure.
-3. Do not declare the task complete until all required validation commands pass or all failures are explicitly reported with their exit codes.
+1. Request validation commands (`bun run lint`, `bun run typecheck`, `bun run build`) only when the delegated worker's changes are crucial, broad, or explicitly require verification. For small or non-crucial edits, workers do not need to run full validation suites.
+2. When validation is requested, record every command exit status and failure output. A zero exit code is success; non-zero is failure.
+3. Do not declare the task complete until requested validation passes or failures are explicitly reported with their exit codes.
 
-Workers must not skip validation. If a worker cannot run a command (missing binary, environment issue), it must report the failure with the reason and a non-zero exit status.
+If a worker is asked to validate but cannot run a command (missing binary, environment issue), it must report the failure with the reason and a non-zero exit status.
 
 ## Keeping this file maintainable
 

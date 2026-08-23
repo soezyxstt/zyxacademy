@@ -27,6 +27,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
@@ -42,7 +43,6 @@ import {
   List,
   Loader2,
   Plus,
-  Sparkles,
   Trash2,
   Upload,
   X,
@@ -1102,11 +1102,11 @@ export function BatchUploadDialog({
               )}
 
               {/* Standard Naming Guide Banner */}
-              <div className="flex items-center gap-2 rounded-xl border border-brand-primary/25 bg-brand-primary/[0.05] px-3.5 py-2.5 text-body-xs text-foreground">
-                <Sparkles className="size-4 text-brand-primary shrink-0" />
+              <div className="flex items-center gap-2 rounded-xl border border-status-warning/30 bg-status-warning/10 px-3.5 py-2.5 text-body-xs text-foreground">
+                <AlertCircle className="size-4 text-status-warning shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <span className="font-semibold text-brand-primary">Format Standar Zyx:</span>{" "}
-                  <code className="font-mono text-[11px] bg-background/80 px-1.5 py-0.5 rounded border border-border">
+                  <span className="font-semibold text-status-warning">Format Standar Zyx:</span>{" "}
+                  <code className="font-mono text-[11px] bg-background/80 px-1.5 py-0.5 rounded border border-status-warning/30 text-foreground">
                     {courseId.toLowerCase()}_[bab]_[kategori]_[topik]_[role]_[tahun].pdf
                   </code>
                   <span className="text-muted-foreground ml-1.5">
@@ -1242,7 +1242,7 @@ export function BatchUploadDialog({
                       Kembali ke Kategori
                     </Button>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-body-xs font-semibold bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-                      <Sparkles className="size-3 shrink-0" />
+                      <Layers className="size-3 shrink-0" />
                       {docs.length - unassignedDocs.length}/{docs.length} dokumen terkait bab
                     </span>
                     {selection.size < docs.length ? (

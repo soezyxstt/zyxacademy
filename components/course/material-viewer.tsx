@@ -25,7 +25,6 @@ import {
   PanelLeftClose, 
   PanelLeft, 
   Trash2,
-  Sparkles,
   X,
   Check,
   Loader2,
@@ -166,7 +165,7 @@ function ChapterSummarySheet({
         className="rounded-md text-body-xs py-1 h-auto"
         onClick={loadSummary}
       >
-        {loading ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Sparkles className="size-4 mr-1.5" />}
+        {loading ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <FileText className="size-4 mr-1.5" />}
         Ringkas
       </Button>
 

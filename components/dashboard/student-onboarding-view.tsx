@@ -6,7 +6,6 @@ import {
   ClipboardList,
   Flame,
   Layers,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
@@ -135,7 +134,7 @@ export function StudentOnboardingView({
                         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-body-xs text-muted-foreground">
                           {isPka ? (
                             <span className="flex items-center gap-1.5 text-brand-secondary font-medium">
-                              <Sparkles className="size-3.5" />
+                              <Layers className="size-3.5" />
                               Simulasi 3 stage x 3 mapel
                             </span>
                           ) : (

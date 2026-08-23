@@ -339,7 +339,7 @@ export function PDFMaterialsTab({ courses, chapters, initialMaterials }: Props) 
                   Mata kuliah ini belum memiliki bab. Silakan tambahkan bab terlebih dahulu di direktori mata kuliah.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
                   {courseChapters.map((chapter) => (
                     <label
                       key={chapter.id}

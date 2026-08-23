@@ -9,7 +9,7 @@ import {
   Save,
   Settings2,
   Sliders,
-  Sparkles,
+  BookOpenCheck,
   Timer,
   CheckCircle2,
   CheckSquare,
@@ -893,7 +893,7 @@ export function QuizForm({
               <Card className="rounded-xl border border-border bg-card shadow-2xs">
                 <div className="border-b border-border/80 px-4 py-3">
                   <h3 className="font-heading text-body-sm sm:text-body-base font-bold text-foreground flex items-center gap-2">
-                    <Sparkles className="size-4 text-brand-primary" />
+                    <BookOpenCheck className="size-4 text-brand-primary" />
                     Pembahasan & Penilaian
                   </h3>
                 </div>

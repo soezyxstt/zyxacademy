@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   BarChart3,
-  Sparkles,
+  BrainCircuit,
   BookOpen,
   ArrowRight,
   TrendingUp,
@@ -147,7 +147,7 @@ export default function AdminQuizInsightsOverviewPage() {
             </>
           }
           caption="Kuis memiliki laporan insight"
-          icon={Sparkles}
+          icon={BrainCircuit}
           iconClassName="text-brand-primary"
         />
       </AdminStatStrip>
@@ -261,7 +261,7 @@ export default function AdminQuizInsightsOverviewPage() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5 text-muted-foreground text-body-xs">
-                          <Sparkles className="size-3.5 text-muted-foreground/60 shrink-0" />
+                          <HelpCircle className="size-3.5 text-muted-foreground/60 shrink-0" />
                           <span>Belum dianalisis</span>
                         </div>
                       )}

@@ -18,7 +18,8 @@ import {
   Check,
   CheckCircle2,
   Info,
-  Sparkles,
+  FileCode2,
+  FileEdit,
   ExternalLink,
   FileText,
   Layers,
@@ -837,7 +838,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                     </div>
 
                     {courseChapters.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
                         {courseChapters.map((chapter) => (
                           <label
                             key={chapter.id}
@@ -996,7 +997,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
                   <div className="border border-primary/30 rounded-xl p-4 bg-primary/5 space-y-3">
                     <div className="flex items-center gap-2">
                       <div className="size-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                        <Sparkles className="size-3.5 text-primary" />
+                        <FileCode2 className="size-3.5 text-primary" />
                       </div>
                       <div>
                         <p className="text-body-sm font-bold text-foreground">
@@ -1475,7 +1476,7 @@ export function MaterialInstancesClient({ instances, assessments, webMaterials, 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="font-sans text-body-sm font-semibold text-foreground flex items-center gap-1.5">
-                    <Sparkles className="size-4 text-primary" />
+                    <FileEdit className="size-4 text-primary" />
                     Penyunting & Pratinjau Materi Pelajaran
                   </p>
                   <span className="text-body-xs text-muted-foreground font-mono">

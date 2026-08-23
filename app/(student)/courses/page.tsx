@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BookOpen, ClipboardList, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, ClipboardList, Layers } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { Reveal } from "@/components/ui/reveal";
@@ -104,7 +104,7 @@ export default async function CoursesPage() {
                   {isPka ? (
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-1.5 text-brand-secondary font-medium">
-                        <Sparkles className="size-3.5" />
+                        <Layers className="size-3.5" />
                         Simulasi 3 stage x 3 mapel
                       </span>
                       <span className="font-semibold text-brand-primary">Mulai</span>

@@ -7,7 +7,8 @@ import {
   Lightbulb, 
   AlertTriangle, 
   AlertOctagon, 
-  Sparkles, 
+  AlertCircle,
+  Compass,
   Copy, 
   Check 
 } from "lucide-react";
@@ -341,10 +342,10 @@ function AlertCallout({
       labelColor: "text-status-success dark:text-emerald-400",
     },
     important: {
-      border: "border-violet-500/25 bg-violet-500/5 text-violet-950 dark:text-violet-50",
-      icon: <Sparkles className="size-5 text-violet-500 shrink-0 mt-0.5" />,
+      border: "border-status-warning/30 bg-status-warning/10 text-amber-950 dark:text-amber-50",
+      icon: <AlertCircle className="size-5 text-status-warning shrink-0 mt-0.5" />,
       label: "Penting",
-      labelColor: "text-violet-600 dark:text-violet-400",
+      labelColor: "text-status-warning dark:text-amber-400",
     },
     warning: {
       border: "border-status-warning/25 bg-status-warning/5 text-amber-950 dark:text-amber-50",
@@ -1339,9 +1340,9 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
 
     case "engineering_insight":
       return (
-        <div className="my-6 p-5 border border-violet-500/20 bg-violet-500/5 text-violet-950 dark:text-violet-50 rounded-xl">
-          <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 font-heading font-bold uppercase tracking-wider text-body-xs mb-2">
-            <Sparkles className="size-4 shrink-0" />
+        <div className="my-6 p-5 border border-brand-primary/20 bg-brand-primary/[0.04] text-foreground rounded-xl">
+          <div className="flex items-center gap-2 text-brand-primary font-heading font-bold uppercase tracking-wider text-body-xs mb-2">
+            <Compass className="size-4 shrink-0" />
             <span>Wawasan Teknik ({block.metadata.discipline})</span>
           </div>
           <h4 className="text-body-base font-bold mb-2 text-foreground">{renderRichText(block.content.title)}</h4>

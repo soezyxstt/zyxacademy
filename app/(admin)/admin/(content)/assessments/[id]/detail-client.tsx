@@ -33,7 +33,7 @@ import {
   AlertTriangle,
   Lightbulb,
   Layers,
-  Sparkles,
+  FileQuestion,
   Tag,
   Hash,
 } from "lucide-react";
@@ -372,7 +372,7 @@ export function AssessmentDetailClient({
         <TabsContent value="questions" className="space-y-4">
           {questions.length === 0 ? (
             <div className="py-12 border border-dashed border-border rounded-xl text-center">
-              <Sparkles className="mx-auto text-muted-foreground/30 mb-2" size={32} />
+              <FileQuestion className="mx-auto text-muted-foreground/30 mb-2" size={32} />
               <p className="text-body-sm text-muted-foreground">
                 Belum ada objek soal yang terekstraksi. Klik <strong>Re-Ingest Soal</strong> untuk memulai.
               </p>

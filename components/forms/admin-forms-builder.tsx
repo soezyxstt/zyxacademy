@@ -28,7 +28,7 @@ import {
   Star,
   Grid,
   Grid3X3,
-  Sparkles,
+  ListPlus,
   Image as ImageIcon,
   ArrowUp,
   ArrowDown,
@@ -641,7 +641,7 @@ export default function AdminFormsBuilder({
                   onClick={handleLoadFull12TypePreset}
                   className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline cursor-pointer"
                 >
-                  <Sparkles className="size-3.5" />
+                  <ListPlus className="size-3.5" />
                   Preset 12 Jenis Soal
                 </button>
               </div>

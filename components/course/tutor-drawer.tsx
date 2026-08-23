@@ -18,7 +18,6 @@ import {
   FileQuestion,
   Maximize2,
   Minimize2,
-  Sparkles,
   Copy,
   Trash2,
   Send,
@@ -123,7 +122,7 @@ function isComprehensionCheck(content: string): boolean {
 }
 
 const GENERIC_CHIPS = [
-  { icon: "sparkles", label: "Contoh Soal", prompt: "Berikan contoh soal serupa dan tuntun aku langkah demi langkah." },
+  { icon: "example", label: "Contoh Soal", prompt: "Berikan contoh soal serupa dan tuntun aku langkah demi langkah." },
   { icon: "help", label: "Uji Pemahaman", prompt: "Uji pemahamanku dengan 1 pertanyaan konsep singkat tanpa memberi kunci jawaban langsung." },
   { icon: "compass", label: "Analogi", prompt: "Jelaskan dengan analogi sehari-hari yang mudah dibayangkan." },
 ] as const;
@@ -135,8 +134,8 @@ const CHECK_CHIPS = [
   { icon: "arrow", label: "Tampilkan pembahasan", prompt: "Aku belum bisa menjawab. Tampilkan pembahasan lengkapnya lalu uji aku dengan soal serupa." },
 ] as const;
 
-function FollowUpChipIcon({ name }: { name: "sparkles" | "help" | "compass" | "refresh" | "arrow" }) {
-  if (name === "sparkles") return <Sparkles className="size-3 text-brand-primary" />;
+function FollowUpChipIcon({ name }: { name: "example" | "help" | "compass" | "refresh" | "arrow" }) {
+  if (name === "example") return <FileQuestion className="size-3 text-brand-primary" />;
   if (name === "compass") return <Compass className="size-3 text-brand-primary" />;
   if (name === "refresh") return <RefreshCw className="size-3 text-brand-secondary" />;
   if (name === "arrow") return <ArrowRight className="size-3 text-brand-secondary" />;

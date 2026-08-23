@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Bell, BookOpen, CalendarDays, Mail, Newspaper, ShieldCheck, Sparkles } from "lucide-react";
+import { Bell, BookOpen, CalendarDays, Mail, Newspaper, ShieldCheck, BookmarkCheck } from "lucide-react";
 import { updateNotificationPreferencesAction, type NotificationPreferencesActionState } from "./actions";
 import type { EmailNotificationPreferences } from "@/lib/email-preferences/contracts";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ const CATEGORY_ROWS = [
     key: "learningReminders" as const,
     label: "Learning reminders",
     description: "Weekly reflections, study reminders, and progress summaries.",
-    icon: Sparkles,
+    icon: BookmarkCheck,
   },
   {
     key: "newsAndOffers" as const,

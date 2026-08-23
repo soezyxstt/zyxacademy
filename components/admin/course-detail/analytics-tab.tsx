@@ -8,7 +8,7 @@ import {
   BarChart3,
   TrendingUp,
   Award,
-  Sparkles,
+  BrainCircuit,
   ArrowRight,
   CheckCircle2,
   HelpCircle,
@@ -69,7 +69,7 @@ export function AnalyticsTab({
             </>
           }
           caption="Kuis memiliki laporan insight"
-          icon={Sparkles}
+          icon={BrainCircuit}
           iconClassName="text-brand-primary"
         />
       </AdminStatStrip>
@@ -149,7 +149,7 @@ export function AnalyticsTab({
                         </div>
                       ) : (
                         <div className="flex items-center gap-1 text-muted-foreground text-body-xs">
-                          <Sparkles className="size-3 text-muted-foreground/60 shrink-0" />
+                          <HelpCircle className="size-3 text-muted-foreground/60 shrink-0" />
                           <span>Belum dianalisis</span>
                         </div>
                       )}

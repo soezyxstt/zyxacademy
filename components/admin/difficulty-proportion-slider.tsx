@@ -6,7 +6,7 @@ import {
   Plus,
   Minus,
   AlertTriangle,
-  Sparkles,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -260,7 +260,7 @@ export function DifficultyProportionSlider({
         {/* Preset Proportions Row */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1 text-body-xs font-semibold text-muted-foreground">
-            <Sparkles className="size-3.5 text-brand-primary" />
+            <SlidersHorizontal className="size-3.5 text-brand-primary" />
             <span>Preset Proporsi:</span>
           </div>
 

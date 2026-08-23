@@ -16,7 +16,7 @@ import {
   Lock,
   Plus,
   Calendar as CalendarIcon,
-  Sparkles,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -392,11 +392,11 @@ export function ScheduleCalendarView({
     <TooltipProvider delayDuration={150}>
       <div className="space-y-3 font-sans">
         {/* 1. SINGLE-ROW COMPACT TOOLBAR (G-Calendar Style) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-border bg-card shadow-xs">
+        <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl border border-border bg-card shadow-xs">
           {/* Left: View Switcher & Navigation */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {/* View Mode Select */}
-            <div className="w-[110px] shrink-0">
+            <div className="w-[100px] shrink-0">
               <Select
                 value={viewMode}
                 onValueChange={(val: "day" | "week" | "month") => setViewMode(val)}
@@ -417,7 +417,7 @@ export function ScheduleCalendarView({
               variant="outline"
               size="sm"
               onClick={handleToday}
-              className="h-9 px-3 rounded-lg text-body-sm font-semibold text-foreground hover:bg-muted shrink-0"
+              className="h-9 px-2.5 rounded-lg text-body-sm font-semibold text-foreground hover:bg-muted shrink-0"
             >
               Hari Ini
             </Button>
@@ -469,9 +469,9 @@ export function ScheduleCalendarView({
           </div>
 
           {/* Right: Compact Multi-Filters (Using Shadcn Select) */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
             {/* Course Filter */}
-            <div className="min-w-[140px] max-w-[180px]">
+            <div className="w-[140px] shrink-0">
               <Select
                 value={selectedCourseFilter}
                 onValueChange={setSelectedCourseFilter}
@@ -492,7 +492,7 @@ export function ScheduleCalendarView({
 
             {/* Tutor Filter */}
             {(role === "student" || role === "admin") && tutorsList.length > 0 && (
-              <div className="min-w-[130px] max-w-[160px]">
+              <div className="w-[130px] shrink-0">
                 <Select
                   value={selectedTutorFilter}
                   onValueChange={setSelectedTutorFilter}
@@ -514,7 +514,7 @@ export function ScheduleCalendarView({
 
             {/* Group Filter */}
             {(role === "teacher" || role === "admin") && groupsList.length > 0 && (
-              <div className="min-w-[130px] max-w-[160px]">
+              <div className="w-[130px] shrink-0">
                 <Select
                   value={selectedGroupFilter}
                   onValueChange={setSelectedGroupFilter}
@@ -536,7 +536,7 @@ export function ScheduleCalendarView({
 
             {/* Schedule Type Filter (for Admin) */}
             {role === "admin" && (
-              <div className="min-w-[130px] max-w-[160px]">
+              <div className="w-[125px] shrink-0">
                 <Select
                   value={selectedTypeFilter}
                   onValueChange={setSelectedTypeFilter}
@@ -609,7 +609,7 @@ export function ScheduleCalendarView({
                             className="px-1.5 py-0.5 rounded text-[9px] font-bold truncate bg-brand-primary/15 text-brand-primary border border-brand-primary/30 flex items-center gap-1"
                             title={`${sched.title} (${sched.type})`}
                           >
-                            <Sparkles className="size-2.5 shrink-0" />
+                            <GraduationCap className="size-2.5 shrink-0" />
                             <span className="truncate">{sched.title}</span>
                           </div>
                         ))}

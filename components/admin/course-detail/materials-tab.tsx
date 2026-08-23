@@ -20,6 +20,7 @@ import {
 } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { BatchUploadDialog } from "@/components/admin/course-detail/batch-upload-dialog";
 import {
+  AlertCircle,
   FileText,
   Upload,
   SendHorizontal,
@@ -28,7 +29,6 @@ import {
   Loader2,
   Layers,
   RotateCcw,
-  Sparkles,
 } from "lucide-react";
 import {
   Tooltip,
@@ -359,11 +359,11 @@ export function MaterialsTab({
           </Button>
         </div>
 
-        <div className="mb-3 flex items-center gap-2 rounded-lg border border-brand-primary/20 bg-brand-primary/[0.04] px-3 py-2 text-body-xs text-foreground">
-          <Sparkles className="size-3.5 text-brand-primary shrink-0" />
+        <div className="mb-3 flex items-center gap-2 rounded-lg border border-status-warning/30 bg-status-warning/10 px-3 py-2 text-body-xs text-foreground">
+          <AlertCircle className="size-3.5 text-status-warning shrink-0" />
           <div className="min-w-0">
-            <span className="font-semibold text-brand-primary">Format Standar Zyx:</span>{" "}
-            <code className="font-mono text-[11px] bg-background/80 px-1 py-0.5 rounded border border-border">
+            <span className="font-semibold text-status-warning">Format Standar Zyx:</span>{" "}
+            <code className="font-mono text-[11px] bg-background/80 px-1 py-0.5 rounded border border-status-warning/30 text-foreground">
               {courseId.toLowerCase()}_[bab]_[kategori]_[topik]_[role]_[tahun].pdf
             </code>
             <span className="text-muted-foreground ml-1">
@@ -374,8 +374,10 @@ export function MaterialsTab({
 
         <form onSubmit={handleUpload} className="space-y-3">
           <div className="flex flex-wrap items-end gap-2.5">
-            <div className="space-y-1 min-w-[200px] flex-1">
-              <Label className="text-body-sm font-semibold text-foreground">Judul Dokumen</Label>
+            <div className="space-y-1.5 min-w-[200px] flex-1">
+              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center">
+                Judul Dokumen
+              </Label>
               <Input
                 placeholder="Contoh: Slide Perkuliahan Pertemuan 1"
                 value={title}
@@ -385,8 +387,10 @@ export function MaterialsTab({
               />
             </div>
 
-            <div className="space-y-1 w-full sm:w-36 shrink-0">
-              <Label className="text-body-sm font-semibold text-foreground">Kategori</Label>
+            <div className="space-y-1.5 w-full sm:w-36 shrink-0">
+              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center">
+                Kategori
+              </Label>
               <Select
                 value={type}
                 onValueChange={(v: MaterialLevel1Category) => handleTypeChange(v)}
@@ -405,8 +409,10 @@ export function MaterialsTab({
               </Select>
             </div>
 
-            <div className="space-y-1 w-full sm:w-36 shrink-0">
-              <Label className="text-body-sm font-semibold text-foreground">Sub-kategori</Label>
+            <div className="space-y-1.5 w-full sm:w-40 shrink-0">
+              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center">
+                Sub-kategori
+              </Label>
               <Select
                 value={subcategory}
                 onValueChange={(v: CourseMaterialSubcategory) => handleSubcategoryChange(v)}
@@ -425,8 +431,8 @@ export function MaterialsTab({
               </Select>
             </div>
 
-            <div className="space-y-1 w-full sm:w-24 shrink-0">
-              <Label className="text-body-sm font-semibold text-foreground">
+            <div className="space-y-1.5 w-full sm:w-32 shrink-0">
+              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center gap-1 whitespace-nowrap">
                 Tahun <span className="text-muted-foreground font-normal text-body-xs">(opsional)</span>
               </Label>
               <Input
@@ -441,19 +447,21 @@ export function MaterialsTab({
               />
             </div>
 
-            <div className="space-y-1 w-full sm:w-52 shrink-0">
-              <Label className="text-body-sm font-semibold text-foreground">Berkas PDF</Label>
+            <div className="space-y-1.5 w-full sm:w-56 shrink-0">
+              <Label className="text-body-sm font-semibold text-foreground h-5 flex items-center">
+                Berkas PDF
+              </Label>
               <Input
                 id="course-pdf-input"
                 type="file"
                 accept="application/pdf"
                 onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                 disabled={loading}
-                className="cursor-pointer file:rounded-md file:bg-muted file:border-0 file:px-2 file:py-0.5 file:text-body-xs file:font-semibold h-9 rounded-lg text-body-xs"
+                className="cursor-pointer file:mr-2 file:rounded-md file:bg-muted file:border-0 file:px-2 file:py-0.5 file:text-body-xs file:font-semibold file:text-foreground h-9 rounded-lg text-body-xs flex items-center"
               />
             </div>
 
-            <div className="shrink-0">
+            <div className="shrink-0 self-end">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -538,7 +546,7 @@ export function MaterialsTab({
                 Mata kuliah ini belum memiliki bab. Silakan tambahkan bab terlebih dahulu di tab <strong>Bab</strong>.
               </p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
                 {chapters.map((ch) => {
                   const isChecked = selectedChapters.has(ch.id);
                   return (

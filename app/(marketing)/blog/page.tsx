@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { Calendar, Clock, ChevronRight, Sparkles, BookOpen, FileText, CreditCard, Target, ArrowRight } from "lucide-react";
+import { Calendar, Clock, ChevronRight, Bot, BookOpen, FileText, CreditCard, Target, ArrowRight } from "lucide-react";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ const APP_FEATURES = [
   {
     title: "Asisten Belajar Zyra",
     desc: "Belajar adaptif dengan asisten belajar pribadi 24/7.",
-    icon: Sparkles,
+    icon: Bot,
     bg: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   },
   {

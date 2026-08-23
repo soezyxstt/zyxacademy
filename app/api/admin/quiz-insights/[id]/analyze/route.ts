@@ -211,6 +211,8 @@ Pastikan balasan Anda HANYA berupa objek JSON yang valid.`;
   try {
     const { response } = await generateContentWithFallback({
       contents: prompt,
+      userId: session.user.id,
+      feature: "admin-quiz-insights",
       config: {
         responseMimeType: "application/json",
         temperature: 0.2,
