@@ -797,7 +797,13 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           {q.difficulty}
                         </span>
                         <span className="capitalize text-[10px] bg-muted/80 text-muted-foreground px-2 py-0.5 rounded border border-border font-medium">
-                          {q.questionType === "multiple_choice" ? "Single Choice" : "Multi Choice"}
+                          {q.questionType === "multiple_choice"
+                            ? "Single Choice"
+                            : q.questionType === "multiple_choices"
+                              ? "Multi Choice"
+                              : q.questionType === "short_answer"
+                                ? "Short Answer"
+                                : "Essay"}
                         </span>
                       </div>
                     </div>

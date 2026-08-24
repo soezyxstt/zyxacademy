@@ -61,16 +61,47 @@ const quizTemplateInputSchema = z.object({
   showDiscussion: z.boolean().optional(),
 });
 
-const questionBankInputSchema = z.object({
-  prompt: z.string().min(1).max(4000),
-  options: z.array(z.string().max(2000)).min(1),
-  correctIndices: z.array(z.number().int()).min(1),
-  acceptableAnswers: z.array(z.string().max(2000)).optional(),
-  difficulty: z.enum(["easy", "medium", "hard"]),
-  questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]),
-  explanation: z.string().max(8000),
-  tags: z.array(z.string().max(64)).max(50),
-});
+const questionBankInputSchema = z
+  .object({
+    prompt: z.string().min(1).max(4000),
+    options: z.array(z.string().max(2000)),
+    correctIndices: z.array(z.number().int()),
+    acceptableAnswers: z.array(z.string().max(2000)).optional(),
+    difficulty: z.enum(["easy", "medium", "hard"]),
+    questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]),
+    explanation: z.string().max(8000),
+    tags: z.array(z.string().max(64)).max(50),
+  })
+  .superRefine((val, ctx) => {
+    const isChoiceType =
+      val.questionType === "multiple_choice" || val.questionType === "multiple_choices";
+    if (isChoiceType) {
+      if (val.options.length < 2 || val.options.some((o) => !o.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["options"],
+          message: "Pilihan jawaban wajib diisi minimal dua opsi.",
+        });
+      }
+      if (val.correctIndices.length < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["correctIndices"],
+          message: "Minimal satu kunci jawaban wajib dipilih.",
+        });
+      }
+    }
+    if (val.questionType === "short_answer") {
+      const accepted = val.acceptableAnswers ?? [];
+      if (accepted.length < 1 || accepted.some((a) => !a.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["acceptableAnswers"],
+          message: "Minimal satu kunci jawaban diterima wajib diisi.",
+        });
+      }
+    }
+  });
 
 function formatValidationIssues(error: z.ZodError): string {
   return error.issues

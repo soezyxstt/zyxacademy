@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -11,8 +12,10 @@ import {
 import { AnalyticsClient } from "@/components/tutor/analytics-client";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 import { ZyraProposalPanel } from "@/components/zyra/zyra-proposal-panel";
+import { CheckSquare, ClipboardList, Radio, Users } from "lucide-react";
 
 import { db } from "@/db";
 import { mataKuliah } from "@/db/schema";
@@ -98,6 +101,32 @@ export default async function TutorCoursePage({ params }: Props) {
             backLabel="Pengajaran"
             divider={false}
           />
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
+              <Link href={`/tutor/${courseId}/quizzes`}>
+                <ClipboardList className="size-4 mr-1.5" />
+                Kelola Kuis
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
+              <Link href={`/tutor/${courseId}/live`}>
+                <Radio className="size-4 mr-1.5" />
+                Kuis Langsung
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
+              <Link href={`/tutor/${courseId}/grading`}>
+                <CheckSquare className="size-4 mr-1.5" />
+                Penilaian
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
+              <Link href={`/tutor/${courseId}/participants`}>
+                <Users className="size-4 mr-1.5" />
+                Peserta & Kelompok
+              </Link>
+            </Button>
+          </div>
           <div className="flex gap-8 mt-4">
             <div>
               <p className="font-heading text-h3 font-bold tabular-nums">

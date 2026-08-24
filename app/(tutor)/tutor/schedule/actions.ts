@@ -8,6 +8,7 @@ import { db } from "@/db";
 import {
   bookingAuditLogs,
   bookingRescheduleTickets,
+  bookingTicketMessages,
   bookings,
   groupMembers,
   groups,
@@ -1669,7 +1670,6 @@ export async function moveTutorSessionAction(input: MoveTutorSessionInput) {
 /* ────────────────────────────────────────────────────────────────────────────
  * Action 5: Decide Reschedule Ticket (Tutor Decision)
  * ──────────────────────────────────────────────────────────────────────────── */
-
 export interface DecideTutorRescheduleTicketInput {
   ticketId: string;
   decision: "approved" | "rejected";
@@ -2409,4 +2409,268 @@ export async function decideTutorRescheduleTicketAction(
   input: DecideTutorRescheduleTicketInput,
 ) {
   return executeDecideTutorRescheduleTicket(input);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Action 6: Reply to Ticket Discussion Thread (Tutor <-> Group)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface ReplyTutorTicketMessageInput {
+  ticketId: string;
+  message: string;
+}
+
+export interface ReplyTutorTicketMessageOptions {
+  actorId?: string;
+  executor?: DbExecutor;
+  skipNotifications?: boolean;
+}
+
+const MAX_TICKET_MESSAGE_LENGTH = 2000;
+
+export async function executeReplyTutorTicketMessage(
+  input: ReplyTutorTicketMessageInput,
+  options?: ReplyTutorTicketMessageOptions,
+) {
+  const requestId = randomUUID();
+  let authContext: TutorAuthContext;
+
+  try {
+    authContext = await getTutorAuthContext(options?.actorId, options?.executor);
+  } catch (err: any) {
+    await recordUnauthenticatedRejectAudit({
+      action: "tutor.ticket.message",
+      entityType: "reschedule_ticket",
+      entityId: typeof input.ticketId === "string" ? input.ticketId.trim() || "unknown" : "unknown",
+      courseId: "unknown",
+      requestId,
+      reason: err?.message || "UNAUTHORIZED",
+      input: { ticketId: input.ticketId },
+      executor: options?.executor,
+    });
+
+    return {
+      success: false,
+      error: err?.message || "UNAUTHORIZED",
+      reason: "AUTH_FAILED",
+    };
+  }
+
+  const client = (options?.executor ?? db) as typeof db;
+  const targetTicketId = typeof input.ticketId === "string" ? input.ticketId.trim() : "";
+  const messageText = typeof input.message === "string" ? input.message.trim() : "";
+
+  if (!targetTicketId || messageText.length === 0 || messageText.length > MAX_TICKET_MESSAGE_LENGTH) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: "unknown",
+      entityType: "reschedule_ticket",
+      entityId: targetTicketId || "unknown",
+      entityVersion: 1,
+      action: "tutor.ticket.message",
+      outcome: "rejected",
+      requestId,
+      reason: "INVALID_MESSAGE",
+      before: null,
+      after: { ticketId: targetTicketId, messageLength: messageText.length },
+    }, client);
+
+    return {
+      success: false,
+      error: "Pesan wajib diisi dan maksimal 2000 karakter.",
+      reason: "INVALID_MESSAGE",
+    };
+  }
+
+  // 1. Fetch ticket
+  const ticketRows = await client
+    .select()
+    .from(bookingRescheduleTickets)
+    .where(eq(bookingRescheduleTickets.id, targetTicketId))
+    .limit(1);
+
+  if (ticketRows.length === 0) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: "unknown",
+      entityType: "reschedule_ticket",
+      entityId: targetTicketId,
+      entityVersion: 1,
+      action: "tutor.ticket.message",
+      outcome: "rejected",
+      requestId,
+      reason: "TICKET_NOT_FOUND",
+      before: null,
+      after: { ticketId: targetTicketId },
+    }, client);
+
+    return {
+      success: false,
+      error: "Tiket tidak ditemukan.",
+      reason: "TICKET_NOT_FOUND",
+    };
+  }
+
+  const ticket = ticketRows[0];
+
+  // 2. Fetch booking and verify the acting tutor owns the booked slot
+  const bookingRows = await client
+    .select()
+    .from(bookings)
+    .where(eq(bookings.id, ticket.bookingId))
+    .limit(1);
+
+  if (bookingRows.length === 0) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: "unknown",
+      entityType: "reschedule_ticket",
+      entityId: targetTicketId,
+      entityVersion: 1,
+      action: "tutor.ticket.message",
+      outcome: "rejected",
+      requestId,
+      reason: "BOOKING_NOT_FOUND",
+      before: { ticketId: targetTicketId },
+      after: { ticketId: targetTicketId },
+    }, client);
+
+    return {
+      success: false,
+      error: "Sesi terkait tiket tidak ditemukan.",
+      reason: "BOOKING_NOT_FOUND",
+    };
+  }
+
+  const booking = bookingRows[0];
+
+  let isAssignedTutor = false;
+  if (booking.slotId) {
+    const slotRows = await client
+      .select({ id: tutorSlots.id })
+      .from(tutorSlots)
+      .where(and(eq(tutorSlots.id, booking.slotId), eq(tutorSlots.tutorId, authContext.userId)))
+      .limit(1);
+    isAssignedTutor = slotRows.length > 0;
+  }
+
+  if (!isAssignedTutor && !authContext.isAdmin) {
+    await recordTutorMutationAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: booking.courseId,
+      entityType: "reschedule_ticket",
+      entityId: targetTicketId,
+      entityVersion: 1,
+      action: "tutor.ticket.message",
+      outcome: "rejected",
+      requestId,
+      reason: "NOT_ASSIGNED_TUTOR",
+      before: { ticketId: targetTicketId },
+      after: { ticketId: targetTicketId },
+    }, client);
+
+    return {
+      success: false,
+      error: "Hanya tutor pengampu yang dapat membalas diskusi tiket ini.",
+      reason: "NOT_ASSIGNED_TUTOR",
+    };
+  }
+
+  // 3. Persist message and touch the ticket
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(bookingTicketMessages).values({
+        id: `btm-${randomUUID()}`,
+        ticketId: targetTicketId,
+        senderId: authContext.userId,
+        message: messageText,
+        createdAt: new Date(),
+      });
+
+      await tx
+        .update(bookingRescheduleTickets)
+        .set({ updatedAt: new Date() })
+        .where(eq(bookingRescheduleTickets.id, targetTicketId));
+
+      await recordMutationAudit({
+        actorId: authContext.userId,
+        actorRoles: authContext.roles,
+        courseId: booking.courseId,
+        entityType: "reschedule_ticket",
+        entityId: targetTicketId,
+        entityVersion: 1,
+        requestId,
+        action: "tutor.ticket.message",
+        outcome: "success",
+        reason: "Tutor replied to ticket discussion",
+        before: null,
+        after: {
+          ticketId: targetTicketId,
+          messageIdLength: messageText.length,
+        },
+      }, tx);
+    });
+  } catch (err: any) {
+    await recordTutorFailureAudit({
+      actorId: authContext.userId,
+      actorRoles: authContext.roles,
+      courseId: booking.courseId,
+      entityType: "reschedule_ticket",
+      entityId: targetTicketId,
+      entityVersion: 1,
+      action: "tutor.ticket.message",
+      outcome: "failed",
+      requestId,
+      reason: err?.message || "DATABASE_ERROR",
+      before: { ticketId: targetTicketId },
+      after: { ticketId: targetTicketId },
+    }, options?.executor);
+
+    return {
+      success: false,
+      error: "Gagal mengirim pesan diskusi.",
+      reason: "DATABASE_ERROR",
+    };
+  }
+
+  // 4. AFTER COMMIT: notify group members about the new tutor message
+  if (!options?.skipNotifications) {
+    try {
+      const memberRows = await client
+        .select({ userId: groupMembers.userId })
+        .from(groupMembers)
+        .where(eq(groupMembers.groupId, ticket.groupId));
+
+      const memberUserIds = memberRows.map((m: { userId: string }) => m.userId);
+      if (memberUserIds.length > 0) {
+        await sendToMany(memberUserIds, {
+          title: "Balasan baru pada diskusi jadwal",
+          body:
+            messageText.length > 120 ? `${messageText.slice(0, 117)}...` : messageText,
+          type: "tutor_reminder",
+          link: "/dashboard/schedule",
+        });
+      }
+    } catch (notifErr) {
+      console.error("[TUTOR_SCHEDULE] Ticket message notification error:", notifErr);
+    }
+  }
+
+  try {
+    revalidatePath("/tutor/schedule");
+  } catch {
+    // Ignored
+  }
+
+  return { success: true };
+}
+
+export async function replyTutorTicketMessageAction(
+  input: ReplyTutorTicketMessageInput,
+) {
+  return executeReplyTutorTicketMessage(input);
 }

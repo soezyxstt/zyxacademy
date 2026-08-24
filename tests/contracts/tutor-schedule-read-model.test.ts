@@ -199,6 +199,16 @@ async function createTestDb() {
   `);
 
   await client.execute(`
+    CREATE TABLE IF NOT EXISTS booking_ticket_messages (
+      id TEXT PRIMARY KEY,
+      ticket_id TEXT NOT NULL REFERENCES booking_reschedule_tickets(id),
+      sender_id TEXT NOT NULL REFERENCES user(id),
+      message TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS academic_schedules (
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL DEFAULT 'official_exam',
