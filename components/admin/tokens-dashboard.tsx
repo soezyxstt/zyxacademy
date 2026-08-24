@@ -281,25 +281,25 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
             <table className="w-full min-w-3xl text-left text-body-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/10">
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Token String
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Token string
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Kapasitas Kelompok
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Kapasitas kelompok
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Mata Kuliah
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Mata kuliah
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Tanggal Kedaluwarsa
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Tanggal kedaluwarsa
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
                     Status
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Anggota Terdaftar
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Anggota terdaftar
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-center">
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground text-center">
                     Aksi
                   </th>
                 </tr>

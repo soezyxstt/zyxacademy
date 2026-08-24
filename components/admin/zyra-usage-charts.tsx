@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AdminErrorState } from "@/components/admin/state-panels";
+import { RefreshCw } from "lucide-react";
 
 type UserUsage = {
   userId: string;
@@ -62,8 +64,8 @@ export function ZyraUsageCharts() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-status-error/30 bg-status-error/10 p-6 text-status-error text-body-sm mt-8">
-        Error loading Zyra usage: {error}
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm mt-8">
+        <AdminErrorState message={error} onRetry={fetchData} />
       </div>
     );
   }
@@ -73,7 +75,7 @@ export function ZyraUsageCharts() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-heading text-body-base font-semibold text-foreground">
-            Penggunaan Zyra (Token & Request)
+            Penggunaan Zyra (Token &amp; Request)
           </h2>
           <p className="mt-1 text-body-sm text-muted-foreground">
             Laporan penggunaan Zyra per user dan harian.
@@ -96,7 +98,8 @@ export function ZyraUsageCharts() {
 
       {loading ? (
         <div className="flex items-center justify-center py-24 text-muted-foreground text-body-sm">
-          Loading usage data…
+          <RefreshCw className="size-4 animate-spin mr-2" />
+          Memuat data penggunaan Zyra...
         </div>
       ) : (
         <>
@@ -140,19 +143,19 @@ export function ZyraUsageCharts() {
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                      User
+                        Pengguna
                     </th>
                     <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                      Requests
+                        Permintaan
                     </th>
                     <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                      Input Tokens
+                        Token input
                     </th>
                     <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                      Output Tokens
+                        Token output
                     </th>
                     <th className="px-4 py-3 text-right font-semibold text-muted-foreground">
-                      Total Tokens
+                        Total token
                     </th>
                   </tr>
                 </thead>
@@ -168,23 +171,23 @@ export function ZyraUsageCharts() {
                           {u.email && <span className="block text-muted-foreground font-normal text-body-xs">{u.email}</span>}
                         </td>
                         <td className="px-4 py-3 text-right text-foreground">
-                          {u.requests.toLocaleString()}
+                          {u.requests.toLocaleString("id-ID")}
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground">
-                          {u.inputTokens.toLocaleString()}
+                          {u.inputTokens.toLocaleString("id-ID")}
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground">
-                          {u.outputTokens.toLocaleString()}
+                          {u.outputTokens.toLocaleString("id-ID")}
                         </td>
                         <td className="px-4 py-3 text-right text-foreground font-medium">
-                          {u.totalTokens.toLocaleString()}
+                          {u.totalTokens.toLocaleString("id-ID")}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                        Tidak ada data user.
+                            Belum ada data penggunaan per pengguna.
                       </td>
                     </tr>
                   )}

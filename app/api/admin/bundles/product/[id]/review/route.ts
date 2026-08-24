@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { hasAnyPeran } from "@/lib/auth/authorization";
 import { reviewProductBundle } from "@/lib/bundle/product-staging";
 
 export const runtime = "nodejs";
@@ -10,7 +11,12 @@ const reviewSchema = z.object({ decision: z.enum(["approved", "rejected"]), note
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "teacher")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const isAuthorized =
+    session?.user &&
+    ((await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+      session.user.role === "admin" ||
+      session.user.role === "teacher");
+  if (!isAuthorized) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = reviewSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "PRODUCT_BUNDLE_REVIEW_INVALID", details: parsed.error.flatten() }, { status: 400 });
   const { id } = await context.params;

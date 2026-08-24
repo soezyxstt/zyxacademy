@@ -22,9 +22,10 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { SearchBar } from "@/components/ui/search-bar";
 import {
   AdminTabs,
   AdminTabsList,
@@ -407,14 +408,12 @@ export function TutorScheduleView({
 
       {/* Filter and Search Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[140px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            type="text"
+        <div className="flex-1 min-w-[140px] max-w-sm">
+          <SearchBar
             placeholder="Cari slot, topik, kelompok..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-9 text-body-sm rounded-lg"
+            size="sm"
           />
         </div>
 

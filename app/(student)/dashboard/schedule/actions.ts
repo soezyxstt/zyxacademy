@@ -19,6 +19,7 @@ import {
   academicSchedules,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getPeranCodes, hasPeran } from "@/lib/auth/authorization";
 import { eq, ne, and, desc, inArray, sql, gte, lte, lt, gt } from "drizzle-orm";
 import {
   getJakartaNow,
@@ -73,7 +74,10 @@ export async function getScheduleData(weekOffset = 0) {
     throw new Error("USER_NOT_FOUND");
   }
 
-  const role = (dbUser.role as "student" | "teacher" | "admin") || "student";
+  const peranCodes = await getPeranCodes(dbUser.id);
+  const isTutor = peranCodes.includes("tutor") || dbUser.role === "teacher";
+  const isAdmin = peranCodes.includes("admin") || dbUser.role === "admin";
+  const role: "student" | "teacher" | "admin" = isAdmin ? "admin" : isTutor ? "teacher" : "student";
 
   // Calculate week range
   const nowJakarta = getJakartaNow();
@@ -1393,14 +1397,17 @@ export async function tutorDeleteSlot(slotId: string) {
 export async function updateTutorCourses(targetTutorId: string, courseIds: string[]) {
   const currentUser = await requireUser();
 
-  const adminCheck = await db
-    .select({ role: user.role })
-    .from(user)
-    .where(eq(user.id, currentUser.id))
-    .limit(1);
+  const isAdmin = (await hasPeran(currentUser.id, "admin")) || currentUser.role === "admin";
+  if (!isAdmin) {
+    const adminCheck = await db
+      .select({ role: user.role })
+      .from(user)
+      .where(eq(user.id, currentUser.id))
+      .limit(1);
 
-  if (adminCheck[0]?.role !== "admin") {
-    return { success: false, error: "Hanya admin yang dapat mengatur sertifikasi mata kuliah tutor" };
+    if (adminCheck[0]?.role !== "admin") {
+      return { success: false, error: "Hanya admin yang dapat mengatur sertifikasi mata kuliah tutor" };
+    }
   }
 
   try {

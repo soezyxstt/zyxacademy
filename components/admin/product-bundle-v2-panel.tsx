@@ -280,7 +280,7 @@ export function ProductBundleV2Panel({ initialImports, courseLabels = {}, author
       await refresh();
       setSelected((current) => current?.id === id ? { ...current, status: "published" } : current);
     } catch (publishError) {
-      setError(publishError instanceof Error ? publishError.message : "PRODUCT_BUNDLE_PUBLISH_FAILED");
+      setError(explainBundleError(publishError instanceof Error ? publishError.message : "PRODUCT_BUNDLE_PUBLISH_FAILED"));
     } finally {
       setLoading(false);
     }
@@ -298,7 +298,7 @@ export function ProductBundleV2Panel({ initialImports, courseLabels = {}, author
       setConfirmation(null);
       await refresh();
     } catch (discardError) {
-      setError(discardError instanceof Error ? discardError.message : "PRODUCT_BUNDLE_DISCARD_FAILED");
+      setError(explainBundleError(discardError instanceof Error ? discardError.message : "PRODUCT_BUNDLE_DISCARD_FAILED"));
     } finally {
       setLoading(false);
     }
@@ -316,7 +316,7 @@ export function ProductBundleV2Panel({ initialImports, courseLabels = {}, author
       await refresh();
       setSelected((current) => current?.id === id ? { ...current, status: "withdrawn" } : current);
     } catch (withdrawError) {
-      setError(withdrawError instanceof Error ? withdrawError.message : "PRODUCT_BUNDLE_WITHDRAW_FAILED");
+      setError(explainBundleError(withdrawError instanceof Error ? withdrawError.message : "PRODUCT_BUNDLE_WITHDRAW_FAILED"));
     } finally {
       setLoading(false);
     }

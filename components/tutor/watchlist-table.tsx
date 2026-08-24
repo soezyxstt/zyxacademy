@@ -1,19 +1,21 @@
 import type { WatchlistStudent } from "@/lib/cohort-analytics";
 
 function relativeTime(iso: string | null): string {
-  if (!iso) return "Never";
+  if (!iso) return "Belum pernah";
   const diffMs = Date.now() - new Date(iso).getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return `${Math.floor(diffDays / 7)}w ago`;
+  if (diffDays === 0) return "Hari ini";
+  if (diffDays === 1) return "Kemarin";
+  if (diffDays < 7) return `${diffDays} hari lalu`;
+  return `${Math.floor(diffDays / 7)} minggu lalu`;
 }
 
 export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
   if (students.length === 0) {
     return (
-      <p className="text-body-sm text-muted-foreground">No students need attention.</p>
+      <p className="text-body-sm text-muted-foreground">
+        Tidak ada siswa yang memerlukan perhatian khusus saat ini.
+      </p>
     );
   }
 
@@ -21,10 +23,10 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-body-sm">
         <thead>
-          <tr className="border-b border-border text-left text-muted-foreground">
-            <th className="pb-2 pr-4 font-medium">Student</th>
-            <th className="pb-2 pr-4 font-medium">Declining concepts</th>
-            <th className="pb-2 font-medium whitespace-nowrap">Last active</th>
+          <tr className="border-b border-border text-left text-muted-foreground text-body-xs font-semibold">
+            <th className="pb-2 pr-4 font-medium">Siswa</th>
+            <th className="pb-2 pr-4 font-medium">Konsep menurun</th>
+            <th className="pb-2 font-medium whitespace-nowrap">Terakhir aktif</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -33,7 +35,7 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
             const overflow = s.decliningConcepts.length - shown.length;
             const conceptLabel =
               shown.length === 0
-                ? `${s.activeInterventionCount} active intervention${s.activeInterventionCount !== 1 ? "s" : ""}`
+                ? `${s.activeInterventionCount} intervensi aktif`
                 : shown.join(", ") + (overflow > 0 ? ` +${overflow}` : "");
 
             return (

@@ -10,6 +10,7 @@ import { db } from "@/db";
 import { courses, enrollments, mataKuliah } from "@/db/schema";
 import { and, count, gt, inArray } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
+import { AdminEmptyState } from "@/components/admin/state-panels";
 import { pageTitle } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -83,7 +84,7 @@ export default async function TutorPage() {
   const totalStudents = courseList.reduce((sum, course) => sum + course.enrolledCount, 0);
 
   return (
-    <div className="max-w-4xl px-6 py-8 space-y-6">
+    <div className="max-w-5xl px-6 py-8 space-y-6">
       <PageHeader
         title="Pengajaran"
         icon={GraduationCap}
@@ -133,7 +134,13 @@ export default async function TutorPage() {
       </div>
 
       {courseList.length === 0 ? (
-        <p className="mt-8 text-body-sm text-muted-foreground">Belum ada kelas yang ditugaskan.</p>
+        <div className="rounded-xl border border-dashed border-border bg-card">
+          <AdminEmptyState
+            icon={GraduationCap}
+            title="Belum ada kelas yang ditugaskan"
+            description="Kelas yang ditugaskan oleh admin kepada Anda akan muncul di sini."
+          />
+        </div>
       ) : (
         <div className="divide-y divide-border border-b border-border">
           {courseList.map((course) => (

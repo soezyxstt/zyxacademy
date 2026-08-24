@@ -145,6 +145,10 @@ export function QuizForm({
     initialData?.manualStatus || (scheduleType === "scheduled" ? "scheduled" : "open")
   );
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
+
   // Duration & Timer States
   const [hasGlobalTimeLimit, setHasGlobalTimeLimit] = useState(
     initialData?.timeLimitSeconds ? true : false
@@ -1294,23 +1298,23 @@ export function QuizForm({
                     </span>
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="text-status-success font-medium flex items-center gap-1">
-                        <span className="size-2 rounded-full bg-emerald-500" />
+                        <span className="size-2 rounded-full bg-status-success" />
                         Mudah: {selectedDifficultyCounts.easy} ({Math.round((selectedDifficultyCounts.easy / selectedQIds.length) * 100)}%)
                       </span>
                       <span className="text-status-warning font-medium flex items-center gap-1">
-                        <span className="size-2 rounded-full bg-amber-500" />
+                        <span className="size-2 rounded-full bg-status-warning" />
                         Sedang: {selectedDifficultyCounts.medium} ({Math.round((selectedDifficultyCounts.medium / selectedQIds.length) * 100)}%)
                       </span>
                       <span className="text-status-error font-medium flex items-center gap-1">
-                        <span className="size-2 rounded-full bg-rose-500" />
+                        <span className="size-2 rounded-full bg-status-error" />
                         Sulit: {selectedDifficultyCounts.hard} ({Math.round((selectedDifficultyCounts.hard / selectedQIds.length) * 100)}%)
                       </span>
                     </div>
                   </div>
                   <div className="h-2 w-full rounded-md bg-muted overflow-hidden flex">
-                    <div style={{ width: `${(selectedDifficultyCounts.easy / selectedQIds.length) * 100}%` }} className="h-full bg-emerald-500 transition-all" />
-                    <div style={{ width: `${(selectedDifficultyCounts.medium / selectedQIds.length) * 100}%` }} className="h-full bg-amber-500 transition-all" />
-                    <div style={{ width: `${(selectedDifficultyCounts.hard / selectedQIds.length) * 100}%` }} className="h-full bg-rose-500 transition-all" />
+                    <div style={{ width: `${(selectedDifficultyCounts.easy / selectedQIds.length) * 100}%` }} className="h-full bg-status-success transition-all" />
+                    <div style={{ width: `${(selectedDifficultyCounts.medium / selectedQIds.length) * 100}%` }} className="h-full bg-status-warning transition-all" />
+                    <div style={{ width: `${(selectedDifficultyCounts.hard / selectedQIds.length) * 100}%` }} className="h-full bg-status-error transition-all" />
                   </div>
                 </div>
               )}
@@ -1533,7 +1537,7 @@ export function QuizForm({
                               </Badge>
 
                               {q.origin === "itb_example" && (
-                                <Badge variant="outline" className="rounded-md text-[10px] border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5">
+                                <Badge variant="outline" className="rounded-md text-body-2xs border-status-warning/30 bg-status-warning/10 text-status-warning px-1.5 py-0.5">
                                   Contoh ITB
                                 </Badge>
                               )}
@@ -1541,7 +1545,7 @@ export function QuizForm({
                               {qTags.map((tag) => (
                                 <span
                                   key={tag}
-                                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                  className="rounded bg-muted px-1.5 py-0.5 text-body-2xs font-medium text-muted-foreground"
                                 >
                                   #{tag}
                                 </span>

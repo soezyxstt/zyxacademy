@@ -11,7 +11,7 @@ export function ConceptRanking({
   if (concepts.length === 0) {
     return (
       <p className="text-body-sm text-muted-foreground">
-        Analytics appear once students take quizzes.
+        Analitik akan muncul setelah siswa mengerjakan kuis.
       </p>
     );
   }
@@ -29,7 +29,7 @@ export function ConceptRanking({
           </span>
           <div className="min-w-0">
             <p className="text-body-base font-medium truncate">{concept.conceptName}</p>
-            <p className="text-body-sm text-muted-foreground">{concept.studentCount} students</p>
+            <p className="text-body-sm text-muted-foreground">{concept.studentCount} siswa</p>
           </div>
           <span className="tabular-nums text-body-base">{concept.avgMastery}</span>
           <DistributionBar

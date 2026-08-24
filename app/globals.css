@@ -133,6 +133,8 @@
  --text-body-sm--line-height: 19.6px;
  --text-body-xs: 12px;
  --text-body-xs--line-height: 16.8px;
+ --text-body-2xs: 10px;
+ --text-body-2xs--line-height: 14px;
 
  /* Section spacing tokens */
  --spacing-section: 5rem;

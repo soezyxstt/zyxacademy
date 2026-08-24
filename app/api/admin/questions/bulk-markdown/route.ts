@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { hasAnyPeran } from "@/lib/auth/authorization";
 import { headers } from "next/headers";
 import { questionIdeaLinkSchema, questionReviewStatusSchema } from "@/lib/question-authoring-contract";
 import { createCanonicalQuestionBatch, QuestionAuthoringError } from "@/lib/question-authoring";
@@ -24,7 +25,12 @@ function errorResponse(error: unknown): NextResponse {
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "teacher")) {
+  const isAuthorized =
+    session?.user &&
+    ((await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+      session.user.role === "admin" ||
+      session.user.role === "teacher");
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

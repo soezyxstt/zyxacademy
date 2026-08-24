@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { db } from '@/db';
 import { aiQuestionBank, auditMutasi, pembahasanSoal, soal } from '@/db/schema';
 import { auth } from '@/lib/auth';
+import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
 import { and, eq, inArray, desc, sql } from 'drizzle-orm';
 import { questionAuthoringInputSchema, canonicalQuestionStatus } from '@/lib/question-authoring-contract';
@@ -16,7 +17,12 @@ import { createCanonicalQuestion, QuestionAuthoringError } from '@/lib/question-
 
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+  const isAuthorized =
+    session?.user &&
+    ((await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) ||
+      session.user.role === 'admin' ||
+      session.user.role === 'teacher');
+  if (!isAuthorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -69,7 +75,12 @@ const BulkUpdateSchema = z.object({
 
 export async function PUT(req: NextRequest) {
  const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+ const isAuthorized =
+  session?.user &&
+  ((await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) ||
+   session.user.role === 'admin' ||
+   session.user.role === 'teacher');
+ if (!isAuthorized) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
 
@@ -79,7 +90,7 @@ export async function PUT(req: NextRequest) {
  return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
  }
 
- const { ids, reviewStatus } = parsed.data;
+  const { ids, reviewStatus } = parsed.data;
 
   const canonicalStatus = canonicalQuestionStatus(reviewStatus);
   const now = new Date();
@@ -128,7 +139,12 @@ export async function PUT(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+  const isAuthorized =
+    session?.user &&
+    ((await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) ||
+      session.user.role === 'admin' ||
+      session.user.role === 'teacher');
+  if (!isAuthorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

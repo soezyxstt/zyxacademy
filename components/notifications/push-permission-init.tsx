@@ -19,6 +19,7 @@
  * Placed in the root layout so it runs on every page for authenticated users.
  */
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -36,11 +37,17 @@ const LATER_AT_KEY = "fcm_later_at";
 const LATER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function PushPermissionInit() {
+  const pathname = usePathname();
   const { data: session, isPending } = useSession();
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
     if (isPending || !session?.user) return;
+
+    // Student-facing modal must never mount on admin surfaces or for admin users
+    if (pathname.startsWith("/admin") || (session.user as { role?: string }).role === "admin") {
+      return;
+    }
 
     // Only run in a real browser with service worker support
     if (

@@ -30,6 +30,7 @@ This file contains durable rules for work in this repository. Read the relevant 
 
 | Concern | Source of truth |
 |---|---|
+| Documentation index and status registry | `docs/README.md` |
 | Design tokens and base styles | `app/globals.css` |
 | Shared UI primitives | `components/ui/` |
 | Shared admin UI | `components/admin/` |
@@ -126,6 +127,36 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 - Use `AdminStatStrip` and `AdminStatStripItem` from `components/admin/stat-card` for grouped KPI metrics on admin pages. Do not create local stat-card variants or nest `AdminStatCard` inside a grid for the same purpose.
 - KPI strip labels use `text-body-sm`. KPI values use `font-heading text-h5`. KPI captions use `text-body-xs`. Do not change these across states.
 
+### Dialog and modal surface gating
+
+- Student-facing modals, onboarding prompts, feedback popups, and browser permission requests (such as push notification permission) must never mount on Admin surfaces (`app/(admin)`).
+- Global layout components that trigger interactive modals must explicitly verify the user role (`role !== 'admin'`) and surface route before mounting.
+- Admin pages must remain free from blocking consumer-facing popups.
+
+### Defensive media, images, and fallbacks
+
+- Never render raw `<img>` tags for user uploads or remote storage objects without error handling and fallback UI.
+- When a media object fails to load (such as a 500 error from storage proxy or a missing object key), display a structured fallback component (for example a status badge "Bukti Belum Tersedia" or a styled thumbnail placeholder), never a raw broken browser image icon.
+- Use standard Lucide React icons instead of raw Unicode glyphs or special symbols that risk rendering as unrendered box characters `[]` across different operating systems.
+
+### Error state presentation and sanitization
+
+- Never expose raw JSON error objects (such as OAuth refresh failures) or raw internal backend enum strings (such as `PRODUCT_BUNDLE_VALIDATION_FAILED`) directly to user-facing UI.
+- Use `AdminErrorState` or structured error banners with human-readable Indonesian copy explaining the issue, along with an actionable recovery button (such as "Hubungkan Ulang Akun", "Periksa Format Berkas", or "Coba Lagi").
+- Distinguish between client validation errors, permission denials, and server connectivity failures with appropriate UI treatments.
+
+### Mandatory empty states and data integrity
+
+- Never render bare unstyled text floating in empty space (such as plain text "Belum ada data") when a list or table is empty. Always use `AdminEmptyState` with a relevant icon, title, description, and primary action button where applicable.
+- Table metric cells must never be left blank. Render a formatted zero, `-`, or `N/A` with consistent alignment.
+
+### Table headers, navigation labels, and density
+
+- Table headers (`AdminTableHead`, `<th>`) must use sentence-case (for example "Token string", "Kapasitas kelompok", "Tanggal kedaluwarsa"). Never use all-caps uppercase table headers.
+- Sidebar navigation labels must be concise enough to fit within the standard desktop sidebar without ugly ellipsis truncation. When badges (such as `BETA`) are present, keep the preceding text short so both label and badge remain legible.
+- Do not use unstyled native browser controls such as `<input type="file">`. Use styled upload dropzones or button triggers from the design system.
+- Long lists containing heavy rendering elements (such as LaTeX mathematical formulas in Question Bank) must use pagination or a compact row mode instead of rendering unbounded lists into the DOM.
+
 ### Apples-to-apples ranking
 
 - Overview or cross-course aggregate views must never rank individual students across courses. Per-course or single-course views may rank students.
@@ -196,12 +227,24 @@ Common prefixes:
 - Do not perform destructive data contraction, vector cutover, deployment, or feature rollout as an implicit part of a focused code task.
 - Google Spreadsheet exports update the existing spreadsheet for the entity. The app owns only the explicit data block starting at A1; preserve manual rows and columns outside it. Compare the stored fingerprint and require typed conflict confirmation before overwriting manual edits. Route exports through `lib/google-sheets.ts` and `/api/admin/export-spreadsheet`.
 
+## Visual capture dengan sesi staging
+
+Untuk screenshot halaman terproteksi (misal audit visual `/admin`) terhadap data staging, ikuti prosedur di `docs/operations/visual-audit-capture.md`. Jangan bereksperimen dari nol. Aturan yang paling sering salah dan sudah ditetapkan di sana:
+
+- Gunakan build produksi (`next build` + `next start`) dengan env staging, bukan `next dev`; `next dev` memakai jalur koneksi database yang berbeda dan gagal 401 terhadap Turso.
+- Sesi didapat read-only dengan pola `scripts/staging/smoke-auth.ts`: SELECT satu sesi admin aktif, tandatangani cookie secara lokal. Tidak ada mutasi database.
+- Token sesi bisa dirotasi pengguna staging yang aktif. Ambil token segar tepat sebelum setiap navigasi dan pakai sekali.
+- Nama cookie (`better-auth.session_token` vs `__Secure-...`) ditentukan lewat probe `get-session`, bukan ditebak.
+- Jangan pernah mencetak isi `.env.staging`, token, atau nilai cookie. Simpan screenshot di `artifacts/` dan matikan server lokal setelah selesai.
+
+
 ## Documentation and validation
 
 Update only documents made relevant or inaccurate by the change:
 
 | Change | Document |
 |---|---|
+| Documentation hierarchy or status change | `docs/README.md` |
 | User-facing workflow | `docs/features.md` |
 | Architecture or data flow | `docs/ARCHITECTURE.md` |
 | Schema | `docs/DB_SCHEMA.md` and, when setup changes, `docs/DATABASE.md` |
@@ -209,6 +252,12 @@ Update only documents made relevant or inaccurate by the change:
 | Deployment or rollout | `docs/DEPLOYMENT.md` |
 | Bundle contract | the matching file under `docs/bundle/` |
 | Operational validation | `docs/operations/production-readiness-checklist.md` or the matching runbook |
+
+Documentation index maintenance:
+
+- Whenever creating, modifying, renaming, or deleting any `.md` file under `docs/` or `plans/`, update `docs/README.md` in the same change to keep the master documentation hierarchy and lifecycle status registry accurate.
+- Maintain explicit status tags for every document (`ACTIVE`, `TRANSITIONAL / LEGACY`, `HISTORICAL CHECKPOINT`, `OPEN / IN PROGRESS`, `COMPLETED / RESOLVED`).
+- When an audit is added, record it under `docs/audit/` and mark it `OPEN / IN PROGRESS`. When all findings are fixed and verified, retire the obsolete audit file and record its resolution in `docs/README.md`.
 
 Validation should be pragmatic and proportional:
 

@@ -24,6 +24,17 @@ const explanations: Record<string, string> = {
   PRODUCT_DRAFT_IDENTITY_CHANGED: "Identitas Product tidak boleh diganti dari editor.",
   PRODUCT_DRAFT_IDEA_LINK_CHANGED: "Idea yang ditautkan tidak boleh diganti dari editor ini.",
   PRODUCT_BUNDLE_UPDATE_FAILED: "Perubahan Product belum dapat disimpan. Periksa kembali isi yang diedit.",
+  PRODUCT_BUNDLE_VALIDATION_FAILED: "Validasi Product Bundle belum terpenuhi. Periksa kelengkapan isi dan relasi produk.",
+  PRODUCT_BUNDLE_PUBLISH_FAILED: "Gagal mempublikasikan Product Bundle.",
+  PRODUCT_BUNDLE_DISCARD_FAILED: "Gagal menghapus draf Product Bundle.",
+  PRODUCT_BUNDLE_WITHDRAW_FAILED: "Gagal menarik publikasi Product Bundle.",
+  PRODUCT_BUNDLE_LIST_FAILED: "Gagal memuat daftar bundle.",
+  PRODUCT_BUNDLE_DETAIL_FAILED: "Gagal memuat detail Product Bundle.",
+  IDEA_BUNDLE_VALIDATION_FAILED: "Validasi Idea Bundle belum terpenuhi. Periksa struktur dan bukti sumber.",
+  IDEA_BUNDLE_PUBLISH_FAILED: "Gagal mempublikasikan Idea Bundle.",
+  IDEA_BUNDLE_DISCARD_FAILED: "Gagal menghapus draf Idea Bundle.",
+  IDEA_BUNDLE_LIST_FAILED: "Gagal memuat daftar Idea Bundle.",
+  IDEA_BUNDLE_DETAIL_FAILED: "Gagal memuat detail Idea Bundle.",
 };
 
 export function explainBundleError(value: string): string {

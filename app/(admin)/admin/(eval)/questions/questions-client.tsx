@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, RotateCcw, Upload } from "lucide-react";
+import { CheckSquare, Square, ChevronDown, ChevronUp, Plus, Edit2, Trash2, RotateCcw, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { DifficultyBadge, StatusBadge } from "@/components/admin/status-badges";
@@ -227,6 +227,17 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
     });
   }, [localQuestions, searchQuery, filterStatus, filterCourse, filterOrigin, filterQuestionType, filterDifficulty, courseMap]);
 
+  const PAGE_SIZE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedQuestions = useMemo(() => {
+    const start = (safeCurrentPage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, safeCurrentPage]);
+
   const hasActiveFilters = Boolean(
     searchQuery.trim() ||
       filterStatus !== "all" ||
@@ -244,6 +255,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
     setFilterQuestionType("all");
     setFilterDifficulty("all");
     setSelected(new Set());
+    setCurrentPage(1);
   }
 
   function toggleSelect(id: string) {
@@ -716,29 +728,36 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
 
       {/* Question list */}
       <AdminTable>
-        <div className="flex items-center gap-3 border-b border-border bg-muted/50 px-4 py-3">
-          <button
-            type="button"
-            onClick={toggleAll}
-            aria-label={filtered.length > 0 && filtered.every((q) => selected.has(q.id)) ? "Batalkan pilih semua" : "Pilih semua soal"}
-            className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {filtered.length > 0 && filtered.every((q) => selected.has(q.id)) ? (
-              <CheckSquare className="size-4 text-brand-primary" />
-            ) : (
-              <Square className="size-4" />
-            )}
-          </button>
-          <span className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Daftar soal
-          </span>
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/50 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleAll}
+              aria-label={filtered.length > 0 && filtered.every((q) => selected.has(q.id)) ? "Batalkan pilih semua" : "Pilih semua soal"}
+              className="shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {filtered.length > 0 && filtered.every((q) => selected.has(q.id)) ? (
+                <CheckSquare className="size-4 text-brand-primary" />
+              ) : (
+                <Square className="size-4" />
+              )}
+            </button>
+            <span className="text-body-xs font-semibold text-muted-foreground">
+              Daftar soal ({filtered.length})
+            </span>
+          </div>
+          {totalPages > 1 && (
+            <span className="text-body-xs text-muted-foreground">
+              Halaman {safeCurrentPage} dari {totalPages}
+            </span>
+          )}
         </div>
 
         {filtered.length === 0 ? (
           <AdminEmptyState compact title="Tidak ada soal yang cocok dengan filter." />
         ) : (
           <div className="divide-y divide-border/60 overflow-hidden">
-            {filtered.map((q) => (
+              {paginatedQuestions.map((q) => (
               <QuestionRow
                 key={q.id}
                 question={q}
@@ -749,6 +768,41 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
                 onDelete={handleStartDelete}
               />
             ))}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-3 text-body-sm">
+            <span className="text-body-xs text-muted-foreground">
+              Menampilkan {(safeCurrentPage - 1) * PAGE_SIZE + 1} - {Math.min(safeCurrentPage * PAGE_SIZE, filtered.length)} dari {filtered.length} soal
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="size-8 p-0 rounded-lg"
+                disabled={safeCurrentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                aria-label="Halaman sebelumnya"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="text-body-xs font-semibold px-2">
+                {safeCurrentPage} / {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="size-8 p-0 rounded-lg"
+                disabled={safeCurrentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                aria-label="Halaman berikutnya"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         )}
       </AdminTable>

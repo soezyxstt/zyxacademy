@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { db } from '@/db';
 import { aiGenerationJobs, knowledgeObjects } from '@/db/schema';
 import { auth } from '@/lib/auth';
+import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
 import { startGenerationJob } from '@/lib/generation-pipeline';
 import { desc, eq, and, inArray, sql } from 'drizzle-orm';
@@ -20,7 +21,12 @@ const CreateJobSchema = z.object({
 
 export async function POST(req: NextRequest) {
  const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+ const isAuthorized =
+  session?.user &&
+  ((await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) ||
+   session.user.role === 'admin' ||
+   session.user.role === 'teacher');
+ if (!isAuthorized) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
 
@@ -67,7 +73,12 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
  const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+ const isAuthorized =
+  session?.user &&
+  ((await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) ||
+   session.user.role === 'admin' ||
+   session.user.role === 'teacher');
+ if (!isAuthorized) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
 
