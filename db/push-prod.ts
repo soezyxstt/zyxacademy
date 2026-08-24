@@ -1,11 +1,27 @@
 import { loadEnvConfig } from "@next/env";
 loadEnvConfig(process.cwd());
 
+import * as fs from "fs";
+import * as path from "path";
+
+// Explicitly load .env.prod if present
+const envProdPath = path.resolve(process.cwd(), ".env.prod");
+if (fs.existsSync(envProdPath)) {
+  const envContent = fs.readFileSync(envProdPath, "utf8");
+  for (const line of envContent.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
+      const idx = trimmed.indexOf("=");
+      const key = trimmed.slice(0, idx).trim();
+      const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
+      process.env[key] = val;
+    }
+  }
+}
+
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { drizzle } from "drizzle-orm/libsql";
 import { createClient } from "@libsql/client";
-import * as fs from "fs";
-import * as path from "path";
 
 async function main() {
   console.log("=== Production Migration Safe Runner ===");
