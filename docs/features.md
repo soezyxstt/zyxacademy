@@ -430,13 +430,13 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 
 - Subroute Structure:
   - `/tutor`: Overview portal displaying assigned courses, high-level KPIs, and quick shortcuts.
-  - `/tutor/schedule`: Full schedule and availability manager (add 90-minute slots, view bookings, delete unbooked slots, book sessions for active groups, approve/reject reschedule tickets, cancel sessions).
-  - `/tutor/[courseId]`: Course-level dashboard summarizing teaching metrics, active groups, and recent quizzes.
+  - `/tutor/schedule`: Full schedule and availability manager (add 90-minute slots, view bookings, delete unbooked slots, book sessions for active groups, approve/reject reschedule tickets, cancel sessions). Each reschedule or cancellation ticket exposes its discussion thread; the assigned tutor can read all group messages and reply inline.
+  - `/tutor/[courseId]`: Course-level dashboard summarizing teaching metrics, active groups, and recent quizzes, with quick-action links to quiz management, live console, grading, and participants.
   - `/tutor/[courseId]/participants`: Enrolled student roster and active study groups with member lists and deterministic representatives.
   - `/tutor/[courseId]/quizzes`: Full quiz template management (create, edit, delete, preview, toggle draft/published status) with creator attribution.
   - `/tutor/[courseId]/quizzes/[templateId]/attempts`: Per-quiz attempt spreadsheet and answer inspection with CSV export.
   - `/tutor/[courseId]/live`: Real-time interactive quiz console for hosting live sessions.
-  - `/tutor/[courseId]/grading`: Tryout essay grading queue for assigned courses.
+  - `/tutor/[courseId]/grading`: Tryout essay grading queue for assigned courses. Essay attachments uploaded by students are stored under `exams/{examId}/attachments` in object storage and downloadable from the grading workspace; snapshots recorded before real uploads show the attachment as unavailable.
 
 - Capability Boundaries & Access Control:
   - Canonical Access Resolution (`lib/auth/tutor-access.ts`): Requires active `pengguna`, canonical `tutor` role in `pengguna_peran`, active `mata_kuliah` course, and active `penugasan_tutor` row (`status = 'active'`, `assignment_scope = 'course'`).

@@ -11,22 +11,29 @@ import {
   Video,
   MapPin,
   CheckCircle2,
-  XCircle,
   AlertCircle,
-  ArrowRight,
   BookOpen,
   Send,
   ExternalLink,
   ShieldCheck,
   Search,
   RotateCcw,
+  MessageSquare,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AdminTabs,
+  AdminTabsList,
+  AdminTabsTrigger,
+  AdminTabsContent,
+} from "@/components/admin/tabs";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { AdminEmptyState } from "@/components/admin/state-panels";
+import { FormattedDate } from "@/components/ui/formatted-date";
 import {
   Dialog,
   DialogContent,
@@ -44,9 +51,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { INDONESIAN_DAYS, type IndonesianDay } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 import type {
   TutorScheduleReadModel,
-  OwnedSlotItem,
   OwnedBookingItem,
   OwnedTicketItem,
 } from "@/lib/schedule/tutor-read-model";
@@ -56,6 +63,7 @@ import {
   createTutorSessionAction,
   moveTutorSessionAction,
   decideTutorRescheduleTicketAction,
+  replyTutorTicketMessageAction,
 } from "@/app/(tutor)/tutor/schedule/actions";
 
 export interface TutorScheduleViewProps {
@@ -112,6 +120,10 @@ export function TutorScheduleView({
   const [decisionNotesInput, setDecisionNotesInput] = useState<string>("");
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("all");
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>("all");
+
+  // Ticket discussion thread
+  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   // Filtered Slots
   const filteredSlots = initialData.ownedSlots.filter((slot) => {
@@ -291,6 +303,25 @@ export function TutorScheduleView({
     });
   };
 
+  // Handler: Reply to ticket discussion
+  const handleReplyTicket = () => {
+    if (!openThreadId || replyText.trim().length === 0) return;
+
+    setFeedback(null);
+    startTransition(async () => {
+      const res = await replyTutorTicketMessageAction({
+        ticketId: openThreadId,
+        message: replyText,
+      });
+      if (res.success) {
+        setReplyText("");
+        router.refresh();
+      } else {
+        setFeedback({ type: "error", message: res.error || "Gagal mengirim pesan." });
+      }
+    });
+  };
+
   const unbookedSlots = initialData.ownedSlots.filter((s) => !s.booking);
   const pendingTickets = initialData.ownedTickets.filter((t) => t.status === "pending");
 
@@ -330,35 +361,31 @@ export function TutorScheduleView({
       />
 
       {/* Grouped KPI Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl border border-border bg-card">
-        <div className="space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Slot Tersedia</p>
-          <p className="font-heading text-h5 font-bold text-foreground">
-            {unbookedSlots.length}{" "}
-            <span className="text-body-xs font-normal text-muted-foreground">
-              / {initialData.ownedSlots.length} total
-            </span>
-          </p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Sesi Terjadwal</p>
-          <p className="font-heading text-h5 font-bold text-foreground">
-            {initialData.ownedBookings.length}
-          </p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Tiket Pending</p>
-          <p className="font-heading text-h5 font-bold text-foreground">
-            {pendingTickets.length}
-          </p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-body-xs text-muted-foreground font-medium">Kelompok Aktif</p>
-          <p className="font-heading text-h5 font-bold text-foreground">
-            {initialData.eligibleGroups.length}
-          </p>
-        </div>
-      </div>
+      <AdminStatStrip className="sm:grid-cols-4">
+        <AdminStatStripItem
+          label="Slot Tersedia"
+          value={unbookedSlots.length}
+          caption={`${initialData.ownedSlots.length} total`}
+          icon={CalendarDays}
+          tone="brand"
+        />
+        <AdminStatStripItem
+          label="Sesi Terjadwal"
+          value={initialData.ownedBookings.length}
+          icon={BookOpen}
+        />
+        <AdminStatStripItem
+          label="Tiket Pending"
+          value={pendingTickets.length}
+          icon={ShieldCheck}
+          tone={pendingTickets.length > 0 ? "warning" : "default"}
+        />
+        <AdminStatStripItem
+          label="Kelompok Aktif"
+          value={initialData.eligibleGroups.length}
+          icon={Users}
+        />
+      </AdminStatStrip>
 
       {/* Feedback Banner */}
       {feedback && (
@@ -448,33 +475,31 @@ export function TutorScheduleView({
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full sm:w-auto h-auto p-1 gap-1">
-          <TabsTrigger value="slots" className="text-body-sm font-medium">
+      <AdminTabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <AdminTabsList>
+          <AdminTabsTrigger value="slots">
             Slot ({initialData.ownedSlots.length})
-          </TabsTrigger>
-          <TabsTrigger value="sessions" className="text-body-sm font-medium">
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="sessions">
             Sesi ({initialData.ownedBookings.length})
-          </TabsTrigger>
-          <TabsTrigger value="tickets" className="text-body-sm font-medium">
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="tickets">
             Tiket ({initialData.ownedTickets.length})
-          </TabsTrigger>
-          <TabsTrigger value="groups" className="text-body-sm font-medium">
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="groups">
             Kelas & Kelompok
-          </TabsTrigger>
-        </TabsList>
+          </AdminTabsTrigger>
+        </AdminTabsList>
 
         {/* Tab 1: Slots */}
-        <TabsContent value="slots" className="space-y-3">
+        <AdminTabsContent value="slots" className="space-y-3">
           {filteredSlots.length === 0 ? (
-            <div className="p-8 text-center rounded-xl border border-dashed border-border bg-card">
-              <CalendarDays className="size-8 mx-auto text-muted-foreground mb-2 opacity-50" />
-              <p className="text-body-sm font-medium text-foreground">
-                Belum ada slot ketersediaan.
-              </p>
-              <p className="text-body-xs text-muted-foreground mt-1">
-                Tambahkan slot 90 menit agar sesi tutorial kelompok dapat dijadwalkan.
-              </p>
+            <div className="rounded-xl border border-dashed border-border bg-card">
+              <AdminEmptyState
+                icon={CalendarDays}
+                title="Belum ada slot ketersediaan."
+                description="Tambahkan slot 90 menit agar sesi tutorial kelompok dapat dijadwalkan."
+              />
             </div>
           ) : (
             <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
@@ -555,16 +580,16 @@ export function TutorScheduleView({
               })}
             </div>
           )}
-        </TabsContent>
+        </AdminTabsContent>
 
         {/* Tab 2: Sessions */}
-        <TabsContent value="sessions" className="space-y-3">
+        <AdminTabsContent value="sessions" className="space-y-3">
           {filteredBookings.length === 0 ? (
-            <div className="p-8 text-center rounded-xl border border-dashed border-border bg-card">
-              <BookOpen className="size-8 mx-auto text-muted-foreground mb-2 opacity-50" />
-              <p className="text-body-sm font-medium text-foreground">
-                Belum ada sesi tutorial yang dijadwalkan.
-              </p>
+            <div className="rounded-xl border border-dashed border-border bg-card">
+              <AdminEmptyState
+                icon={BookOpen}
+                title="Belum ada sesi tutorial yang dijadwalkan."
+              />
             </div>
           ) : (
             <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
@@ -646,84 +671,160 @@ export function TutorScheduleView({
               ))}
             </div>
           )}
-        </TabsContent>
+        </AdminTabsContent>
 
         {/* Tab 3: Tickets */}
-        <TabsContent value="tickets" className="space-y-3">
+        <AdminTabsContent value="tickets" className="space-y-3">
           {filteredTickets.length === 0 ? (
-            <div className="p-8 text-center rounded-xl border border-dashed border-border bg-card">
-              <ShieldCheck className="size-8 mx-auto text-muted-foreground mb-2 opacity-50" />
-              <p className="text-body-sm font-medium text-foreground">
-                Tidak ada tiket reschedule atau pembatalan.
-              </p>
+            <div className="rounded-xl border border-dashed border-border bg-card">
+              <AdminEmptyState
+                icon={ShieldCheck}
+                title="Tidak ada tiket reschedule atau pembatalan."
+              />
             </div>
           ) : (
             <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
               {filteredTickets.map((ticket) => {
                 const isPendingTicket = ticket.status === "pending";
+                const isThreadOpen = openThreadId === ticket.id;
                 return (
-                  <div
-                    key={ticket.id}
-                    className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
-                  >
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-heading text-body-base font-bold text-foreground">
-                          Tiket {ticket.type === "reschedule" ? "Reschedule" : "Pembatalan"}
-                        </span>
-                        <Badge
-                          variant={
-                            ticket.status === "approved"
-                              ? "default"
+                  <div key={ticket.id} className="p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-heading text-body-base font-bold text-foreground">
+                            Tiket {ticket.type === "reschedule" ? "Reschedule" : "Pembatalan"}
+                          </span>
+                          <Badge
+                            variant={
+                              ticket.status === "approved"
+                                ? "default"
+                                : ticket.status === "rejected"
+                                  ? "outline"
+                                  : "secondary"
+                            }
+                            className={`text-body-xs rounded-md font-semibold ${
+                              ticket.status === "rejected"
+                                ? "border-status-error/30 bg-status-error/10 text-status-error"
+                                : ""
+                            }`}
+                          >
+                            {ticket.status === "approved"
+                              ? "Disetujui"
                               : ticket.status === "rejected"
-                                ? "outline"
-                                : "secondary"
-                          }
-                          className={`text-body-xs rounded-md font-semibold ${
-                            ticket.status === "rejected"
-                              ? "border-status-error/30 bg-status-error/10 text-status-error"
-                              : ""
-                          }`}
-                        >
-                          {ticket.status === "approved"
-                            ? "Disetujui"
-                            : ticket.status === "rejected"
-                              ? "Ditolak"
-                              : "Menunggu Keputusan"}
-                        </Badge>
+                                ? "Ditolak"
+                                : "Menunggu Keputusan"}
+                          </Badge>
+                        </div>
+
+                        <p className="text-body-xs text-foreground font-medium">
+                          Alasan: {ticket.reason}
+                        </p>
+
+                        {ticket.proposedDate && (
+                          <p className="text-body-xs text-muted-foreground">
+                            Usulan Tanggal: {ticket.proposedDate}
+                          </p>
+                        )}
+
+                        {ticket.decisionNotes && (
+                          <p className="text-body-xs text-muted-foreground italic">
+                            Catatan: {ticket.decisionNotes}
+                          </p>
+                        )}
                       </div>
 
-                      <p className="text-body-xs text-foreground font-medium">
-                        Alasan: {ticket.reason}
-                      </p>
-
-                      {ticket.proposedDate && (
-                        <p className="text-body-xs text-muted-foreground">
-                          Usulan Tanggal: {ticket.proposedDate}
-                        </p>
-                      )}
-
-                      {ticket.decisionNotes && (
-                        <p className="text-body-xs text-muted-foreground italic">
-                          Catatan: {ticket.decisionNotes}
-                        </p>
-                      )}
-                    </div>
-
-                    {isPendingTicket && (
                       <div className="flex items-center gap-2 shrink-0">
                         <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => {
-                            setDecidingTicket(ticket);
-                            setTicketDecision("approved");
-                            setDecisionNotesInput("");
-                            setIsDecideTicketOpen(true);
+                            setOpenThreadId(isThreadOpen ? null : ticket.id);
+                            setReplyText("");
                           }}
-                          className="text-body-sm h-8 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
+                          aria-expanded={isThreadOpen}
+                          className="text-body-sm h-8 rounded-lg"
                         >
-                          Putuskan
+                          <MessageSquare className="size-4 mr-1.5" />
+                          Diskusi{ticket.messages.length > 0 ? ` (${ticket.messages.length})` : ""}
                         </Button>
+                        {isPendingTicket && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setDecidingTicket(ticket);
+                              setTicketDecision("approved");
+                              setDecisionNotesInput("");
+                              setIsDecideTicketOpen(true);
+                            }}
+                            className="text-body-sm h-8 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
+                          >
+                            Putuskan
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {isThreadOpen && (
+                      <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-3">
+                        {ticket.messages.length === 0 ? (
+                          <p className="text-body-xs text-muted-foreground">
+                            Belum ada pesan diskusi pada tiket ini.
+                          </p>
+                        ) : (
+                          <ul className="space-y-2">
+                            {ticket.messages.map((msg) => {
+                              const isTutor = msg.senderId === currentUserId;
+                              return (
+                                <li
+                                  key={msg.id}
+                                  className={cn(
+                                    "space-y-1 rounded-lg border p-2.5",
+                                    isTutor
+                                      ? "border-brand-primary/25 bg-brand-primary/5"
+                                      : "border-border/70 bg-card"
+                                  )}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-body-xs font-semibold text-foreground">
+                                      {isTutor
+                                        ? "Anda"
+                                        : msg.senderName || "Anggota Kelompok"}
+                                    </p>
+                                    <FormattedDate
+                                      date={msg.createdAt}
+                                      options={{ dateStyle: "short", timeStyle: "short" }}
+                                      locale="id-ID"
+                                    />
+                                  </div>
+                                  <p className="text-body-sm text-foreground whitespace-pre-wrap">
+                                    {msg.message}
+                                  </p>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+
+                        <div className="flex items-end gap-2">
+                          <Textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Balas diskusi untuk kelompok belajar..."
+                            className="min-h-[44px] flex-1 text-body-sm resize-none"
+                            maxLength={2000}
+                          />
+                          <Button
+                            size="sm"
+                            disabled={isPending || replyText.trim().length === 0}
+                            onClick={handleReplyTicket}
+                            aria-label="Kirim balasan"
+                            className="h-9 rounded-lg shrink-0"
+                          >
+                            <Send className="size-4 mr-1.5" />
+                            Kirim
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -731,10 +832,10 @@ export function TutorScheduleView({
               })}
             </div>
           )}
-        </TabsContent>
+        </AdminTabsContent>
 
         {/* Tab 4: Groups & Courses */}
-        <TabsContent value="groups" className="space-y-4">
+        <AdminTabsContent value="groups" className="space-y-4">
           <div className="space-y-3">
             <h2 className="font-heading text-body-base font-bold text-foreground">
               Mata Kuliah Ditugaskan
@@ -798,8 +899,8 @@ export function TutorScheduleView({
               )}
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </AdminTabsContent>
+      </AdminTabs>
 
       {/* Dialog 1: Add Slot */}
       <Dialog open={isAddSlotOpen} onOpenChange={setIsAddSlotOpen}>

@@ -3,6 +3,7 @@ import { db } from "@/db";
 import {
   academicSchedules,
   bookingRescheduleTickets,
+  bookingTicketMessages,
   bookings,
   courses,
   groupCourses,
@@ -111,6 +112,14 @@ export interface OwnedBookingItem {
   } | null;
 }
 
+export interface OwnedTicketMessageItem {
+  id: string;
+  senderId: string;
+  senderName: string | null;
+  message: string;
+  createdAt: Date;
+}
+
 export interface OwnedTicketItem {
   id: string;
   bookingId: string;
@@ -125,6 +134,7 @@ export interface OwnedTicketItem {
   decisionNotes: string | null;
   decidedAt: Date | null;
   createdAt: Date;
+  messages: OwnedTicketMessageItem[];
 }
 
 export interface OwnedAcademicScheduleItem {
@@ -619,6 +629,38 @@ export async function getTutorScheduleReadModel(
     .where(or(...ticketConditions))
     .orderBy(desc(bookingRescheduleTickets.createdAt));
 
+  // Discussion thread per ticket (student <-> tutor negotiation history).
+  const rawTicketIds = rawTickets.map((t) => t.id);
+  const rawTicketMessages =
+    rawTicketIds.length > 0
+      ? await client
+          .select({
+            id: bookingTicketMessages.id,
+            ticketId: bookingTicketMessages.ticketId,
+            senderId: bookingTicketMessages.senderId,
+            message: bookingTicketMessages.message,
+            createdAt: bookingTicketMessages.createdAt,
+            senderName: user.name,
+          })
+          .from(bookingTicketMessages)
+          .leftJoin(user, eq(user.id, bookingTicketMessages.senderId))
+          .where(inArray(bookingTicketMessages.ticketId, rawTicketIds))
+          .orderBy(bookingTicketMessages.createdAt)
+      : [];
+
+  const messagesByTicketId = new Map<string, OwnedTicketMessageItem[]>();
+  for (const m of rawTicketMessages) {
+    const list = messagesByTicketId.get(m.ticketId) ?? [];
+    list.push({
+      id: m.id,
+      senderId: m.senderId,
+      senderName: m.senderName ?? null,
+      message: m.message,
+      createdAt: normalizeDate(m.createdAt),
+    });
+    messagesByTicketId.set(m.ticketId, list);
+  }
+
   const seenTicketIds = new Set<string>();
   const ownedTickets: OwnedTicketItem[] = [];
 
@@ -639,6 +681,7 @@ export async function getTutorScheduleReadModel(
         decisionNotes: t.decisionNotes ?? null,
         decidedAt: t.decidedAt ? normalizeDate(t.decidedAt) : null,
         createdAt: normalizeDate(t.createdAt),
+        messages: messagesByTicketId.get(t.id) ?? [],
       });
     }
   }

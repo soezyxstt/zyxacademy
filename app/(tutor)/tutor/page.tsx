@@ -137,24 +137,37 @@ export default async function TutorPage() {
       ) : (
         <div className="divide-y divide-border border-b border-border">
           {courseList.map((course) => (
-            <Link
+            <div
               key={course.courseId}
-              href={`/tutor/${course.courseId}`}
-              className="grid gap-3 py-4 transition-colors duration-150 hover:bg-muted/35 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-3 rounded-lg"
+              className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-3 rounded-lg"
             >
-              <div className="min-w-0">
+              <Link
+                href={`/tutor/${course.courseId}`}
+                className="min-w-0 transition-colors duration-150 hover:bg-muted/35"
+              >
                 <p className="truncate text-body-base font-medium text-foreground">
                   {course.title}
                 </p>
                 <p className="text-body-sm text-muted-foreground">
                   {course.enrolledCount} terdaftar
                 </p>
+              </Link>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body-sm font-semibold text-brand-primary">
+                <Link href={`/tutor/${course.courseId}/quizzes`} className="hover:underline">
+                  Kuis
+                </Link>
+                <Link href={`/tutor/${course.courseId}/live`} className="hover:underline">
+                  Kuis Langsung
+                </Link>
+                <Link href={`/tutor/${course.courseId}/grading`} className="hover:underline">
+                  Penilaian
+                </Link>
+                <Link href={`/tutor/${course.courseId}`} className="inline-flex items-center gap-1.5 hover:underline">
+                  Analitik
+                  <ArrowRight className="size-4 shrink-0" />
+                </Link>
               </div>
-              <div className="flex items-center gap-3 text-body-sm font-semibold text-brand-primary">
-                <span>Buka analitik</span>
-                <ArrowRight className="size-4 shrink-0" />
-              </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

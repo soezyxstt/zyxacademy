@@ -196,11 +196,27 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
                               <p className="text-[10px] text-muted-foreground">{ans.fileSize || "PDF / Gambar"} • Cloudflare R2</p>
                             </div>
                           </div>
-                          {/* Mock link or simulated link */}
-                          <Button variant="outline" size="xs" className="rounded-lg border-border/80 text-muted-foreground hover:text-foreground gap-1">
-                            <Download className="size-3.5" />
-                            Unduh Berkas
-                          </Button>
+                          {ans.fileKey ? (
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              asChild
+                              className="rounded-lg border-border/80 text-muted-foreground hover:text-foreground gap-1"
+                            >
+                              <a
+                                href={`/api/storage/file/${ans.fileKey.split("/").map(encodeURIComponent).join("/")}?download=1`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Download className="size-3.5" />
+                                Unduh Berkas
+                              </a>
+                            </Button>
+                          ) : (
+                            <span className="text-body-xs shrink-0 text-muted-foreground italic">
+                              Berkas tidak tersedia
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>

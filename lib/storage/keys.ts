@@ -209,3 +209,19 @@ export function buildScheduleAttachmentKey(params: {
     userFileLeaf(params.filename)
   );
 }
+
+/**
+ * Tryout essay attachment object key: `exams/{examId}/attachments/{leaf}`.
+ * Uploaded by students while answering an essay question; downloaded by the grading tutor.
+ */
+export function buildExamAttachmentKey(params: {
+  examId: string;
+  filename: string;
+}): string {
+  return joinKey(
+    "exams",
+    slugifySegment(params.examId, "exam"),
+    "attachments",
+    userFileLeaf(params.filename)
+  );
+}
