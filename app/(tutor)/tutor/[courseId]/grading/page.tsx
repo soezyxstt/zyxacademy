@@ -1,21 +1,32 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
-import { submissions, exams, user, courses } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
-import { verifyTutorAccess } from "@/app/actions/tutor-management";
+import { submissions, exams, user, courses, mataKuliah } from "@/db/schema";
+import { eq, and, desc, or, inArray } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { GradingClient } from "./grading-client";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
+import { resolveActorRoles, REVIEWABLE_SUBMISSION_STATUSES } from "@/lib/tutor/assessment-policy";
 
 type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { courseId } = await params;
-  const [c] = await db.select({ title: courses.title }).from(courses).where(eq(courses.id, courseId)).limit(1);
+  const [mk] = await db
+    .select({ title: mataKuliah.title })
+    .from(mataKuliah)
+    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
+    .limit(1);
+  const [c] = !mk
+    ? await db.select({ title: courses.title }).from(courses).where(eq(courses.id, courseId)).limit(1)
+    : [null];
+  const title = mk?.title ?? c?.title;
   return {
-    title: pageTitle(c ? `Penilaian Tryout: ${c.title}` : "Penilaian Tryout"),
-    description: c
-      ? `Nilai dan review jawaban tryout siswa untuk ${c.title}.`
+    title: pageTitle(title ? `Penilaian Tryout: ${title}` : "Penilaian Tryout"),
+    description: title
+      ? `Nilai dan review jawaban tryout siswa untuk ${title}.`
       : "Nilai dan review jawaban tryout siswa.",
   };
 }
@@ -23,18 +34,48 @@ export async function generateMetadata({ params }: Props) {
 export default async function TutorGradingPage({ params }: Props) {
   const { courseId } = await params;
 
-  // Verify access
-  await verifyTutorAccess(courseId);
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    redirect("/");
+  }
 
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, courseId))
+  const { isAdmin } = await resolveActorRoles(
+    session.user.id,
+    (session.user as { role?: string | null }).role,
+  );
+
+  let access;
+  try {
+    access = await requireTutorCourseAccess(session.user.id, courseId, { allowAdmin: isAdmin });
+  } catch {
+    notFound();
+  }
+
+  const courseIdsToQuery = [courseId];
+  if (access.courseId && !courseIdsToQuery.includes(access.courseId)) {
+    courseIdsToQuery.push(access.courseId);
+  }
+  if (access.legacyCourseId && !courseIdsToQuery.includes(access.legacyCourseId)) {
+    courseIdsToQuery.push(access.legacyCourseId);
+  }
+
+  const [mk] = await db
+    .select({ title: mataKuliah.title })
+    .from(mataKuliah)
+    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
     .limit(1);
 
-  if (!course) notFound();
+  const [legacyCourse] = !mk
+    ? await db
+        .select({ title: courses.title })
+        .from(courses)
+        .where(eq(courses.id, courseId))
+        .limit(1)
+    : [null];
 
-  // Load all student submissions for tryouts in this course
+  const courseTitle = mk?.title ?? legacyCourse?.title ?? courseId;
+
+  // Load student submissions for tryout exams in this course only
   const submissionsList = await db
     .select({
       id: submissions.id,
@@ -51,7 +92,15 @@ export default async function TutorGradingPage({ params }: Props) {
     .from(submissions)
     .innerJoin(exams, eq(submissions.examId, exams.id))
     .innerJoin(user, eq(submissions.userId, user.id))
-    .where(and(eq(exams.courseId, courseId), eq(exams.type, "tryout")))
+    .where(
+      and(
+        inArray(exams.courseId, courseIdsToQuery),
+        eq(exams.type, "tryout"),
+        // Legacy rows exist only after submit; queue the persisted statuses a
+        // tutor can grade or re-grade, newest submission first.
+        inArray(submissions.status, [...REVIEWABLE_SUBMISSION_STATUSES]),
+      ),
+    )
     .orderBy(desc(submissions.submittedAt));
 
   return (
@@ -62,7 +111,7 @@ export default async function TutorGradingPage({ params }: Props) {
             Penilaian Tryout & Ujian
           </h1>
           <p className="text-body-sm text-muted-foreground">
-            {course.title} · Periksa jawaban essay siswa, masukkan skor akhir, dan berikan masukan belajar.
+            {courseTitle} · Periksa jawaban essay siswa, masukkan skor akhir, dan berikan masukan belajar.
           </p>
         </div>
       </Reveal>

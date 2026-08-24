@@ -1,0 +1,3168 @@
+import { describe, expect, it } from "bun:test";
+import { randomUUID } from "node:crypto";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { eq } from "drizzle-orm";
+import * as schema from "@/db/schema";
+import { CANCELLED_QUOTA_REFUND_LOG_ACTION } from "@/lib/schedule/tutor-policy";
+import {
+  executeAddTutorSlot,
+  executeDeleteTutorSlot,
+  executeCreateTutorSession,
+  executeMoveTutorSession,
+  executeDecideTutorRescheduleTicket,
+  getTutorAuthContext,
+} from "@/app/(tutor)/tutor/schedule/actions";
+import {
+  recordTutorFailureAudit,
+  recordUnauthenticatedRejectAudit,
+  TutorAuditPersistenceError,
+} from "@/lib/schedule/tutor-audit";
+import {
+  collaborativeBookSlot,
+  collaborativeMoveSlot,
+} from "@/app/(student)/dashboard/schedule/actions";
+async function createTestDb() {
+  const dbPath = `/tmp/zyx_test_${randomUUID().replace(/-/g, "")}.db`;
+  const client = createClient({ url: `file:${dbPath}` });
+  const testDb = drizzle(client, { schema });
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS user (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      email_verified INTEGER NOT NULL DEFAULT 0,
+      image TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      role TEXT DEFAULT 'student',
+      last_activity_at INTEGER
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS pengguna (
+      id TEXT PRIMARY KEY REFERENCES user(id),
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS peran (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS pengguna_peran (
+      id TEXT PRIMARY KEY,
+      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
+      peran_id TEXT NOT NULL REFERENCES peran(id),
+      source TEXT NOT NULL,
+      audit_actor_pengguna_id TEXT,
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS courses (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Matematika',
+      description TEXT
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS mata_kuliah (
+      id TEXT PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      legacy_course_id TEXT REFERENCES courses(id),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS penugasan_tutor (
+      id TEXT PRIMARY KEY,
+      pengguna_id TEXT NOT NULL REFERENCES pengguna(id),
+      mata_kuliah_id TEXT NOT NULL REFERENCES mata_kuliah(id),
+      status TEXT NOT NULL DEFAULT 'active',
+      assignment_scope TEXT NOT NULL DEFAULT 'course',
+      legacy_tutor_course_id TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS tutor_courses (
+      id TEXT PRIMARY KEY,
+      tutor_id TEXT NOT NULL REFERENCES user(id),
+      course_id TEXT NOT NULL REFERENCES courses(id),
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS groups (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      package_type TEXT NOT NULL DEFAULT 'reguler_15',
+      package_name TEXT NOT NULL DEFAULT 'Paket Reguler (15 Sesi)',
+      total_quota_sessions INTEGER NOT NULL DEFAULT 15,
+      used_quota_sessions INTEGER NOT NULL DEFAULT 0,
+      weekly_quota_sessions INTEGER NOT NULL DEFAULT 2,
+      academic_year TEXT NOT NULL DEFAULT '2026/2027',
+      semester TEXT NOT NULL DEFAULT 'Ganjil',
+      start_date INTEGER,
+      end_date INTEGER,
+      status TEXT NOT NULL DEFAULT 'active',
+      notes TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS group_courses (
+      id TEXT PRIMARY KEY,
+      group_id TEXT NOT NULL REFERENCES groups(id),
+      course_id TEXT NOT NULL REFERENCES courses(id),
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS group_members (
+      id TEXT PRIMARY KEY,
+      group_id TEXT NOT NULL REFERENCES groups(id),
+      user_id TEXT NOT NULL REFERENCES user(id),
+      role TEXT NOT NULL DEFAULT 'member',
+      joined_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS tutor_slots (
+      id TEXT PRIMARY KEY,
+      tutor_id TEXT NOT NULL REFERENCES user(id),
+      day_of_week TEXT NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      mode TEXT NOT NULL DEFAULT 'online',
+      location TEXT,
+      session_date TEXT,
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS bookings (
+      id TEXT PRIMARY KEY,
+      slot_id TEXT NOT NULL UNIQUE REFERENCES tutor_slots(id),
+      student_id TEXT NOT NULL REFERENCES user(id),
+      course_id TEXT NOT NULL REFERENCES courses(id),
+      group_id TEXT NOT NULL REFERENCES groups(id),
+      status TEXT NOT NULL DEFAULT 'scheduled',
+      session_date TEXT,
+      start_time TEXT,
+      end_time TEXT,
+      mode TEXT NOT NULL DEFAULT 'online',
+      location TEXT,
+      google_meet_url TEXT,
+      google_meet_space_name TEXT,
+      last_modified_by TEXT,
+      last_modified_at INTEGER NOT NULL,
+      topic TEXT,
+      pre_session_notes TEXT,
+      pre_session_attachments TEXT,
+      post_session_notes TEXT,
+      post_session_attachments TEXT,
+      post_session_link_url TEXT,
+      post_session_link_title TEXT,
+      post_session_link_description TEXT,
+      post_session_link_image TEXT,
+      completed_at INTEGER,
+      completed_by_id TEXT,
+      booked_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS booking_audit_logs (
+      id TEXT PRIMARY KEY,
+      booking_id TEXT NOT NULL REFERENCES bookings(id),
+      group_id TEXT REFERENCES groups(id),
+      actor_id TEXT REFERENCES user(id),
+      action TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      metadata TEXT,
+      created_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS booking_reschedule_tickets (
+      id TEXT PRIMARY KEY,
+      booking_id TEXT NOT NULL REFERENCES bookings(id),
+      group_id TEXT NOT NULL REFERENCES groups(id),
+      requested_by_id TEXT NOT NULL REFERENCES user(id),
+      tutor_id TEXT REFERENCES user(id),
+      type TEXT NOT NULL DEFAULT 'reschedule',
+      status TEXT NOT NULL DEFAULT 'pending',
+      reason TEXT NOT NULL,
+      proposed_slot_id TEXT REFERENCES tutor_slots(id),
+      proposed_date TEXT,
+      decision_notes TEXT,
+      decided_at INTEGER,
+      decided_by_id TEXT REFERENCES user(id),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS audit_mutasi (
+      id TEXT PRIMARY KEY,
+      actor_id TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      outcome TEXT NOT NULL,
+      before_snapshot TEXT,
+      after_snapshot TEXT,
+      correlation_id TEXT NOT NULL,
+      course_id TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+  `);
+
+  await testDb.insert(schema.peran).values([
+    { id: "peran-admin", code: "admin" },
+    { id: "peran-tutor", code: "tutor" },
+    { id: "peran-murid", code: "murid" },
+  ]);
+
+  return { client, testDb };
+}
+
+describe("Tutor Schedule Action Contracts", () => {
+  type TestDb = Awaited<ReturnType<typeof createTestDb>>["testDb"];
+
+  async function seedQuotaFixture(
+    testDb: TestDb,
+    quotas: { weekly: number; total: number; used: number },
+  ) {
+    const now = new Date();
+    await testDb.insert(schema.user).values([
+      {
+        id: "tutor-1",
+        name: "Tutor Satu",
+        email: "tutor1@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "teacher",
+      },
+      {
+        id: "student-1",
+        name: "Student Satu",
+        email: "std1@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    await testDb.insert(schema.pengguna).values({
+      id: "tutor-1",
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await testDb.insert(schema.penggunaPeran).values({
+      id: "pp-1",
+      penggunaId: "tutor-1",
+      peranId: "peran-tutor",
+      source: "seed",
+      createdAt: now,
+    });
+    await testDb.insert(schema.courses).values({
+      id: "crs-calc",
+      title: "Kalkulus 1",
+      category: "Matematika",
+    });
+    await testDb.insert(schema.mataKuliah).values({
+      id: "mk-calc",
+      code: "MA-1101",
+      title: "Kalkulus 1",
+      status: "active",
+      legacyCourseId: "crs-calc",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await testDb.insert(schema.penugasanTutor).values({
+      id: "pt-1",
+      penggunaId: "tutor-1",
+      mataKuliahId: "mk-calc",
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await testDb.insert(schema.groups).values({
+      id: "grp-q",
+      name: "Kelompok Quota",
+      status: "active",
+      weeklyQuotaSessions: quotas.weekly,
+      totalQuotaSessions: quotas.total,
+      usedQuotaSessions: quotas.used,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await testDb.insert(schema.groupCourses).values({
+      id: "gc-1",
+      groupId: "grp-q",
+      courseId: "crs-calc",
+      createdAt: now,
+    });
+    await testDb.insert(schema.groupMembers).values({
+      id: "gm-1",
+      groupId: "grp-q",
+      userId: "student-1",
+      role: "leader",
+      joinedAt: now,
+    });
+    await testDb.insert(schema.tutorSlots).values([
+      { id: "slot-a", tutorId: "tutor-1", dayOfWeek: "Senin", startTime: "09:00", endTime: "10:30", createdAt: now },
+      { id: "slot-b", tutorId: "tutor-1", dayOfWeek: "Rabu", startTime: "09:00", endTime: "10:30", createdAt: now },
+      { id: "slot-c", tutorId: "tutor-1", dayOfWeek: "Jumat", startTime: "09:00", endTime: "10:30", createdAt: now },
+    ]);
+    return { now };
+  }
+
+  async function seedFixtureBooking(
+    testDb: TestDb,
+    booking: {
+      id: string;
+      slotId: string;
+      sessionDate: string;
+      status: "scheduled" | "cancelled" | "completed" | "rescheduled";
+    },
+    now: Date,
+  ) {
+    await testDb.insert(schema.bookings).values({
+      id: booking.id,
+      slotId: booking.slotId,
+      studentId: "student-1",
+      courseId: "crs-calc",
+      groupId: "grp-q",
+      status: booking.status,
+      sessionDate: booking.sessionDate,
+      startTime: "09:00",
+      endTime: "10:30",
+      lastModifiedAt: now,
+      bookedAt: now,
+    });
+  }
+
+  async function seedFixtureCancellationTicket(
+    testDb: TestDb,
+    ticketId: string,
+    bookingId: string,
+    now: Date,
+    groupId = "grp-q",
+  ) {
+    await testDb.insert(schema.bookingRescheduleTickets).values({
+      id: ticketId,
+      bookingId,
+      groupId,
+      requestedById: "student-1",
+      tutorId: "tutor-1",
+      type: "cancellation",
+      status: "pending",
+      reason: "Mohon pembatalan sesi",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────
+   * 1. executeAddTutorSlot
+   * ──────────────────────────────────────────────────────────────────────── */
+  describe("executeAddTutorSlot", () => {
+    it("successfully creates a 90-minute slot and records mutation audit", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values({
+        id: "tutor-1",
+        name: "Tutor Satu",
+        email: "tutor1@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "teacher",
+      });
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      const res = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+          mode: "online",
+        },
+        { actorId: "tutor-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.slotId).toBeDefined();
+
+      const slots = await testDb.select().from(schema.tutorSlots);
+      expect(slots).toHaveLength(1);
+      expect(slots[0].tutorId).toBe("tutor-1");
+      expect(slots[0].dayOfWeek).toBe("Senin");
+      expect(slots[0].startTime).toBe("09:00");
+      expect(slots[0].endTime).toBe("10:30");
+
+      const audits = await testDb.select().from(schema.auditMutasi);
+      expect(audits).toHaveLength(1);
+      expect(audits[0].action).toBe("tutor.slot.create");
+      expect(audits[0].outcome).toBe("success");
+      expect(audits[0].actorId).toBe("tutor-1");
+    });
+
+    it("rejects slot creation if duration is not 90 minutes and records rejected audit", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values({
+        id: "tutor-1",
+        name: "Tutor Satu",
+        email: "tutor1@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "teacher",
+      });
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      const res = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:00", // 60 mins -> invalid
+          mode: "online",
+        },
+        { actorId: "tutor-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("INVALID_DURATION_NOT_90_MINUTES");
+
+      const slots = await testDb.select().from(schema.tutorSlots);
+      expect(slots).toHaveLength(0);
+
+      const audits = await testDb.select().from(schema.auditMutasi);
+      expect(audits).toHaveLength(1);
+      expect(audits[0].outcome).toBe("rejected");
+    });
+
+    it("rejects offline slot creation when location is empty", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values({
+        id: "tutor-1",
+        name: "Tutor Satu",
+        email: "tutor1@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "teacher",
+      });
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      const res = await executeAddTutorSlot(
+        {
+          dayOfWeek: "Rabu",
+          startTime: "13:00",
+          endTime: "14:30",
+          mode: "offline",
+          location: "",
+        },
+        { actorId: "tutor-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("LOCATION_REQUIRED_FOR_OFFLINE");
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────────
+   * 2. executeDeleteTutorSlot
+   * ──────────────────────────────────────────────────────────────────────── */
+  describe("executeDeleteTutorSlot", () => {
+    it("deletes unbooked slot owned by tutor and writes audit", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values({
+        id: "tutor-1",
+        name: "Tutor Satu",
+        email: "tutor1@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "teacher",
+      });
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      await testDb.insert(schema.tutorSlots).values({
+        id: "slot-free-1",
+        tutorId: "tutor-1",
+        dayOfWeek: "Senin",
+        startTime: "09:00",
+        endTime: "10:30",
+        createdAt: now,
+      });
+
+      const res = await executeDeleteTutorSlot(
+        { slotId: "slot-free-1" },
+        { actorId: "tutor-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(true);
+
+      const remainingSlots = await testDb.select().from(schema.tutorSlots);
+      expect(remainingSlots).toHaveLength(0);
+
+      const audits = await testDb.select().from(schema.auditMutasi);
+      expect(audits).toHaveLength(1);
+      expect(audits[0].action).toBe("tutor.slot.delete");
+      expect(audits[0].outcome).toBe("success");
+    });
+
+    it("rejects deletion of booked slot and records rejected audit", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values([
+        {
+          id: "tutor-1",
+          name: "Tutor Satu",
+          email: "tutor1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "student-1",
+          name: "Student Satu",
+          email: "std1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      await testDb.insert(schema.courses).values({
+        id: "crs-math",
+        title: "Matematika",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.groups).values({
+        id: "grp-1",
+        name: "Kelompok A",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await testDb.insert(schema.tutorSlots).values({
+        id: "slot-booked-1",
+        tutorId: "tutor-1",
+        dayOfWeek: "Senin",
+        startTime: "09:00",
+        endTime: "10:30",
+        createdAt: now,
+      });
+
+      await testDb.insert(schema.bookings).values({
+        id: "booking-1",
+        slotId: "slot-booked-1",
+        studentId: "student-1",
+        courseId: "crs-math",
+        groupId: "grp-1",
+        status: "scheduled",
+        sessionDate: "2026-08-24",
+        startTime: "09:00",
+        endTime: "10:30",
+        lastModifiedAt: now,
+        bookedAt: now,
+      });
+
+      const res = await executeDeleteTutorSlot(
+        { slotId: "slot-booked-1" },
+        { actorId: "tutor-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("CANNOT_DELETE_BOOKED_SLOT");
+
+      const remainingSlots = await testDb.select().from(schema.tutorSlots);
+      expect(remainingSlots).toHaveLength(1);
+
+      const audits = await testDb.select().from(schema.auditMutasi);
+      expect(audits).toHaveLength(1);
+      expect(audits[0].action).toBe("tutor.slot.delete");
+      expect(audits[0].outcome).toBe("rejected");
+    });
+
+    it("prevents slot deletion race condition if slot is booked right before deletion transaction executes", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values([
+        {
+          id: "tutor-1",
+          name: "Tutor Satu",
+          email: "tutor1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "student-1",
+          name: "Student Satu",
+          email: "std1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+      await testDb.insert(schema.courses).values({
+        id: "crs-math",
+        title: "Matematika",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.groups).values({
+        id: "grp-1",
+        name: "Kelompok A",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await testDb.insert(schema.tutorSlots).values({
+        id: "slot-race-1",
+        tutorId: "tutor-1",
+        dayOfWeek: "Senin",
+        startTime: "09:00",
+        endTime: "10:30",
+        createdAt: now,
+      });
+
+      // Wrap executor so that right before transaction executes, a booking is concurrently inserted into DB
+      const racingExecutor = new Proxy(testDb, {
+        get(target, prop, receiver) {
+          if (prop === "transaction") {
+            return async (cb: any) => {
+              // Concurrently insert booking before transaction executes body
+              await (target as any).insert(schema.bookings).values({
+                id: "booking-race-1",
+                slotId: "slot-race-1",
+                studentId: "student-1",
+                courseId: "crs-math",
+                groupId: "grp-1",
+                status: "scheduled",
+                sessionDate: "2026-08-24",
+                startTime: "09:00",
+                endTime: "10:30",
+                lastModifiedAt: now,
+                bookedAt: now,
+              });
+
+              return (target as any).transaction(cb);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+
+      const res = await executeDeleteTutorSlot(
+        { slotId: "slot-race-1" },
+        { actorId: "tutor-1", executor: racingExecutor as any },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("CANNOT_DELETE_BOOKED_SLOT");
+
+      // Slot must still exist
+      const remainingSlots = await testDb.select().from(schema.tutorSlots);
+      expect(remainingSlots).toHaveLength(1);
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────────
+   * 3. executeCreateTutorSession
+   * ──────────────────────────────────────────────────────────────────────── */
+  describe("executeCreateTutorSession", () => {
+    it("successfully schedules session for eligible active group and course", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      // Tutor & student
+      await testDb.insert(schema.user).values([
+        {
+          id: "tutor-1",
+          name: "Tutor Satu",
+          email: "tutor1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "student-leader",
+          name: "Ketua Kelompok",
+          email: "ketua@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      // Course & Mata Kuliah
+      await testDb.insert(schema.courses).values({
+        id: "crs-calc",
+        title: "Kalkulus 1",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.mataKuliah).values({
+        id: "mk-calc",
+        code: "MA-1101",
+        title: "Kalkulus 1",
+        status: "active",
+        legacyCourseId: "crs-calc",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Tutor assignment
+      await testDb.insert(schema.penugasanTutor).values({
+        id: "pt-1",
+        penggunaId: "tutor-1",
+        mataKuliahId: "mk-calc",
+        status: "active",
+        assignmentScope: "course",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Active Group with Member
+      await testDb.insert(schema.groups).values({
+        id: "grp-alpha",
+        name: "Kelompok Alpha",
+        status: "active",
+        weeklyQuotaSessions: 2,
+        totalQuotaSessions: 15,
+        usedQuotaSessions: 0,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.groupCourses).values({
+        id: "gc-1",
+        groupId: "grp-alpha",
+        courseId: "crs-calc",
+        createdAt: now,
+      });
+      await testDb.insert(schema.groupMembers).values({
+        id: "gm-1",
+        groupId: "grp-alpha",
+        userId: "student-leader",
+        role: "leader",
+        joinedAt: now,
+      });
+
+      // Tutor slot on Senin (2026-08-24 is Monday/Senin)
+      await testDb.insert(schema.tutorSlots).values({
+        id: "slot-senin-1",
+        tutorId: "tutor-1",
+        dayOfWeek: "Senin",
+        startTime: "09:00",
+        endTime: "10:30",
+        mode: "online",
+        createdAt: now,
+      });
+
+      const res = await executeCreateTutorSession(
+        {
+          slotId: "slot-senin-1",
+          groupId: "grp-alpha",
+          courseId: "mk-calc",
+          sessionDate: "2026-08-24",
+          topic: "Limit dan Kekontinuan",
+        },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          skipExternalMeet: true,
+          skipNotifications: true,
+        },
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.bookingId).toBeDefined();
+
+      const bookingsList = await testDb.select().from(schema.bookings);
+      expect(bookingsList).toHaveLength(1);
+      expect(bookingsList[0].slotId).toBe("slot-senin-1");
+      expect(bookingsList[0].groupId).toBe("grp-alpha");
+      expect(bookingsList[0].studentId).toBe("student-leader");
+      expect(bookingsList[0].topic).toBe("Limit dan Kekontinuan");
+
+      const audits = await testDb.select().from(schema.auditMutasi);
+      expect(audits).toHaveLength(1);
+      expect(audits[0].action).toBe("tutor.session.create");
+      expect(audits[0].outcome).toBe("success");
+    });
+
+    it("rejects session creation when date does not match slot weekday", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values({
+        id: "tutor-1",
+        name: "Tutor Satu",
+        email: "tutor1@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "teacher",
+      });
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      // Slot is on Senin, but date 2026-08-25 is Tuesday (Selasa)
+      await testDb.insert(schema.tutorSlots).values({
+        id: "slot-senin-1",
+        tutorId: "tutor-1",
+        dayOfWeek: "Senin",
+        startTime: "09:00",
+        endTime: "10:30",
+        createdAt: now,
+      });
+
+      const res = await executeCreateTutorSession(
+        {
+          slotId: "slot-senin-1",
+          groupId: "grp-alpha",
+          courseId: "crs-calc",
+          sessionDate: "2026-08-25", // Tuesday mismatch
+        },
+        { actorId: "tutor-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("DAY_OF_WEEK_MISMATCH");
+    });
+
+    it("rejects session creation when slot duration is not 90 minutes", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values({
+        id: "tutor-1",
+        name: "Tutor Satu",
+        email: "tutor1@zyx.test",
+        createdAt: now,
+        updatedAt: now,
+        role: "teacher",
+      });
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      // 60-minute legacy slot
+      await testDb.insert(schema.tutorSlots).values({
+        id: "slot-60m",
+        tutorId: "tutor-1",
+        dayOfWeek: "Senin",
+        startTime: "09:00",
+        endTime: "10:00",
+        createdAt: now,
+      });
+
+      await testDb.insert(schema.courses).values({
+        id: "crs-calc",
+        title: "Kalkulus 1",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.groups).values({
+        id: "grp-alpha",
+        name: "Kelompok Alpha",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const res = await executeCreateTutorSession(
+        {
+          slotId: "slot-60m",
+          groupId: "grp-alpha",
+          courseId: "crs-calc",
+          sessionDate: "2026-08-24",
+        },
+        { actorId: "tutor-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("INVALID_DURATION_NOT_90_MINUTES");
+    });
+
+    it("keeps post-lock cancelled bookings consuming the weekly quota", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 1 });
+
+      // Kept post-lock cancellation in the same ISO week (2026-08-24..30):
+      // the row stays and carries no pre-lock refund marker, so it must
+      // still consume weekly quota.
+      await seedFixtureBooking(testDb, {
+        id: "bk-old",
+        slotId: "slot-b",
+        sessionDate: "2026-08-26",
+        status: "cancelled",
+      }, now);
+
+      const res = await executeCreateTutorSession(
+        {
+          slotId: "slot-c",
+          groupId: "grp-q",
+          courseId: "mk-calc",
+          sessionDate: "2026-08-28",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+
+      const bookingCount = await testDb.select({ id: schema.bookings.id }).from(schema.bookings);
+      expect(bookingCount.length).toBe(1);
+
+      const groupRow = await testDb.select().from(schema.groups).where(eq(schema.groups.id, "grp-q"));
+      expect(groupRow[0].usedQuotaSessions).toBe(1);
+    });
+
+    it("keeps full history and frees weekly plus package quota after a pre-lock approved cancellation", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 1 });
+
+      // Unlocked session (lock cutoff precedes the far-future week).
+      await seedFixtureBooking(testDb, {
+        id: "bk-cur",
+        slotId: "slot-a",
+        sessionDate: "2027-06-07",
+        status: "scheduled",
+      }, now);
+      await seedFixtureCancellationTicket(testDb, "tix-del", "bk-cur", now);
+
+      const decideRes = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-del", decision: "approved", decisionNotes: "Boleh batal" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+      expect(decideRes.success).toBe(true);
+
+      // Booking history remains queryable as a cancelled row; nothing is deleted.
+      const keptRows = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-cur"));
+      expect(keptRows.length).toBe(1);
+      expect(keptRows[0].status).toBe("cancelled");
+      expect(keptRows[0].slotId).toBe("slot-a");
+
+      // Decision ticket history remains queryable.
+      const ticketRows = await testDb.select().from(schema.bookingRescheduleTickets).where(eq(schema.bookingRescheduleTickets.id, "tix-del"));
+      expect(ticketRows.length).toBe(1);
+      expect(ticketRows[0].status).toBe("approved");
+
+      // Structured mutation audit remains queryable for the decision.
+      const decisionAudits = await testDb
+        .select()
+        .from(schema.auditMutasi)
+        .where(eq(schema.auditMutasi.action, "tutor.ticket.decide"));
+      expect(decisionAudits.length).toBe(1);
+      expect(decisionAudits[0].outcome).toBe("success");
+
+      // Durable pre-lock refund marker exists inside booking_audit_logs JSON.
+      const refundLogs = await testDb
+        .select()
+        .from(schema.bookingAuditLogs)
+        .where(eq(schema.bookingAuditLogs.action, CANCELLED_QUOTA_REFUND_LOG_ACTION));
+      expect(refundLogs.length).toBe(1);
+      expect(refundLogs[0].bookingId).toBe("bk-cur");
+      expect(refundLogs[0].groupId).toBe("grp-q");
+      const refundMetadata = refundLogs[0].metadata as Record<string, unknown>;
+      expect(refundMetadata.marker).toBe("prelock_cancel_quota_refund");
+      expect(refundMetadata.ticketId).toBe("tix-del");
+      expect(refundMetadata.bookingId).toBe("bk-cur");
+      expect(refundMetadata.refundedSessions).toBe(1);
+
+      // Compatibility approval log also stays queryable next to the marker.
+      const approvalLogs = await testDb
+        .select()
+        .from(schema.bookingAuditLogs)
+        .where(eq(schema.bookingAuditLogs.action, "TICKET_APPROVED"));
+      expect(approvalLogs.length).toBe(1);
+
+      // Package usage was refunded exactly once.
+      const groupAfterRefund = await testDb.select().from(schema.groups).where(eq(schema.groups.id, "grp-q"));
+      expect(groupAfterRefund[0].usedQuotaSessions).toBe(0);
+
+      // The same ISO week is bookable again because the marked cancellation
+      // freed weekly quota even though its row remains.
+      const recreateRes = await executeCreateTutorSession(
+        {
+          slotId: "slot-b",
+          groupId: "grp-q",
+          courseId: "mk-calc",
+          sessionDate: "2027-06-09",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+      expect(recreateRes.success).toBe(true);
+    });
+
+    it("keeps the booking row after a post-lock approved cancellation so the weekly quota stays consumed", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 1 });
+
+      // Long-past session: locked (cutoff Saturday before 2020-06-01 has passed).
+      await seedFixtureBooking(testDb, {
+        id: "bk-past",
+        slotId: "slot-a",
+        sessionDate: "2020-06-01",
+        status: "scheduled",
+      }, now);
+      await seedFixtureCancellationTicket(testDb, "tix-lock", "bk-past", now);
+
+      const decideRes = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-lock", decision: "approved" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+      expect(decideRes.success).toBe(true);
+
+      // Post-lock: row kept as cancelled; package usage NOT refunded.
+      const keptRows = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-past"));
+      expect(keptRows.length).toBe(1);
+      expect(keptRows[0].status).toBe("cancelled");
+
+      const groupRow = await testDb.select().from(schema.groups).where(eq(schema.groups.id, "grp-q"));
+      expect(groupRow[0].usedQuotaSessions).toBe(1);
+
+      // No durable refund marker may exist for post-lock cancellations.
+      const refundLogs = await testDb
+        .select()
+        .from(schema.bookingAuditLogs)
+        .where(eq(schema.bookingAuditLogs.action, CANCELLED_QUOTA_REFUND_LOG_ACTION));
+      expect(refundLogs.length).toBe(0);
+
+      // Another create in the same ISO week (2020-06-01..07) hits the weekly cap.
+      const res = await executeCreateTutorSession(
+        {
+          slotId: "slot-b",
+          groupId: "grp-q",
+          courseId: "mk-calc",
+          sessionDate: "2020-06-03",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+    });
+
+    it("rejects creation when the total package quota is exhausted", async () => {
+      const { testDb } = await createTestDb();
+      await seedQuotaFixture(testDb, { weekly: 5, total: 5, used: 5 });
+
+      const res = await executeCreateTutorSession(
+        {
+          slotId: "slot-a",
+          groupId: "grp-q",
+          courseId: "mk-calc",
+          sessionDate: "2026-08-24",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("TOTAL_QUOTA_EXCEEDED");
+
+      const bookingCount = await testDb.select({ id: schema.bookings.id }).from(schema.bookings);
+      expect(bookingCount.length).toBe(0);
+
+      const groupRow = await testDb.select().from(schema.groups).where(eq(schema.groups.id, "grp-q"));
+      expect(groupRow[0].usedQuotaSessions).toBe(5);
+    });
+
+    it("serializes concurrent creates so exactly one wins the last free weekly slot", async () => {
+      const { testDb } = await createTestDb();
+      await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 0 });
+
+      const [resA, resB] = await Promise.all([
+        executeCreateTutorSession(
+          { slotId: "slot-a", groupId: "grp-q", courseId: "mk-calc", sessionDate: "2026-08-24" },
+          { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+        ),
+        executeCreateTutorSession(
+          { slotId: "slot-b", groupId: "grp-q", courseId: "mk-calc", sessionDate: "2026-08-26" },
+          { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+        ),
+      ]);
+
+      const results = [resA, resB];
+      const successes = results.filter((r) => r.success);
+      const failures = results.filter((r) => !r.success);
+
+      expect(successes.length).toBe(1);
+      expect(failures.length).toBe(1);
+
+      const bookingRows = await testDb.select({ id: schema.bookings.id }).from(schema.bookings);
+      expect(bookingRows.length).toBe(1);
+
+      // The loser's transaction rolled back its package increment.
+      const groupRow = await testDb.select().from(schema.groups).where(eq(schema.groups.id, "grp-q"));
+      expect(groupRow[0].usedQuotaSessions).toBe(1);
+    });
+
+    it("records a durable rejected audit for unauthenticated calls", async () => {
+      const { testDb } = await createTestDb();
+
+      const res = await executeCreateTutorSession(
+        {
+          slotId: "slot-a",
+          groupId: "grp-q",
+          courseId: "mk-calc",
+          sessionDate: "2026-08-24",
+        },
+        { actorId: "ghost-user", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("AUTH_FAILED");
+
+      const auditRows = await testDb
+        .select()
+        .from(schema.auditMutasi)
+        .where(eq(schema.auditMutasi.action, "tutor.session.create"));
+      expect(auditRows.length).toBe(1);
+      expect(auditRows[0].outcome).toBe("rejected");
+      expect(auditRows[0].actorId).toBe("anonymous");
+      expect(auditRows[0].reason).toBe("USER_NOT_FOUND");
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────────
+   * 4. executeMoveTutorSession
+   * ──────────────────────────────────────────────────────────────────────── */
+  describe("executeMoveTutorSession", () => {
+    it("directly moves session to target slot when not locked", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values([
+        {
+          id: "tutor-1",
+          name: "Tutor Satu",
+          email: "tutor1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "student-1",
+          name: "Student Satu",
+          email: "std1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      await testDb.insert(schema.courses).values({
+        id: "crs-math",
+        title: "Matematika",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.groups).values({
+        id: "grp-1",
+        name: "Kelompok A",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // 2026-08-31 is Monday in next week (unlocked)
+      // 2026-09-02 is Wednesday in next week (unlocked)
+      await testDb.insert(schema.tutorSlots).values([
+        {
+          id: "slot-old",
+          tutorId: "tutor-1",
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+          createdAt: now,
+        },
+        {
+          id: "slot-new",
+          tutorId: "tutor-1",
+          dayOfWeek: "Rabu",
+          startTime: "13:00",
+          endTime: "14:30",
+          createdAt: now,
+        },
+      ]);
+
+      await testDb.insert(schema.bookings).values({
+        id: "bk-move-1",
+        slotId: "slot-old",
+        studentId: "student-1",
+        courseId: "crs-math",
+        groupId: "grp-1",
+        status: "scheduled",
+        sessionDate: "2026-08-31",
+        startTime: "09:00",
+        endTime: "10:30",
+        lastModifiedAt: now,
+        bookedAt: now,
+      });
+
+      const res = await executeMoveTutorSession(
+        {
+          bookingId: "bk-move-1",
+          targetSlotId: "slot-new",
+          targetSessionDate: "2026-09-02",
+        },
+        {
+          actorId: "tutor-1",
+          executor: testDb,
+          skipNotifications: true,
+        },
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.movedDirectly).toBe(true);
+
+      const updated = await testDb
+        .select()
+        .from(schema.bookings)
+        .where(eq(schema.bookings.id, "bk-move-1"));
+      expect(updated[0].slotId).toBe("slot-new");
+      expect(updated[0].sessionDate).toBe("2026-09-02");
+      expect(updated[0].startTime).toBe("13:00");
+    });
+
+    it("rejects move when actor does not own the booking's current slot (no cross-tutor mutation)", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values([
+        {
+          id: "tutor-owner",
+          name: "Tutor Owner",
+          email: "owner@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "tutor-intruder",
+          name: "Tutor Intruder",
+          email: "intruder@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "student-1",
+          name: "Student Satu",
+          email: "std1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await testDb.insert(schema.pengguna).values([
+        { id: "tutor-owner", status: "active", createdAt: now, updatedAt: now },
+        { id: "tutor-intruder", status: "active", createdAt: now, updatedAt: now },
+      ]);
+      await testDb.insert(schema.penggunaPeran).values([
+        { id: "pp-owner", penggunaId: "tutor-owner", peranId: "peran-tutor", source: "seed", createdAt: now },
+        { id: "pp-intruder", penggunaId: "tutor-intruder", peranId: "peran-tutor", source: "seed", createdAt: now },
+      ]);
+
+      await testDb.insert(schema.courses).values({
+        id: "crs-math",
+        title: "Matematika",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.groups).values({
+        id: "grp-1",
+        name: "Kelompok A",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await testDb.insert(schema.tutorSlots).values([
+        {
+          id: "slot-owner-curr",
+          tutorId: "tutor-owner",
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+          createdAt: now,
+        },
+        {
+          id: "slot-intruder-target",
+          tutorId: "tutor-intruder",
+          dayOfWeek: "Rabu",
+          startTime: "13:00",
+          endTime: "14:30",
+          createdAt: now,
+        },
+      ]);
+
+      await testDb.insert(schema.bookings).values({
+        id: "bk-owner-1",
+        slotId: "slot-owner-curr",
+        studentId: "student-1",
+        courseId: "crs-math",
+        groupId: "grp-1",
+        status: "scheduled",
+        sessionDate: "2026-08-31",
+        startTime: "09:00",
+        endTime: "10:30",
+        lastModifiedAt: now,
+        bookedAt: now,
+      });
+
+      // tutor-intruder tries to move tutor-owner's booking
+      const res = await executeMoveTutorSession(
+        {
+          bookingId: "bk-owner-1",
+          targetSlotId: "slot-intruder-target",
+          targetSessionDate: "2026-09-02",
+        },
+        { actorId: "tutor-intruder", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("CURRENT_SLOT_NOT_OWNED_BY_TUTOR");
+    });
+
+    it("rejects move when target slot is occupied by an existing booking (respecting DB unique constraint)", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values([
+        {
+          id: "tutor-1",
+          name: "Tutor Satu",
+          email: "tutor1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "student-1",
+          name: "Student Satu",
+          email: "std1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      await testDb.insert(schema.courses).values({
+        id: "crs-math",
+        title: "Matematika",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.groups).values({
+        id: "grp-1",
+        name: "Kelompok A",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await testDb.insert(schema.tutorSlots).values([
+        {
+          id: "slot-a",
+          tutorId: "tutor-1",
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+          createdAt: now,
+        },
+        {
+          id: "slot-b-occupied",
+          tutorId: "tutor-1",
+          dayOfWeek: "Rabu",
+          startTime: "13:00",
+          endTime: "14:30",
+          createdAt: now,
+        },
+      ]);
+
+      await testDb.insert(schema.bookings).values([
+        {
+          id: "bk-1",
+          slotId: "slot-a",
+          studentId: "student-1",
+          courseId: "crs-math",
+          groupId: "grp-1",
+          status: "scheduled",
+          sessionDate: "2026-08-31",
+          startTime: "09:00",
+          endTime: "10:30",
+          lastModifiedAt: now,
+          bookedAt: now,
+        },
+        {
+          id: "bk-2-completed",
+          slotId: "slot-b-occupied",
+          studentId: "student-1",
+          courseId: "crs-math",
+          groupId: "grp-1",
+          status: "completed", // Slot is occupied in DB
+          sessionDate: "2026-09-02",
+          startTime: "13:00",
+          endTime: "14:30",
+          lastModifiedAt: now,
+          bookedAt: now,
+        },
+      ]);
+
+      const res = await executeMoveTutorSession(
+        {
+          bookingId: "bk-1",
+          targetSlotId: "slot-b-occupied",
+          targetSessionDate: "2026-09-02",
+        },
+        { actorId: "tutor-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("TARGET_SLOT_OCCUPIED");
+    });
+
+    it("rejects moving completed or cancelled sessions", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 1 });
+
+      await seedFixtureBooking(testDb, {
+        id: "bk-done",
+        slotId: "slot-a",
+        sessionDate: "2020-06-01",
+        status: "completed",
+      }, now);
+
+      const res = await executeMoveTutorSession(
+        {
+          bookingId: "bk-done",
+          targetSlotId: "slot-b",
+          targetSessionDate: "2026-08-26",
+          reason: "Coba pindahkan sesi selesai",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("BOOKING_TERMINAL_STATE");
+
+      // Booking must remain untouched.
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-done"));
+      expect(bookingRow[0].slotId).toBe("slot-a");
+      expect(bookingRow[0].status).toBe("completed");
+
+      // No ticket may have been created as a side effect of the locked path.
+      const ticketRows = await testDb.select({ id: schema.bookingRescheduleTickets.id }).from(schema.bookingRescheduleTickets);
+      expect(ticketRows.length).toBe(0);
+    });
+
+    it("rejects creating duplicate pending reschedule tickets for the same locked session", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 10, used: 1 });
+
+      await seedFixtureBooking(testDb, {
+        id: "bk-locked-dup",
+        slotId: "slot-a",
+        sessionDate: "2026-08-24",
+        status: "scheduled",
+      }, now);
+
+      // First locked move: creates a pending ticket
+      const firstMove = await executeMoveTutorSession(
+        {
+          bookingId: "bk-locked-dup",
+          targetSlotId: "slot-b",
+          targetSessionDate: "2026-08-26",
+          reason: "Permohonan pertama",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(firstMove.success).toBe(true);
+      expect(firstMove.requiresTicket).toBe(true);
+      expect(firstMove.ticketId).toBeDefined();
+
+      // Second locked move on the same booking while previous ticket is pending
+      const secondMove = await executeMoveTutorSession(
+        {
+          bookingId: "bk-locked-dup",
+          targetSlotId: "slot-c",
+          targetSessionDate: "2026-08-28",
+          reason: "Permohonan kedua",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(secondMove.success).toBe(false);
+      expect(secondMove.reason).toBe("DUPLICATE_PENDING_TICKET");
+
+      // Ensure only 1 ticket was created
+      const tickets = await testDb.select().from(schema.bookingRescheduleTickets);
+      expect(tickets).toHaveLength(1);
+    });
+
+    it("rejects direct move into a full target week (cross-week weekly quota exceeded) and writes rejected audit", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
+
+      // Origin week 2026-W36 (Monday 2026-08-31) in slot-a
+      await seedFixtureBooking(testDb, {
+        id: "bk-move-orig",
+        slotId: "slot-a",
+        sessionDate: "2026-08-31",
+        status: "scheduled",
+      }, now);
+
+      // Target week 2026-W37 (Friday 2026-09-11) already has a booking in slot-c, filling weekly quota of 1
+      await seedFixtureBooking(testDb, {
+        id: "bk-move-tgt-full",
+        slotId: "slot-c",
+        sessionDate: "2026-09-11",
+        status: "scheduled",
+      }, now);
+
+      // Attempt to move bk-move-orig to Wednesday 2026-09-09 (slot-b in target week 2026-W37)
+      const res = await executeMoveTutorSession(
+        {
+          bookingId: "bk-move-orig",
+          targetSlotId: "slot-b",
+          targetSessionDate: "2026-09-09",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+
+      // Booking must remain unchanged at origin
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-move-orig"));
+      expect(bookingRow[0].slotId).toBe("slot-a");
+      expect(bookingRow[0].sessionDate).toBe("2026-08-31");
+
+      // Rejected audit row must be persisted
+      const auditRows = await testDb
+        .select()
+        .from(schema.auditMutasi)
+        .where(eq(schema.auditMutasi.action, "tutor.session.move"));
+      const rejectedAudits = auditRows.filter((r) => r.outcome === "rejected" && r.reason === "WEEKLY_QUOTA_EXCEEDED");
+      expect(rejectedAudits.length).toBe(1);
+    });
+
+    it("allows direct move within the same full week (same-week move preserves weekly count)", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 1 });
+
+      // Origin week 2026-W36 (Monday 2026-08-31)
+      await seedFixtureBooking(testDb, {
+        id: "bk-same-week",
+        slotId: "slot-a",
+        sessionDate: "2026-08-31",
+        status: "scheduled",
+      }, now);
+
+      // Move within the SAME week 2026-W36 to Wednesday 2026-09-02 (slot-b)
+      const res = await executeMoveTutorSession(
+        {
+          bookingId: "bk-same-week",
+          targetSlotId: "slot-b",
+          targetSessionDate: "2026-09-02",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.movedDirectly).toBe(true);
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-same-week"));
+      expect(bookingRow[0].slotId).toBe("slot-b");
+      expect(bookingRow[0].sessionDate).toBe("2026-09-02");
+    });
+
+    it("allows direct move into a target week where a cancelled booking was pre-lock refunded", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
+
+      // Origin week 2026-W36 (Monday 2026-08-31) in slot-a
+      await seedFixtureBooking(testDb, {
+        id: "bk-orig-ref",
+        slotId: "slot-a",
+        sessionDate: "2026-08-31",
+        status: "scheduled",
+      }, now);
+
+      // Target week 2026-W37 has a cancelled booking with refund marker on Friday 2026-09-11 in slot-c
+      await seedFixtureBooking(testDb, {
+        id: "bk-tgt-refunded",
+        slotId: "slot-c",
+        sessionDate: "2026-09-11",
+        status: "cancelled",
+      }, now);
+
+      await testDb.insert(schema.bookingAuditLogs).values({
+        id: randomUUID(),
+        bookingId: "bk-tgt-refunded",
+        groupId: "grp-q",
+        actorId: "tutor-1",
+        action: CANCELLED_QUOTA_REFUND_LOG_ACTION,
+        summary: "Refund pre-lock cancellation",
+        createdAt: now,
+      });
+
+      // Move bk-orig-ref to Wednesday 2026-09-09 (slot-b in target week 2026-W37)
+      const res = await executeMoveTutorSession(
+        {
+          bookingId: "bk-orig-ref",
+          targetSlotId: "slot-b",
+          targetSessionDate: "2026-09-09",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.movedDirectly).toBe(true);
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-orig-ref"));
+      expect(bookingRow[0].slotId).toBe("slot-b");
+      expect(bookingRow[0].sessionDate).toBe("2026-09-09");
+    });
+
+    it("rejects direct move into a target week where a post-lock cancelled booking consumes quota", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
+
+      // Origin week 2026-W36 (Monday 2026-08-31) in slot-a
+      await seedFixtureBooking(testDb, {
+        id: "bk-orig-hangus",
+        slotId: "slot-a",
+        sessionDate: "2026-08-31",
+        status: "scheduled",
+      }, now);
+
+      // Target week 2026-W37 has a post-lock cancelled booking (hangus, no refund marker) on Friday 2026-09-11 in slot-c
+      await seedFixtureBooking(testDb, {
+        id: "bk-tgt-hangus",
+        slotId: "slot-c",
+        sessionDate: "2026-09-11",
+        status: "cancelled",
+      }, now);
+
+      // Move bk-orig-hangus to Wednesday 2026-09-09 (slot-b in target week 2026-W37)
+      const res = await executeMoveTutorSession(
+        {
+          bookingId: "bk-orig-hangus",
+          targetSlotId: "slot-b",
+          targetSessionDate: "2026-09-09",
+        },
+        { actorId: "tutor-1", executor: testDb, skipExternalMeet: true, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-orig-hangus"));
+      expect(bookingRow[0].slotId).toBe("slot-a");
+      expect(bookingRow[0].sessionDate).toBe("2026-08-31");
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────────
+   * 5. executeDecideTutorRescheduleTicket
+   * ──────────────────────────────────────────────────────────────────────── */
+  describe("executeDecideTutorRescheduleTicket", () => {
+    it("approves reschedule ticket and updates booking to proposed slot", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values([
+        {
+          id: "tutor-1",
+          name: "Tutor Satu",
+          email: "tutor1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "student-1",
+          name: "Student Satu",
+          email: "std1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      await testDb.insert(schema.courses).values({
+        id: "crs-math",
+        title: "Matematika",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.mataKuliah).values({
+        id: "mk-math",
+        code: "MA-1101",
+        title: "Matematika",
+        status: "active",
+        legacyCourseId: "crs-math",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penugasanTutor).values({
+        id: "pt-1",
+        penggunaId: "tutor-1",
+        mataKuliahId: "mk-math",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await testDb.insert(schema.groups).values({
+        id: "grp-1",
+        name: "Kelompok A",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.groupCourses).values({
+        id: "gc-1",
+        groupId: "grp-1",
+        courseId: "crs-math",
+        createdAt: now,
+      });
+      await testDb.insert(schema.groupMembers).values({
+        id: "gm-1",
+        groupId: "grp-1",
+        userId: "student-1",
+        role: "leader",
+        joinedAt: now,
+      });
+
+      await testDb.insert(schema.tutorSlots).values([
+        {
+          id: "slot-curr",
+          tutorId: "tutor-1",
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+          createdAt: now,
+        },
+        {
+          id: "slot-proposed",
+          tutorId: "tutor-1",
+          dayOfWeek: "Jumat",
+          startTime: "15:00",
+          endTime: "16:30",
+          createdAt: now,
+        },
+      ]);
+
+      await testDb.insert(schema.bookings).values({
+        id: "bk-ticket-1",
+        slotId: "slot-curr",
+        studentId: "student-1",
+        courseId: "crs-math",
+        groupId: "grp-1",
+        status: "scheduled",
+        sessionDate: "2026-08-24",
+        startTime: "09:00",
+        endTime: "10:30",
+        lastModifiedAt: now,
+        bookedAt: now,
+      });
+
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "ticket-1",
+        bookingId: "bk-ticket-1",
+        groupId: "grp-1",
+        requestedById: "student-1",
+        tutorId: "tutor-1",
+        type: "reschedule",
+        status: "pending",
+        reason: "Bentrok praktikum",
+        proposedSlotId: "slot-proposed",
+        proposedDate: "2026-08-28",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const res = await executeDecideTutorRescheduleTicket(
+        {
+          ticketId: "ticket-1",
+          decision: "approved",
+          decisionNotes: "Disetujui untuk Jumat sore",
+        },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(true);
+
+      const ticketRow = await testDb
+        .select()
+        .from(schema.bookingRescheduleTickets)
+        .where(eq(schema.bookingRescheduleTickets.id, "ticket-1"));
+      expect(ticketRow[0].status).toBe("approved");
+      expect(ticketRow[0].decisionNotes).toBe("Disetujui untuk Jumat sore");
+
+      const bookingRow = await testDb
+        .select()
+        .from(schema.bookings)
+        .where(eq(schema.bookings.id, "bk-ticket-1"));
+      expect(bookingRow[0].slotId).toBe("slot-proposed");
+      expect(bookingRow[0].sessionDate).toBe("2026-08-28");
+      expect(bookingRow[0].startTime).toBe("15:00");
+    });
+
+    it("rejects ticket decision when actor does not own the booking's current slot (no cross-tutor decision)", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values([
+        {
+          id: "tutor-owner",
+          name: "Tutor Owner",
+          email: "owner@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "tutor-other",
+          name: "Tutor Other",
+          email: "other@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "student-1",
+          name: "Student Satu",
+          email: "std1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await testDb.insert(schema.pengguna).values([
+        { id: "tutor-owner", status: "active", createdAt: now, updatedAt: now },
+        { id: "tutor-other", status: "active", createdAt: now, updatedAt: now },
+      ]);
+      await testDb.insert(schema.penggunaPeran).values([
+        { id: "pp-owner", penggunaId: "tutor-owner", peranId: "peran-tutor", source: "seed", createdAt: now },
+        { id: "pp-other", penggunaId: "tutor-other", peranId: "peran-tutor", source: "seed", createdAt: now },
+      ]);
+
+      await testDb.insert(schema.courses).values({
+        id: "crs-math",
+        title: "Matematika",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.groups).values({
+        id: "grp-1",
+        name: "Kelompok A",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await testDb.insert(schema.tutorSlots).values({
+        id: "slot-owner-curr",
+        tutorId: "tutor-owner",
+        dayOfWeek: "Senin",
+        startTime: "09:00",
+        endTime: "10:30",
+        createdAt: now,
+      });
+
+      await testDb.insert(schema.bookings).values({
+        id: "bk-ticket-owner",
+        slotId: "slot-owner-curr",
+        studentId: "student-1",
+        courseId: "crs-math",
+        groupId: "grp-1",
+        status: "scheduled",
+        sessionDate: "2026-08-24",
+        startTime: "09:00",
+        endTime: "10:30",
+        lastModifiedAt: now,
+        bookedAt: now,
+      });
+
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "ticket-owner-1",
+        bookingId: "bk-ticket-owner",
+        groupId: "grp-1",
+        requestedById: "student-1",
+        tutorId: "tutor-owner",
+        type: "reschedule",
+        status: "pending",
+        reason: "Bentrok",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // tutor-other tries to decide ticket
+      const res = await executeDecideTutorRescheduleTicket(
+        { ticketId: "ticket-owner-1", decision: "approved" },
+        { actorId: "tutor-other", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("FORBIDDEN_TICKET_OWNER_MISMATCH");
+    });
+
+    it("rejects reschedule approval when proposed slot is not 90 minutes", async () => {
+      const { testDb } = await createTestDb();
+      const now = new Date();
+
+      await testDb.insert(schema.user).values([
+        {
+          id: "tutor-1",
+          name: "Tutor Satu",
+          email: "tutor1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+          role: "teacher",
+        },
+        {
+          id: "student-1",
+          name: "Student Satu",
+          email: "std1@zyx.test",
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+      await testDb.insert(schema.pengguna).values({
+        id: "tutor-1",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await testDb.insert(schema.penggunaPeran).values({
+        id: "pp-1",
+        penggunaId: "tutor-1",
+        peranId: "peran-tutor",
+        source: "seed",
+        createdAt: now,
+      });
+
+      await testDb.insert(schema.courses).values({
+        id: "crs-math",
+        title: "Matematika",
+        category: "Matematika",
+      });
+      await testDb.insert(schema.groups).values({
+        id: "grp-1",
+        name: "Kelompok A",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await testDb.insert(schema.tutorSlots).values([
+        {
+          id: "slot-curr",
+          tutorId: "tutor-1",
+          dayOfWeek: "Senin",
+          startTime: "09:00",
+          endTime: "10:30",
+          createdAt: now,
+        },
+        {
+          id: "slot-proposed-60m",
+          tutorId: "tutor-1",
+          dayOfWeek: "Jumat",
+          startTime: "15:00",
+          endTime: "16:00", // 60 mins -> invalid
+          createdAt: now,
+        },
+      ]);
+
+      await testDb.insert(schema.bookings).values({
+        id: "bk-ticket-1",
+        slotId: "slot-curr",
+        studentId: "student-1",
+        courseId: "crs-math",
+        groupId: "grp-1",
+        status: "scheduled",
+        sessionDate: "2026-08-24",
+        startTime: "09:00",
+        endTime: "10:30",
+        lastModifiedAt: now,
+        bookedAt: now,
+      });
+
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "ticket-60m",
+        bookingId: "bk-ticket-1",
+        groupId: "grp-1",
+        requestedById: "student-1",
+        tutorId: "tutor-1",
+        type: "reschedule",
+        status: "pending",
+        reason: "Test 60m slot",
+        proposedSlotId: "slot-proposed-60m",
+        proposedDate: "2026-08-28",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const res = await executeDecideTutorRescheduleTicket(
+        { ticketId: "ticket-60m", decision: "approved" },
+        { actorId: "tutor-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("INVALID_DURATION_NOT_90_MINUTES");
+    });
+
+    it("rejects approval when ticket groupId mismatches the booking groupId", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 1 });
+
+      // Second group row so the ticket FK stays valid.
+      const otherNow = new Date();
+      await testDb.insert(schema.groups).values({
+        id: "grp-other",
+        name: "Kelompok Lain",
+        status: "active",
+        createdAt: otherNow,
+        updatedAt: otherNow,
+      });
+
+      await seedFixtureBooking(testDb, {
+        id: "bk-mm",
+        slotId: "slot-a",
+        sessionDate: "2026-08-24",
+        status: "scheduled",
+      }, now);
+
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "tix-mm",
+        bookingId: "bk-mm",
+        groupId: "grp-other",
+        requestedById: "student-1",
+        tutorId: "tutor-1",
+        type: "cancellation",
+        status: "pending",
+        reason: "Tiket dengan kelompok tidak konsisten",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const res = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-mm", decision: "approved" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("TICKET_GROUP_MISMATCH");
+
+      // Ticket stays pending and booking untouched.
+      const ticketRow = await testDb.select().from(schema.bookingRescheduleTickets).where(eq(schema.bookingRescheduleTickets.id, "tix-mm"));
+      expect(ticketRow[0].status).toBe("pending");
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-mm"));
+      expect(bookingRow[0].status).toBe("scheduled");
+    });
+
+    it("rejects approving tickets for terminal bookings and keeps the ticket pending", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 1 });
+
+      await seedFixtureBooking(testDb, {
+        id: "bk-term",
+        slotId: "slot-a",
+        sessionDate: "2020-06-01",
+        status: "completed",
+      }, now);
+
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "tix-term",
+        bookingId: "bk-term",
+        groupId: "grp-q",
+        requestedById: "student-1",
+        tutorId: "tutor-1",
+        type: "reschedule",
+        status: "pending",
+        reason: "Reschedule sesi selesai",
+        proposedSlotId: "slot-b",
+        proposedDate: "2026-08-26",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const res = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-term", decision: "approved" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("BOOKING_TERMINAL_STATE");
+
+      const ticketRow = await testDb.select().from(schema.bookingRescheduleTickets).where(eq(schema.bookingRescheduleTickets.id, "tix-term"));
+      expect(ticketRow[0].status).toBe("pending");
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-term"));
+      expect(bookingRow[0].status).toBe("completed");
+      expect(bookingRow[0].slotId).toBe("slot-a");
+    });
+
+    it("fails closed on a second decision attempt after the ticket was decided", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 1 });
+
+      await seedFixtureBooking(testDb, {
+        id: "bk-dd",
+        slotId: "slot-a",
+        sessionDate: "2027-06-07",
+        status: "scheduled",
+      }, now);
+
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "tix-dd",
+        bookingId: "bk-dd",
+        groupId: "grp-q",
+        requestedById: "student-1",
+        tutorId: "tutor-1",
+        type: "reschedule",
+        status: "pending",
+        reason: "Bentrok jadwal",
+        proposedSlotId: "slot-b",
+        proposedDate: "2027-06-09",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const first = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-dd", decision: "approved" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+      expect(first.success).toBe(true);
+
+      const second = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-dd", decision: "rejected" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+      expect(second.success).toBe(false);
+      expect(second.reason).toBe("TICKET_ALREADY_DECIDED");
+
+      const auditRows = await testDb
+        .select()
+        .from(schema.auditMutasi)
+        .where(eq(schema.auditMutasi.action, "tutor.ticket.decide"));
+      const rejectedRows = auditRows.filter((row) => row.outcome === "rejected" && row.reason === "TICKET_ALREADY_DECIDED");
+      expect(rejectedRows.length).toBe(1);
+    });
+
+    it("rejects reschedule approval when target week weekly quota is exhausted and keeps ticket pending", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
+
+      // Origin week 2026-W35 (Monday 2026-08-24, locked) in slot-a
+      await seedFixtureBooking(testDb, {
+        id: "bk-tix-origin",
+        slotId: "slot-a",
+        sessionDate: "2026-08-24",
+        status: "scheduled",
+      }, now);
+
+      // Target week 2026-W36 (Friday 2026-09-04) already has a booking in slot-c consuming the weekly quota of 1
+      await seedFixtureBooking(testDb, {
+        id: "bk-tix-target-full",
+        slotId: "slot-c",
+        sessionDate: "2026-09-04",
+        status: "scheduled",
+      }, now);
+
+      // Ticket proposing to move bk-tix-origin to Wednesday 2026-09-02 (slot-b in full target week 2026-W36)
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "tix-resched-full",
+        bookingId: "bk-tix-origin",
+        groupId: "grp-q",
+        requestedById: "student-1",
+        tutorId: "tutor-1",
+        type: "reschedule",
+        status: "pending",
+        reason: "Pindah ke minggu depan",
+        proposedSlotId: "slot-b",
+        proposedDate: "2026-09-02",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const res = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-resched-full", decision: "approved" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+
+      // Ticket must remain pending
+      const ticketRow = await testDb.select().from(schema.bookingRescheduleTickets).where(eq(schema.bookingRescheduleTickets.id, "tix-resched-full"));
+      expect(ticketRow[0].status).toBe("pending");
+
+      // Booking must remain unchanged at origin
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-tix-origin"));
+      expect(bookingRow[0].slotId).toBe("slot-a");
+      expect(bookingRow[0].sessionDate).toBe("2026-08-24");
+
+      // Rejected audit row must be persisted
+      const auditRows = await testDb
+        .select()
+        .from(schema.auditMutasi)
+        .where(eq(schema.auditMutasi.action, "tutor.ticket.decide"));
+      const rejectedAudits = auditRows.filter((r) => r.outcome === "rejected" && r.reason === "WEEKLY_QUOTA_EXCEEDED");
+      expect(rejectedAudits.length).toBe(1);
+    });
+
+    it("allows reschedule approval for same-week move within a full week", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 1 });
+
+      // Origin week 2026-W35 (Monday 2026-08-24)
+      await seedFixtureBooking(testDb, {
+        id: "bk-tix-same",
+        slotId: "slot-a",
+        sessionDate: "2026-08-24",
+        status: "scheduled",
+      }, now);
+
+      // Reschedule ticket proposing Wednesday 2026-08-26 (slot-b in same week)
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "tix-resched-same",
+        bookingId: "bk-tix-same",
+        groupId: "grp-q",
+        requestedById: "student-1",
+        tutorId: "tutor-1",
+        type: "reschedule",
+        status: "pending",
+        reason: "Pindah hari di minggu yang sama",
+        proposedSlotId: "slot-b",
+        proposedDate: "2026-08-26",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const res = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-resched-same", decision: "approved" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(true);
+
+      const ticketRow = await testDb.select().from(schema.bookingRescheduleTickets).where(eq(schema.bookingRescheduleTickets.id, "tix-resched-same"));
+      expect(ticketRow[0].status).toBe("approved");
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-tix-same"));
+      expect(bookingRow[0].slotId).toBe("slot-b");
+      expect(bookingRow[0].sessionDate).toBe("2026-08-26");
+    });
+
+    it("allows reschedule approval into a target week with pre-lock refunded cancellation", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
+
+      // Origin booking in 2026-W35 (Monday 2026-08-24) in slot-a
+      await seedFixtureBooking(testDb, {
+        id: "bk-tix-orig-ref",
+        slotId: "slot-a",
+        sessionDate: "2026-08-24",
+        status: "scheduled",
+      }, now);
+
+      // Target week 2026-W36 has a pre-lock refunded cancelled booking on Friday 2026-09-04 in slot-c
+      await seedFixtureBooking(testDb, {
+        id: "bk-tix-tgt-refunded",
+        slotId: "slot-c",
+        sessionDate: "2026-09-04",
+        status: "cancelled",
+      }, now);
+
+      await testDb.insert(schema.bookingAuditLogs).values({
+        id: randomUUID(),
+        bookingId: "bk-tix-tgt-refunded",
+        groupId: "grp-q",
+        actorId: "tutor-1",
+        action: CANCELLED_QUOTA_REFUND_LOG_ACTION,
+        summary: "Refund pre-lock cancellation",
+        createdAt: now,
+      });
+
+      // Ticket proposing Wednesday 2026-09-02 (slot-b in target week 2026-W36)
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "tix-resched-ref",
+        bookingId: "bk-tix-orig-ref",
+        groupId: "grp-q",
+        requestedById: "student-1",
+        tutorId: "tutor-1",
+        type: "reschedule",
+        status: "pending",
+        reason: "Pindah ke slot yang kuotanya sudah direfund",
+        proposedSlotId: "slot-b",
+        proposedDate: "2026-09-02",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const res = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-resched-ref", decision: "approved" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(true);
+
+      const ticketRow = await testDb.select().from(schema.bookingRescheduleTickets).where(eq(schema.bookingRescheduleTickets.id, "tix-resched-ref"));
+      expect(ticketRow[0].status).toBe("approved");
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-tix-orig-ref"));
+      expect(bookingRow[0].slotId).toBe("slot-b");
+      expect(bookingRow[0].sessionDate).toBe("2026-09-02");
+    });
+
+    it("rejects reschedule approval into a target week with post-lock unrefunded cancellation", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
+
+      // Origin booking in 2026-W35 (Monday 2026-08-24) in slot-a
+      await seedFixtureBooking(testDb, {
+        id: "bk-tix-orig-hangus",
+        slotId: "slot-a",
+        sessionDate: "2026-08-24",
+        status: "scheduled",
+      }, now);
+
+      // Target week 2026-W36 has a post-lock unrefunded cancelled booking (hangus) on Friday 2026-09-04 in slot-c
+      await seedFixtureBooking(testDb, {
+        id: "bk-tix-tgt-hangus",
+        slotId: "slot-c",
+        sessionDate: "2026-09-04",
+        status: "cancelled",
+      }, now);
+
+      await testDb.insert(schema.bookingRescheduleTickets).values({
+        id: "tix-resched-hangus",
+        bookingId: "bk-tix-orig-hangus",
+        groupId: "grp-q",
+        requestedById: "student-1",
+        tutorId: "tutor-1",
+        type: "reschedule",
+        status: "pending",
+        reason: "Pindah ke slot dengan pembatalan hangus",
+        proposedSlotId: "slot-b",
+        proposedDate: "2026-09-02",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const res = await executeDecideTutorRescheduleTicket(
+        { ticketId: "tix-resched-hangus", decision: "approved" },
+        { actorId: "tutor-1", executor: testDb, skipNotifications: true },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+
+      const ticketRow = await testDb.select().from(schema.bookingRescheduleTickets).where(eq(schema.bookingRescheduleTickets.id, "tix-resched-hangus"));
+      expect(ticketRow[0].status).toBe("pending");
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-tix-orig-hangus"));
+      expect(bookingRow[0].slotId).toBe("slot-a");
+      expect(bookingRow[0].sessionDate).toBe("2026-08-24");
+    });
+  });
+
+  describe("recordTutorFailureAudit and exhaustion behavior", () => {
+    it("retries on SQLITE_BUSY and throws structured TUTOR_AUDIT_PERSISTENCE_FAILED error with cause preserved upon exhaustion", async () => {
+      let attempts = 0;
+      const fakeBusyError = new Error("SQLITE_BUSY: database is locked");
+      const failingExecutor = {
+        insert: () => ({
+          values: async () => {
+            attempts++;
+            throw fakeBusyError;
+          },
+        }),
+      } as any;
+
+      let thrownError: any = null;
+      try {
+        await recordTutorFailureAudit(
+          {
+            actorId: "tutor-1",
+            actorRoles: ["tutor"],
+            courseId: "course-1",
+            entityType: "booking",
+            entityId: "session-1",
+            entityVersion: 1,
+            action: "tutor.session.create",
+            outcome: "rejected",
+            requestId: "req-1",
+            reason: "WEEKLY_QUOTA_EXCEEDED",
+            before: null,
+            after: null,
+          },
+          failingExecutor,
+        );
+      } catch (err: any) {
+        thrownError = err;
+      }
+
+      expect(attempts).toBe(7);
+      expect(thrownError).toBeInstanceOf(TutorAuditPersistenceError);
+      expect(thrownError.message).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+      expect(thrownError.code).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+      expect(thrownError.cause).toBe(fakeBusyError);
+    });
+
+    it("throws structured TUTOR_AUDIT_PERSISTENCE_FAILED immediately on non-busy errors", async () => {
+      let attempts = 0;
+      const genericError = new Error("FATAL_STORAGE_IO");
+      const failingExecutor = {
+        insert: () => ({
+          values: async () => {
+            attempts++;
+            throw genericError;
+          },
+        }),
+      } as any;
+
+      let thrownError: any = null;
+      try {
+        await recordTutorFailureAudit(
+          {
+            actorId: "tutor-1",
+            actorRoles: ["tutor"],
+            courseId: "course-1",
+            entityType: "booking",
+            entityId: "session-1",
+            entityVersion: 1,
+            action: "tutor.session.create",
+            outcome: "rejected",
+            requestId: "req-2",
+            reason: "WEEKLY_QUOTA_EXCEEDED",
+            before: null,
+            after: null,
+          },
+          failingExecutor,
+        );
+      } catch (err: any) {
+        thrownError = err;
+      }
+
+      expect(attempts).toBe(1);
+      expect(thrownError).toBeInstanceOf(TutorAuditPersistenceError);
+      expect(thrownError.message).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+      expect(thrownError.code).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+      expect(thrownError.cause).toBe(genericError);
+    });
+
+    it("propagates audit persistence failure from executeCreateTutorSession when rejection audit fails", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 10, used: 1 });
+
+      await seedFixtureBooking(testDb, {
+        id: "bk-exhaust-1",
+        slotId: "slot-b",
+        sessionDate: "2026-08-26",
+        status: "cancelled",
+      }, now);
+
+      const faultyExecutor = new Proxy(testDb, {
+        get(target, prop, receiver) {
+          if (prop === "insert") {
+            return (table: any) => {
+              if (table === schema.auditMutasi) {
+                return {
+                  values: async () => {
+                    throw new Error("SQLITE_BUSY: database is locked");
+                  },
+                };
+              }
+              return Reflect.get(target, prop, receiver)(table);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+
+      let actionError: any = null;
+      try {
+        await executeCreateTutorSession(
+          {
+            slotId: "slot-c",
+            groupId: "grp-q",
+            courseId: "mk-calc",
+            sessionDate: "2026-08-28",
+          },
+          { actorId: "tutor-1", executor: faultyExecutor as any, skipExternalMeet: true, skipNotifications: true },
+        );
+      } catch (err: any) {
+        actionError = err;
+      }
+
+      expect(actionError).toBeInstanceOf(TutorAuditPersistenceError);
+      expect(actionError.code).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+    });
+
+    it("recordUnauthenticatedRejectAudit retries on SQLITE_BUSY and throws structured TUTOR_AUDIT_PERSISTENCE_FAILED error with cause preserved upon exhaustion", async () => {
+      let attempts = 0;
+      const fakeBusyError = new Error("SQLITE_BUSY: database is locked");
+      const failingExecutor = {
+        insert: () => ({
+          values: async () => {
+            attempts++;
+            throw fakeBusyError;
+          },
+        }),
+      } as any;
+
+      let thrownError: any = null;
+      try {
+        await recordUnauthenticatedRejectAudit({
+          action: "tutor.slot.create",
+          entityType: "tutor_slot",
+          entityId: "new_slot",
+          courseId: "global",
+          requestId: "req-unauth-1",
+          reason: "UNAUTHORIZED",
+          input: { dayOfWeek: "Senin" },
+          executor: failingExecutor,
+        });
+      } catch (err: any) {
+        thrownError = err;
+      }
+
+      expect(attempts).toBe(7);
+      expect(thrownError).toBeInstanceOf(TutorAuditPersistenceError);
+      expect(thrownError.message).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+      expect(thrownError.code).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+      expect(thrownError.cause).toBe(fakeBusyError);
+    });
+
+    it("recordUnauthenticatedRejectAudit throws structured TUTOR_AUDIT_PERSISTENCE_FAILED immediately on non-busy errors", async () => {
+      let attempts = 0;
+      const genericError = new Error("FATAL_STORAGE_IO");
+      const failingExecutor = {
+        insert: () => ({
+          values: async () => {
+            attempts++;
+            throw genericError;
+          },
+        }),
+      } as any;
+
+      let thrownError: any = null;
+      try {
+        await recordUnauthenticatedRejectAudit({
+          action: "tutor.slot.create",
+          entityType: "tutor_slot",
+          entityId: "new_slot",
+          courseId: "global",
+          requestId: "req-unauth-2",
+          reason: "UNAUTHORIZED",
+          input: { dayOfWeek: "Senin" },
+          executor: failingExecutor,
+        });
+      } catch (err: any) {
+        thrownError = err;
+      }
+
+      expect(attempts).toBe(1);
+      expect(thrownError).toBeInstanceOf(TutorAuditPersistenceError);
+      expect(thrownError.message).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+      expect(thrownError.code).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+      expect(thrownError.cause).toBe(genericError);
+    });
+
+    it("propagates audit persistence failure from unauthenticated executeMoveTutorSession calls", async () => {
+      const { testDb } = await createTestDb();
+      const faultyExecutor = new Proxy(testDb, {
+        get(target, prop, receiver) {
+          if (prop === "insert") {
+            return (table: any) => {
+              if (table === schema.auditMutasi) {
+                return {
+                  values: async () => {
+                    throw new Error("SQLITE_BUSY: database is locked");
+                  },
+                };
+              }
+              return Reflect.get(target, prop, receiver)(table);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+
+      let actionError: any = null;
+      try {
+        await executeMoveTutorSession(
+          {
+            bookingId: "bk-any",
+            targetSlotId: "slot-any",
+            targetSessionDate: "2026-08-26",
+          },
+          { actorId: "ghost-tutor", executor: faultyExecutor as any },
+        );
+      } catch (err: any) {
+        actionError = err;
+      }
+
+      expect(actionError).toBeInstanceOf(TutorAuditPersistenceError);
+      expect(actionError.code).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+    });
+
+    it("propagates audit persistence failure from unauthenticated executeDecideTutorRescheduleTicket calls", async () => {
+      const { testDb } = await createTestDb();
+      const faultyExecutor = new Proxy(testDb, {
+        get(target, prop, receiver) {
+          if (prop === "insert") {
+            return (table: any) => {
+              if (table === schema.auditMutasi) {
+                return {
+                  values: async () => {
+                    throw new Error("SQLITE_BUSY: database is locked");
+                  },
+                };
+              }
+              return Reflect.get(target, prop, receiver)(table);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+
+      let actionError: any = null;
+      try {
+        await executeDecideTutorRescheduleTicket(
+          {
+            ticketId: "tix-any",
+            decision: "approved",
+          },
+          { actorId: "ghost-tutor", executor: faultyExecutor as any },
+        );
+      } catch (err: any) {
+        actionError = err;
+      }
+
+      expect(actionError).toBeInstanceOf(TutorAuditPersistenceError);
+      expect(actionError.code).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+    });
+
+    it("propagates audit persistence failure from unauthenticated executeAddTutorSlot calls", async () => {
+      const { testDb } = await createTestDb();
+      const faultyExecutor = new Proxy(testDb, {
+        get(target, prop, receiver) {
+          if (prop === "insert") {
+            return (table: any) => {
+              if (table === schema.auditMutasi) {
+                return {
+                  values: async () => {
+                    throw new Error("SQLITE_BUSY: database is locked");
+                  },
+                };
+              }
+              return Reflect.get(target, prop, receiver)(table);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+
+      let actionError: any = null;
+      try {
+        await executeAddTutorSlot(
+          {
+            dayOfWeek: "Senin",
+            startTime: "09:00",
+            endTime: "10:30",
+          },
+          { actorId: "ghost-tutor", executor: faultyExecutor as any },
+        );
+      } catch (err: any) {
+        actionError = err;
+      }
+
+      expect(actionError).toBeInstanceOf(TutorAuditPersistenceError);
+      expect(actionError.code).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+    });
+
+    it("propagates audit persistence failure from unauthenticated executeDeleteTutorSlot calls", async () => {
+      const { testDb } = await createTestDb();
+      const faultyExecutor = new Proxy(testDb, {
+        get(target, prop, receiver) {
+          if (prop === "insert") {
+            return (table: any) => {
+              if (table === schema.auditMutasi) {
+                return {
+                  values: async () => {
+                    throw new Error("SQLITE_BUSY: database is locked");
+                  },
+                };
+              }
+              return Reflect.get(target, prop, receiver)(table);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+
+      let actionError: any = null;
+      try {
+        await executeDeleteTutorSlot(
+          {
+            slotId: "slot-any",
+          },
+          { actorId: "ghost-tutor", executor: faultyExecutor as any },
+        );
+      } catch (err: any) {
+        actionError = err;
+      }
+
+      expect(actionError).toBeInstanceOf(TutorAuditPersistenceError);
+      expect(actionError.code).toBe("TUTOR_AUDIT_PERSISTENCE_FAILED");
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────────
+   * 7. collaborativeMoveSlot
+   * ──────────────────────────────────────────────────────────────────────── */
+  describe("collaborativeMoveSlot", () => {
+    it("rejects collaborative move into a full target week (cross-week weekly quota exceeded)", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
+
+      // Origin week 2026-W36 (Monday 2026-08-31) in slot-a
+      await seedFixtureBooking(testDb, {
+        id: "bk-std-move-orig",
+        slotId: "slot-a",
+        sessionDate: "2026-08-31",
+        status: "scheduled",
+      }, now);
+
+      // Target week 2026-W37 already full on Friday 2026-09-11 in slot-c (quota = 1)
+      await seedFixtureBooking(testDb, {
+        id: "bk-std-tgt-full",
+        slotId: "slot-c",
+        sessionDate: "2026-09-11",
+        status: "scheduled",
+      }, now);
+
+      const res = await collaborativeMoveSlot(
+        "bk-std-move-orig",
+        "slot-b",
+        "2026-09-09",
+        { actorId: "student-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-std-move-orig"));
+      expect(bookingRow[0].slotId).toBe("slot-a");
+      expect(bookingRow[0].sessionDate).toBe("2026-08-31");
+    });
+
+    it("allows collaborative move within the same full week", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 1 });
+
+      await seedFixtureBooking(testDb, {
+        id: "bk-std-same-week",
+        slotId: "slot-a",
+        sessionDate: "2026-08-31",
+        status: "scheduled",
+      }, now);
+
+      const res = await collaborativeMoveSlot(
+        "bk-std-same-week",
+        "slot-b",
+        "2026-09-02",
+        { actorId: "student-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(true);
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-std-same-week"));
+      expect(bookingRow[0].slotId).toBe("slot-b");
+      expect(bookingRow[0].sessionDate).toBe("2026-09-02");
+    });
+
+    it("allows collaborative move into a target week with pre-lock refunded cancellation", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
+
+      await seedFixtureBooking(testDb, {
+        id: "bk-std-orig-ref",
+        slotId: "slot-a",
+        sessionDate: "2026-08-31",
+        status: "scheduled",
+      }, now);
+
+      // Target week 2026-W37 has a cancelled booking with refund marker on Friday 2026-09-11 in slot-c
+      await seedFixtureBooking(testDb, {
+        id: "bk-std-tgt-refunded",
+        slotId: "slot-c",
+        sessionDate: "2026-09-11",
+        status: "cancelled",
+      }, now);
+
+      await testDb.insert(schema.bookingAuditLogs).values({
+        id: randomUUID(),
+        bookingId: "bk-std-tgt-refunded",
+        groupId: "grp-q",
+        actorId: "tutor-1",
+        action: CANCELLED_QUOTA_REFUND_LOG_ACTION,
+        summary: "Refund pre-lock cancellation",
+        createdAt: now,
+      });
+
+      const res = await collaborativeMoveSlot(
+        "bk-std-orig-ref",
+        "slot-b",
+        "2026-09-09",
+        { actorId: "student-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(true);
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-std-orig-ref"));
+      expect(bookingRow[0].slotId).toBe("slot-b");
+      expect(bookingRow[0].sessionDate).toBe("2026-09-09");
+    });
+
+    it("rejects collaborative move into a target week with post-lock unrefunded cancellation", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 1, total: 15, used: 2 });
+
+      await seedFixtureBooking(testDb, {
+        id: "bk-std-orig-hangus",
+        slotId: "slot-a",
+        sessionDate: "2026-08-31",
+        status: "scheduled",
+      }, now);
+
+      // Target week 2026-W37 has a post-lock unrefunded cancelled booking (hangus) on Friday 2026-09-11 in slot-c
+      await seedFixtureBooking(testDb, {
+        id: "bk-std-tgt-hangus",
+        slotId: "slot-c",
+        sessionDate: "2026-09-11",
+        status: "cancelled",
+      }, now);
+
+      const res = await collaborativeMoveSlot(
+        "bk-std-orig-hangus",
+        "slot-b",
+        "2026-09-09",
+        { actorId: "student-1", executor: testDb },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.reason).toBe("WEEKLY_QUOTA_EXCEEDED");
+
+      const bookingRow = await testDb.select().from(schema.bookings).where(eq(schema.bookings.id, "bk-std-orig-hangus"));
+      expect(bookingRow[0].slotId).toBe("slot-a");
+      expect(bookingRow[0].sessionDate).toBe("2026-08-31");
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────────
+   * 8. getTutorAuthContext Spoofing Resistance
+   * ──────────────────────────────────────────────────────────────────────── */
+  describe("getTutorAuthContext Spoofing Resistance", () => {
+    it("resists actorId spoofing when called without executor and throws UNAUTHORIZED when no session", async () => {
+      let thrownError: any = null;
+      try {
+        await getTutorAuthContext("spoofed-tutor-id");
+      } catch (err: any) {
+        thrownError = err;
+      }
+
+      expect(thrownError).toBeDefined();
+      expect(thrownError.message).toBe("UNAUTHORIZED");
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────────
+   * 9. Server Action Surface Boundary
+   * ──────────────────────────────────────────────────────────────────────── */
+  describe("Server Action Surface Boundary", () => {
+    it("does not expose internal audit persistence helpers as public server actions", async () => {
+      const actionsModule = await import("@/app/(tutor)/tutor/schedule/actions");
+
+      // Internal audit helpers must not be exported from server actions file
+      expect((actionsModule as any).recordTutorFailureAudit).toBeUndefined();
+      expect((actionsModule as any).recordUnauthenticatedRejectAudit).toBeUndefined();
+      expect((actionsModule as any).TutorAuditPersistenceError).toBeUndefined();
+      expect((actionsModule as any).isSqliteBusyError).toBeUndefined();
+      expect((actionsModule as any).FAILURE_AUDIT_ATTEMPTS).toBeUndefined();
+    });
+  });
+
+  /* ────────────────────────────────────────────────────────────────────────
+   * 10. collaborativeBookSlot Quota and TOCTOU Protection
+   * ──────────────────────────────────────────────────────────────────────── */
+  describe("collaborativeBookSlot Quota and TOCTOU Protection", () => {
+    it("does not consume package quota when booking an occupied slot across repeated attempts", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 3 });
+
+      // Pre-occupy slot-a with an existing booking by another group
+      await seedFixtureBooking(testDb, {
+        id: "bk-existing-occupied",
+        slotId: "slot-a",
+        sessionDate: "2026-08-31",
+        status: "scheduled",
+      }, now);
+
+      // Attempt 1: Try booking the occupied slot
+      const res1 = await collaborativeBookSlot(
+        "slot-a",
+        "crs-calc",
+        "grp-q",
+        "2026-08-31",
+        { actorId: "student-1", executor: testDb },
+      );
+
+      expect(res1.success).toBe(false);
+      expect(res1.error).toContain("First-Come First-Served");
+
+      // Verify used quota remains untouched at 3
+      const [groupAfter1] = await testDb
+        .select({ used: schema.groups.usedQuotaSessions })
+        .from(schema.groups)
+        .where(eq(schema.groups.id, "grp-q"));
+      expect(groupAfter1.used).toBe(3);
+
+      // Attempt 2: Repeat attempt on the same occupied slot
+      const res2 = await collaborativeBookSlot(
+        "slot-a",
+        "crs-calc",
+        "grp-q",
+        "2026-08-31",
+        { actorId: "student-1", executor: testDb },
+      );
+
+      expect(res2.success).toBe(false);
+      expect(res2.error).toContain("First-Come First-Served");
+
+      // Verify used quota is still 3
+      const [groupAfter2] = await testDb
+        .select({ used: schema.groups.usedQuotaSessions })
+        .from(schema.groups)
+        .where(eq(schema.groups.id, "grp-q"));
+      expect(groupAfter2.used).toBe(3);
+    });
+
+    it("eliminates TOCTOU by verifying group membership and slot eligibility inside the transaction", async () => {
+      const { testDb } = await createTestDb();
+      const { now } = await seedQuotaFixture(testDb, { weekly: 2, total: 15, used: 1 });
+
+      // Intercept transaction to simulate concurrent membership removal right before transaction body executes
+      const toctouDb = new Proxy(testDb, {
+        get(target, prop, receiver) {
+          if (prop === "transaction") {
+            return async (cb: any) => {
+              // Concurrently remove group member
+              await (target as any)
+                .delete(schema.groupMembers)
+                .where(eq(schema.groupMembers.userId, "student-1"));
+              return (target as any).transaction(cb);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+
+      const res = await collaborativeBookSlot(
+        "slot-b",
+        "crs-calc",
+        "grp-q",
+        "2026-09-02",
+        { actorId: "student-1", executor: toctouDb as any },
+      );
+
+      expect(res.success).toBe(false);
+      expect(res.error).toBe("Anda bukan anggota dari kelompok belajar ini");
+
+      // Quota must remain untouched
+      const [groupRow] = await testDb
+        .select({ used: schema.groups.usedQuotaSessions })
+        .from(schema.groups)
+        .where(eq(schema.groups.id, "grp-q"));
+      expect(groupRow.used).toBe(1);
+
+      // No booking was created
+      const bookingsCount = await testDb.select().from(schema.bookings);
+      expect(bookingsCount).toHaveLength(0);
+    });
+  });
+});

@@ -202,7 +202,7 @@ The row is created on the first explicit save or unsubscribe. A missing row deri
 * `bookingId`: Reference to `bookings`.
 * `groupId`: Reference to `groups`.
 * `actorId`: Reference to `user` (student, tutor, or admin).
-* `action`: Action type ('BOOK_CREATED', 'SLOT_MOVED', 'TOPIC_UPDATED', 'ATTACHMENT_UPLOADED', 'RESCHEDULE_REQUESTED', 'RESCHEDULE_APPROVED', 'RESCHEDULE_REJECTED', 'BOOKING_CANCELLED', 'SESSION_COMPLETED', 'NOTES_ADDED').
+* `action`: Action type ('BOOK_CREATED', 'SLOT_MOVED', 'TOPIC_UPDATED', 'ATTACHMENT_UPLOADED', 'RESCHEDULE_REQUESTED', 'RESCHEDULE_APPROVED', 'RESCHEDULE_REJECTED', 'BOOKING_CANCELLED', 'BOOKING_CANCELLED_QUOTA_REFUNDED', 'SESSION_COMPLETED', 'NOTES_ADDED').
 * `summary`: Human-readable activity sentence.
 * `metadata`: JSON payload containing action details.
 * `createdAt`
@@ -910,6 +910,10 @@ Per-attempt detailed deterministic facts plus AI pedagogical diagnosis for the a
 * `participantCount`: Count of students active in session.
 * `createdAt`
 * `endedAt`
+* `deliveryStatus`: Downstream delivery lifecycle state ('pending', 'processing', 'delivered', 'failed', default 'pending').
+* `deliveryClaimedAt`: Timestamp when active processing lease was claimed, used for 30-second stale claim recovery.
+* `deliveryClaimToken`: Unique fencing token generated upon lease acquisition for Compare-And-Set concurrency control and conditional delivery finalization.
+* `deliveredAt`: Timestamp when downstream learning events and mastery recomputes were successfully dispatched.
 
 ### liveQuizResults
 * `id`
@@ -1408,9 +1412,13 @@ Structured mutation-audit envelope written by every guarded canonical transition
 * `id`
 * Optional `actorId`: Acting `pengguna` reference.
 * `entityType`, `entityId`, `action`: What changed and how.
-* Optional `beforeSnapshot` / `afterSnapshot`: JSON state envelopes.
+* Optional `beforeSnapshot` / `afterSnapshot`: JSON state envelopes with recursive secret redaction and truncation.
 * Optional `correlationId`: Cross-table correlation for one logical operation (bundle run, publication, review).
+* Optional `courseId`: Course identifier for admin filtering.
+* Optional `outcome`: Transition outcome ('success', 'rejected', 'failed').
+* Optional `reason`: Human rationale for the mutation or rejection.
 * `createdAt`
+* Indexed on `(entityType, entityId, createdAt)`, `(actorId, createdAt)`, and `(courseId, outcome, createdAt)`.
 
 ### exams
 * `id`
@@ -1434,13 +1442,16 @@ Structured mutation-audit envelope written by every guarded canonical transition
 
 ### submissions
 * `id`
-* `examId`
-* `studentId`
+* `userId`: Foreign key to `user.id`.
+* `examId`: Foreign key to `exams.id`.
+* `status`: Submission review state ('completed', 'pending_review', 'graded', 'late').
+* `score`: Calculated or graded numeric score.
+* `teacherNotes`: Feedback and notes provided by tutor or teacher upon grading.
 * `answersSnapshot`: Serialized map of student picks.
-* `score`
-* `completed`
-* `createdAt`
-* `updatedAt`
+* `questionsSnapshot`: Serialized snapshot of questions at attempt time.
+* `submittedAt`: Submission timestamp.
+* `attemptNumber`: Attempt index per user per exam.
+* Unique index: `idx_submissions_user_exam_attempt` on `(userId, examId, attemptNumber)`.
 
 ### aiMaterialInstances
 * `id`

@@ -39,6 +39,7 @@ import {
   ArchiveRestore,
   Trophy,
   MousePointerClick,
+  Activity,
 } from "lucide-react";
 import {
   SidebarShell,
@@ -110,6 +111,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
 
   // Sistem & Ops
   { id: "ops-monitor", label: "Monitor Ops", href: "/admin/ops", icon: Gauge, group: "ops", exact: true },
+  { id: "tutor-activity", label: "Aktivitas Tutor", href: "/admin/ops/tutor-activity", icon: Activity, group: "ops" },
   { id: "feature-flags", label: "Feature Flags", href: "/admin/ops/flags", icon: Flag, group: "ops" },
   { id: "ai-analytics", label: "Analitik Zyra", href: "/admin/ops/analytics", icon: LineChart, group: "ops" },
   { id: "feature-usage", label: "Penggunaan Fitur", href: "/admin/ops/feature-usage", icon: MousePointerClick, group: "ops" },

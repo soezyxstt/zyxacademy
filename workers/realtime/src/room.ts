@@ -1,9 +1,29 @@
-// LiveQuizRoom Durable Object
-// Uses WebSocket Hibernation API + SQLite-backed DO storage.
-// All mutable state is persisted to ctx.storage on every write so the DO
-// can hibernate between messages and recover after a redeploy mid-session.
+// --- Minimal Durable Object & Worker types (avoids requiring @cloudflare/workers-types locally) ---
 
-import { DurableObject } from "cloudflare:workers";
+interface DurableObjectStorage {
+  get<T = unknown>(key: string): Promise<T | undefined>;
+  put<T = unknown>(key: string, value: T): Promise<void>;
+  delete(key: string): Promise<boolean>;
+}
+
+interface DurableObjectState {
+  storage: DurableObjectStorage;
+  blockConcurrencyWhile<T>(callback: () => Promise<T>): Promise<T>;
+  acceptWebSocket(ws: WebSocket, tags?: string[]): void;
+  getWebSockets(tag?: string): WebSocket[];
+  getTags(ws: WebSocket): string[];
+}
+
+interface DurableObjectNamespace {
+  idFromName(name: string): any;
+  get(id: any): any;
+}
+
+declare class WebSocketPair {
+  0: WebSocket;
+  1: WebSocket;
+  [Symbol.iterator](): Iterator<WebSocket>;
+}
 
 interface Env {
   LIVE_QUIZ_ROOM: DurableObjectNamespace;
@@ -38,7 +58,7 @@ interface RoomState {
   answersByQuestion: Record<number, Record<string, { choice: number; receivedTs: number }>>;
 }
 
-interface TokenPayload {
+export interface TokenPayload {
   userId: string;
   name: string;
   sessionId: string;
@@ -50,7 +70,9 @@ const BASE_POINTS = 1000;
 const QUESTION_WINDOW_MS = 30_000;
 const MAX_PARTICIPANTS = 150;
 
-export class LiveQuizRoom extends DurableObject<Env> {
+export class LiveQuizRoom {
+  ctx: DurableObjectState;
+  env: Env;
   private questions: Question[] = [];
   private roomState: RoomState = {
     sessionState: "lobby",
@@ -63,7 +85,8 @@ export class LiveQuizRoom extends DurableObject<Env> {
   private courseId = "";
 
   constructor(ctx: DurableObjectState, env: Env) {
-    super(ctx, env);
+    this.ctx = ctx;
+    this.env = env;
     this.ctx.blockConcurrencyWhile(async () => {
       const savedState = await this.ctx.storage.get<RoomState>("roomState");
       if (savedState) this.roomState = savedState;
@@ -95,15 +118,37 @@ export class LiveQuizRoom extends DurableObject<Env> {
   // ── Init ────────────────────────────────────────────────────────────────────
 
   private async handleInit(request: Request): Promise<Response> {
-    const body = (await request.json()) as {
-      sessionId: string;
-      courseId: string;
-      questions: Question[];
-    };
+    const auth = request.headers.get("Authorization");
+    if (!auth || auth !== `Bearer ${this.env.LIVE_HMAC_SECRET}`) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
-    this.questions = body.questions;
+    const url = new URL(request.url);
+    const match = url.pathname.match(/^\/room\/([^/]+)\/init$/);
+    const urlSessionId = match ? match[1] : null;
+
+    let body: {
+      sessionId?: string;
+      courseId?: string;
+      questions?: Question[];
+    };
+    try {
+      body = (await request.json()) as {
+        sessionId?: string;
+        courseId?: string;
+        questions?: Question[];
+      };
+    } catch {
+      return Response.json({ error: "Invalid body" }, { status: 400 });
+    }
+
+    if (!body || !body.sessionId || (urlSessionId && body.sessionId !== urlSessionId)) {
+      return Response.json({ error: "Session ID mismatch" }, { status: 400 });
+    }
+
+    this.questions = Array.isArray(body.questions) ? body.questions : [];
     this.sessionId = body.sessionId;
-    this.courseId = body.courseId;
+    this.courseId = body.courseId ?? "";
 
     await this.ctx.storage.put("questions", this.questions);
     await this.ctx.storage.put("sessionId", this.sessionId);
@@ -146,6 +191,16 @@ export class LiveQuizRoom extends DurableObject<Env> {
     const payload = await verifyHmacToken(token, this.env.LIVE_HMAC_SECRET);
     if (!payload) return new Response("Invalid or expired token", { status: 401 });
 
+    const match = url.pathname.match(/^\/room\/([^/]+)\/websocket$/);
+    const urlSessionId = match ? match[1] : null;
+
+    if (urlSessionId && payload.sessionId !== urlSessionId) {
+      return new Response("Token sessionId does not match room", { status: 403 });
+    }
+    if (this.sessionId && payload.sessionId !== this.sessionId) {
+      return new Response("Token sessionId does not match room", { status: 403 });
+    }
+
     const isHost = !!payload.isHost;
 
     if (!isHost) {
@@ -187,7 +242,7 @@ export class LiveQuizRoom extends DurableObject<Env> {
       this.broadcastLobbyUpdate();
     }
 
-    return new Response(null, { status: 101, webSocket: client });
+    return new Response(null, { status: 101, webSocket: client } as ResponseInit);
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
@@ -382,10 +437,13 @@ export class LiveQuizRoom extends DurableObject<Env> {
     const finalBoard = this.buildLeaderboard();
     this.broadcast({ type: "ended", finalBoard });
 
-    // POST results to callback
-    await this.sendCallback(finalBoard);
+    // POST results to callback with bounded retry
+    const callbackResult = await this.sendCallback(finalBoard);
+    if (!callbackResult.success) {
+      console.error("sendCallback failed on session end:", callbackResult.error);
+    }
 
-    return Response.json({ ok: true });
+    return Response.json({ ok: true, callback: callbackResult });
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -510,7 +568,7 @@ export class LiveQuizRoom extends DurableObject<Env> {
 
   private getUserId(ws: WebSocket): string | null {
     const tags = this.ctx.getTags(ws);
-    const tag = tags.find((t) => t.startsWith("user:"));
+    const tag = tags.find((t: string) => t.startsWith("user:"));
     return tag ? tag.slice(5) : null;
   }
 
@@ -518,34 +576,56 @@ export class LiveQuizRoom extends DurableObject<Env> {
     await this.ctx.storage.put("roomState", this.roomState);
   }
 
-  private async sendCallback(
+  async sendCallback(
     leaderboard: Array<{ userId: string; name: string; score: number; rank: number }>
-  ): Promise<void> {
-    if (!this.env.NEXT_APP_URL || !this.sessionId) return;
-    try {
-      await fetch(`${this.env.NEXT_APP_URL}/api/live/callback`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.env.LIVE_HMAC_SECRET}`,
-        },
-        body: JSON.stringify({
-          sessionId: this.sessionId,
-          courseId: this.courseId,
-          leaderboard,
-          answersByQuestion: this.roomState.answersByQuestion,
-          questions: this.questions,
-        }),
-      });
-    } catch (err) {
-      console.error("Callback failed:", err);
+  ): Promise<{ success: boolean; attempts: number; error?: string }> {
+    if (!this.env.NEXT_APP_URL || !this.sessionId) {
+      return { success: false, attempts: 0, error: "MISSING_CONFIG_OR_SESSION_ID" };
     }
+
+    const MAX_RETRIES = 3;
+    let lastError: string | undefined;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const res = await fetch(`${this.env.NEXT_APP_URL}/api/live/callback`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.env.LIVE_HMAC_SECRET}`,
+          },
+          body: JSON.stringify({
+            sessionId: this.sessionId,
+            courseId: this.courseId,
+            leaderboard,
+            answersByQuestion: this.roomState.answersByQuestion,
+            questions: this.questions,
+          }),
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
+        }
+
+        return { success: true, attempts: attempt };
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+        console.error(`Realtime sendCallback attempt ${attempt}/${MAX_RETRIES} failed:`, lastError);
+        if (attempt < MAX_RETRIES) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 50));
+        }
+      }
+    }
+
+    console.error(`Realtime sendCallback failed after ${MAX_RETRIES} attempts:`, lastError);
+    return { success: false, attempts: MAX_RETRIES, error: lastError };
   }
 }
 
 // ── HMAC token verification (Web Crypto) ──────────────────────────────────────
 
-async function verifyHmacToken(
+export async function verifyHmacToken(
   token: string,
   secret: string
 ): Promise<TokenPayload | null> {
@@ -564,13 +644,43 @@ async function verifyHmacToken(
       ["verify"]
     );
     const sig = hexToBytes(sigHex);
-    const valid = await crypto.subtle.verify("HMAC", key, sig, encoder.encode(payloadB64));
+    const valid = await crypto.subtle.verify("HMAC", key, sig as BufferSource, encoder.encode(payloadB64));
     if (!valid) return null;
 
-    const payload: TokenPayload = JSON.parse(
+    const parsed = JSON.parse(
       atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"))
     );
-    if (payload.exp < Date.now()) return null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+
+    const { userId, sessionId, name, exp, isHost } = parsed as Record<string, unknown>;
+
+    if (typeof userId !== "string" || userId.trim() === "") {
+      return null;
+    }
+    if (typeof sessionId !== "string" || sessionId.trim() === "") {
+      return null;
+    }
+    if (typeof name !== "string" || name.trim() === "") {
+      return null;
+    }
+    if (typeof exp !== "number" || !Number.isFinite(exp)) {
+      return null;
+    }
+    if (exp < Date.now()) {
+      return null;
+    }
+
+    const payload: TokenPayload = {
+      userId: userId.trim(),
+      sessionId: sessionId.trim(),
+      name: name.trim(),
+      exp,
+    };
+    if (typeof isHost === "boolean") {
+      payload.isHost = isHost;
+    }
 
     return payload;
   } catch {

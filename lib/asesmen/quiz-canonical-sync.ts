@@ -121,6 +121,28 @@ async function resolveCanonicalCourse(tx: DbOrTx, courseId: string): Promise<str
   return generatedId;
 }
 
+async function resolveLegacyCourse(tx: DbOrTx, courseId: string): Promise<string> {
+  const [legacyCourse] = await tx
+    .select({ id: courses.id })
+    .from(courses)
+    .where(eq(courses.id, courseId))
+    .limit(1);
+
+  if (legacyCourse) return legacyCourse.id;
+
+  const [canonicalCourse] = await tx
+    .select({ legacyCourseId: mataKuliah.legacyCourseId })
+    .from(mataKuliah)
+    .where(eq(mataKuliah.id, courseId))
+    .limit(1);
+
+  if (canonicalCourse?.legacyCourseId) {
+    return canonicalCourse.legacyCourseId;
+  }
+
+  return courseId;
+}
+
 async function resolveCanonicalCreator(tx: DbOrTx, creatorId?: string | null): Promise<string> {
   if (creatorId) {
     const [userRow] = await tx
@@ -137,19 +159,8 @@ async function resolveCanonicalCreator(tx: DbOrTx, creatorId?: string | null): P
     }
   }
 
-  const [firstUser] = await tx
-    .select({ id: user.id })
-    .from(user)
-    .limit(1);
-
-  if (firstUser) {
-    await tx
-      .insert(pengguna)
-      .values({ id: firstUser.id, status: "active" })
-      .onConflictDoNothing();
-    return firstUser.id;
-  }
-
+  // Legacy or unknown creators must never be attributed to an arbitrary real
+  // user. Fall back to a dedicated system identity instead.
   const fallbackId = "system-assessment-creator";
   await tx
     .insert(user)
@@ -196,11 +207,15 @@ export async function createAssessmentWithLegacyProjection(
   const execute = async (tx: Tx): Promise<QuizCanonicalSyncResult> => {
     const templateId = input.id ?? randomUUID();
     const blueprintId = stableId("blueprint", templateId);
-    const assessmentType: "quiz" | "tryout" = input.category === "simulation" ? "tryout" : "quiz";
     const status = input.status ?? "published";
     const canonicalCourseId = await resolveCanonicalCourse(tx, input.courseId);
+    const legacyCourseId = await resolveLegacyCourse(tx, input.courseId);
     const creatorId = await resolveCanonicalCreator(tx, input.creatorId);
     const selectionRules = parseSelectionRules(input.selectionRules);
+    const assessmentType: "quiz" | "tryout" =
+      input.category === "simulation" || selectionRules.assessmentType === "tryout"
+        ? "tryout"
+        : "quiz";
     const now = new Date();
 
     const blueprintHash = computeHash({
@@ -343,7 +358,7 @@ export async function createAssessmentWithLegacyProjection(
       .insert(quizTemplates)
       .values({
         id: templateId,
-        courseId: input.courseId,
+        courseId: legacyCourseId,
         title: input.title,
         category: input.category,
         visibility: input.visibility,
@@ -361,7 +376,7 @@ export async function createAssessmentWithLegacyProjection(
       .onConflictDoUpdate({
         target: quizTemplates.id,
         set: {
-          courseId: input.courseId,
+          courseId: legacyCourseId,
           title: input.title,
           category: input.category,
           visibility: input.visibility,
@@ -437,7 +452,10 @@ export async function updateAssessmentWithLegacyProjection(
     const updatedCategory = input.category ?? existingTemplate.category;
     const updatedStatus = input.status ?? existingTemplate.status;
     const updatedRules = parseSelectionRules(input.selectionRules ?? existingTemplate.selectionRules);
-    const assessmentType: "quiz" | "tryout" = updatedCategory === "simulation" ? "tryout" : "quiz";
+    const assessmentType: "quiz" | "tryout" =
+      updatedCategory === "simulation" || updatedRules.assessmentType === "tryout"
+        ? "tryout"
+        : "quiz";
 
     const blueprintId = stableId("blueprint", id);
 

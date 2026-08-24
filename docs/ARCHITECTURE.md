@@ -315,9 +315,41 @@ The compatibility submit route keeps the legacy quiz as the source of the user-v
 ### Tutor & Booking
 | Table | Purpose |
 |---|---|
-| `tutor_courses` | Which courses a tutor can teach |
-| `tutor_slots` | Weekly availability (dayOfWeek, startTime, endTime) |
-| `bookings` | Student→Slot, unique per slot (FCFS) |
+| `penugasan_tutor` | Canonical course and chapter assignments for active tutors (`status = 'active'`, `assignment_scope = 'course'`) |
+| `tutor_courses` | Which courses a tutor can teach (legacy compatibility fallback) |
+| `tutor_slots` | Weekly availability (dayOfWeek, startTime, endTime, mode: online/offline, location, sessionDate) |
+| `bookings` | Student group session booking, unique per slot |
+| `booking_audit_logs` | Append-only booking transition log and cancellation quota refund marker (`BOOKING_CANCELLED_QUOTA_REFUNDED`) |
+| `booking_reschedule_tickets` | Post-lock reschedule requests and tutor resolution |
+
+### Canonical Tutor Access, Shell Architecture, and Mutation Auditing
+
+Tutor access resolution (`lib/auth/tutor-access.ts`) is a pure boundary that does not read session state:
+- **Canonical Access**: Requires an active `pengguna`, canonical `tutor` role in `pengguna_peran`, an active `mata_kuliah` course, and an active `penugasan_tutor` row for the requested course (matching either canonical `mata_kuliah.id` or `mata_kuliah.legacyCourseId`). Inactive canonical courses fail closed.
+- **Admin Override**: Defaults to `false`; requires explicit opt-in (`allowAdmin: true`), returning `admin_override` as the access source when the user has the canonical `admin` role.
+- **Compatibility Fallback**: When no matching canonical `penugasan_tutor` row exists, legacy `tutor_courses` is consulted for active courses and reported explicitly as `compatibility_fallback`. If any canonical row exists (even inactive or non-course scope), fallback is blocked. Inactive courses or duplicate legacy mappings fail closed.
+- **Dedicated Shell & Navigation**: Tutors operate within a dedicated portal (`app/(tutor)`) featuring `TutorSidebar` and `TutorCourseSwitcher`. Routes include `/tutor`, `/tutor/schedule`, `/tutor/[courseId]`, `/tutor/[courseId]/participants`, `/tutor/[courseId]/quizzes`, `/tutor/[courseId]/live`, and `/tutor/[courseId]/grading`. Tutors manage schedules and assignments natively without redirecting to student pages.
+- **Capability Boundaries (`lib/tutor/assessment-policy.ts`)**:
+  - Materials Authoring: Disabled for tutors. `/tutor/[courseId]/materials` redirects to `/tutor/[courseId]`, and mutations reject with `TUTOR_CAPABILITY_FORBIDDEN: MATERIALS_AUTHORING_DISABLED`.
+  - Tryout & Simulation Authoring: Disabled for tutors. `/tutor/[courseId]/tryouts` redirects to `/tutor/[courseId]`, and mutations reject with `TUTOR_CAPABILITY_FORBIDDEN: SIMULATION_MUTATION_FORBIDDEN` or `TRYOUT_CATEGORY_FORBIDDEN`. Tutors author quizzes only (`daily`, `weekly`, `chapter`, `premium`).
+  - Quiz Creator Attribution: Quiz templates and questions display creator attribution (`creatorId`, `creatorName`, `creatorEmail`, `creatorRole`) joined from `asesmen.creatorId` through `pengguna` to `user`.
+  - Tryout Essay Grading: Tutors grade assigned tryout essay submissions (`/tutor/[courseId]/grading`) for reviewable statuses (`pending_review`, `late`, `graded`). Grading updates score and teacher notes with optimistic concurrency checking (`where(and(eq(id, submissionId), eq(status, currentStatus)))`).
+- **Schedule Quotas & Policies (`lib/schedule/tutor-policy.ts`)**:
+  - Slot Duration: Availability slots must span exactly 90 minutes (`validateSlotDuration`).
+  - Group Eligibility: Active study group enrolled in the course, with deterministic representative selection (leader priority, earliest `joinedAt`, lexicographical `userId`, record `id`).
+  - Weekly Quotas & Refunds: Groups enforce `weekly_quota_sessions` (default 2). Pre-lock cancellations write `BOOKING_CANCELLED_QUOTA_REFUNDED` to `booking_audit_logs` to free the quota. Post-lock cancellations do not receive the marker and consume quota (hangus).
+  - Notifications: Schedule lifecycle events dispatch multi-recipient notifications via `sendToMany`.
+- **Transactional Audit Guarantees (`lib/audit/mutasi.ts`, `lib/schedule/tutor-audit.ts`)**:
+  - All tutor mutations (success, rejected, failed) append structured records to `audit_mutasi` with outcomes, reasons, and secret-redacted state snapshots using `recordTutorMutationAudit` / `recordTutorFailureAudit` with exponential backoff on SQLite lock contention (`TutorAuditPersistenceError`).
+  - The admin tutor activity dashboard (`/admin/ops/tutor-activity`) queries `audit_mutasi` via `app/(admin)/admin/ops/tutor-activity/dal.ts` with cursor pagination, filtering, and stats aggregation.
+- **Real-time Live Callback Delivery (`app/api/live/callback/route.ts`)**:
+  - Upon session end, the callback writes results and acquires an exclusive processing lease via Compare-And-Set (CAS) setting `delivery_status = 'processing'`, `delivery_claimed_at = now`, and `delivery_claim_token`. Concurrent handler invocations within the active lease window (`CLAIM_LEASE_TTL_MS = 30_000`, 30 seconds) do not duplicate dispatch. Stale leases exceeding 30 seconds are recovered and re-claimed via CAS on subsequent retries.
+  - The leaseholder dispatches learning events with deterministic collision-resistant IDs (`buildLiveQuizLearningEventId(sessionId, userId, qi)`) and Inngest jobs with deterministic IDs (`mastery-recompute-${sessionId}-${studentId}`), guaranteeing at-least-once network delivery with idempotent downstream effects.
+  - Finalization updates `delivery_status = 'delivered'` and `delivered_at` (or `delivery_status = 'failed'`) conditionally matching `delivery_claim_token`, preventing expired lease owners from overwriting newer state. Already-delivered sessions short-circuit idempotently.
+- **Zyra Proposal Atomic Transitions (`lib/zyra/proposals/service.ts`)**:
+  - `transitionZyraProposal` executes in a transaction with optimistic concurrency verification (`where(and(eq(id, id), eq(status, currentStatus)))`), records transition history in `zyra_proposal_events`, and throws `PROPOSAL_CONCURRENT_MUTATION` on conflict.
+- **Always-On Overhaul**:
+  - The entire tutor overhaul is foundational and always-on with no feature flag.
 
 ### Legacy Exams (pre-v4)
 | Table | Purpose |
@@ -379,7 +411,7 @@ The compatibility submit route keeps the legacy quiz as the source of the user-v
 | `quiz_templates` | Legacy compatibility projection of canonical `asesmen` and `blueprint_asesmen`: selection rules, time limits, category (daily/weekly/chapter/premium) |
 | `student_quiz_attempts` | Per-student quiz session with deep question/answer snapshots, masteryBefore snapshot, strong/weak areas (dual-written to `percobaan_asesmen`) |
 | `attempt_feedback` | Per-question feedback payloads |
-| `live_quiz_sessions` | Real-time tutor-led quiz (code, state: lobby→question→reveal→ended) |
+| `live_quiz_sessions` | Real-time tutor-led quiz (code, state: lobby→question→reveal→ended, deliveryStatus: pending/processing/delivered/failed, deliveryClaimedAt, deliveryClaimToken, deliveredAt) |
 | `live_quiz_results` | Per-student results for live quizzes |
 
 #### Vector Sync

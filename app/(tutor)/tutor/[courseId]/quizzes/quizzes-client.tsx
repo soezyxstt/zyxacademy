@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet } from "lucide-react";
+import { Plus, Edit2, Trash2, ClipboardList, HelpCircle, Loader2, Tag, Layers, Check, CheckSquare, Eye, Clock, FileSpreadsheet, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,6 +18,7 @@ import { MathText } from "@/components/course/math-text";
 import { toast } from "@/components/ui/toast";
 import {
   deleteQuizTemplateAction,
+  toggleQuizTemplateStatusAction,
   saveQuestionBankAction,
   deleteQuestionBankAction,
   getQuizTemplatePreviewAction,
@@ -37,6 +38,11 @@ interface QuizTemplate {
   closeAt?: Date | string | null;
   manualStatus?: "open" | "closed" | "scheduled";
   showDiscussion?: boolean;
+  // Canonical creator attribution
+  creatorId?: string | null;
+  creatorName?: string | null;
+  creatorEmail?: string | null;
+  creatorRole?: string | null;
 }
 
 interface QuestionBankItem {
@@ -122,22 +128,18 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
 
   async function handleTogglePublishStatus(templateId: string, currentStatus: "draft" | "published") {
     const newStatus = currentStatus === "published" ? "draft" : "published";
-    try {
-      const res = await fetch(`/api/quiz/templates/${templateId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Gagal mengubah status publish.");
+    startTransition(async () => {
+      try {
+        const res = await toggleQuizTemplateStatusAction(courseId, templateId, newStatus);
+        if (res.success) {
+          toast.success(`Kuis diubah menjadi ${newStatus === "published" ? "Published" : "Draft"}`);
+          router.refresh();
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Gagal mengubah status kuis.";
+        toast.error(message);
       }
-
-      toast.success(`Kuis diubah menjadi ${newStatus === "published" ? "Published" : "Draft"}`);
-      router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || "Gagal mengubah status kuis.");
-    }
+    });
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -225,7 +227,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           tags: qTags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean),
         });
         if (res.success) {
-          toast.success(editingQ ? "Soal bank diperbarui!" : "Soal ditambahkan ke bank!");
+          toast.success(editingQ ? "Soal bank diperbarui." : "Soal ditambahkan ke bank.");
           setIsQOpen(false);
           router.refresh();
         }
@@ -255,11 +257,11 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
     <div className="space-y-6">
       <Tabs defaultValue="templates" className="w-full">
         <TabsList className="grid grid-cols-2 max-w-md bg-muted rounded-xl p-1 mb-6">
-          <TabsTrigger value="templates" className="rounded-lg font-semibold py-2">
+          <TabsTrigger value="templates" className="rounded-lg font-semibold py-2 text-body-sm">
             <ClipboardList className="size-4 mr-2" />
-            Kuis
+            Kuis ({initialTemplates.length})
           </TabsTrigger>
-          <TabsTrigger value="questionbank" className="rounded-lg font-semibold py-2">
+          <TabsTrigger value="questionbank" className="rounded-lg font-semibold py-2 text-body-sm">
             <HelpCircle className="size-4 mr-2" />
             Bank Soal ({initialQuestionBank.length})
           </TabsTrigger>
@@ -272,7 +274,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
           <div className="flex justify-between items-center">
             <h2 className="font-heading text-body-base font-semibold text-foreground">Daftar Kuis ({initialTemplates.length})</h2>
             <Button asChild className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-md font-semibold gap-2">
-              <Link href={`/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`}>
+              <Link href={`/tutor/${courseId}/quizzes/new`}>
                 <Plus className="size-4" />
                 Buat Kuis Baru
               </Link>
@@ -291,8 +293,10 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             <div className="grid gap-4 sm:grid-cols-2">
               {initialTemplates.map((t) => {
                 const rules = typeof t.selectionRules === "string" ? JSON.parse(t.selectionRules) : t.selectionRules;
+                const isSimulation = t.category === "simulation";
+
                 return (
-                  <Card key={t.id} className="bg-card border-border shadow-sm rounded-2xl flex flex-col justify-between overflow-hidden">
+                  <Card key={t.id} className="bg-card border-border shadow-xs rounded-2xl flex flex-col justify-between overflow-hidden">
                     <CardHeader className="p-5 pb-3">
                       <div className="flex justify-between items-start gap-2">
                         <CardTitle className="font-heading text-body-base font-bold text-foreground line-clamp-1">{t.title}</CardTitle>
@@ -313,6 +317,19 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                           </button>
                         </div>
                       </div>
+
+                      {/* Creator attribution line */}
+                      <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground mt-1">
+                        <UserCheck className="size-3 text-brand-primary shrink-0" />
+                        <span>Pembuat:</span>
+                        <span className="font-semibold text-foreground truncate">{t.creatorName || "Sistem"}</span>
+                        {t.creatorRole && (
+                          <Badge variant="outline" className="capitalize text-[10px] rounded-md px-1.5 py-0">
+                            {t.creatorRole}
+                          </Badge>
+                        )}
+                      </div>
+
                       <p className="text-body-xs text-muted-foreground mt-0.5">
                         Batas percobaan: {t.maxAttempts ? `${t.maxAttempts}x` : "Tak terbatas"} · Durasi: {t.timeLimitSeconds ? `${t.timeLimitSeconds / 60} menit` : "Bebas"}
                       </p>
@@ -394,22 +411,35 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                     </CardContent>
                     <div className="px-5 py-3.5 bg-muted/20 border-t border-border flex flex-wrap justify-end gap-2">
                       <Link href={`/tutor/${courseId}/quizzes/${t.id}/attempts`}>
-                        <Button variant="outline" size="sm" className="rounded-md border-border/80 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 gap-1">
+                        <Button variant="outline" size="sm" className="rounded-md border-border/80 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 gap-1 text-body-xs">
                           <FileSpreadsheet className="size-3.5" />
                           Sheet Attempt
                         </Button>
                       </Link>
-                      <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1">
+                      <Button variant="outline" size="sm" onClick={() => handleOpenPreviewTpl(t)} className="rounded-md border-border/80 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary gap-1 text-body-xs">
                         <Eye className="size-3.5" />
                         Preview
                       </Button>
-                      <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1">
-                        <Link href={`/admin/quizzes/${t.id}/edit`}>
+                      {isSimulation ? (
+                        <Button variant="outline" size="sm" disabled className="rounded-md border-border/80 text-muted-foreground gap-1 opacity-50 cursor-not-allowed text-body-xs">
                           <Edit2 className="size-3.5" />
-                          Edit
-                        </Link>
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setDeleteTplId(t.id)} className="rounded-md border-border/80 text-status-error hover:bg-status-error/10 hover:text-status-error gap-1">
+                          Edit (Admin)
+                        </Button>
+                      ) : (
+                        <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted gap-1 text-body-xs">
+                          <Link href={`/tutor/${courseId}/quizzes/${t.id}/edit`}>
+                            <Edit2 className="size-3.5" />
+                            Edit
+                          </Link>
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isSimulation}
+                        onClick={() => setDeleteTplId(t.id)}
+                        className="rounded-md border-border/80 text-status-error hover:bg-status-error/10 hover:text-status-error gap-1 text-body-xs disabled:opacity-50"
+                      >
                         <Trash2 className="size-3.5" />
                         Hapus
                       </Button>
@@ -538,9 +568,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         </TabsContent>
       </Tabs>
 
-      {/* =====================================================================
-          QUESTION DIALOG
-          ===================================================================== */}
+      {/* QUESTION DIALOG */}
       <Dialog open={isQOpen} onOpenChange={setIsQOpen}>
         <DialogContent className="max-w-2xl rounded-2xl border-border bg-card">
           <DialogHeader>
@@ -601,7 +629,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
               <div className="space-y-3">
                 <Label className="text-body-sm font-semibold block">Opsi Jawaban & Kunci Jawaban</Label>
                 <span className="text-[10px] text-muted-foreground block -mt-2">
-                  Pilih/checklist tombol bulat/kotak di sebelah kiri sebagai kunci jawaban yang benar.
+                  Pilih tombol bulat/kotak di sebelah kiri sebagai kunci jawaban yang benar.
                 </span>
                 
                 {qOptions.map((opt, i) => {
@@ -612,7 +640,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                         type="button"
                         onClick={() => toggleCorrectIndex(i)}
                         className={`flex size-6 shrink-0 items-center justify-center border transition-all ${
-                          checked ? "bg-emerald-500 border-emerald-500 text-white rounded-lg shadow-sm" : "border-border text-muted-foreground hover:border-emerald-500 rounded-lg"
+                          checked ? "bg-emerald-500 border-emerald-500 text-white rounded-lg shadow-xs" : "border-border text-muted-foreground hover:border-emerald-500 rounded-lg"
                         }`}
                       >
                         {qType === "multiple_choice" ? (
@@ -695,7 +723,7 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
         </DialogContent>
       </Dialog>
 
-      {/* DELETE COFNIRMATIONS */}
+      {/* DELETE CONFIRMATIONS */}
       <Dialog open={deleteTplId !== null} onOpenChange={(open) => !open && setDeleteTplId(null)}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
@@ -801,21 +829,18 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
                             >
                               {String.fromCharCode(65 + optIdx)}
                             </span>
-                            <MathText className="leading-normal" as="span">{opt}</MathText>
-                            {isCorrect && <Check className="size-4 text-emerald-600 dark:text-emerald-400 ml-auto shrink-0" />}
+                            <span className="truncate">
+                              <MathText as="span">{opt}</MathText>
+                            </span>
                           </div>
                         );
                       })}
                     </div>
 
                     {q.explanation && (
-                      <div className="bg-brand-primary/5 border border-brand-primary/10 rounded-lg p-3.5 space-y-1.5 text-body-sm">
-                        <span className="font-bold text-brand-primary block text-body-xs uppercase tracking-wider">
-                          Pembahasan Jawaban:
-                        </span>
-                        <MathText className="text-muted-foreground leading-relaxed whitespace-pre-wrap" as="p">
-                          {q.explanation}
-                        </MathText>
+                      <div className="mt-2 text-body-xs bg-muted/50 p-3 rounded-lg border border-border/50 text-muted-foreground space-y-1">
+                        <span className="font-semibold text-foreground block">Pembahasan:</span>
+                        <MathText as="p">{q.explanation}</MathText>
                       </div>
                     )}
                   </div>
@@ -824,11 +849,11 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
             )}
           </div>
 
-          <DialogFooter className="p-4 border-t border-border bg-muted/10 shrink-0">
-            <Button onClick={() => setIsPreviewOpen(false)} className="rounded-md bg-brand-primary text-white hover:bg-brand-primary/90">
-              Tutup
+          <div className="p-4 border-t border-border flex justify-end bg-card shrink-0">
+            <Button variant="outline" onClick={() => setIsPreviewOpen(false)} className="rounded-md border-border">
+              Tutup Pratinjau
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -21,12 +21,16 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Participates in live classroom quizzes
 - Views leaderboard and answer keys
 
-### Teacher
-- Sets weekly availability for student consultations
-- Triggers AI-generated quiz templates, curates questions before publishing
-- Grades essays and provides feedback
-- Compiles course chapters into structured Diktat PDFs
-- Hosts live quiz sessions
+### Tutor
+- Accesses a dedicated tutor portal (`/tutor`) with a course switcher for all assigned teaching responsibilities
+- Sets weekly availability and manages schedules (`/tutor/schedule`) directly in the tutor shell without redirecting to student pages
+- Creates, edits, previews, and publishes native quiz templates (`/tutor/[courseId]/quizzes`) with visible creator attribution
+- Hosts interactive live classroom quizzes directly from the tutor console (`/tutor/[courseId]/live`)
+- Grades assigned tryout essay submissions (`/tutor/[courseId]/grading`), provides feedback notes, and inputs final scores (0 to 100) with concurrency guards
+- Inspects student attempt spreadsheets and exports CSV records (`/tutor/[courseId]/quizzes/[templateId]/attempts`)
+- Reviews enrolled students, active study groups, and group representatives (`/tutor/[courseId]/participants`)
+- Cannot author or upload course materials (materials authoring is disabled for tutors; `/tutor/[courseId]/materials` redirects to the course overview)
+- Cannot author simulations or tryouts (tryout authoring is disabled for tutors; `/tutor/[courseId]/tryouts` redirects to the course overview)
 
 ### Admin
 - Generates enrollment tokens with capacity and expiry
@@ -42,6 +46,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Views coaching analytics dashboards
 - Accesses the Quiz & Exam Analytics & Insight portal (`/admin/quiz-insights`) for real-time item/distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV / Google Spreadsheet, and on-demand Gemini AI deep pedagogical insights
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
+- Monitors real-time tutor mutations, rejections, and failures with cursor pagination, stats aggregation, and sanitized snapshot inspection (`/admin/ops/tutor-activity`)
 - Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
 - Manages admin leaderboard (`/admin/leaderboard`) with overview mode showing per-course aggregate metrics (all courses including zero-activity, sorted alphabetically, unique student count across visible set) and course-selected mode for per-student ranking within a single course
 
@@ -391,7 +396,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
   - All group members have equal rights to choose, move, or cancel slots before the weekly lock cut-off.
 - Weekly Quota (Derived, Per Group):
   - Each group carries a weekly session quota (`weeklyQuotaSessions`) set by admins according to the purchased package preset (1 to 3 sessions per week; custom values allowed).
-  - Usage is derived by counting booking rows of the group inside the target week. Pre-lock cancellations delete the row and free the quota; post-lock approved cancellations keep the row so the quota stays consumed.
+  - Usage is derived by counting active booking rows of the group inside the target week. Pre-lock cancellations preserve the booking row with status `cancelled` and write a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker into `booking_audit_logs` to free the quota. Post-lock cancellations do not receive the refund marker and stay counted against the weekly quota (hangus).
   - Students see "Terpakai minggu ini X/Y" when booking and on the Groups page; the last 4 weeks show attended versus missed/cancelled counts for traceability.
 - Weekly Lock & Automated Cut-Off:
   - Next week's scheduling selection opens throughout the current week and automatically locks every Saturday at 23:59 WIB (Asia/Jakarta).
@@ -418,6 +423,54 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
   - Student: Filter by Course and Tutor.
   - Tutor: Filter by Course or Study Group.
   - Admin: Full filtering by Course, Tutor, Study Group, and Schedule Type (Ujian Resmi ITB, Tryout, Kuis, Sesi Tatap Muka).
+
+### Tutor Portal & Overhaul Architecture
+
+The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`) with its own navigation sidebar (`components/tutor/tutor-sidebar.tsx`) and course switcher (`components/tutor/tutor-course-switcher.tsx`). Tutors manage schedules and course activities directly within this shell without redirecting to student pages. The overhaul is always-on with no feature flag.
+
+- Subroute Structure:
+  - `/tutor`: Overview portal displaying assigned courses, high-level KPIs, and quick shortcuts.
+  - `/tutor/schedule`: Full schedule and availability manager (add 90-minute slots, view bookings, delete unbooked slots, book sessions for active groups, approve/reject reschedule tickets, cancel sessions).
+  - `/tutor/[courseId]`: Course-level dashboard summarizing teaching metrics, active groups, and recent quizzes.
+  - `/tutor/[courseId]/participants`: Enrolled student roster and active study groups with member lists and deterministic representatives.
+  - `/tutor/[courseId]/quizzes`: Full quiz template management (create, edit, delete, preview, toggle draft/published status) with creator attribution.
+  - `/tutor/[courseId]/quizzes/[templateId]/attempts`: Per-quiz attempt spreadsheet and answer inspection with CSV export.
+  - `/tutor/[courseId]/live`: Real-time interactive quiz console for hosting live sessions.
+  - `/tutor/[courseId]/grading`: Tryout essay grading queue for assigned courses.
+
+- Capability Boundaries & Access Control:
+  - Canonical Access Resolution (`lib/auth/tutor-access.ts`): Requires active `pengguna`, canonical `tutor` role in `pengguna_peran`, active `mata_kuliah` course, and active `penugasan_tutor` row (`status = 'active'`, `assignment_scope = 'course'`).
+  - Compatibility Fallback: If no canonical `penugasan_tutor` row exists for that tutor and course, queries legacy `tutor_courses` for active courses. Inactive courses or duplicate legacy mappings fail closed.
+  - Materials Authoring Disabled: Tutors cannot create, edit, or upload course materials. Accessing `/tutor/[courseId]/materials` redirects to `/tutor/[courseId]`, and server mutations throw `TUTOR_CAPABILITY_FORBIDDEN: MATERIALS_AUTHORING_DISABLED`.
+  - Tryout Authoring Disabled: Tutors can only author quizzes (`daily`, `weekly`, `chapter`, `premium`). Attempting to author `simulation` or `tryout` categories throws `TUTOR_CAPABILITY_FORBIDDEN: SIMULATION_MUTATION_FORBIDDEN` or `TRYOUT_CATEGORY_FORBIDDEN`. Accessing `/tutor/[courseId]/tryouts` redirects to `/tutor/[courseId]`.
+  - Tryout Essay Grading: Tutors can grade student essay submissions for tryouts in their assigned courses (`/tutor/[courseId]/grading`). Only reviewable statuses (`pending_review`, `late`, `graded`) can be graded. Submissions for non-assigned courses or non-tryout exams are forbidden. Grading updates score and teacher feedback notes with an optimistic concurrency check (`where(and(eq(id, submissionId), eq(status, currentStatus)))`).
+  - Creator Attribution: Quiz templates and questions track and display creator metadata (`creatorId`, `creatorName`, `creatorEmail`, `creatorRole`) joined from canonical `asesmen.creatorId` through `pengguna` to `user`.
+
+- Schedule Quotas, Refunds, and Notifications:
+  - Exact 90-Minute Slots: Availability slots must span exactly 90 minutes. Start and end times are validated server-side.
+  - Group Eligibility & Representative Selection: Sessions are scheduled for active study groups enrolled in the course. Group representative is deterministically selected (leader first, earliest `joinedAt`, lexicographical `userId`, member record `id`).
+  - Weekly Quota & Cancellation Refunds: Groups carry a weekly quota (`weekly_quota_sessions`, default 2). Usage is computed by counting booking rows in the target ISO week. Cancellations before the Saturday 23:59 WIB lock cut-off receive a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker in `booking_audit_logs`, keeping the booking row for traceability while exempting it from weekly quota. Post-lock cancellations forfeit the quota without refund (hangus).
+  - Notifications: Schedule bookings, cancellations, and status changes dispatch real-time multi-recipient notifications via `sendToMany`.
+  - Durable Mutation Audit: Every tutor slot mutation, deletion, session creation, or cancellation (including failures and validation rejections) is recorded in `audit_mutasi` using `recordTutorMutationAudit` with bounded exponential backoff on SQLite lock contention (`TutorAuditPersistenceError`).
+
+- Admin Tutor Activity Monitoring (`/admin/ops/tutor-activity`):
+  - Dedicated admin operations dashboard for auditing all tutor actions and rejected attempts.
+  - Filterable by tutor actor, course, entity type, action, outcome (`success`, `rejected`, `failed`, `unclassified`), correlation ID, and date range.
+  - Backed by `app/(admin)/admin/ops/tutor-activity/dal.ts` with cursor-based pagination, KPI stats cards, and recursive secret redaction on state snapshots.
+
+- Real-time Live Quiz Callback Semantics (`/api/live/callback`):
+  - The Cloudflare Realtime Worker calls `POST /api/live/callback` upon session conclusion with authorization token verification.
+  - Token-Fenced Processing Lease: Inside a transaction, writes `live_quiz_results` rows, sets session state to `ended`, participant count, and acquires an exclusive processing lease via conditional Compare-And-Set (CAS) setting `delivery_status = 'processing'`, `delivery_claimed_at = now`, and a fresh unique `delivery_claim_token`. Concurrently enqueues pending tasks into `mastery_recompute_queue`.
+  - Lease Concurrency & Stale Claim Recovery: Concurrent callback invocations arriving while an active lease is held (within `CLAIM_LEASE_TTL_MS = 30_000`, 30 seconds) short-circuit without dispatching duplicate side effects. If an earlier processing attempt crashed or stalled beyond 30 seconds, subsequent callback retries use CAS to take over the lease with a new claim token and resume delivery.
+  - At-Least-Once Delivery with Idempotent Effects: The active leaseholder dispatches learning events with deterministic collision-resistant IDs (`buildLiveQuizLearningEventId(sessionId, userId, qi)`) and Inngest events with deterministic job IDs (`mastery-recompute-${sessionId}-${studentId}`). This guarantees at-least-once network delivery with idempotent downstream effects.
+  - Token-Fenced Delivery Finalization: Upon successful downstream dispatch, updates `delivery_status = 'delivered'` and `delivered_at` conditionally on matching `delivery_claim_token`, preventing expired lease owners from overwriting newer state. If dispatch fails, updates `delivery_status = 'failed'` conditionally on the same token.
+  - Idempotent Deduplication: Subsequent callback retries check `delivery_status === 'delivered'` and return immediate success without duplicate processing.
+
+- Zyra Atomic Proposal Transitions (`lib/zyra/proposals/service.ts`):
+  - Proposals use typed operations, scope, and precondition snapshots with TTL expiry (`ZYRA_PROPOSAL_TTL_HOURS = 72`).
+  - State transitions (`transitionZyraProposal`) execute inside database transactions with optimistic concurrency locking (`where(and(eq(id, proposalId), eq(status, currentStatus)))`).
+  - Every transition appends an immutable event log to `zyra_proposal_events` with diff hash and timestamp.
+  - If a concurrent mutation occurs, the transaction aborts and throws `PROPOSAL_CONCURRENT_MUTATION`.
 
 ### Zyra tutor and admin copilots
 

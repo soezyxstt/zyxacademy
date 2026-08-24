@@ -309,7 +309,7 @@ Current approved vital flags (< 10 flags retained for high-impact runtime contro
 | `FEATURE_ZYRA_SEMANTIC_CACHE_V1` | Vectorize semantic cache kill switch for semantic drift | AI Architecture |
 | `FEATURE_DRIVE_EDITOR_SYNC` | Auto-grant editor permission synchronization on Drive | Platform / Admin |
 
-> Foundational features (Remediation, Adaptive Quiz, Concept Graph, Interactive Material, Weekly Reflections, Tutor Analytics, Question Generator Critic, Idea & Product Bundles, Authoring Context, Zyra Allowance & Provider Router, Learning Canvas, Selection-to-Ask, Zyra Pet, AI Ops, Media Library, Link Library, Form Presets) are now mature and always-on by default, secured by role-based authorization (RBAC).
+> Foundational features (Tutor Portal & Overhaul, Remediation, Adaptive Quiz, Concept Graph, Interactive Material, Weekly Reflections, Tutor Analytics, Question Generator Critic, Idea & Product Bundles, Authoring Context, Zyra Allowance & Provider Router, Learning Canvas, Selection-to-Ask, Zyra Pet, AI Ops, Media Library, Link Library, Form Presets) are now mature and always-on by default, secured by role-based authorization (RBAC).
 
 The admin flag page reads this catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. Decommissioned flags have been removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
 
@@ -340,12 +340,16 @@ bun run build         # Production build (catches all errors)
 
 ## AI Contract Testing
 
-All AI contract test suites live in `tests/contracts/` and run without network calls.
+All deterministic contract test suites live in `tests/contracts/` and run without network calls.
 
 ### Running Tests
 
 - Run full AI contract suite: `bun run test:ai-contracts`
-- Run single test file: `bun test tests/contracts/prompt-executor.test.ts`
+- Run single contract test: `bun test tests/contracts/prompt-executor.test.ts`
+- Run tutor contract test suite:
+  ```bash
+  bun test tests/contracts/tutor-authorization.test.ts tests/contracts/tutor-capability-boundary.test.ts tests/contracts/tutor-grading-scope.test.ts tests/contracts/tutor-schedule-policy.test.ts tests/contracts/tutor-schedule-actions.test.ts tests/contracts/tutor-mutation-audit.test.ts tests/contracts/tutor-activity-log.test.ts tests/contracts/tutor-live-access.test.ts tests/contracts/tutor-downstream-bridge.test.ts tests/contracts/zyra-proposal-lifecycle.test.ts
+  ```
 
 ### Adding Fixtures
 

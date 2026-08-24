@@ -1,9 +1,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
-import { db } from "@/db";
-import { tutorCourses } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { resolveTutorCourseAccess } from "@/lib/auth/tutor-access";
+import { resolveActorRoles } from "@/lib/tutor/assessment-policy";
 import { zyraRuntimeEnv } from "@/lib/zyra/runtime-env";
 import {
   createZyraProposal,
@@ -15,27 +14,31 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function roleForUser(user: { role?: string | null }): ZyraProposalRole | null {
-  if (user.role === "admin") return "admin";
-  if (user.role === "teacher" || user.role === "tutor") return "tutor";
-  return null;
-}
-
 async function currentActor() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) return null;
-  const role = roleForUser(session.user as { role?: string | null });
+  const { isTutor, isAdmin } = await resolveActorRoles(
+    session.user.id,
+    (session.user as { role?: string | null }).role,
+  );
+  let role: ZyraProposalRole | null = null;
+  if (isAdmin) {
+    role = "admin";
+  } else if (isTutor) {
+    role = "tutor";
+  }
   return role ? { id: session.user.id, role } : null;
 }
 
 async function assertTutorCourse(actorId: string, role: ZyraProposalRole, courseId: string | null): Promise<boolean> {
   if (role === "admin") return true;
   if (!courseId) return false;
-  const [row] = await db.select({ id: tutorCourses.id }).from(tutorCourses).where(and(
-    eq(tutorCourses.tutorId, actorId),
-    eq(tutorCourses.courseId, courseId),
-  )).limit(1);
-  return Boolean(row);
+  const access = await resolveTutorCourseAccess({
+    penggunaId: actorId,
+    courseId,
+    allowAdmin: false,
+  });
+  return access.hasAccess;
 }
 
 function publicProposal(row: Record<string, unknown>) {

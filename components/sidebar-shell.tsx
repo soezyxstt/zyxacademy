@@ -415,7 +415,11 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
 
   const name = session.user.name?.trim() || "Pengguna";
   const email = session.user.email || "";
-  const role = (session.user as { role?: string | null }).role;
+  const userWithRoles = session.user as { role?: string | null; roles?: string[] | null };
+  const role = userWithRoles.role;
+  const roles = Array.isArray(userWithRoles.roles) ? userWithRoles.roles : [];
+  const isTutor = role === "tutor" || role === "teacher" || roles.includes("tutor") || roles.includes("teacher");
+  const isAdmin = role === "admin" || roles.includes("admin");
 
   const handleLogout = async () => {
     await signOut();
@@ -539,7 +543,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
             </Link>
           </DropdownMenu.Item>
 
-          {(role === "teacher" || role === "admin") && (
+          {(isTutor || isAdmin) && (
             <DropdownMenu.Item asChild>
               <Link
                 href="/tutor"
@@ -552,7 +556,7 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
             </DropdownMenu.Item>
           )}
 
-          {role === "admin" && (
+          {isAdmin && (
             <DropdownMenu.Item asChild>
               <Link
                 href="/admin"

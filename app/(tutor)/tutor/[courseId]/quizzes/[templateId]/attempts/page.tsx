@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, FileSpreadsheet } from "lucide-react";
 import { db } from "@/db";
-import { quizTemplates } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { quizTemplates, courses, mataKuliah } from "@/db/schema";
+import { eq, or } from "drizzle-orm";
 import { verifyTutorAccess } from "@/app/actions/tutor-management";
+import { checkCourseMatch } from "@/lib/tutor/assessment-policy";
 import { QuizAttemptsSpreadsheet } from "@/app/(admin)/admin/(eval)/quiz-insights/[id]/_components/quiz-attempts-spreadsheet";
+import { PageHeader } from "@/components/page-header";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
-import { Button } from "@/components/ui/button";
+import { FileSpreadsheet } from "lucide-react";
 
 type Props = { params: Promise<{ courseId: string; templateId: string }> };
 
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props) {
 export default async function TutorQuizAttemptsPage({ params }: Props) {
   const { courseId, templateId } = await params;
 
-  await verifyTutorAccess(courseId);
+  const { access } = await verifyTutorAccess(courseId);
 
   const [template] = await db
     .select({
@@ -40,42 +40,35 @@ export default async function TutorQuizAttemptsPage({ params }: Props) {
     .where(eq(quizTemplates.id, templateId))
     .limit(1);
 
-  if (!template) notFound();
+  if (!template || !checkCourseMatch(template.courseId, access.courseId!, access.legacyCourseId)) {
+    notFound();
+  }
+
+  const [mk] = await db
+    .select({ title: mataKuliah.title })
+    .from(mataKuliah)
+    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
+    .limit(1);
+
+  const [legacyCourse] = !mk
+    ? await db
+        .select({ title: courses.title })
+        .from(courses)
+        .where(eq(courses.id, courseId))
+        .limit(1)
+    : [null];
+
+  const courseTitle = mk?.title ?? legacyCourse?.title ?? courseId;
 
   return (
     <div className="px-6 py-8 max-w-7xl mx-auto space-y-6 font-sans">
       <Reveal>
-        <div className="flex flex-col space-y-4">
-          <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
-            <Link
-              href={`/tutor/${courseId}/quizzes`}
-              className="hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span>Kelola Kuis</span>
-            </Link>
-            <span>/</span>
-            <span className="text-foreground font-medium truncate">{template.title}</span>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-h5 font-heading font-bold text-foreground flex items-center gap-2">
-                <FileSpreadsheet className="size-6 text-emerald-500" />
-                Sheet Attempt & Jawaban Siswa
-              </h1>
-              <p className="text-body-sm text-muted-foreground">
-                Mata Kuliah: {courseId} · Kuis: {template.title} ({template.category})
-              </p>
-            </div>
-
-            <Link href={`/admin/quiz-insights/${templateId}`}>
-              <Button variant="outline" size="sm" className="rounded-lg gap-2">
-                Buka Analisis Kuis
-              </Button>
-            </Link>
-          </div>
-        </div>
+        <PageHeader
+          icon={FileSpreadsheet}
+          title={`Sheet Attempt: ${template.title}`}
+          backHref={`/tutor/${courseId}/quizzes`}
+          backLabel={`Kembali ke Kuis (${courseTitle})`}
+        />
       </Reveal>
 
       <Reveal>

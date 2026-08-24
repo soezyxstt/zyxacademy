@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { eq, desc } from "drizzle-orm";
 import { normalizeDate } from "@/lib/date-utils";
+import { resolveActorRoles } from "@/lib/tutor/assessment-policy";
+import { resolveTutorCourseAccess } from "@/lib/auth/tutor-access";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -19,8 +21,16 @@ function escapeCsvCell(value: string | number | null | undefined): string {
 
 export async function GET(req: NextRequest, { params }: Context) {
   const session = await auth.api.getSession({ headers: await headers() });
-  const userRole = (session?.user as any)?.role;
-  if (!session?.user || (userRole !== "admin" && userRole !== "teacher")) {
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { isTutor, isAdmin } = await resolveActorRoles(
+    session.user.id,
+    (session.user as any)?.role,
+  );
+
+  if (!isAdmin && !isTutor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -47,6 +57,22 @@ export async function GET(req: NextRequest, { params }: Context) {
 
   if (!template) {
     return NextResponse.json({ error: "Quiz template not found" }, { status: 404 });
+  }
+
+  // 2. Authorize course access for non-admin actors (tutors)
+  if (!isAdmin) {
+    const access = await resolveTutorCourseAccess({
+      penggunaId: session.user.id,
+      courseId: template.courseId,
+      allowAdmin: false,
+    });
+
+    if (!access.hasAccess) {
+      return NextResponse.json(
+        { error: `Forbidden: ${access.reason || "NO_COURSE_ACCESS"}` },
+        { status: 403 },
+      );
+    }
   }
 
   // 2. Fetch all student attempts for this template
