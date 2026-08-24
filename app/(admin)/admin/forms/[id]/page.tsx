@@ -382,25 +382,21 @@ export default function DetailedFormAnalyticsPage({
 
   return (
     <div className="space-y-8">
-      <AdminPageHeader
-        icon={FileText}
-        backHref="/admin/forms"
-        backLabel="Kembali ke Form Studio"
-        title={
-          form ? (
+      {form && (
+        <AdminPageHeader
+          icon={FileText}
+          backHref="/admin/forms"
+          backLabel="Kembali ke Form Studio"
+          title={
             <span className="flex flex-wrap items-center gap-3">
               {form.title}
-              <Badge variant="secondary" className="bg-primary/10 text-primary uppercase font-bold text-body-2xs">
+              <Badge variant="secondary" className="bg-primary/10 text-primary uppercase font-bold text-[10px]">
                 {form.category}
               </Badge>
             </span>
-          ) : (
-            "Detail Formulir"
-          )
-        }
-        description={form?.description || (loading ? "Memuat data formulir..." : undefined)}
-        actions={
-          form ? (
+          }
+          description={form.description}
+          actions={
             <Link
               href={`/f/${form.slug}`}
               target="_blank"
@@ -408,9 +404,9 @@ export default function DetailedFormAnalyticsPage({
             >
               Short Link: /f/{form.slug} <ExternalLink className="size-3.5" />
             </Link>
-          ) : undefined
-        }
-      />
+          }
+        />
+      )}
 
       {error && (
         <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-body-sm text-destructive">

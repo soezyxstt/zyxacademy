@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -132,6 +132,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
       }
 
       setFormData((prev) => ({ ...prev, thumbnailUrl: data.url }));
+      setFormData((prev: any) => ({ ...prev, thumbnailUrl: data.url }));
       toast.success("Thumbnail berhasil diunggah");
     } catch (err: any) {
       toast.error(err.message || "Gagal mengunggah thumbnail");

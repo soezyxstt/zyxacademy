@@ -23,6 +23,7 @@ import { AdminTable, AdminTableHead } from "@/components/admin/table";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -265,13 +266,13 @@ export function UsersDashboard({
 
       {/* Inline Responsive Filter Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[140px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-          <Input
+        <div className="flex-1 min-w-[140px] max-w-sm">
+          <SearchBar
+            size="sm"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onSearch={setSearchQuery}
+            onClear={() => setSearchQuery("")}
             placeholder="Cari nama atau email..."
-            className="h-9 pl-9 text-body-sm bg-card rounded-lg border-border"
           />
         </div>
 

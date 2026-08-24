@@ -1296,6 +1296,13 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
                       className="pl-8 h-9 rounded-lg text-body-xs"
                     />
                   </div>
+                  <SearchBar
+                    size="sm"
+                    placeholder="Ketik nama atau email mahasiswa..."
+                    value={memberSearchQuery}
+                    onSearch={handleSearchUsers}
+                    onClear={() => handleSearchUsers("")}
+                  />
 
                   {searchedUsers.length > 0 && (
                     <div className="divide-y divide-border border border-border rounded-lg bg-card max-h-40 overflow-y-auto">

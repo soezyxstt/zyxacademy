@@ -38,6 +38,75 @@ function formatDate(value: Date): string {
   });
 }
 
+function ProofThumbnail({ src, alt, onClick }: { src: string; alt: string; onClick: () => void }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError || !src) {
+    return (
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground" title="Bukti tidak tersedia">
+        <FileText className="size-4" />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border transition-opacity hover:opacity-80 cursor-pointer"
+    >
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        className="object-cover"
+        unoptimized
+        onError={() => setHasError(true)}
+      />
+      <span className="sr-only">Lihat bukti follow</span>
+    </button>
+  );
+}
+
+function ProofPreviewImage({ src, alt }: { src: string; alt: string }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError || !src) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-muted/20 p-10 text-center text-muted-foreground">
+        <FileText className="size-10 text-muted-foreground/60" />
+        <p className="mt-2 text-body-sm font-medium text-foreground">Bukti gambar tidak dapat dimuat</p>
+        <p className="mt-1 text-body-xs text-muted-foreground">Berkas bukti mungkin belum tersedia atau gagal dibaca dari server.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+        <Image
+          src={src}
+          alt={alt}
+          width={600}
+          height={800}
+          className="mx-auto max-h-[70vh] w-auto object-contain"
+          unoptimized
+          onError={() => setHasError(true)}
+        />
+      </div>
+      <a
+        href={src}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-body-sm font-medium text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
+      >
+        Buka gambar ukuran penuh
+        <ExternalLink className="size-3.5" />
+      </a>
+    </div>
+  );
+}
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -209,10 +278,10 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
       {/* Table */}
       <AdminTable>
         <div className="hidden grid-cols-[minmax(0,1fr)_5rem_7rem_6rem] items-center gap-6 border-b border-border bg-muted/30 px-5 py-2.5 md:grid">
-          <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Pendaftar</span>
-          <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Bukti</span>
-          <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">Langganan</span>
-          <span className="text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">Tanggal</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">Pendaftar</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">Bukti</span>
+          <span className="text-body-xs font-semibold text-muted-foreground">Langganan</span>
+          <span className="text-body-xs font-semibold text-muted-foreground text-right">Tanggal</span>
         </div>
 
         {filtered.length === 0 ? (
@@ -257,14 +326,11 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
                 {/* Proof */}
                 <div className="flex items-center md:block">
                   <span className="mr-2 text-body-xs text-muted-foreground md:hidden">Bukti:</span>
-                  <button
-                    type="button"
+                  <ProofThumbnail
+                    src={r.proofUrl}
+                    alt={`Bukti follow ${r.fullName}`}
                     onClick={() => setPreview(r)}
-                    className="relative size-10 shrink-0 overflow-hidden rounded-md border border-border transition-opacity hover:opacity-80"
-                  >
-                    <Image src={r.proofUrl} alt={`Bukti follow ${r.fullName}`} fill className="object-cover" unoptimized />
-                    <span className="sr-only">Lihat bukti follow</span>
-                  </button>
+                  />
                 </div>
 
                 {/* Opt-in */}
@@ -303,25 +369,7 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
             </DialogDescription>
           </DialogHeader>
           {preview && (
-            <div className="space-y-3">
-              <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={preview.proofUrl}
-                  alt={`Bukti follow ${preview.fullName}`}
-                  className="mx-auto max-h-[70vh] w-auto object-contain"
-                />
-              </div>
-              <a
-                href={preview.proofUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-body-sm font-medium text-brand-primary transition-colors duration-150 hover:text-brand-primary/80"
-              >
-                Buka gambar ukuran penuh
-                <ExternalLink className="size-3.5" />
-              </a>
-            </div>
+            <ProofPreviewImage src={preview.proofUrl} alt={`Bukti follow ${preview.fullName}`} />
           )}
         </DialogContent>
       </Dialog>
