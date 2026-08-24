@@ -220,6 +220,35 @@ Validation should be pragmatic and proportional:
 
 Report pre-existing failures separately from regressions introduced by the change. Do not claim staging, production, visual, OAuth, or external-service success without actually exercising that boundary.
 
+### Visual quality checks with Playwright
+
+Visual quality sign-off is a primary-agent responsibility. The primary agent must personally run the Playwright check, open and inspect every required screenshot, compare the result with the requested behavior and nearby established UI, and report the evidence. Do not hand off execution, screenshot inspection, or the final visual judgment to a worker, subagent, or another model. A worker may implement UI code, but its claim that the UI looks correct is not evidence of visual verification.
+
+Run a visual quality check for every new user-facing feature and for any frontend change that materially affects layout, navigation, responsive behavior, typography, color, spacing, imagery, or interactive state. Small copy-only changes that cannot alter layout, non-UI work, and test-only changes are exempt. When uncertain whether a change is material, run the check.
+
+Use this process:
+
+1. Run `bun run test:visual:install` once when Chromium or its system libraries are unavailable.
+2. Identify every changed route and every changed state before running the check. Use deterministic local data or an explicitly authorized non-production environment. Never use production credentials or personal data for screenshots.
+3. Run `VISUAL_CHECK_PATHS=/route-one,/route-two bun run test:visual`. Use `PLAYWRIGHT_BASE_URL` only to target an already-running authorized environment. Use `PLAYWRIGHT_STORAGE_STATE` only with a local, ignored authentication state file that contains no production session.
+4. The default check must produce and inspect screenshots at 380 by 844 and 1536 by 864. The 1536 by 864 viewport represents the effective CSS workspace of a common 1920 by 1080 laptop display at 125 percent scaling. If the changed behavior has a breakpoint between those widths, add a focused Playwright spec and inspect the affected breakpoint too.
+5. For changed interactive UI, add or update a focused spec under `tests/visual/` that captures every affected state, such as closed and open, empty and populated, loading and complete, validation error and success, or enabled and disabled. Do not treat the default route screenshot as sufficient for stateful UI.
+6. Open every screenshot from `artifacts/visual-quality/results/` directly as the primary agent. The HTML report at `artifacts/visual-quality/report/` is supporting evidence, not a replacement for direct image inspection.
+7. Fix failures and rerun the same route, state, and viewport set until it passes. Do not accept a new screenshot merely because the UI change was intentional.
+
+A visual quality check passes only when all of these criteria are met:
+
+- Each required route and state has one inspected screenshot at every required viewport.
+- Playwright reports zero HTTP responses with status 400 or higher, zero unexpected route redirects, zero uncaught page errors, and zero console errors attributable to the change.
+- `document.documentElement.scrollWidth` does not exceed `clientWidth` at any checked viewport.
+- No content is clipped, overlapped, unintentionally hidden, or pushed outside its container. No text or control is truncated unless the established component intentionally truncates it.
+- Typography, spacing, colors, radii, imagery, and component choice follow the tokens and reuse rules in this file and match the surrounding product surface.
+- The primary action, reading order, hierarchy, and state changes are visually clear. Changed controls retain visible labels or accessible icon treatment and a visible keyboard focus state.
+- Loading, empty, error, success, open, selected, and disabled states touched by the change remain distinguishable without layout jumps that obscure or displace the task.
+- The primary agent records the command, exit status, inspected route and state matrix, viewport list, screenshot paths, and any boundary that could not be verified in the final handoff.
+
+The generic runner in `tests/visual/visual-check.spec.ts` captures default route states and enforces HTTP, redirect, runtime-error, and horizontal-overflow gates. It does not replace feature-specific interaction specs or human visual judgment. Keep generated reports, traces, and screenshots under ignored `artifacts/visual-quality/`; do not commit them unless the user explicitly requests a baseline artifact.
+
 ## Multi-model worker delegation
 
 When the task involves global multi-model delegation (e.g., parallel subagents or worker dispatch), the delegating agent must:
