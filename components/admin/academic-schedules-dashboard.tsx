@@ -55,6 +55,7 @@ import {
 } from "@/app/(admin)/admin/(academic)/schedules/actions";
 import { updateTutorCourses } from "@/app/(student)/dashboard/schedule/actions";
 import { formatIsoDate } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 
 type Props = {
   initialData: any;
@@ -112,13 +113,16 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
     setIsCreateOpen(true);
   };
 
-  const handleCreateDirect = (dateIso: string, timeStr?: string) => {
-    const startT = timeStr || "09:00";
-    const [h, m] = startT.split(":").map(Number);
-    const endH = Math.min(23, (h || 0) + 1);
-    const endM = (m || 0) + 30 >= 60 ? (m || 0) + 30 - 60 : (m || 0) + 30;
-    const adjustedEndH = (m || 0) + 30 >= 60 ? Math.min(23, endH + 1) : endH;
-    const endT = `${String(adjustedEndH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+  const handleCreateDirect = (dateIso: string, startTime?: string, endTime?: string) => {
+    const startT = startTime || "09:00";
+    let endT = endTime;
+    if (!endT) {
+      const [h, m] = startT.split(":").map(Number);
+      const endH = Math.min(23, (h || 0) + 1);
+      const endM = (m || 0) + 30 >= 60 ? (m || 0) + 30 - 60 : (m || 0) + 30;
+      const adjustedEndH = (m || 0) + 30 >= 60 ? Math.min(23, endH + 1) : endH;
+      endT = `${String(adjustedEndH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+    }
 
     setFormType("official_exam");
     setFormTitle("");
@@ -277,94 +281,124 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="space-y-3 font-sans">
-        {/* 1. Compact One-Line KPI Strip */}
-        <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
-          <AdminStatStripItem
-            label="Total Tutorial"
-            value={totalBookings}
-            icon={Users}
-            tone="brand"
-            compact
-          />
-          <AdminStatStripItem
-            label="Sesi Selesai"
-            value={completedBookings}
-            icon={CheckCircle2}
-            tone="success"
-            compact
-          />
-          <AdminStatStripItem
-            label="Tiket Pending"
-            value={pendingTickets}
-            icon={MessageSquare}
-            tone="warning"
-            compact
-          />
-          <AdminStatStripItem
-            label="Jadwal Akademik"
-            value={totalAcademic}
-            icon={CalendarDays}
-            tone="info"
-            compact
-          />
-        </AdminStatStrip>
-
-        {/* 2. Top Action Bar */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="w-[230px] shrink-0">
-            <Select value={activeTab} onValueChange={setActiveTab}>
-              <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="calendar">Master Kalender</SelectItem>
-                <SelectItem value="academic">Jadwal Akademik ({totalAcademic})</SelectItem>
-                <SelectItem value="tutors">Tutor ({data.tutors.length})</SelectItem>
-                <SelectItem value="tickets">Monitoring Tiket ({data.tickets.length})</SelectItem>
-                <SelectItem value="audit">Jejak Audit ({data.auditLogs.length})</SelectItem>
-              </SelectContent>
-            </Select>
+      <div className="space-y-2.5 font-sans">
+        {/* Unified Admin Schedule Header Navigation Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-0.5">
+          {/* View Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border flex-wrap">
+            <button
+              type="button"
+              onClick={() => setActiveTab("calendar")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                activeTab === "calendar"
+                  ? "bg-card text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <CalendarDays className="size-3.5" />
+              <span>Master Kalender</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("academic")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                activeTab === "academic"
+                  ? "bg-card text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span>Jadwal Resmi</span>
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                {totalAcademic}
+              </Badge>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("tutors")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                activeTab === "tutors"
+                  ? "bg-card text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span>Tutor</span>
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                {data.tutors.length}
+              </Badge>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("tickets")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                activeTab === "tickets"
+                  ? "bg-card text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span>Tiket Reschedule</span>
+              {pendingTickets > 0 ? (
+                <Badge className="text-[10px] px-1 py-0 h-4 bg-amber-500 text-white font-bold">
+                  {pendingTickets}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                  {data.tickets.length}
+                </Badge>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("audit")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                activeTab === "audit"
+                  ? "bg-card text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span>Jejak Audit</span>
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                {data.auditLogs.length}
+              </Badge>
+            </button>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          {/* Quick Action Buttons (Bot & + Buat Jadwal) */}
+          <div className="flex items-center gap-1.5 ml-auto">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="outline"
-                  size="icon"
+                  size="sm"
                   disabled={batchMeetLoading}
                   onClick={handleBatchMeetAutomation}
-                  className="h-9 w-9 rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30"
-                  aria-label="Otomasi Google Meet"
+                  className="h-8.5 px-2.5 rounded-lg text-body-xs font-semibold text-blue-600 border-blue-200 hover:bg-blue-50 dark:border-blue-900/40 dark:hover:bg-blue-950/30 gap-1.5"
                 >
-                  <Bot className="size-4" />
+                  <Bot className="size-3.5" />
+                  <span className="hidden sm:inline">Otomasi Meet</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="text-body-xs">
-                Otomasi Google Meet
+                Generate Google Meet link otomatis untuk semua sesi aktif
               </TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  onClick={handleOpenCreate}
-                  className="h-9 w-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
-                  aria-label="Buat Jadwal Akademik"
-                >
-                  <Plus className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="text-body-xs">
-                Buat Jadwal Akademik
-              </TooltipContent>
-            </Tooltip>
+            <Button
+              size="sm"
+              onClick={handleOpenCreate}
+              className="h-8.5 px-3 rounded-lg text-body-xs font-semibold bg-brand-primary text-white hover:bg-brand-primary/90 gap-1.5"
+            >
+              <Plus className="size-3.5" />
+              <span>Buat Jadwal</span>
+            </Button>
           </div>
         </div>
 
-        {/* 3. Tab Contents */}
+        {/* Tab Contents */}
 
         {/* TAB 1: Master Calendar */}
         {activeTab === "calendar" && (
@@ -382,6 +416,8 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
             bookings={data.bookings}
             academicSchedules={data.academicSchedules}
             onCreateScheduleDirect={handleCreateDirect}
+            onEditSchedule={(sched) => handleOpenEdit(sched)}
+            onDeleteSchedule={(sched) => setPendingDeleteSchedule(sched)}
             onOpenAuditLog={(booking) => setSelectedAuditBooking(booking)}
             onOpenRescheduleTicket={(booking) => setSelectedTicketBooking(booking)}
           />

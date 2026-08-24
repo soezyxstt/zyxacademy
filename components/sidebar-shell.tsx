@@ -94,7 +94,7 @@ export function NavItem({
   isPinned?: boolean;
 }) {
   const baseClass = cn(
-    "group/item relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-sm font-medium transition-colors w-full",
+    "group/item relative flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] font-medium transition-colors w-full",
     active
       ? "bg-brand-primary/10 text-brand-primary font-semibold"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -105,7 +105,7 @@ export function NavItem({
 
   const content = (
     <>
-      <Icon className={cn("shrink-0", isChild ? "size-3.5" : "size-4.5")} />
+      <Icon className={cn("shrink-0", isChild ? "size-3.5" : "size-4")} />
       {!collapsed && (
         <span className="truncate whitespace-nowrap flex-1 text-left min-w-0">
           <span className="hover-marquee">{label}</span>
@@ -261,14 +261,14 @@ export function NavCollapsible({
         if (!collapsed) setIsOpen(!isOpen);
       }}
       className={cn(
-        "group/collapsible flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-sm font-medium transition-colors w-full cursor-pointer",
+        "group/collapsible flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] font-medium transition-colors w-full cursor-pointer",
         active && !isOpen
           ? "bg-brand-primary/10 text-brand-primary font-semibold"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
         collapsed && "justify-center px-0 size-10 mx-auto"
       )}
     >
-      <Icon className="size-4.5 shrink-0" />
+      <Icon className="size-4 shrink-0" />
       {!collapsed && (
         <>
           <span className="truncate whitespace-nowrap flex-1 text-left min-w-0">
@@ -305,7 +305,7 @@ export function NavCollapsible({
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <Icon className="size-4.5 shrink-0" />
+                <Icon className="size-4 shrink-0" />
               </button>
             </DropdownMenu.Trigger>
           </SidebarTooltip>
@@ -383,7 +383,7 @@ export function NavCollapsible({
         triggerButton
       )}
       {!collapsed && isOpen && (
-        <div className="flex flex-col gap-0.5 animate-in slide-in-from-top-1 fade-in-50 duration-150 pl-1.5 border-l border-border/60 ml-5 my-0.5 min-w-0">
+        <div className="flex flex-col gap-0.5 animate-in slide-in-from-top-1 fade-in-50 duration-150 pl-1.5 border-l border-border/60 ml-4.5 my-0.5 min-w-0">
           {children}
         </div>
       )}
@@ -398,8 +398,8 @@ export function NavGroup({ label, collapsed }: { label: string; collapsed: boole
     return <div className="h-2 w-full" />;
   }
   return (
-    <div className="px-3 pt-3 pb-1">
-      <p className="text-body-xs font-semibold tracking-wider text-muted-foreground uppercase font-sans">
+    <div className="px-2.5 pt-2.5 pb-1">
+      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground/80 uppercase font-sans">
         {label}
       </p>
     </div>
@@ -657,6 +657,7 @@ interface SidebarShellProps {
   logoHref: string;
   logoLabel: string;
   nav: (collapsed: boolean) => ReactNode;
+  headerActions?: (collapsed: boolean) => ReactNode;
   topSection?: (collapsed: boolean) => ReactNode;
   bottomSection?: (collapsed: boolean) => ReactNode;
 }
@@ -666,6 +667,7 @@ export function SidebarShell({
   logoHref,
   logoLabel,
   nav,
+  headerActions,
   topSection,
   bottomSection,
 }: SidebarShellProps) {
@@ -813,6 +815,8 @@ export function SidebarShell({
 
               <NotificationBell variant="sidebar" />
 
+              {headerActions?.(false)}
+
               <SidebarTooltip label={`Cari (${modKeyHint})`} collapsed={false}>
                 <button
                   type="button"
@@ -854,9 +858,9 @@ export function SidebarShell({
         {/* Optional Top Section (e.g. Streak strip) */}
         {topSection?.(isCollapsed)}
 
-        {/* Collapsed quick search button */}
+        {/* Collapsed quick search button & header actions */}
         {isCollapsed && (
-          <div className="px-1 pt-2 shrink-0 flex justify-center">
+          <div className="px-1 pt-2 shrink-0 flex flex-col items-center gap-1.5">
             <SidebarTooltip label={`Cari (${modKeyHint})`} collapsed={true}>
               <button
                 type="button"
@@ -867,6 +871,7 @@ export function SidebarShell({
                 <Search className="size-4" />
               </button>
             </SidebarTooltip>
+            {headerActions?.(true)}
           </div>
         )}
 

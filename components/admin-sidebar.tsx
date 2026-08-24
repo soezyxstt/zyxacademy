@@ -50,6 +50,7 @@ import {
 import { useSession } from "@/lib/auth-client";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
 
 const ARCHIVED_STORAGE_KEY = "zyx_admin_sidebar_archived_tabs";
 const PINNED_STORAGE_KEY = "zyx_admin_sidebar_pinned_tabs";
@@ -490,6 +491,9 @@ function AdminSidebarInner() {
       collapsedKey="admin-sidebar-collapsed"
       logoHref="/admin"
       logoLabel="Panel Admin Zyx Academy"
+      headerActions={(collapsed) => (
+        <OpsAiTrigger variant="sidebar" collapsed={collapsed} />
+      )}
       nav={navContent}
     />
   );
