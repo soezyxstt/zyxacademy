@@ -11,12 +11,14 @@ import {
   type CatalogIdeaRecord,
 } from "@/lib/authoring/question-catalog";
 import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
+import { MCP_OAUTH_SCOPES, requestedScopes } from "@/lib/authoring/mcp-oauth";
+import { MCP_AUTHORING_DEFAULT_SCOPES } from "@/lib/authoring/mcp-workflows";
 
 const testPrincipal = {
   userId: "test-admin",
   actorId: "test-admin",
   sessionId: "test-session",
-  scopes: ["authoring:read", "authoring:stage"],
+  scopes: ["authoring:read", "authoring:stage", "authoring:review", "authoring:withdraw"],
   authMethod: "session" as const,
 };
 
@@ -72,6 +74,23 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     const quizBank = workflows.find((workflow) => workflow.key === "quiz_bank");
     expect(ideaProduct?.sourcePackRequired).toBe(true);
     expect(quizBank?.sourcePackRequired).toBe(false);
+  });
+
+  it("keeps OAuth defaults backward compatible while exposing explicit lifecycle scopes", () => {
+    expect(MCP_AUTHORING_DEFAULT_SCOPES).toEqual(["authoring:read", "authoring:stage"]);
+    expect(requestedScopes(null)).toEqual(["authoring:read", "authoring:stage"]);
+    expect(MCP_OAUTH_SCOPES).toEqual([
+      "authoring:read",
+      "authoring:stage",
+      "authoring:review",
+      "authoring:withdraw",
+    ]);
+    expect(requestedScopes("authoring:read authoring:review authoring:withdraw")).toEqual([
+      "authoring:read",
+      "authoring:review",
+      "authoring:withdraw",
+    ]);
+    expect(() => requestedScopes("authoring:publish")).toThrow("invalid_scope");
   });
 
   it("returns a structured compatibility failure for an invalid Source Pack", () => {
@@ -167,15 +186,51 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
     }));
-    const body = await response.json() as { result?: { tools?: Array<{ name: string }> } };
-    const names = body.result?.tools?.map((tool) => tool.name) ?? [];
+    const body = await response.json() as { result?: { tools?: Array<{ name: string; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }> } };
+    const tools = body.result?.tools ?? [];
+    const names = tools.map((tool) => tool.name);
     expect(names).toContain("authoring.submit_idea_bundle");
     expect(names).toContain("authoring.submit_product_bundle");
     expect(names).toContain("assessment.list_ideas");
     expect(names).toContain("assessment.get_idea");
     expect(names).toContain("assessment.validate_quiz_draft");
     expect(names).toContain("assessment.submit_quiz_draft");
+    expect(names).toContain("authoring.list_imports");
+    expect(names).toContain("authoring.get_import");
+    expect(names).toContain("authoring.restage_idea_bundle");
+    expect(names).toContain("authoring.restage_product_bundle");
+    expect(names).toContain("authoring.discard_product_draft");
+    expect(names).toContain("authoring.review_idea_bundle");
+    expect(names).toContain("authoring.review_product_bundle");
+    expect(names).toContain("authoring.withdraw_product_bundle");
+    expect(names).toContain("assessment.update_question");
+    expect(names.some((name) => name.includes("publish"))).toBe(false);
     expect(names.some((name) => name.includes("both"))).toBe(false);
+    expect(tools.find((tool) => tool.name === "authoring.list_imports")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "authoring.review_idea_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    expect(tools.find((tool) => tool.name === "authoring.withdraw_product_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+  });
+
+  it("does not grant lifecycle mutations to legacy read and stage principals", async () => {
+    const server = createAuthoringMcpServer({ ...testPrincipal, scopes: ["authoring:read", "authoring:stage"] });
+    const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+    await server.connect(transport);
+    const response = await transport.handleRequest(new Request("http://localhost/api/mcp/authoring", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name: "authoring.withdraw_product_bundle", arguments: { importId: "product-import-1" } },
+      }),
+    }));
+    const body = await response.json() as { result?: { isError?: boolean; structuredContent?: { error?: string; detail?: string } } };
+    expect(body.result?.isError).toBe(true);
+    expect(body.result?.structuredContent).toMatchObject({
+      error: "AUTHORING_MCP_SCOPE_REQUIRED",
+      detail: "authoring:withdraw",
+    });
   });
 });
 

@@ -3,6 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2026-06-10"
 compatibility_flags = ["nodejs_compat"]
 
+[observability.traces]
+enabled = true
+
 [[durable_objects.bindings]]
 name = "LIVE_QUIZ_ROOM"
 class_name = "LiveQuizRoom"

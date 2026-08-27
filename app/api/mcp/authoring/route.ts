@@ -3,6 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { auth } from "@/lib/auth";
 import { principalFromConnectionToken, resolveMcpAdmin, type McpPrincipal } from "@/lib/authoring/mcp-auth";
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
+import { MCP_AUTHORING_DEFAULT_SCOPES, MCP_AUTHORING_SCOPES } from "@/lib/authoring/mcp-workflows";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ function unauthorized(request: NextRequest, message: string): NextResponse {
     {
       status: 401,
       headers: {
-        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadata}" scope="authoring:read authoring:stage"`,
+        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadata}" scope="${MCP_AUTHORING_DEFAULT_SCOPES.join(" ")}"`,
       },
     },
   );
@@ -43,7 +44,7 @@ async function authenticate(request: NextRequest): Promise<McpPrincipal | NextRe
     return await resolveMcpAdmin({
       userId: session.user.id,
       sessionId: session.session.id,
-      scopes: ["authoring:read", "authoring:stage"],
+      scopes: [...MCP_AUTHORING_SCOPES],
       authMethod: "session",
     });
   } catch (error) {

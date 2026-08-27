@@ -69,6 +69,11 @@ The production migration script (`db/push-prod.ts`):
 
 Workers support the app:
 
+Cloudflare tracing is enabled for each Wrangler-managed Worker through
+`observability.traces.enabled`. This makes Worker runtime traces, including
+Cloudflare Agent activity when an Agent framework is used, available in the
+Cloudflare dashboard. No payload recording is configured by this repository.
+
 ### 1. zyx-vector-api (Vectorize proxy)
 ```
 workers/vector-api/
@@ -345,7 +350,18 @@ The Product Bundle workflow is always-on; the staging product-bundle rehearsal r
 
 The MCP endpoint is deployed as the Node.js route `/api/mcp/authoring` and uses the official Streamable HTTP transport. It is always available after deployment, but every request still requires a valid admin session or an MCP access token issued after an admin login. Source Pack ingestion requires ephemeral original binaries for independent `originalSha256` verification; those binaries are not stored in the Source Pack ZIP.
 
-When enabling the endpoint, no MCP-specific static token or actor ID is configured. MCP authorization uses the existing Better Auth session through `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`, `/api/mcp/oauth/register`, `/api/mcp/oauth/authorize`, and `/api/mcp/oauth/token`. The authorization code flow requires PKCE S256, checks the active admin role, binds the access token to the Better Auth session, and scopes it to the MCP resource. For clients without interactive OAuth support, an authenticated admin can call `/api/mcp/authoring/connection` to receive a short-lived per-session bearer token. The endpoint exposes exactly two workflow choices, `idea_product` and `quiz_bank`; it does not expose a combined workflow or product-family selection. The quiz workflow exposes scoped Idea retrieval, accepts V2 question drafts with optional per-question Idea links, and writes canonical plus compatibility records as generated review items. MCP submission can stage valid Idea and Product artifacts and generated questions, but no MCP tool can publish canonical content. Admin review and publication remain on the existing authenticated application boundary.
+When enabling the endpoint, no MCP-specific static token or actor ID is configured. MCP authorization uses the existing Better Auth session through `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`, `/api/mcp/oauth/register`, `/api/mcp/oauth/authorize`, and `/api/mcp/oauth/token`. The authorization code flow requires PKCE S256, checks the active admin role, binds the access token to the Better Auth session, and scopes it to the MCP resource. Default OAuth scopes are `authoring:read` and `authoring:stage`; supported explicit scopes include `authoring:review` and `authoring:withdraw`. Authenticated same-origin session connections receive all supported scopes. For clients without interactive OAuth support, an authenticated admin can call `/api/mcp/authoring/connection` to receive a short-lived per-session bearer token.
+
+The endpoint exposes exactly two workflow choices, `idea_product` and `quiz_bank`; it does not expose a combined workflow or product-family selection. The quiz workflow exposes scoped Idea retrieval, accepts V2 question drafts with optional per-question Idea links, and writes canonical plus compatibility records as generated review items. `assessment.update_question` updates existing Zyx-original questions in the locked run scope and resets them to `reviewStatus=generated` for admin review (`authoring:stage`); ITB example questions are immutable and published or retired questions cannot be edited.
+
+The MCP lifecycle surface provides inventory inspection, maintenance, and review tools:
+- `authoring.list_imports` and `authoring.get_import` return staged bundle records, entity inventories, and review outcomes without exposing private storage keys or internal reviewer identity IDs (`authoring:read`).
+- `authoring.restage_idea_bundle` and `authoring.restage_product_bundle` revalidate and replace staged bundles in place, resetting prior review decisions via existing lifecycle services (`authoring:stage`).
+- `authoring.discard_product_draft` permanently deletes draft Product Bundles and their staging artifacts (`authoring:withdraw`). Published or withdrawn bundles cannot be discarded.
+- `authoring.review_idea_bundle` and `authoring.review_product_bundle` record immutable review decisions (`approved` or `rejected`) with notes without publishing content (`authoring:review`).
+- `authoring.withdraw_product_bundle` executes audited, idempotent, destructive withdrawal of published Product Bundles and retires canonical projections (`authoring:withdraw`). Idea Bundle withdrawal is not implemented.
+
+Preserving the no-publication boundary: There is no `authoring:publish` scope and no publication tool. MCP submission can stage valid Idea and Product artifacts and generated questions, but no MCP tool can publish canonical content. Admin review and publication remain on the existing authenticated application boundary.
 
 The current transport is stateless and does not require a database migration. OAuth authorization codes use the existing Better Auth verification store and are single-use. Short-lived signed access tokens are derived from `BETTER_AUTH_SECRET`, carry the authenticated user and session identity, and are checked against the live session and admin role on every MCP request. Short-lived workflow tokens carry the selected course, chapter, Source Pack checksum, and quality summary without exposing raw internal IDs. Canonical quality modules validate Source Pack originals and content, Idea coverage and duplicate candidates, and Product published-Idea scope, dependency freshness, and content density before staging. A later persistence phase can add run audit rows without changing the MCP tool contract.
 

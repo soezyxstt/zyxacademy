@@ -26,6 +26,15 @@ Gunakan skill ini sebagai instruction layer untuk MCP. MCP adalah enforcement la
 8. Panggil `authoring.validate_product_bundle`. Periksa technical issues, publication blocking dependency, published Idea scope, chapter scope, Article quality, Diktat quality, depth, examples, analogies, visuals, retrievals, traps, formulas, dan Idea coverage.
 9. Revisi dan validasi ulang sampai `valid: true` tanpa issue blocking. Panggil `authoring.submit_product_bundle` hanya setelah itu. MCP menyimpan draft untuk review dan tidak dapat publish.
 
+## Siklus hidup dan pemeliharaan
+
+- **Inspeksi import**: Gunakan `authoring.list_imports { bundleType: "product" }` dan `authoring.get_import { bundleType: "product", importId }` untuk membaca inventory dan keputusan review tanpa mengekspos storage key atau ID internal reviewer.
+- **Restage**: Jika draft Product Bundle perlu diganti, panggil `authoring.restage_product_bundle` dengan `importId`, `filename`, dan `bundleBase64`. Staging ulang memvalidasi ulang bundle dengan bundle ID dan scope yang sama (`authoring:stage`).
+- **Discard draft**: Panggil `authoring.discard_product_draft` dengan `importId` untuk menghapus draft Product Bundle beserta artifact staging-nya secara permanen (`authoring:withdraw`). Tindakan ini destruktif dan hanya berlaku untuk bundle berstatus draft; bundle published atau withdrawn tidak dapat dihapus.
+- **Review**: `authoring.review_product_bundle` mencatat keputusan review immutable (`approved` atau `rejected`) dengan catatan review (`authoring:review`). Jalankan hanya setelah ada instruksi eksplisit untuk keputusan tersebut.
+- **Withdrawal**: Panggil `authoring.withdraw_product_bundle` dengan `importId` untuk menarik Product Bundle yang sudah published (`authoring:withdraw`). Tindakan ini audited, idempotent, dan destruktif (meretire projection canonical dan mengantrekan penghapusan vector).
+- **Stop condition**: MCP tidak memiliki tool publikasi (`authoring:publish` tidak ada). Restage, keputusan review, discard draft, dan withdraw tidak boleh dijalankan secara otonom tanpa instruksi eksplisit. Publikasi tetap dilakukan melalui alur review admin Zyx.
+
 ## Ambang konten
 
 Article harus memenuhi kedalaman minimum per Idea, explicit attribution pada multi-Idea block, worked example, analogy, visual, retrieval prompt, dan strict Article compiler. Diktat harus memiliki Idea set yang sama dengan Artikel, kata minimum, section, contoh, visual, trap, retrieval, dan formula inventory yang memadai. Ambang aktual berasal dari `quality.metrics` MCP, bukan perkiraan agent.
@@ -36,4 +45,4 @@ Jangan mengubah checksum manifest setelah mengubah isi. Jangan memasukkan `HOLDO
 
 ## Selesai
 
-Laporkan bundle ID, checksum, jumlah produk per jenis, dependency status, quality report, dan hasil staging. Berhenti bila Idea belum published, context stale, dependency perlu review, atau MCP mengembalikan issue blocking.
+Laporkan bundle ID, checksum, jumlah produk per jenis, dependency status, quality report, dan hasil staging. Berhenti bila Idea belum published, context stale, dependency perlu review, atau MCP mengembalikan issue blocking. Jangan mengklaim tindakan publikasi otomatis.

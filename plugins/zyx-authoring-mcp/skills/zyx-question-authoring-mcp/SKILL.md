@@ -28,10 +28,21 @@ Skill ini netral provider dan berlaku untuk host apa pun yang bisa memanggil MCP
 7. Panggil `assessment.validate_quiz_draft`. Perbaiki semua issue blocking, lalu tinjau warnings seperti coverage gap dan pembahasan kosong. Ulangi sampai `valid: true`.
 8. Panggil `assessment.submit_quiz_draft` hanya setelah valid. MCP menyimpan soal berstatus generated untuk review admin dan tidak dapat publish.
 
+## Pengeditan soal dan pemeliharaan bank soal
+
+- **Inspeksi bank soal**: Panggil `assessment.list_questions` untuk melihat daftar soal dalam scope (termasuk draft/in-review), `assessment.get_question` untuk detail soal dan Idea links, serta `assessment.analyze_bank` untuk analisis distribusi difficulty, cognitive level, dan coverage Idea (`authoring:read`).
+- **Edit draft soal**: Gunakan `assessment.update_question` dengan `runToken`, `questionId`, `question`, dan `ideaLinks` (membutuhkan scope `authoring:stage`).
+- **Batasan pengeditan soal**:
+  - Soal wajib berada dalam scope mata kuliah dan bab yang dikunci oleh run token.
+  - Hanya soal bertipe Zyx original (`origin = "zyx_original"`) yang dapat diedit. Soal contoh ITB (`origin = "itb_example"`) bersifat immutable dan tidak dapat diubah melalui tool ini.
+  - Hanya soal yang belum published atau belum retired yang dapat diedit. Soal published atau retired ditolak.
+  - Pengeditan yang berhasil akan mereset status soal menjadi `reviewStatus = "generated"` untuk peninjauan admin ulang.
+- **Stop condition**: MCP tidak memiliki tool publikasi (`authoring:publish` tidak didukung). Semua soal baru atau soal hasil pembaruan masuk ke antrean review admin.
+
 ## Aturan mutu
 
 Tutup sebanyak mungkin Idea pada katalog agar tidak ada coverage gap. Sesuaikan difficulty dan cognitiveLevel dengan tujuan pembelajaran bab, bukan seragam. Tag dipakai konsisten huruf kecil sebagai penanda subtopik. Jangan mengarang ideaId di luar hasil `assessment.list_ideas`; referensi basi akan ditolak sebagai not found atau scope mismatch.
 
 ## Selesai
 
-Laporkan jumlah soal, jumlah soal tertaut Idea, distribusi difficulty dan cognitive level, sisa warnings, `questionIds` yang dibuat, dan status `admin_review`. Berhenti bila ada issue blocking yang tidak bisa diperbaiki atau scope belum dikunci.
+Laporkan jumlah soal, jumlah soal tertaut Idea, distribusi difficulty dan cognitive level, sisa warnings, `questionIds` yang dibuat atau diperbarui, dan status `admin_review`. Berhenti bila ada issue blocking yang tidak bisa diperbaiki atau scope belum dikunci. Jangan mengklaim tindakan publikasi otomatis.
