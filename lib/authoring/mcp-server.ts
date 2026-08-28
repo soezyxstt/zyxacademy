@@ -43,12 +43,22 @@ import {
   workflowContract,
 } from "@/lib/authoring/mcp-workflows";
 import { requireMcpScope, type McpPrincipal } from "@/lib/authoring/mcp-auth";
+import {
+  listStoredSourceFiles,
+  loadStoredOriginals,
+  mergeSourceOriginals,
+  readStoredSourceFile,
+} from "@/lib/authoring/mcp-source-files";
 
 type ToolPayload = Record<string, unknown>;
 
-function toolResult(payload: ToolPayload, isError = false) {
+type ExtraToolContent =
+  | { type: "image"; data: string; mimeType: "image/png" }
+  | { type: "resource"; resource: { uri: string; mimeType: "application/pdf"; blob: string } };
+
+function toolResult(payload: ToolPayload, isError = false, extraContent: ExtraToolContent[] = []) {
   return {
-    content: [{ type: "text" as const, text: JSON.stringify(payload) }],
+    content: [{ type: "text" as const, text: JSON.stringify(payload) }, ...extraContent],
     structuredContent: payload,
     ...(isError ? { isError: true } : {}),
   };
@@ -58,12 +68,56 @@ async function safeTool(handler: () => Promise<ToolPayload> | ToolPayload) {
   try {
     return toolResult(await handler());
   } catch (error) {
-    const message = error instanceof Error ? error.message : "AUTHORING_MCP_REQUEST_FAILED";
-    const [rawCode, ...details] = message.split(":");
-    const code = rawCode.slice(0, 120);
-    const detail = details.join(":").slice(0, 600);
-    return toolResult({ ok: false, error: code, detail: detail || undefined }, true);
+    return toolError(error);
   }
+}
+
+function toolError(error: unknown) {
+  const message = error instanceof Error ? error.message : "AUTHORING_MCP_REQUEST_FAILED";
+  const [rawCode, ...details] = message.split(":");
+  const code = rawCode.slice(0, 120);
+  const detail = details.join(":").slice(0, 600);
+  return toolResult({ ok: false, error: code, detail: detail || undefined }, true);
+}
+
+export function formatSourceFileReadResult(result: Awaited<ReturnType<typeof readStoredSourceFile>>) {
+  if (result.mode === "blob") {
+    const payload = {
+      ok: true,
+      mode: result.mode,
+      title: result.title,
+      checksum: result.checksum,
+      size: result.size,
+      mimeType: "application/pdf",
+    };
+    return toolResult(payload, false, [{
+      type: "resource",
+      resource: {
+        uri: `zyx-authoring://stored-pdf/${result.checksum}`,
+        mimeType: "application/pdf",
+        blob: Buffer.from(result.bytes).toString("base64"),
+      },
+    }]);
+  }
+  const payload = {
+    ok: true,
+    mode: result.mode,
+    title: result.title,
+    checksum: result.checksum,
+    size: result.size,
+    totalPages: result.totalPages,
+    pages: result.pages.map((page) => ({
+      pageNumber: page.pageNumber,
+      text: page.text,
+      width: page.width,
+      height: page.height,
+    })),
+  };
+  return toolResult(payload, false, result.pages.map((page) => ({
+    type: "image" as const,
+    data: Buffer.from(page.png).toString("base64"),
+    mimeType: "image/png" as const,
+  })));
 }
 
 function chunkValues<T>(values: readonly T[], size = 200): T[][] {
@@ -92,6 +146,11 @@ function schemaVersionNumber(value: string): number {
 const sourceOriginalSchema = z.array(z.object({
   documentId: z.string().min(1),
   contentBase64: z.string().min(1).max(48 * 1024 * 1024),
+}).strict()).max(64).optional();
+
+const storedSourceOriginalSchema = z.array(z.object({
+  documentId: z.string().min(1),
+  fileKey: z.string().min(1),
 }).strict()).max(64).optional();
 
 function decodeSourceOriginals(originals: readonly { documentId: string; contentBase64: string }[] | undefined): ReadonlyMap<string, Uint8Array> | undefined {
@@ -356,6 +415,17 @@ async function stageQuestionBankDraft(principal: McpPrincipal, runToken: string,
   }
 }
 
+async function resolveSourceOriginals(
+  directInput: readonly { documentId: string; contentBase64: string }[] | undefined,
+  storedInput: readonly { documentId: string; fileKey: string }[] | undefined,
+) {
+  const direct = new Map(decodeSourceOriginals(directInput) ?? []);
+  const stored = storedInput?.length
+    ? await loadStoredOriginals(storedInput)
+    : { originals: new Map<string, Uint8Array>(), boundScope: null, totalBytes: 0 };
+  return mergeSourceOriginals(direct, stored);
+}
+
 async function assertImportRunScope(storedCourseId: string | null, runCourseId: string): Promise<void> {
   const [course] = await db
     .select({ legacyCourseId: mataKuliah.legacyCourseId })
@@ -510,6 +580,44 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     return { ok: true, choices: await listMcpChapterChoices(courseKey) };
   }));
 
+  (server as any).registerTool("source.list_files", {
+    title: "List stored source files",
+    description: "Mengembalikan PDF tersimpan untuk mata kuliah dan bab terpilih dengan fileKey sementara tanpa membuka ID database atau R2 key.",
+    inputSchema: {
+      courseKey: z.string().min(1),
+      chapterKey: z.string().min(1),
+      categories: z.array(z.enum(["materi", "soal", "pembahasan_soal"])).max(3).optional(),
+      cursor: z.string().min(1).optional(),
+      limit: z.number().int().min(1).max(100).default(50),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ courseKey, chapterKey, categories, cursor, limit }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    return {
+      ok: true,
+      ...(await listStoredSourceFiles({ courseKey, chapterKey, categories, cursor, limit })),
+    };
+  }));
+
+  (server as any).registerTool("source.read_file", {
+    title: "Read stored PDF",
+    description: "Membaca PDF tersimpan sebagai teks dan gambar halaman. Gunakan mode blob hanya sebagai fallback eksplisit setelah pembacaan halaman gagal atau timeout.",
+    inputSchema: {
+      fileKey: z.string().min(1),
+      mode: z.enum(["pages", "blob"]).default("pages"),
+      pages: z.array(z.number().int().positive()).min(1).max(4).optional(),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ fileKey, mode, pages }: any) => {
+    try {
+      requireMcpScope(principal, "authoring:read");
+      const result = await readStoredSourceFile({ fileKey, mode, pages });
+      return formatSourceFileReadResult(result);
+    } catch (error) {
+      return toolError(error);
+    }
+  });
+
   (server as any).registerTool("source.ingest", {
     title: "Ingest Source Pack",
     description: "Menerima Source Pack sebagai base64 melalui MCP, menjalankan compatibility checking, dan mengembalikan token sumber tervalidasi.",
@@ -517,11 +625,13 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
       filename: z.string().min(1).max(255),
       contentBase64: z.string().min(1).max(96 * 1024 * 1024),
       originals: sourceOriginalSchema,
+      storedOriginals: storedSourceOriginalSchema,
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ filename, contentBase64, originals }: any) => safeTool(() => {
+  }, async ({ filename, contentBase64, originals, storedOriginals }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
-    return ingestMcpSourcePack(filename, contentBase64, decodeSourceOriginals(originals));
+    const resolved = await resolveSourceOriginals(originals, storedOriginals);
+    return ingestMcpSourcePack(filename, contentBase64, resolved.originals, resolved.boundScope);
   }));
 
   (server as any).registerTool("workflow.start", {

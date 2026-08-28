@@ -4,12 +4,15 @@ This package connects an MCP host to the Zyx Authoring MCP at:
 
 `https://staging.zyxacademy.com/api/mcp/authoring`
 
-It includes the four active authoring skills from this repository:
+It includes five active authoring skills from this repository:
 
+- `zyx-authoring-pipeline`
 - `zyx-source-pack-mcp`
 - `zyx-idea-bundle-mcp`
 - `zyx-product-bundle-mcp`
 - `zyx-question-authoring-mcp`
+
+`zyx-authoring-pipeline` orchestrates the full `idea_product` state machine and delegates each authoring stage to the matching specialist skill. The four specialist skills remain independently invocable.
 
 ## Host manifests
 
@@ -32,7 +35,7 @@ A host without interactive OAuth can use a short-lived bearer token created by a
 
 The Zyx Authoring MCP implements the following tools across workflow, validation, knowledge inspection, and lifecycle operations:
 
-- **Workflow and catalog**: `workflow.list`, `catalog.list_courses`, `catalog.list_chapters`, `source.ingest`, `workflow.start`, `workflow.get_run`, `workflow.get_contract` (`authoring:read`).
+- **Workflow and catalog**: `workflow.list`, `catalog.list_courses`, `catalog.list_chapters`, `source.list_files`, `source.read_file`, `source.ingest`, `workflow.start`, `workflow.get_run`, `workflow.get_contract` (`authoring:read`). Stored course PDFs can be inspected and ingested without a local attachment; local originals remain supported.
 - **Validation and staging**: `authoring.validate_idea_bundle`, `authoring.submit_idea_bundle`, `authoring.validate_product_bundle`, `authoring.submit_product_bundle`, `assessment.validate_quiz_draft`, `assessment.submit_quiz_draft` (`authoring:read` for validation, `authoring:stage` for submission).
 - **Knowledge and analysis**: `assessment.list_ideas`, `assessment.get_idea`, `knowledge.search_ideas`, `knowledge.get_idea`, `knowledge.list_products`, `knowledge.get_product`, `knowledge.list_sources`, `knowledge.get_source`, `knowledge.search_source_chunks`, `analysis.get_coverage`, `assessment.list_questions`, `assessment.get_question`, `assessment.analyze_bank`, `assessment.find_similar` (`authoring:read`).
 - **Lifecycle management**:

@@ -14,7 +14,7 @@ Endpoint MCP: `https://staging.zyxacademy.com/api/mcp/authoring`
 workflow.list
 catalog.list_courses
 catalog.list_chapters { courseKey }
-workflow.start { workflow: "quiz_bank", courseKey, chapterKey }
+workflow.start { workflow: "quiz_bank", courseKey, chapterKey, sourcePackToken? }
 workflow.get_contract { runToken }
 assessment.list_ideas { runToken, query?, knowledgeKinds?, instructionalRoles?, difficultyLevels?, limit?, offset? }
 assessment.get_idea { runToken, ideaId }
@@ -28,7 +28,7 @@ assessment.analyze_bank { runToken }
 assessment.update_question { runToken, questionId, question, ideaLinks } // butuh scope authoring:stage
 ```
 
-`workflow.start` tanpa `sourcePackToken` sah untuk quiz_bank. Dengan Source Pack opsional, jalankan `source.ingest` lebih dulu lalu sertakan `sourcePackToken`.
+`workflow.start` tanpa `sourcePackToken` sah untuk quiz_bank. Dengan Source Pack opsional dari PDF course tersimpan, jalankan urutan `$zyx-source-pack-mcp`: `source.list_files`, `source.read_file`, lalu `source.ingest` dengan `storedOriginals`. Sertakan `sourcePackToken` pada `workflow.start` dengan course dan chapter yang sama. Jalur file lokal memakai `originals` dan tetap didukung.
 
 ## Katalog Idea
 

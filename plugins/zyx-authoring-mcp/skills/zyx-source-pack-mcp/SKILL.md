@@ -1,11 +1,11 @@
 ---
 name: zyx-source-pack-mcp
-description: Membuat Source Pack Zyx yang lossless dari PDF, DOCX, PPTX, spreadsheet, HTML, atau dokumen akademik lain, lalu mengirimkannya ke Authoring MCP untuk pemeriksaan teknis dan kualitas konten. Gunakan saat menyiapkan atau memperbaiki Source Pack. Jangan gunakan untuk membuat Idea Bundle, Product Bundle, atau soal baru.
+description: Membuat Source Pack Zyx yang lossless dari PDF course tersimpan atau file lokal PDF, DOCX, PPTX, spreadsheet, HTML, dan dokumen akademik lain, lalu memvalidasinya melalui Authoring MCP. Gunakan saat menyiapkan atau memperbaiki Source Pack. Jangan gunakan untuk membuat Idea Bundle, Product Bundle, atau soal baru.
 ---
 
 # Zyx Source Pack MCP
 
-Gunakan skill ini sebagai instruction layer. MCP adalah sumber validasi dan tidak boleh dilewati. Baca [references/workflow.md](references/workflow.md) sebelum memproses dokumen dan baca kontrak repository `lib/authoring/source-pack.ts` bila format diragukan.
+Gunakan skill ini sebagai instruction layer. MCP adalah sumber validasi dan tidak boleh dilewati. Baca [references/workflow.md](references/workflow.md) sebelum memproses dokumen. Jika kontrak diragukan, gunakan hasil validasi dan quality report MCP sebagai sumber kebenaran.
 
 ## Tujuan
 
@@ -15,12 +15,15 @@ Pertahankan judul, unit, formula, tabel, contoh, penerapan, soal, solusi, refere
 
 ## Workflow MCP
 
-1. Simpan binary asli, path absolut, ukuran, dan SHA-256. Binary asli wajib tersedia sampai `source.ingest` selesai.
-2. Buat tepat satu Markdown dan satu coverage ledger untuk setiap dokumen asli.
-3. Package hanya `manifest.json`, `documents/*.md`, dan `coverage/*.json` dengan mode ZIP `0644`.
-4. Panggil `source.ingest` dengan Source Pack dan satu `originals` entry untuk setiap `documentId`. MCP memverifikasi checksum binary asli, unit, marker, formula, tabel, visual, count, unresolved marker, dan ZIP security.
-5. Jika MCP mengembalikan `valid: false`, perbaiki artifact berdasarkan `issues` dan `quality.metrics`. Jangan mengubah checksum secara manual dan jangan mengirimkan bundle yang gagal.
-6. Hanya gunakan `sourcePackToken` setelah MCP mengembalikan `valid: true`. Lanjutkan dengan `workflow.start` setelah admin atau agent memilih course dan chapter melalui pilihan opaque MCP.
+1. Jika prompt menyebut mata kuliah dan bab tanpa attachment, jangan meminta upload terlebih dahulu. Panggil `catalog.list_courses`, `catalog.list_chapters`, lalu `source.list_files`. Pilih `fileKey` berdasarkan judul, kategori, subkategori, tahun, dan checksum, bukan ID teknis.
+2. Baca PDF dengan `source.read_file` mode `pages`, maksimal empat halaman per panggilan. Rekonsiliasi teks hasil ekstraksi dengan image block setiap halaman. Jika pembacaan halaman gagal atau timeout, ulangi satu kali dengan mode `blob`; jangan mengganti mode secara diam-diam.
+3. Untuk file lokal, simpan binary asli, path absolut, ukuran, dan SHA-256. Binary asli wajib tersedia sampai `source.ingest` selesai.
+4. Buat tepat satu Markdown dan satu coverage ledger untuk setiap dokumen asli.
+5. Package hanya `manifest.json`, `documents/*.md`, dan `coverage/*.json` dengan mode ZIP `0644`.
+6. Untuk file Zyx, panggil `source.ingest` dengan `storedOriginals: [{ documentId, fileKey }]`. Untuk file lokal, gunakan `originals: [{ documentId, contentBase64 }]`. Kedua bentuk boleh digabungkan bila `documentId` unik.
+7. MCP memverifikasi checksum binary asli, unit, marker, formula, tabel, visual, count, unresolved marker, ZIP security, dan scope course/chapter untuk stored originals.
+8. Jika MCP mengembalikan `valid: false`, perbaiki artifact berdasarkan `issues` dan `quality.metrics`. Jangan mengubah checksum secara manual dan jangan mengirimkan bundle yang gagal.
+9. Hanya gunakan `sourcePackToken` setelah MCP mengembalikan `valid: true`. Panggil `workflow.start` dengan course dan chapter yang sama dengan stored originals.
 
 ## Aturan ZIP wajib
 
@@ -37,4 +40,4 @@ Untuk setiap visual, pastikan `id`, `source-unit`, `kind`, `title`, `purpose`, `
 
 ## Selesai
 
-Laporkan path Source Pack, checksum ZIP, dokumen dan unit, hasil `qualityReport`, dan bahwa setiap binary asli diverifikasi. Jangan membuat Idea atau Product Bundle pada skill ini.
+Laporkan nama artifact Source Pack, path bila memang ada file lokal, checksum ZIP, dokumen dan unit, hasil `qualityReport`, dan bahwa setiap binary asli diverifikasi. Jangan membuat Idea atau Product Bundle pada skill ini.

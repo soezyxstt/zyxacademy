@@ -24,8 +24,8 @@ MCP checks schema, canonical checksum, source checksums, exact chunk offsets, co
 
 ## MCP tool sequence
 
-1. Receive a validated `sourcePackToken` from `source.ingest`.
-2. Start `idea_product` with the opaque course and chapter choices.
+1. Use `$zyx-source-pack-mcp` to receive a validated `sourcePackToken`. For a course and chapter prompt without attachments, prefer stored PDFs and retain the same opaque course and chapter choices used by `storedOriginals`.
+2. Start `idea_product` with that `sourcePackToken` and the same opaque course and chapter choices.
 3. Build the Idea Bundle from the locked Source Pack and run contract.
 4. Call `authoring.validate_idea_bundle` repeatedly during revision (`authoring:read`).
 5. Call `authoring.submit_idea_bundle` only after validation is green (`authoring:stage`).

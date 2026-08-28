@@ -1,4 +1,4 @@
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { getAuthoringCourseOption, listAuthoringCourseOptions } from "@/lib/authoring/catalog";
 import { validateSourcePack, type ValidatedSourcePack } from "@/lib/authoring/source-pack";
@@ -14,7 +14,7 @@ export const AUTHORING_MCP_MAX_ORIGINAL_BYTES = 32 * 1024 * 1024;
 export const authoringWorkflowSchema = z.enum(["idea_product", "quiz_bank"]);
 export type AuthoringWorkflow = z.infer<typeof authoringWorkflowSchema>;
 
-type SignedTokenKind = "course_choice" | "chapter_choice" | "source" | "run" | "connection" | "client";
+type SignedTokenKind = "course_choice" | "chapter_choice" | "source_file" | "source" | "run" | "connection" | "client";
 
 type SignedTokenPayload = {
   kind: SignedTokenKind;
@@ -29,6 +29,23 @@ type SourceTokenPayload = SignedTokenPayload & {
   packId: string;
   name: string;
   summary: SourcePackSummary;
+  courseId?: string;
+  chapterId?: string;
+};
+
+type McpSourceFileReference = {
+  materialId: string;
+  storageKey: string;
+  courseId: string;
+  chapterId: string;
+  legacyCourseId: string;
+  legacyChapterId: string;
+  updatedAtMs: number;
+  checksum: string | null;
+};
+
+export type McpSourceFileTokenPayload = SignedTokenPayload & McpSourceFileReference & {
+  kind: "source_file";
 };
 
 type RunSourceFields = {
@@ -239,7 +256,74 @@ export async function listMcpChapterChoices(courseKey: string) {
   }));
 }
 
-export function ingestMcpSourcePack(filename: string, contentBase64: string, originals?: ReadonlyMap<string, Uint8Array>) {
+function sourceFileEncryptionKey(): Buffer {
+  return Buffer.from(signingSecret(), "hex");
+}
+
+function sealSourceFileReference(reference: McpSourceFileReference): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", sourceFileEncryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(reference), "utf8"), cipher.final()]);
+  return [iv.toString("base64url"), encrypted.toString("base64url"), cipher.getAuthTag().toString("base64url")].join(".");
+}
+
+function openSourceFileReference(value: string): McpSourceFileReference {
+  try {
+    const [ivValue, encryptedValue, tagValue, ...rest] = value.split(".");
+    if (!ivValue || !encryptedValue || !tagValue || rest.length > 0) throw new Error();
+    const decipher = createDecipheriv("aes-256-gcm", sourceFileEncryptionKey(), Buffer.from(ivValue, "base64url"));
+    decipher.setAuthTag(Buffer.from(tagValue, "base64url"));
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(encryptedValue, "base64url")),
+      decipher.final(),
+    ]).toString("utf8");
+    return z.object({
+      materialId: z.string().min(1),
+      storageKey: z.string().min(1),
+      courseId: z.string().min(1),
+      chapterId: z.string().min(1),
+      legacyCourseId: z.string().min(1),
+      legacyChapterId: z.string().min(1),
+      updatedAtMs: z.number().int().nonnegative(),
+      checksum: z.string().nullable(),
+    }).strict().parse(JSON.parse(plaintext));
+  } catch {
+    throw new Error("AUTHORING_MCP_TOKEN_INVALID");
+  }
+}
+
+export function readMcpCatalogScope(courseKey: string, chapterKey: string): { courseId: string; chapterId: string } {
+  const course = verifyToken<SignedTokenPayload & { kind: "course_choice"; courseId: string }>(courseKey, "course_choice");
+  const chapter = verifyToken<SignedTokenPayload & { kind: "chapter_choice"; courseId: string; chapterId: string }>(chapterKey, "chapter_choice");
+  if (course.courseId !== chapter.courseId) throw new Error("AUTHORING_MCP_SCOPE_MISMATCH");
+  return { courseId: course.courseId, chapterId: chapter.chapterId };
+}
+
+export function issueMcpSourceFileKey(input: {
+  materialId: string;
+  storageKey: string;
+  courseId: string;
+  chapterId: string;
+  legacyCourseId: string;
+  legacyChapterId: string;
+  updatedAtMs: number;
+  checksum: string | null;
+}): string {
+  return issueToken({ kind: "source_file", reference: sealSourceFileReference(input), ttlMs: 60 * 60 * 1000 });
+}
+
+export function readMcpSourceFileKey(fileKey: string): McpSourceFileTokenPayload {
+  const token = verifyToken<SignedTokenPayload & { kind: "source_file"; reference: string }>(fileKey, "source_file");
+  const { reference, ...signed } = token;
+  return { ...signed, ...openSourceFileReference(reference) } as McpSourceFileTokenPayload;
+}
+
+export function ingestMcpSourcePack(
+  filename: string,
+  contentBase64: string,
+  originals?: ReadonlyMap<string, Uint8Array>,
+  boundScope?: { courseId: string; chapterId: string },
+) {
   if (!filename.trim()) throw new Error("SOURCE_PACK_FILE_REQUIRED");
   const bytes = decodeBase64(contentBase64, AUTHORING_MCP_MAX_SOURCE_PACK_BYTES);
   let sourcePack: ValidatedSourcePack;
@@ -273,6 +357,7 @@ export function ingestMcpSourcePack(filename: string, contentBase64: string, ori
     packId: sourcePack.manifest.packId,
     name: sourcePack.manifest.name,
     summary,
+    ...(boundScope ? { courseId: boundScope.courseId, chapterId: boundScope.chapterId } : {}),
     ttlMs: 24 * 60 * 60 * 1000,
   });
   return {
@@ -282,6 +367,20 @@ export function ingestMcpSourcePack(filename: string, contentBase64: string, ori
     source: summary,
     quality,
   };
+}
+
+export function readMcpSourcePackBinding(sourcePackToken: string): { courseId?: string; chapterId?: string } {
+  const source = verifyToken<SourceTokenPayload>(sourcePackToken, "source");
+  return { courseId: source.courseId, chapterId: source.chapterId };
+}
+
+export function assertMcpSourceScopeBinding(
+  source: { courseId?: string; chapterId?: string },
+  selected: { courseId: string; chapterId: string },
+): void {
+  if ((source.courseId && source.courseId !== selected.courseId) || (source.chapterId && source.chapterId !== selected.chapterId)) {
+    throw new Error("AUTHORING_MCP_SOURCE_SCOPE_MISMATCH");
+  }
 }
 
 export async function startAuthoringWorkflow(input: {
@@ -295,9 +394,10 @@ export async function startAuthoringWorkflow(input: {
   if (chapterChoice.courseId !== courseChoice.courseId) throw new Error("AUTHORING_MCP_SCOPE_MISMATCH");
 
   const workflow = getAuthoringWorkflow(input.workflow);
-  let source: Pick<SourceTokenPayload, "checksum" | "packId" | "name" | "summary"> | null = null;
+  let source: Pick<SourceTokenPayload, "checksum" | "packId" | "name" | "summary" | "courseId" | "chapterId"> | null = null;
   if (input.sourcePackToken) {
     source = verifyToken<SourceTokenPayload>(input.sourcePackToken, "source");
+    assertMcpSourceScopeBinding(source, { courseId: courseChoice.courseId, chapterId: chapterChoice.chapterId });
   } else if (workflow.sourcePackRequired) {
     throw new Error("AUTHORING_MCP_SOURCE_PACK_REQUIRED");
   }

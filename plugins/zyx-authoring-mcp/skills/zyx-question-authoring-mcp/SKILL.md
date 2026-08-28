@@ -15,12 +15,12 @@ Skill ini netral provider dan berlaku untuk host apa pun yang bisa memanggil MCP
 
 1. Koneksi ke Zyx Authoring MCP memakai akun admin Zyx aktif. Host dengan OAuth akan membuka alur sign-in; host tanpa OAuth interaktif memakai connection token singkat dari `/api/mcp/authoring/connection`.
 2. Tentukan mata kuliah dan bab bersama operator. Jangan minta operator mengetik course ID, chapter ID, atau Idea ID internal.
-3. Workflow `quiz_bank` tidak mewajibkan Source Pack. Kirim Source Pack hanya jika konteks sumber tambahan benar-benar diperlukan.
+3. Workflow `quiz_bank` tidak mewajibkan Source Pack. Jika konteks sumber tambahan diperlukan dan prompt hanya menyebut mata kuliah serta bab, jalankan `$zyx-source-pack-mcp` untuk membaca PDF course tersimpan tanpa meminta attachment. File lokal tetap dapat digunakan bila memang diberikan.
 
 ## Workflow authoring
 
 1. Panggil `workflow.list`, lalu `catalog.list_courses` dan `catalog.list_chapters` untuk mendapatkan key mata kuliah dan bab.
-2. Panggil `workflow.start` dengan `{ workflow: "quiz_bank", courseKey, chapterKey }` untuk mengunci scope dan mendapat `runToken`.
+2. Panggil `workflow.start` dengan `{ workflow: "quiz_bank", courseKey, chapterKey }` untuk mengunci scope dan mendapat `runToken`. Jika Source Pack opsional digunakan, sertakan `sourcePackToken` dan gunakan course serta chapter yang sama dengan stored originals.
 3. Panggil `workflow.get_contract`. Patuhi `scopeGuidance`: enum difficulty, cognitive level, question type, idea role, aturan bobot, dan aturan tag.
 4. Petakan Idea dengan `assessment.list_ideas`. Gunakan `query` untuk pencarian teks, serta filter `knowledgeKinds`, `instructionalRoles`, dan `difficultyLevels`. Baca `facets` untuk melihat distribusi dan lanjutkan paging lewat `paging.nextOffset`.
 5. Untuk Idea kandidat, panggil `assessment.get_idea` guna membaca relasi prerequisite dan provenance sebelum menautkan soal.

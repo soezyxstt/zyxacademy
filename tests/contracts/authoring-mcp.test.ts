@@ -204,9 +204,13 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(names).toContain("authoring.review_product_bundle");
     expect(names).toContain("authoring.withdraw_product_bundle");
     expect(names).toContain("assessment.update_question");
+    expect(names).toContain("source.list_files");
+    expect(names).toContain("source.read_file");
     expect(names.some((name) => name.includes("publish"))).toBe(false);
     expect(names.some((name) => name.includes("both"))).toBe(false);
     expect(tools.find((tool) => tool.name === "authoring.list_imports")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "source.list_files")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "source.read_file")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "authoring.review_idea_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
     expect(tools.find((tool) => tool.name === "authoring.withdraw_product_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
   });

@@ -62,15 +62,15 @@ Every document in this repository has one of the following explicit statuses:
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
 | [README.md](README.md) | Index | `ACTIVE` | 2026-08-27 | Master documentation index, hierarchy map, and lifecycle status ledger. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | Current | Core platform architecture, data boundaries, domain layers, and system interfaces. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | Current | Core platform architecture, data boundaries, domain layers, MCP stored-PDF retrieval, and system interfaces. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | Current | Comprehensive catalog of database tables, relationships, indexes, and constraints. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | Current | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, secrets, and environments. |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | Current | Local development guide, scripts, environment variables, and `FEATURE_*` flags catalog. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |
-| [features.md](features.md) | Product | `ACTIVE` | Current | Authoritative catalog of student, tutor, and admin workflows and user capabilities. |
+| [features.md](features.md) | Product | `ACTIVE` | Current | Authoritative catalog of student, tutor, admin, and prompt-only MCP authoring workflows. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring context pack export format and security boundaries. |
-| [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring job pack export format and automated worker ingestion. |
+| [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring job packs and local or stored-original Source Pack ingestion. |
 | [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `ACTIVE` | Current | Specification for Idea Bundle V2 ZIP format, manifest, validation, and publication. |
 | [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `ACTIVE` | Current | Specification for Product Bundle V2 ZIP format, manifest, validation, and publication. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, and staging validation checklist. |

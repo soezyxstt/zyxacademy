@@ -228,6 +228,8 @@ The first MCP boundary is a stateless Streamable HTTP adapter at `/api/mcp/autho
 flowchart LR
     H[Gemini, Claude, or ChatGPT host] --> M[Authenticated MCP endpoint]
     M --> W[Workflow registry]
+    W --> F[Scoped course PDF catalog and page reader]
+    F --> S[Source Pack validator and quality report]
     W --> S[Source Pack validator and quality report]
     W --> B[Idea and Product validators and quality gates]
     W --> Q[Quiz draft validator]
@@ -236,7 +238,9 @@ flowchart LR
     R --> P[Admin publication]
 ```
 
-`workflow.list` returns only `idea_product` and `quiz_bank`; there is no combined option and no product-family selection. The agent receives course and chapter choices as signed opaque keys. After `workflow.start`, the signed run token carries the locked scope and Source Pack checksum without exposing internal course or chapter IDs. `source.ingest` requires original binaries outside the ZIP so the server can independently verify `originalSha256`. Canonical quality modules under `lib/authoring/quality/` produce structured technical and content reports. Idea validation checks source coverage and duplicate candidates; Product validation checks published Idea scope, fresh dependencies, Article and Diktat density, and provenance. Idea and Product submission tools revalidate and reuse `stageIdeaBundle` and `stageProductBundle`, so only green artifacts appear in the existing review inventory.
+`workflow.list` returns only `idea_product` and `quiz_bank`; there is no combined option and no product-family selection. The agent receives course and chapter choices as signed opaque keys. `source.list_files` bridges those canonical selections through `legacyCourseId` and `legacyChapterId` to chapter-linked `course_materials`, while encrypted file keys keep material IDs and R2 keys out of MCP output. `source.read_file` downloads only validated course PDF keys and returns either bounded page text plus images or an explicit bounded PDF blob fallback.
+
+After `workflow.start`, the signed run token carries the locked scope and Source Pack checksum without exposing internal course or chapter IDs. `source.ingest` requires original binaries outside the ZIP so the server can independently verify `originalSha256`; originals may be supplied directly or resolved server-side from stored file keys. A Source Pack that uses stored originals is bound to that catalog course and chapter before workflow start. Canonical quality modules under `lib/authoring/quality/` produce structured technical and content reports. Idea validation checks source coverage and duplicate candidates; Product validation checks published Idea scope, fresh dependencies, Article and Diktat density, and provenance. Idea and Product submission tools revalidate and reuse `stageIdeaBundle` and `stageProductBundle`, so only green artifacts appear in the existing review inventory.
 
 MCP authentication is login-aware: Better Auth sessions are accepted directly for same-origin requests, while remote MCP clients use OAuth discovery and the PKCE authorization-code flow. OAuth default scopes remain `authoring:read` and `authoring:stage`. Supported explicit scopes expand to include `authoring:review` and `authoring:withdraw`. Authenticated same-origin session connections receive all supported scopes. The short-lived access token contains the authenticated user and Better Auth session identity; every request rechecks that the session is live and the user is an active admin. A compatibility connection endpoint can issue a per-session bearer token after an admin login.
 
