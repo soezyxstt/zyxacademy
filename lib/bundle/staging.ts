@@ -60,6 +60,19 @@ export type IdeaBundleStageResult = {
   itemCount: number;
 };
 
+type ConflictingIdeaBundle = {
+  id: string;
+  sourceUriOrKey: string;
+};
+
+export function previousIdeaBundleSourceKey(
+  conflictingBundle: ConflictingIdeaBundle | undefined,
+  replaceImportId: string | undefined,
+): string | null {
+  if (!conflictingBundle || !replaceImportId || conflictingBundle.id !== replaceImportId) return null;
+  return conflictingBundle.sourceUriOrKey;
+}
+
 function ensureFeatureEnabled(): void {}
 
 function stableId(prefix: string, value: string): string {
@@ -147,7 +160,7 @@ export async function stageIdeaBundle(input: IdeaBundleStageInput): Promise<Idea
   if (conflictingBundle && conflictingBundle.id !== input.replaceImportId) throw new Error(`IDEA_BUNDLE_CONFLICT:${input.bundleId}`);
 
   const importId = input.replaceImportId ?? stableId("impor-idea", `${input.bundleId}:${input.checksum}`);
-  const previousSourceKey = conflictingBundle?.id === input.replaceImportId ? conflictingBundle.sourceUriOrKey : null;
+  const previousSourceKey = previousIdeaBundleSourceKey(conflictingBundle, input.replaceImportId);
   if (input.replaceImportId && (!conflictingBundle || conflictingBundle.status === "published")) throw new Error("IDEA_BUNDLE_REPLACE_FORBIDDEN");
   const sourceKey = buildIdeaBundleKey(input);
   await uploadArtifact(input, sourceKey);

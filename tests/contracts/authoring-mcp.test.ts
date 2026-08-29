@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
+import { previousIdeaBundleSourceKey } from "@/lib/bundle/staging";
 import {
   MCP_AUTHORING_DEFAULT_SCOPES,
   MCP_CONNECTION_TOKEN_TTL_SECONDS,
@@ -256,6 +257,14 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       error: "AUTHORING_MCP_SCOPE_REQUIRED",
       detail: "authoring:withdraw",
     });
+  });
+
+  it("does not dereference a missing conflict when staging a new Idea Bundle", () => {
+    expect(previousIdeaBundleSourceKey(undefined, undefined)).toBeNull();
+    expect(previousIdeaBundleSourceKey({ id: "existing", sourceUriOrKey: "overhaul/existing.zip" }, undefined)).toBeNull();
+    expect(previousIdeaBundleSourceKey(undefined, "existing")).toBeNull();
+    expect(previousIdeaBundleSourceKey({ id: "existing", sourceUriOrKey: "overhaul/existing.zip" }, "other")).toBeNull();
+    expect(previousIdeaBundleSourceKey({ id: "existing", sourceUriOrKey: "overhaul/existing.zip" }, "existing")).toBe("overhaul/existing.zip");
   });
 });
 
