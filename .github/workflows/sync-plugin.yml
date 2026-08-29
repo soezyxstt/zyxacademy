@@ -155,8 +155,18 @@ jobs:
           # Clean target directory except .git
           find "$CLONE_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 
-          # Copy prepared build payload
-          cp -r build-plugin/* "$CLONE_DIR"/
+          # Copy prepared build payload, including dotfiles and dot-directories.
+          cp -a build-plugin/. "$CLONE_DIR"/
+
+          for required_file in \
+            '.codex-plugin/plugin.json' \
+            '.claude-plugin/plugin.json' \
+            '.mcp.json'; do
+            if [ ! -f "$CLONE_DIR/$required_file" ]; then
+              echo "::error::Required plugin manifest was not copied: $required_file"
+              exit 1
+            fi
+          done
 
           cd "$CLONE_DIR"
           git add -A
