@@ -5,7 +5,7 @@
 Endpoint MCP: `https://staging.zyxacademy.com/api/mcp/authoring`
 
 - Claude Desktop atau Claude Code: pasang plugin `zyx-authoring-mcp` yang membawa `.mcp.json` dan skills, atau tambah remote connector dengan URL di atas. OAuth admin Zyx dibuka otomatis pada host yang mendukung.
-- ChatGPT: aktifkan Developer mode pada Settings, tambah connector bertipe MCP dengan URL di atas, lalu autentikasi lewat OAuth. Jika host tidak mendukung OAuth interaktif, minta admin Zyx membuat connection token singkat lewat `POST /api/mcp/authoring/connection` saat sesi admin aktif dan gunakan sebagai Bearer token. Tempel isi SKILL.md ke instructions custom GPT atau project agar alur tool dipatuhi; buang frontmatter YAML karena hanya dibutuhkan loader skill Claude, dan ganti tautan `references/workflow.md` pada langkah pertama dengan file ini bila ikut ditempel.
+- ChatGPT: aktifkan Developer mode pada Settings, tambah connector bertipe MCP dengan URL di atas, lalu autentikasi lewat OAuth. Jika host tidak mendukung OAuth interaktif, minta admin Zyx membuat connection token 30 hari lewat `POST /api/mcp/authoring/connection` saat sesi admin aktif dan gunakan sebagai Bearer token (token terikat pada sesi Better Auth dan peran admin aktif, dapat kedaluwarsa lebih awal, dan tidak pernah bersifat permanen). Tempel isi SKILL.md ke instructions custom GPT atau project agar alur tool dipatuhi; buang frontmatter YAML karena hanya dibutuhkan loader skill Claude, dan ganti tautan `references/workflow.md` pada langkah pertama dengan file ini bila ikut ditempel.
 - Jangan pernah menyimpan connection token di file konfigurasi atau repositori.
 
 ## Tool sequence

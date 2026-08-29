@@ -61,7 +61,7 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
-| [README.md](README.md) | Index | `ACTIVE` | 2026-08-27 | Master documentation index, hierarchy map, and lifecycle status ledger. |
+| [README.md](README.md) | Index | `ACTIVE` | 2026-08-29 | Master documentation index, hierarchy map, and lifecycle status ledger. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | Current | Core platform architecture, data boundaries, domain layers, MCP stored-PDF retrieval, and system interfaces. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | Current | Comprehensive catalog of database tables, relationships, indexes, and constraints. |

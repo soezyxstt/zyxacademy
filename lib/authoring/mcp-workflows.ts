@@ -10,6 +10,7 @@ export const AUTHORING_MCP_VERSION = "authoring-mcp.v1";
 export const AUTHORING_MCP_MAX_SOURCE_PACK_BYTES = 64 * 1024 * 1024;
 export const AUTHORING_MCP_MAX_BUNDLE_BYTES = 32 * 1024 * 1024;
 export const AUTHORING_MCP_MAX_ORIGINAL_BYTES = 32 * 1024 * 1024;
+export const MCP_CONNECTION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export const authoringWorkflowSchema = z.enum(["idea_product", "quiz_bank"]);
 export type AuthoringWorkflow = z.infer<typeof authoringWorkflowSchema>;
@@ -451,7 +452,7 @@ export function issueMcpConnectionToken(input: {
     clientId: input.clientId,
     resource: input.resource,
     scopes: [...input.scopes],
-    ttlMs: 60 * 60 * 1000,
+    ttlMs: MCP_CONNECTION_TOKEN_TTL_SECONDS * 1000,
   });
 }
 

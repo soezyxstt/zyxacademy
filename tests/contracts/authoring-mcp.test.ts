@@ -1,7 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
-import { ingestMcpSourcePack, listAuthoringWorkflows } from "@/lib/authoring/mcp-workflows";
+import {
+  MCP_AUTHORING_DEFAULT_SCOPES,
+  MCP_CONNECTION_TOKEN_TTL_SECONDS,
+  ingestMcpSourcePack,
+  issueMcpConnectionToken,
+  listAuthoringWorkflows,
+  readMcpConnectionToken,
+} from "@/lib/authoring/mcp-workflows";
 import { normalizeQuestionBankDraft, parseQuestionBankDraftJson } from "@/lib/authoring/question-bank-draft";
 import {
   computeIdeaFacets,
@@ -12,7 +19,6 @@ import {
 } from "@/lib/authoring/question-catalog";
 import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
 import { MCP_OAUTH_SCOPES, requestedScopes } from "@/lib/authoring/mcp-oauth";
-import { MCP_AUTHORING_DEFAULT_SCOPES } from "@/lib/authoring/mcp-workflows";
 
 const testPrincipal = {
   userId: "test-admin",
@@ -91,6 +97,21 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       "authoring:withdraw",
     ]);
     expect(() => requestedScopes("authoring:publish")).toThrow("invalid_scope");
+  });
+
+  it("issues MCP connection tokens with a 30-day hard lifetime", () => {
+    process.env.BETTER_AUTH_SECRET = "test-better-auth-secret-for-mcp-contracts";
+    const token = issueMcpConnectionToken({
+      userId: "test-admin",
+      sessionId: "test-session",
+      clientId: "test-client",
+      resource: "https://example.test/api/mcp/authoring",
+      scopes: ["authoring:read"],
+    });
+    const payload = readMcpConnectionToken(token);
+
+    expect(MCP_CONNECTION_TOKEN_TTL_SECONDS).toBe(30 * 24 * 60 * 60);
+    expect(payload.expiresAt - payload.issuedAt).toBe(MCP_CONNECTION_TOKEN_TTL_SECONDS * 1000);
   });
 
   it("returns a structured compatibility failure for an invalid Source Pack", () => {

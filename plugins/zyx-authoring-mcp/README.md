@@ -29,7 +29,7 @@ The server does not use a static token in this package. It requires an active Zy
 - **Supported explicit scopes**: `authoring:review` and `authoring:withdraw`.
 - **Session connections**: An authenticated admin session connection receives all supported scopes.
 
-A host without interactive OAuth can use a short-lived bearer token created by an authenticated admin at `/api/mcp/authoring/connection`. Never commit a connection token or put it in `.mcp.json`.
+A host without interactive OAuth can use a bearer token created by an authenticated admin at `/api/mcp/authoring/connection`. The token has a 30-day hard lifetime and remains bound to the originating live Better Auth session and active-admin role, invalidating earlier if the session ends or permissions change. It is never permanent. Never commit a connection token or put it in `.mcp.json`.
 
 ## Implemented tool surface
 
@@ -68,6 +68,6 @@ The chat tab has a separate MCP configuration from the Code tab. Use `claude-des
 
 ## ChatGPT
 
-Enable Developer mode, add an MCP connector pointing at the endpoint URL above, and authenticate with the Zyx admin OAuth flow. Hosts without interactive OAuth can use the short-lived connection token from `/api/mcp/authoring/connection`. Paste `skills/zyx-question-authoring-mcp/SKILL.md` (or another skill body) into custom GPT or project instructions so the agent follows the same tool sequence.
+Enable Developer mode, add an MCP connector pointing at the endpoint URL above, and authenticate with the Zyx admin OAuth flow. Hosts without interactive OAuth can use the 30-day connection token from `/api/mcp/authoring/connection`, which remains valid while the originating Better Auth session and admin role stay active. Paste `skills/zyx-question-authoring-mcp/SKILL.md` (or another skill body) into custom GPT or project instructions so the agent follows the same tool sequence.
 
 The MCP server remains authoritative for admin access, workflow scope, checksums, provenance, quality reports, and staging. The client skills only provide workflow instructions.

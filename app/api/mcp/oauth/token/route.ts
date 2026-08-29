@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
 import { consumeAuthorizationCode, issueAccessToken, readClientRegistration, resourceUrl } from "@/lib/authoring/mcp-oauth";
+import { MCP_CONNECTION_TOKEN_TTL_SECONDS } from "@/lib/authoring/mcp-workflows";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       access_token: accessToken,
       token_type: "Bearer",
-      expires_in: 60 * 60,
+      expires_in: MCP_CONNECTION_TOKEN_TTL_SECONDS,
       scope: principal.scopes.join(" "),
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

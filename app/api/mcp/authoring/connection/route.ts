@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { MCP_AUTHORING_SCOPES, issueMcpConnectionToken } from "@/lib/authoring/mcp-workflows";
+import {
+  MCP_AUTHORING_SCOPES,
+  MCP_CONNECTION_TOKEN_TTL_SECONDS,
+  issueMcpConnectionToken,
+} from "@/lib/authoring/mcp-workflows";
 import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
 
 export const runtime = "nodejs";
@@ -28,7 +32,7 @@ async function createConnection(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       access_token: accessToken,
       token_type: "Bearer",
-      expires_in: 60 * 60,
+      expires_in: MCP_CONNECTION_TOKEN_TTL_SECONDS,
       endpoint: resource,
       scopes: principal.scopes,
       note: "Gunakan token ini hanya pada MCP client yang Anda percaya.",
