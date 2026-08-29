@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 import { db } from '@/db';
 import { quizTemplates, aiQuestionBank, studentQuizAttempts, knowledgeObjects, studentConceptMastery } from '@/db/schema';
 import { auth } from '@/lib/auth';
+import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
 import { and, or, eq, inArray, sql, desc, notInArray } from 'drizzle-orm';
 import { getAdaptiveDifficultyProportions } from '@/lib/adaptive-quiz';
@@ -47,11 +48,14 @@ export async function POST(req: NextRequest) {
  return NextResponse.json({ error: 'Template not found' }, { status: 404 });
  }
 
- const role = (session.user as { role?: string | null }).role;
- const isStaff = role === 'admin' || role === 'teacher';
- if (template.status === 'draft' && !isStaff) {
-   return NextResponse.json({ error: 'Template kuis belum dipublikasi.' }, { status: 403 });
- }
+  const role = (session.user as { role?: string | null }).role;
+  const isStaff =
+    (await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) ||
+    role === 'admin' ||
+    role === 'teacher';
+  if (template.status === 'draft' && !isStaff) {
+    return NextResponse.json({ error: 'Template kuis belum dipublikasi.' }, { status: 403 });
+  }
 
  const now = new Date();
  if (template.manualStatus === 'closed') {

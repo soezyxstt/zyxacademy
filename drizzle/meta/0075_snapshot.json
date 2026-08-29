@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "9e251cb7-d125-4f02-b255-c19e405d2d26",
-  "prevId": "34c94b16-a749-40a5-94e3-e3f366fde336",
+  "id": "9c2335bb-9506-44c7-977c-7a9bb0b25c76",
+  "prevId": "10be0cd2-b00e-41ec-8cc3-a7dd4f1f49a6",
   "tables": {
     "academic_schedules": {
       "name": "academic_schedules",
@@ -6137,6 +6137,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "checksum": {
+          "name": "checksum",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "chapter_ids": {

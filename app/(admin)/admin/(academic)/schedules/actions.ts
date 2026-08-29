@@ -10,9 +10,11 @@ import {
   bookingAuditLogs,
   bookingRescheduleTickets,
   academicSchedules,
+  penggunaPeran,
+  peran,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/uploadthing-admin";
-import { eq, and, desc, isNull } from "drizzle-orm";
+import { eq, and, desc, isNull, inArray } from "drizzle-orm";
 import {
   getJakartaNow,
   getWeekScheduleDays,
@@ -40,16 +42,35 @@ export async function getAdminScheduleData(weekOffset = 0) {
     allAcademicSchedules,
     allAuditLogs,
   ] = await Promise.all([
-    db.query.user.findMany({
-      where: eq(user.role, "teacher"),
-      with: {
-        tutorCourses: {
-          with: {
-            course: true,
+    (async () => {
+      const tutorPenggunaRows = await db
+        .select({ penggunaId: penggunaPeran.penggunaId })
+        .from(penggunaPeran)
+        .innerJoin(peran, eq(penggunaPeran.peranId, peran.id))
+        .where(eq(peran.code, "tutor"));
+
+      const tutorIds = new Set(tutorPenggunaRows.map((r) => r.penggunaId));
+      const legacyTeacherRows = await db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.role, "teacher"));
+      for (const r of legacyTeacherRows) {
+        tutorIds.add(r.id);
+      }
+
+      if (tutorIds.size === 0) return [];
+
+      return db.query.user.findMany({
+        where: inArray(user.id, Array.from(tutorIds)),
+        with: {
+          tutorCourses: {
+            with: {
+              course: true,
+            },
           },
         },
-      },
-    }),
+      });
+    })(),
     db.select().from(courses),
     db.query.groups.findMany({
       with: {

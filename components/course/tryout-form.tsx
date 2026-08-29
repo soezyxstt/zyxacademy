@@ -24,7 +24,7 @@ type AnswerState =
   | { type: "short_answer"; text: string; fileName: string | null }
   | { type: "multiple_choice"; index: number | null }
   | { type: "multiple_choices"; indices: number[] }
-  | { type: "essay"; text: string; fileName: string | null; fileSize?: string };
+  | { type: "essay"; text: string; fileName: string | null; fileSize?: string; fileKey?: string | null };
 
 function emptyAnswer(q: QuestionSpec): AnswerState {
   if (q.type === "short_answer") return { type: "short_answer", text: "", fileName: null };
@@ -55,7 +55,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // S3 Cloudflare R2 upload simulation state
+  // Real Cloudflare R2 upload for essay attachments
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [uploadingFile, setUploadingFile] = useState<Record<string, string>>({});
 
@@ -119,35 +119,62 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
     setFlags((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
-  // Simulate Cloudflare R2 Upload progress bar
-  function simulateUpload(questionId: string, file: File) {
+  // Upload the essay attachment to R2 via /api/exams/attachments and track progress.
+  function uploadEssayAttachment(questionId: string, file: File) {
     setUploadingFile((prev) => ({ ...prev, [questionId]: file.name }));
     setUploadProgress((prev) => ({ ...prev, [questionId]: 0 }));
 
-    let current = 0;
-    const interval = setInterval(() => {
-      current += Math.floor(Math.random() * 25) + 10;
-      if (current >= 100) {
-        current = 100;
-        clearInterval(interval);
-        
-        // Save uploaded state
-        const sizeFormatted = (file.size / (1024 * 1024)).toFixed(2) + " MB";
-        setAnswerFor(questionId, {
-          ...answers[questionId],
-          fileName: file.name,
-          fileSize: sizeFormatted,
-        } as AnswerState);
-        toast.success(`Berkas ${file.name} berhasil diunggah ke Cloudflare R2 bucket!`);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("examId", exam.id);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/exams/attachments");
+    xhr.upload.addEventListener("progress", (ev) => {
+      if (ev.lengthComputable) {
+        const pct = Math.round((ev.loaded / ev.total) * 100);
+        setUploadProgress((prev) => ({ ...prev, [questionId]: pct }));
       }
-      setUploadProgress((prev) => ({ ...prev, [questionId]: current }));
-    }, 250);
+    });
+    xhr.addEventListener("load", () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+          setAnswerFor(questionId, {
+            ...answers[questionId],
+            fileName: data.fileName as string,
+            fileSize: data.fileSize as string,
+            fileKey: data.key as string,
+          } as AnswerState);
+          toast.success(`Berkas ${file.name} berhasil diunggah.`);
+        } else {
+          toast.error(data.error || "Gagal mengunggah berkas.");
+        }
+      } catch {
+        toast.error("Gagal mengunggah berkas.");
+      }
+      setUploadingFile((prev) => {
+        const copy = { ...prev };
+        delete copy[questionId];
+        return copy;
+      });
+    });
+    xhr.addEventListener("error", () => {
+      toast.error("Gagal mengunggah berkas.");
+      setUploadingFile((prev) => {
+        const copy = { ...prev };
+        delete copy[questionId];
+        return copy;
+      });
+    });
+    xhr.send(formData);
   }
 
   function handleFileChange(questionId: string, e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (f) {
-      simulateUpload(questionId, f);
+      uploadEssayAttachment(questionId, f);
+      e.target.value = "";
     }
   }
 
@@ -156,6 +183,7 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
       ...answers[questionId],
       fileName: null,
       fileSize: undefined,
+      fileKey: null,
     } as AnswerState);
     setUploadProgress((prev) => {
       const copy = { ...prev };

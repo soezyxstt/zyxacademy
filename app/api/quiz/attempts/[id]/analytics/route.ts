@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { studentQuizAnalytics, studentQuizAttempts, quizTemplates } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { hasAnyPeran } from "@/lib/auth/authorization";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { inngest } from "@/lib/inngest";
@@ -35,7 +36,10 @@ export async function GET(_req: NextRequest, { params }: Context) {
   }
 
   const isOwner = attempt.studentId === session.user.id;
-  const isAdminOrTeacher = session.user.role === "admin" || session.user.role === "teacher";
+  const isAdminOrTeacher =
+    (await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+    session.user.role === "admin" ||
+    session.user.role === "teacher";
 
   if (!isOwner && !isAdminOrTeacher) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -152,7 +156,10 @@ export async function POST(_req: NextRequest, { params }: Context) {
   }
 
   const isOwner = attempt.studentId === session.user.id;
-  const isAdminOrTeacher = session.user.role === "admin" || session.user.role === "teacher";
+  const isAdminOrTeacher =
+    (await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+    session.user.role === "admin" ||
+    session.user.role === "teacher";
 
   if (!isOwner && !isAdminOrTeacher) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

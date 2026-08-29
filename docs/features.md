@@ -21,12 +21,16 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Participates in live classroom quizzes
 - Views leaderboard and answer keys
 
-### Teacher
-- Sets weekly availability for student consultations
-- Triggers AI-generated quiz templates, curates questions before publishing
-- Grades essays and provides feedback
-- Compiles course chapters into structured Diktat PDFs
-- Hosts live quiz sessions
+### Tutor
+- Accesses a dedicated tutor portal (`/tutor`) with a course switcher for all assigned teaching responsibilities
+- Sets weekly availability and manages schedules (`/tutor/schedule`) directly in the tutor shell without redirecting to student pages
+- Creates, edits, previews, and publishes native quiz templates (`/tutor/[courseId]/quizzes`) with visible creator attribution
+- Hosts interactive live classroom quizzes directly from the tutor console (`/tutor/[courseId]/live`)
+- Grades assigned tryout essay submissions (`/tutor/[courseId]/grading`), provides feedback notes, and inputs final scores (0 to 100) with concurrency guards
+- Inspects student attempt spreadsheets and exports CSV records (`/tutor/[courseId]/quizzes/[templateId]/attempts`)
+- Reviews enrolled students, active study groups, and group representatives (`/tutor/[courseId]/participants`)
+- Cannot author or upload course materials (materials authoring is disabled for tutors; `/tutor/[courseId]/materials` redirects to the course overview)
+- Cannot author simulations or tryouts (tryout authoring is disabled for tutors; `/tutor/[courseId]/tryouts` redirects to the course overview)
 
 ### Admin
 - Generates enrollment tokens with capacity and expiry
@@ -42,6 +46,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Views coaching analytics dashboards
 - Accesses the Quiz & Exam Analytics & Insight portal (`/admin/quiz-insights`) for real-time item/distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV / Google Spreadsheet, and on-demand Gemini AI deep pedagogical insights
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
+- Monitors real-time tutor mutations, rejections, and failures with cursor pagination, stats aggregation, and sanitized snapshot inspection (`/admin/ops/tutor-activity`)
 - Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
 - Manages admin leaderboard (`/admin/leaderboard`) with overview mode showing per-course aggregate metrics (all courses including zero-activity, sorted alphabetically, unique student count across visible set) and course-selected mode for per-student ranking within a single course
 
@@ -103,12 +108,21 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 1. `/api/mcp/authoring` exposes a provider-neutral Streamable HTTP MCP endpoint. Its core does not depend on Gemini, Claude, or ChatGPT; each host discovers the same typed tools.
 2. `workflow.list` exposes exactly two choices: `idea_product` and `quiz_bank`. There is deliberately no combined workflow option. Both workflows lock one course and one chapter; `idea_product` requires a Source Pack while `quiz_bank` accepts an optional Source Pack so agents can author directly from the published Idea catalog.
-3. `source.ingest` accepts a base64 Source Pack plus one ephemeral original binary per declared document. It runs secure ZIP validation, original binary checksum verification, deterministic Markdown counts, marker validation, structured visual checks, unresolved checks, and a quality report. Invalid archives or incomplete quality evidence return structured reason codes rather than a generic upload error.
-4. Course and chapter choices use short-lived signed keys, so agents and operators do not exchange raw internal IDs. `workflow.start` returns a scoped run token and a workflow contract.
-5. Idea Bundle and Product Bundle validation combines technical compatibility with repository content-quality gates. Idea checks include meaningful source coverage, provenance coverage, duplicate candidates, and formula trace warnings. Product checks include published Idea scope, dependency freshness, Article depth, Diktat coverage, examples, visuals, retrieval, traps, formulas, and ITB provenance.
-6. For `quiz_bank`, `assessment.list_ideas` returns the published Idea catalog of the locked course and chapter with free-text query, knowledge kind, instructional role, and difficulty level filters plus distribution facets and offset paging. `assessment.get_idea` returns one Idea with active relations in both directions and a provenance summary so agents can respect prerequisites before linking. The workflow contract exposes scope guidance enumerating difficulty, cognitive level, question type, idea role, tag rules, and weight rules.
-7. Draft V2 accepts optional Idea links per question; linked weights must sum to 100%. `assessment.validate_quiz_draft` aggregates every blocking issue and warning in one response instead of failing on the first error. It reports difficulty, cognitive level, question type, and tag distributions plus per-Idea coverage so agents can close gaps before submission. Warnings include coverage gaps for uncovered catalog Ideas and empty explanations; blocking issues include duplicate draft IDs, malformed questions, duplicate answer keys, duplicate or out-of-scope Idea links, invalid weights, and unpublished Ideas. Valid submission writes `soal`, optional `soal_ide`, `pembahasan_soal`, the `ai_question_bank` compatibility projection, and an audit row in one transaction with `reviewStatus=generated`. The staging actor is derived from the authenticated admin principal and no MCP tool can publish content.
-8. The instruction skills are `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, `zyx-product-bundle-mcp`, and `zyx-question-authoring-mcp`. They guide agents but do not duplicate or bypass MCP validators. MCP HTTP authorization uses the existing Better Auth admin session through MCP OAuth discovery, PKCE authorization code exchange, and short-lived audience-bound bearer tokens. A logged-in admin can also create a per-session connection token at `/api/mcp/authoring/connection` for clients without interactive OAuth, including ChatGPT connectors that accept a remote MCP endpoint. No static MCP token, manually configured actor ID, or feature flag is required. The transport is stateless and keeps run scope inside signed tokens; canonical publication continues through the authenticated admin review boundary.
+3. `source.list_files` resolves the selected canonical course and chapter to their legacy `course_materials` mappings, then returns every eligible PDF category with an encrypted short-lived `fileKey`. Multi-chapter PDFs are included when the selected chapter is present in `chapterIds`; external URLs, unsafe keys, unmapped scopes, and files from another course are rejected.
+4. `source.read_file` reads one current `fileKey`. Page mode returns extracted text plus PNG page images at 1280 px, up to four pages per call, so scanned pages and instructional visuals remain available to the agent. Blob mode embeds an `application/pdf` resource up to 32 MiB and is an explicit fallback after a page-read failure or timeout.
+5. `source.ingest` accepts a base64 Source Pack plus either ephemeral `originals`, server-resolved `storedOriginals`, or a unique mix of both. Stored PDFs may be up to 50 MiB and all originals together may be up to 96 MiB. The same checksum, content, and ZIP quality gates apply; stored references additionally bind the Source Pack token to their course and chapter.
+6. Course and chapter choices use short-lived signed keys, and stored file references use encrypted short-lived keys, so agents and operators do not exchange raw internal IDs or storage keys. `workflow.start` rejects a stored-source scope mismatch and returns a scoped run token and workflow contract.
+7. Idea Bundle and Product Bundle validation combines technical compatibility with repository content-quality gates. Idea checks include meaningful source coverage, provenance coverage, duplicate candidates, and formula trace warnings. Product checks include published Idea scope, dependency freshness, Article depth, Diktat coverage, examples, visuals, retrieval, traps, formulas, and ITB provenance.
+8. For `quiz_bank`, `assessment.list_ideas` returns the published Idea catalog of the locked course and chapter with free-text query, knowledge kind, instructional role, and difficulty level filters plus distribution facets and offset paging. `assessment.get_idea` returns one Idea with active relations in both directions and a provenance summary so agents can respect prerequisites before linking. The workflow contract exposes scope guidance enumerating difficulty, cognitive level, question type, idea role, tag rules, and weight rules.
+9. Draft V2 accepts optional Idea links per question; linked weights must sum to 100%. `assessment.validate_quiz_draft` aggregates every blocking issue and warning in one response instead of failing on the first error. It reports difficulty, cognitive level, question type, and tag distributions plus per-Idea coverage so agents can close gaps before submission. Warnings include coverage gaps for uncovered catalog Ideas and empty explanations; blocking issues include duplicate draft IDs, malformed questions, duplicate answer keys, duplicate or out-of-scope Idea links, invalid weights, and unpublished Ideas. Valid submission writes `soal`, optional `soal_ide`, `pembahasan_soal`, the `ai_question_bank` compatibility projection, and an audit row in one transaction with `reviewStatus=generated`. The staging actor is derived from the authenticated admin principal and no MCP tool can publish content.
+10. The MCP lifecycle tools support inspection, maintenance, and review across bundles and questions:
+   - `authoring.list_imports` and `authoring.get_import` inspect staged Idea and Product bundles, entity inventories, and review outcomes without exposing private storage keys or internal reviewer identity IDs (`authoring:read`).
+   - `authoring.restage_idea_bundle` and `authoring.restage_product_bundle` revalidate and replace staged bundles in place, resetting prior review decisions via existing lifecycle services (`authoring:stage`).
+   - `authoring.discard_product_draft` permanently discards draft Product Bundles and their staging artifacts (`authoring:withdraw`). Published or withdrawn bundles cannot be discarded.
+   - `authoring.review_idea_bundle` and `authoring.review_product_bundle` record immutable review decisions (`approved` or `rejected`) with notes without publishing content (`authoring:review`).
+   - `authoring.withdraw_product_bundle` provides an audited, idempotent, destructive action that withdraws published Product Bundles and retires canonical projections (`authoring:withdraw`). Idea Bundle withdrawal is not implemented.
+   - `assessment.update_question` updates draft Zyx-original questions in the locked run scope and resets them to `reviewStatus=generated` for admin review (`authoring:stage`). ITB examples (`itb_example`) are immutable and cannot be updated. Published or retired questions cannot be edited through this tool.
+11. The instruction skills are `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, `zyx-product-bundle-mcp`, and `zyx-question-authoring-mcp`. They guide agents but do not duplicate or bypass MCP validators. MCP HTTP authorization uses the existing Better Auth admin session through MCP OAuth discovery, PKCE authorization code exchange, and short-lived audience-bound bearer tokens. OAuth default scopes remain `authoring:read` and `authoring:stage`. Supported explicit scopes include `authoring:review` and `authoring:withdraw`. Authenticated same-origin session connections receive all supported scopes. A logged-in admin can also create a per-session connection token at `/api/mcp/authoring/connection` for clients without interactive OAuth, including ChatGPT connectors that accept a remote MCP endpoint. No static MCP token, manually configured actor ID, or feature flag is required. There is no `authoring:publish` scope and no publication tool; canonical publication continues strictly through the authenticated admin review boundary.
 
 ### Product Bundle Workflow
 
@@ -391,7 +405,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
   - All group members have equal rights to choose, move, or cancel slots before the weekly lock cut-off.
 - Weekly Quota (Derived, Per Group):
   - Each group carries a weekly session quota (`weeklyQuotaSessions`) set by admins according to the purchased package preset (1 to 3 sessions per week; custom values allowed).
-  - Usage is derived by counting booking rows of the group inside the target week. Pre-lock cancellations delete the row and free the quota; post-lock approved cancellations keep the row so the quota stays consumed.
+  - Usage is derived by counting active booking rows of the group inside the target week. Pre-lock cancellations preserve the booking row with status `cancelled` and write a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker into `booking_audit_logs` to free the quota. Post-lock cancellations do not receive the refund marker and stay counted against the weekly quota (hangus).
   - Students see "Terpakai minggu ini X/Y" when booking and on the Groups page; the last 4 weeks show attended versus missed/cancelled counts for traceability.
 - Weekly Lock & Automated Cut-Off:
   - Next week's scheduling selection opens throughout the current week and automatically locks every Saturday at 23:59 WIB (Asia/Jakarta).
@@ -418,6 +432,54 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
   - Student: Filter by Course and Tutor.
   - Tutor: Filter by Course or Study Group.
   - Admin: Full filtering by Course, Tutor, Study Group, and Schedule Type (Ujian Resmi ITB, Tryout, Kuis, Sesi Tatap Muka).
+
+### Tutor Portal & Overhaul Architecture
+
+The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`) with its own navigation sidebar (`components/tutor/tutor-sidebar.tsx`) and course switcher (`components/tutor/tutor-course-switcher.tsx`). Tutors manage schedules and course activities directly within this shell without redirecting to student pages. The overhaul is always-on with no feature flag.
+
+- Subroute Structure:
+  - `/tutor`: Overview portal displaying assigned courses, high-level KPIs, and quick shortcuts.
+  - `/tutor/schedule`: Full schedule and availability manager (add 90-minute slots, view bookings, delete unbooked slots, book sessions for active groups, approve/reject reschedule tickets, cancel sessions). Each reschedule or cancellation ticket exposes its discussion thread; the assigned tutor can read all group messages and reply inline.
+  - `/tutor/[courseId]`: Course-level dashboard summarizing teaching metrics, active groups, and recent quizzes, with quick-action links to quiz management, live console, grading, and participants.
+  - `/tutor/[courseId]/participants`: Enrolled student roster and active study groups with member lists and deterministic representatives.
+  - `/tutor/[courseId]/quizzes`: Full quiz template management (create, edit, delete, preview, toggle draft/published status) with creator attribution.
+  - `/tutor/[courseId]/quizzes/[templateId]/attempts`: Per-quiz attempt spreadsheet and answer inspection with CSV export.
+  - `/tutor/[courseId]/live`: Real-time interactive quiz console for hosting live sessions.
+  - `/tutor/[courseId]/grading`: Tryout essay grading queue for assigned courses. Essay attachments uploaded by students are stored under `exams/{examId}/attachments` in object storage and downloadable from the grading workspace; snapshots recorded before real uploads show the attachment as unavailable.
+
+- Capability Boundaries & Access Control:
+  - Canonical Access Resolution (`lib/auth/tutor-access.ts`): Requires active `pengguna`, canonical `tutor` role in `pengguna_peran`, active `mata_kuliah` course, and active `penugasan_tutor` row (`status = 'active'`, `assignment_scope = 'course'`).
+  - Compatibility Fallback: If no canonical `penugasan_tutor` row exists for that tutor and course, queries legacy `tutor_courses` for active courses. Inactive courses or duplicate legacy mappings fail closed.
+  - Materials Authoring Disabled: Tutors cannot create, edit, or upload course materials. Accessing `/tutor/[courseId]/materials` redirects to `/tutor/[courseId]`, and server mutations throw `TUTOR_CAPABILITY_FORBIDDEN: MATERIALS_AUTHORING_DISABLED`.
+  - Tryout Authoring Disabled: Tutors can only author quizzes (`daily`, `weekly`, `chapter`, `premium`). Attempting to author `simulation` or `tryout` categories throws `TUTOR_CAPABILITY_FORBIDDEN: SIMULATION_MUTATION_FORBIDDEN` or `TRYOUT_CATEGORY_FORBIDDEN`. Accessing `/tutor/[courseId]/tryouts` redirects to `/tutor/[courseId]`.
+  - Tryout Essay Grading: Tutors can grade student essay submissions for tryouts in their assigned courses (`/tutor/[courseId]/grading`). Only reviewable statuses (`pending_review`, `late`, `graded`) can be graded. Submissions for non-assigned courses or non-tryout exams are forbidden. Grading updates score and teacher feedback notes with an optimistic concurrency check (`where(and(eq(id, submissionId), eq(status, currentStatus)))`).
+  - Creator Attribution: Quiz templates and questions track and display creator metadata (`creatorId`, `creatorName`, `creatorEmail`, `creatorRole`) joined from canonical `asesmen.creatorId` through `pengguna` to `user`.
+
+- Schedule Quotas, Refunds, and Notifications:
+  - Exact 90-Minute Slots: Availability slots must span exactly 90 minutes. Start and end times are validated server-side.
+  - Group Eligibility & Representative Selection: Sessions are scheduled for active study groups enrolled in the course. Group representative is deterministically selected (leader first, earliest `joinedAt`, lexicographical `userId`, member record `id`).
+  - Weekly Quota & Cancellation Refunds: Groups carry a weekly quota (`weekly_quota_sessions`, default 2). Usage is computed by counting booking rows in the target ISO week. Cancellations before the Saturday 23:59 WIB lock cut-off receive a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker in `booking_audit_logs`, keeping the booking row for traceability while exempting it from weekly quota. Post-lock cancellations forfeit the quota without refund (hangus).
+  - Notifications: Schedule bookings, cancellations, and status changes dispatch real-time multi-recipient notifications via `sendToMany`.
+  - Durable Mutation Audit: Every tutor slot mutation, deletion, session creation, or cancellation (including failures and validation rejections) is recorded in `audit_mutasi` using `recordTutorMutationAudit` with bounded exponential backoff on SQLite lock contention (`TutorAuditPersistenceError`).
+
+- Admin Tutor Activity Monitoring (`/admin/ops/tutor-activity`):
+  - Dedicated admin operations dashboard for auditing all tutor actions and rejected attempts.
+  - Filterable by tutor actor, course, entity type, action, outcome (`success`, `rejected`, `failed`, `unclassified`), correlation ID, and date range.
+  - Backed by `app/(admin)/admin/ops/tutor-activity/dal.ts` with cursor-based pagination, KPI stats cards, and recursive secret redaction on state snapshots.
+
+- Real-time Live Quiz Callback Semantics (`/api/live/callback`):
+  - The Cloudflare Realtime Worker calls `POST /api/live/callback` upon session conclusion with authorization token verification.
+  - Token-Fenced Processing Lease: Inside a transaction, writes `live_quiz_results` rows, sets session state to `ended`, participant count, and acquires an exclusive processing lease via conditional Compare-And-Set (CAS) setting `delivery_status = 'processing'`, `delivery_claimed_at = now`, and a fresh unique `delivery_claim_token`. Concurrently enqueues pending tasks into `mastery_recompute_queue`.
+  - Lease Concurrency & Stale Claim Recovery: Concurrent callback invocations arriving while an active lease is held (within `CLAIM_LEASE_TTL_MS = 30_000`, 30 seconds) short-circuit without dispatching duplicate side effects. If an earlier processing attempt crashed or stalled beyond 30 seconds, subsequent callback retries use CAS to take over the lease with a new claim token and resume delivery.
+  - At-Least-Once Delivery with Idempotent Effects: The active leaseholder dispatches learning events with deterministic collision-resistant IDs (`buildLiveQuizLearningEventId(sessionId, userId, qi)`) and Inngest events with deterministic job IDs (`mastery-recompute-${sessionId}-${studentId}`). This guarantees at-least-once network delivery with idempotent downstream effects.
+  - Token-Fenced Delivery Finalization: Upon successful downstream dispatch, updates `delivery_status = 'delivered'` and `delivered_at` conditionally on matching `delivery_claim_token`, preventing expired lease owners from overwriting newer state. If dispatch fails, updates `delivery_status = 'failed'` conditionally on the same token.
+  - Idempotent Deduplication: Subsequent callback retries check `delivery_status === 'delivered'` and return immediate success without duplicate processing.
+
+- Zyra Atomic Proposal Transitions (`lib/zyra/proposals/service.ts`):
+  - Proposals use typed operations, scope, and precondition snapshots with TTL expiry (`ZYRA_PROPOSAL_TTL_HOURS = 72`).
+  - State transitions (`transitionZyraProposal`) execute inside database transactions with optimistic concurrency locking (`where(and(eq(id, proposalId), eq(status, currentStatus)))`).
+  - Every transition appends an immutable event log to `zyra_proposal_events` with diff hash and timestamp.
+  - If a concurrent mutation occurs, the transaction aborts and throws `PROPOSAL_CONCURRENT_MUTATION`.
 
 ### Zyra tutor and admin copilots
 

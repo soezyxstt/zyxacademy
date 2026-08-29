@@ -43,7 +43,7 @@ Attribution memakai sentinel `$UPLOADER` dan `$APPROVING_REVIEWER`. Zyx menyeles
 
 ## Hubungan dengan tiga skill
 
-Pada workflow legacy, `source-pack-translator` menghasilkan Source Pack dan `package-source-pack.js` menetapkan seluruh entry ke mode `0644`; generic archiver dan packaging direktori skill dilarang. Validator JavaScript memverifikasi binary asli, count Markdown, marker, blok visual, dan quality report. Pada workflow MCP aktif, pemeriksaan yang sama dipanggil oleh `source.ingest` dan binary asli dikirim sebagai input ephemeral `originals`. Course dan chapter dipilih melalui catalog MCP, bukan ID yang diketik operator.
+Pada workflow legacy, `source-pack-translator` menghasilkan Source Pack dan `package-source-pack.js` menetapkan seluruh entry ke mode `0644`; generic archiver dan packaging direktori skill dilarang. Validator JavaScript memverifikasi binary asli, count Markdown, marker, blok visual, dan quality report. Pada workflow MCP aktif, agent dapat memilih PDF yang sudah tersimpan melalui `source.list_files`, membacanya per halaman melalui `source.read_file`, lalu mengirim referensi terenkripsi sebagai `storedOriginals` ke `source.ingest`. Jalur file lokal tetap memakai input ephemeral `originals`. Kedua jalur menjalankan pemeriksaan yang sama, sedangkan stored originals juga mengikat token ke course dan chapter pilihan catalog MCP.
 
 Workflow legacy `zyx-product-authoring` menerima Authoring Job Pack dan Context Pack terbaru. Workflow MCP aktif melakukan pengecekan published Idea, version, semantic hash, dependency freshness, dan chapter scope langsung sebelum Product Bundle staging. Checkpoint publikasi Idea tetap wajib dan tidak dapat dilewati.
 

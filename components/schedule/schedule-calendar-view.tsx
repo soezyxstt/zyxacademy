@@ -17,6 +17,8 @@ import {
   Plus,
   Calendar as CalendarIcon,
   GraduationCap,
+  SlidersHorizontal,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -146,11 +153,13 @@ export type ScheduleCalendarProps = {
   bookings: any[];
   academicSchedules?: any[];
   onSelectSlotToBook?: (slot: any, dateIso: string) => void;
-  onCreateScheduleDirect?: (dateIso: string, timeStr?: string) => void;
+  onCreateScheduleDirect?: (dateIso: string, startTimeStr?: string, endTimeStr?: string) => void;
   onOpenPreSession?: (booking: any) => void;
   onOpenPostSession?: (booking: any) => void;
   onOpenRescheduleTicket?: (booking: any) => void;
   onOpenAuditLog?: (booking: any) => void;
+  onEditSchedule?: (schedule: any) => void;
+  onDeleteSchedule?: (schedule: any) => void;
 };
 
 // Helper: parse "09:00" or "09:30" to minutes from midnight
@@ -158,6 +167,97 @@ function timeToMinutes(timeStr?: string): number {
   if (!timeStr) return 0;
   const [h, m] = timeStr.split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
+}
+
+type ParsedAcademicEvent = {
+  schedule: any;
+  dateIso: string;
+  isAllDay: boolean;
+  startMinutes: number;
+  endMinutes: number;
+  duration: number;
+  startTimeStr: string;
+  endTimeStr: string;
+};
+
+function parseAcademicSchedule(sched: any): ParsedAcademicEvent | null {
+  if (!sched.startDate) return null;
+  const startD = new Date(sched.startDate);
+  if (isNaN(startD.getTime())) return null;
+
+  const dateIso = formatIsoDate(startD);
+  const startH = startD.getHours();
+  const startM = startD.getMinutes();
+  const startMinutes = startH * 60 + startM;
+
+  let endMinutes = startMinutes + 90;
+  if (sched.endDate) {
+    const endD = new Date(sched.endDate);
+    if (!isNaN(endD.getTime())) {
+      const endH = endD.getHours();
+      const endM = endD.getMinutes();
+      const calcEnd = endH * 60 + endM;
+      if (calcEnd > startMinutes) {
+        endMinutes = calcEnd;
+      }
+    }
+  }
+
+  // If start is 00:00 and either no endDate or spans to end of day, treat as all-day
+  const isAllDay = startH === 0 && startM === 0 && (!sched.endDate || endMinutes >= 23 * 60 + 50);
+
+  const startTimeStr = `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`;
+  const endH = Math.floor(endMinutes / 60);
+  const endM = endMinutes % 60;
+  const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+
+  return {
+    schedule: sched,
+    dateIso,
+    isAllDay,
+    startMinutes,
+    endMinutes,
+    duration: Math.max(30, endMinutes - startMinutes),
+    startTimeStr,
+    endTimeStr,
+  };
+}
+
+function getAcademicStyle(type: string) {
+  switch (type) {
+    case "official_exam":
+      return {
+        border: "border-amber-400 dark:border-amber-600",
+        bg: "bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-950/40 dark:hover:bg-amber-900/50",
+        badge: "bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/30",
+        bar: "bg-amber-500",
+        label: "Ujian ITB",
+      };
+    case "tryout":
+      return {
+        border: "border-purple-400 dark:border-purple-600",
+        bg: "bg-purple-500/10 hover:bg-purple-500/20 dark:bg-purple-950/40 dark:hover:bg-purple-900/50",
+        badge: "bg-purple-500/20 text-purple-800 dark:text-purple-300 border-purple-500/30",
+        bar: "bg-purple-500",
+        label: "Tryout",
+      };
+    case "quiz":
+      return {
+        border: "border-sky-400 dark:border-sky-600",
+        bg: "bg-sky-500/10 hover:bg-sky-500/20 dark:bg-sky-950/40 dark:hover:bg-sky-900/50",
+        badge: "bg-sky-500/20 text-sky-800 dark:text-sky-300 border-sky-500/30",
+        bar: "bg-sky-500",
+        label: "Kuis",
+      };
+    default:
+      return {
+        border: "border-brand-primary/40 dark:border-brand-primary/60",
+        bg: "bg-brand-primary/10 hover:bg-brand-primary/15 dark:bg-brand-primary/20",
+        badge: "bg-brand-primary/20 text-brand-primary border-brand-primary/30",
+        bar: "bg-brand-primary",
+        label: "Akademik",
+      };
+  }
 }
 
 // Helper: get month calendar days grid (7 cols x 4-6 rows)
@@ -230,6 +330,8 @@ export function ScheduleCalendarView({
   onOpenPostSession,
   onOpenRescheduleTicket,
   onOpenAuditLog,
+  onEditSchedule,
+  onDeleteSchedule: _onDeleteSchedule,
 }: ScheduleCalendarProps) {
   // View Modes: "month" | "week" | "day"
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("week");
@@ -244,6 +346,28 @@ export function ScheduleCalendarView({
   const [selectedTutorFilter, setSelectedTutorFilter] = useState("all");
   const [selectedGroupFilter, setSelectedGroupFilter] = useState("all");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState("all");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const activeFilterCount =
+    (selectedCourseFilter !== "all" ? 1 : 0) +
+    (selectedTutorFilter !== "all" ? 1 : 0) +
+    (selectedGroupFilter !== "all" ? 1 : 0) +
+    (selectedTypeFilter !== "all" ? 1 : 0);
+
+  const handleResetFilters = () => {
+    setSelectedCourseFilter("all");
+    setSelectedTutorFilter("all");
+    setSelectedGroupFilter("all");
+    setSelectedTypeFilter("all");
+  };
+
+  // Drag-to-Create state (Google Calendar style)
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean;
+    dayIso: string;
+    startMin: number;
+    currentMin: number;
+  } | null>(null);
 
   const gridScrollRef = useRef<HTMLDivElement>(null);
 
@@ -254,6 +378,38 @@ export function ScheduleCalendarView({
     }
   }, [viewMode]);
 
+  // Global mouseup listener to finish dragging cleanly
+  useEffect(() => {
+    if (!dragState?.isDragging) return;
+
+    const handleGlobalMouseUp = () => {
+      const start = Math.min(dragState.startMin, dragState.currentMin);
+      let end = Math.max(dragState.startMin, dragState.currentMin);
+      if (end <= start) {
+        end = start + 90;
+      }
+      end = Math.min(END_HOUR * 60, end);
+
+      const startH = Math.floor(start / 60);
+      const startM = start % 60;
+      const endH = Math.floor(end / 60);
+      const endM = end % 60;
+
+      const startTimeStr = `${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`;
+      const endTimeStr = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+
+      const targetDayIso = dragState.dayIso;
+      setDragState(null);
+
+      onCreateScheduleDirect?.(targetDayIso, startTimeStr, endTimeStr);
+    };
+
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleGlobalMouseUp);
+    };
+  }, [dragState, onCreateScheduleDirect]);
+
   // Current time line calculation
   const nowJakarta = getJakartaNow();
   const nowMinutes = nowJakarta.getHours() * 60 + nowJakarta.getMinutes();
@@ -261,21 +417,27 @@ export function ScheduleCalendarView({
     ((nowMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
   const todayIso = formatIsoDateUtc(nowJakarta);
 
-  // Filtered Academic Schedules (Exams, Tryouts, Quizzes)
-  const filteredAcademicSchedules = useMemo(() => {
-    return academicSchedules.filter((sched) => {
-      if (
-        selectedCourseFilter !== "all" &&
-        sched.courseId &&
-        sched.courseId !== selectedCourseFilter
-      ) {
-        return false;
-      }
-      if (selectedTypeFilter !== "all" && sched.type !== selectedTypeFilter) {
-        return false;
-      }
-      return true;
-    });
+  // Parsed and filtered Academic Schedules
+  const parsedAcademicEvents = useMemo(() => {
+    return academicSchedules
+      .map(parseAcademicSchedule)
+      .filter((item): item is ParsedAcademicEvent => {
+        if (!item) return false;
+        if (
+          selectedCourseFilter !== "all" &&
+          item.schedule.courseId &&
+          item.schedule.courseId !== selectedCourseFilter
+        ) {
+          return false;
+        }
+        if (
+          selectedTypeFilter !== "all" &&
+          item.schedule.type !== selectedTypeFilter
+        ) {
+          return false;
+        }
+        return true;
+      });
   }, [academicSchedules, selectedCourseFilter, selectedTypeFilter]);
 
   // Filtered Bookings
@@ -388,20 +550,57 @@ export function ScheduleCalendarView({
     );
   }, [activeDate]);
 
+  // Grid Drag interaction handlers
+  const handleGridMouseDown = (dayIso: string, hour: number, e: React.MouseEvent<HTMLDivElement>) => {
+    if (role !== "admin" || !onCreateScheduleDirect) return;
+    if ((e.target as HTMLElement).closest("button, a, .session-card")) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickY = e.clientY - rect.top;
+    const isSecondHalf = clickY >= HOUR_HEIGHT / 2;
+    const startMin = hour * 60 + (isSecondHalf ? 30 : 0);
+
+    setDragState({
+      isDragging: true,
+      dayIso,
+      startMin,
+      currentMin: startMin + 60,
+    });
+  };
+
+  const handleColumnMouseMove = (dayIso: string, e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dragState?.isDragging || dragState.dayIso !== dayIso) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top;
+    const minuteFromTop = (offsetY / (HOURS_COUNT * HOUR_HEIGHT)) * (HOURS_COUNT * 60);
+    const rawMin = START_HOUR * 60 + minuteFromTop;
+    const roundedMin = Math.max(
+      START_HOUR * 60,
+      Math.min(END_HOUR * 60, Math.round(rawMin / 30) * 30)
+    );
+
+    if (roundedMin !== dragState.currentMin) {
+      setDragState((prev) => (prev ? { ...prev, currentMin: roundedMin } : null));
+    }
+  };
+
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="space-y-3 font-sans">
-        {/* 1. SINGLE-ROW COMPACT TOOLBAR (G-Calendar Style) */}
-        <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl border border-border bg-card shadow-xs">
-          {/* Left: View Switcher & Navigation */}
+      <div className="space-y-2.5 font-sans">
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* 1. SINGLE-ROW GOOGLE CALENDAR-STYLE TOOLBAR                       */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        <div className="flex flex-wrap items-center justify-between gap-2 p-1.5 px-2 rounded-xl border border-border bg-card shadow-xs">
+          {/* Left: View Mode Switcher & Date Navigation */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* View Mode Select */}
-            <div className="w-[100px] shrink-0">
+            <div className="w-[96px] shrink-0">
               <Select
                 value={viewMode}
                 onValueChange={(val: "day" | "week" | "month") => setViewMode(val)}
               >
-                <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card font-medium">
+                <SelectTrigger className="h-8 text-body-xs font-semibold rounded-lg bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -417,7 +616,7 @@ export function ScheduleCalendarView({
               variant="outline"
               size="sm"
               onClick={handleToday}
-              className="h-9 px-2.5 rounded-lg text-body-sm font-semibold text-foreground hover:bg-muted shrink-0"
+              className="h-8 px-2.5 rounded-lg text-body-xs font-semibold text-foreground hover:bg-muted shrink-0"
             >
               Hari Ini
             </Button>
@@ -428,26 +627,26 @@ export function ScheduleCalendarView({
                 variant="ghost"
                 size="icon"
                 onClick={handlePrev}
-                className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
                 aria-label="Sebelumnya"
               >
-                <ChevronLeft className="size-4" />
+                <ChevronLeft className="size-3.5" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleNext}
-                className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
                 aria-label="Berikutnya"
               >
-                <ChevronRight className="size-4" />
+                <ChevronRight className="size-3.5" />
               </Button>
             </div>
 
             {/* Date Range Text */}
-            <div className="flex items-center gap-1.5 px-1 py-1 shrink-0">
-              <CalendarIcon className="size-4 text-brand-primary shrink-0" />
-              <span className="text-body-sm font-bold text-foreground capitalize whitespace-nowrap">
+            <div className="flex items-center gap-1.5 px-1 py-0.5 shrink-0">
+              <CalendarIcon className="size-3.5 text-brand-primary shrink-0" />
+              <span className="text-body-xs font-bold text-foreground capitalize whitespace-nowrap">
                 {headerDateLabel}
               </span>
             </div>
@@ -456,8 +655,8 @@ export function ScheduleCalendarView({
             {isWeekLocked && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center justify-center size-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-help shrink-0">
-                    <Lock className="size-4" />
+                  <div className="flex items-center justify-center size-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 cursor-help shrink-0">
+                    <Lock className="size-3.5" />
                     <span className="sr-only">Jadwal Minggu Ini Terkunci</span>
                   </div>
                 </TooltipTrigger>
@@ -468,91 +667,141 @@ export function ScheduleCalendarView({
             )}
           </div>
 
-          {/* Right: Compact Multi-Filters (Using Shadcn Select) */}
-          <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
-            {/* Course Filter */}
-            <div className="w-[140px] shrink-0">
-              <Select
-                value={selectedCourseFilter}
-                onValueChange={setSelectedCourseFilter}
-              >
-                <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
-                  <SelectValue placeholder="Mata Kuliah" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-                  {coursesList.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Tutor Filter */}
-            {(role === "student" || role === "admin") && tutorsList.length > 0 && (
-              <div className="w-[130px] shrink-0">
-                <Select
-                  value={selectedTutorFilter}
-                  onValueChange={setSelectedTutorFilter}
+          {/* Right: Unified Single Filter Popover Button */}
+          <div className="flex items-center gap-1.5 ml-auto">
+            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-8 px-2.5 rounded-lg text-body-xs font-semibold gap-1.5 shrink-0 transition-colors",
+                    activeFilterCount > 0
+                      ? "border-brand-primary text-brand-primary bg-brand-primary/5 hover:bg-brand-primary/10"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
-                  <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
-                    <SelectValue placeholder="Tutor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Tutor</SelectItem>
-                    {tutorsList.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                  <SlidersHorizontal className="size-3.5" />
+                  <span>Filter</span>
+                  {activeFilterCount > 0 && (
+                    <span className="inline-flex items-center justify-center size-4 rounded-full bg-brand-primary text-white text-[9px] font-bold">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-3 space-y-2.5 rounded-xl shadow-xl">
+                <div className="flex items-center justify-between pb-1.5 border-b border-border">
+                  <span className="text-body-xs font-bold text-foreground">Filter Kalender</span>
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="text-[11px] font-semibold text-brand-primary hover:underline flex items-center gap-1"
+                    >
+                      <RotateCcw className="size-2.5" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                </div>
 
-            {/* Group Filter */}
-            {(role === "teacher" || role === "admin") && groupsList.length > 0 && (
-              <div className="w-[130px] shrink-0">
-                <Select
-                  value={selectedGroupFilter}
-                  onValueChange={setSelectedGroupFilter}
-                >
-                  <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
-                    <SelectValue placeholder="Kelompok" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Kelompok</SelectItem>
-                    {groupsList.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        {g.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                {/* Course Filter */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground block">
+                    Mata Kuliah
+                  </label>
+                  <Select
+                    value={selectedCourseFilter}
+                    onValueChange={setSelectedCourseFilter}
+                  >
+                    <SelectTrigger className="h-8 text-body-xs rounded-lg bg-card">
+                      <SelectValue placeholder="Semua Mata Kuliah" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+                      {coursesList.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Schedule Type Filter (for Admin) */}
-            {role === "admin" && (
-              <div className="w-[125px] shrink-0">
-                <Select
-                  value={selectedTypeFilter}
-                  onValueChange={setSelectedTypeFilter}
-                >
-                  <SelectTrigger className="h-9 text-body-sm rounded-lg bg-card">
-                    <SelectValue placeholder="Jenis Jadwal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua Jenis</SelectItem>
-                    <SelectItem value="official_exam">Ujian ITB</SelectItem>
-                    <SelectItem value="tryout">Tryout</SelectItem>
-                    <SelectItem value="quiz">Kuis</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                {/* Tutor Filter */}
+                {(role === "student" || role === "admin") && tutorsList.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground block">
+                      Tutor
+                    </label>
+                    <Select
+                      value={selectedTutorFilter}
+                      onValueChange={setSelectedTutorFilter}
+                    >
+                      <SelectTrigger className="h-8 text-body-xs rounded-lg bg-card">
+                        <SelectValue placeholder="Semua Tutor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Tutor</SelectItem>
+                        {tutorsList.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Group Filter */}
+                {(role === "teacher" || role === "admin") && groupsList.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground block">
+                      Kelompok Belajar
+                    </label>
+                    <Select
+                      value={selectedGroupFilter}
+                      onValueChange={setSelectedGroupFilter}
+                    >
+                      <SelectTrigger className="h-8 text-body-xs rounded-lg bg-card">
+                        <SelectValue placeholder="Semua Kelompok" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Kelompok</SelectItem>
+                        {groupsList.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>
+                            {g.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Schedule Type Filter (for Admin) */}
+                {role === "admin" && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground block">
+                      Jenis Jadwal
+                    </label>
+                    <Select
+                      value={selectedTypeFilter}
+                      onValueChange={setSelectedTypeFilter}
+                    >
+                      <SelectTrigger className="h-8 text-body-xs rounded-lg bg-card">
+                        <SelectValue placeholder="Semua Jenis" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Jenis</SelectItem>
+                        <SelectItem value="official_exam">Ujian ITB</SelectItem>
+                        <SelectItem value="tryout">Tryout</SelectItem>
+                        <SelectItem value="quiz">Kuis</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
@@ -560,28 +809,26 @@ export function ScheduleCalendarView({
         {/* VIEW 1: GOOGLE CALENDAR 7-DAY WEEKLY TIME GRID                     */}
         {/* ══════════════════════════════════════════════════════════════════ */}
         {viewMode === "week" && (
-          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
-            {/* Top All-Day / Academic Events Row Header */}
-            <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] border-b border-border/80 bg-muted/20">
+          <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col select-none">
+            {/* Top All-Day Row Header */}
+            <div className="grid grid-cols-[52px_repeat(7,minmax(0,1fr))] border-b border-border/80 bg-muted/20">
               {/* Timezone corner label */}
-              <div className="p-2 text-center text-[10px] font-semibold text-muted-foreground border-r border-border/60 flex flex-col justify-center">
+              <div className="p-1.5 text-center text-[10px] font-semibold text-muted-foreground border-r border-border/60 flex flex-col justify-center">
                 <span>WIB</span>
                 <span className="text-[8px] text-muted-foreground/80">GMT+7</span>
               </div>
 
               {/* 7 Day Column Headers */}
               {weekInfo.days.map((day) => {
-                // Find academic schedules on this day
-                const dayAcademic = filteredAcademicSchedules.filter((sched) => {
-                  if (!sched.startDate) return false;
-                  const schedIso = formatIsoDate(new Date(sched.startDate));
-                  return schedIso === day.dateIso;
-                });
+                // Find all-day academic events on this day
+                const dayAllDayEvents = parsedAcademicEvents.filter(
+                  (e) => e.dateIso === day.dateIso && e.isAllDay
+                );
 
                 return (
                   <div
                     key={day.dateIso}
-                    className={`p-2 border-r border-border/60 text-center flex flex-col justify-between ${
+                    className={`p-1.5 border-r border-border/60 text-center flex flex-col justify-between ${
                       day.isToday ? "bg-brand-primary/5" : ""
                     }`}
                   >
@@ -590,7 +837,7 @@ export function ScheduleCalendarView({
                         {day.dayName.slice(0, 3)}
                       </span>
                       <span
-                        className={`inline-flex items-center justify-center size-6 text-body-xs font-bold rounded-full my-0.5 ${
+                        className={`inline-flex items-center justify-center size-5 text-body-xs font-bold rounded-full my-0.5 ${
                           day.isToday
                             ? "bg-brand-primary text-white"
                             : "text-foreground"
@@ -600,19 +847,23 @@ export function ScheduleCalendarView({
                       </span>
                     </div>
 
-                    {/* Academic Event Chips (All-Day banner) */}
-                    {dayAcademic.length > 0 && (
-                      <div className="space-y-1 mt-1 text-left">
-                        {dayAcademic.map((sched) => (
-                          <div
-                            key={sched.id}
-                            className="px-1.5 py-0.5 rounded text-[9px] font-bold truncate bg-brand-primary/15 text-brand-primary border border-brand-primary/30 flex items-center gap-1"
-                            title={`${sched.title} (${sched.type})`}
-                          >
-                            <GraduationCap className="size-2.5 shrink-0" />
-                            <span className="truncate">{sched.title}</span>
-                          </div>
-                        ))}
+                    {/* All-Day Event Chips */}
+                    {dayAllDayEvents.length > 0 && (
+                      <div className="space-y-0.5 mt-1 text-left">
+                        {dayAllDayEvents.map((evt) => {
+                          const style = getAcademicStyle(evt.schedule.type);
+                          return (
+                            <div
+                              key={evt.schedule.id}
+                              onClick={() => onEditSchedule?.(evt.schedule)}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold truncate border ${style.border} ${style.bg} flex items-center gap-1 cursor-pointer`}
+                              title={`${evt.schedule.title} (${style.label})`}
+                            >
+                              <GraduationCap className="size-2.5 shrink-0" />
+                              <span className="truncate">{evt.schedule.title}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -623,11 +874,11 @@ export function ScheduleCalendarView({
             {/* Scrollable Hourly Time Grid */}
             <div
               ref={gridScrollRef}
-              className="relative max-h-[620px] overflow-y-auto overflow-x-hidden"
+              className="relative max-h-[600px] overflow-y-auto overflow-x-hidden"
               style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
             >
               <div
-                className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] relative"
+                className="grid grid-cols-[52px_repeat(7,minmax(0,1fr))] relative"
                 style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
               >
                 {/* 1. Left Time Axis */}
@@ -636,7 +887,7 @@ export function ScheduleCalendarView({
                     <div
                       key={hour}
                       style={{ height: `${HOUR_HEIGHT}px` }}
-                      className="border-b border-border/30 px-1 pt-1 text-right text-[10px] font-semibold text-muted-foreground"
+                      className="border-b border-border/30 px-1 pt-0.5 text-right text-[10px] font-semibold text-muted-foreground"
                     >
                       {String(hour).padStart(2, "0")}:00
                     </div>
@@ -655,9 +906,15 @@ export function ScheduleCalendarView({
                     return true;
                   });
 
+                  // Timed academic events on this day
+                  const dayTimedAcademic = parsedAcademicEvents.filter(
+                    (e) => e.dateIso === day.dateIso && !e.isAllDay
+                  );
+
                   return (
                     <div
                       key={day.dateIso}
+                      onMouseMove={(e) => handleColumnMouseMove(day.dateIso, e)}
                       className={`relative border-r border-border/60 ${
                         day.isToday ? "bg-brand-primary/[0.02]" : ""
                       }`}
@@ -667,17 +924,16 @@ export function ScheduleCalendarView({
                         <div
                           key={hour}
                           style={{ height: `${HOUR_HEIGHT}px` }}
-                          onClick={() => {
-                            if (role === "admin" && onCreateScheduleDirect) {
-                              const timeStr = `${String(hour).padStart(2, "0")}:00`;
-                              onCreateScheduleDirect(day.dateIso, timeStr);
-                            }
-                          }}
+                          onMouseDown={(e) => handleGridMouseDown(day.dateIso, hour, e)}
                           className={cn(
                             "border-b border-border/30 w-full transition-colors",
-                            role === "admin" && onCreateScheduleDirect && "cursor-pointer hover:bg-brand-primary/10"
+                            role === "admin" && onCreateScheduleDirect && "cursor-pointer hover:bg-brand-primary/5"
                           )}
-                          title={role === "admin" && onCreateScheduleDirect ? `Buat jadwal pada ${day.dayName}, ${String(hour).padStart(2, "0")}:00` : undefined}
+                          title={
+                            role === "admin" && onCreateScheduleDirect
+                              ? `Klik & drag untuk membuat jadwal pada ${day.dayName}, ${String(hour).padStart(2, "0")}:00`
+                              : undefined
+                          }
                         />
                       ))}
 
@@ -693,6 +949,100 @@ export function ScheduleCalendarView({
                             <div className="h-[2px] w-full bg-red-500" />
                           </div>
                         )}
+
+                      {/* Interactive Drag Selection Preview Box */}
+                      {dragState?.isDragging && dragState.dayIso === day.dateIso && (() => {
+                        const minMin = Math.min(dragState.startMin, dragState.currentMin);
+                        const maxMin = Math.max(dragState.startMin, dragState.currentMin);
+                        const duration = Math.max(30, maxMin - minMin);
+                        const top = ((minMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                        const height = (duration / 60) * HOUR_HEIGHT;
+
+                        const sH = Math.floor(minMin / 60);
+                        const sM = minMin % 60;
+                        const eH = Math.floor((minMin + duration) / 60);
+                        const eM = (minMin + duration) % 60;
+                        const timeLabel = `${String(sH).padStart(2, "0")}:${String(sM).padStart(2, "0")} – ${String(eH).padStart(2, "0")}:${String(eM).padStart(2, "0")}`;
+
+                        return (
+                          <div
+                            style={{
+                              top: `${Math.max(0, top)}px`,
+                              height: `${Math.max(28, height)}px`,
+                            }}
+                            className="absolute left-0.5 right-0.5 z-40 rounded-md bg-blue-500/20 border-2 border-blue-500 p-1.5 flex flex-col justify-start pointer-events-none shadow-md backdrop-blur-[1px] animate-in fade-in-50"
+                          >
+                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 leading-tight">
+                              (Jadwal Baru)
+                            </span>
+                            <span className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
+                              {timeLabel}
+                            </span>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Render Timed Academic Schedules (Exams, Tryouts, Quizzes) ON HOURLY GRID */}
+                      {dayTimedAcademic.map((evt) => {
+                        const top =
+                          ((evt.startMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                        const height = (evt.duration / 60) * HOUR_HEIGHT - 2;
+                        const style = getAcademicStyle(evt.schedule.type);
+
+                        return (
+                          <div
+                            key={evt.schedule.id}
+                            onClick={() => onEditSchedule?.(evt.schedule)}
+                            style={{
+                              top: `${Math.max(0, top)}px`,
+                              height: `${Math.max(34, height)}px`,
+                            }}
+                            className={cn(
+                              `absolute left-0.5 right-0.5 z-25 rounded-md border ${style.border} ${style.bg} p-1.5 flex flex-col justify-between overflow-hidden shadow-xs transition-all hover:z-35 hover:shadow-md session-card`,
+                              onEditSchedule && "cursor-pointer"
+                            )}
+                          >
+                            {/* Left solid color accent bar */}
+                            <div
+                              className={`absolute left-0 top-0 bottom-0 w-1 ${style.bar}`}
+                            />
+
+                            <div className="pl-1.5 min-w-0">
+                              <div className="flex items-start justify-between gap-1 leading-tight">
+                                <span className="text-[11px] font-bold text-foreground truncate block">
+                                  {evt.schedule.title}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[8px] px-1 py-0 ${style.badge}`}
+                                >
+                                  {style.label}
+                                </Badge>
+                              </div>
+
+                              <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5">
+                                <Clock className="size-2.5 shrink-0" />
+                                <span>
+                                  {evt.startTimeStr} - {evt.endTimeStr}
+                                </span>
+                                {evt.schedule.course && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="truncate">{evt.schedule.course.title}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {evt.schedule.location && (
+                              <div className="pl-1.5 flex items-center gap-1 text-[8px] text-muted-foreground mt-0.5 truncate">
+                                <MapPin className="size-2.5 shrink-0" />
+                                <span className="truncate">{evt.schedule.location}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
 
                       {/* Render Booked Sessions (Google Calendar Block Style) */}
                       {dayBookings.map((b) => {
@@ -722,7 +1072,7 @@ export function ScheduleCalendarView({
                               top: `${Math.max(0, top)}px`,
                               height: `${Math.max(32, height)}px`,
                             }}
-                            className={`absolute left-0.5 right-0.5 z-20 rounded-md border ${tutorStyle.border} ${tutorStyle.bg} p-1.5 flex flex-col justify-between overflow-hidden shadow-xs transition-all hover:z-30 hover:shadow-md`}
+                            className={`absolute left-0.5 right-0.5 z-20 rounded-md border ${tutorStyle.border} ${tutorStyle.bg} p-1.5 flex flex-col justify-between overflow-hidden shadow-xs transition-all hover:z-30 hover:shadow-md session-card`}
                           >
                             {/* Left solid color accent bar */}
                             <div
@@ -851,16 +1201,6 @@ export function ScheduleCalendarView({
                                 <History className="size-3" />
                               </button>
                             </div>
-
-                            {b.lastModifiedAt && (
-                              <div
-                                className="pl-1.5 mt-0.5 text-[8px] text-muted-foreground truncate"
-                                title={`Terakhir diubah oleh ${b.lastModifier?.name || "Sistem"}`}
-                              >
-                                Diubah oleh {b.lastModifier?.name || "Sistem"} •{" "}
-                                {formatIsoDate(new Date(b.lastModifiedAt))}
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -888,7 +1228,7 @@ export function ScheduleCalendarView({
                                   height: `${Math.max(28, height)}px`,
                                 }}
                                 onClick={() => onSelectSlotToBook?.(s, day.dateIso)}
-                                className="absolute left-0.5 right-0.5 z-10 rounded-md border border-dashed border-brand-primary/50 bg-brand-primary/5 hover:bg-brand-primary/15 hover:border-brand-primary p-1 flex flex-col justify-between text-left transition-all group"
+                                className="absolute left-0.5 right-0.5 z-10 rounded-md border border-dashed border-brand-primary/50 bg-brand-primary/5 hover:bg-brand-primary/15 hover:border-brand-primary p-1 flex flex-col justify-between text-left transition-all group session-card"
                               >
                                 <div className="flex items-center justify-between w-full">
                                   <span className="text-[10px] font-bold text-foreground truncate">
@@ -928,11 +1268,11 @@ export function ScheduleCalendarView({
         {/* VIEW 2: GOOGLE CALENDAR SINGLE-DAY EXPANDED VIEW                   */}
         {/* ══════════════════════════════════════════════════════════════════ */}
         {viewMode === "day" && (
-          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+          <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col select-none">
             {/* Day Header */}
-            <div className="p-3 border-b border-border bg-muted/20 flex items-center justify-between">
+            <div className="p-2.5 border-b border-border bg-muted/20 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="font-heading text-body-base font-bold text-foreground">
+                <span className="font-heading text-body-sm font-bold text-foreground">
                   {activeDate.toLocaleDateString("id-ID", {
                     weekday: "long",
                     day: "numeric",
@@ -946,7 +1286,7 @@ export function ScheduleCalendarView({
                   </Badge>
                 )}
               </div>
-              <span className="text-body-xs text-muted-foreground font-semibold">
+              <span className="text-[11px] text-muted-foreground font-semibold">
                 Zona Waktu: WIB (GMT+7)
               </span>
             </div>
@@ -954,11 +1294,11 @@ export function ScheduleCalendarView({
             {/* Day Hourly Grid */}
             <div
               ref={gridScrollRef}
-              className="relative max-h-[620px] overflow-y-auto overflow-x-hidden"
+              className="relative max-h-[600px] overflow-y-auto overflow-x-hidden"
               style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
             >
               <div
-                className="grid grid-cols-[64px_1fr] relative"
+                className="grid grid-cols-[56px_1fr] relative"
                 style={{ height: `${HOURS_COUNT * HOUR_HEIGHT}px` }}
               >
                 {/* Time Axis */}
@@ -967,7 +1307,7 @@ export function ScheduleCalendarView({
                     <div
                       key={hour}
                       style={{ height: `${HOUR_HEIGHT}px` }}
-                      className="border-b border-border/30 px-1.5 pt-1 text-right text-[11px] font-semibold text-muted-foreground"
+                      className="border-b border-border/30 px-1 pt-0.5 text-right text-[10px] font-semibold text-muted-foreground"
                     >
                       {String(hour).padStart(2, "0")}:00
                     </div>
@@ -975,23 +1315,25 @@ export function ScheduleCalendarView({
                 </div>
 
                 {/* Day Column */}
-                <div className="relative">
+                <div
+                  onMouseMove={(e) => handleColumnMouseMove(activeDayIso, e)}
+                  className="relative"
+                >
                   {/* Grid lines */}
                   {HOURS.map((hour) => (
                     <div
                       key={hour}
                       style={{ height: `${HOUR_HEIGHT}px` }}
-                      onClick={() => {
-                        if (role === "admin" && onCreateScheduleDirect) {
-                          const timeStr = `${String(hour).padStart(2, "0")}:00`;
-                          onCreateScheduleDirect(activeDayIso, timeStr);
-                        }
-                      }}
+                      onMouseDown={(e) => handleGridMouseDown(activeDayIso, hour, e)}
                       className={cn(
                         "border-b border-border/30 w-full transition-colors",
-                        role === "admin" && onCreateScheduleDirect && "cursor-pointer hover:bg-brand-primary/10"
+                        role === "admin" && onCreateScheduleDirect && "cursor-pointer hover:bg-brand-primary/5"
                       )}
-                      title={role === "admin" && onCreateScheduleDirect ? `Buat jadwal pada ${activeDayName}, ${String(hour).padStart(2, "0")}:00` : undefined}
+                      title={
+                        role === "admin" && onCreateScheduleDirect
+                          ? `Klik & drag untuk membuat jadwal pada ${activeDayName}, ${String(hour).padStart(2, "0")}:00`
+                          : undefined
+                      }
                     />
                   ))}
 
@@ -1003,10 +1345,107 @@ export function ScheduleCalendarView({
                         className="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
                         style={{ top: `${nowTopPosition}px` }}
                       >
-                        <div className="size-2.5 rounded-full bg-red-500 -ml-1 ring-2 ring-white dark:ring-background" />
+                      <div className="size-2 rounded-full bg-red-500 -ml-1 ring-2 ring-white dark:ring-background" />
                         <div className="h-[2px] w-full bg-red-500" />
                       </div>
                     )}
+
+                  {/* Interactive Drag Selection Preview Box */}
+                  {dragState?.isDragging && dragState.dayIso === activeDayIso && (() => {
+                    const minMin = Math.min(dragState.startMin, dragState.currentMin);
+                    const maxMin = Math.max(dragState.startMin, dragState.currentMin);
+                    const duration = Math.max(30, maxMin - minMin);
+                    const top = ((minMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                    const height = (duration / 60) * HOUR_HEIGHT;
+
+                    const sH = Math.floor(minMin / 60);
+                    const sM = minMin % 60;
+                    const eH = Math.floor((minMin + duration) / 60);
+                    const eM = (minMin + duration) % 60;
+                    const timeLabel = `${String(sH).padStart(2, "0")}:${String(sM).padStart(2, "0")} – ${String(eH).padStart(2, "0")}:${String(eM).padStart(2, "0")}`;
+
+                    return (
+                      <div
+                        style={{
+                          top: `${Math.max(0, top)}px`,
+                          height: `${Math.max(32, height)}px`,
+                        }}
+                        className="absolute left-2 right-2 z-40 rounded-xl bg-blue-500/20 border-2 border-blue-500 p-2 flex flex-col justify-start pointer-events-none shadow-md backdrop-blur-[1px] animate-in fade-in-50"
+                      >
+                        <span className="text-body-xs font-bold text-blue-600 dark:text-blue-400">
+                          (Jadwal Baru)
+                        </span>
+                        <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
+                          {timeLabel}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Timed Academic Events on this Day */}
+                  {parsedAcademicEvents
+                    .filter((e) => e.dateIso === activeDayIso && !e.isAllDay)
+                    .map((evt) => {
+                      const top =
+                        ((evt.startMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                      const height = (evt.duration / 60) * HOUR_HEIGHT - 2;
+                      const style = getAcademicStyle(evt.schedule.type);
+
+                      return (
+                        <div
+                          key={evt.schedule.id}
+                          onClick={() => onEditSchedule?.(evt.schedule)}
+                          style={{
+                            top: `${Math.max(0, top)}px`,
+                            height: `${Math.max(45, height)}px`,
+                          }}
+                          className={cn(
+                            `absolute left-2 right-2 z-25 rounded-xl border ${style.border} ${style.bg} p-2.5 flex items-start justify-between gap-3 shadow-xs session-card`,
+                            onEditSchedule && "cursor-pointer"
+                          )}
+                        >
+                          <div
+                            className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${style.bar}`}
+                          />
+                          <div className="pl-2 space-y-0.5 min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-heading text-body-sm font-bold text-foreground truncate">
+                                {evt.schedule.title}
+                              </h4>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-semibold ${style.badge}`}
+                              >
+                                {style.label}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Clock className="size-3" />
+                                {evt.startTimeStr} - {evt.endTimeStr}
+                              </span>
+                              {evt.schedule.course && (
+                                <>
+                                  <span>•</span>
+                                  <span className="font-semibold text-brand-primary">
+                                    {evt.schedule.course.title}
+                                  </span>
+                                </>
+                              )}
+                              {evt.schedule.location && (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="size-3" />
+                                    {evt.schedule.location}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
 
                   {/* Day Booked Sessions */}
                   {filteredBookings
@@ -1041,12 +1480,12 @@ export function ScheduleCalendarView({
                             top: `${Math.max(0, top)}px`,
                             height: `${Math.max(50, height)}px`,
                           }}
-                          className={`absolute left-2 right-2 z-20 rounded-xl border ${tutorStyle.border} ${tutorStyle.bg} p-3 flex items-start justify-between gap-3 shadow-sm`}
+                          className={`absolute left-2 right-2 z-20 rounded-xl border ${tutorStyle.border} ${tutorStyle.bg} p-2.5 flex items-start justify-between gap-3 shadow-xs session-card`}
                         >
                           <div
                             className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${tutorStyle.bar}`}
                           />
-                          <div className="pl-2 space-y-1 min-w-0 flex-1">
+                          <div className="pl-2 space-y-0.5 min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <h4 className="font-heading text-body-sm font-bold text-foreground truncate">
                                 {b.course?.title}
@@ -1060,36 +1499,22 @@ export function ScheduleCalendarView({
                             </div>
                             <div className="flex items-center gap-3 text-body-xs text-muted-foreground">
                               <span className="flex items-center gap-1">
-                                <Clock className="size-3.5" />
+                                <Clock className="size-3" />
                                 {startTimeStr} - {endTimeStr}
                               </span>
                               <span>•</span>
                               {b.mode === "online" ? (
                                 <span className="flex items-center gap-1 text-blue-600 font-semibold">
-                                  <Video className="size-3.5" />
-                                  Online (Google Meet)
+                                  <Video className="size-3" />
+                                  Online
                                 </span>
                               ) : (
                                 <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                                  <MapPin className="size-3.5" />
+                                    <MapPin className="size-3" />
                                   {b.location || "Offline"}
                                 </span>
                               )}
                             </div>
-                            {b.topic && (
-                              <p className="text-body-xs text-foreground font-medium pt-0.5 truncate">
-                                💬 Topik: {b.topic}
-                              </p>
-                            )}
-                            {b.lastModifiedAt && (
-                              <p
-                                className="text-[10px] text-muted-foreground truncate"
-                                title={`Terakhir diubah oleh ${b.lastModifier?.name || "Sistem"}`}
-                              >
-                                Diubah oleh {b.lastModifier?.name || "Sistem"} •{" "}
-                                {formatIsoDate(new Date(b.lastModifiedAt))}
-                              </p>
-                            )}
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -1098,43 +1523,20 @@ export function ScheduleCalendarView({
                                 href={b.googleMeetUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-body-xs font-semibold hover:bg-blue-700 flex items-center gap-1.5 shadow-xs"
+                                className="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-body-xs font-semibold hover:bg-blue-700 flex items-center gap-1 shadow-xs"
                               >
-                                <Video className="size-3.5" />
-                                <span>Buka Meet</span>
-                                <ExternalLink className="size-3" />
+                                <Video className="size-3" />
+                                <span>Meet</span>
                               </a>
-                            )}
-                            {role === "student" && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="xs"
-                                  onClick={() => onOpenPreSession?.(b)}
-                                  className="h-8 rounded-lg text-body-xs font-semibold gap-1"
-                                >
-                                  <FileText className="size-3.5" />
-                                  <span>Materi</span>
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="xs"
-                                  onClick={() => onOpenRescheduleTicket?.(b)}
-                                  className="h-8 rounded-lg text-body-xs font-semibold gap-1"
-                                >
-                                  <MessageSquare className="size-3.5" />
-                                  <span>Reschedule</span>
-                                </Button>
-                              </>
                             )}
                             <Button
                               variant="ghost"
                               size="xs"
                               onClick={() => onOpenAuditLog?.(b)}
-                              className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                              className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
                               title="Riwayat Jejak Audit"
                             >
-                              <History className="size-4" />
+                              <History className="size-3.5" />
                             </Button>
                           </div>
                         </div>
@@ -1162,37 +1564,22 @@ export function ScheduleCalendarView({
                             type="button"
                             style={{
                               top: `${Math.max(0, top)}px`,
-                              height: `${Math.max(38, height)}px`,
+                              height: `${Math.max(36, height)}px`,
                             }}
                             onClick={() => onSelectSlotToBook?.(s, activeDayIso)}
-                            className="absolute left-2 right-2 z-10 rounded-xl border border-dashed border-brand-primary/50 bg-brand-primary/5 hover:bg-brand-primary/15 hover:border-brand-primary p-3 flex items-center justify-between text-left transition-all group"
+                            className="absolute left-2 right-2 z-10 rounded-xl border border-dashed border-brand-primary/50 bg-brand-primary/5 hover:bg-brand-primary/15 hover:border-brand-primary p-2 flex items-center justify-between text-left transition-all group session-card"
                           >
                             <div className="flex items-center gap-3">
-                              <span className="text-body-sm font-bold text-foreground">
+                              <span className="text-body-xs font-bold text-foreground">
                                 {s.startTime} - {s.endTime}
                               </span>
                               <span className="text-body-xs text-muted-foreground">
                                 Tutor: {s.tutor?.name}
                               </span>
-                              {s.mode === "online" ? (
-                                <Badge
-                                  variant="outline"
-                                  className="text-blue-600 text-[10px]"
-                                >
-                                  Online
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="outline"
-                                  className="text-emerald-600 text-[10px]"
-                                >
-                                  {s.location || "Offline"}
-                                </Badge>
-                              )}
                             </div>
                             <span className="text-brand-primary font-bold text-body-xs flex items-center gap-1 group-hover:underline">
-                              <Plus className="size-4" />
-                              Pilih Slot Ini
+                              <Plus className="size-3.5" />
+                              Pilih Slot
                             </span>
                           </button>
                         );
@@ -1207,13 +1594,13 @@ export function ScheduleCalendarView({
         {/* VIEW 3: GOOGLE CALENDAR MONTH GRID VIEW                            */}
         {/* ══════════════════════════════════════════════════════════════════ */}
         {viewMode === "month" && (
-          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+          <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col select-none">
             {/* 7 Days Column Headers */}
             <div className="grid grid-cols-7 border-b border-border bg-muted/20 text-center">
               {DAY_NAMES_ID.map((dayName) => (
                 <div
                   key={dayName}
-                  className="p-2 text-body-xs font-bold text-muted-foreground uppercase tracking-wider"
+                  className="p-1.5 text-body-xs font-bold text-muted-foreground uppercase tracking-wider"
                 >
                   {dayName.slice(0, 3)}
                 </div>
@@ -1229,17 +1616,8 @@ export function ScheduleCalendarView({
                 );
 
                 // Find academic schedules on this day
-                const cellAcademic = filteredAcademicSchedules.filter(
-                  (sched) => {
-                    if (!sched.startDate) return false;
-                    const schedIso = formatIsoDate(new Date(sched.startDate));
-                    return schedIso === cell.dateIso;
-                  }
-                );
-
-                // Open slots for this weekday
-                const cellOpenSlots = filteredSlots.filter(
-                  (s) => s.dayOfWeek === cell.dayName && !s.booking
+                const cellAcademic = parsedAcademicEvents.filter(
+                  (e) => e.dateIso === cell.dateIso
                 );
 
                 return (
@@ -1247,11 +1625,11 @@ export function ScheduleCalendarView({
                     key={cell.dateIso}
                     onClick={(e) => {
                       if (e.target === e.currentTarget && role === "admin" && onCreateScheduleDirect) {
-                        onCreateScheduleDirect(cell.dateIso, "09:00");
+                        onCreateScheduleDirect(cell.dateIso, "09:00", "10:30");
                       }
                     }}
                     className={cn(
-                      "min-h-[105px] p-1.5 flex flex-col justify-between transition-colors",
+                      "min-h-[96px] p-1.5 flex flex-col justify-between transition-colors",
                       cell.isCurrentMonth
                         ? "bg-card hover:bg-muted/10"
                         : "bg-muted/30 opacity-60",
@@ -1278,12 +1656,12 @@ export function ScheduleCalendarView({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onCreateScheduleDirect(cell.dateIso, "09:00");
+                              onCreateScheduleDirect(cell.dateIso, "09:00", "10:30");
                             }}
-                            className="text-muted-foreground hover:text-brand-primary font-bold p-0.5 rounded transition-colors"
+                            className="text-muted-foreground hover:text-brand-primary font-bold p-0.5 rounded transition-colors cursor-pointer"
                             title="Buat Jadwal pada tanggal ini"
                           >
-                            <Plus className="size-3.5" />
+                            <Plus className="size-3" />
                           </button>
                         )}
                         <button
@@ -1293,7 +1671,7 @@ export function ScheduleCalendarView({
                             setActiveDate(cell.date);
                             setViewMode("day");
                           }}
-                          className="text-[9px] text-muted-foreground hover:text-brand-primary font-medium"
+                          className="text-[9px] text-muted-foreground hover:text-brand-primary font-medium cursor-pointer"
                         >
                           Detail
                         </button>
@@ -1301,17 +1679,21 @@ export function ScheduleCalendarView({
                     </div>
 
                     {/* Events List in Day Cell */}
-                    <div className="flex-1 space-y-1 overflow-y-auto max-h-[85px]">
+                    <div className="flex-1 space-y-1 overflow-y-auto max-h-[75px]">
                       {/* Academic Schedules */}
-                      {cellAcademic.map((sched) => (
-                        <div
-                          key={sched.id}
-                          className="px-1.5 py-0.5 rounded text-[9px] font-bold truncate bg-brand-primary/15 text-brand-primary border border-brand-primary/30"
-                          title={sched.title}
-                        >
-                          ★ {sched.title}
-                        </div>
-                      ))}
+                      {cellAcademic.map((evt) => {
+                        const style = getAcademicStyle(evt.schedule.type);
+                        return (
+                          <div
+                            key={evt.schedule.id}
+                            onClick={() => onEditSchedule?.(evt.schedule)}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold truncate border ${style.border} ${style.bg} cursor-pointer`}
+                            title={`${evt.schedule.title} (${style.label})`}
+                          >
+                            ★ {evt.schedule.title}
+                          </div>
+                        );
+                      })}
 
                       {/* Booked Sessions */}
                       {cellBookings.map((b) => {
@@ -1338,22 +1720,6 @@ export function ScheduleCalendarView({
                           </div>
                         );
                       })}
-
-                      {/* Open Slots indicator for students */}
-                      {role === "student" &&
-                        cellBookings.length === 0 &&
-                        cellOpenSlots.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveDate(cell.date);
-                              setViewMode("day");
-                            }}
-                            className="w-full text-left px-1.5 py-0.5 rounded text-[9px] font-bold text-brand-primary bg-brand-primary/10 hover:bg-brand-primary/20 truncate"
-                          >
-                            + {cellOpenSlots.length} Slot Tersedia
-                          </button>
-                        )}
                     </div>
                   </div>
                 );

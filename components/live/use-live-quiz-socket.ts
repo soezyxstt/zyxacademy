@@ -53,7 +53,14 @@ const INITIAL_STATE: LiveQuizState = {
 
 const MAX_BACKOFF_MS = 16_000;
 
-export function useLiveQuizSocket(wsUrl: string | null) {
+// Optional async provider that returns a fresh signed ws URL before each
+// reconnect. Returning null stops reconnection permanently (session gone).
+export type RefreshConnectionUrl = () => Promise<string | null>;
+
+export function useLiveQuizSocket(
+  wsUrl: string | null,
+  refreshUrl?: RefreshConnectionUrl
+) {
   const [state, setState] = useState<LiveQuizState>(INITIAL_STATE);
   const wsRef = useRef<WebSocket | null>(null);
   const backoffRef = useRef(1_000);
@@ -61,6 +68,9 @@ export function useLiveQuizSocket(wsUrl: string | null) {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const deadlineRef = useRef<number>(0);
   const mountedRef = useRef(true);
+  // Current endpoint; refreshed via refreshUrl so expired short-lived tokens
+  // (student join tokens expire after 60s) do not brick reconnection.
+  const urlRef = useRef(wsUrl);
   // Kept current to avoid stale closure in ws.onclose
   const sessionStateRef = useRef<SessionState>("lobby");
   const connectRef = useRef<() => void>(() => {});
@@ -230,11 +240,12 @@ export function useLiveQuizSocket(wsUrl: string | null) {
   );
 
   const connect = useCallback(() => {
-    if (!wsUrl || !mountedRef.current) return;
+    const currentUrl = urlRef.current;
+    if (!currentUrl || !mountedRef.current) return;
 
     setState((s) => ({ ...s, connectionStatus: "connecting" }));
 
-    const wsEndpoint = wsUrl.replace(/^https?:\/\//, (m) =>
+    const wsEndpoint = currentUrl.replace(/^https?:\/\//, (m) =>
       m.startsWith("https") ? "wss://" : "ws://"
     );
 
@@ -256,15 +267,29 @@ export function useLiveQuizSocket(wsUrl: string | null) {
       if (!mountedRef.current) return;
       setState((s) => ({ ...s, connectionStatus: "disconnected" }));
       if (sessionStateRef.current !== "ended") {
-        reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = setTimeout(async () => {
           backoffRef.current = Math.min(backoffRef.current * 2, MAX_BACKOFF_MS);
+          try {
+            if (refreshUrl) {
+              const fresh = await refreshUrl();
+              if (!mountedRef.current) return;
+              // null means the session is definitively unavailable
+              if (fresh === null) {
+                sessionStateRef.current = "ended";
+                return;
+              }
+              urlRef.current = fresh;
+            }
+          } catch {
+            // transient refresh failure: keep retrying with the current URL
+          }
           connectRef.current();
         }, backoffRef.current);
       }
     };
 
     ws.onerror = () => ws.close();
-  }, [wsUrl, handleMessage]);
+  }, [handleMessage, refreshUrl]);
 
   // Keep the ref current so the onclose closure always calls the latest version
   useEffect(() => {
@@ -273,6 +298,7 @@ export function useLiveQuizSocket(wsUrl: string | null) {
 
   useEffect(() => {
     mountedRef.current = true;
+    urlRef.current = wsUrl;
     if (wsUrl) connect();
     return () => {
       mountedRef.current = false;
@@ -280,7 +306,6 @@ export function useLiveQuizSocket(wsUrl: string | null) {
       clearCountdown();
       wsRef.current?.close();
     };
-    // connect is stable; only re-run when wsUrl changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsUrl]);
 

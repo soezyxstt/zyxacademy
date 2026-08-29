@@ -17,6 +17,7 @@ import {
   vectorSyncQueue,
 } from '@/db/schema';
 import { auth } from '@/lib/auth';
+import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
 import { parseMaterialIntoSections } from '@/lib/ingestion-parser';
 import { extractKnowledgeObjectsForChapter } from '@/lib/ko-extractor';
@@ -397,7 +398,12 @@ export async function DELETE(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+  const isAuthorized =
+    session?.user &&
+    ((await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) ||
+      session.user.role === 'admin' ||
+      session.user.role === 'teacher');
+  if (!isAuthorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

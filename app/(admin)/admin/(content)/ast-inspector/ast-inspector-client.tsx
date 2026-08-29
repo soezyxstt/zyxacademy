@@ -267,7 +267,7 @@ export function ASTInspectorClient() {
               <textarea
                 value={markdown}
                 onChange={(e) => setMarkdown(e.target.value)}
-                className="w-full h-full p-4 font-mono text-body-sm leading-relaxed bg-zinc-950 text-zinc-100 dark:bg-zinc-900/40 rounded-xl border border-border/80 focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none overflow-y-auto"
+                className="w-full h-full p-4 font-mono text-body-sm leading-relaxed bg-card text-foreground rounded-xl border border-border/80 focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none overflow-y-auto"
                 placeholder="Tulis canonical markdown di sini..."
               />
             </div>
@@ -341,10 +341,10 @@ export function ASTInspectorClient() {
                                 [{block.globalOrderIndex}]
                               </span>
                               <span className={cn(
-                                "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                                "px-2 py-0.5 rounded text-body-2xs font-bold uppercase",
                                 isCanonical 
                                   ? "bg-brand-primary/15 text-brand-primary" 
-                                  : "bg-zinc-500/15 text-zinc-500"
+                                  : "bg-muted text-muted-foreground"
                               )}>
                                 {block.type}
                               </span>
@@ -358,8 +358,8 @@ export function ASTInspectorClient() {
                           </div>
 
                           {isExpanded && (
-                            <div className="border-t border-border bg-zinc-950 p-4 overflow-x-auto">
-                              <pre className="font-mono text-body-xs text-zinc-200">
+                            <div className="border-t border-border bg-muted/30 p-4 overflow-x-auto">
+                              <pre className="font-mono text-body-xs text-foreground">
                                 {JSON.stringify(block, null, 2)}
                               </pre>
                             </div>
@@ -415,7 +415,7 @@ export function ASTInspectorClient() {
                             <div className="flex-1 text-left">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className={cn(
-                                  "text-[10px] font-bold uppercase font-heading tracking-wider",
+                                  "text-body-2xs font-bold uppercase font-heading tracking-wider",
                                   diag.severity === "error" ? "text-status-error" : "text-status-warning"
                                 )}>
                                   {diag.severity}
@@ -455,12 +455,12 @@ export function ASTInspectorClient() {
                           navigator.clipboard.writeText(JSON.stringify(result.ast, null, 2));
                           toast.success("AST JSON berhasil disalin!");
                         }}
-                        className="px-2 py-1.2 rounded bg-card hover:bg-muted border border-border text-[10px] font-semibold"
+                        className="px-2 py-1 rounded-md bg-card hover:bg-muted border border-border text-body-2xs font-semibold cursor-pointer"
                       >
                         Salin JSON
                       </button>
                     </div>
-                    <pre className="p-4 bg-zinc-950 text-zinc-100 dark:bg-zinc-900/40 rounded-xl border border-border overflow-x-auto text-body-xs font-mono leading-relaxed">
+                    <pre className="p-4 bg-muted/30 text-foreground rounded-xl border border-border overflow-x-auto text-body-xs font-mono leading-relaxed">
                       {JSON.stringify(result, null, 2)}
                     </pre>
                   </div>
@@ -512,7 +512,7 @@ export function ASTInspectorClient() {
                         <div className="flex-1 bg-card border border-border p-4 rounded-xl shadow-3xs text-left">
                           <div className="flex items-center justify-between mb-1.5">
                             <h4 className="font-heading text-body-sm font-bold text-foreground">{step.title}</h4>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground select-none">
+                            <span className="text-body-2xs font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground select-none">
                               {step.status}
                             </span>
                           </div>

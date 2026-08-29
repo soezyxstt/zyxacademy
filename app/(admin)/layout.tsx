@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { hasPeran } from "@/lib/auth/authorization";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
+import { OpsAiDrawer } from "@/components/admin/ops-ai/ops-ai-drawer";
+import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -21,6 +23,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       >
         {children}
       </main>
+      <OpsAiTrigger variant="floating" />
+      <OpsAiDrawer />
     </div>
   );
 }

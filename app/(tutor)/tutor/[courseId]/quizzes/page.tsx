@@ -1,61 +1,72 @@
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { quizTemplates, aiQuestionBank, courses } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { courses, mataKuliah } from "@/db/schema";
+import { eq, or } from "drizzle-orm";
 import { verifyTutorAccess } from "@/app/actions/tutor-management";
+import { getTutorQuizzesWithAttribution, getTutorQuestionBank } from "@/lib/tutor/quiz-read-model";
 import { QuizzesClient } from "./quizzes-client";
+import { PageHeader } from "@/components/page-header";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
+import { ClipboardList } from "lucide-react";
 
 type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props) {
   const { courseId } = await params;
-  const [c] = await db.select({ title: courses.title }).from(courses).where(eq(courses.id, courseId)).limit(1);
+  const [mk] = await db
+    .select({ title: mataKuliah.title })
+    .from(mataKuliah)
+    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
+    .limit(1);
+  const [c] = !mk
+    ? await db.select({ title: courses.title }).from(courses).where(eq(courses.id, courseId)).limit(1)
+    : [null];
+  const title = mk?.title ?? c?.title;
+
   return {
-    title: pageTitle(c ? `Kelola Kuis: ${c.title}` : "Kelola Kuis"),
+    title: pageTitle(title ? `Kelola Kuis: ${title}` : "Kelola Kuis"),
   };
 }
 
 export default async function TutorQuizzesPage({ params }: Props) {
   const { courseId } = await params;
 
-  // Verify access
+  // Verify tutor access
   await verifyTutorAccess(courseId);
 
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, courseId))
+  const [mk] = await db
+    .select({ id: mataKuliah.id, title: mataKuliah.title })
+    .from(mataKuliah)
+    .where(or(eq(mataKuliah.id, courseId), eq(mataKuliah.legacyCourseId, courseId)))
     .limit(1);
 
-  if (!course) notFound();
+  const [legacyCourse] = !mk
+    ? await db
+        .select({ id: courses.id, title: courses.title })
+        .from(courses)
+        .where(eq(courses.id, courseId))
+        .limit(1)
+    : [null];
 
-  // Load quiz templates
-  const templatesList = await db
-    .select()
-    .from(quizTemplates)
-    .where(eq(quizTemplates.courseId, courseId))
-    .orderBy(desc(quizTemplates.createdAt));
+  if (!mk && !legacyCourse) notFound();
+  const courseTitle = mk?.title ?? legacyCourse?.title ?? courseId;
 
-  // Load all question bank questions
-  const questionBankList = await db
-    .select()
-    .from(aiQuestionBank)
-    .where(eq(aiQuestionBank.courseId, courseId))
-    .orderBy(desc(aiQuestionBank.createdAt));
+  // Load quiz templates with canonical creator attribution
+  const templatesList = await getTutorQuizzesWithAttribution(courseId);
+
+  // Load question bank questions
+  const questionBankList = await getTutorQuestionBank(courseId);
 
   return (
-    <div className="px-6 py-8 max-w-5xl space-y-8 font-sans">
+    <div className="px-6 py-8 max-w-5xl space-y-6 font-sans">
       <Reveal>
-        <div className="flex flex-col gap-1">
-          <h1 className="text-h5 font-heading font-bold text-foreground">
-            Kelola Kuis & Bank Soal
-          </h1>
-          <p className="text-body-sm text-muted-foreground">
-            {course.title} · Buat template kuis evaluasi dan simpan bank soal terstruktur.
-          </p>
-        </div>
+        <PageHeader
+          icon={ClipboardList}
+          title={`Kelola Kuis & Bank Soal: ${courseTitle}`}
+          backHref={`/tutor/${courseId}`}
+          backLabel={`Dashboard ${courseTitle}`}
+        />
       </Reveal>
 
       <Reveal>

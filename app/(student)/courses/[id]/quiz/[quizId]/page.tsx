@@ -11,6 +11,7 @@ import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { courses, quizTemplates, studentQuizAttempts, aiQuestionBank } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { hasAnyPeran } from "@/lib/auth/authorization";
 import { and, or, eq, desc, sql, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,10 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   if (!course || !template) notFound();
 
   const role = (session.user as { role?: string | null }).role;
-  const isStaff = role === "admin" || role === "teacher";
+  const isStaff =
+    (await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+    role === "admin" ||
+    role === "teacher";
   if (template.status === "draft" && !isStaff) {
     notFound();
   }

@@ -22,7 +22,7 @@ export default async function AdminSchedulesPage() {
   const data = await getAdminScheduleData(0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <PageHeader
         icon={CalendarDays}
         title="Jadwal & Kalender Akademik"

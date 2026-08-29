@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/ui/search-bar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
@@ -253,13 +254,11 @@ export function QuizAttemptsSpreadsheet({ templateId, quizTitle }: Props) {
         <CardContent className="p-4 sm:p-6 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
+            <div className="flex-1 max-w-md">
+              <SearchBar
+                size="sm"
                 placeholder="Cari nama atau email siswa..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-background rounded-lg"
               />
             </div>
 

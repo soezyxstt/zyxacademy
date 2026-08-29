@@ -15,6 +15,8 @@ import { storage } from "@/lib/storage";
 import { buildIdeaBundleKey } from "@/lib/storage/keys";
 import { parseIdeaBundle, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
+import { hasPeran } from "@/lib/auth/authorization";
+import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 
 export type IdeaBundleStageItem = {
   entityType: string;
@@ -262,15 +264,12 @@ export async function parseStagedIdeaBundle(importId: string): Promise<Validated
 async function assertReviewAccess(importRow: NonNullable<Awaited<ReturnType<typeof getIdeaBundleImport>>>, reviewerId: string): Promise<"admin" | "tutor"> {
   const [actor] = await db.select({ id: user.id, role: user.role }).from(user).where(eq(user.id, reviewerId)).limit(1);
   if (!actor) throw new Error("IDEA_BUNDLE_REVIEWER_NOT_FOUND");
-  if (actor.role === "admin") return "admin";
-  if (actor.role !== "teacher") throw new Error("IDEA_BUNDLE_REVIEW_FORBIDDEN");
+  if (actor.role === "admin" || (await hasPeran(reviewerId, "admin"))) return "admin";
+  const isTutor = (await hasPeran(reviewerId, "tutor")) || actor.role === "teacher";
+  if (!isTutor) throw new Error("IDEA_BUNDLE_REVIEW_FORBIDDEN");
   if (!importRow.courseId) throw new Error("IDEA_BUNDLE_COURSE_MISSING");
-  const [assignment] = await db
-    .select({ id: tutorCourses.id })
-    .from(tutorCourses)
-    .where(and(eq(tutorCourses.tutorId, reviewerId), eq(tutorCourses.courseId, importRow.courseId)))
-    .limit(1);
-  if (!assignment) throw new Error("IDEA_BUNDLE_REVIEW_COURSE_FORBIDDEN");
+  const access = await checkTutorCourseAccess(reviewerId, importRow.courseId);
+  if (!access.hasAccess) throw new Error("IDEA_BUNDLE_REVIEW_COURSE_FORBIDDEN");
   return "tutor";
 }
 

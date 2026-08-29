@@ -250,12 +250,12 @@ export function StudentSidebar({
         <NavItem
           href="/dashboard/schedule"
           icon={CalendarRange}
-          label={userRole === "teacher" ? "Jadwal Tutorial" : "Jadwal"}
+          label={userRole === "teacher" || userRole === "tutor" ? "Jadwal Tutorial" : "Jadwal"}
           active={pathname === "/dashboard/schedule"}
           collapsed={c}
         />
 
-        {(userRole === "teacher" || userRole === "admin") && (
+        {(userRole === "teacher" || userRole === "tutor" || userRole === "admin") && (
           <NavItem
             href="/tutor"
             icon={GraduationCap}

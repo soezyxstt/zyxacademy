@@ -2,9 +2,16 @@ import { randomUUID } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { verification } from "@/db/schema";
-import { issueMcpClientId, issueMcpConnectionToken, readMcpClientId, type McpClientPayload } from "@/lib/authoring/mcp-workflows";
+import {
+  MCP_AUTHORING_DEFAULT_SCOPES,
+  MCP_AUTHORING_SCOPES,
+  issueMcpClientId,
+  issueMcpConnectionToken,
+  readMcpClientId,
+  type McpClientPayload,
+} from "@/lib/authoring/mcp-workflows";
 
-export const MCP_OAUTH_SCOPES = ["authoring:read", "authoring:stage"] as const;
+export const MCP_OAUTH_SCOPES = MCP_AUTHORING_SCOPES;
 export const MCP_OAUTH_RESOURCE_PATH = "/api/mcp/authoring";
 export const MCP_OAUTH_CODE_TTL_MS = 5 * 60 * 1000;
 
@@ -35,7 +42,7 @@ export function isAllowedRedirectUri(value: string): boolean {
 }
 
 export function requestedScopes(raw: string | null): string[] {
-  const scopes = (raw?.trim() || MCP_OAUTH_SCOPES.join(" ")).split(/\s+/).filter(Boolean);
+  const scopes = (raw?.trim() || MCP_AUTHORING_DEFAULT_SCOPES.join(" ")).split(/\s+/).filter(Boolean);
   if (scopes.some((scope) => !MCP_OAUTH_SCOPES.includes(scope as typeof MCP_OAUTH_SCOPES[number]))) {
     throw new Error("invalid_scope");
   }

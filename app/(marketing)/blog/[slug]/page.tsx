@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { eq, and, ne, desc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { hasAnyPeran } from "@/lib/auth/authorization";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import Image from "next/image";
 import { Calendar, Clock, ChevronLeft, User, Share2 } from "lucide-react";
@@ -56,8 +57,13 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ slu
     const h = await headers();
     const session = await auth.api.getSession({ headers: h });
     const userRole = session?.user?.role;
-    
-    if (userRole !== "admin" && userRole !== "teacher") {
+    const isStaff =
+      session?.user &&
+      ((await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+        userRole === "admin" ||
+        userRole === "teacher");
+
+    if (!isStaff) {
       notFound();
     }
   }

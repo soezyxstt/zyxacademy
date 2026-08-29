@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
-
 import { auth } from "@/lib/auth";
+import { hasAnyPeran, hasPeran } from "@/lib/auth/authorization";
 
 type UserWithRole = { id: string; role?: string | null };
 
@@ -15,8 +15,9 @@ export async function assertAdmin() {
     throw new Error("Unauthorized");
   }
 
-  if (user.role !== "admin") {
-    throw new Error("Forbidden - admin role required.");
+  const isAdmin = (await hasPeran(user.id, "admin")) || user.role === "admin";
+  if (!isAdmin) {
+    throw new Error("Forbidden, admin role required.");
   }
 
   return { session, user };
@@ -33,8 +34,12 @@ export async function assertTutorOrAdmin() {
     throw new Error("Unauthorized");
   }
 
-  if (user.role !== "admin" && user.role !== "teacher") {
-    throw new Error("Forbidden - teacher or admin role required.");
+  const isAuthorized =
+    (await hasAnyPeran(user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+    user.role === "admin" ||
+    user.role === "teacher";
+  if (!isAuthorized) {
+    throw new Error("Forbidden, teacher or admin role required.");
   }
 
   return { session, user };

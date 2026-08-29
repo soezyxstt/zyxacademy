@@ -7,6 +7,8 @@ import { buildProductBundleKey } from "@/lib/storage/keys";
 import { productEntityHash, parseProductBundleZip } from "./product-bundle-v2";
 import { deterministicProductSerialization, type ProductDependency } from "./product-validator";
 import { type ProductBundleValidation } from "./product-validator";
+import { hasPeran } from "@/lib/auth/authorization";
+import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 
 export type ProductStageInput = {
   runId: string;
@@ -109,10 +111,11 @@ export async function downloadProductBundleArtifact(importId: string): Promise<U
 async function reviewerRole(importRow: NonNullable<Awaited<ReturnType<typeof getProductBundleImport>>>, reviewerId: string): Promise<"admin" | "tutor"> {
   const [actor] = await db.select({ role: user.role }).from(user).where(eq(user.id, reviewerId)).limit(1);
   if (!actor) throw new Error("PRODUCT_BUNDLE_REVIEWER_NOT_FOUND");
-  if (actor.role === "admin") return "admin";
-  if (actor.role !== "teacher" || !importRow.courseId) throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
-  const [assignment] = await db.select({ id: tutorCourses.id }).from(tutorCourses).where(and(eq(tutorCourses.tutorId, reviewerId), eq(tutorCourses.courseId, importRow.courseId))).limit(1);
-  if (!assignment) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
+  if (actor.role === "admin" || (await hasPeran(reviewerId, "admin"))) return "admin";
+  const isTutor = (await hasPeran(reviewerId, "tutor")) || actor.role === "teacher";
+  if (!isTutor || !importRow.courseId) throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
+  const access = await checkTutorCourseAccess(reviewerId, importRow.courseId);
+  if (!access.hasAccess) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
   return "tutor";
 }
 

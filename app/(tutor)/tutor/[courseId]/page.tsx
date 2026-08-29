@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { db } from "@/db";
-import { tutorCourses } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import {
   readCourseSnapshot,
   getCohortAnalytics,
@@ -12,17 +11,31 @@ import {
 } from "@/lib/cohort-analytics";
 import { AnalyticsClient } from "@/components/tutor/analytics-client";
 import { Reveal } from "@/components/ui/reveal";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 import { ZyraProposalPanel } from "@/components/zyra/zyra-proposal-panel";
+import { CheckSquare, ClipboardList, Radio, Users } from "lucide-react";
+
+import { db } from "@/db";
+import { mataKuliah } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 type Props = { params: Promise<{ courseId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { courseId } = await params;
-  const snapshot = await readCourseSnapshot(courseId);
-  const title = snapshot?.payload.courseTitle;
+  const mkRows = await db
+    .select({ title: mataKuliah.title, legacyCourseId: mataKuliah.legacyCourseId })
+    .from(mataKuliah)
+    .where(eq(mataKuliah.id, courseId))
+    .limit(1);
+
+  const legacyCourseId = mkRows[0]?.legacyCourseId ?? courseId;
+  const snapshot = await readCourseSnapshot(legacyCourseId);
+  const title = mkRows[0]?.title ?? snapshot?.payload.courseTitle;
   return {
-    title: pageTitle(title ? `Analytics: ${title}` : "Analytics"),
+    title: pageTitle(title ? `Analitik: ${title}` : "Analitik"),
     description: title
       ? `Analitik cohort dan performa siswa untuk ${title}.`
       : "Analitik cohort dan performa siswa.",
@@ -46,23 +59,32 @@ export default async function TutorCoursePage({ params }: Props) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/tutor");
 
-  const role = (session.user as { role?: string | null }).role;
-
-  if (role === "teacher") {
-    const [assigned] = await db
-      .select({ id: tutorCourses.id })
-      .from(tutorCourses)
-      .where(
-        and(eq(tutorCourses.tutorId, session.user.id), eq(tutorCourses.courseId, courseId))
-      )
-      .limit(1);
-    if (!assigned) redirect("/tutor");
+  let access;
+  try {
+    access = await requireTutorCourseAccess(session.user.id, courseId, { allowAdmin: false });
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("TUTOR_ACCESS_DENIED")) {
+      redirect("/tutor");
+    }
+    throw error;
   }
 
-  const snapshotRow = await readCourseSnapshot(courseId);
+  const legacyCourseId = access.legacyCourseId ?? courseId;
+  const snapshotRow = await readCourseSnapshot(legacyCourseId);
   const analytics: SnapshotPayload = snapshotRow
     ? snapshotRow.payload
-    : emptySnapshot(await getCohortAnalytics(courseId));
+    : emptySnapshot(await getCohortAnalytics(legacyCourseId));
+
+  if (!analytics.courseTitle) {
+    const mkRows = await db
+      .select({ title: mataKuliah.title })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.id, access.courseId ?? courseId))
+      .limit(1);
+    if (mkRows[0]?.title) {
+      analytics.courseTitle = mkRows[0].title;
+    }
+  }
 
   if (!analytics.courseTitle) notFound();
 
@@ -73,28 +95,57 @@ export default async function TutorCoursePage({ params }: Props) {
       {/* Section 1: headline stats */}
       <Reveal>
         <section aria-labelledby="course-title">
-          <h1 id="course-title" className="text-h5 font-heading font-bold mb-4">
-            {analytics.courseTitle}
-          </h1>
-          <div className="flex gap-8">
+          <PageHeader
+            title={analytics.courseTitle}
+            backHref="/tutor"
+            backLabel="Pengajaran"
+            divider={false}
+          />
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
+              <Link href={`/tutor/${courseId}/quizzes`}>
+                <ClipboardList className="size-4 mr-1.5" />
+                Kelola Kuis
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
+              <Link href={`/tutor/${courseId}/live`}>
+                <Radio className="size-4 mr-1.5" />
+                Kuis Langsung
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
+              <Link href={`/tutor/${courseId}/grading`}>
+                <CheckSquare className="size-4 mr-1.5" />
+                Penilaian
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild className="h-8 rounded-lg">
+              <Link href={`/tutor/${courseId}/participants`}>
+                <Users className="size-4 mr-1.5" />
+                Peserta & Kelompok
+              </Link>
+            </Button>
+          </div>
+          <div className="flex gap-8 mt-4">
             <div>
               <p className="font-heading text-h3 font-bold tabular-nums">
                 {analytics.enrolledCount}
               </p>
-              <p className="text-body-sm text-muted-foreground">enrolled</p>
+              <p className="text-body-sm text-muted-foreground">terdaftar</p>
             </div>
             <div>
               <p className="font-heading text-h3 font-bold tabular-nums">
                 {analytics.activeCount}
               </p>
-              <p className="text-body-sm text-muted-foreground">active this week</p>
+              <p className="text-body-sm text-muted-foreground">aktif minggu ini</p>
             </div>
             {analytics.engagement.quizParticipationPct > 0 && (
               <div>
                 <p className="font-heading text-h3 font-bold tabular-nums">
                   {analytics.engagement.quizParticipationPct}%
                 </p>
-                <p className="text-body-sm text-muted-foreground">quiz participation</p>
+                <p className="text-body-sm text-muted-foreground">partisipasi kuis</p>
               </div>
             )}
           </div>
@@ -103,11 +154,11 @@ export default async function TutorCoursePage({ params }: Props) {
 
       {/* Interactive sections (sparklines, drill-down, watchlist, refresh) */}
       <AnalyticsClient
-        courseId={courseId}
+        courseId={legacyCourseId}
         analytics={analytics}
         updatedAt={updatedAt}
       />
-      <ZyraProposalPanel courseId={courseId} role="tutor" />
+      <ZyraProposalPanel courseId={legacyCourseId} role="tutor" />
     </div>
   );
 }

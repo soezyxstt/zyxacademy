@@ -20,6 +20,21 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { Button } from "@/components/ui/button";
 
+function sanitizeMeetError(rawError: string): string {
+  if (rawError.includes("invalid_grant") || rawError.includes("OAuth") || rawError.includes("expired or revoked")) {
+    return "Sesi autentikasi Google OAuth kedaluwarsa atau telah dicabut. Silakan hubungkan ulang integrasi Google Workspace.";
+  }
+  if (rawError.startsWith("{") && rawError.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(rawError);
+      return parsed.error_description || parsed.error || "Terjadi kesalahan pada layanan Google Meet.";
+    } catch {
+      // fallback
+    }
+  }
+  return rawError;
+}
+
 export default function DetailedMeetingLogPage({
   params,
 }: {
@@ -41,10 +56,10 @@ export default function DetailedMeetingLogPage({
       if (data.success && data.analytics) {
         setAnalytics(data.analytics);
       } else {
-        setError(data.error || "Gagal memuat data log meeting.");
+        setError(sanitizeMeetError(data.error || "Gagal memuat data log meeting."));
       }
     } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan jaringan.");
+      setError(sanitizeMeetError(err.message || "Terjadi kesalahan jaringan."));
     } finally {
       setLoading(false);
     }

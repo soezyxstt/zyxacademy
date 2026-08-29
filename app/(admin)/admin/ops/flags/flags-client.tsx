@@ -20,6 +20,7 @@ import {
 import type { FeatureFlagStatus } from "@/lib/feature-flags";
 import { FEATURE_CATEGORIES, type FeatureCategory } from "@/lib/feature-flags";
 import { SearchBar } from "@/components/ui/search-bar";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import {
   Select,
   SelectContent,
@@ -249,6 +250,37 @@ export function FlagsClient() {
             Katalog resmi &amp; variabel dinamik
           </p>
         </div>
+      {/* Metric Overview Strip */}
+      <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
+        <AdminStatStripItem
+          label="Total Feature Flag"
+          value={data.total}
+          caption="Katalog resmi dan variabel"
+          icon={Layers}
+          tone="default"
+        />
+        <AdminStatStripItem
+          label="Aktif (Enabled)"
+          value={data.activeCount}
+          caption='Bernilai "1" atau "true"'
+          icon={CheckCircle2}
+          tone="success"
+        />
+        <AdminStatStripItem
+          label="Nonaktif (Disabled)"
+          value={data.inactiveCount}
+          caption='Tidak diset / "0"'
+          icon={XCircle}
+          tone="default"
+        />
+        <AdminStatStripItem
+          label="Cakupan Modul"
+          value={`${data.coveragePercent}%`}
+          caption="Persentase flag aktif"
+          icon={Activity}
+          tone="brand"
+        />
+      </AdminStatStrip>
 
         <div className="rounded-xl border border-status-success/30 bg-status-success/5 p-4 transition-all hover:border-status-success/50">
           <div className="flex items-center justify-between">

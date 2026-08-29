@@ -39,6 +39,7 @@ import {
   ArchiveRestore,
   Trophy,
   MousePointerClick,
+  Activity,
 } from "lucide-react";
 import {
   SidebarShell,
@@ -49,6 +50,7 @@ import {
 import { useSession } from "@/lib/auth-client";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
 
 const ARCHIVED_STORAGE_KEY = "zyx_admin_sidebar_archived_tabs";
 const PINNED_STORAGE_KEY = "zyx_admin_sidebar_pinned_tabs";
@@ -81,11 +83,11 @@ export type AdminTabDef = {
 const ALL_ADMIN_TABS: AdminTabDef[] = [
   // Utama
   { id: "dashboard", label: "Panel Admin", href: "/admin", icon: LayoutDashboard, group: "utama", exact: true },
-  { id: "blog", label: "Kelola Blog", href: "/admin/blog", icon: Newspaper, group: "utama" },
+  { id: "blog", label: "Blog", href: "/admin/blog", icon: Newspaper, group: "utama" },
 
   // Akademik & Konten
   { id: "courses", label: "Mata Kuliah", href: "/admin/courses", icon: GraduationCap, group: "akademik" },
-  { id: "schedules", label: "Jadwal & Kalender", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
+  { id: "schedules", label: "Jadwal", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
   { id: "materials-review", label: "Review Materi", href: "/admin/materials/review", icon: ClipboardCheck, group: "akademik" },
   { id: "materials-manual", label: "Upload Manual", href: "/admin/materials/manual", icon: Upload, group: "akademik" },
 
@@ -95,7 +97,7 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "leaderboard", label: "Papan Peringkat", href: "/admin/leaderboard", icon: Trophy, group: "evaluasi" },
   { id: "quiz-insights", label: "Analisis Kuis", href: "/admin/quiz-insights", icon: BarChart3, group: "evaluasi", badge: "Beta" },
   { id: "question-jobs", label: "Generasi Soal", href: "/admin/jobs", icon: Zap, group: "evaluasi" },
-  { id: "distractors", label: "Analitik Distraktor", href: "/admin/distractors", icon: Target, group: "evaluasi", badge: "Beta" },
+  { id: "distractors", label: "Distraktor", href: "/admin/distractors", icon: Target, group: "evaluasi", badge: "Beta" },
 
   // Alat & Komunikasi
   { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
@@ -104,15 +106,17 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "tautan", label: "Tautan Publik", href: "/admin/tautan", icon: LinkIcon, group: "alat" },
 
   // Pengguna & Akses
+  { id: "users", label: "Pengguna", href: "/admin/users", icon: UserCog, group: "pengguna" },
   { id: "groups", label: "Kelompok Belajar", href: "/admin/groups", icon: Users, group: "pengguna" },
   { id: "tokens", label: "Token Aktivasi", href: "/admin/tokens", icon: KeyRound, group: "pengguna" },
-  { id: "notifications", label: "Push Notification", href: "/admin/notifications", icon: Bell, group: "pengguna" },
+  { id: "notifications", label: "Notifikasi", href: "/admin/notifications", icon: Bell, group: "pengguna" },
 
   // Sistem & Ops
   { id: "ops-monitor", label: "Monitor Ops", href: "/admin/ops", icon: Gauge, group: "ops", exact: true },
+  { id: "tutor-activity", label: "Aktivitas Tutor", href: "/admin/ops/tutor-activity", icon: Activity, group: "ops" },
   { id: "feature-flags", label: "Feature Flags", href: "/admin/ops/flags", icon: Flag, group: "ops" },
   { id: "ai-analytics", label: "Analitik Zyra", href: "/admin/ops/analytics", icon: LineChart, group: "ops" },
-  { id: "feature-usage", label: "Penggunaan Fitur", href: "/admin/ops/feature-usage", icon: MousePointerClick, group: "ops" },
+  { id: "feature-usage", label: "Fitur", href: "/admin/ops/feature-usage", icon: MousePointerClick, group: "ops" },
   { id: "api-keys", label: "API Keys", href: "/admin/ops/keys", icon: Lock, group: "ops" },
   { id: "short-links", label: "Short Links", href: "/admin/ops/short-links", icon: LinkIcon, group: "ops" },
   { id: "web-analytics", label: "Web Analytics", href: "/admin/ops/web-analytics", icon: Globe, group: "ops" },
@@ -487,6 +491,9 @@ function AdminSidebarInner() {
       collapsedKey="admin-sidebar-collapsed"
       logoHref="/admin"
       logoLabel="Panel Admin Zyx Academy"
+      headerActions={(collapsed) => (
+        <OpsAiTrigger variant="sidebar" collapsed={collapsed} />
+      )}
       nav={navContent}
     />
   );

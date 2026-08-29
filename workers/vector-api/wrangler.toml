@@ -3,6 +3,9 @@ main = "index.ts"
 compatibility_date = "2026-06-13"
 compatibility_flags = ["nodejs_compat"]
 
+[observability.traces]
+enabled = true
+
 # Production environment. Keep the legacy 1024-dimensional binding for rollback
 # while the 768-dimensional canonical and search indexes are provisioned.
 [[vectorize]]

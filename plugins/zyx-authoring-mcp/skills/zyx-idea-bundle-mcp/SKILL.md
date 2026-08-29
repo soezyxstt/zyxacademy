@@ -9,8 +9,8 @@ Gunakan skill ini sebagai instruction layer untuk MCP. Validator repository dan 
 
 ## Prasyarat
 
-1. Panggil `source.ingest` dan gunakan hanya Source Pack dengan `valid: true`.
-2. Panggil `workflow.start` dengan workflow `idea_product`, satu course, dan satu chapter dari pilihan MCP. Jangan meminta operator mengetik ID teknis.
+1. Dapatkan Source Pack `valid: true` melalui `$zyx-source-pack-mcp`. Jika prompt hanya menyebut mata kuliah dan bab, gunakan PDF course tersimpan melalui `source.list_files` dan `source.read_file`; jangan meminta upload sebelum katalog tersimpan diperiksa. File lokal tetap merupakan compatibility path.
+2. Panggil `workflow.start` dengan workflow `idea_product`, `sourcePackToken`, dan course serta chapter opaque yang sama dengan stored originals. Jangan meminta operator mengetik ID teknis.
 3. Panggil `workflow.get_contract` dan pertahankan `runToken` sampai submission selesai.
 
 ## Workflow authoring
@@ -25,6 +25,14 @@ Gunakan skill ini sebagai instruction layer untuk MCP. Validator repository dan 
 8. Jika gagal, revisi isi dan package ulang. Jangan mengubah ID, course, chapter, source checksum, semantic hash, atau bundle checksum secara manual.
 9. Panggil `authoring.submit_idea_bundle` hanya saat valid. MCP akan memvalidasi ulang dan memasukkan bundle ke review inventory. MCP tidak mempublikasikan Idea.
 
+## Siklus hidup dan pemeliharaan
+
+- **Inspeksi import**: Gunakan `authoring.list_imports { bundleType: "idea" }` dan `authoring.get_import { bundleType: "idea", importId }` untuk memeriksa inventory dan riwayat review tanpa mengekspos storage key atau ID internal reviewer.
+- **Restage**: Jika import yang belum published perlu diperbaiki, panggil `authoring.restage_idea_bundle` dengan `importId`, `filename`, dan `bundleBase64`. Staging ulang akan memvalidasi ulang bundle dan mereset keputusan review sebelumnya melalui service lifecycle Zyx.
+- **Review**: `authoring.review_idea_bundle` mencatat keputusan review immutable (`approved` atau `rejected`) dengan catatan review (membutuhkan scope `authoring:review`). Jalankan hanya setelah ada instruksi eksplisit untuk keputusan tersebut.
+- **Batasan withdrawal**: Penarikan Idea Bundle (withdrawal) tidak diimplementasikan pada MCP.
+- **Stop condition**: MCP tidak memiliki tool publikasi (`authoring:publish` tidak didukung). Restage dan keputusan review mengubah state tersimpan dan tidak boleh dijalankan secara otonom. Proses authoring berhenti setelah staging atau review selesai; publikasi Idea tetap dilakukan melalui UI admin atau alur backend Zyx.
+
 ## Gate konten
 
 Quality gate harus menunjukkan meaningful source coverage 100 persen, provenance coverage 100 persen, tidak ada semantic duplicate candidate blocking, seluruh Idea berada pada chapter terkunci, dan seluruh Idea memiliki bukti sumber. Formula yang tidak memiliki notasi matematika terdeteksi diberi warning dan harus ditinjau.
@@ -33,4 +41,4 @@ Jangan membuat soal baru, Artikel, Diktat, flashcard, blueprint, atau Product en
 
 ## Selesai
 
-Laporkan bundle ID, checksum, jumlah source, chunk, Idea, provenance, relasi, quality report, dan hasil staging. Admin tetap melakukan review dan publication Idea sebelum Product Bundle dibuat.
+Laporkan bundle ID, checksum, jumlah source, chunk, Idea, provenance, relasi, quality report, dan hasil staging. Admin tetap melakukan review dan publication Idea sebelum Product Bundle dibuat. Berhenti setelah staging berhasil dan jangan mengklaim tindakan publikasi otomatis.

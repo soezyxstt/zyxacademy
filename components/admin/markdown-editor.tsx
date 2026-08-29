@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
-import { ImagePlus, Loader2, Eye, Code } from "lucide-react";
+import { ImagePlus, Loader2, Eye, Code, ImageIcon } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +18,53 @@ import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 
 interface MarkdownEditorProps {
   initialData?: any;
+}
+
+function BlogThumbnailPreview({
+  url,
+  alt,
+  className,
+  onRemove,
+}: {
+  url: string;
+  alt: string;
+  className?: string;
+  onRemove?: () => void;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [url]);
+
+  return (
+    <div className={cn("relative aspect-video rounded-md border border-border overflow-hidden bg-muted flex items-center justify-center group", className)}>
+      {hasError ? (
+        <div className="flex flex-col items-center justify-center p-4 text-center text-muted-foreground">
+          <ImageIcon className="size-6 text-muted-foreground/60 mb-1" />
+          <p className="text-body-xs font-medium text-foreground">Thumbnail gagal dimuat</p>
+          <p className="text-body-2xs text-muted-foreground">Periksa URL atau unggah berkas baru</p>
+        </div>
+      ) : (
+        <Image
+          src={url}
+          alt={alt}
+          fill
+          className="object-cover"
+          onError={() => setHasError(true)}
+        />
+      )}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-md p-1.5 transition-colors text-body-xs font-semibold cursor-pointer z-10"
+        >
+          Hapus
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
@@ -85,6 +132,7 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
       }
 
       setFormData((prev) => ({ ...prev, thumbnailUrl: data.url }));
+      setFormData((prev: any) => ({ ...prev, thumbnailUrl: data.url }));
       toast.success("Thumbnail berhasil diunggah");
     } catch (err: any) {
       toast.error(err.message || "Gagal mengunggah thumbnail");
@@ -396,14 +444,11 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
               <div className="border border-border rounded-xl bg-card p-6 md:p-8 space-y-6 shadow-sm min-h-[500px] max-w-none">
                 <div className="space-y-4 pb-6 border-b border-border/60">
                   {formData.thumbnailUrl && (
-                    <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden bg-muted border border-border">
-                      <Image
-                        src={formData.thumbnailUrl}
+                      <BlogThumbnailPreview
+                        url={formData.thumbnailUrl}
                         alt={formData.title || "Preview thumbnail"}
-                        fill
-                        className="object-cover"
+                        className="aspect-[16/9] w-full rounded-xl mt-0"
                       />
-                    </div>
                   )}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -511,16 +556,11 @@ export function MarkdownEditor({ initialData }: MarkdownEditorProps) {
                 />
               </div>
               {formData.thumbnailUrl && (
-                <div className="mt-3 aspect-video rounded-md border border-border overflow-hidden bg-muted relative group">
-                  <Image src={formData.thumbnailUrl} alt="Thumbnail preview" fill className="object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, thumbnailUrl: "" })}
-                    className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-md p-1.5 transition-colors text-body-xs font-semibold cursor-pointer"
-                  >
-                    Hapus
-                  </button>
-                </div>
+                <BlogThumbnailPreview
+                  url={formData.thumbnailUrl}
+                  alt="Thumbnail preview"
+                  onRemove={() => setFormData({ ...formData, thumbnailUrl: "" })}
+                />
               )}
             </div>
 

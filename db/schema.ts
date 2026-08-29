@@ -431,17 +431,35 @@ export const questions = sqliteTable("questions", {
 });
 
 // Submissions Table
-export const submissions = sqliteTable("submissions", {
- id: text("id").primaryKey(),
- userId: text("user_id").references(() => user.id).notNull(),
- examId: text("exam_id").references(() => exams.id).notNull(),
- status: text("status").$type<"completed" | "pending_review" | "graded" | "late">().default("completed").notNull(), // Uses "pending_review" for essays
- score: integer("score"), // Stores calculated score
- teacherNotes: text("teacher_notes"), // Allows teacher to manually input feedback/notes
- answersSnapshot: text("answers_snapshot", { mode: "json" }),
- questionsSnapshot: text("questions_snapshot", { mode: "json" }),
- submittedAt: integer("submitted_at", { mode: "timestamp" }).defaultNow(),
-});
+export const submissions = sqliteTable(
+	"submissions",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.references(() => user.id)
+			.notNull(),
+		examId: text("exam_id")
+			.references(() => exams.id)
+			.notNull(),
+		status: text("status")
+			.$type<"completed" | "pending_review" | "graded" | "late">()
+			.default("completed")
+			.notNull(), // Uses "pending_review" for essays
+		score: integer("score"), // Stores calculated score
+		teacherNotes: text("teacher_notes"), // Allows teacher to manually input feedback/notes
+		answersSnapshot: text("answers_snapshot", { mode: "json" }),
+		questionsSnapshot: text("questions_snapshot", { mode: "json" }),
+		submittedAt: integer("submitted_at", { mode: "timestamp" }).defaultNow(),
+		attemptNumber: integer("attempt_number"),
+	},
+	(table) => [
+		uniqueIndex("idx_submissions_user_exam_attempt").on(
+			table.userId,
+			table.examId,
+			table.attemptNumber,
+		),
+	],
+);
 
 // Groups Table
 export const groups = sqliteTable("groups", {
@@ -2593,11 +2611,16 @@ export const auditMutasi = sqliteTable(
   beforeSnapshot: text("before_snapshot", { mode: "json" }).$type<Record<string, unknown> | null>(),
   afterSnapshot: text("after_snapshot", { mode: "json" }).$type<Record<string, unknown> | null>(),
   correlationId: text("correlation_id"),
+  courseId: text("course_id"),
+  outcome: text("outcome").$type<"success" | "rejected" | "failed">(),
+  reason: text("reason"),
   createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  },
  (table) => [
   index("audit_mutasi_entity_idx").on(table.entityType, table.entityId, table.createdAt),
   index("audit_mutasi_actor_idx").on(table.actorId, table.createdAt),
+  index("audit_mutasi_course_outcome_idx").on(table.courseId, table.outcome, table.createdAt),
+  check("audit_mutasi_outcome_check", sql`${table.outcome} IS NULL OR ${table.outcome} IN ('success', 'rejected', 'failed')`),
  ],
 );
 
@@ -4469,6 +4492,13 @@ export const liveQuizSessions = sqliteTable(
  participantCount: integer("participant_count").default(0).notNull(),
  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  endedAt: integer("ended_at", { mode: "timestamp" }),
+ deliveryStatus: text("delivery_status")
+   .$type<"pending" | "processing" | "delivered" | "failed">()
+   .default("pending")
+   .notNull(),
+ deliveryClaimedAt: integer("delivery_claimed_at", { mode: "timestamp" }),
+ deliveryClaimToken: text("delivery_claim_token"),
+ deliveredAt: integer("delivered_at", { mode: "timestamp" }),
  },
  (table) => [
  index("idx_live_sessions_code").on(table.code),

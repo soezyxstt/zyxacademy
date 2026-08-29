@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { issueMcpConnectionToken } from "@/lib/authoring/mcp-workflows";
+import { MCP_AUTHORING_SCOPES, issueMcpConnectionToken } from "@/lib/authoring/mcp-workflows";
 import { resolveMcpAdmin } from "@/lib/authoring/mcp-auth";
 
 export const runtime = "nodejs";
@@ -14,7 +14,7 @@ async function createConnection(request: NextRequest): Promise<NextResponse> {
     const principal = await resolveMcpAdmin({
       userId: session.user.id,
       sessionId: session.session.id,
-      scopes: ["authoring:read", "authoring:stage"],
+      scopes: [...MCP_AUTHORING_SCOPES],
       authMethod: "session",
     });
     const resource = `${request.nextUrl.origin}/api/mcp/authoring`;

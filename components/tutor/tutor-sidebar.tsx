@@ -2,27 +2,36 @@
 
 import { usePathname } from "next/navigation";
 import {
+  GraduationCap,
+  CalendarDays,
   LayoutDashboard,
-  Play,
-  BookOpen,
+  Users,
   ClipboardList,
-  Trophy,
+  Radio,
   CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
+import {
+  TutorCourseSwitcher,
+  type AssignedTutorCourse,
+} from "@/components/tutor/tutor-course-switcher";
 
-export function TutorSidebar() {
+export type { AssignedTutorCourse };
+
+export interface TutorSidebarProps {
+  assignedCourses?: AssignedTutorCourse[];
+}
+
+export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
   const pathname = usePathname();
 
-  const parts = pathname.split("/");
+  // Active course detection strictly from /tutor/:courseId (excluding /tutor/schedule)
+  const parts = pathname.split("/").filter(Boolean);
   let courseId: string | undefined = undefined;
-  if (parts[1] === "tutor" && parts[2]) {
-    courseId = parts[2];
-  } else if (parts[1] === "courses" && parts[2]) {
-    courseId = parts[2];
+  if (parts[0] === "tutor" && parts[1] && parts[1] !== "schedule") {
+    courseId = parts[1];
   }
-
 
   const navContent = (c: boolean) => {
     return (
@@ -31,14 +40,22 @@ export function TutorSidebar() {
           "flex flex-1 flex-col gap-1 py-4 font-sans text-left",
           c
             ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
-            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
+            : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll",
         )}
       >
         <NavItem
           href="/tutor"
-          icon={LayoutDashboard}
-          label="My courses"
+          icon={GraduationCap}
+          label="Pengajaran"
           active={pathname === "/tutor"}
+          collapsed={c}
+        />
+
+        <NavItem
+          href="/tutor/schedule"
+          icon={CalendarDays}
+          label="Jadwal"
+          active={pathname === "/tutor/schedule" || pathname.startsWith("/tutor/schedule/")}
           collapsed={c}
         />
 
@@ -47,42 +64,67 @@ export function TutorSidebar() {
             {!c && (
               <>
                 <div className="h-px bg-border/50 my-3 shrink-0 w-full" />
+                <div className="mb-1">
+                  <TutorCourseSwitcher
+                    courses={assignedCourses}
+                    activeCourseId={courseId}
+                    collapsed={c}
+                  />
+                </div>
                 <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-sans">
-                  Kelas Aktif
+                  Navigasi Kelas
                 </p>
               </>
             )}
-            {c && <div className="h-px bg-border/50 my-2 shrink-0 w-full" />}
+            {c && (
+              <>
+                <div className="h-px bg-border/50 my-2 shrink-0 w-full" />
+                <TutorCourseSwitcher
+                  courses={assignedCourses}
+                  activeCourseId={courseId}
+                  collapsed={c}
+                />
+              </>
+            )}
 
             <NavItem
               href={`/tutor/${courseId}`}
               icon={LayoutDashboard}
-              label="Dashboard Kelas"
+              label="Ringkasan"
               active={pathname === `/tutor/${courseId}`}
               collapsed={c}
             />
 
             <NavItem
-              href={`/tutor/${courseId}/materials`}
-              icon={BookOpen}
-              label="Kelola Materi"
-              active={pathname.includes("/materials")}
+              href={`/tutor/${courseId}/participants`}
+              icon={Users}
+              label="Peserta & Kelompok"
+              active={
+                pathname === `/tutor/${courseId}/participants` ||
+                pathname.startsWith(`/tutor/${courseId}/participants/`)
+              }
               collapsed={c}
             />
 
             <NavItem
               href={`/tutor/${courseId}/quizzes`}
               icon={ClipboardList}
-              label="Kelola Kuis"
-              active={pathname.includes("/quizzes")}
+              label="Kuis"
+              active={
+                pathname === `/tutor/${courseId}/quizzes` ||
+                pathname.startsWith(`/tutor/${courseId}/quizzes/`)
+              }
               collapsed={c}
             />
 
             <NavItem
-              href={`/tutor/${courseId}/tryouts`}
-              icon={Trophy}
-              label="Kelola Tryout"
-              active={pathname.includes("/tryouts")}
+              href={`/tutor/${courseId}/live`}
+              icon={Radio}
+              label="Kuis Langsung"
+              active={
+                pathname === `/tutor/${courseId}/live` ||
+                pathname.startsWith(`/tutor/${courseId}/live/`)
+              }
               collapsed={c}
             />
 
@@ -90,17 +132,11 @@ export function TutorSidebar() {
               href={`/tutor/${courseId}/grading`}
               icon={CheckSquare}
               label="Penilaian Tryout"
-              active={pathname.includes("/grading")}
+              active={
+                pathname === `/tutor/${courseId}/grading` ||
+                pathname.startsWith(`/tutor/${courseId}/grading/`)
+              }
               collapsed={c}
-            />
-
-            <NavItem
-              href={`/courses/${courseId}/live/host`}
-              icon={Play}
-              label="Live Quiz Console"
-              active={pathname.includes("/live/host")}
-              collapsed={c}
-              badge="Beta"
             />
           </>
         )}
@@ -114,7 +150,7 @@ export function TutorSidebar() {
     <SidebarShell
       collapsedKey="tutor-sidebar-collapsed"
       logoHref="/tutor"
-      logoLabel="My courses"
+      logoLabel="Panel Pengajar Zyx Academy"
       nav={navContent}
     />
   );

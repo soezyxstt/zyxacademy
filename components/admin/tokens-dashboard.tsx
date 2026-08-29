@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/toast";
-import { Copy, Trash2, KeyRound, Check, RefreshCw, User, Users } from "lucide-react";
+import { Copy, Trash2, KeyRound, Check, RefreshCw, User, Users, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchBar } from "@/components/ui/search-bar";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { generateEnrollmentToken, deleteEnrollmentToken } from "@/app/(admin)/admin/(academic)/tokens/actions";
 import {
   Dialog,
@@ -52,6 +54,7 @@ type Props = {
 
 export function TokensDashboard({ initialTokens, coursesList }: Props) {
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>(
     coursesList[0] ? [coursesList[0].id] : []
   );
@@ -60,6 +63,33 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
   const [loading, setLoading] = useState(false);
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; token: string } | null>(null);
+
+  const stats = useMemo(() => {
+    const total = initialTokens.length;
+    const now = new Date();
+    const active = initialTokens.filter((t) => new Date(t.expiresAt) >= now).length;
+    const totalCapacity = initialTokens.reduce((acc, t) => acc + t.capacity, 0);
+    const registeredMembers = initialTokens.reduce(
+      (acc, t) => acc + (t.group?.members?.length || 0),
+      0
+    );
+    return { total, active, totalCapacity, registeredMembers };
+  }, [initialTokens]);
+
+  const filteredTokens = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return initialTokens;
+    return initialTokens.filter((t) => {
+      const matchToken = t.token.toLowerCase().includes(q);
+      const matchCourse = t.courses.some(
+        (c) => c.title.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)
+      );
+      const matchMember = t.group?.members.some(
+        (m) => m.user.name.toLowerCase().includes(q) || m.user.email.toLowerCase().includes(q)
+      );
+      return matchToken || matchCourse || matchMember;
+    });
+  }, [initialTokens, searchQuery]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,9 +144,37 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* KPI Stats Strip */}
+      <AdminStatStrip className="grid-cols-2 lg:grid-cols-4">
+        <AdminStatStripItem
+          label="Total Token"
+          value={stats.total}
+          icon={KeyRound}
+          tone="brand"
+        />
+        <AdminStatStripItem
+          label="Token Aktif"
+          value={stats.active}
+          icon={CheckCircle2}
+          tone="success"
+        />
+        <AdminStatStripItem
+          label="Kapasitas Total"
+          value={stats.totalCapacity}
+          icon={Users}
+          tone="info"
+        />
+        <AdminStatStripItem
+          label="Murid Terdaftar"
+          value={stats.registeredMembers}
+          icon={ShieldCheck}
+          tone="default"
+        />
+      </AdminStatStrip>
+
       {/* Generate Form */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2 mb-4">
           <KeyRound className="size-5 text-brand-primary" />
           Buat Token Baru
@@ -132,7 +190,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
               {coursesList.length === 0 ? (
                 <p className="text-body-sm text-muted-foreground italic">Tidak ada course tersedia.</p>
               ) : (
-                <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto p-1.5 border border-border/80 rounded-2xl bg-muted/10">
+                  <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto p-1.5 border border-border/80 rounded-xl bg-muted/10">
                   {coursesList.map((c) => {
                     const isChecked = selectedCourseIds.includes(c.id);
                     return (
@@ -224,19 +282,6 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
                   })}
                 </div>
               </div>
-
-              {/* Token Preview */}
-              <div className="rounded-xl border border-border/80 bg-muted/10 p-4">
-                <span className="text-body-xs font-semibold text-muted-foreground block mb-1">
-                  Pratinjau Format Token:
-                </span>
-                <div className="font-mono text-body-sm font-bold text-foreground bg-card px-3 py-2 rounded-lg border border-border select-none">
-                  Zyx-XXXXXXXX-{capacity}-{selectedCourseIds.length}
-                </div>
-                <p className="text-body-xs text-muted-foreground mt-2">
-                  Token ini dapat digunakan hingga <strong className="text-foreground">{capacity} orang</strong> berbeda, dan mengaktifkan <strong className="text-foreground">{selectedCourseIds.length} kelas</strong> sekaligus.
-                </p>
-              </div>
             </div>
           </div>
 
@@ -253,59 +298,71 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
       </div>
 
       {/* Tokens List */}
-      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border bg-muted/20 px-6 py-4">
-          <h2 className="font-heading text-body-base font-bold text-foreground">
-            Daftar Token ({initialTokens.length})
-          </h2>
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => {
-              router.refresh();
-              toast.success("Daftar token diperbarui");
-            }}
-            className="rounded-md gap-1 text-muted-foreground"
-          >
-            <RefreshCw className="size-3.5" />
-            Refresh
-          </Button>
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-6 py-4">
+          <div className="flex flex-1 items-center gap-3 min-w-[200px] max-w-md">
+            <SearchBar
+              size="sm"
+              value={searchQuery}
+              onSearch={setSearchQuery}
+              onClear={() => setSearchQuery("")}
+              placeholder="Cari token, kelas, atau murid..."
+              containerClassName="w-full"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-body-xs font-semibold text-muted-foreground">
+              {filteredTokens.length} dari {initialTokens.length} token
+            </span>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                router.refresh();
+                toast.success("Daftar token diperbarui");
+              }}
+              className="rounded-md gap-1 text-muted-foreground"
+            >
+              <RefreshCw className="size-3.5" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
-        {initialTokens.length === 0 ? (
+        {filteredTokens.length === 0 ? (
           <div className="p-8 text-center text-body-sm text-muted-foreground">
-            Belum ada token pendaftaran kelas yang dibuat.
+            {searchQuery ? "Tidak ada token yang cocok dengan pencarian." : "Belum ada token pendaftaran kelas yang dibuat."}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-3xl text-left text-body-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/10">
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Token String
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Token string
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Kapasitas Kelompok
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Kapasitas kelompok
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Mata Kuliah
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Mata kuliah
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Tanggal Kedaluwarsa
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Tanggal kedaluwarsa
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
                     Status
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Anggota Terdaftar
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground">
+                      Anggota terdaftar
                   </th>
-                  <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold uppercase tracking-wide text-muted-foreground text-center">
+                    <th scope="col" className="px-6 py-3.5 text-body-xs font-semibold text-muted-foreground text-center">
                     Aksi
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {initialTokens.map((t) => {
+                  {filteredTokens.map((t) => {
                   const isExpired = new Date(t.expiresAt) < new Date();
                   const membersCount = t.group?.members?.length || 0;
                   const isFull = membersCount >= t.capacity;

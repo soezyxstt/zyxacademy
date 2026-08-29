@@ -22,11 +22,16 @@ MCP checks schema, canonical checksum, source checksums, exact chunk offsets, co
 
 `quality.valid` must be true before submission. A warning remains visible to the admin and must be reviewed, even if it is not blocking.
 
-## MCP sequence
+## MCP tool sequence
 
-1. Receive a validated `sourcePackToken` from `source.ingest`.
-2. Start `idea_product` with the opaque course and chapter choices.
+1. Use `$zyx-source-pack-mcp` to receive a validated `sourcePackToken`. For a course and chapter prompt without attachments, prefer stored PDFs and retain the same opaque course and chapter choices used by `storedOriginals`.
+2. Start `idea_product` with that `sourcePackToken` and the same opaque course and chapter choices.
 3. Build the Idea Bundle from the locked Source Pack and run contract.
-4. Call `authoring.validate_idea_bundle` repeatedly during revision.
-5. Call `authoring.submit_idea_bundle` only after validation is green.
-6. Wait for admin review and publication before Product authoring.
+4. Call `authoring.validate_idea_bundle` repeatedly during revision (`authoring:read`).
+5. Call `authoring.submit_idea_bundle` only after validation is green (`authoring:stage`).
+6. For existing staged imports:
+   - Call `authoring.list_imports { bundleType: "idea" }` to inspect staged inventory (`authoring:read`).
+   - Call `authoring.get_import { bundleType: "idea", importId }` to inspect validation reports and review history without exposing storage keys or reviewer IDs (`authoring:read`).
+   - Call `authoring.restage_idea_bundle` to revalidate and replace an unreviewed or rejected import, resetting previous reviews via lifecycle services (`authoring:stage`).
+   - Call `authoring.review_idea_bundle` to record an immutable review decision with notes (`authoring:review`).
+7. Stop condition: Wait for admin review and publication via Zyx admin UI before Product authoring. MCP does not provide a publication tool and Idea withdrawal is not implemented.

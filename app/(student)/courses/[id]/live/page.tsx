@@ -40,7 +40,27 @@ export default function LiveStudentPage() {
   const [joining, setJoining] = useState(false);
   const [wsFullUrl, setWsFullUrl] = useState<string | null>(null);
 
-  const { state, sendAnswer } = useLiveQuizSocket(phase === "live" ? wsFullUrl : null);
+  // Student join tokens expire after 60s; re-mint a fresh signed URL on every
+  // reconnect instead of replaying the expired one.
+  const refreshConnectionUrl = useCallback(async () => {
+    try {
+      const res = await fetch("/api/live/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim().toUpperCase(), courseId }),
+      });
+      if (!res.ok) return null;
+      const data: JoinResponse = await res.json();
+      return `${data.wsUrl}?token=${data.token}`;
+    } catch {
+      throw new Error("Gagal memperbarui koneksi.");
+    }
+  }, [code, courseId]);
+
+  const { state, sendAnswer } = useLiveQuizSocket(
+    phase === "live" ? wsFullUrl : null,
+    refreshConnectionUrl
+  );
 
   const handleJoin = useCallback(async () => {
     const trimmedCode = code.trim().toUpperCase();

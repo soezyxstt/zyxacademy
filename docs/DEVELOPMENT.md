@@ -87,7 +87,20 @@ Configured via `.env.local`. All vars are validated at startup by `lib/env.ts` (
 - `CF_ACCOUNT_ID`, `CF_KV_NAMESPACE_ID`, `CF_API_TOKEN` ; KV cache for tutor
 
 ### Optional ; Authoring MCP
-The endpoint uses Streamable HTTP and returns JSON responses. MCP hosts discover the protected resource and authorization server metadata, then open the Zyx sign-in page. The authenticated principal must be an active admin. `source.ingest` accepts the Source Pack and ephemeral original binaries for independent checksum verification. Idea and Product tools return canonical technical and content quality reports and refuse staging when blocking issues remain. For `quiz_bank`, call `assessment.list_ideas` after `workflow.start`, send `question-bank-draft.v2` to `assessment.validate_quiz_draft`, then submit the same JSON to `assessment.submit_quiz_draft`. Each question may omit `ideaLinks`; non-empty links require positive weights summing to one. The legacy KO-based `quiz-bank-draft.v1` remains accepted. The instruction skills live under `plugins/zyx-authoring-mcp/skills/zyx-source-pack-mcp`, `plugins/zyx-authoring-mcp/skills/zyx-idea-bundle-mcp`, and `plugins/zyx-authoring-mcp/skills/zyx-product-bundle-mcp`; they guide agents but MCP remains authoritative. For a host without interactive OAuth support, an authenticated admin can call `POST /api/mcp/authoring/connection` and configure the returned short-lived bearer token; the token is bound to the Better Auth session and cannot be issued by an unauthenticated caller.
+The endpoint uses Streamable HTTP and returns JSON responses. MCP hosts discover the protected resource and authorization server metadata, then open the Zyx sign-in page. The authenticated principal must be an active admin. OAuth default scopes are `authoring:read` and `authoring:stage`; supported explicit scopes include `authoring:review` and `authoring:withdraw`. Authenticated same-origin session connections receive all supported scopes. For a host without interactive OAuth support, an authenticated admin can call `POST /api/mcp/authoring/connection` and configure the returned short-lived bearer token; the token is bound to the Better Auth session and cannot be issued by an unauthenticated caller.
+
+For prompt-only Source Pack authoring, call `catalog.list_courses`, `catalog.list_chapters`, and `source.list_files`; read selected PDFs with `source.read_file`; then send the Source Pack to `source.ingest` with `storedOriginals`. Page reads accept at most four unique positive page numbers and return text plus 1280 px PNG images. Blob fallback is explicit and limited to 32 MiB. Stored files are limited to 50 MiB each and all direct plus stored originals are limited to 96 MiB.
+
+`source.ingest` continues to accept ephemeral base64 `originals` for local files. Direct and stored originals may be mixed when document IDs are unique. Stored references are revalidated against their current course, chapter, update timestamp, checksum, safe PDF key, and R2 bytes; their Source Pack token is rejected if `workflow.start` selects another course or chapter. Idea and Product tools return canonical technical and content quality reports and refuse staging when blocking issues remain. For `quiz_bank`, call `assessment.list_ideas` after `workflow.start`, send `question-bank-draft.v2` to `assessment.validate_quiz_draft`, then submit the same JSON to `assessment.submit_quiz_draft`. Each question may omit `ideaLinks`; non-empty links require positive weights summing to one. `assessment.update_question` updates existing Zyx-original questions in scope and returns them to `reviewStatus=generated` for admin review (`authoring:stage`); ITB example questions are immutable and published or retired questions cannot be edited.
+
+The MCP lifecycle surface provides inventory inspection, maintenance, and review tools:
+- `authoring.list_imports` and `authoring.get_import` inspect staged bundles, validation reports, and review decisions without exposing storage keys or reviewer IDs (`authoring:read`).
+- `authoring.restage_idea_bundle` and `authoring.restage_product_bundle` replace staged drafts and reset prior reviews via lifecycle services (`authoring:stage`).
+- `authoring.discard_product_draft` deletes draft Product Bundles and their staging artifacts (`authoring:withdraw`).
+- `authoring.review_idea_bundle` and `authoring.review_product_bundle` record immutable review decisions (`authoring:review`).
+- `authoring.withdraw_product_bundle` executes audited, idempotent, destructive withdrawal of published Product Bundles (`authoring:withdraw`). Idea Bundle withdrawal is not implemented.
+
+Preserving the no-publication boundary: There is no `authoring:publish` scope and no publication tool. The instruction skills live under `plugins/zyx-authoring-mcp/skills/zyx-source-pack-mcp`, `plugins/zyx-authoring-mcp/skills/zyx-idea-bundle-mcp`, `plugins/zyx-authoring-mcp/skills/zyx-product-bundle-mcp`, and `plugins/zyx-authoring-mcp/skills/zyx-question-authoring-mcp`; they guide agents but MCP remains authoritative.
 
 ```text
 https://<zyx-origin>/api/mcp/authoring
@@ -309,7 +322,7 @@ Current approved vital flags (< 10 flags retained for high-impact runtime contro
 | `FEATURE_ZYRA_SEMANTIC_CACHE_V1` | Vectorize semantic cache kill switch for semantic drift | AI Architecture |
 | `FEATURE_DRIVE_EDITOR_SYNC` | Auto-grant editor permission synchronization on Drive | Platform / Admin |
 
-> Foundational features (Remediation, Adaptive Quiz, Concept Graph, Interactive Material, Weekly Reflections, Tutor Analytics, Question Generator Critic, Idea & Product Bundles, Authoring Context, Zyra Allowance & Provider Router, Learning Canvas, Selection-to-Ask, Zyra Pet, AI Ops, Media Library, Link Library, Form Presets) are now mature and always-on by default, secured by role-based authorization (RBAC).
+> Foundational features (Tutor Portal & Overhaul, Remediation, Adaptive Quiz, Concept Graph, Interactive Material, Weekly Reflections, Tutor Analytics, Question Generator Critic, Idea & Product Bundles, Authoring Context, Zyra Allowance & Provider Router, Learning Canvas, Selection-to-Ask, Zyra Pet, AI Ops, Media Library, Link Library, Form Presets) are now mature and always-on by default, secured by role-based authorization (RBAC).
 
 The admin flag page reads this catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. Decommissioned flags have been removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
 
@@ -340,12 +353,16 @@ bun run build         # Production build (catches all errors)
 
 ## AI Contract Testing
 
-All AI contract test suites live in `tests/contracts/` and run without network calls.
+All deterministic contract test suites live in `tests/contracts/` and run without network calls.
 
 ### Running Tests
 
 - Run full AI contract suite: `bun run test:ai-contracts`
-- Run single test file: `bun test tests/contracts/prompt-executor.test.ts`
+- Run single contract test: `bun test tests/contracts/prompt-executor.test.ts`
+- Run tutor contract test suite:
+  ```bash
+  bun test tests/contracts/tutor-authorization.test.ts tests/contracts/tutor-capability-boundary.test.ts tests/contracts/tutor-grading-scope.test.ts tests/contracts/tutor-schedule-policy.test.ts tests/contracts/tutor-schedule-actions.test.ts tests/contracts/tutor-mutation-audit.test.ts tests/contracts/tutor-activity-log.test.ts tests/contracts/tutor-live-access.test.ts tests/contracts/tutor-downstream-bridge.test.ts tests/contracts/zyra-proposal-lifecycle.test.ts
+  ```
 
 ### Adding Fixtures
 

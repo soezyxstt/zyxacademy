@@ -1,12 +1,12 @@
 {
   "name": "zyx-authoring-mcp",
   "version": "0.1.0",
-  "description": "Author and validate Zyx Source Pack, Idea Bundle, and Product Bundle workflows through the Authoring MCP.",
+  "description": "Orchestrate Source Pack to Idea and Product Bundles, with independent Question Bank authoring through the Zyx MCP.",
   "author": {
     "name": "Zyx Academy"
   },
   "homepage": "https://staging.zyxacademy.com/",
   "license": "UNLICENSED",
-  "keywords": ["zyx", "authoring", "mcp", "source-pack", "idea-bundle", "product-bundle"],
+  "keywords": ["zyx", "authoring", "pipeline", "mcp", "source-pack", "idea-bundle", "product-bundle", "question-bank"],
   "mcpServers": "./.mcp.json"
 }

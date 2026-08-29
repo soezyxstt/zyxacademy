@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zyx Authoring Pipeline"
+  short_description: "Orchestrate Source, Idea, and Product authoring"
+  default_prompt: "Use $zyx-authoring-pipeline to run or resume the end-to-end Zyx authoring workflow from stored course PDFs or local files through validated Idea and Product Bundles."

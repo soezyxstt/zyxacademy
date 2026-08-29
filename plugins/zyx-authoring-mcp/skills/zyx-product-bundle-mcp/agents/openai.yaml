@@ -1,4 +1,4 @@
 interface:
   display_name: "Zyx Product Bundle MCP"
   short_description: "Author validated Product Bundles through MCP"
-  default_prompt: "Use $zyx-product-bundle-mcp to author a Product Bundle and iterate until the Zyx MCP quality gate passes."
+  default_prompt: "Use $zyx-product-bundle-mcp to create a student-ready Product Bundle with a complete mini e-book Article, a compact 2 to 4 page Diktat, and zero internal IDs in learner-facing text."

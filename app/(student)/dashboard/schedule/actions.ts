@@ -19,7 +19,8 @@ import {
   academicSchedules,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, desc, inArray, sql, gte, lte } from "drizzle-orm";
+import { getPeranCodes, hasPeran } from "@/lib/auth/authorization";
+import { eq, ne, and, desc, inArray, sql, gte, lte, lt, gt } from "drizzle-orm";
 import {
   getJakartaNow,
   getWeekScheduleDays,
@@ -29,6 +30,23 @@ import {
   isNinetyMinuteSlot,
   getIsoWeekRange,
 } from "@/lib/schedule-lock";
+import {
+  CANCELLED_QUOTA_REFUND_LOG_ACTION,
+  checkActiveGroupCourseEligibility,
+  checkCanonicalTutorAssignment,
+  countsTowardGroupWeeklyQuota,
+  isTerminalBookingStatus,
+  terminalStatusGuard,
+  validateSlotDuration,
+  validateSlotWeekdayDate,
+} from "@/lib/schedule/tutor-policy";
+import {
+  executeAddTutorSlot,
+  executeDeleteTutorSlot,
+  executeDecideTutorRescheduleTicket,
+} from "@/app/(tutor)/tutor/schedule/actions";
+import { recordMutationAudit } from "@/lib/audit/mutasi";
+import { type DbExecutor } from "@/lib/auth/tutor-access";
 
 async function requireUser() {
   const h = await headers();
@@ -56,7 +74,10 @@ export async function getScheduleData(weekOffset = 0) {
     throw new Error("USER_NOT_FOUND");
   }
 
-  const role = (dbUser.role as "student" | "teacher" | "admin") || "student";
+  const peranCodes = await getPeranCodes(dbUser.id);
+  const isTutor = peranCodes.includes("tutor") || dbUser.role === "teacher";
+  const isAdmin = peranCodes.includes("admin") || dbUser.role === "admin";
+  const role: "student" | "teacher" | "admin" = isAdmin ? "admin" : isTutor ? "teacher" : "student";
 
   // Calculate week range
   const nowJakarta = getJakartaNow();
@@ -249,7 +270,8 @@ export async function getScheduleData(weekOffset = 0) {
           and(
             inArray(bookings.groupId, myGroupIds),
             gte(bookings.sessionDate, viewWeekStart),
-            lte(bookings.sessionDate, viewWeekEnd)
+            lte(bookings.sessionDate, viewWeekEnd),
+            countsTowardGroupWeeklyQuota(),
           )
         )
         .groupBy(bookings.groupId)
@@ -382,17 +404,45 @@ export async function getScheduleData(weekOffset = 0) {
 
 // ── COLLABORATIVE BOOKING (Any group member can execute) ──────────────────────
 
+export interface CollaborativeBookSlotOptions {
+  actorId?: string;
+  executor?: DbExecutor;
+}
+
 export async function collaborativeBookSlot(
   slotId: string,
   courseId: string,
   groupId: string,
-  targetDateIso: string
+  targetDateIso: string,
+  options?: CollaborativeBookSlotOptions
 ) {
-  const currentUser = await requireUser();
+  let currentUser: { id: string; name?: string | null };
+  const client = (options?.executor ?? db) as typeof db;
+
+  if (options?.executor && options?.actorId?.trim()) {
+    const dbUser = await client.query.user.findFirst({
+      where: eq(user.id, options.actorId.trim()),
+    });
+    if (!dbUser) {
+      return { success: false, error: "Pengguna tidak ditemukan" };
+    }
+    currentUser = dbUser;
+  } else {
+    currentUser = await requireUser();
+  }
 
   try {
-    return await db.transaction(async (tx) => {
-      // 1. Verify student membership in group
+    // 1. Verify lock status: Cannot book past weekly lock cutoff
+    const isLocked = isSessionLocked(targetDateIso);
+    if (isLocked) {
+      return {
+        success: false,
+        error: "Jadwal untuk minggu ini sudah terkunci (Sabtu 23:59 WIB). Silakan pilih minggu berikutnya.",
+      };
+    }
+
+    return await client.transaction(async (tx) => {
+      // 2. Verify student membership in group inside transaction (TOCTOU guard)
       const membership = await tx.query.groupMembers.findFirst({
         where: and(
           eq(groupMembers.groupId, groupId),
@@ -404,16 +454,7 @@ export async function collaborativeBookSlot(
         return { success: false, error: "Anda bukan anggota dari kelompok belajar ini" };
       }
 
-      // 2. Verify lock status: Cannot book past weekly lock cutoff
-      const isLocked = isSessionLocked(targetDateIso);
-      if (isLocked) {
-        return {
-          success: false,
-          error: "Jadwal untuk minggu ini sudah terkunci (Sabtu 23:59 WIB). Silakan pilih minggu berikutnya.",
-        };
-      }
-
-      // 3. Verify slot exists and get details
+      // 3. Verify slot exists inside transaction (TOCTOU guard)
       const slot = await tx.query.tutorSlots.findFirst({
         where: eq(tutorSlots.id, slotId),
         with: {
@@ -425,7 +466,56 @@ export async function collaborativeBookSlot(
         return { success: false, error: "Slot jadwal tutor tidak ditemukan" };
       }
 
-      // 4. Verify FCFS: Ensure slot is not already booked
+      // 4. Validate exact 90-minute duration
+      const durationCheck = validateSlotDuration(slot.startTime, slot.endTime);
+      if (!durationCheck.isValid) {
+        return {
+          success: false,
+          error: "Durasi slot harus tepat 90 menit (HH:MM).",
+        };
+      }
+
+      // 5. Validate weekday and date consistency
+      const weekdayCheck = validateSlotWeekdayDate(targetDateIso, slot.dayOfWeek);
+      if (!weekdayCheck.isValid) {
+        return {
+          success: false,
+          error: "Tanggal sesi tidak sesuai dengan hari slot atau tanggal tidak valid.",
+        };
+      }
+
+      // 6. Verify canonical tutor course assignment inside transaction (TOCTOU guard)
+      const tutorAssignment = await checkCanonicalTutorAssignment(
+        slot.tutorId,
+        courseId,
+        { allowAdmin: true },
+        tx
+      );
+
+      if (!tutorAssignment.isAssigned) {
+        return {
+          success: false,
+          error: "Tutor ini tidak bersertifikasi untuk mata kuliah ini",
+        };
+      }
+
+      // 7. Verify active group and course enrollment inside transaction (TOCTOU guard)
+      const groupEligibility = await checkActiveGroupCourseEligibility(
+        groupId,
+        courseId,
+        tx
+      );
+
+      if (!groupEligibility.isEligible) {
+        return {
+          success: false,
+          error:
+            groupEligibility.reason ??
+            "Kelompok belajar tidak aktif atau belum terdaftar pada mata kuliah ini",
+        };
+      }
+
+      // 8. Verify FCFS: Ensure slot is not already booked BEFORE quota mutation
       const existingBooking = await tx.query.bookings.findFirst({
         where: eq(bookings.slotId, slotId),
       });
@@ -437,76 +527,78 @@ export async function collaborativeBookSlot(
         };
       }
 
-      // 5. Verify weekly quota (derived from booking rows in the target week)
-      const groupData = await tx.query.groups.findFirst({
-        where: eq(groups.id, groupId),
-      });
-
-      if (!groupData) {
-        return { success: false, error: "Data kelompok belajar tidak ditemukan" };
-      }
-
+      // 9. Verify target week weekly quota under write lock
       const { startIso, endIso } = getIsoWeekRange(targetDateIso);
-      const weekBookings = await tx
-        .select({ id: bookings.id })
+      const groupQuotaRows = await tx
+        .select({ weeklyQuotaSessions: groups.weeklyQuotaSessions })
+        .from(groups)
+        .where(eq(groups.id, groupId))
+        .limit(1);
+      const weeklyQuota = groupQuotaRows[0]?.weeklyQuotaSessions || 2;
+
+      const weekCountRows = await tx
+        .select({ value: sql<number>`count(*)` })
         .from(bookings)
         .where(
           and(
             eq(bookings.groupId, groupId),
             gte(bookings.sessionDate, startIso),
-            lte(bookings.sessionDate, endIso)
+            lte(bookings.sessionDate, endIso),
+            countsTowardGroupWeeklyQuota()
+          )
+        );
+      const weekBookingCount = Number(weekCountRows[0]?.value ?? 0);
+
+      if (weekBookingCount >= weeklyQuota) {
+        throw new Error("WEEKLY_QUOTA_EXCEEDED");
+      }
+
+      const bookingId = randomUUID();
+      const now = new Date();
+      const resolvedCourseId =
+        groupEligibility.legacyCourseId ?? groupEligibility.courseId ?? courseId;
+
+      // 10. Atomic package quota reservation under transaction (guarded update)
+      const quotaClaim = await tx
+        .update(groups)
+        .set({
+          usedQuotaSessions: sql`${groups.usedQuotaSessions} + 1`,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(groups.id, groupId),
+            lt(groups.usedQuotaSessions, groups.totalQuotaSessions)
           )
         );
 
-      const weeklyQuota = groupData.weeklyQuotaSessions ?? 2;
-      if (weekBookings.length >= weeklyQuota) {
+      if ((quotaClaim.rowsAffected ?? 0) === 0) {
         return {
           success: false,
-          error: `Kuota sesi minggu ini sudah habis (${weekBookings.length}/${weeklyQuota}). Beralihlah ke pekan berikutnya.`,
+          error: "Kuota total sesi kelompok telah tercapai.",
         };
       }
 
-      // 6. Verify course and tutor certification
-      const tutorCert = await tx.query.tutorCourses.findFirst({
-        where: and(
-          eq(tutorCourses.tutorId, slot.tutorId),
-          eq(tutorCourses.courseId, courseId)
-        ),
-      });
-
-      if (!tutorCert) {
-        return { success: false, error: "Tutor ini tidak bersertifikasi untuk mata kuliah ini" };
-      }
-
-      // 7. Insert booking record
-      const bookingId = randomUUID();
-      const now = new Date();
-
+      // 11. Insert booking record
       await tx.insert(bookings).values({
         id: bookingId,
         slotId,
         studentId: currentUser.id,
-        courseId,
+        courseId: resolvedCourseId,
         groupId,
         status: "scheduled",
         sessionDate: targetDateIso,
         startTime: slot.startTime,
         endTime: slot.endTime,
         mode: slot.mode,
-        location: slot.location,
+        location: slot.location ?? null,
         lastModifiedBy: currentUser.id,
         lastModifiedAt: now,
         bookedAt: now,
       });
 
-      // 8. Insert Audit Log
-      const courseItem = await tx.query.courses.findFirst({
-        where: eq(courses.id, courseId),
-      });
-
-      const auditSummary = `${currentUser.name} memilih jadwal tutorial ${
-        courseItem?.title || "Mata Kuliah"
-      } bersama ${slot.tutor.name} (${slot.dayOfWeek}, ${targetDateIso} ${slot.startTime} - ${slot.endTime})`;
+      // 12. Insert Audit Log
+      const auditSummary = `${currentUser.name || "Murid"} memilih jadwal tutorial (${slot.dayOfWeek}, ${targetDateIso} ${slot.startTime} - ${slot.endTime})`;
 
       await tx.insert(bookingAuditLogs).values({
         id: randomUUID(),
@@ -517,7 +609,7 @@ export async function collaborativeBookSlot(
         summary: auditSummary,
         metadata: {
           slotId,
-          courseId,
+          courseId: resolvedCourseId,
           sessionDate: targetDateIso,
           startTime: slot.startTime,
           endTime: slot.endTime,
@@ -527,7 +619,31 @@ export async function collaborativeBookSlot(
         createdAt: now,
       });
 
-      // 10. Generate Google Meet if Online
+      await recordMutationAudit(
+        {
+          actorId: currentUser.id,
+          actorRoles: ["student"],
+          courseId: resolvedCourseId,
+          entityType: "booking",
+          entityId: bookingId,
+          entityVersion: 1,
+          action: "student.session.book",
+          outcome: "success",
+          requestId: randomUUID(),
+          reason: "STUDENT_SESSION_BOOKED",
+          before: null,
+          after: {
+            id: bookingId,
+            slotId,
+            groupId,
+            courseId: resolvedCourseId,
+            sessionDate: targetDateIso,
+          },
+        },
+        tx
+      );
+
+      // 13. Generate Google Meet if Online
       if (slot.mode === "online") {
         setTimeout(async () => {
           try {
@@ -538,11 +654,21 @@ export async function collaborativeBookSlot(
         }, 100);
       }
 
-      revalidatePath("/dashboard/schedule");
-      revalidatePath("/dashboard/groups");
+      try {
+        revalidatePath("/dashboard/schedule");
+        revalidatePath("/dashboard/groups");
+      } catch {
+        // Ignored in non-request test runners
+      }
       return { success: true, bookingId };
     });
   } catch (err: any) {
+    if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
+      return {
+        success: false,
+        error: "Kuota sesi minggu ini sudah habis. Beralihlah ke pekan berikutnya.",
+      };
+    }
     console.error("Collaborative booking error:", err);
     return { success: false, error: err?.message || "Gagal memesan slot tutorial" };
   }
@@ -550,15 +676,34 @@ export async function collaborativeBookSlot(
 
 // ── COLLABORATIVE MOVE SLOT (Before Weekly Lock) ──────────────────────────────
 
+export interface CollaborativeMoveSlotOptions {
+  actorId?: string;
+  executor?: DbExecutor;
+}
+
 export async function collaborativeMoveSlot(
   bookingId: string,
   newSlotId: string,
-  newTargetDateIso: string
-) {
-  const currentUser = await requireUser();
+  newTargetDateIso: string,
+  options?: CollaborativeMoveSlotOptions
+): Promise<{ success: boolean; error?: string; reason?: string }> {
+  let currentUser: { id: string; name?: string | null };
+  const client = (options?.executor ?? db) as typeof db;
+
+  if (options?.executor && options?.actorId?.trim()) {
+    const dbUser = await client.query.user.findFirst({
+      where: eq(user.id, options.actorId.trim()),
+    });
+    if (!dbUser) {
+      return { success: false, error: "Pengguna tidak ditemukan" };
+    }
+    currentUser = dbUser;
+  } else {
+    currentUser = await requireUser();
+  }
 
   try {
-    return await db.transaction(async (tx) => {
+    return await client.transaction(async (tx) => {
       const booking = await tx.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
         with: {
@@ -588,7 +733,15 @@ export async function collaborativeMoveSlot(
         return { success: false, error: "Anda tidak berwenang mengubah jadwal kelompok ini" };
       }
 
-      // 2. Verify lock status
+      // 2. Reject terminal states
+      if (isTerminalBookingStatus(booking.status)) {
+        return {
+          success: false,
+          error: "Sesi yang sudah selesai atau dibatalkan tidak dapat dipindahkan.",
+        };
+      }
+
+      // 3. Verify lock status
       if (booking.sessionDate && isSessionLocked(booking.sessionDate)) {
         return {
           success: false,
@@ -604,7 +757,7 @@ export async function collaborativeMoveSlot(
         };
       }
 
-      // 3. Verify new slot
+      // 4. Verify new slot
       const newSlot = await tx.query.tutorSlots.findFirst({
         where: eq(tutorSlots.id, newSlotId),
         with: {
@@ -616,7 +769,25 @@ export async function collaborativeMoveSlot(
         return { success: false, error: "Slot baru tidak ditemukan" };
       }
 
-      // 4. Verify FCFS for new slot
+      // 5. Validate new slot duration (exact 90m)
+      const durationCheck = validateSlotDuration(newSlot.startTime, newSlot.endTime);
+      if (!durationCheck.isValid) {
+        return {
+          success: false,
+          error: "Durasi slot baru harus tepat 90 menit.",
+        };
+      }
+
+      // 6. Validate weekday date match
+      const weekdayCheck = validateSlotWeekdayDate(newTargetDateIso, newSlot.dayOfWeek);
+      if (!weekdayCheck.isValid) {
+        return {
+          success: false,
+          error: "Tanggal tujuan tidak sesuai dengan hari slot baru atau tanggal tidak valid.",
+        };
+      }
+
+      // 7. Verify FCFS for new slot
       const existing = await tx.query.bookings.findFirst({
         where: eq(bookings.slotId, newSlotId),
       });
@@ -625,10 +796,37 @@ export async function collaborativeMoveSlot(
         return { success: false, error: "Slot baru sudah diambil oleh kelompok lain" };
       }
 
+      // 7.5 Verify target week weekly quota under write lock (excluding moving booking)
+      const { startIso, endIso } = getIsoWeekRange(newTargetDateIso);
+      const groupQuotaRows = await tx
+        .select({ weeklyQuotaSessions: groups.weeklyQuotaSessions })
+        .from(groups)
+        .where(eq(groups.id, booking.groupId))
+        .limit(1);
+      const weeklyQuota = groupQuotaRows[0]?.weeklyQuotaSessions || 2;
+
+      const weekCountRows = await tx
+        .select({ value: sql<number>`count(*)` })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.groupId, booking.groupId),
+            ne(bookings.id, bookingId),
+            gte(bookings.sessionDate, startIso),
+            lte(bookings.sessionDate, endIso),
+            countsTowardGroupWeeklyQuota()
+          )
+        );
+      const targetWeekBookingCount = Number(weekCountRows[0]?.value ?? 0);
+
+      if (targetWeekBookingCount >= weeklyQuota) {
+        throw new Error("WEEKLY_QUOTA_EXCEEDED");
+      }
+
       const now = new Date();
 
-      // 5. Update booking
-      await tx
+      // 8. Guarded update on booking
+      const updateRes = await tx
         .update(bookings)
         .set({
           slotId: newSlotId,
@@ -640,10 +838,22 @@ export async function collaborativeMoveSlot(
           lastModifiedBy: currentUser.id,
           lastModifiedAt: now,
         })
-        .where(eq(bookings.id, bookingId));
+        .where(
+          and(
+            eq(bookings.id, bookingId),
+            terminalStatusGuard()
+          )
+        );
 
-      // 6. Record Audit Log
-      const auditSummary = `${currentUser.name} memindahkan jadwal ${booking.course.title} dari ${
+      if ((updateRes.rowsAffected ?? 0) === 0) {
+        return {
+          success: false,
+          error: "Status sesi berubah sebelum pemindahan; tidak ada perubahan yang disimpan.",
+        };
+      }
+
+      // 9. Record Audit Log
+      const auditSummary = `${currentUser.name || "Murid"} memindahkan jadwal ${booking.course?.title || "Mata Kuliah"} dari ${
         booking.sessionDate || ""
       } (${booking.startTime} - ${booking.endTime}) ke ${newSlot.dayOfWeek}, ${newTargetDateIso} (${
         newSlot.startTime
@@ -664,7 +874,33 @@ export async function collaborativeMoveSlot(
         createdAt: now,
       });
 
-      // 7. Ensure Google Meet for new slot if online
+      await recordMutationAudit(
+        {
+          actorId: currentUser.id,
+          actorRoles: ["student"],
+          courseId: booking.courseId,
+          entityType: "booking",
+          entityId: bookingId,
+          entityVersion: 1,
+          action: "student.session.move",
+          outcome: "success",
+          requestId: randomUUID(),
+          reason: "STUDENT_SESSION_MOVED",
+          before: {
+            slotId: booking.slotId,
+            sessionDate: booking.sessionDate,
+          },
+          after: {
+            slotId: newSlotId,
+            sessionDate: newTargetDateIso,
+            startTime: newSlot.startTime,
+            endTime: newSlot.endTime,
+          },
+        },
+        tx
+      );
+
+      // 10. Ensure Google Meet for new slot if online
       if (newSlot.mode === "online") {
         setTimeout(async () => {
           try {
@@ -675,10 +911,21 @@ export async function collaborativeMoveSlot(
         }, 100);
       }
 
-      revalidatePath("/dashboard/schedule");
+      try {
+        revalidatePath("/dashboard/schedule");
+      } catch {
+        // Ignored in non-request test runners
+      }
       return { success: true };
     });
   } catch (err: any) {
+    if (err?.message === "WEEKLY_QUOTA_EXCEEDED") {
+      return {
+        success: false,
+        error: "Kuota sesi mingguan kelompok telah tercapai.",
+        reason: "WEEKLY_QUOTA_EXCEEDED",
+      };
+    }
     console.error("Collaborative move slot error:", err);
     return { success: false, error: err?.message || "Gagal memindahkan jadwal" };
   }
@@ -714,6 +961,13 @@ export async function collaborativeCancelSlot(bookingId: string) {
         return { success: false, error: "Anda tidak berwenang membatalkan jadwal ini" };
       }
 
+      if (isTerminalBookingStatus(booking.status)) {
+        return {
+          success: false,
+          error: "Sesi sudah dalam status selesai atau dibatalkan.",
+        };
+      }
+
       if (booking.sessionDate && isSessionLocked(booking.sessionDate)) {
         return {
           success: false,
@@ -722,8 +976,96 @@ export async function collaborativeCancelSlot(bookingId: string) {
         };
       }
 
-      // Delete booking (weekly quota is derived, so the freed slot is automatic)
-      await tx.delete(bookings).where(eq(bookings.id, bookingId));
+      const now = new Date();
+      const requestId = randomUUID();
+
+      // Guarded cancel: preserve history by marking status 'cancelled'
+      const cancelRes = await tx
+        .update(bookings)
+        .set({
+          status: "cancelled",
+          lastModifiedBy: currentUser.id,
+          lastModifiedAt: now,
+        })
+        .where(
+          and(
+            eq(bookings.id, bookingId),
+            terminalStatusGuard()
+          )
+        );
+
+      if ((cancelRes.rowsAffected ?? 0) === 0) {
+        return { success: false, error: "Status sesi sudah berubah." };
+      }
+
+      // Pre-lock cancellation refunds 1 package session
+      const refundClaim = await tx
+        .update(groups)
+        .set({
+          usedQuotaSessions: sql`MAX(${groups.usedQuotaSessions} - 1, 0)`,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(groups.id, booking.groupId),
+            gt(groups.usedQuotaSessions, 0)
+          )
+        );
+
+      if ((refundClaim.rowsAffected ?? 0) > 0) {
+        await tx.insert(bookingAuditLogs).values({
+          id: randomUUID(),
+          bookingId,
+          groupId: booking.groupId,
+          actorId: currentUser.id,
+          action: CANCELLED_QUOTA_REFUND_LOG_ACTION,
+          summary: `Kuota paket dikembalikan satu sesi untuk pembatalan pra-kunci (${booking.sessionDate ?? "tanpa tanggal"}).`,
+          metadata: {
+            marker: "prelock_cancel_quota_refund",
+            bookingId,
+            groupId: booking.groupId,
+            refundedSessions: 1,
+            requestId,
+          },
+          createdAt: now,
+        });
+      }
+
+      await tx.insert(bookingAuditLogs).values({
+        id: randomUUID(),
+        bookingId,
+        groupId: booking.groupId,
+        actorId: currentUser.id,
+        action: "BOOKING_CANCELLED",
+        summary: `Pembatalan pra-kunci sesi tutorial oleh ${currentUser.name || "Murid"}.`,
+        metadata: {
+          sessionDate: booking.sessionDate,
+        },
+        createdAt: now,
+      });
+
+      await recordMutationAudit(
+        {
+          actorId: currentUser.id,
+          actorRoles: ["student"],
+          courseId: booking.courseId,
+          entityType: "booking",
+          entityId: bookingId,
+          entityVersion: 1,
+          action: "student.session.cancel",
+          outcome: "success",
+          requestId,
+          reason: "STUDENT_SESSION_CANCELLED_PRELOCK",
+          before: {
+            status: booking.status,
+            sessionDate: booking.sessionDate,
+          },
+          after: {
+            status: "cancelled",
+          },
+        },
+        tx
+      );
 
       revalidatePath("/dashboard/schedule");
       revalidatePath("/dashboard/groups");
@@ -833,79 +1175,127 @@ export async function submitRescheduleTicket(
   const currentUser = await requireUser();
 
   try {
-    const booking = await db.query.bookings.findFirst({
-      where: eq(bookings.id, bookingId),
-      with: {
-        slot: true,
-      },
-    });
+    return await db.transaction(async (tx) => {
+      const booking = await tx.query.bookings.findFirst({
+        where: eq(bookings.id, bookingId),
+        with: {
+          slot: true,
+        },
+      });
 
-    if (!booking) {
-      return { success: false, error: "Jadwal tutorial tidak ditemukan" };
-    }
+      if (!booking) {
+        return { success: false, error: "Jadwal tutorial tidak ditemukan" };
+      }
 
-    const membership = await db.query.groupMembers.findFirst({
-      where: and(
-        eq(groupMembers.groupId, booking.groupId),
-        eq(groupMembers.userId, currentUser.id)
-      ),
-    });
+      const membership = await tx.query.groupMembers.findFirst({
+        where: and(
+          eq(groupMembers.groupId, booking.groupId),
+          eq(groupMembers.userId, currentUser.id)
+        ),
+      });
 
-    if (!membership) {
-      return { success: false, error: "Anda bukan anggota kelompok belajar ini" };
-    }
+      if (!membership) {
+        return { success: false, error: "Anda bukan anggota kelompok belajar ini" };
+      }
 
-    const ticketId = randomUUID();
-    const now = new Date();
+      if (isTerminalBookingStatus(booking.status)) {
+        return {
+          success: false,
+          error: "Sesi sudah dalam status selesai atau dibatalkan; tiket tidak dapat diajukan.",
+        };
+      }
 
-    await db.insert(bookingRescheduleTickets).values({
-      id: ticketId,
-      bookingId,
-      groupId: booking.groupId,
-      requestedById: currentUser.id,
-      tutorId: booking.slot.tutorId,
-      type,
-      status: "pending",
-      reason: reason.trim(),
-      proposedSlotId: proposedSlotId || null,
-      proposedDate: proposedDate || null,
-      createdAt: now,
-      updatedAt: now,
-    });
+      // Check for duplicate pending tickets on this booking
+      const existingPending = await tx
+        .select({ id: bookingRescheduleTickets.id })
+        .from(bookingRescheduleTickets)
+        .where(
+          and(
+            eq(bookingRescheduleTickets.bookingId, bookingId),
+            eq(bookingRescheduleTickets.status, "pending")
+          )
+        )
+        .limit(1);
 
-    // Initial message in discussion thread
-    await db.insert(bookingTicketMessages).values({
-      id: randomUUID(),
-      ticketId,
-      senderId: currentUser.id,
-      message: `[Permohonan ${type === "reschedule" ? "Reschedule" : "Pembatalan"}]\nAlasan: ${reason}`,
-      createdAt: now,
-    });
+      if (existingPending.length > 0) {
+        return {
+          success: false,
+          error: "Masih terdapat permohonan tiket yang sedang menunggu keputusan untuk sesi ini.",
+          reason: "DUPLICATE_PENDING_TICKET",
+        };
+      }
 
-    // Audit log
-    const auditSummary = `${currentUser.name} mengajukan tiket ${
-      type === "reschedule" ? "Reschedule" : "Pembatalan"
-    } untuk sesi ini`;
+      const ticketId = randomUUID();
+      const now = new Date();
+      const requestId = randomUUID();
 
-    await db.insert(bookingAuditLogs).values({
-      id: randomUUID(),
-      bookingId,
-      groupId: booking.groupId,
-      actorId: currentUser.id,
-      action: type === "reschedule" ? "RESCHEDULE_REQUESTED" : "BOOKING_CANCELLED",
-      summary: auditSummary,
-      metadata: {
-        ticketId,
+      await tx.insert(bookingRescheduleTickets).values({
+        id: ticketId,
+        bookingId,
+        groupId: booking.groupId,
+        requestedById: currentUser.id,
+        tutorId: booking.slot.tutorId,
         type,
-        reason,
-        proposedSlotId,
-        proposedDate,
-      },
-      createdAt: now,
-    });
+        status: "pending",
+        reason: reason.trim(),
+        proposedSlotId: proposedSlotId || null,
+        proposedDate: proposedDate || null,
+        createdAt: now,
+        updatedAt: now,
+      });
 
-    revalidatePath("/dashboard/schedule");
-    return { success: true, ticketId };
+      // Initial message in discussion thread
+      await tx.insert(bookingTicketMessages).values({
+        id: randomUUID(),
+        ticketId,
+        senderId: currentUser.id,
+        message: `[Permohonan ${type === "reschedule" ? "Reschedule" : "Pembatalan"}]\nAlasan: ${reason}`,
+        createdAt: now,
+      });
+
+      // Audit log
+      const auditSummary = `${currentUser.name || "Murid"} mengajukan tiket ${
+        type === "reschedule" ? "Reschedule" : "Pembatalan"
+      } untuk sesi ini`;
+
+      await tx.insert(bookingAuditLogs).values({
+        id: randomUUID(),
+        bookingId,
+        groupId: booking.groupId,
+        actorId: currentUser.id,
+        action: type === "reschedule" ? "RESCHEDULE_REQUESTED" : "BOOKING_CANCELLED",
+        summary: auditSummary,
+        metadata: {
+          ticketId,
+          type,
+          reason,
+          proposedSlotId,
+          proposedDate,
+        },
+        createdAt: now,
+      });
+
+      await recordMutationAudit(
+        {
+          actorId: currentUser.id,
+          actorRoles: ["student"],
+          courseId: booking.courseId,
+          entityType: "reschedule_ticket",
+          entityId: ticketId,
+          entityVersion: 1,
+          action: "student.ticket.create",
+          outcome: "success",
+          requestId,
+          reason: "STUDENT_TICKET_SUBMITTED",
+          before: { bookingId, status: booking.status },
+          after: { ticketId, type, reason, proposedSlotId, proposedDate },
+        },
+        tx
+      );
+
+      revalidatePath("/dashboard/schedule");
+      return { success: true, ticketId };
+    });
   } catch (err: any) {
     console.error("Submit reschedule ticket error:", err);
     return { success: false, error: err?.message || "Gagal mengajukan tiket" };
@@ -977,87 +1367,47 @@ export async function tutorAddSlot(
   startTime: string,
   endTime: string,
   mode: "online" | "offline" = "online",
-  location?: string
+  location?: string,
+  sessionDate?: string
 ) {
-  const currentUser = await requireUser();
-
-  const dbUser = await db.query.user.findFirst({
-    where: eq(user.id, currentUser.id),
+  await requireUser();
+  const res = await executeAddTutorSlot({
+    dayOfWeek,
+    startTime,
+    endTime,
+    mode,
+    location,
+    sessionDate,
   });
-
-  if (dbUser?.role !== "teacher" && dbUser?.role !== "admin") {
-    return { success: false, error: "Hanya tutor yang dapat menambahkan slot ketersediaan" };
-  }
-
-  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-  if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
-    return { success: false, error: "Format waktu harus HH:MM (contoh: 09:00)" };
-  }
-
-  if (!isNinetyMinuteSlot(startTime, endTime)) {
-    return { success: false, error: "Durasi slot harus tepat 90 menit" };
-  }
-
-  if (mode === "offline" && !location?.trim()) {
-    return { success: false, error: "Untuk sesi offline, lokasi/ruangan fisik wajib diisi" };
-  }
-
-  try {
-    await db.insert(tutorSlots).values({
-      id: randomUUID(),
-      tutorId: dbUser.id,
-      dayOfWeek,
-      startTime,
-      endTime,
-      mode,
-      location: mode === "offline" ? location?.trim() : null,
-      createdAt: new Date(),
-    });
-
+  if (res.success) {
     revalidatePath("/dashboard/schedule");
-    return { success: true };
-  } catch (err: any) {
-    console.error("Tutor add slot error:", err);
-    return { success: false, error: "Gagal menyimpan slot ketersediaan" };
   }
+  return res;
 }
 
 export async function tutorDeleteSlot(slotId: string) {
-  const currentUser = await requireUser();
-
-  const slot = await db.query.tutorSlots.findFirst({
-    where: eq(tutorSlots.id, slotId),
-  });
-
-  if (!slot) {
-    return { success: false, error: "Slot tidak ditemukan" };
-  }
-
-  if (slot.tutorId !== currentUser.id) {
-    return { success: false, error: "Anda tidak berwenang menghapus slot ini" };
-  }
-
-  try {
-    await db.delete(tutorSlots).where(eq(tutorSlots.id, slotId));
+  await requireUser();
+  const res = await executeDeleteTutorSlot({ slotId });
+  if (res.success) {
     revalidatePath("/dashboard/schedule");
-    return { success: true };
-  } catch (err: any) {
-    console.error("Tutor delete slot error:", err);
-    return { success: false, error: "Gagal menghapus slot" };
   }
+  return res;
 }
 
 export async function updateTutorCourses(targetTutorId: string, courseIds: string[]) {
   const currentUser = await requireUser();
 
-  const adminCheck = await db
-    .select({ role: user.role })
-    .from(user)
-    .where(eq(user.id, currentUser.id))
-    .limit(1);
+  const isAdmin = (await hasPeran(currentUser.id, "admin")) || currentUser.role === "admin";
+  if (!isAdmin) {
+    const adminCheck = await db
+      .select({ role: user.role })
+      .from(user)
+      .where(eq(user.id, currentUser.id))
+      .limit(1);
 
-  if (adminCheck[0]?.role !== "admin") {
-    return { success: false, error: "Hanya admin yang dapat mengatur sertifikasi mata kuliah tutor" };
+    if (adminCheck[0]?.role !== "admin") {
+      return { success: false, error: "Hanya admin yang dapat mengatur sertifikasi mata kuliah tutor" };
+    }
   }
 
   try {
@@ -1087,136 +1437,16 @@ export async function tutorDecideTicket(
   decision: "approved" | "rejected",
   decisionNotes?: string
 ) {
-  const currentUser = await requireUser();
-
-  try {
-    return await db.transaction(async (tx) => {
-      const ticket = await tx.query.bookingRescheduleTickets.findFirst({
-        where: eq(bookingRescheduleTickets.id, ticketId),
-        with: {
-          booking: {
-            with: {
-              group: true,
-              course: true,
-            },
-          },
-          proposedSlot: true,
-        },
-      });
-
-      if (!ticket) {
-        return { success: false, error: "Tiket tidak ditemukan" };
-      }
-
-      if (ticket.tutorId !== currentUser.id) {
-        return { success: false, error: "Hanya tutor pengampu yang memiliki hak menyetujui tiket ini" };
-      }
-
-      const now = new Date();
-
-      if (decision === "approved") {
-        if (ticket.type === "reschedule") {
-          if (!ticket.proposedSlotId || !ticket.proposedSlot) {
-            return { success: false, error: "Slot baru tidak valid" };
-          }
-
-          // Move booking to new slot
-          await tx
-            .update(bookings)
-            .set({
-              slotId: ticket.proposedSlotId,
-              sessionDate: ticket.proposedDate || ticket.booking.sessionDate,
-              startTime: ticket.proposedSlot.startTime,
-              endTime: ticket.proposedSlot.endTime,
-              mode: ticket.proposedSlot.mode,
-              location: ticket.proposedSlot.location,
-              lastModifiedBy: currentUser.id,
-              lastModifiedAt: now,
-            })
-            .where(eq(bookings.id, ticket.bookingId));
-
-          // Audit log
-          await tx.insert(bookingAuditLogs).values({
-            id: randomUUID(),
-            bookingId: ticket.bookingId,
-            groupId: ticket.groupId,
-            actorId: currentUser.id,
-            action: "RESCHEDULE_APPROVED",
-            summary: `Tutor ${currentUser.name} menyetujui permohonan Reschedule ke ${ticket.proposedSlot.dayOfWeek} (${ticket.proposedSlot.startTime} - ${ticket.proposedSlot.endTime})`,
-            metadata: {
-              decisionNotes,
-              newSlotId: ticket.proposedSlotId,
-            },
-            createdAt: now,
-          });
-
-          // Update Meet if online
-          if (ticket.proposedSlot.mode === "online") {
-            setTimeout(async () => {
-              try {
-                await ensureGoogleMeetForBooking(ticket.bookingId);
-              } catch (e) {
-                console.error("Async Google Meet generation error:", e);
-              }
-            }, 100);
-          }
-        } else if (ticket.type === "cancellation") {
-          // Mark booking cancelled (quota is forfeited)
-          await tx
-            .update(bookings)
-            .set({
-              status: "cancelled",
-              lastModifiedBy: currentUser.id,
-              lastModifiedAt: now,
-            })
-            .where(eq(bookings.id, ticket.bookingId));
-
-          await tx.insert(bookingAuditLogs).values({
-            id: randomUUID(),
-            bookingId: ticket.bookingId,
-            groupId: ticket.groupId,
-            actorId: currentUser.id,
-            action: "BOOKING_CANCELLED",
-            summary: `Tutor ${currentUser.name} menyetujui pembatalan sesi tutorial. Kuota sesi minggu ini hangus.`,
-            metadata: { decisionNotes },
-            createdAt: now,
-          });
-        }
-      } else {
-        // Rejected
-        await tx.insert(bookingAuditLogs).values({
-          id: randomUUID(),
-          bookingId: ticket.bookingId,
-          groupId: ticket.groupId,
-          actorId: currentUser.id,
-          action: "RESCHEDULE_REJECTED",
-          summary: `Tutor ${currentUser.name} menolak permohonan ${
-            ticket.type === "reschedule" ? "Reschedule" : "Pembatalan"
-          }`,
-          metadata: { decisionNotes },
-          createdAt: now,
-        });
-      }
-
-      // Update ticket status
-      await tx
-        .update(bookingRescheduleTickets)
-        .set({
-          status: decision,
-          decisionNotes: decisionNotes?.trim() || null,
-          decidedAt: now,
-          decidedById: currentUser.id,
-          updatedAt: now,
-        })
-        .where(eq(bookingRescheduleTickets.id, ticketId));
-
-      revalidatePath("/dashboard/schedule");
-      return { success: true };
-    });
-  } catch (err: any) {
-    console.error("Tutor decide ticket error:", err);
-    return { success: false, error: err?.message || "Gagal memproses keputusan tiket" };
+  await requireUser();
+  const res = await executeDecideTutorRescheduleTicket({
+    ticketId,
+    decision,
+    decisionNotes,
+  });
+  if (res.success) {
+    revalidatePath("/dashboard/schedule");
   }
+  return res;
 }
 
 export async function tutorCompleteSession(

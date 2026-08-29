@@ -184,7 +184,7 @@ export function NavProfileOrSignIn({
                   <span>Notification preferences</span>
                 </Link>
               </DropdownMenu.Item>
-              {(userRole === "teacher" || userRole === "admin") && (
+              {(userRole === "teacher" || userRole === "tutor" || userRole === "admin") && (
                 <DropdownMenu.Item
                   asChild
                   className="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-body-sm outline-none"

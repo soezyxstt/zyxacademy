@@ -10,6 +10,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 import { assessmentScopeSchema } from '@/lib/asesmen/contracts';
 import { getQuizTimingMismatch } from '@/lib/asesmen/quiz-timing';
 import { notifyQuizPublishedBestEffort } from '@/lib/notifications/send';
@@ -17,30 +18,286 @@ import {
   deleteAssessmentWithLegacyProjection,
   updateAssessmentWithLegacyProjection,
 } from '@/lib/asesmen/quiz-canonical-sync';
+import { resolveTutorCourseAccess } from '@/lib/auth/tutor-access';
+import {
+  TUTOR_CAPABILITY_ERRORS,
+  resolveActorRoles,
+  resolveEffectiveAssessmentType,
+  recordTutorMutationAuditSafe,
+} from '@/lib/tutor/assessment-policy';
+import { recordTutorMutationAudit } from '@/lib/audit/mutasi';
 
 type Context = { params: Promise<{ id: string }> };
 
 export async function DELETE(_req: NextRequest, { params }: Context) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { roles, isTutor, isAdmin } = await resolveActorRoles(
+    session.user.id,
+    (session.user as { role?: string | null }).role,
+  );
+
+  if (!isAdmin && !isTutor) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { id } = await params;
 
-  await deleteAssessmentWithLegacyProjection(id);
+  const [existingTemplate] = await db
+    .select()
+    .from(quizTemplates)
+    .where(eq(quizTemplates.id, id))
+    .limit(1);
+
+  if (!existingTemplate) {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: 'unknown',
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:delete",
+      outcome: "rejected",
+      reason: "QUIZ_TEMPLATE_NOT_FOUND",
+    });
+    return NextResponse.json({ error: 'Quiz template not found' }, { status: 404 });
+  }
+
+  const access = await resolveTutorCourseAccess({
+    penggunaId: session.user.id,
+    courseId: existingTemplate.courseId,
+    allowAdmin: isAdmin,
+  });
+
+  if (!access.hasAccess) {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:delete",
+      outcome: "rejected",
+      reason: access.reason || TUTOR_CAPABILITY_ERRORS.ACCESS_DENIED,
+    });
+    return NextResponse.json(
+      { error: `Forbidden: ${access.reason || "NO_COURSE_ACCESS"}` },
+      { status: 403 },
+    );
+  }
+
+  if (!isAdmin && existingTemplate.category === 'simulation') {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:delete",
+      outcome: "rejected",
+      reason: TUTOR_CAPABILITY_ERRORS.SIMULATION_MUTATION_FORBIDDEN,
+    });
+    return NextResponse.json(
+      { error: 'Forbidden: Tutors cannot delete simulations.' },
+      { status: 403 },
+    );
+  }
+
+  if (
+    !isAdmin &&
+    resolveEffectiveAssessmentType(existingTemplate.category, existingTemplate.selectionRules) ===
+      'tryout'
+  ) {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:delete",
+      outcome: "rejected",
+      reason: TUTOR_CAPABILITY_ERRORS.TRYOUT_CATEGORY_FORBIDDEN,
+    });
+    return NextResponse.json(
+      { error: 'Forbidden: Tutors cannot delete tryout assessments.' },
+      { status: 403 },
+    );
+  }
+
+  const requestId = `req-${randomUUID()}`;
+  try {
+    await db.transaction(async (tx) => {
+      await deleteAssessmentWithLegacyProjection(id, tx);
+
+      await recordTutorMutationAudit({
+        actorId: session.user.id,
+        actorRoles: roles,
+        courseId: access.courseId ?? existingTemplate.courseId,
+        entityType: "quiz_template",
+        entityId: id,
+        entityVersion: 1,
+        requestId,
+        action: "quiz:delete",
+        outcome: "success",
+        reason: "Quiz template deleted via API",
+        before: {
+          id,
+          title: existingTemplate.title,
+          category: existingTemplate.category,
+        },
+      }, tx);
+    });
+  } catch (err: any) {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      requestId,
+      action: "quiz:delete",
+      outcome: "failed",
+      reason: err?.message || "Failed to delete quiz template via API",
+      before: {
+        id,
+        title: existingTemplate.title,
+        category: existingTemplate.category,
+      },
+    });
+    return NextResponse.json({ error: 'Failed to delete quiz template' }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }
 
 export async function PATCH(req: NextRequest, { params }: Context) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { roles, isTutor, isAdmin } = await resolveActorRoles(
+    session.user.id,
+    (session.user as { role?: string | null }).role,
+  );
+
+  if (!isAdmin && !isTutor) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { id } = await params;
-  const body = await req.json();
+
+  const [existingTemplate] = await db
+    .select()
+    .from(quizTemplates)
+    .where(eq(quizTemplates.id, id))
+    .limit(1);
+
+  if (!existingTemplate) {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: 'unknown',
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:update",
+      outcome: "rejected",
+      reason: "QUIZ_TEMPLATE_NOT_FOUND",
+    });
+    return NextResponse.json({ error: 'Quiz template not found' }, { status: 404 });
+  }
+
+  const access = await resolveTutorCourseAccess({
+    penggunaId: session.user.id,
+    courseId: existingTemplate.courseId,
+    allowAdmin: isAdmin,
+  });
+
+  if (!access.hasAccess) {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:update",
+      outcome: "rejected",
+      reason: access.reason || TUTOR_CAPABILITY_ERRORS.ACCESS_DENIED,
+    });
+    return NextResponse.json(
+      { error: `Forbidden: ${access.reason || "NO_COURSE_ACCESS"}` },
+      { status: 403 },
+    );
+  }
+
+  if (!isAdmin && existingTemplate.category === 'simulation') {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:update",
+      outcome: "rejected",
+      reason: TUTOR_CAPABILITY_ERRORS.SIMULATION_MUTATION_FORBIDDEN,
+    });
+    return NextResponse.json(
+      { error: 'Forbidden: Tutors cannot edit simulations.' },
+      { status: 403 },
+    );
+  }
+
+  if (
+    !isAdmin &&
+    resolveEffectiveAssessmentType(existingTemplate.category, existingTemplate.selectionRules) ===
+      'tryout'
+  ) {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:update",
+      outcome: "rejected",
+      reason: TUTOR_CAPABILITY_ERRORS.TRYOUT_CATEGORY_FORBIDDEN,
+    });
+    return NextResponse.json(
+      { error: 'Forbidden: Tutors cannot edit tryout assessments.' },
+      { status: 403 },
+    );
+  }
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    const errorMsg = "Malformed JSON in request body.";
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:update",
+      outcome: "rejected",
+      reason: errorMsg,
+    });
+    return NextResponse.json({ error: errorMsg }, { status: 400 });
+  }
 
   const UpdateSchema = z.object({
     status: z.enum(['draft', 'published']).optional(),
@@ -84,7 +341,55 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   const parsed = UpdateSchema.safeParse(body);
   if (!parsed.success) {
     const errorMsg = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      action: "quiz:update",
+      outcome: "rejected",
+      reason: errorMsg,
+    });
     return NextResponse.json({ error: errorMsg }, { status: 400 });
+  }
+
+  if (!isAdmin) {
+    if (parsed.data.category === 'simulation') {
+      await recordTutorMutationAuditSafe({
+        actorId: session.user.id,
+        actorRoles: roles,
+        courseId: access.courseId ?? existingTemplate.courseId,
+        entityType: "quiz_template",
+        entityId: id,
+        entityVersion: 1,
+        action: "quiz:update",
+        outcome: "rejected",
+        reason: TUTOR_CAPABILITY_ERRORS.SIMULATION_MUTATION_FORBIDDEN,
+      });
+      return NextResponse.json(
+        { error: 'Forbidden: Tutors cannot change quiz category to simulation.' },
+        { status: 403 },
+      );
+    }
+    if (parsed.data.selectionRules?.assessmentType === 'tryout') {
+      await recordTutorMutationAuditSafe({
+        actorId: session.user.id,
+        actorRoles: roles,
+        courseId: access.courseId ?? existingTemplate.courseId,
+        entityType: "quiz_template",
+        entityId: id,
+        entityVersion: 1,
+        action: "quiz:update",
+        outcome: "rejected",
+        reason: TUTOR_CAPABILITY_ERRORS.TRYOUT_CATEGORY_FORBIDDEN,
+      });
+      return NextResponse.json(
+        { error: 'Forbidden: Tutors cannot set assessment type to tryout.' },
+        { status: 403 },
+      );
+    }
   }
 
   const updateData: any = {};
@@ -108,7 +413,19 @@ export async function PATCH(req: NextRequest, { params }: Context) {
         chapterIds: parsed.data.selectionRules.chapterIds ?? [],
       });
       if (!scope.success) {
-        return NextResponse.json({ error: 'Assessment scope must match quiz or tryout chapter rules.' }, { status: 400 });
+        const reason = 'Assessment scope must match quiz or tryout chapter rules.';
+        await recordTutorMutationAuditSafe({
+          actorId: session.user.id,
+          actorRoles: roles,
+          courseId: access.courseId ?? existingTemplate.courseId,
+          entityType: "quiz_template",
+          entityId: id,
+          entityVersion: 1,
+          action: "quiz:update",
+          outcome: "rejected",
+          reason,
+        });
+        return NextResponse.json({ error: reason }, { status: 400 });
       }
     }
     const timingMismatch = getQuizTimingMismatch({
@@ -120,6 +437,17 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       defaultQuestionTimerSeconds: parsed.data.selectionRules.defaultQuestionTimerSeconds,
     });
     if (timingMismatch) {
+      await recordTutorMutationAuditSafe({
+        actorId: session.user.id,
+        actorRoles: roles,
+        courseId: access.courseId ?? existingTemplate.courseId,
+        entityType: "quiz_template",
+        entityId: id,
+        entityVersion: 1,
+        action: "quiz:update",
+        outcome: "rejected",
+        reason: timingMismatch,
+      });
       return NextResponse.json({ error: timingMismatch }, { status: 400 });
     }
     updateData.selectionRules = parsed.data.selectionRules;
@@ -132,8 +460,6 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   }
   updateData.actorId = session.user.id;
 
-  // If status is changing, read the current row so we only notify on a
-  // transition into "published" (never on every save or re-publish).
   const previous = parsed.data.status
     ? await db
         .select({ status: quizTemplates.status, title: quizTemplates.title, courseId: quizTemplates.courseId })
@@ -143,7 +469,49 @@ export async function PATCH(req: NextRequest, { params }: Context) {
         .then((rows) => rows[0] ?? null)
     : null;
 
-  await updateAssessmentWithLegacyProjection(id, updateData);
+  const requestId = `req-${randomUUID()}`;
+  try {
+    await db.transaction(async (tx) => {
+      await updateAssessmentWithLegacyProjection(id, updateData, tx);
+
+      await recordTutorMutationAudit({
+        actorId: session.user.id,
+        actorRoles: roles,
+        courseId: access.courseId ?? existingTemplate.courseId,
+        entityType: "quiz_template",
+        entityId: id,
+        entityVersion: 1,
+        requestId,
+        action: "quiz:update",
+        outcome: "success",
+        reason: "Quiz template updated via API",
+        after: {
+          id,
+          title: parsed.data.title ?? existingTemplate.title,
+          status: parsed.data.status ?? existingTemplate.status,
+        },
+      }, tx);
+    });
+  } catch (err: any) {
+    await recordTutorMutationAuditSafe({
+      actorId: session.user.id,
+      actorRoles: roles,
+      courseId: access.courseId ?? existingTemplate.courseId,
+      entityType: "quiz_template",
+      entityId: id,
+      entityVersion: 1,
+      requestId,
+      action: "quiz:update",
+      outcome: "failed",
+      reason: err?.message || "Failed to update quiz template via API",
+      after: {
+        id,
+        title: parsed.data.title ?? existingTemplate.title,
+        status: parsed.data.status ?? existingTemplate.status,
+      },
+    });
+    return NextResponse.json({ error: 'Failed to update quiz template' }, { status: 500 });
+  }
 
   if (parsed.data.status === 'published' && previous && previous.status !== 'published') {
     const quizTitle = typeof parsed.data.title === 'string' ? parsed.data.title : previous.title;

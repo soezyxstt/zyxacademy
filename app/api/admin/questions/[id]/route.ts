@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/db";
 import { aiQuestionBank, auditMutasi, soal } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { hasAnyPeran } from "@/lib/auth/authorization";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { questionAuthoringInputSchema } from "@/lib/question-authoring-contract";
@@ -25,7 +26,12 @@ function authoringError(error: unknown): NextResponse {
 
 export async function PUT(req: NextRequest, { params }: Context) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "teacher")) {
+  const isAuthorized =
+    session?.user &&
+    ((await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+      session.user.role === "admin" ||
+      session.user.role === "teacher");
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -52,7 +58,12 @@ export async function PUT(req: NextRequest, { params }: Context) {
 
 export async function DELETE(_req: NextRequest, { params }: Context) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "teacher")) {
+  const isAuthorized =
+    session?.user &&
+    ((await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+      session.user.role === "admin" ||
+      session.user.role === "teacher");
+  if (!isAuthorized) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

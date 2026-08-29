@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { db } from '@/db';
 import { aiQuestionBank, quizTemplates, chapters, knowledgeObjects } from '@/db/schema';
 import { auth } from '@/lib/auth';
+import { hasAnyPeran } from '@/lib/auth/authorization';
 import { headers } from 'next/headers';
 import { and, or, eq, count, sql } from 'drizzle-orm';
 import { startGenerationJob } from '@/lib/generation-pipeline';
@@ -29,7 +30,12 @@ const Schema = z.object({
 
 export async function POST(req: NextRequest) {
  const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user || (session.user.role !== 'admin' && session.user.role !== 'teacher')) {
+ const isAuthorized =
+  session?.user &&
+  ((await hasAnyPeran(session.user.id, ['admin', 'tutor'], { allowAdmin: true })) ||
+   session.user.role === 'admin' ||
+   session.user.role === 'teacher');
+ if (!isAuthorized) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
  }
 

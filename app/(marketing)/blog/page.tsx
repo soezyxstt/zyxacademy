@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { hasAnyPeran } from "@/lib/auth/authorization";
 import { Calendar, Clock, ChevronRight, Bot, BookOpen, FileText, CreditCard, Target, ArrowRight } from "lucide-react";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { cn } from "@/lib/utils";
@@ -67,7 +68,11 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
   const userRole = session?.user?.role;
-  const isAdminOrTeacher = userRole === "admin" || userRole === "teacher";
+  const isAdminOrTeacher =
+    session?.user &&
+    ((await hasAnyPeran(session.user.id, ["admin", "tutor"], { allowAdmin: true })) ||
+      userRole === "admin" ||
+      userRole === "teacher");
 
   const statusFilter = isAdminOrTeacher
     ? inArray(blogArticles.status, ["published", "draft"])

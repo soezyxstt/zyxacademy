@@ -45,7 +45,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "@/components/ui/toast";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
-import { AdminEmptyState } from "@/components/admin/state-panels";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { DocumentViewer } from "@/components/admin/document-viewer";
 import { flattenTree, FolderPicker } from "@/components/admin/folder-picker";
 import {
@@ -1189,10 +1189,10 @@ export function MediaLibrary() {
             </div>
           ) : error ? (
             <div className="border-border rounded-xl border bg-card p-6 shadow-sm">
-              <p className="text-body-sm text-status-error">{error}</p>
-              <Button variant="outline" size="sm" className="mt-4 rounded-lg" onClick={refresh}>
-                Muat Ulang
-              </Button>
+                <AdminErrorState
+                  message={error}
+                  onRetry={refresh}
+                />
             </div>
           ) : visibleItems.length === 0 ? (
             <div className="border-border rounded-xl border bg-card shadow-sm">

@@ -30,6 +30,7 @@ This file contains durable rules for work in this repository. Read the relevant 
 
 | Concern | Source of truth |
 |---|---|
+| Documentation index and status registry | `docs/README.md` |
 | Design tokens and base styles | `app/globals.css` |
 | Shared UI primitives | `components/ui/` |
 | Shared admin UI | `components/admin/` |
@@ -126,6 +127,36 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 - Use `AdminStatStrip` and `AdminStatStripItem` from `components/admin/stat-card` for grouped KPI metrics on admin pages. Do not create local stat-card variants or nest `AdminStatCard` inside a grid for the same purpose.
 - KPI strip labels use `text-body-sm`. KPI values use `font-heading text-h5`. KPI captions use `text-body-xs`. Do not change these across states.
 
+### Dialog and modal surface gating
+
+- Student-facing modals, onboarding prompts, feedback popups, and browser permission requests (such as push notification permission) must never mount on Admin surfaces (`app/(admin)`).
+- Global layout components that trigger interactive modals must explicitly verify the user role (`role !== 'admin'`) and surface route before mounting.
+- Admin pages must remain free from blocking consumer-facing popups.
+
+### Defensive media, images, and fallbacks
+
+- Never render raw `<img>` tags for user uploads or remote storage objects without error handling and fallback UI.
+- When a media object fails to load (such as a 500 error from storage proxy or a missing object key), display a structured fallback component (for example a status badge "Bukti Belum Tersedia" or a styled thumbnail placeholder), never a raw broken browser image icon.
+- Use standard Lucide React icons instead of raw Unicode glyphs or special symbols that risk rendering as unrendered box characters `[]` across different operating systems.
+
+### Error state presentation and sanitization
+
+- Never expose raw JSON error objects (such as OAuth refresh failures) or raw internal backend enum strings (such as `PRODUCT_BUNDLE_VALIDATION_FAILED`) directly to user-facing UI.
+- Use `AdminErrorState` or structured error banners with human-readable Indonesian copy explaining the issue, along with an actionable recovery button (such as "Hubungkan Ulang Akun", "Periksa Format Berkas", or "Coba Lagi").
+- Distinguish between client validation errors, permission denials, and server connectivity failures with appropriate UI treatments.
+
+### Mandatory empty states and data integrity
+
+- Never render bare unstyled text floating in empty space (such as plain text "Belum ada data") when a list or table is empty. Always use `AdminEmptyState` with a relevant icon, title, description, and primary action button where applicable.
+- Table metric cells must never be left blank. Render a formatted zero, `-`, or `N/A` with consistent alignment.
+
+### Table headers, navigation labels, and density
+
+- Table headers (`AdminTableHead`, `<th>`) must use sentence-case (for example "Token string", "Kapasitas kelompok", "Tanggal kedaluwarsa"). Never use all-caps uppercase table headers.
+- Sidebar navigation labels must be concise enough to fit within the standard desktop sidebar without ugly ellipsis truncation. When badges (such as `BETA`) are present, keep the preceding text short so both label and badge remain legible.
+- Do not use unstyled native browser controls such as `<input type="file">`. Use styled upload dropzones or button triggers from the design system.
+- Long lists containing heavy rendering elements (such as LaTeX mathematical formulas in Question Bank) must use pagination or a compact row mode instead of rendering unbounded lists into the DOM.
+
 ### Apples-to-apples ranking
 
 - Overview or cross-course aggregate views must never rank individual students across courses. Per-course or single-course views may rank students.
@@ -196,12 +227,24 @@ Common prefixes:
 - Do not perform destructive data contraction, vector cutover, deployment, or feature rollout as an implicit part of a focused code task.
 - Google Spreadsheet exports update the existing spreadsheet for the entity. The app owns only the explicit data block starting at A1; preserve manual rows and columns outside it. Compare the stored fingerprint and require typed conflict confirmation before overwriting manual edits. Route exports through `lib/google-sheets.ts` and `/api/admin/export-spreadsheet`.
 
+## Visual capture dengan sesi staging
+
+Untuk screenshot halaman terproteksi (misal audit visual `/admin`) terhadap data staging, ikuti prosedur di `docs/operations/visual-audit-capture.md`. Jangan bereksperimen dari nol. Aturan yang paling sering salah dan sudah ditetapkan di sana:
+
+- Gunakan build produksi (`next build` + `next start`) dengan env staging, bukan `next dev`; `next dev` memakai jalur koneksi database yang berbeda dan gagal 401 terhadap Turso.
+- Sesi didapat read-only dengan pola `scripts/staging/smoke-auth.ts`: SELECT satu sesi admin aktif, tandatangani cookie secara lokal. Tidak ada mutasi database.
+- Token sesi bisa dirotasi pengguna staging yang aktif. Ambil token segar tepat sebelum setiap navigasi dan pakai sekali.
+- Nama cookie (`better-auth.session_token` vs `__Secure-...`) ditentukan lewat probe `get-session`, bukan ditebak.
+- Jangan pernah mencetak isi `.env.staging`, token, atau nilai cookie. Simpan screenshot di `artifacts/` dan matikan server lokal setelah selesai.
+
+
 ## Documentation and validation
 
 Update only documents made relevant or inaccurate by the change:
 
 | Change | Document |
 |---|---|
+| Documentation hierarchy or status change | `docs/README.md` |
 | User-facing workflow | `docs/features.md` |
 | Architecture or data flow | `docs/ARCHITECTURE.md` |
 | Schema | `docs/DB_SCHEMA.md` and, when setup changes, `docs/DATABASE.md` |
@@ -209,6 +252,12 @@ Update only documents made relevant or inaccurate by the change:
 | Deployment or rollout | `docs/DEPLOYMENT.md` |
 | Bundle contract | the matching file under `docs/bundle/` |
 | Operational validation | `docs/operations/production-readiness-checklist.md` or the matching runbook |
+
+Documentation index maintenance:
+
+- Whenever creating, modifying, renaming, or deleting any `.md` file under `docs/` or `plans/`, update `docs/README.md` in the same change to keep the master documentation hierarchy and lifecycle status registry accurate.
+- Maintain explicit status tags for every document (`ACTIVE`, `TRANSITIONAL / LEGACY`, `HISTORICAL CHECKPOINT`, `OPEN / IN PROGRESS`, `COMPLETED / RESOLVED`).
+- When an audit is added, record it under `docs/audit/` and mark it `OPEN / IN PROGRESS`. When all findings are fixed and verified, retire the obsolete audit file and record its resolution in `docs/README.md`.
 
 Validation should be pragmatic and proportional:
 
@@ -219,6 +268,35 @@ Validation should be pragmatic and proportional:
 - Run `bun run build` only when requested or when the change affects a build or runtime boundary.
 
 Report pre-existing failures separately from regressions introduced by the change. Do not claim staging, production, visual, OAuth, or external-service success without actually exercising that boundary.
+
+### Visual quality checks with Playwright
+
+Visual quality sign-off is a primary-agent responsibility. The primary agent must personally run the Playwright check, open and inspect every required screenshot, compare the result with the requested behavior and nearby established UI, and report the evidence. Do not hand off execution, screenshot inspection, or the final visual judgment to a worker, subagent, or another model. A worker may implement UI code, but its claim that the UI looks correct is not evidence of visual verification.
+
+Run a visual quality check for every new user-facing feature and for any frontend change that materially affects layout, navigation, responsive behavior, typography, color, spacing, imagery, or interactive state. Small copy-only changes that cannot alter layout, non-UI work, and test-only changes are exempt. When uncertain whether a change is material, run the check.
+
+Use this process:
+
+1. Run `bun run test:visual:install` once when Chromium or its system libraries are unavailable.
+2. Identify every changed route and every changed state before running the check. Use deterministic local data or an explicitly authorized non-production environment. Never use production credentials or personal data for screenshots.
+3. Run `VISUAL_CHECK_PATHS=/route-one,/route-two bun run test:visual`. Use `PLAYWRIGHT_BASE_URL` only to target an already-running authorized environment. Use `PLAYWRIGHT_STORAGE_STATE` only with a local, ignored authentication state file that contains no production session.
+4. The default check must produce and inspect screenshots at 380 by 844 and 1536 by 864. The 1536 by 864 viewport represents the effective CSS workspace of a common 1920 by 1080 laptop display at 125 percent scaling. If the changed behavior has a breakpoint between those widths, add a focused Playwright spec and inspect the affected breakpoint too.
+5. For changed interactive UI, add or update a focused spec under `tests/visual/` that captures every affected state, such as closed and open, empty and populated, loading and complete, validation error and success, or enabled and disabled. Do not treat the default route screenshot as sufficient for stateful UI.
+6. Open every screenshot from `artifacts/visual-quality/results/` directly as the primary agent. The HTML report at `artifacts/visual-quality/report/` is supporting evidence, not a replacement for direct image inspection.
+7. Fix failures and rerun the same route, state, and viewport set until it passes. Do not accept a new screenshot merely because the UI change was intentional.
+
+A visual quality check passes only when all of these criteria are met:
+
+- Each required route and state has one inspected screenshot at every required viewport.
+- Playwright reports zero HTTP responses with status 400 or higher, zero unexpected route redirects, zero uncaught page errors, and zero console errors attributable to the change.
+- `document.documentElement.scrollWidth` does not exceed `clientWidth` at any checked viewport.
+- No content is clipped, overlapped, unintentionally hidden, or pushed outside its container. No text or control is truncated unless the established component intentionally truncates it.
+- Typography, spacing, colors, radii, imagery, and component choice follow the tokens and reuse rules in this file and match the surrounding product surface.
+- The primary action, reading order, hierarchy, and state changes are visually clear. Changed controls retain visible labels or accessible icon treatment and a visible keyboard focus state.
+- Loading, empty, error, success, open, selected, and disabled states touched by the change remain distinguishable without layout jumps that obscure or displace the task.
+- The primary agent records the command, exit status, inspected route and state matrix, viewport list, screenshot paths, and any boundary that could not be verified in the final handoff.
+
+The generic runner in `tests/visual/visual-check.spec.ts` captures default route states and enforces HTTP, redirect, runtime-error, and horizontal-overflow gates. It does not replace feature-specific interaction specs or human visual judgment. Keep generated reports, traces, and screenshots under ignored `artifacts/visual-quality/`; do not commit them unless the user explicitly requests a baseline artifact.
 
 ## Multi-model worker delegation
 
@@ -235,3 +313,13 @@ If a worker is asked to validate but cannot run a command (missing binary, envir
 - Add a rule here only when it is durable, cross-cutting, and likely to prevent repeated mistakes.
 - Put feature details, release notes, migration history, free-tier limits, and temporary blockers in the appropriate `docs/` file or Git history.
 - When a current implementation changes, update the source-of-truth document and remove stale wording here. Keep this file focused on decisions an agent must know before editing.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

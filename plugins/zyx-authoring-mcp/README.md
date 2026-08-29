@@ -4,12 +4,15 @@ This package connects an MCP host to the Zyx Authoring MCP at:
 
 `https://staging.zyxacademy.com/api/mcp/authoring`
 
-It includes the four active authoring skills from this repository:
+It includes five active authoring skills from this repository:
 
+- `zyx-authoring-pipeline`
 - `zyx-source-pack-mcp`
 - `zyx-idea-bundle-mcp`
 - `zyx-product-bundle-mcp`
 - `zyx-question-authoring-mcp`
+
+`zyx-authoring-pipeline` orchestrates the full `idea_product` state machine and delegates each authoring stage to the matching specialist skill. The four specialist skills remain independently invocable.
 
 ## Host manifests
 
@@ -18,11 +21,36 @@ It includes the four active authoring skills from this repository:
 - `.mcp.json` is shared by both plugin manifests.
 - `claude-desktop-config.example.json` is a standalone MCP configuration template for the Claude chat tab.
 
-## Authentication
+## Authentication and scopes
 
-The server does not use a static token in this package. It requires an active Zyx admin session. Hosts with MCP OAuth support should open the Zyx sign-in flow automatically. A host without interactive OAuth can use a short-lived bearer token created by an authenticated admin at `/api/mcp/authoring/connection`.
+The server does not use a static token in this package. It requires an active Zyx admin session. Hosts with MCP OAuth support should open the Zyx sign-in flow automatically.
 
-Never commit a connection token or put it in `.mcp.json`.
+- **Default OAuth scopes**: `authoring:read` and `authoring:stage`.
+- **Supported explicit scopes**: `authoring:review` and `authoring:withdraw`.
+- **Session connections**: An authenticated admin session connection receives all supported scopes.
+
+A host without interactive OAuth can use a short-lived bearer token created by an authenticated admin at `/api/mcp/authoring/connection`. Never commit a connection token or put it in `.mcp.json`.
+
+## Implemented tool surface
+
+The Zyx Authoring MCP implements the following tools across workflow, validation, knowledge inspection, and lifecycle operations:
+
+- **Workflow and catalog**: `workflow.list`, `catalog.list_courses`, `catalog.list_chapters`, `source.list_files`, `source.read_file`, `source.ingest`, `workflow.start`, `workflow.get_run`, `workflow.get_contract` (`authoring:read`). Stored course PDFs can be inspected and ingested without a local attachment; local originals remain supported.
+- **Validation and staging**: `authoring.validate_idea_bundle`, `authoring.submit_idea_bundle`, `authoring.validate_product_bundle`, `authoring.submit_product_bundle`, `assessment.validate_quiz_draft`, `assessment.submit_quiz_draft` (`authoring:read` for validation, `authoring:stage` for submission).
+- **Knowledge and analysis**: `assessment.list_ideas`, `assessment.get_idea`, `knowledge.search_ideas`, `knowledge.get_idea`, `knowledge.list_products`, `knowledge.get_product`, `knowledge.list_sources`, `knowledge.get_source`, `knowledge.search_source_chunks`, `analysis.get_coverage`, `assessment.list_questions`, `assessment.get_question`, `assessment.analyze_bank`, `assessment.find_similar` (`authoring:read`).
+- **Lifecycle management**:
+  - `authoring.list_imports` and `authoring.get_import`: Inspect staged imports and review logs without exposing storage keys or reviewer IDs (`authoring:read`).
+  - `authoring.restage_idea_bundle` and `authoring.restage_product_bundle`: Replace staged bundles and reset prior review state via lifecycle services (`authoring:stage`).
+  - `authoring.discard_product_draft`: Permanently delete draft Product Bundles and staging artifacts (`authoring:withdraw`).
+  - `authoring.review_idea_bundle` and `authoring.review_product_bundle`: Record immutable review decisions (`authoring:review`).
+  - `authoring.withdraw_product_bundle`: Audited, idempotent, destructive withdrawal of published Product Bundles (`authoring:withdraw`). Idea Bundle withdrawal is not implemented.
+  - `assessment.update_question`: Edit draft Zyx-original questions in scope and return them to `reviewStatus=generated` for admin review (`authoring:stage`). ITB example questions are immutable; published or retired questions cannot be edited.
+
+## Safety boundaries and stop conditions
+
+- **No publication in MCP**: There is no `authoring:publish` scope and no publication tool. External agents must stop at staging or review; publication remains exclusively in the Zyx admin UI and backend services.
+- **Idea withdrawal boundary**: Idea Bundle withdrawal is not implemented via MCP.
+- **Lifecycle stop conditions**: Product withdrawal (`authoring.withdraw_product_bundle`), draft discard (`authoring.discard_product_draft`), restage, and immutable review decisions change stored lifecycle state. Agents must not execute them autonomously without explicit instruction.
 
 ## Codex Desktop
 

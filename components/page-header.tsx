@@ -29,8 +29,8 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex w-full min-w-0 flex-col items-stretch gap-2.5 text-left",
-        divider && "border-b border-border pb-3 mb-6",
+        "flex w-full min-w-0 flex-col items-stretch gap-2 text-left",
+        divider && "border-b border-border pb-2.5 mb-3.5",
         className,
       )}
     >
