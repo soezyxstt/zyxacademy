@@ -1,81 +1,90 @@
 # Zyx Academy
 
-**Stack:** Next.js 16 (App Router), Drizzle ORM + Turso/SQLite, Better-Auth, Google Gemini, Cloudflare Vectorize, Cloudflare R2, Inngest.
+**Live:** [zyxacademy.com](https://zyxacademy.com)
 
-## Docs
+An AI-enabled learning platform for structured course content, assessments, spaced-repetition study, analytics, and an AI tutor grounded in course knowledge.
+
+The system combines a student learning app, admin authoring workflows, retrieval-backed AI tutoring, content pipelines, assessment tooling, and free-tier-focused cloud infrastructure.
+
+## Product highlights
+
+- Structured course materials and learning progress
+- Assessments, question banks, scoring, and review workflows
+- Spaced-repetition flashcards and study tracking
+- AI tutor with retrieval and vector search
+- Canonical content pipeline for course knowledge
+- Admin authoring, validation, staging, and review workflows
+- Cloud object storage and vector search
+- Production deployment designed around low-cost/free-tier infrastructure
+
+## Stack
+
+- **Next.js 16 + React + TypeScript**
+- **Drizzle ORM + Turso / SQLite**
+- **Better Auth**
+- **Google Gemini**
+- **Cloudflare Vectorize + R2**
+- **Inngest**
+
+## High-level architecture
+
+```text
+Students / Admins
+       │
+       ▼
+   Next.js App
+       │
+       ├─ Learning & assessment workflows
+       ├─ Admin authoring workflows
+       ├─ AI tutor / RAG
+       └─ API layer
+              │
+              ├─ Turso / SQLite        structured data
+              ├─ Cloudflare R2         files and media
+              ├─ Cloudflare Vectorize  retrieval
+              ├─ Gemini                AI generation/tutoring
+              └─ Inngest               background workflows
+```
+
+## Public companion project
+
+The main application source is private. The authoring integration layer is available publicly in [`soezyxstt/zyx-authoring-mcp`](https://github.com/soezyxstt/zyx-authoring-mcp), which exposes the MCP plugin and structured authoring workflow surface used by the platform.
+
+## Documentation
 
 | File | What it covers |
 |---|---|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full system architecture: 4-layer design, database domains, AI pipelines, directory map, data flows |
-| [features.md](docs/features.md) | User-facing workflows: roles, pipelines, quota rules |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Full system architecture, database domains, AI pipelines, directory map, and data flows |
+| [features.md](docs/features.md) | User-facing workflows, roles, pipelines, and quota rules |
 | [DB_SCHEMA.md](docs/DB_SCHEMA.md) | Detailed table-by-table schema reference |
-| [DATABASE.md](docs/DATABASE.md) | Database setup, migration workflow, key design decisions |
-| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Dev setup, commands, env vars, feature flags, code conventions |
-| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production architecture, staging overhaul, Turso, Cloudflare Workers, services |
+| [DATABASE.md](docs/DATABASE.md) | Database setup, migration workflow, and key design decisions |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Development setup, commands, env vars, feature flags, and code conventions |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production architecture, Turso, Cloudflare Workers, and related services |
 | [docs/bundle/](docs/bundle/) | Idea Bundle V2, Product Bundle V2, and Authoring Pack ZIP contracts |
-| [docs/operations/](docs/operations/) | Production readiness checklist, Zyra runbooks, bundle manual test plan |
-| [docs/audit/](docs/audit/) | Historical use-case audit snapshots (read-only record) |
-| [plans/](plans/) | Active plan specs; completed program notes in [plans/README.md](plans/README.md) |
+| [docs/operations/](docs/operations/) | Production readiness, Zyra runbooks, and manual test plans |
+| [docs/audit/](docs/audit/) | Historical use-case audit snapshots |
+| [plans/](plans/) | Active plan specs and completed program notes |
 
-## Quick Start
-
-```bash
-bun install
-cp .env.example .env.local   # fill in secrets
-bun run dev                   # http://localhost:3000
-```
-
-## Kontribusi fitur
-
-Gunakan branch turunan dari `staging`. Jangan push langsung ke branch `staging` atau `main`.
-
-### 1. Clone repository dan buat branch
-
-```bash
-git clone https://github.com/soezyxstt/zyx-edu.git
-cd zyx-edu
-git fetch origin staging
-git switch -c feature/nama-fitur origin/staging
-```
-
-Ganti `feature/nama-fitur` dengan nama branch yang menjelaskan perubahan.
-
-### 2. Install dependency
+## Quick start
 
 ```bash
 bun install
 cp .env.example .env.local
+bun run dev
 ```
 
-Isi `.env.local` dengan nilai lokal yang diperlukan. Jangan commit secret atau file `.env.local`.
+## Contribution workflow
 
-### 3. Tambahkan fitur
-
-- Baca `AGENTS.md` dan dokumentasi terkait sebelum mengubah kode.
-- Ikuti design system dan pola arsitektur yang sudah ada.
-- Jika fitur perlu feature flag, tambahkan flag tersebut melalui `lib/env.ts` dan gunakan nilai `1` untuk mengaktifkannya.
-- Jika fitur mengubah database, ikuti alur schema dan migration yang dijelaskan di `AGENTS.md`.
-- Perbarui dokumentasi yang terdampak.
-
-### 4. Jalankan validasi dan perbaiki error
-
-```bash
-bun run lint
-bun run build
-```
-
-Jika ada error, perbaiki perubahan di branch yang sama lalu ulangi `bun run lint` dan `bun run build` sampai keduanya berhasil. Jangan lanjut ke tahap berikutnya jika masih ada error.
-
-### 5. Sinkronkan branch dengan staging
-
-Setelah validasi lokal berhasil, ambil perubahan terbaru dari `staging` dan rebase branch fitur di atasnya:
+Create feature branches from `staging`; do not push feature work directly to `staging` or `main`.
 
 ```bash
 git fetch origin staging
-git pull --rebase origin staging
+git switch -c feature/nama-fitur origin/staging
+bun install
+cp .env.example .env.local
 ```
 
-Jika terjadi conflict, selesaikan conflict, jalankan `git add <file>`, lalu lanjutkan dengan `git rebase --continue`. Setelah rebase selesai, ulangi validasi:
+Before opening a pull request:
 
 ```bash
 bun run lint
@@ -83,43 +92,20 @@ bun run build
 git diff --check
 ```
 
-### 6. Push branch ke origin
+Then rebase on the latest staging branch and push the feature branch:
 
 ```bash
+git fetch origin staging
+git pull --rebase origin staging
+bun run lint
+bun run build
+git diff --check
 git push -u origin feature/nama-fitur
 ```
 
-### 7. Buat pull request
+Pull requests should summarize the feature, key code or data changes, validation results, environment-variable changes, migrations, feature flags, and any manual deployment steps.
 
-Buat PR dengan target branch `staging`. Deskripsikan fitur dan perubahan yang dibuat. Sertakan hasil validasi serta daftar environment variable baru, atau tulis `Tidak ada` jika tidak ada env variable yang ditambahkan.
+## References
 
-Gunakan struktur berikut dalam deskripsi PR:
-
-```md
-## Ringkasan fitur
-- Jelaskan fitur dan masalah yang diselesaikan.
-
-## Perubahan utama
-- Jelaskan area kode, UI, API, database, atau dokumentasi yang berubah.
-
-## Validasi
-- [ ] `bun run lint`
-- [ ] `bun run build`
-- [ ] `git diff --check`
-
-## Environment variable
-- Tidak ada
-
-<!-- Jika ada, ganti bagian di atas dengan daftar berikut:
-- `NAMA_VARIABLE`: wajib atau opsional, tujuan, dan contoh nilai non-secret.
-- Sudah ditambahkan ke `.env.example` dan `lib/env.ts`.
--->
-
-## Catatan tambahan
-- Jelaskan migration, feature flag, risiko, atau langkah manual yang diperlukan.
-```
-
-## Reference
-
-- **[AGENTS.md](AGENTS.md)**; coding rules and conventions for AI agents
-- **[plans/README.md](plans/README.md)**; completed program invariants and the active plan
+- **[AGENTS.md](AGENTS.md)** — coding rules and conventions for AI agents
+- **[plans/README.md](plans/README.md)** — completed program invariants and the active plan
