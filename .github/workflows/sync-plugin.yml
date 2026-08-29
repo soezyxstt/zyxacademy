@@ -1,0 +1,198 @@
+name: Sync Zyx Authoring MCP Plugin
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+    paths:
+      - 'plugins/zyx-authoring-mcp/**'
+      - '.github/workflows/sync-plugin.yml'
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'Target Environment'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - staging
+          - production
+
+jobs:
+  sync-plugin:
+    name: Mirror Plugin to External Repo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Repository
+        uses: actions/checkout@v4
+
+      - name: Determine Environment & Target Branch
+        id: determine-env
+        run: |
+          REF_NAME="${{ github.ref_name }}"
+          INPUT_ENV="${{ github.event.inputs.target_env }}"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$INPUT_ENV" != "auto" ]; then
+            if [ "$INPUT_ENV" = "staging" ]; then
+              TARGET_ENV="staging"
+              TARGET_BRANCH="staging"
+            else
+              TARGET_ENV="production"
+              TARGET_BRANCH="main"
+            fi
+          else
+            if [ "$REF_NAME" = "staging" ]; then
+              TARGET_ENV="staging"
+              TARGET_BRANCH="staging"
+            else
+              TARGET_ENV="production"
+              TARGET_BRANCH="main"
+            fi
+          fi
+
+          echo "TARGET_ENV=$TARGET_ENV" >> "$GITHUB_ENV"
+          echo "TARGET_BRANCH=$TARGET_BRANCH" >> "$GITHUB_ENV"
+          echo "Target Environment: $TARGET_ENV"
+          echo "Target Branch in Plugin Repo: $TARGET_BRANCH"
+
+      - name: Prepare Plugin Payload & Inject Manifests
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const targetEnv = process.env.TARGET_ENV;
+            const sourceDir = path.resolve('plugins/zyx-authoring-mcp');
+            const buildDir = path.resolve('build-plugin');
+
+            fs.cpSync(sourceDir, buildDir, { recursive: true });
+
+            const isStaging = targetEnv === 'staging';
+            const mcpUrl = isStaging
+              ? 'https://staging.zyxacademy.com/api/mcp/authoring'
+              : 'https://zyxacademy.com/api/mcp/authoring';
+            const homepageUrl = isStaging
+              ? 'https://staging.zyxacademy.com/'
+              : 'https://zyxacademy.com/';
+            const pluginId = isStaging
+              ? 'zyx-authoring-mcp-staging'
+              : 'zyx-authoring-mcp';
+            const displayName = isStaging
+              ? 'Zyx Authoring MCP (Staging)'
+              : 'Zyx Authoring MCP';
+            const brandColor = isStaging ? '#F59E0B' : '#2563EB';
+
+            const readManifest = (...segments) => {
+              const manifestPath = path.join(buildDir, ...segments);
+              if (!fs.existsSync(manifestPath)) {
+                core.setFailed(`Required plugin manifest is missing: ${segments.join('/')}`);
+                return null;
+              }
+
+              return {
+                path: manifestPath,
+                data: JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
+              };
+            };
+
+            const mcpManifest = readManifest('.mcp.json');
+            const claudeManifest = readManifest('.claude-plugin', 'plugin.json');
+            const codexManifest = readManifest('.codex-plugin', 'plugin.json');
+
+            if (!mcpManifest || !claudeManifest || !codexManifest) {
+              return;
+            }
+
+            if (!mcpManifest.data.mcpServers?.['zyx-authoring']) {
+              core.setFailed('Required MCP server entry is missing: zyx-authoring');
+              return;
+            }
+
+            mcpManifest.data.mcpServers['zyx-authoring'].url = mcpUrl;
+            fs.writeFileSync(
+              mcpManifest.path,
+              JSON.stringify(mcpManifest.data, null, 2) + '\n',
+            );
+
+            claudeManifest.data.name = pluginId;
+            claudeManifest.data.homepage = homepageUrl;
+            fs.writeFileSync(
+              claudeManifest.path,
+              JSON.stringify(claudeManifest.data, null, 2) + '\n',
+            );
+
+            if (!codexManifest.data.interface) {
+              core.setFailed('Required Codex interface metadata is missing');
+              return;
+            }
+
+            codexManifest.data.name = pluginId;
+            codexManifest.data.homepage = homepageUrl;
+            codexManifest.data.interface.displayName = displayName;
+            codexManifest.data.interface.websiteURL = homepageUrl;
+            codexManifest.data.interface.brandColor = brandColor;
+            fs.writeFileSync(
+              codexManifest.path,
+              JSON.stringify(codexManifest.data, null, 2) + '\n',
+            );
+
+            console.log(`Plugin configuration prepared successfully for: ${targetEnv}`);
+
+      - name: Push to External Plugin Repository
+        env:
+          PLUGIN_SYNC_TOKEN: ${{ secrets.PLUGIN_SYNC_TOKEN }}
+          TARGET_BRANCH: ${{ env.TARGET_BRANCH }}
+          TARGET_ENV: ${{ env.TARGET_ENV }}
+        run: |
+          if [ -z "$PLUGIN_SYNC_TOKEN" ]; then
+            echo "::error::Secret PLUGIN_SYNC_TOKEN is not defined in this repository."
+            exit 1
+          fi
+
+          REPO_URL="https://x-access-token:${PLUGIN_SYNC_TOKEN}@github.com/soezyxstt/zyx-authoring-mcp.git"
+          CLONE_DIR=$(mktemp -d)
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "Cloning target branch $TARGET_BRANCH from zyx-authoring-mcp..."
+          if git clone --depth 1 --branch "$TARGET_BRANCH" "$REPO_URL" "$CLONE_DIR"; then
+            echo "Branch $TARGET_BRANCH found."
+          else
+            echo "Branch $TARGET_BRANCH does not exist yet. Initializing..."
+            mkdir -p "$CLONE_DIR"
+            cd "$CLONE_DIR"
+            git init
+            git remote add origin "$REPO_URL"
+            git checkout -b "$TARGET_BRANCH"
+            cd -
+          fi
+
+          find "$CLONE_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          cp -a build-plugin/. "$CLONE_DIR"/
+
+          for required_file in \
+            '.codex-plugin/plugin.json' \
+            '.claude-plugin/plugin.json' \
+            '.mcp.json'; do
+            if [ ! -f "$CLONE_DIR/$required_file" ]; then
+              echo "::error::Required plugin manifest was not copied: $required_file"
+              exit 1
+            fi
+          done
+
+          cd "$CLONE_DIR"
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "No changes detected between source and destination. Nothing to commit."
+          else
+            git commit -m "sync(plugin): mirror from zyx-web@${{ github.sha }} [$TARGET_ENV]"
+            git push origin "$TARGET_BRANCH"
+            echo "Successfully pushed changes to branch $TARGET_BRANCH in soezyxstt/zyx-authoring-mcp."
+          fi
