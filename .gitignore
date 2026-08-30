@@ -64,6 +64,8 @@ pka_scores.csv
 .agents
 
 .temp
+.tmp
+tmp*
 
 # local Zyx authoring artifacts
 /source-pack-work/
