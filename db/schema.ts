@@ -2580,6 +2580,26 @@ export const reviewBundle = sqliteTable(
  ],
 );
 
+export const reviewItemBundle = sqliteTable(
+ "review_item_bundle",
+ {
+  id: text("id").primaryKey(),
+  imporBundleId: text("impor_bundle_id").notNull().references(() => imporBundle.id, { onDelete: "cascade" }),
+  reviewerId: text("reviewer_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  productId: text("product_id").notNull(),
+  blockId: text("block_id").notNull(),
+  status: text("status").$type<"pending" | "approved" | "changes_requested">().default("pending").notNull(),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("review_item_bundle_target_idx").on(table.imporBundleId, table.reviewerId, table.productId, table.blockId),
+  index("review_item_bundle_import_idx").on(table.imporBundleId),
+  index("review_item_bundle_status_idx").on(table.status),
+ ],
+);
+
 export const publikasiBundle = sqliteTable(
  "publikasi_bundle",
  {

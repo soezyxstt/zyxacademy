@@ -7,7 +7,7 @@ import { listIdeaBundleImports } from "@/lib/bundle/staging";
 import { listProductBundleImports, productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
 import type { AuthoringContextExportRow } from "@/components/admin/authoring-context-export";
 import type { BundleRow as IdeaBundleRow } from "@/components/admin/idea-bundle-v2-panel";
-import type { BundleRow as ProductBundleRow } from "@/components/admin/product-bundle-v2-panel";
+import type { MaterialBundleRow as ProductBundleRow } from "@/components/admin/material-workflow-ui";
 
 export type MaterialWorkspaceData = {
   initialIdeaImports: IdeaBundleRow[];

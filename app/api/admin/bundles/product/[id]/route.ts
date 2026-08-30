@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { previewProducts } from "@/lib/bundle/product-preview";
-import { discardProductBundleDraft, getProductBundleImport, parseStagedProductBundle, productBundleLifecycleStatus, stageProductBundle } from "@/lib/bundle/product-staging";
+import { discardProductBundleDraft, getProductBundleImport, listProductBlockReviews, parseStagedProductBundle, productBundleLifecycleStatus, stageProductBundle } from "@/lib/bundle/product-staging";
 import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
 
 export const runtime = "nodejs";
@@ -15,6 +15,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const row = await getProductBundleImport(id);
     if (!row) return NextResponse.json({ error: "PRODUCT_BUNDLE_NOT_FOUND" }, { status: 404 });
     const bundle = await parseStagedProductBundle(id);
+    const blockReviews = await listProductBlockReviews(id, session.user.id);
+    const articleBlockCount = bundle.products.reduce((total, product) => total + (product.productType === "article" ? product.blocks.length : 0), 0);
+    const approved = blockReviews.filter((review) => review.status === "approved").length;
+    const changesRequested = blockReviews.filter((review) => review.status === "changes_requested").length;
+    const currentReview = row.reviews.find((review) => review.reviewerId === session.user.id) ?? null;
     return NextResponse.json({
       bundle: {
         id: row.id,
@@ -25,12 +30,17 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         validationReport: row.validationReport,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
+        currentReview: currentReview
+          ? { id: currentReview.id, status: currentReview.status, notes: currentReview.notes, reviewedAt: currentReview.reviewedAt }
+          : null,
         reviews: row.reviews.map((review) => ({ id: review.id, reviewerId: review.reviewerId, status: review.status, notes: review.notes, reviewedAt: review.reviewedAt })),
       },
       manifest: bundle.manifest,
       publicationBlocked: bundle.publicationBlocked,
       issues: bundle.issues,
       dependencies: bundle.dependencies,
+      blockReviews,
+      blockReviewSummary: { total: articleBlockCount, pending: Math.max(0, articleBlockCount - approved - changesRequested), approved, changesRequested },
       previews: previewProducts(bundle.products),
       draft: createProductBundleDraft(bundle),
     });

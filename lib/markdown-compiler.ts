@@ -11,6 +11,210 @@ import {
 // STRING ATTRIBUTE PARSER UTILITY
 // ==========================================
 
+function isEndingWithUnescapedPipe(str: string): boolean {
+  if (!str.endsWith("|")) return false;
+  let backslashCount = 0;
+  for (let idx = str.length - 2; idx >= 0; idx--) {
+    if (str[idx] === "\\") {
+      backslashCount++;
+    } else {
+      break;
+    }
+  }
+  return backslashCount % 2 === 0;
+}
+
+/**
+ * Splits a markdown table row into trimmed cell strings while preserving
+ * pipes inside inline math ($...$), display math ($$...$$, \(...\), \[...\]),
+ * inline code backticks (`...`), and escaped pipes (\|).
+ *
+ * Maintains existing outer-pipe trimming behavior.
+ */
+export function splitMarkdownTableRow(line: string): string[] {
+  const trimmed = line.trim();
+  if (!trimmed) return [];
+
+  const rawCells: string[] = [];
+  let current = "";
+  let i = 0;
+  const len = line.length;
+
+  while (i < len) {
+    const ch = line[i];
+
+    // 1. Escaped character at top level (e.g. \|, \$, \`, \\, etc.)
+    // Note: \( and \[ start LaTeX math modes, handled below
+    if (ch === "\\") {
+      if (i + 1 < len) {
+        const next = line[i + 1];
+        if (next === "(") {
+          // Enter \( ... \) math mode
+          current += "\\(";
+          i += 2;
+          while (i < len) {
+            if (line[i] === "\\" && i + 1 < len) {
+              if (line[i + 1] === ")") {
+                current += "\\)";
+                i += 2;
+                break;
+              } else {
+                current += line[i] + line[i + 1];
+                i += 2;
+                continue;
+              }
+            } else {
+              current += line[i];
+              i++;
+            }
+          }
+          continue;
+        } else if (next === "[") {
+          // Enter \[ ... \] math mode
+          current += "\\[";
+          i += 2;
+          while (i < len) {
+            if (line[i] === "\\" && i + 1 < len) {
+              if (line[i + 1] === "]") {
+                current += "\\]";
+                i += 2;
+                break;
+              } else {
+                current += line[i] + line[i + 1];
+                i += 2;
+                continue;
+              }
+            } else {
+              current += line[i];
+              i++;
+            }
+          }
+          continue;
+        } else {
+          // Escaped character like \|, \\, \$, etc.
+          current += line[i] + line[i + 1];
+          i += 2;
+          continue;
+        }
+      } else {
+        // Trailing backslash
+        current += ch;
+        i++;
+        continue;
+      }
+    }
+
+    // 2. Backtick code span `...` or ``...``
+    if (ch === "`") {
+      let tickCount = 0;
+      while (i + tickCount < len && line[i + tickCount] === "`") {
+        tickCount++;
+      }
+      const tickStr = "`".repeat(tickCount);
+      current += tickStr;
+      i += tickCount;
+
+      // Find matching tickStr
+      while (i < len) {
+        if (line[i] === "`") {
+          let closeCount = 0;
+          while (i + closeCount < len && line[i + closeCount] === "`") {
+            closeCount++;
+          }
+          if (closeCount === tickCount) {
+            current += tickStr;
+            i += closeCount;
+            break;
+          } else {
+            current += "`".repeat(closeCount);
+            i += closeCount;
+          }
+        } else {
+          current += line[i];
+          i++;
+        }
+      }
+      continue;
+    }
+
+    // 3. Math delimiters $$ ... $$ or $ ... $
+    if (ch === "$") {
+      if (i + 1 < len && line[i + 1] === "$") {
+        // $$ display math
+        current += "$$";
+        i += 2;
+        while (i < len) {
+          if (line[i] === "\\") {
+            if (i + 1 < len) {
+              current += line[i] + line[i + 1];
+              i += 2;
+            } else {
+              current += line[i];
+              i++;
+            }
+          } else if (line[i] === "$" && i + 1 < len && line[i + 1] === "$") {
+            current += "$$";
+            i += 2;
+            break;
+          } else {
+            current += line[i];
+            i++;
+          }
+        }
+        continue;
+      } else {
+        // $ inline math
+        current += "$";
+        i++;
+        while (i < len) {
+          if (line[i] === "\\") {
+            if (i + 1 < len) {
+              current += line[i] + line[i + 1];
+              i += 2;
+            } else {
+              current += line[i];
+              i++;
+            }
+          } else if (line[i] === "$") {
+            current += "$";
+            i++;
+            break;
+          } else {
+            current += line[i];
+            i++;
+          }
+        }
+        continue;
+      }
+    }
+
+    // 4. Pipe delimiter |
+    if (ch === "|") {
+      rawCells.push(current);
+      current = "";
+      i++;
+      continue;
+    }
+
+    // Normal character
+    current += ch;
+    i++;
+  }
+
+  rawCells.push(current);
+
+  const cells = rawCells.map(c => c.trim());
+  const trimmedLine = line.trim();
+  if (trimmedLine.startsWith("|") && cells.length > 0) {
+    cells.shift();
+  }
+  if (cells.length > 0 && isEndingWithUnescapedPipe(trimmedLine)) {
+    cells.pop();
+  }
+
+  return cells;
+}
+
 function parseAttributes(attrStr: string): Record<string, string> {
   const attrs: Record<string, string> = {};
   if (!attrStr) return attrs;
@@ -218,10 +422,7 @@ function parseBlockNode(
 
       const tableLines = lines.filter(l => l.includes("|"));
       tableLines.forEach(l => {
-        const parts = l
-          .split("|")
-          .map(p => p.trim())
-          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+        const parts = splitMarkdownTableRow(l);
         if (parts.length >= 2) {
           const symbolRaw = parts[0];
           const unit = parts.length > 2 ? parts[1] : undefined;
@@ -731,17 +932,11 @@ export function parseCanonicalMarkdown(markdown: string): ASTBlock[] {
         language,
       };
     } else if (type === "table") {
-      const headers = contentLines[0]
-        .split("|")
-        .map(h => h.trim())
-        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+      const headers = splitMarkdownTableRow(contentLines[0]);
       
       const rows: string[][] = [];
       contentLines.slice(2).forEach(rowLine => {
-        const cells = rowLine
-          .split("|")
-          .map(c => c.trim())
-          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+        const cells = splitMarkdownTableRow(rowLine);
         if (cells.length > 0) {
           rows.push(cells);
         }

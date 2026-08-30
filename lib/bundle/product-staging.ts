@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, or } from "drizzle-orm";
 import { db } from "@/db";
-import { auditMutasi, courses, imporBundle, itemImporBundle, mataKuliah, reviewBundle, tutorCourses, user } from "@/db/schema";
+import { auditMutasi, courses, imporBundle, itemImporBundle, mataKuliah, reviewBundle, reviewItemBundle, user } from "@/db/schema";
 import { storage } from "@/lib/storage";
 import { buildProductBundleKey } from "@/lib/storage/keys";
 import { productEntityHash, parseProductBundleZip } from "./product-bundle-v2";
@@ -23,6 +23,7 @@ export type ProductStageInput = {
 };
 
 export type ProductBundleLifecycleStatus = "draft" | "published" | "withdrawn";
+export type ProductBlockReviewStatus = "pending" | "approved" | "changes_requested";
 
 export function productBundleLifecycleStatus(status: string): ProductBundleLifecycleStatus {
   if (status === "published") return "published";
@@ -70,6 +71,7 @@ export async function stageProductBundle(input: ProductStageInput) {
       const targetImportId = conflict?.id ?? importId;
       const mutationAt = new Date();
       if (conflict) {
+        await tx.delete(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
         await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, conflict.id));
         await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, conflict.id));
         await tx.update(imporBundle).set({ checksum: input.checksum, courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: 2, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length, quality: input.qualityReport ?? null }, updatedAt: new Date() }).where(eq(imporBundle.id, conflict.id));
@@ -119,6 +121,57 @@ async function reviewerRole(importRow: NonNullable<Awaited<ReturnType<typeof get
   return "tutor";
 }
 
+export async function listProductBlockReviews(importId: string, reviewerId: string) {
+  return db
+    .select()
+    .from(reviewItemBundle)
+    .where(and(eq(reviewItemBundle.imporBundleId, importId), eq(reviewItemBundle.reviewerId, reviewerId)))
+    .orderBy(reviewItemBundle.productId, reviewItemBundle.blockId);
+}
+
+export async function upsertProductBlockReview(input: {
+  importId: string;
+  reviewerId: string;
+  productId: string;
+  blockId: string;
+  status: ProductBlockReviewStatus;
+  notes?: string;
+}) {
+  enabled();
+  const row = await getProductBundleImport(input.importId);
+  if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  await reviewerRole(row, input.reviewerId);
+  if (productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BLOCK_REVIEW_DRAFT_REQUIRED");
+  if (row.reviews.some((review) => review.reviewerId === input.reviewerId)) throw new Error("PRODUCT_BLOCK_REVIEW_IMMUTABLE");
+  const notes = input.notes?.trim() || null;
+  if (notes && notes.length > 2000) throw new Error("PRODUCT_BLOCK_REVIEW_NOTES_LIMIT");
+  const bundle = await parseStagedProductBundle(input.importId);
+  const product = bundle.products.find((candidate) => candidate.id === input.productId);
+  if (!product) throw new Error("PRODUCT_BLOCK_REVIEW_PRODUCT_NOT_FOUND");
+  if (product.productType !== "article") throw new Error("PRODUCT_BLOCK_REVIEW_ARTICLE_REQUIRED");
+  if (!product.blocks.some((block) => block.id === input.blockId)) throw new Error("PRODUCT_BLOCK_REVIEW_BLOCK_NOT_FOUND");
+  const now = new Date();
+  const id = stableId("review-product-block", `${input.importId}:${input.reviewerId}:${input.productId}:${input.blockId}`);
+  await db
+    .insert(reviewItemBundle)
+    .values({
+      id,
+      imporBundleId: input.importId,
+      reviewerId: input.reviewerId,
+      productId: input.productId,
+      blockId: input.blockId,
+      status: input.status,
+      notes,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.productId, reviewItemBundle.blockId],
+      set: { status: input.status, notes, updatedAt: now },
+    });
+  return { id, productId: input.productId, blockId: input.blockId, status: input.status, notes, updatedAt: now };
+}
+
 export async function reviewProductBundle(input: { importId: string; reviewerId: string; decision: "approved" | "rejected"; notes?: string }) {
   enabled();
   const row = await getProductBundleImport(input.importId);
@@ -145,6 +198,7 @@ export async function discardProductBundleDraft(input: { importId: string; actor
   if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
   if (productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
   await db.transaction(async (tx) => {
+    await tx.delete(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, row.id));
     await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, row.id));
     await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, row.id));
     await tx.delete(imporBundle).where(eq(imporBundle.id, row.id));

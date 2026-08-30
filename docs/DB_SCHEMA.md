@@ -619,6 +619,14 @@ Internal review evidence; one immutable decision per reviewer, never a separate 
 * `id`, `imporBundleId`, `reviewerId`
 * `status` (default `pending`), optional `notes`, optional `reviewedAt`, `createdAt`
 
+### review_item_bundle
+Persistent Product Bundle Article block review state for one reviewer. This metadata stays outside the Product Bundle ZIP.
+* `id`, `imporBundleId`, `reviewerId`, `productId`, `blockId`
+* `status` is `pending`, `approved`, or `changes_requested`; optional `notes`, `createdAt`, `updatedAt`
+* Unique target is import, reviewer, product, and block.
+* Import deletion cascades to block reviews. Reviewer deletion is restricted.
+* Draft replacement and discard explicitly clear these rows. A bundle decision makes the same reviewer's rows immutable at the service boundary.
+
 ### publikasi_bundle
 Publication record created or refreshed at atomic publication.
 * `id`, `imporBundleId`, `approvedReviewId`, `version`
@@ -627,7 +635,7 @@ Publication record created or refreshed at atomic publication.
 
 Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
 
-Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Draft replacement rewrites only the import inventory and R2 artifact before publication. Publication inserts canonical article, diktat, question, solution, flashcard, and assessment blueprint rows after traceability and dependency checks pass. Withdrawal marks canonical rows inactive or retired according to their existing table contract and adds vector delete jobs. Question products are exclusively ITB examples and require `itbSource`, ITB curation, typed option IDs with deterministic correct markers, exactly one paired solution, and a HOT cognitive level for multi-Idea questions. Correct markers remain inside the private `soal.options_snapshot` grading representation and are redacted from runtime and vector content. Versions greater than one use versioned product IDs so prior rows remain queryable.
+Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Migration `0081_numerous_gwen_stacy.sql` adds `review_item_bundle` as advisory staged review metadata with no backfill. Existing drafts therefore begin with every Article block effectively pending. Draft replacement rewrites the import inventory and R2 artifact and clears block review rows before publication. Publication inserts canonical article, diktat, question, solution, flashcard, and assessment blueprint rows after traceability and dependency checks pass. Withdrawal marks canonical rows inactive or retired according to their existing table contract and adds vector delete jobs. Question products are exclusively ITB examples and require `itbSource`, ITB curation, typed option IDs with deterministic correct markers, exactly one paired solution, and a HOT cognitive level for multi-Idea questions. Correct markers remain inside the private `soal.options_snapshot` grading representation and are redacted from runtime and vector content. Versions greater than one use versioned product IDs so prior rows remain queryable.
 
 Migration `0068_typical_warbird.sql` adds `origin`, `source_event_name`, and `source_reference_id` to both `soal` and `ai_question_bank`, with `zyx_original` as the non-null default and an origin plus event index on each table. Existing rows therefore remain Zyx originals without a data rewrite. Product publication validates ITB completeness before writing and creates the `ai_question_bank` compatibility projection. Product Bundle source and curation data are retained in the publication audit snapshot, while `soal_itb_referensi.soal_id` links the single source reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
 

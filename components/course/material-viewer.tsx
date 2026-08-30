@@ -51,7 +51,7 @@ import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { updateMaterialProgress } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
-import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
 import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { ZyraMark } from "@/components/course/zyra-mark";
@@ -1265,50 +1265,13 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
           data-theme={theme}
           className="flex-1 bg-background text-foreground transition-colors duration-300 w-full overflow-y-auto"
         >
-          <div className="max-w-2xl mx-auto px-6 py-8">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground mb-1 select-none font-medium">
-              <span>{course?.title ?? "Course"}</span>
-              <span>&rarr;</span>
-              <span>{chapterTitle || "Bab"}</span>
-              <span>&rarr;</span>
-              <span className="text-foreground font-semibold">{articleSections[activeSectionIdx]?.title || "Detail"}</span>
-            </div>
-
-            {/* Chapter Title */}
-            <h1 className="text-h5 font-bold text-primary font-heading tracking-tight mt-1 mb-2">
-              {chapterTitle}
-            </h1>
-
-            {/* Concept tags row */}
-            <div className="flex flex-wrap gap-1.5 mb-4 mt-2">
-              {conceptTags.map((tag) => (
-                <span key={tag} className="bg-primary/5 text-primary text-[10px] font-semibold px-2 py-0.5 rounded-md">
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            <hr className="border-border/80 my-4" />
-
-            {articleSections.length > 0 ? (
-              <>
-                {/* Section heading below divider */}
-                <h2 className="font-heading text-body-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  {articleSections[activeSectionIdx]?.title}
-                </h2>
-
-                {/* Section content */}
-                <div className="w-full">
-                  <MarkdownRenderer content={articleSections[activeSectionIdx]?.content || ""} />
-                </div>
-              </>
-            ) : (
-              <div className="w-full">
-                <MarkdownRenderer content={material.body} />
-              </div>
-            )}
-          </div>
+          <ArticleReadingCanvas
+            content={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.content || "") : (material.body || "")}
+            courseTitle={course?.title ?? "Course"}
+            chapterTitle={chapterTitle}
+            sectionTitle={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.title || "Detail") : undefined}
+            conceptTags={conceptTags}
+          />
         </div>
 
         {/* Pinned Bottom Navigation */}

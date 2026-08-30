@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   ArchiveX,
   BookOpen,
   Check,
@@ -9,12 +10,18 @@ import {
   ChevronLeft,
   ChevronRight,
   FileCheck2,
+  Info,
   Layers,
   Lightbulb,
   ListFilter,
+  MessageSquareText,
+  MoreHorizontal,
   RotateCcw,
+  ShieldAlert,
+  Trash2,
   X
 } from "lucide-react";
+import { DropdownMenu } from "radix-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -26,13 +33,17 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
 import { StatusBadge } from "@/components/admin/status-badges";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
-import { ProductDraftEditor, type ProductPreview } from "@/components/admin/product-bundle-v2-panel";
+import { ProductDraftEditor } from "@/components/admin/product-draft-editor";
+import type { ProductPreview } from "@/lib/bundle/product-preview";
 import type { ProductDependency, ProductEntity } from "@/lib/bundle/product-validator";
 import { cn } from "@/lib/utils";
+import styles from "./material-review-detail.module.css";
 
 type DetailProps = {
   detailId: string;
@@ -61,12 +72,42 @@ type IdeaDetailPayload = {
   draft: IdeaDraft;
 };
 
-type ProductDetailPayload = {
-  bundle: { id: string; bundleId: string; courseId: string | null; status: string; createdAt: string; reviews?: { status: string; notes: string | null }[] };
+export type ProductBlockReview = {
+  id: string;
+  importId?: string;
+  reviewerId?: string;
+  productId: string;
+  blockId: string;
+  status: "pending" | "approved" | "changes_requested";
+  notes: string | null;
+  reviewedAt?: string;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+};
+
+export type ProductBlockReviewSummary = {
+  total: number;
+  pending: number;
+  approved: number;
+  changesRequested: number;
+};
+
+export type ProductDetailPayload = {
+  bundle: {
+    id: string;
+    bundleId: string;
+    courseId: string | null;
+    status: string;
+    createdAt: string;
+    currentReview?: { id: string; status: string; notes: string | null; reviewedAt: string | Date } | null;
+    reviews?: { id?: string; reviewerId?: string; status: string; notes: string | null; reviewedAt?: string }[];
+  };
   previews: ProductPreview[];
   draft: { products: ProductEntity[] };
   publicationBlocked?: boolean;
   dependencies?: ProductDependency[];
+  blockReviews?: ProductBlockReview[];
+  blockReviewSummary?: ProductBlockReviewSummary;
 };
 
 type IdeaDraftItem = IdeaPreview["ideas"][number] & {
@@ -578,31 +619,344 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
   );
 }
 
+const blockReviewLabels: Record<string, string> = {
+  pending: "Menunggu review",
+  approved: "Disetujui",
+  changes_requested: "Perlu revisi",
+};
+
+const blockReviewTones: Record<string, "muted" | "success" | "warning"> = {
+  pending: "muted",
+  approved: "success",
+  changes_requested: "warning",
+};
+
+// ---------------------------------------------------------------------------
+// Block Inspector Component for Article View
+// ---------------------------------------------------------------------------
+
+function ArticleBlockInspector({
+  block,
+  parsed,
+  review,
+  product,
+  dependencies = [],
+}: {
+  block: Extract<ProductEntity, { productType: "article" }>["blocks"][number] | null;
+  parsed: ParsedBlockContent | null;
+  review: ProductBlockReview | null;
+  product: Extract<ProductEntity, { productType: "article" }>;
+  dependencies?: ProductDependency[];
+}) {
+  if (!block || !parsed) {
+    return (
+      <div className="p-4 text-center text-body-xs text-muted-foreground">
+        Pilih blok materi di samping untuk memeriksa metadata dan detailnya.
+      </div>
+    );
+  }
+
+  const meta = articleBlockMeta[block.blockType] ?? { label: block.blockType, badge: "Blok" };
+  const ideaIds = parsed.metadata?.ideaIds ?? product.ideaLinks.map((l) => l.id);
+  const sourceRefs = parsed.metadata?.sourceRefs ?? product.sourceRefs;
+  const learningPurpose = parsed.metadata?.learningPurpose;
+  const applicability = parsed.metadata?.applicability;
+
+  const matchingDeps = dependencies.filter(
+    (dep) =>
+      dep.downstreamEntityId === product.id ||
+      (ideaIds.length > 0 && ideaIds.includes(dep.upstreamEntityId))
+  );
+
+  const freshnessLabels: Record<string, string> = {
+    UP_TO_DATE: "Mutakhir",
+    NEEDS_REVIEW: "Perlu review",
+    STALE: "Kedaluwarsa",
+  };
+
+  const freshnessTones: Record<string, "success" | "warning" | "error" | "muted"> = {
+    UP_TO_DATE: "success",
+    NEEDS_REVIEW: "warning",
+    STALE: "error",
+  };
+
+  return (
+    <div className="space-y-4 text-left">
+      {/* Header Info */}
+      <div className="border-b border-border pb-3">
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant="secondary" className="text-body-xs font-semibold">
+            {meta.badge}
+          </Badge>
+          <StatusBadge tone={blockReviewTones[review?.status ?? "pending"]}>
+            {blockReviewLabels[review?.status ?? "pending"]}
+          </StatusBadge>
+        </div>
+        <h4 className="mt-1.5 font-heading text-body-sm font-bold text-foreground">
+          {block.orderIndex + 1}. {meta.label}
+        </h4>
+        <p className="mt-0.5 font-mono text-body-xs text-muted-foreground">{block.id}</p>
+      </div>
+
+      {/* Review Status & Note */}
+      {review?.notes && (
+        <div className="rounded-lg border border-border/80 bg-muted/40 p-2.5 space-y-1">
+          <span className="text-body-xs font-semibold text-foreground">Catatan review</span>
+          <p className="text-body-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+            {review.notes}
+          </p>
+        </div>
+      )}
+
+      {/* Learning Purpose */}
+      {learningPurpose && (
+        <div className="space-y-1">
+          <span className="text-body-xs font-semibold text-foreground">Tujuan belajar</span>
+          <p className="text-body-xs text-muted-foreground leading-relaxed bg-muted/20 p-2.5 rounded-lg border border-border/60">
+            {learningPurpose}
+          </p>
+        </div>
+      )}
+
+      {/* Applicability */}
+      {applicability && (
+        <div className="space-y-1">
+          <span className="text-body-xs font-semibold text-foreground">Kesesuaian materi</span>
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5 text-body-xs space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Status:</span>
+              <span className="font-semibold text-foreground">{applicability.status}</span>
+            </div>
+            {applicability.reason && (
+              <p className="text-muted-foreground leading-relaxed pt-1 border-t border-border/40">
+                {applicability.reason}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Idea Traceability */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-body-xs font-semibold text-foreground">Idea terkait</span>
+          <Badge variant="outline" className="text-body-xs">{ideaIds.length}</Badge>
+        </div>
+        {ideaIds.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {ideaIds.map((id) => (
+              <span key={id} className="rounded bg-muted px-1.5 py-0.5 font-mono text-body-xs text-foreground">
+                {id}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-body-xs text-muted-foreground">Tidak ada relasi Idea spesifik.</p>
+        )}
+      </div>
+
+      {/* Source References & Excerpts */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-body-xs font-semibold text-foreground">Referensi sumber</span>
+          <Badge variant="outline" className="text-body-xs">{sourceRefs.length}</Badge>
+        </div>
+        {sourceRefs.length > 0 ? (
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {sourceRefs.map((ref, idx) => (
+              <div key={`${ref.sourceId}-${idx}`} className="rounded-lg border border-border/60 bg-muted/20 p-2 text-body-xs space-y-1">
+                <p className="font-semibold text-foreground truncate">{ref.sourceId}</p>
+                {ref.excerptIds && ref.excerptIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {ref.excerptIds.map((eid) => (
+                      <span key={eid} className="rounded bg-background px-1 py-0.5 font-mono text-body-xs text-muted-foreground border border-border">
+                        {eid}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-body-xs text-muted-foreground">Tidak ada referensi sumber eksplisit.</p>
+        )}
+      </div>
+
+      {/* Matching Dependency Freshness */}
+      {matchingDeps.length > 0 && (
+        <div className="space-y-1.5">
+          <span className="text-body-xs font-semibold text-foreground">Kesegaran dependensi</span>
+          <div className="space-y-1">
+            {matchingDeps.map((dep) => (
+              <div key={dep.id} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 p-2 text-body-xs">
+                <span className="font-mono text-body-xs truncate text-muted-foreground">{dep.upstreamEntityId}</span>
+                <StatusBadge tone={freshnessTones[dep.freshness] ?? "muted"}>
+                  {freshnessLabels[dep.freshness] ?? dep.freshness}
+                </StatusBadge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Dedicated Product Renderers (Article, Diktat, Flashcard, Question, etc.)
 // ---------------------------------------------------------------------------
 
-function ArticleProductView({ product }: { product: Extract<ProductEntity, { productType: "article" }> }) {
-  const [viewMode, setViewMode] = useState<"student" | "blocks">("student");
+function ArticleProductView({
+  product,
+  viewMode,
+  onViewModeChange,
+  bundleId,
+  bundleStatus,
+  reviewLocked = false,
+  blockReviews = [],
+  onBlockReviewChange,
+  dependencies = [],
+}: {
+  product: Extract<ProductEntity, { productType: "article" }>;
+  viewMode: "student" | "blocks";
+  onViewModeChange: (mode: "student" | "blocks") => void;
+  bundleId: string;
+  bundleStatus: string;
+  reviewLocked?: boolean;
+  blockReviews?: ProductBlockReview[];
+  onBlockReviewChange?: (review: ProductBlockReview) => void;
+  dependencies?: ProductDependency[];
+}) {
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
+  const [blockNotes, setBlockNotes] = useState<Record<string, string>>({});
+  const [savingStates, setSavingStates] = useState<Record<string, "saving" | "saved" | "error">>({});
+  const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
 
   const sortedBlocks = useMemo(() => {
     return [...product.blocks].sort((a, b) => a.orderIndex - b.orderIndex);
   }, [product.blocks]);
 
+  // Ensure default selected block
+  useEffect(() => {
+    if (sortedBlocks.length > 0 && (!selectedBlockId || !sortedBlocks.some((b) => b.id === selectedBlockId))) {
+      setSelectedBlockId(sortedBlocks[0].id);
+    }
+  }, [sortedBlocks, selectedBlockId]);
+
+  // Map review status by blockId
+  const blockReviewMap = useMemo(() => {
+    const map: Record<string, ProductBlockReview> = {};
+    for (const rev of blockReviews) {
+      if (rev.productId === product.id) {
+        map[rev.blockId] = rev;
+      }
+    }
+    return map;
+  }, [blockReviews, product.id]);
+
+  // Combine continuous Markdown for student mode
+  const continuousMarkdown = useMemo(() => {
+    return sortedBlocks
+      .map((block) => parseEmbeddedContent(block.content).content)
+      .filter((text) => text.trim().length > 0)
+      .join("\n\n");
+  }, [sortedBlocks]);
+
+  const activeBlock = sortedBlocks.find((b) => b.id === selectedBlockId) ?? sortedBlocks[0] ?? null;
+  const activeParsed = activeBlock ? parseEmbeddedContent(activeBlock.content) : null;
+  const activeReview = activeBlock ? blockReviewMap[activeBlock.id] ?? null : null;
+
+  async function saveBlockReview(
+    blockId: string,
+    status: "pending" | "approved" | "changes_requested",
+    overrideNote?: string
+  ) {
+    if (bundleStatus !== "draft" || reviewLocked) return;
+    const noteToSave = overrideNote !== undefined ? overrideNote : (blockNotes[blockId] ?? blockReviewMap[blockId]?.notes ?? "");
+    setSavingStates((prev) => ({ ...prev, [blockId]: "saving" }));
+    setSaveErrors((prev) => {
+      const next = { ...prev };
+      delete next[blockId];
+      return next;
+    });
+    try {
+      const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(bundleId)}/block-reviews`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          blockId,
+          status,
+          notes: noteToSave.trim() || undefined,
+        }),
+      });
+      const data = await response.json() as { result?: ProductBlockReview; error?: string };
+      if (!response.ok || !data.result) {
+        throw new Error(data.error || "PRODUCT_BLOCK_REVIEW_UPDATE_FAILED");
+      }
+      onBlockReviewChange?.(data.result);
+      setSavingStates((prev) => ({ ...prev, [blockId]: "saved" }));
+      setTimeout(() => {
+        setSavingStates((prev) => {
+          if (prev[blockId] === "saved") {
+            const next = { ...prev };
+            delete next[blockId];
+            return next;
+          }
+          return prev;
+        });
+      }, 2500);
+    } catch (saveError) {
+      setSavingStates((prev) => ({ ...prev, [blockId]: "error" }));
+      setSaveErrors((prev) => ({
+        ...prev,
+        [blockId]: saveError instanceof Error ? explainBundleError(saveError.message) : "Review blok belum dapat disimpan. Coba lagi.",
+      }));
+    }
+  }
+
+  function handleNoteBlur(blockId: string) {
+    const currentNote = blockNotes[blockId];
+    if (currentNote === undefined) return;
+    const existingReview = blockReviewMap[blockId];
+    const existingNote = existingReview?.notes ?? "";
+    if (currentNote.trim() !== existingNote.trim()) {
+      const currentStatus = existingReview?.status ?? "pending";
+      void saveBlockReview(blockId, currentStatus, currentNote);
+    }
+  }
+
+  function handleNoteKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>, blockId: string) {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      const currentNote = blockNotes[blockId] ?? blockReviewMap[blockId]?.notes ?? "";
+      const currentStatus = blockReviewMap[blockId]?.status ?? "pending";
+      void saveBlockReview(blockId, currentStatus, currentNote);
+    }
+  }
+
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-        <div>
-          <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Artikel Bab</span>
-          <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
-        </div>
+      {/* Mode Switcher Header */}
+      <div className={cn(
+        "flex flex-wrap items-center gap-3 border-b border-border pb-3",
+        viewMode === "student" ? "justify-end" : "justify-between"
+      )}>
+        {viewMode === "blocks" && (
+          <div>
+            <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Artikel Bab</span>
+            <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <Button
             type="button"
             size="sm"
             variant={viewMode === "student" ? "secondary" : "outline"}
-            onClick={() => setViewMode("student")}
-            className="h-8 text-body-xs"
+            onClick={() => onViewModeChange("student")}
+            className="h-8 text-body-xs gap-1.5"
           >
             <BookOpen className="size-3.5" />
             Tampilan Siswa
@@ -611,75 +965,271 @@ function ArticleProductView({ product }: { product: Extract<ProductEntity, { pro
             type="button"
             size="sm"
             variant={viewMode === "blocks" ? "secondary" : "outline"}
-            onClick={() => setViewMode("blocks")}
-            className="h-8 text-body-xs"
+            onClick={() => onViewModeChange("blocks")}
+            className="h-8 text-body-xs gap-1.5"
           >
             <Layers className="size-3.5" />
-            Blok ({sortedBlocks.length})
+            Mode Blok ({sortedBlocks.length})
           </Button>
+          {viewMode === "blocks" && (
+            <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={cn(styles.mobileInspector, "h-8 items-center gap-1.5 text-body-xs")}
+                  aria-label="Buka inspector"
+                >
+                  <Info className="size-3.5" />
+                  Info
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="flex flex-col w-full sm:max-w-md p-4 overflow-y-auto">
+                <SheetHeader className="pb-3 border-b border-border text-left">
+                  <SheetTitle className="text-body-base font-semibold">Inspector blok materi</SheetTitle>
+                </SheetHeader>
+                <div className="py-3">
+                  <ArticleBlockInspector
+                    block={activeBlock}
+                    parsed={activeParsed}
+                    review={activeReview}
+                    product={product}
+                    dependencies={dependencies}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
         </div>
       </div>
 
       {viewMode === "student" ? (
-        <div className="space-y-6">
-          <div className="space-y-6">
-            {sortedBlocks.map((block) => {
-              const parsed = parseEmbeddedContent(block.content);
-              const meta = articleBlockMeta[block.blockType] ?? { label: block.blockType.replaceAll("_", " "), badge: "Materi" };
-
-              return (
-                <section key={block.id} className="space-y-2">
-                  <div className="flex items-center gap-2 border-b border-border/50 pb-1.5">
-                    <Badge variant="secondary" className="text-body-xs font-semibold">{meta.badge}</Badge>
-                    <h4 className="font-heading text-body-sm font-semibold text-foreground">{meta.label}</h4>
-                  </div>
-                  <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground">
-                    <MarkdownRenderer content={parsed.content} />
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+        /* Continuous Student Mode with ArticleReadingCanvas */
+        <div className="rounded-2xl border border-border bg-card shadow-xs">
+          <ArticleReadingCanvas
+            content={continuousMarkdown}
+            chapterTitle={product.title}
+            showDivider={false}
+          />
         </div>
       ) : (
-        <div className="space-y-3">
-          {sortedBlocks.map((block, idx) => {
-            const parsed = parseEmbeddedContent(block.content);
-            const meta = articleBlockMeta[block.blockType] ?? { label: block.blockType, badge: "Blok" };
+        /* Block Review Mode with Desktop Inspector Aside and Mobile Drawer */
+        <div className="space-y-4">
+          {/* Desktop 2-Column Grid */}
+          <div className={cn(styles.blockLayout, "gap-5 items-start")}>
+            {/* Left Column: Blocks List */}
+            <div className="space-y-3">
+              {sortedBlocks.map((block, idx) => {
+                const parsed = parseEmbeddedContent(block.content);
+                const meta = articleBlockMeta[block.blockType] ?? { label: block.blockType.replaceAll("_", " "), badge: "Materi" };
+                const review = blockReviewMap[block.id];
+                const currentStatus = review?.status ?? "pending";
+                const isSelected = selectedBlockId === block.id;
+                const saveState = savingStates[block.id];
 
-            return (
-              <div key={block.id} className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-2">
-                <div className="flex items-center justify-between border-b border-border/60 pb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex size-5 items-center justify-center rounded bg-muted text-body-xs font-bold text-muted-foreground">{idx + 1}</span>
-                    <span className="text-body-sm font-semibold text-foreground">{meta.label}</span>
-                    <Badge variant="outline" className="font-mono text-[10px]">{block.blockType}</Badge>
+                return (
+                  <div
+                    key={block.id}
+                    className={cn(
+                      "rounded-xl border p-4 shadow-xs transition-colors space-y-3",
+                      isSelected
+                        ? "border-brand-primary bg-card ring-1 ring-brand-primary/20"
+                        : "border-border bg-card hover:border-border/80"
+                    )}
+                  >
+                    {/* Block Toolbar Header */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                      <button
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => setSelectedBlockId(block.id)}
+                        className="flex min-w-0 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <span className="flex size-5 shrink-0 items-center justify-center rounded bg-muted font-mono text-body-xs font-bold text-muted-foreground">
+                          {idx + 1}
+                        </span>
+                        <span className="text-body-sm font-semibold text-foreground">{meta.label}</span>
+                        <Badge variant="outline" className="font-mono text-body-xs hidden sm:inline-flex">
+                          {block.blockType}
+                        </Badge>
+                      </button>
+
+                      {/* Review Status & Actions */}
+                      <div className="flex items-center gap-2">
+                        {/* Save State Indicator */}
+                        {saveState === "saving" && (
+                          <span className="text-body-xs text-muted-foreground animate-pulse">Menyimpan...</span>
+                        )}
+                        {saveState === "saved" && (
+                          <span className="text-body-xs text-status-success flex items-center gap-1">
+                            <Check className="size-3" /> Tersimpan
+                          </span>
+                        )}
+                        {saveState === "error" && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-body-xs text-status-error"
+                            onClick={() => void saveBlockReview(block.id, currentStatus)}
+                          >
+                            Coba lagi
+                          </Button>
+                        )}
+
+                        {/* Persistent Decision Controls */}
+                        {bundleStatus === "draft" && !reviewLocked ? (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={currentStatus === "approved" ? "default" : "outline"}
+                              className={cn(
+                                "h-7 px-2 text-body-xs gap-1",
+                                currentStatus === "approved" && "bg-status-success text-white hover:bg-status-success/90"
+                              )}
+                              onClick={() => void saveBlockReview(block.id, currentStatus === "approved" ? "pending" : "approved")}
+                              title={currentStatus === "approved" ? "Batalkan persetujuan" : "Setujui blok ini"}
+                            >
+                              <Check className="size-3" />
+                              <span className="hidden sm:inline">Setujui</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={currentStatus === "changes_requested" ? "default" : "outline"}
+                              className={cn(
+                                "h-7 px-2 text-body-xs gap-1",
+                                currentStatus === "changes_requested" && "bg-status-warning text-white hover:bg-status-warning/90"
+                              )}
+                              onClick={() => void saveBlockReview(block.id, currentStatus === "changes_requested" ? "pending" : "changes_requested")}
+                              title={currentStatus === "changes_requested" ? "Batalkan permintaan perbaikan" : "Minta perbaikan blok ini"}
+                            >
+                              <AlertTriangle className="size-3" />
+                              <span className="hidden sm:inline">Perbaikan</span>
+                            </Button>
+                          </div>
+                        ) : (
+                          <StatusBadge tone={blockReviewTones[currentStatus]}>
+                            {blockReviewLabels[currentStatus]}
+                          </StatusBadge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Block Rendered Content */}
+                    <div className="rounded-lg bg-muted/25 p-3 text-body-base leading-relaxed">
+                      <MarkdownRenderer content={parsed.content} />
+                    </div>
+
+                    {/* Notes Textarea (Autosave on blur or Ctrl+Enter) */}
+                    {bundleStatus === "draft" && !reviewLocked && (
+                      <div className="space-y-1 pt-1">
+                        <Textarea
+                          value={blockNotes[block.id] ?? review?.notes ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setBlockNotes((prev) => ({ ...prev, [block.id]: val }));
+                          }}
+                          onBlur={() => handleNoteBlur(block.id)}
+                          onFocus={() => setSelectedBlockId(block.id)}
+                          onKeyDown={(e) => handleNoteKeyDown(e, block.id)}
+                          placeholder="Catatan blok opsional (tersimpan saat blur atau Ctrl+Enter)..."
+                          className="min-h-14 text-body-xs bg-background"
+                        />
+                        {(() => {
+                          const currentNote = blockNotes[block.id];
+                          const storedNote = review?.notes ?? "";
+                          const isDirty = currentNote !== undefined && currentNote.trim() !== storedNote.trim();
+                          if (saveState === "error") {
+                            return <p className="text-body-xs text-status-error">{saveErrors[block.id] ?? "Gagal menyimpan review blok."}</p>;
+                          }
+                          if (isDirty && saveState !== "saving") {
+                            return <p className="text-body-xs text-muted-foreground">Belum disimpan</p>;
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="rounded-lg bg-muted/30 p-3">
-                  <MarkdownRenderer content={parsed.content} />
-                </div>
+                );
+              })}
+            </div>
+
+            {/* Right Column: Sticky Inspector on Desktop */}
+            <aside className={cn(styles.desktopInspector, "sticky top-4 rounded-xl border border-border bg-card p-4 shadow-xs")}>
+              <div className="flex items-center justify-between border-b border-border pb-2.5 mb-3">
+                <h4 className="font-heading text-body-sm font-bold text-foreground">Inspector blok</h4>
+                <Badge variant="outline" className="text-body-xs">
+                  {sortedBlocks.length} total
+                </Badge>
               </div>
-            );
-          })}
+              <ArticleBlockInspector
+                block={activeBlock}
+                parsed={activeParsed}
+                review={activeReview}
+                product={product}
+                dependencies={dependencies}
+              />
+            </aside>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function DiktatProductView({ product }: { product: Extract<ProductEntity, { productType: "diktat" }> }) {
+function DiktatProductView({
+  product,
+  dependencies = [],
+}: {
+  product: Extract<ProductEntity, { productType: "diktat" }>;
+  dependencies?: ProductDependency[];
+}) {
   const parsed = parseEmbeddedContent(product.contentMarkdown);
 
+  const matchingDep = dependencies.find(
+    (dep) => dep.downstreamEntityId === product.id || dep.upstreamEntityId === product.sourceArticleId
+  );
+
+  const freshnessLabels: Record<string, string> = {
+    UP_TO_DATE: "Mutakhir",
+    NEEDS_REVIEW: "Perlu review",
+    STALE: "Kedaluwarsa",
+  };
+
+  const freshnessTones: Record<string, "success" | "warning" | "error" | "muted"> = {
+    UP_TO_DATE: "success",
+    NEEDS_REVIEW: "warning",
+    STALE: "error",
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="border-b border-border pb-3">
-        <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Diktat PDF Ringkas</span>
-        <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
+    <div className="max-w-2xl mx-auto space-y-4">
+      {/* Meta Header */}
+      <div className="border-b border-border pb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Diktat PDF Ringkas</span>
+          <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
+          <p className="mt-1 text-body-xs text-muted-foreground">
+            Artikel sumber: <span className="font-mono font-semibold text-foreground">{product.sourceArticleId}</span> (v{product.sourceArticleVersion})
+          </p>
+        </div>
+        {matchingDep && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-body-xs text-muted-foreground">Dependensi:</span>
+            <StatusBadge tone={freshnessTones[matchingDep.freshness] ?? "muted"}>
+              {freshnessLabels[matchingDep.freshness] ?? matchingDep.freshness}
+            </StatusBadge>
+          </div>
+        )}
       </div>
+
+      {/* Diktat Content in Compact Mode */}
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
         <div className="prose dark:prose-invert max-w-none text-body-base leading-relaxed text-foreground">
-          <MarkdownRenderer content={parsed.content} />
+          <MarkdownRenderer content={parsed.content} density="compact" />
         </div>
       </div>
     </div>
@@ -917,6 +1467,12 @@ function AssessmentBlueprintProductView({ product }: { product: Extract<ProductE
 // Product Bundle Main Detail Component (Ultra Space-Efficient & Compact)
 // ---------------------------------------------------------------------------
 
+type ConfirmActionState =
+  | { type: "approve_with_warnings"; pending: number; changesRequested: number }
+  | { type: "discard" }
+  | { type: "withdraw" }
+  | null;
+
 export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: DetailProps) {
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
   const [draftProducts, setDraftProducts] = useState<ProductEntity[]>([]);
@@ -924,12 +1480,15 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [reviewNoteOpen, setReviewNoteOpen] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
   const [reviewDecision, setReviewDecision] = useState<"approved" | "rejected" | null>(null);
   const [editing, setEditing] = useState(false);
+  const [articleViewMode, setArticleViewMode] = useState<"student" | "blocks">("student");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmActionState>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -942,7 +1501,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
       setDraftProducts(nextPayload.draft?.products ?? []);
       setEditing(false);
       setSelectedProductId((current) => nextPayload.previews.some((preview) => preview.id === current) ? current : nextPayload.previews[0]?.id ?? null);
-      const existingReview = nextPayload.bundle.reviews?.[0];
+      const existingReview = nextPayload.bundle.currentReview;
       setReviewDecision(existingReview?.status === "approved" || existingReview?.status === "rejected" ? existingReview.status : null);
       setReviewNote(existingReview?.notes ?? "");
     } catch (loadError) {
@@ -963,6 +1522,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || "PRODUCT_BUNDLE_REVIEW_FAILED");
       setReviewDecision(decision);
+      await load();
     } catch (reviewError) {
       setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "PRODUCT_BUNDLE_REVIEW_FAILED"));
     } finally {
@@ -1003,6 +1563,78 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
     }
   }
 
+  function handleBlockReviewChange(updatedReview: ProductBlockReview) {
+    setPayload((current) => {
+      if (!current) return current;
+      const existingReviews = current.blockReviews ?? [];
+      const index = existingReviews.findIndex(
+        (r) => r.productId === updatedReview.productId && r.blockId === updatedReview.blockId
+      );
+      let nextReviews: ProductBlockReview[];
+      if (index >= 0) {
+        nextReviews = [...existingReviews];
+        nextReviews[index] = updatedReview;
+      } else {
+        nextReviews = [...existingReviews, updatedReview];
+      }
+
+      const totalBlocks = current.draft.products.reduce(
+        (acc, p) => acc + (p.productType === "article" ? p.blocks.length : 0),
+        0
+      );
+      const approved = nextReviews.filter((r) => r.status === "approved").length;
+      const changesRequested = nextReviews.filter((r) => r.status === "changes_requested").length;
+      const pending = Math.max(0, totalBlocks - approved - changesRequested);
+
+      return {
+        ...current,
+        blockReviews: nextReviews,
+        blockReviewSummary: {
+          total: totalBlocks,
+          pending,
+          approved,
+          changesRequested,
+        },
+      };
+    });
+  }
+
+  function handleApproveClick() {
+    const summary = payload?.blockReviewSummary;
+    const pending = summary?.pending ?? 0;
+    const changesRequested = summary?.changesRequested ?? 0;
+    if (pending > 0 || changesRequested > 0) {
+      setConfirmAction({
+        type: "approve_with_warnings",
+        pending,
+        changesRequested,
+      });
+    } else {
+      void decide("approved");
+    }
+  }
+
+  function handleDiscardClick() {
+    setConfirmAction({ type: "discard" });
+  }
+
+  function handleWithdrawClick() {
+    setConfirmAction({ type: "withdraw" });
+  }
+
+  async function handleConfirmDialog() {
+    if (!confirmAction) return;
+    const action = confirmAction;
+    setConfirmAction(null);
+    if (action.type === "approve_with_warnings") {
+      await decide("approved");
+    } else if (action.type === "discard") {
+      await mutate("discard");
+    } else if (action.type === "withdraw") {
+      await mutate("withdraw");
+    }
+  }
+
   const typeCounts = useMemo(() => {
     if (!payload) return {};
     return payload.previews.reduce<Record<string, number>>((counts, preview) => {
@@ -1025,6 +1657,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
   const currentIndex = visiblePreviews.findIndex((preview) => preview.id === selectedProductId);
   const activePreview = visiblePreviews[currentIndex >= 0 ? currentIndex : 0] ?? payload?.previews[0] ?? null;
   const activeDraftProduct = draftProducts.find((product) => product.id === activePreview?.id) ?? null;
+  const isStudentArticlePreview = activeDraftProduct?.productType === "article" && articleViewMode === "student" && !editing;
 
   function goToIndex(index: number) {
     if (index >= 0 && index < visiblePreviews.length) {
@@ -1070,7 +1703,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
         <DetailStatus status={payload.bundle.status} />
       </div>
 
-      {/* Tabs & Compact Navigator Header */}
+      {/* Tabs & Compact Navigator Header (No Select dropdown, Stepper + Searchable Sheet naming active product) */}
       <AdminTabs value={activeType} onValueChange={handleTypeTabChange}>
         <div className="space-y-2.5">
           <AdminTabsList className="max-w-full overflow-x-auto">
@@ -1082,7 +1715,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
             ))}
           </AdminTabsList>
 
-          {/* Stepper + Quick Selector Toolbar */}
+          {/* Stepper + Active Product Searchable Sheet Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-2 shadow-xs">
             <div className="flex items-center gap-1.5">
               <Button
@@ -1112,32 +1745,21 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
               </Button>
             </div>
 
-            {/* Quick Dropdown Selector */}
-            <div className="min-w-0 flex-1 max-w-md">
-              <Select value={activePreview?.id ?? ""} onValueChange={handleSelectProduct}>
-                <SelectTrigger className="h-8 text-body-sm">
-                  <SelectValue placeholder="Pilih bagian..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {visiblePreviews.map((preview, idx) => (
-                    <SelectItem key={preview.id} value={preview.id} className="text-body-sm">
-                      <span className="font-semibold">#{idx + 1}</span> {preview.title || preview.id} ({productLabels[preview.productType] ?? preview.productType})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Drawer for 60+ Items Search List */}
+            {/* Searchable Sheet Trigger with Active Product Name */}
             <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
               <SheetTrigger asChild>
-                <Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-body-sm">
-                  <ListFilter className="size-3.5" />
-                  Daftar ({visiblePreviews.length})
+                <Button type="button" size="sm" variant="outline" className="h-8 min-w-0 max-w-xs sm:max-w-md gap-1.5 text-body-sm justify-between">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <ListFilter className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{activePreview ? (activePreview.title || activePreview.id) : "Pilih bagian"}</span>
+                  </div>
+                  <Badge variant="outline" className="ml-1 text-body-xs shrink-0 font-normal">
+                    {visiblePreviews.length}
+                  </Badge>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="flex flex-col w-full sm:max-w-md p-4">
-                <SheetHeader className="pb-3 border-b border-border">
+                <SheetHeader className="pb-3 border-b border-border text-left">
                   <SheetTitle className="text-body-base font-semibold">Daftar Bagian ({visiblePreviews.length})</SheetTitle>
                   <div className="mt-2">
                     <SearchBar
@@ -1177,7 +1799,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
           {/* 100% Canvas Width for Content Review */}
           {activePreview ? (
             <article key={activePreview.id} className="rounded-xl border border-border bg-card p-5 sm:p-7 shadow-xs space-y-5">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
+              {!isStudentArticlePreview && <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
                 <div>
                   <Badge variant="secondary" className="text-body-xs font-semibold">{productLabels[activePreview.productType] ?? activePreview.productType}</Badge>
                   <h3 className="mt-1.5 font-heading text-body-base font-bold text-foreground">{activePreview.title || "Bagian tanpa judul"}</h3>
@@ -1186,7 +1808,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
                 {!editing && payload.bundle.status === "draft" && (
                   <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)} className="h-8 text-body-sm">Edit isi</Button>
                 )}
-              </div>
+              </div>}
 
               {editing && activeDraftProduct ? (
                 <div className="space-y-4">
@@ -1204,10 +1826,23 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
               ) : activeDraftProduct ? (
                 <div className="space-y-6">
                   {activeDraftProduct.productType === "article" && (
-                    <ArticleProductView product={activeDraftProduct} />
+                    <ArticleProductView
+                      product={activeDraftProduct}
+                      viewMode={articleViewMode}
+                      onViewModeChange={setArticleViewMode}
+                      bundleId={payload.bundle.id}
+                      bundleStatus={payload.bundle.status}
+                      reviewLocked={Boolean(payload.bundle.currentReview)}
+                      blockReviews={payload.blockReviews}
+                      onBlockReviewChange={handleBlockReviewChange}
+                      dependencies={payload.dependencies}
+                    />
                   )}
                   {activeDraftProduct.productType === "diktat" && (
-                    <DiktatProductView product={activeDraftProduct} />
+                    <DiktatProductView
+                      product={activeDraftProduct}
+                      dependencies={payload.dependencies}
+                    />
                   )}
                   {activeDraftProduct.productType === "flashcard" && (
                     <FlashcardProductView product={activeDraftProduct} />
@@ -1229,7 +1864,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
                     <AssessmentBlueprintProductView product={activeDraftProduct} />
                   )}
 
-                  {activePreview.traceability.ideaIds.length > 0 && (
+                  {!isStudentArticlePreview && activePreview.traceability.ideaIds.length > 0 && (
                     <div className="border-t border-border pt-3 text-body-xs text-muted-foreground flex flex-wrap gap-2">
                       <span className="font-semibold text-foreground">Idea terkait:</span>
                       {activePreview.traceability.ideaIds.map((id) => (
@@ -1255,51 +1890,171 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
         </AdminTabsContent>
       </AdminTabs>
 
-      {/* Review Actions Footer (Compact) */}
-      <section className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label htmlFor="product-review-note" className="text-body-sm font-semibold">Catatan Review</Label>
-          <span className="text-body-xs text-muted-foreground">Disimpan bersama keputusan</span>
+      {/* Review Actions Sticky Footer */}
+      <section className="sticky bottom-0 z-50 rounded-xl border border-border bg-card p-3 shadow-lg space-y-2 md:static md:z-auto md:p-4 md:space-y-3">
+        {/* Block Review Summary Strip */}
+        {payload.blockReviewSummary && payload.blockReviewSummary.total > 0 && (
+          <div className="hidden md:flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2.5 text-body-xs">
+            <span className="font-semibold text-foreground">Status review blok artikel:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="text-status-success font-medium">
+                {payload.blockReviewSummary.approved} disetujui
+              </Badge>
+              {payload.blockReviewSummary.changesRequested > 0 && (
+                <Badge variant="outline" className="text-status-warning font-medium">
+                  {payload.blockReviewSummary.changesRequested} perlu revisi
+                </Badge>
+              )}
+              {payload.blockReviewSummary.pending > 0 && (
+                <Badge variant="outline" className="text-muted-foreground">
+                  {payload.blockReviewSummary.pending} menunggu
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Review Notes: Collapsed on Mobile, Visible on Desktop */}
+        <div className="hidden md:block space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="product-review-note" className="text-body-sm font-semibold">Catatan Review</Label>
+            <span className="text-body-xs text-muted-foreground">Disimpan bersama keputusan</span>
+          </div>
+          <Textarea
+            id="product-review-note"
+            value={reviewNote}
+            onChange={(event) => setReviewNote(event.target.value)}
+            placeholder="Tulis catatan review jika perlu..."
+            className="min-h-16 text-body-sm bg-background"
+          />
         </div>
-        <Textarea
-          id="product-review-note"
-          value={reviewNote}
-          onChange={(event) => setReviewNote(event.target.value)}
-          placeholder="Tulis catatan jika perlu..."
-          className="min-h-16 text-body-sm"
-        />
+
         {error && <p className="text-body-xs text-status-error">{error}</p>}
-        <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-          {payload.bundle.status === "draft" && !reviewDecision && (
-            <>
-              <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void decide("approved")}>
-                <Check className="size-3.5" />Setujui
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 md:pt-3">
+          <div className="flex flex-wrap gap-2">
+            {payload.bundle.status === "draft" && !reviewDecision && (
+              <>
+                <Button type="button" size="sm" disabled={saving} onClick={handleApproveClick}>
+                  <Check className="size-3.5" />Setujui
+                </Button>
+                <Button type="button" size="sm" variant="destructive" disabled={saving} onClick={() => void decide("rejected")}>
+                  <X className="size-3.5" />Tolak
+                </Button>
+              </>
+            )}
+            {payload.bundle.status === "draft" && reviewDecision === "approved" && (
+              <Button type="button" size="sm" disabled={saving || payload.publicationBlocked} onClick={() => void mutate("publish")}>
+                <FileCheck2 className="size-3.5" />Publikasikan
               </Button>
-              <Button type="button" size="sm" variant="destructive" disabled={saving} onClick={() => void decide("rejected")}>
-                <X className="size-3.5" />Tolak
-              </Button>
-            </>
-          )}
-          {payload.bundle.status === "draft" && reviewDecision === "approved" && (
-            <Button type="button" size="sm" disabled={saving || payload.publicationBlocked} onClick={() => void mutate("publish")}>
-              <FileCheck2 className="size-3.5" />Publikasikan
-            </Button>
-          )}
-          {payload.bundle.status === "draft" && (
-            <Button type="button" size="sm" variant="destructive" disabled={saving} onClick={() => void mutate("discard")}>
-              <ArchiveX className="size-3.5" />Hapus draft
-            </Button>
-          )}
-          {payload.bundle.status === "published" && (
-            <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void mutate("withdraw")}>
-              <ArchiveX className="size-3.5" />Tarik publikasi
-            </Button>
-          )}
-          {payload.bundle.status === "published" && (
-            <span className="text-body-sm text-status-success font-medium">Telah dipublikasikan</span>
+            )}
+            {payload.bundle.status === "published" && (
+              <span className="text-body-sm text-status-success font-medium self-center">Telah dipublikasikan</span>
+            )}
+            <Sheet open={reviewNoteOpen} onOpenChange={setReviewNoteOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="md:hidden px-2.5"
+                  aria-label={reviewNote ? "Ubah catatan review" : "Tambah catatan review"}
+                >
+                  <MessageSquareText className="size-3.5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="p-4">
+                <SheetHeader className="text-left">
+                  <SheetTitle className="text-body-base">Catatan review bundle</SheetTitle>
+                </SheetHeader>
+                <div className="space-y-3 pt-3">
+                  <Textarea
+                    value={reviewNote}
+                    onChange={(event) => setReviewNote(event.target.value)}
+                    placeholder="Tulis catatan review jika perlu..."
+                    className="min-h-28 text-body-sm bg-background"
+                  />
+                  <Button type="button" size="sm" onClick={() => setReviewNoteOpen(false)}>
+                    Selesai
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+          {(payload.bundle.status === "draft" || payload.bundle.status === "published") && (
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <Button type="button" size="sm" variant="outline" disabled={saving} aria-label="Aksi lainnya" className="absolute bottom-3 right-20 sm:static">
+                  <MoreHorizontal className="size-4" />
+                  <span className="hidden sm:inline">Aksi lainnya</span>
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={6}
+                  className="z-50 min-w-44 rounded-lg border border-border bg-popover p-1 text-body-sm text-popover-foreground shadow-lg"
+                >
+                  {payload.bundle.status === "draft" && (
+                    <DropdownMenu.Item
+                      onSelect={handleDiscardClick}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-status-error outline-none focus:bg-muted"
+                    >
+                      <Trash2 className="size-3.5" /> Hapus draft
+                    </DropdownMenu.Item>
+                  )}
+                  {payload.bundle.status === "published" && (
+                    <DropdownMenu.Item
+                      onSelect={handleWithdrawClick}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-status-error outline-none focus:bg-muted"
+                    >
+                      <ArchiveX className="size-3.5" /> Tarik publikasi
+                    </DropdownMenu.Item>
+                  )}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           )}
         </div>
       </section>
+
+      {/* Confirmation Dialogs */}
+      <AdminConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => { if (!open) setConfirmAction(null); }}
+        title={
+          confirmAction?.type === "approve_with_warnings"
+            ? "Setujui dengan catatan blok"
+            : confirmAction?.type === "withdraw"
+            ? "Tarik publikasi Product"
+            : "Hapus draft Product"
+        }
+        description={
+          confirmAction?.type === "approve_with_warnings"
+            ? `Terdapat ${confirmAction.pending > 0 ? `${confirmAction.pending} blok belum direview` : ""}${confirmAction.pending > 0 && confirmAction.changesRequested > 0 ? " dan " : ""}${confirmAction.changesRequested > 0 ? `${confirmAction.changesRequested} blok meminta perbaikan` : ""}. Apakah Anda yakin ingin tetap menyetujui bundle ini?`
+            : confirmAction?.type === "withdraw"
+            ? "Produk tidak lagi terlihat oleh mahasiswa. Riwayat dan audit tetap disimpan."
+            : "Draft dan ZIP staging akan dihapus permanen. Tindakan ini tidak memengaruhi produk yang sudah terbit."
+        }
+        confirmLabel={
+          confirmAction?.type === "approve_with_warnings"
+            ? "Tetap Setujui"
+            : confirmAction?.type === "withdraw"
+            ? "Ya, Tarik Publikasi"
+            : "Ya, Hapus Draft"
+        }
+        icon={
+          confirmAction?.type === "approve_with_warnings"
+            ? ShieldAlert
+            : confirmAction?.type === "withdraw"
+            ? ArchiveX
+            : Trash2
+        }
+        destructive={confirmAction?.type !== "approve_with_warnings"}
+        loading={saving}
+        onConfirm={() => void handleConfirmDialog()}
+      />
     </div>
   );
 }
