@@ -288,11 +288,18 @@ async function assertReviewAccess(importRow: NonNullable<Awaited<ReturnType<type
 }
 
 export async function listIdeaItemReviews(importId: string, reviewerId: string) {
-  return db.select().from(reviewItemBundle).where(and(
-    eq(reviewItemBundle.imporBundleId, importId),
-    eq(reviewItemBundle.reviewerId, reviewerId),
-    eq(reviewItemBundle.targetType, "idea"),
-  )).orderBy(reviewItemBundle.targetId);
+  try {
+    return await db.select().from(reviewItemBundle).where(and(
+      eq(reviewItemBundle.imporBundleId, importId),
+      eq(reviewItemBundle.reviewerId, reviewerId),
+      eq(reviewItemBundle.targetType, "idea"),
+    )).orderBy(reviewItemBundle.targetId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    const missingTargetColumns = message.includes("no such column") && (message.includes("target_type") || message.includes("target_id"));
+    if (!missingTargetColumns) throw error;
+    return [];
+  }
 }
 
 export async function upsertIdeaItemReview(input: {

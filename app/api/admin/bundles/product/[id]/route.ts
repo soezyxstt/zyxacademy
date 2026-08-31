@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       requestedBy: session.user.id,
       bundle,
       filename: bundle.manifest.schemaVersion === "product-bundle.v3" ? "product-bundle-v3.zip" : "product-bundle-v2.zip",
-      preserveUnchangedItemReviews: true,
+      preserveUnchangedItemReviews: bundle.manifest.schemaVersion === "product-bundle.v3",
     });
     return NextResponse.json({ result });
   } catch (error) {

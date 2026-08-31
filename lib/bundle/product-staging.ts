@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { auditMutasi, courses, imporBundle, itemImporBundle, mataKuliah, reviewBundle, reviewItemBundle, user } from "@/db/schema";
 import { storage } from "@/lib/storage";
@@ -137,14 +137,43 @@ async function reviewerRole(importRow: NonNullable<Awaited<ReturnType<typeof get
 }
 
 export async function listProductItemReviews(importId: string, reviewerId: string) {
-  return db
-    .select()
-    .from(reviewItemBundle)
-    .where(and(eq(reviewItemBundle.imporBundleId, importId), eq(reviewItemBundle.reviewerId, reviewerId)))
-    .orderBy(reviewItemBundle.targetType, reviewItemBundle.targetId);
+  try {
+    return await db
+      .select()
+      .from(reviewItemBundle)
+      .where(and(eq(reviewItemBundle.imporBundleId, importId), eq(reviewItemBundle.reviewerId, reviewerId)))
+      .orderBy(reviewItemBundle.targetType, reviewItemBundle.targetId);
+  } catch (error) {
+    if (!isMissingReviewTargetColumns(error)) throw error;
+    const legacyReviews = await db
+      .select({
+        id: reviewItemBundle.id,
+        imporBundleId: reviewItemBundle.imporBundleId,
+        reviewerId: reviewItemBundle.reviewerId,
+        productId: reviewItemBundle.productId,
+        blockId: reviewItemBundle.blockId,
+        status: reviewItemBundle.status,
+        notes: reviewItemBundle.notes,
+        createdAt: reviewItemBundle.createdAt,
+        updatedAt: reviewItemBundle.updatedAt,
+      })
+      .from(reviewItemBundle)
+      .where(and(eq(reviewItemBundle.imporBundleId, importId), eq(reviewItemBundle.reviewerId, reviewerId)))
+      .orderBy(reviewItemBundle.blockId);
+    return legacyReviews.map((review) => ({
+      ...review,
+      targetType: "article_block" as const,
+      targetId: review.blockId,
+    }));
+  }
 }
 
 export const listProductBlockReviews = listProductItemReviews;
+
+function isMissingReviewTargetColumns(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return message.includes("no such column") && (message.includes("target_type") || message.includes("target_id"));
+}
 
 export async function upsertProductItemReview(input: {
   importId: string;
@@ -204,8 +233,29 @@ export async function upsertProductBlockReview(input: {
   status: ProductBlockReviewStatus;
   notes?: string;
 }) {
-  const result = await upsertProductItemReview({ ...input, targetType: "article_block", targetId: input.blockId });
-  return { ...result, blockId: result.targetId };
+  try {
+    const result = await upsertProductItemReview({ ...input, targetType: "article_block", targetId: input.blockId });
+    return { ...result, blockId: result.targetId };
+  } catch (error) {
+    if (!isMissingReviewTargetColumns(error)) throw error;
+    const notes = input.notes?.trim() || null;
+    const id = stableId("review-product-block", `${input.importId}:${input.reviewerId}:${input.productId}:${input.blockId}`);
+    await db.run(sql`
+      INSERT INTO review_item_bundle (
+        id, impor_bundle_id, reviewer_id, product_id, block_id, status, notes, created_at, updated_at
+      ) VALUES (
+        ${id}, ${input.importId}, ${input.reviewerId}, ${input.productId}, ${input.blockId}, ${input.status}, ${notes},
+        cast((julianday('now') - 2440587.5) * 86400000 as integer),
+        cast((julianday('now') - 2440587.5) * 86400000 as integer)
+      )
+      ON CONFLICT (impor_bundle_id, reviewer_id, product_id, block_id)
+      DO UPDATE SET
+        status = excluded.status,
+        notes = excluded.notes,
+        updated_at = cast((julianday('now') - 2440587.5) * 86400000 as integer)
+    `);
+    return { id, productId: input.productId, blockId: input.blockId, status: input.status, notes, updatedAt: new Date() };
+  }
 }
 
 export async function reviewProductBundle(input: { importId: string; reviewerId: string; decision: "approved" | "rejected"; notes?: string }) {
