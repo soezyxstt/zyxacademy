@@ -4,9 +4,11 @@ import { ideaSchema, ideaProvenanceSchema, ideaRelationSchema, type Idea, type I
 import { sha256Bytes } from "@/lib/bundle/validator";
 import {
   computeIdeaBundleChecksum,
+  learningSectionSchema,
   serializeDeterministically,
   validateIdeaBundle,
   type IdeaBundleEntityType,
+  type LearningSection,
   type ValidatedIdeaBundle,
 } from "@/lib/bundle/idea-bundle-v2";
 
@@ -14,6 +16,7 @@ export type IdeaBundleDraft = {
   ideas: Idea[];
   provenance: IdeaProvenance[];
   relations: IdeaRelation[];
+  learningSections: LearningSection[];
 };
 
 export type FinalizedIdeaBundleDraft = {
@@ -52,6 +55,7 @@ export function createIdeaBundleDraft(bundle: ValidatedIdeaBundle): IdeaBundleDr
     ideas: bundle.entities.ideas,
     provenance: bundle.entities.provenance,
     relations: bundle.entities.relations,
+    learningSections: bundle.entities.learningSections,
   })) as IdeaBundleDraft;
 }
 
@@ -59,6 +63,7 @@ export function finalizeIdeaBundleDraft(original: ValidatedIdeaBundle, draft: Id
   const submittedIdeas = byExactIds(original.entities.ideas, draft.ideas, "IDEA_DRAFT_IDENTITY_CHANGED");
   const submittedProvenance = byExactIds(original.entities.provenance, draft.provenance, "IDEA_DRAFT_PROVENANCE_CHANGED");
   const submittedRelations = byExactIds(original.entities.relations, draft.relations, "IDEA_DRAFT_RELATION_CHANGED");
+  const submittedSections = byExactIds(original.entities.learningSections, draft.learningSections ?? [], "IDEA_DRAFT_SECTION_CHANGED");
 
   const ideas = original.entities.ideas.map((idea) => editableIdea(idea, submittedIdeas.get(idea.id)!));
   const provenance = original.entities.provenance.map((item) => {
@@ -77,6 +82,27 @@ export function finalizeIdeaBundleDraft(original: ValidatedIdeaBundle, draft: Id
       explanation: submitted.explanation?.trim() || undefined,
     });
   });
+  const learningSections = original.entities.learningSections.map((item) => {
+    const submitted = submittedSections.get(item.id)!;
+    if (
+      submitted.courseId !== item.courseId ||
+      submitted.chapterId !== item.chapterId ||
+      submitted.stableKey !== item.stableKey ||
+      submitted.slug !== item.slug ||
+      JSON.stringify(submitted.primaryIdeaIds) !== JSON.stringify(item.primaryIdeaIds) ||
+      JSON.stringify(submitted.supportingIdeaIds ?? []) !== JSON.stringify(item.supportingIdeaIds ?? []) ||
+      JSON.stringify(submitted.sourceChunkIds) !== JSON.stringify(item.sourceChunkIds)
+    ) {
+      throw new Error("IDEA_DRAFT_SECTION_LOCKED_FIELD_CHANGED");
+    }
+    return learningSectionSchema.parse({
+      ...item,
+      title: submitted.title.trim(),
+      learningObjective: submitted.learningObjective.trim(),
+      parentSectionId: submitted.parentSectionId ? submitted.parentSectionId.trim() : undefined,
+      orderIndex: submitted.orderIndex,
+    });
+  });
 
   const entityValues: Record<IdeaBundleEntityType, readonly unknown[]> = {
     source_materials: original.entities.sourceMaterials,
@@ -84,6 +110,7 @@ export function finalizeIdeaBundleDraft(original: ValidatedIdeaBundle, draft: Id
     ideas,
     provenance,
     relations,
+    learning_sections: learningSections,
   };
   const files = new Map(original.files);
   const entityFiles = original.manifest.entityFiles.map((file) => {

@@ -1,5 +1,7 @@
 # Product Bundle V2
 
+Status: `TRANSITIONAL / LEGACY`. V2 remains readable and its block review endpoint remains a compatibility adapter. New flagged authoring uses [Product Bundle V3](product-bundle-v3.md).
+
 Product Bundle V2 is the strict ZIP workflow for externally authored articles, diktat material, ITB example questions, solutions, flashcards, and assessment blueprints. Every question entering through this workflow is an ITB example. Zyx original questions are created through the normal bank question workflows and never through Product Bundle.
 
 ## Contract

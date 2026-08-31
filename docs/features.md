@@ -497,6 +497,14 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 - It aggregates existing domain tables only (`student_material_progress`, `flashcard_reviews`, `student_quiz_attempts`, `percobaan_asesmen`, `live_quiz_results`, `tutor_chat_messages`/`chat_sessions`); it writes no new events. Unique active students are the union of distinct student ids across those sources.
 - The page lists measurement gaps explicitly: daily pop-up quiz stays in localStorage, Cmd+K search records no server events, and diktat download counts are cumulative only. Page traffic remains in Web Analytics; AI token usage remains in Analitik Zyra.
 
+## Structured Article authoring and reading
+
+`FEATURE_STRUCTURED_ARTICLE_READER_V1` enables the coordinated Idea Bundle V3 and Product Bundle V3 workflow. Admin Idea review uses an Idea queue, safe editor, and source evidence. Product Article review uses a section queue, the same semantic renderer as students, provenance, dependency state, and per-section decisions.
+
+Students read one meaningful section at a time with stable slug links, chapter search, collapsible table of contents, reading estimates, semantic callouts, resume, completion progress, and titled previous or next navigation. Desktop limits prose to about 75 characters. Mobile controls use Sheets and occupy normal layout space. Search results show title and snippet, open the matching section, and apply a temporary visual highlight. The legacy reader remains the fallback while the flag is disabled or an Article is not structured.
+
+A section completes at 90 percent read depth or when the reader proceeds from its end. Chapter progress is the count of completed sections divided by all sections. Student payloads never expose Idea IDs or internal provenance.
+
 ## Money & Quota Rules
 
 - AI quota spent only on: tutoring, mistake feedback, content generation

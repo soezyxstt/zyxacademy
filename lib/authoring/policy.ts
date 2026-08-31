@@ -27,6 +27,11 @@ export function decideAuthoringAccess(input: AuthoringAccessRequest): AuthoringA
 export const AUTHORING_CONTEXT_CONTRACT = {
   schemaVersion: AUTHORING_CONTEXT_SCHEMA_VERSION,
   policyVersion: AUTHORING_CONTEXT_POLICY_VERSION,
+  outputContracts: {
+    ideaBundle: "idea-bundle.v3",
+    productBundle: "product-bundle.v3",
+    compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3", "product-bundle.v2", "product-bundle.v3"],
+  },
   included: [
     "published current Ideas",
     "active source excerpts and citations",
@@ -47,6 +52,7 @@ export const AUTHORING_CONTEXT_CONTRACT = {
 
 export const EXTERNAL_AUTHORING_WORKFLOW = {
   workflowVersion: "external-authoring.v1",
+  outputContracts: { ideaBundle: "idea-bundle.v3", productBundle: "product-bundle.v3" },
   sequence: [
     "Use the Idea Bundle contract when creating or revising canonical Ideas from operator-supplied source files.",
     "Upload and publish the Idea Bundle before creating products that reference those Ideas.",

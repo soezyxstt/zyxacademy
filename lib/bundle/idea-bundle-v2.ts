@@ -18,8 +18,26 @@ const sha256 = z.string().regex(/^[a-f0-9]{64}$/i, "must be a SHA-256 hex digest
 const timestamp = z.string().datetime({ offset: true });
 const path = z.string().min(1).refine((value) => !value.startsWith("/") && !/^[A-Za-z]:[\\/]/.test(value), "path must be relative");
 
-export const ideaBundleEntityTypeSchema = z.enum(["source_materials", "source_chunks", "ideas", "provenance", "relations"]);
+export const ideaBundleEntityTypeSchema = z.enum(["source_materials", "source_chunks", "ideas", "provenance", "relations", "learning_sections"]);
 export type IdeaBundleEntityType = z.infer<typeof ideaBundleEntityTypeSchema>;
+
+export const learningSectionSchema = z
+  .object({
+    id,
+    courseId: id,
+    chapterId: id,
+    stableKey: id,
+    parentSectionId: id.optional(),
+    title: z.string().min(1),
+    slug: z.string().min(1),
+    orderIndex: z.number().int().nonnegative(),
+    learningObjective: z.string().min(1),
+    primaryIdeaIds: z.array(id).min(1),
+    supportingIdeaIds: z.array(id).default([]),
+    sourceChunkIds: z.array(id).min(1),
+  })
+  .strict();
+export type LearningSection = z.infer<typeof learningSectionSchema>;
 
 export const ideaBundleSourceVersionSchema = z
   .object({
@@ -82,6 +100,7 @@ export interface IdeaBundleEntities {
   ideas: readonly Idea[];
   provenance: readonly IdeaProvenance[];
   relations: readonly IdeaRelation[];
+  learningSections: readonly LearningSection[];
 }
 
 export interface ValidatedIdeaBundle {
@@ -93,6 +112,9 @@ export interface ValidatedIdeaBundle {
 
 /** Public integration type for a fully validated Idea Bundle V2 payload. */
 export type IdeaBundleV2 = ValidatedIdeaBundle;
+
+/** Public integration type for a fully validated Idea Bundle V3 payload. */
+export type IdeaBundleV3 = ValidatedIdeaBundle;
 
 export interface IdeaBundleValidationResult {
   success: true;
@@ -252,7 +274,81 @@ function validateEntities(manifest: IdeaBundleManifest, files: ReadonlyMap<strin
     }
   }
 
-  return { sourceMaterials, sourceChunks, ideas, provenance, relations: parsedRelations };
+  let learningSections: LearningSection[] = [];
+  if (manifest.schemaVersion === "idea-bundle.v2") {
+    const sectionFiles = [...declared.values()].filter((file) => file.entityType === "learning_sections");
+    assertCondition(sectionFiles.length === 0, "BUNDLE_ENTITY_INVALID", "V2 bundles must not declare learning_sections files");
+  } else if (manifest.schemaVersion === "idea-bundle.v3") {
+    learningSections = byType("learning_sections", learningSectionSchema);
+    const sectionById = new Map<string, LearningSection>();
+    const sectionStableKeys = new Set<string>();
+    const sectionSlugs = new Set<string>();
+    const siblingOrderMap = new Map<string, Set<number>>();
+    const primaryIdeaToSection = new Map<string, string>();
+
+    for (const section of learningSections) {
+      assertCondition(section.courseId === manifest.courseId, "BUNDLE_ENTITY_INVALID", `learning section ${section.id} belongs to another course`, section.id);
+      assertCondition(!sectionById.has(section.id), "BUNDLE_ENTITY_INVALID", `duplicate learning section ${section.id}`, section.id);
+      assertCondition(!sectionStableKeys.has(section.stableKey), "BUNDLE_DUPLICATE_STABLE_KEY", `duplicate learning section stableKey ${section.stableKey}`, section.id);
+      assertCondition(!sectionSlugs.has(section.slug), "BUNDLE_ENTITY_INVALID", `duplicate learning section slug ${section.slug}`, section.id);
+
+      sectionById.set(section.id, section);
+      sectionStableKeys.add(section.stableKey);
+      sectionSlugs.add(section.slug);
+
+      const siblingKey = `${section.chapterId}:${section.parentSectionId ?? "root"}`;
+      const siblingOrders = siblingOrderMap.get(siblingKey) ?? new Set<number>();
+      assertCondition(!siblingOrders.has(section.orderIndex), "BUNDLE_ENTITY_INVALID", `duplicate sibling orderIndex ${section.orderIndex} in group ${siblingKey}`, section.id);
+      siblingOrders.add(section.orderIndex);
+      siblingOrderMap.set(siblingKey, siblingOrders);
+
+      const primarySet = new Set(section.primaryIdeaIds);
+      assertCondition(primarySet.size === section.primaryIdeaIds.length, "BUNDLE_ENTITY_INVALID", `learning section ${section.id} contains duplicate primary Idea IDs`, section.id);
+      const supportingSet = new Set(section.supportingIdeaIds);
+      assertCondition(supportingSet.size === section.supportingIdeaIds.length, "BUNDLE_ENTITY_INVALID", `learning section ${section.id} contains duplicate supporting Idea IDs`, section.id);
+      const sourceSet = new Set(section.sourceChunkIds);
+      assertCondition(sourceSet.size === section.sourceChunkIds.length, "BUNDLE_ENTITY_INVALID", `learning section ${section.id} contains duplicate source chunk IDs`, section.id);
+
+      for (const ideaId of section.supportingIdeaIds) {
+        assertCondition(!primarySet.has(ideaId), "BUNDLE_ENTITY_INVALID", `learning section ${section.id} has Idea ${ideaId} in both primary and supporting roles`, section.id);
+      }
+
+      for (const ideaId of section.primaryIdeaIds) {
+        assertCondition(ideaById.has(ideaId), "BUNDLE_MISSING_IDEA", `learning section ${section.id} references missing primary Idea ${ideaId}`, section.id);
+        assertCondition(!primaryIdeaToSection.has(ideaId), "BUNDLE_ENTITY_INVALID", `Idea ${ideaId} is assigned as primary to multiple sections`, section.id);
+        primaryIdeaToSection.set(ideaId, section.id);
+      }
+      for (const ideaId of section.supportingIdeaIds) {
+        assertCondition(ideaById.has(ideaId), "BUNDLE_MISSING_IDEA", `learning section ${section.id} references missing supporting Idea ${ideaId}`, section.id);
+      }
+      for (const chunkId of section.sourceChunkIds) {
+        assertCondition(chunkById.has(chunkId), "BUNDLE_MISSING_SOURCE", `learning section ${section.id} references missing source chunk ${chunkId}`, section.id);
+      }
+    }
+
+    for (const section of learningSections) {
+      let depth = 1;
+      let current = section;
+      const visited = new Set<string>([section.id]);
+      while (current.parentSectionId !== undefined) {
+        assertCondition(!visited.has(current.parentSectionId), "BUNDLE_ENTITY_INVALID", `learning section ${section.id} contains a parent cycle`, section.id);
+        const parent = sectionById.get(current.parentSectionId);
+        assertCondition(parent !== undefined, "BUNDLE_ENTITY_INVALID", `learning section ${current.id} references missing parent ${current.parentSectionId}`, current.id);
+        assertCondition(parent.courseId === current.courseId, "BUNDLE_ENTITY_INVALID", `learning section ${current.id} parent belongs to different course`, current.id);
+        assertCondition(parent.chapterId === current.chapterId, "BUNDLE_ENTITY_INVALID", `learning section ${current.id} parent belongs to different chapter`, current.id);
+        visited.add(current.parentSectionId);
+        current = parent;
+        depth++;
+        assertCondition(depth <= 3, "BUNDLE_ENTITY_INVALID", `learning section ${section.id} exceeds maximum depth of 3`, section.id);
+      }
+    }
+
+    for (const idea of ideas) {
+      assertCondition(primaryIdeaToSection.has(idea.id), "BUNDLE_ENTITY_INVALID", `Idea ${idea.id} is not assigned as primary in any learning section`, idea.id);
+    }
+  }
+
+  return { sourceMaterials, sourceChunks, ideas, provenance, relations: parsedRelations, learningSections };
 }
 
 function validateManifest(value: unknown): IdeaBundleManifest {
@@ -260,7 +356,12 @@ function validateManifest(value: unknown): IdeaBundleManifest {
   if (!parsed.success) {
     throw new BundleValidationError({ code: "BUNDLE_INVALID_MANIFEST", message: parsed.error.issues.map((issue) => issue.message).join("; "), path: "manifest.json" });
   }
-  assertCondition(parsed.data.schemaVersion === "idea-bundle.v2", "BUNDLE_UNSUPPORTED_SCHEMA", "unsupported Idea Bundle schema version", "manifest.json");
+  assertCondition(
+    parsed.data.schemaVersion === "idea-bundle.v2" || parsed.data.schemaVersion === "idea-bundle.v3",
+    "BUNDLE_UNSUPPORTED_SCHEMA",
+    "unsupported Idea Bundle schema version",
+    "manifest.json"
+  );
   assertCondition(parsed.data.conflicts.length === 0, "BUNDLE_UNRESOLVED_CONFLICT", "bundle contains unresolved conflicts", "manifest.json");
   return parsed.data;
 }

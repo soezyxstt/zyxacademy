@@ -395,18 +395,33 @@ Canonical published products share a common shape: versioned rows with `status` 
 
 ### artikel
 * `id`, `mataKuliahId`, optional `babId`
-* `slug`, `title`, `contentMarkdown`, `version`, `status`
+* `slug`, `title`, `contentMarkdown`, `structureStatus`, `version`, `status`
 * `sourceHash`, `generationHash`
 * `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
+* `structureStatus` is `legacy_unreviewed`, `structured`, or `needs_reauthoring`. Structured content keeps deterministic Markdown for compatibility and indexing.
 
 ### artikel_ide
 * `id`, `artikelId`, `ideId`, `weight` (default 1)
 * Article-to-Idea coverage links used by quality gates.
 
 ### blok_artikel
-* `id`, `artikelId`, `blockKey`, `blockType`, `orderIndex`, `content`
+* `id`, `artikelId`, optional `bagianArtikelId`, `blockKey`, `blockType`, optional `title`, `orderIndex`, `content`
 * `version`, `generationHash`, `status`, `createdAt`, `updatedAt`
 * Ordered typed blocks compiled through the article quality contract.
+
+### bagian_pembelajaran and bagian_pembelajaran_ide
+* Learning outline rows store stable hierarchy, title, slug, order, objective, course, chapter, version, and publication status.
+* Membership rows connect every Idea to one primary learning section and optional supporting sections.
+
+### bagian_artikel
+* Versioned Article section rows store kind, optional learning section, optional parent, title, slug, objective, order, reading estimate, and status.
+* Unique Article slug and order constraints preserve stable navigation.
+
+### blok_artikel_ide and blok_artikel_sumber
+* Junctions preserve block to Idea and block to exact source provenance without embedding metadata in Markdown.
+
+### kemajuan_baca_artikel
+* One row per user, Article, Article version, and section stores maximum read percent, elapsed seconds, last read time, and optional completion time.
 
 ### diktat_materi
 * `id`, `mataKuliahId`, optional `babId`
@@ -620,12 +635,12 @@ Internal review evidence; one immutable decision per reviewer, never a separate 
 * `status` (default `pending`), optional `notes`, optional `reviewedAt`, `createdAt`
 
 ### review_item_bundle
-Persistent Product Bundle Article block review state for one reviewer. This metadata stays outside the Product Bundle ZIP.
-* `id`, `imporBundleId`, `reviewerId`, `productId`, `blockId`
+Persistent Product Bundle item review state for one reviewer. This metadata stays outside the Product Bundle ZIP.
+* `id`, `imporBundleId`, `reviewerId`, optional legacy `productId` and `blockId`, `targetType`, `targetId`
 * `status` is `pending`, `approved`, or `changes_requested`; optional `notes`, `createdAt`, `updatedAt`
-* Unique target is import, reviewer, product, and block.
-* Import deletion cascades to block reviews. Reviewer deletion is restricted.
-* Draft replacement and discard explicitly clear these rows. A bundle decision makes the same reviewer's rows immutable at the service boundary.
+* Unique target is import, reviewer, target type, and target ID.
+* Import deletion cascades to item reviews. Reviewer deletion is restricted.
+* Admin draft edit preserves unchanged section rows and resets changed section rows. A bundle decision makes the same reviewer's rows immutable at the service boundary.
 
 ### publikasi_bundle
 Publication record created or refreshed at atomic publication.
@@ -636,6 +651,8 @@ Publication record created or refreshed at atomic publication.
 Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
 
 Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Migration `0081_numerous_gwen_stacy.sql` adds `review_item_bundle` as advisory staged review metadata with no backfill. Existing drafts therefore begin with every Article block effectively pending. Draft replacement rewrites the import inventory and R2 artifact and clears block review rows before publication. Publication inserts canonical article, diktat, question, solution, flashcard, and assessment blueprint rows after traceability and dependency checks pass. Withdrawal marks canonical rows inactive or retired according to their existing table contract and adds vector delete jobs. Question products are exclusively ITB examples and require `itbSource`, ITB curation, typed option IDs with deterministic correct markers, exactly one paired solution, and a HOT cognitive level for multi-Idea questions. Correct markers remain inside the private `soal.options_snapshot` grading representation and are redacted from runtime and vector content. Versions greater than one use versioned product IDs so prior rows remain queryable.
+
+Migrations `0082_structured_article_expand.sql` and `0083_structured_article_review_targets.sql` add structured learning and Article tables, progress, generic review targets, and compatibility columns. V3 publication stores semantic rows and derived Markdown transactionally. V3 publication requires section approval from the same admin who approved the bundle.
 
 Migration `0068_typical_warbird.sql` adds `origin`, `source_event_name`, and `source_reference_id` to both `soal` and `ai_question_bank`, with `zyx_original` as the non-null default and an origin plus event index on each table. Existing rows therefore remain Zyx originals without a data rewrite. Product publication validates ITB completeness before writing and creates the `ai_question_bank` compatibility projection. Product Bundle source and curation data are retained in the publication audit snapshot, while `soal_itb_referensi.soal_id` links the single source reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
 

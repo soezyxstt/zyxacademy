@@ -14,6 +14,7 @@ import { storage } from "@/lib/storage";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { FormattedDate } from "@/components/ui/formatted-date";
+import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -65,6 +66,17 @@ export default async function CourseMaterialListPage({ params }: Props) {
     } catch (err) {
       console.error("Error loading progress in materials list:", err);
     }
+  }
+
+  // Fetch canonical articles under FEATURE_STRUCTURED_ARTICLE_READER_V1
+  const canonicalArticles = await getCanonicalPublishedArticlesForCourse(id, studentId);
+
+  // Set of chapters mapped to canonical articles (for legacy suppression)
+  const canonicalMappedChapterIds = new Set<string>();
+  for (const art of canonicalArticles) {
+    if (art.chapterId) canonicalMappedChapterIds.add(art.chapterId);
+    if (art.legacyChapterId) canonicalMappedChapterIds.add(art.legacyChapterId);
+    if (art.babId) canonicalMappedChapterIds.add(art.babId);
   }
 
   // Fetch chapters
@@ -130,6 +142,20 @@ export default async function CourseMaterialListPage({ params }: Props) {
     .from(courseMaterials)
     .where(eq(courseMaterials.courseId, id));
 
+  const mappedCanonical = canonicalArticles.map((a) => ({
+    id: a.id,
+    courseId: id,
+    title: a.title,
+    kind: "article" as const,
+    docCategory: "materi" as const,
+    fileSize: `${a.totalEstimatedReadingMinutes} menit baca`,
+    completed: a.completed,
+    isPastYear: false,
+    isPreview: false,
+    chapterId: a.chapterId ?? undefined,
+    chapterIds: a.chapterId ? [a.chapterId] : [],
+  }));
+
   const mappedDiktats = courseDiktats.map((d) => ({
     id: d.id,
     courseId: id,
@@ -185,22 +211,25 @@ export default async function CourseMaterialListPage({ params }: Props) {
     };
   });
 
-  const mappedWeb = webMaterials.map((m) => ({
-    id: m.id,
-    courseId: id,
-    title: m.title,
-    kind: "article" as const,
-    docCategory: "materi" as const,
-    fileSize: "Disusun otomatis",
-    body: m.canonicalMarkdown ? m.canonicalMarkdown.slice(0, 600) : undefined,
-    completed: completedMaterialIds.has(m.id),
-    isPastYear: false,
-    isPreview: true,
-    thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
-    chapterIds: [m.chapterId],
-  }));
+  // Suppress legacy website material only for the same mapped chapter as canonical articles
+  const mappedWeb = webMaterials
+    .filter((m) => !canonicalMappedChapterIds.has(m.chapterId))
+    .map((m) => ({
+      id: m.id,
+      courseId: id,
+      title: m.title,
+      kind: "article" as const,
+      docCategory: "materi" as const,
+      fileSize: "Disusun otomatis",
+      body: m.canonicalMarkdown ? m.canonicalMarkdown.slice(0, 600) : undefined,
+      completed: completedMaterialIds.has(m.id),
+      isPastYear: false,
+      isPreview: true,
+      thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
+      chapterIds: [m.chapterId],
+    }));
 
-  const allMaterials = [...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual];
+  const allMaterials = [...mappedCanonical, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual];
 
   return (
     <CoursePageShell

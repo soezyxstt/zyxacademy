@@ -575,6 +575,20 @@
       "when": 1788072374127,
       "tag": "0081_numerous_gwen_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "6",
+      "when": 1788150201138,
+      "tag": "0082_structured_article_expand",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "6",
+      "when": 1788150231383,
+      "tag": "0083_structured_article_review_targets",
+      "breakpoints": true
     }
   ]
 }

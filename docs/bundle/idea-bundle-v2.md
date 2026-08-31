@@ -1,5 +1,7 @@
 # Idea Bundle V2 Contract
 
+Status: `TRANSITIONAL / LEGACY`. V2 remains readable and is the rollback submission contract while the V3 flag is disabled. New flagged authoring uses [Idea Bundle V3](idea-bundle-v3.md).
+
 Idea Bundle V2 is a strict, ZIP-based import boundary for source-grounded Ideas. The workflow is always-on. The legacy JSON importer remains available as the rollback path.
 
 ## ZIP security boundary

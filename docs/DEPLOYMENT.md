@@ -346,6 +346,10 @@ This procedure mutates only the verified staging database. It does not deploy th
 
 The Product Bundle workflow is always-on; the staging product-bundle rehearsal remains a required process gate. The workflow uses the normal private R2 storage abstraction for staged ZIP artifacts and writes product publication, dependency, audit, and vector outbox records transactionally. Run the staging test with `.env.staging` and the authenticated Wrangler fallback only when the script explicitly enables it; production rollout review remains out of scope for local work.
 
+## Structured Article V3
+
+Structured Article V3 is additive and defaults off through `FEATURE_STRUCTURED_ARTICLE_READER_V1`. Migration generation, local application, staging database mutation, MCP regeneration, deployment, and flag enablement are separate steps. Disabling the flag rolls UI selection and submission requirements back to V2 while preserving V3 rows and artifacts. Use [the structured Article rollout runbook](operations/structured-article-v3-rollout.md) for preflight, inventory, reconciliation, visual gates, course rollout, and removal conditions.
+
 ## Provider-neutral Authoring MCP
 
 The MCP endpoint is deployed as the Node.js route `/api/mcp/authoring` and uses the official Streamable HTTP transport. It is always available after deployment, but every request still requires a valid admin session or an MCP access token issued after an admin login. Source Pack ingestion requires original binaries for independent `originalSha256` verification; those binaries are not stored in the Source Pack ZIP. Originals may arrive as ephemeral base64 input or be resolved from encrypted stored-file references.

@@ -144,6 +144,7 @@ describe("Material Compiler Pipeline Contract Tests (Plan 009)", () => {
         { id: "b11", blockType: "summary", orderIndex: 10, content: "Summary" },
         { id: "b12", blockType: "retrieval_close", orderIndex: 11, content: "Close" },
       ],
+      sections: [],
     };
     const first = compileArticleProduct(product, { strict: false });
     const second = compileArticleProduct(product, { strict: false });

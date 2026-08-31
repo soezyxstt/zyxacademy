@@ -38,6 +38,8 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { MathText } from "@/components/course/math-text";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
+import { StructuredArticleSectionContent } from "@/components/course/structured-article-reader";
+import { computeDeterministicSectionNumbering, type PublicSectionReadModel } from "@/lib/articles/structured-read-model";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
 import { ProductDraftEditor } from "@/components/admin/product-draft-editor";
 import type { ProductPreview } from "@/lib/bundle/product-preview";
@@ -51,7 +53,8 @@ type DetailProps = {
 };
 
 type IdeaPreview = {
-  summary: { ideaCount: number; sourceCount: number; excerptCount: number; relationCount: number; ai: { provider: string; model: string; promptVersion: string } | null };
+  summary: { ideaCount: number; sourceCount: number; excerptCount: number; relationCount: number; learningSectionCount: number; ai: { provider: string; model: string; promptVersion: string } | null };
+  learningSections: { id: string; chapterId: string; parentSectionId: string | null; title: string; slug: string; orderIndex: number; learningObjective: string; primaryIdeaIds: readonly string[]; supportingIdeaIds: readonly string[]; sourceChunkIds: readonly string[] }[];
   ideas: {
     id: string;
     code: string;
@@ -61,15 +64,18 @@ type IdeaPreview = {
     latex: string | null;
     knowledgeKind: string;
     instructionalRole: string;
+    learningSection: { id: string; title: string; slug: string } | null;
     provenance: { id: string; role: string; sourceTitle: string; excerpt: string; sectionLocator: string | null; pageNumber: number | null; note: string | null }[];
   }[];
   relations: { id: string; sourceIdeaId: string; targetIdeaId: string; relationType: string; explanation: string | null }[];
 };
 
 type IdeaDetailPayload = {
-  bundle: { id: string; bundleId: string; courseId: string | null; status: string; createdAt: string; reviews?: { status: string; notes: string | null }[] };
+  bundle: { id: string; bundleId: string; courseId: string | null; status: string; checksum: string; createdAt: string; reviews?: { status: string; notes: string | null }[] };
   preview: IdeaPreview;
   draft: IdeaDraft;
+  itemReviews: { id: string; targetType: "idea"; targetId: string; status: "pending" | "approved" | "changes_requested"; notes: string | null }[];
+  structuredReaderEnabled?: boolean;
 };
 
 export type ProductBlockReview = {
@@ -77,7 +83,9 @@ export type ProductBlockReview = {
   importId?: string;
   reviewerId?: string;
   productId: string;
-  blockId: string;
+  blockId?: string;
+  targetType?: "article_section" | "article_block";
+  targetId?: string;
   status: "pending" | "approved" | "changes_requested";
   notes: string | null;
   reviewedAt?: string;
@@ -98,6 +106,7 @@ export type ProductDetailPayload = {
     bundleId: string;
     courseId: string | null;
     status: string;
+    checksum: string;
     createdAt: string;
     currentReview?: { id: string; status: string; notes: string | null; reviewedAt: string | Date } | null;
     reviews?: { id?: string; reviewerId?: string; status: string; notes: string | null; reviewedAt?: string }[];
@@ -108,6 +117,7 @@ export type ProductDetailPayload = {
   dependencies?: ProductDependency[];
   blockReviews?: ProductBlockReview[];
   blockReviewSummary?: ProductBlockReviewSummary;
+  structuredReaderEnabled?: boolean;
 };
 
 type IdeaDraftItem = IdeaPreview["ideas"][number] & {
@@ -240,6 +250,9 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "changes_requested">("all");
+  const [ideaReviewNotes, setIdeaReviewNotes] = useState<Record<string, string>>({});
   const [reviewNote, setReviewNote] = useState("");
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -308,7 +321,7 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ draft }) });
+      const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload.bundle.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ draft, expectedRevision: payload.bundle.checksum }) });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || "IDEA_BUNDLE_UPDATE_FAILED");
       await load();
@@ -325,10 +338,33 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
   const activeDraftIdea = draft?.ideas.find((idea) => idea.id === activeIdea?.id) ?? null;
 
   const filteredIdeas = useMemo(() => {
-    if (!searchQuery.trim()) return ideasList;
+    const statusMatches = (idea: IdeaPreview["ideas"][number]) => statusFilter === "all" || (payload?.itemReviews.find((review) => review.targetId === idea.id)?.status ?? "pending") === statusFilter;
+    if (!searchQuery.trim()) return ideasList.filter(statusMatches);
     const q = searchQuery.toLowerCase().trim();
-    return ideasList.filter((idea) => idea.code.toLowerCase().includes(q) || idea.canonicalStatement.toLowerCase().includes(q) || idea.id.toLowerCase().includes(q));
-  }, [ideasList, searchQuery]);
+    return ideasList.filter((idea) => statusMatches(idea) && (idea.code.toLowerCase().includes(q) || idea.canonicalStatement.toLowerCase().includes(q) || idea.id.toLowerCase().includes(q)));
+  }, [ideasList, payload?.itemReviews, searchQuery, statusFilter]);
+
+  async function saveIdeaItemReview(status: "pending" | "approved" | "changes_requested") {
+    if (!activeIdea) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/bundles/idea/${encodeURIComponent(payload!.bundle.id)}/item-reviews`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ targetType: "idea", targetId: activeIdea.id, status, notes: ideaReviewNotes[activeIdea.id]?.trim() || undefined }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error || "IDEA_ITEM_REVIEW_UPDATE_FAILED");
+      await load();
+      const nextPending = ideasList.slice(currentIndex + 1).find((idea) => !payload?.itemReviews.some((review) => review.targetId === idea.id && review.status !== "pending"));
+      if (nextPending) setSelectedIdeaId(nextPending.id);
+    } catch (reviewError) {
+      setError(explainBundleError(reviewError instanceof Error ? reviewError.message : "IDEA_ITEM_REVIEW_UPDATE_FAILED"));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function goToIndex(index: number) {
     if (index >= 0 && index < ideasList.length) {
@@ -403,6 +439,16 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
           </Select>
         </div>
 
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+          <SelectTrigger className="h-8 w-40 text-body-sm"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua status</SelectItem>
+            <SelectItem value="pending">Menunggu review</SelectItem>
+            <SelectItem value="approved">Disetujui</SelectItem>
+            <SelectItem value="changes_requested">Perlu revisi</SelectItem>
+          </SelectContent>
+        </Select>
+
         {/* Drawer Trigger for 60+ Items Search List */}
         <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
           <SheetTrigger asChild>
@@ -445,11 +491,30 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
             </div>
           </SheetContent>
         </Sheet>
+
+        <Sheet open={evidenceOpen} onOpenChange={setEvidenceOpen}>
+          <SheetTrigger asChild><Button type="button" size="sm" variant="outline" className="h-8 gap-1.5 text-body-sm lg:hidden"><Info className="size-3.5" />Bukti</Button></SheetTrigger>
+          <SheetContent side="right" className="overflow-y-auto">
+            <SheetHeader><SheetTitle>Bukti dan relasi</SheetTitle></SheetHeader>
+            {activeIdea ? <div className="mt-4 space-y-4">
+              <div><p className="text-body-xs font-semibold text-muted-foreground">Bagian belajar</p><p className="mt-1 text-body-sm font-semibold">{activeIdea.learningSection?.title ?? "Belum dipetakan"}</p></div>
+              {activeIdea.provenance.map((proof) => <div key={proof.id} className="rounded-lg border border-border bg-muted/30 p-3"><p className="text-body-sm font-semibold">{proof.sourceTitle}</p><p className="mt-1 text-body-xs text-muted-foreground">{proof.excerpt}</p></div>)}
+            </div> : null}
+          </SheetContent>
+        </Sheet>
       </div>
 
       {/* 100% Width Canvas for Idea Content */}
       {activeIdea ? (
-        <article key={activeIdea.id} className="rounded-xl border border-border bg-card p-5 sm:p-7 shadow-xs space-y-6">
+        <div className={cn("grid items-start gap-5", payload.structuredReaderEnabled && "lg:grid-cols-[minmax(220px,0.75fr)_minmax(0,2fr)_minmax(240px,0.85fr)]")}>
+          {payload.structuredReaderEnabled ? <aside className="sticky top-4 hidden max-h-[calc(100vh-2rem)] space-y-3 overflow-y-auto lg:block">
+            <SearchBar size="sm" value={searchQuery} onSearch={setSearchQuery} onClear={() => setSearchQuery("")} placeholder="Cari Idea" />
+            {filteredIdeas.map((idea) => {
+              const status = payload.itemReviews.find((review) => review.targetId === idea.id)?.status ?? "pending";
+              return <button key={idea.id} type="button" onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); }} className={cn("w-full rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", activeIdea.id === idea.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/50")}><div className="flex items-center justify-between gap-2"><span className="text-body-sm font-semibold">{idea.code}</span><StatusBadge tone={blockReviewTones[status]}>{blockReviewLabels[status]}</StatusBadge></div><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground">{idea.canonicalStatement}</p></button>;
+            })}
+          </aside> : null}
+        <article key={activeIdea.id} className="space-y-6 rounded-xl border border-border bg-card p-5 shadow-xs sm:p-7">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
             <div>
               <div className="flex items-center gap-2">
@@ -558,6 +623,14 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
             </div>
           )}
         </article>
+          {payload.structuredReaderEnabled ? <aside className="sticky top-4 hidden space-y-4 rounded-xl border border-border bg-card p-4 lg:block">
+            <div><p className="text-body-xs font-semibold text-muted-foreground">Bagian belajar</p><p className="mt-1 text-body-sm font-semibold">{activeIdea.learningSection?.title ?? "Belum dipetakan"}</p></div>
+            <div><p className="text-body-xs font-semibold text-muted-foreground">Bukti sumber</p><div className="mt-2 space-y-2">{activeIdea.provenance.map((proof) => <div key={proof.id} className="rounded-lg border border-border bg-muted/30 p-2"><p className="text-body-xs font-semibold">{proof.sourceTitle}{proof.pageNumber ? `, hal. ${proof.pageNumber}` : ""}</p><p className="mt-1 line-clamp-4 text-body-xs text-muted-foreground">{proof.excerpt}</p></div>)}</div></div>
+            <div><p className="text-body-xs font-semibold text-muted-foreground">Relasi</p><div className="mt-2 space-y-1">{payload.preview.relations.filter((relation) => relation.sourceIdeaId === activeIdea.id || relation.targetIdeaId === activeIdea.id).map((relation) => <p key={relation.id} className="text-body-xs text-muted-foreground">{displayLabel(relation.relationType, relationLabels)} dengan {relation.sourceIdeaId === activeIdea.id ? relation.targetIdeaId : relation.sourceIdeaId}</p>)}</div></div>
+            <Textarea value={ideaReviewNotes[activeIdea.id] ?? payload.itemReviews.find((review) => review.targetId === activeIdea.id)?.notes ?? ""} onChange={(event) => setIdeaReviewNotes((current) => ({ ...current, [activeIdea.id]: event.target.value }))} placeholder="Catatan review Idea" className="min-h-24 text-body-sm" />
+            {payload.bundle.status !== "published" ? <div className="grid grid-cols-2 gap-2"><Button type="button" disabled={saving} onClick={() => void saveIdeaItemReview("approved")} className="bg-status-success text-white hover:bg-status-success/90"><Check className="mr-1 size-4" />Setujui</Button><Button type="button" disabled={saving} variant="outline" onClick={() => void saveIdeaItemReview("changes_requested")} className="border-status-warning text-status-warning"><AlertTriangle className="mr-1 size-4" />Perbaikan</Button></div> : null}
+          </aside> : null}
+        </div>
       ) : (
         <AdminEmptyState title="Idea belum tersedia" description="Bundle ini tidak memiliki Idea." />
       )}
@@ -807,7 +880,152 @@ function ArticleBlockInspector({
 // Dedicated Product Renderers (Article, Diktat, Flashcard, Question, etc.)
 // ---------------------------------------------------------------------------
 
-function ArticleProductView({
+function StructuredArticleProductView({
+  product,
+  bundleId,
+  bundleStatus,
+  reviewLocked,
+  itemReviews,
+  onReviewChange,
+  dependencies,
+}: {
+  product: Extract<ProductEntity, { productType: "article" }>;
+  bundleId: string;
+  bundleStatus: string;
+  reviewLocked: boolean;
+  itemReviews: ProductBlockReview[];
+  onReviewChange?: (review: ProductBlockReview) => void;
+  dependencies: ProductDependency[];
+}) {
+  const sections = useMemo(() => [...product.sections].sort((a, b) => a.orderIndex - b.orderIndex), [product.sections]);
+  const [selectedSectionId, setSelectedSectionId] = useState(sections[0]?.id ?? "");
+  const [mobileQueueOpen, setMobileQueueOpen] = useState(false);
+  const [mobileEvidenceOpen, setMobileEvidenceOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const numbering = useMemo(() => computeDeterministicSectionNumbering(
+    sections.map((section) => ({
+      id: section.id,
+      orderIndex: section.orderIndex,
+      parentSectionId: section.parentSectionId,
+      sectionKind: section.kind,
+    })),
+  ), [sections]);
+  const selected = sections.find((section) => section.id === selectedSectionId) ?? sections[0];
+  const reviews = itemReviews.filter((review) => review.productId === product.id && review.targetType === "article_section");
+  const review = selected ? reviews.find((entry) => entry.targetId === selected.id) : undefined;
+  const publicSection: PublicSectionReadModel | null = selected ? {
+    id: selected.id,
+    slug: selected.slug,
+    title: selected.title,
+    sectionNumber: numbering.get(selected.id) ?? String(selected.orderIndex + 1),
+    sectionKind: selected.kind,
+    learningObjective: selected.learningObjective,
+    estimatedReadingMinutes: Math.max(1, Math.round(selected.blocks.reduce((total, block) => total + block.contentMarkdown.trim().split(/\s+/).length, 0) / 200)),
+    orderIndex: selected.orderIndex,
+    parentSectionId: selected.parentSectionId ?? null,
+    blocks: [...selected.blocks].sort((a, b) => a.orderIndex - b.orderIndex).map((block) => ({
+      id: block.id,
+      blockKey: block.id,
+      blockType: block.blockType,
+      title: block.title ?? null,
+      orderIndex: block.orderIndex,
+      content: block.contentMarkdown,
+    })),
+  } : null;
+
+  useEffect(() => {
+    setNotes(review?.notes ?? "");
+  }, [review?.notes, selected?.id]);
+
+  async function saveSectionReview(status: ProductBlockReview["status"]) {
+    if (!selected || bundleStatus !== "draft" || reviewLocked) return;
+    setSaving(true);
+    setReviewError(null);
+    try {
+      const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(bundleId)}/item-reviews`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ targetType: "article_section", targetId: selected.id, productId: product.id, status, notes: notes.trim() || undefined }),
+      });
+      const data = await response.json() as { result?: ProductBlockReview; error?: string };
+      if (!response.ok || !data.result) throw new Error(data.error || "PRODUCT_SECTION_REVIEW_UPDATE_FAILED");
+      onReviewChange?.(data.result);
+      const pending = sections.find((section) => {
+        if (section.id === selected.id) return false;
+        return !reviews.some((entry) => entry.targetId === section.id && entry.status !== "pending");
+      });
+      if (pending) setSelectedSectionId(pending.id);
+    } catch (error) {
+      setReviewError(explainBundleError(error instanceof Error ? error.message : "PRODUCT_SECTION_REVIEW_UPDATE_FAILED"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const queue = (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="font-heading text-body-sm font-bold">Bagian artikel</h3>
+        <Badge variant="outline" className="text-body-xs">{reviews.filter((entry) => entry.status === "approved").length}/{sections.length}</Badge>
+      </div>
+      {sections.map((section) => {
+        const sectionReview = reviews.find((entry) => entry.targetId === section.id);
+        return (
+          <button
+            key={section.id}
+            type="button"
+            onClick={() => { setSelectedSectionId(section.id); setMobileQueueOpen(false); }}
+            className={cn("w-full rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", selected?.id === section.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/50")}
+          >
+            <div className="flex items-center justify-between gap-2 text-body-xs text-muted-foreground">
+              <span>{numbering.get(section.id)}</span>
+              <StatusBadge tone={blockReviewTones[sectionReview?.status ?? "pending"]}>{blockReviewLabels[sectionReview?.status ?? "pending"]}</StatusBadge>
+            </div>
+            <p className="mt-1 text-body-sm font-semibold text-foreground">{section.title}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const evidence = selected ? (
+    <div className="space-y-4">
+      <h3 className="font-heading text-body-sm font-bold">Keterlacakan</h3>
+      <div>
+        <p className="text-body-xs font-semibold text-muted-foreground">Idea tercakup</p>
+        <div className="mt-2 flex flex-wrap gap-1">{selected.ideaIds.map((id) => <Badge key={id} variant="outline" className="text-body-xs">{id}</Badge>)}</div>
+      </div>
+      <div>
+        <p className="text-body-xs font-semibold text-muted-foreground">Sumber</p>
+        <div className="mt-2 space-y-2">{selected.sourceRefs.map((source) => <div key={`${source.sourceId}-${source.version}`} className="rounded-lg border border-border bg-muted/30 p-2 text-body-xs"><p className="font-semibold">{source.sourceId}, v{source.version}</p><p className="mt-1 text-muted-foreground">{source.excerptIds.join(", ")}</p></div>)}</div>
+      </div>
+      <div>
+        <p className="text-body-xs font-semibold text-muted-foreground">Dependensi</p>
+        <p className="mt-1 text-body-xs text-muted-foreground">{dependencies.filter((dependency) => dependency.downstreamEntityId === product.id).length} dependensi artikel</p>
+      </div>
+      <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan review bagian" className="min-h-24 text-body-sm" />
+      {reviewError ? <p className="text-body-xs text-status-error">{reviewError}</p> : null}
+      {bundleStatus === "draft" && !reviewLocked ? <div className="grid grid-cols-2 gap-2"><Button type="button" disabled={saving} onClick={() => void saveSectionReview("approved")} className="bg-status-success text-white hover:bg-status-success/90"><Check className="mr-1 size-4" />Setujui</Button><Button type="button" disabled={saving} variant="outline" onClick={() => void saveSectionReview("changes_requested")} className="border-status-warning text-status-warning"><AlertTriangle className="mr-1 size-4" />Perbaikan</Button></div> : null}
+    </div>
+  ) : null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2 lg:hidden"><Button type="button" variant="outline" onClick={() => setMobileQueueOpen(true)}><ListFilter className="mr-1 size-4" />Daftar bagian</Button><Button type="button" variant="outline" onClick={() => setMobileEvidenceOpen(true)}><Info className="mr-1 size-4" />Keterlacakan</Button></div>
+      <div className="grid gap-5 lg:grid-cols-[minmax(220px,0.75fr)_minmax(0,2fr)_minmax(240px,0.85fr)]">
+        <aside className="hidden lg:block">{queue}</aside>
+        <article className="mx-auto w-full max-w-[75ch] space-y-6">{publicSection ? <StructuredArticleSectionContent section={publicSection} showProgress={false} /> : <AdminEmptyState icon={BookOpen} title="Artikel belum memiliki bagian" description="Tambahkan section V3 melalui authoring." />}</article>
+        <aside className="hidden rounded-xl border border-border bg-card p-4 lg:block">{evidence}</aside>
+      </div>
+      <Sheet open={mobileQueueOpen} onOpenChange={setMobileQueueOpen}><SheetContent side="left" className="overflow-y-auto"><SheetHeader><SheetTitle>Daftar bagian</SheetTitle></SheetHeader><div className="mt-4">{queue}</div></SheetContent></Sheet>
+      <Sheet open={mobileEvidenceOpen} onOpenChange={setMobileEvidenceOpen}><SheetContent side="right" className="overflow-y-auto"><SheetHeader><SheetTitle>Keterlacakan</SheetTitle></SheetHeader><div className="mt-4">{evidence}</div></SheetContent></Sheet>
+    </div>
+  );
+}
+
+function LegacyArticleProductView({
   product,
   viewMode,
   onViewModeChange,
@@ -849,8 +1067,9 @@ function ArticleProductView({
   const blockReviewMap = useMemo(() => {
     const map: Record<string, ProductBlockReview> = {};
     for (const rev of blockReviews) {
-      if (rev.productId === product.id) {
-        map[rev.blockId] = rev;
+      const blockId = rev.blockId ?? (rev.targetType === "article_block" ? rev.targetId : undefined);
+      if (rev.productId === product.id && blockId) {
+        map[blockId] = rev;
       }
     }
     return map;
@@ -1178,6 +1397,13 @@ function ArticleProductView({
       )}
     </div>
   );
+}
+
+function ArticleProductView(props: Parameters<typeof LegacyArticleProductView>[0] & { structuredEnabled?: boolean }) {
+  if (props.structuredEnabled && props.product.sections.length > 0) {
+    return <StructuredArticleProductView product={props.product} bundleId={props.bundleId} bundleStatus={props.bundleStatus} reviewLocked={props.reviewLocked ?? false} itemReviews={props.blockReviews ?? []} onReviewChange={props.onBlockReviewChange} dependencies={props.dependencies ?? []} />;
+  }
+  return <LegacyArticleProductView {...props} />;
 }
 
 function DiktatProductView({
@@ -1552,7 +1778,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ draft: { products: draftProducts } }) });
+      const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ draft: { products: draftProducts }, expectedRevision: payload.bundle.checksum }) });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || "PRODUCT_BUNDLE_UPDATE_FAILED");
       await load();
@@ -1568,7 +1794,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
       if (!current) return current;
       const existingReviews = current.blockReviews ?? [];
       const index = existingReviews.findIndex(
-        (r) => r.productId === updatedReview.productId && r.blockId === updatedReview.blockId
+        (r) => r.productId === updatedReview.productId && (r.targetId ?? r.blockId) === (updatedReview.targetId ?? updatedReview.blockId)
       );
       let nextReviews: ProductBlockReview[];
       if (index >= 0) {
@@ -1836,6 +2062,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
                       blockReviews={payload.blockReviews}
                       onBlockReviewChange={handleBlockReviewChange}
                       dependencies={payload.dependencies}
+                      structuredEnabled={payload.structuredReaderEnabled}
                     />
                   )}
                   {activeDraftProduct.productType === "diktat" && (

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { previewProducts } from "@/lib/bundle/product-preview";
 import { discardProductBundleDraft, getProductBundleImport, listProductBlockReviews, parseStagedProductBundle, productBundleLifecycleStatus, stageProductBundle } from "@/lib/bundle/product-staging";
 import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
+import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     if (!row) return NextResponse.json({ error: "PRODUCT_BUNDLE_NOT_FOUND" }, { status: 404 });
     const bundle = await parseStagedProductBundle(id);
     const blockReviews = await listProductBlockReviews(id, session.user.id);
-    const articleBlockCount = bundle.products.reduce((total, product) => total + (product.productType === "article" ? product.blocks.length : 0), 0);
+    const articleBlockCount = bundle.products.reduce((total, product) => total + (product.productType === "article" ? (product.sections.length || product.blocks.length) : 0), 0);
     const approved = blockReviews.filter((review) => review.status === "approved").length;
     const changesRequested = blockReviews.filter((review) => review.status === "changes_requested").length;
     const currentReview = row.reviews.find((review) => review.reviewerId === session.user.id) ?? null;
@@ -43,6 +44,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       blockReviewSummary: { total: articleBlockCount, pending: Math.max(0, articleBlockCount - approved - changesRequested), approved, changesRequested },
       previews: previewProducts(bundle.products),
       draft: createProductBundleDraft(bundle),
+      structuredReaderEnabled: isStructuredArticleReaderEnabled(),
     });
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "PRODUCT_BUNDLE_DETAIL_FAILED";
@@ -56,10 +58,11 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   if (!session?.user || session.user.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await context.params;
   try {
-    const body = await request.json() as { draft?: ProductBundleDraft };
+    const body = await request.json() as { draft?: ProductBundleDraft; expectedRevision?: string };
     if (!body.draft) return NextResponse.json({ error: "PRODUCT_BUNDLE_DRAFT_REQUIRED" }, { status: 400 });
     const stored = await getProductBundleImport(id);
     if (!stored) return NextResponse.json({ error: "PRODUCT_BUNDLE_NOT_FOUND" }, { status: 404 });
+    if (body.expectedRevision !== stored.checksum) return NextResponse.json({ error: "PRODUCT_BUNDLE_REVISION_CONFLICT" }, { status: 409 });
     const original = await parseStagedProductBundle(id);
     const finalized = finalizeProductBundleDraft(original, body.draft);
     const bundle = finalized.bundle;
@@ -71,7 +74,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
       bytes: finalized.bytes,
       requestedBy: session.user.id,
       bundle,
-      filename: "product-bundle-v2.zip",
+      filename: bundle.manifest.schemaVersion === "product-bundle.v3" ? "product-bundle-v3.zip" : "product-bundle-v2.zip",
+      preserveUnchangedItemReviews: true,
     });
     return NextResponse.json({ result });
   } catch (error) {

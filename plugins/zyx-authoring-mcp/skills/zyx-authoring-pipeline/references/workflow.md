@@ -9,11 +9,11 @@ Gunakan state machine ini untuk memulai, menjeda, dan melanjutkan workflow `idea
 | `SCOPE_CONFIRMATION_REQUIRED` | Kandidat course/chapter ambigu, near-match, atau berbeda dari scope terkunci | Operator mengonfirmasi pilihan opaque yang ditampilkan |
 | `SOURCE_PREPARATION` | PDF course tersimpan atau file lokal dan urutannya tersedia | Source Pack selesai dibuat |
 | `SOURCE_VALIDATION` | ZIP dan seluruh stored atau local originals tersedia | `source.ingest` mengembalikan `valid: true` |
-| `IDEA_AUTHORING` | Run `idea_product` dan contract aktif tersedia | Idea Bundle lolos validation |
+| `IDEA_AUTHORING` | Run `idea_product` dan contract V3 aktif tersedia | Idea Bundle V3 lolos validation |
 | `IDEA_VALIDATED` | Idea Bundle valid | Operator mengotorisasi submission Idea |
 | `IDEA_STAGED` | `authoring.submit_idea_bundle` berhasil | Checkpoint dicatat |
 | `WAITING_IDEA_PUBLICATION` | Idea staged tetapi belum terbukti published | MCP menunjukkan Idea target sudah published dan context tetap fresh |
-| `PRODUCT_AUTHORING` | Idea published, source aktif, dan dependency fresh | Product Bundle lolos validation |
+| `PRODUCT_AUTHORING` | Idea published, source aktif, dan dependency fresh | Product Bundle V3 lolos validation per section |
 | `PRODUCT_VALIDATED` | Product Bundle valid | Selesai untuk target `product_validated`, atau operator mengotorisasi submission Product |
 | `PRODUCT_STAGED` | `authoring.submit_product_bundle` berhasil | Laporan akhir diberikan |
 

@@ -11,6 +11,7 @@ type ArticleQualityMetrics = {
   retrievalPrompts: number;
   visuals: number;
   formulas: number;
+  sections: Array<{ id: string; kind: "overview" | "topic" | "summary"; wordCount: number; estimatedReadingMinutes: number; explanationBlocks: number; retrievalBlocks: number }>;
 };
 
 type DiktatQualityMetrics = {
@@ -69,7 +70,22 @@ function formulaCount(value: string): number {
 function articleMetrics(article: Extract<ProductEntity, { productType: "article" }>): ArticleQualityMetrics {
   const ideaIds = article.ideaLinks.map((link) => link.id);
   const credit = new Map(ideaIds.map((id) => [id, 0]));
-  const parsedBlocks = article.blocks.map((block) => ({ block, ...blockContent(block) }));
+  const articleSections = article.sections ?? [];
+  const articleBlocks = article.blocks ?? [];
+  const sectionMetrics = articleSections.map((section) => {
+    const text = section.blocks.map((block) => block.contentMarkdown).join("\n");
+    return {
+      id: section.id,
+      kind: section.kind,
+      wordCount: words(text),
+      estimatedReadingMinutes: Math.max(1, Math.ceil(words(text) / 200)),
+      explanationBlocks: section.blocks.filter((block) => block.blockType === "explanation").length,
+      retrievalBlocks: section.blocks.filter((block) => block.blockType === "retrieval_prompt" || block.blockType === "retrieval_close").length,
+    };
+  });
+  const parsedBlocks = articleSections.length > 0
+    ? articleSections.flatMap((section) => section.blocks.map((block) => ({ block: { ...block, content: block.contentMarkdown }, text: block.contentMarkdown, ideaIds: block.ideaIds })))
+    : articleBlocks.map((block) => ({ block, ...blockContent(block) }));
   let implicitMultiIdeaBlocks = 0;
   for (const block of parsedBlocks) {
     let blockIdeaIds = block.ideaIds.filter((id) => credit.has(id));
@@ -89,6 +105,7 @@ function articleMetrics(article: Extract<ProductEntity, { productType: "article"
     retrievalPrompts: parsedBlocks.filter((block) => block.block.blockType === "retrieval_prompt").length,
     visuals: visualCount(text),
     formulas: formulaCount(text),
+    sections: sectionMetrics,
   };
 }
 
@@ -114,6 +131,17 @@ export function evaluateProductBundleQuality(data: { products: readonly ProductE
 
   for (const article of articles) {
     const metrics = articleMetrics(article);
+    if ((article.sections?.length ?? 0) > 0) {
+      const topicMetrics = metrics.sections.filter((section) => section.kind === "topic");
+      for (const section of topicMetrics) {
+        if (section.wordCount > 1500) issues.push(qualityIssue("ARTICLE_TOPIC_TOO_LONG", `Bagian ${section.id} melebihi hard limit 1.500 kata.`, "blocking", { entity: `${article.id}:${section.id}`, expected: 1500, observed: section.wordCount }));
+        if (section.wordCount < 450) issues.push(qualityIssue("ARTICLE_TOPIC_SHORT", `Bagian ${section.id} lebih pendek dari target bacaan 3 menit.`, "warning", { entity: `${article.id}:${section.id}`, expected: 450, observed: section.wordCount }));
+        if (section.explanationBlocks === 0) issues.push(qualityIssue("ARTICLE_TOPIC_EXPLANATION_MISSING", `Bagian ${section.id} belum memiliki penjelasan inti.`, "blocking", { entity: `${article.id}:${section.id}`, expected: 1, observed: 0 }));
+        if (section.retrievalBlocks === 0) issues.push(qualityIssue("ARTICLE_TOPIC_CHECK_MISSING", `Bagian ${section.id} belum memiliki pemeriksaan pemahaman.`, "blocking", { entity: `${article.id}:${section.id}`, expected: 1, observed: 0 }));
+      }
+      articleReports.push({ id: article.id, ...metrics });
+      continue;
+    }
     const minimumWords = Math.max(1800, metrics.ideaCount * 280);
     if (metrics.wordCount < minimumWords) issues.push(qualityIssue("ARTICLE_TOO_SHALLOW", `Article ${article.id} does not contain enough learner-facing content.`, "blocking", { entity: article.id, expected: minimumWords, observed: metrics.wordCount }));
     if (metrics.implicitMultiIdeaBlocks > 0) issues.push(qualityIssue("ARTICLE_IDEA_ATTRIBUTION_TOO_BROAD", `Article ${article.id} has blocks without explicit Idea attribution.`, "blocking", { entity: article.id, expected: 0, observed: metrics.implicitMultiIdeaBlocks }));

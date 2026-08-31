@@ -38,7 +38,12 @@ export const authoringJobSchema = z.object({
   sectionMappings: z.array(authoringSectionMappingSchema).min(1),
   requestedProducts: z.array(authoringProductTypeSchema).min(1),
   attribution: z.object({ creatorId: z.literal("$UPLOADER"), curatorId: z.literal("$APPROVING_REVIEWER") }).strict(),
-  workflow: z.object({ ideaPublicationRequiredBeforeProducts: z.literal(true), freshAuthoringContextRequired: z.literal(true) }).strict(),
+  workflow: z.object({
+    ideaPublicationRequiredBeforeProducts: z.literal(true),
+    freshAuthoringContextRequired: z.literal(true),
+    ideaBundleSchemaVersion: z.literal("idea-bundle.v3"),
+    productBundleSchemaVersion: z.literal("product-bundle.v3"),
+  }).strict(),
 }).strict().superRefine((job, context) => {
   const products = new Set(job.requestedProducts);
   if (products.size !== job.requestedProducts.length) context.addIssue({ code: "custom", message: "requestedProducts must be unique", path: ["requestedProducts"] });
@@ -158,7 +163,7 @@ export function buildAuthoringJobPack(input: AuthoringJobPackInput): AuthoringJo
     sectionMappings,
     requestedProducts: input.requestedProducts,
     attribution: { creatorId: "$UPLOADER", curatorId: "$APPROVING_REVIEWER" },
-    workflow: { ideaPublicationRequiredBeforeProducts: true, freshAuthoringContextRequired: true },
+    workflow: { ideaPublicationRequiredBeforeProducts: true, freshAuthoringContextRequired: true, ideaBundleSchemaVersion: "idea-bundle.v3", productBundleSchemaVersion: "product-bundle.v3" },
   });
 
   const files = new Map<string, Uint8Array>();

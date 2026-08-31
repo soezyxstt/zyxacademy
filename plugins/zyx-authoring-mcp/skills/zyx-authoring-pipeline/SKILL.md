@@ -1,6 +1,6 @@
 ---
 name: zyx-authoring-pipeline
-description: Mengorkestrasi workflow Zyx jangka panjang dari dokumen asli menjadi Source Pack tervalidasi, Idea Bundle staged, lalu Product Bundle tervalidasi atau staged. Gunakan ketika operator meminta alur lengkap dari Source Pack ke Idea Bundle ke Product Bundle dalam satu tujuan, atau ingin melanjutkan pipeline yang berhenti pada checkpoint. Jangan gunakan untuk satu tahap saja atau workflow bank soal.
+description: Mengorkestrasi workflow Zyx dari dokumen asli menjadi Source Pack tervalidasi, Idea Bundle V3 staged, lalu Product Bundle V3 tervalidasi atau staged. Gunakan ketika operator meminta alur lengkap atau ingin melanjutkan pipeline dari checkpoint. Jangan gunakan untuk satu tahap saja atau workflow bank soal.
 ---
 
 # Zyx Authoring Pipeline
@@ -40,7 +40,7 @@ Gunakan pilihan opaque dari MCP untuk mengunci course dan chapter. Jangan memint
 4. Jalankan tahap Idea dengan `$zyx-idea-bundle-mcp` sampai valid. Submit hanya jika diotorisasi.
 5. Setelah Idea staged, berhenti pada `WAITING_IDEA_PUBLICATION`. Laporkan checkpoint dan jangan mulai Product berdasarkan Idea draft.
 6. Saat operator meminta resume setelah publikasi, verifikasi ulang run, contract, Idea published, source excerpt aktif, versi, semantic hash, dan dependency freshness melalui MCP.
-7. Jalankan tahap Product dengan `$zyx-product-bundle-mcp` sampai valid. Wajib lulus MCP quality gate dan learner-facing editorial preflight, termasuk zero internal-ID leaks serta perbedaan Artikel mini e-book dan Diktat review 2 sampai 4 halaman. Submit hanya jika diotorisasi.
+7. Jalankan tahap Product dengan `$zyx-product-bundle-mcp` sampai valid. Wajib lulus MCP quality gate per section dan learner-facing editorial preflight, termasuk zero internal-ID leaks, topic 3 sampai 8 menit, hard limit 1.500 kata, serta perbedaan Artikel terstruktur dan Diktat review. Submit hanya jika diotorisasi.
 8. Laporkan hasil terpadu dan status akhir tanpa mengklaim publication yang tidak dilakukan MCP.
 
 Validation loop boleh berjalan tanpa meminta keputusan untuk perbaikan mekanis yang langsung ditentukan oleh `issues` dan `quality.metrics`. Berhenti dan diskusikan bila sumber ambigu, pemetaan scope tidak pasti, pemecahan Idea substantif, warning membutuhkan judgment, kandidat soal ITB harus dipilih, context stale, atau dependency publication-blocking.

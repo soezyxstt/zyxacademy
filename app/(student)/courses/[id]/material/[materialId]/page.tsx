@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { MaterialViewer } from "@/components/course/material-viewer";
+import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { getMaterial, type CourseMaterial } from "@/lib/student-course-fixtures";
 import { getCourse } from "@/lib/course-utils";
+import { getCanonicalPublishedArticle } from "@/lib/articles/structured-repository";
 import { db } from "@/db";
 import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
@@ -195,6 +197,18 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, materialId } = await params;
   const course = await getCourse(id);
+
+  // Check canonical structured article first
+  const canonicalArticle = await getCanonicalPublishedArticle(id, materialId);
+  if (canonicalArticle) {
+    return {
+      title: pageTitle(course ? `${course.title} - ${canonicalArticle.title}` : canonicalArticle.title),
+      description: course
+        ? `Baca materi ${canonicalArticle.title}; bagian dari ${course.title}.`
+        : "Baca materi pelajaran dan artikel terstruktur.",
+    };
+  }
+
   const material = await fetchMaterial(id, materialId);
   return {
     title: pageTitle(course && material ? `${course.title} - ${material.title}` : "Materi"),
@@ -209,6 +223,48 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   const course = await getCourse(id);
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
+
+  // 1. Canonical structured article first under FEATURE_STRUCTURED_ARTICLE_READER_V1
+  const canonicalArticle = await getCanonicalPublishedArticle(id, materialId, studentId);
+  if (canonicalArticle && course) {
+    const isEnrolled = await checkEnrollment(id);
+    if (!isEnrolled) {
+      return (
+        <CoursePageShell title="Materi terkunci" description={`${course.title} · konten premium`} hideHeader>
+          <div className="mb-4">
+            <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
+              <Link href={`/courses/${id}/material`}>
+                <ArrowLeft className="size-3.5" />
+                <span>Kembali ke Dokumen</span>
+              </Link>
+            </Button>
+          </div>
+          <Reveal>
+            <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
+                  <Lock className="size-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
+                  <p className="mt-1 text-body-sm text-muted-foreground">
+                    Aktifkan kelas untuk membuka &ldquo;{canonicalArticle.title}&rdquo;.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <EnrollmentForm />
+              </div>
+            </div>
+          </Reveal>
+        </CoursePageShell>
+      );
+    }
+
+    return <StructuredArticleReader article={canonicalArticle} course={course} />;
+  }
+
+  // 2. Untouched legacy fallback
   const material = await fetchMaterial(id, materialId, studentId);
   if (!course || !material) notFound();
 

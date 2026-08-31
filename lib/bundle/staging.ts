@@ -8,6 +8,7 @@ import {
   courses,
   mataKuliah,
   reviewBundle,
+  reviewItemBundle,
   tutorCourses,
   user,
 } from "@/db/schema";
@@ -284,6 +285,51 @@ async function assertReviewAccess(importRow: NonNullable<Awaited<ReturnType<type
   const access = await checkTutorCourseAccess(reviewerId, importRow.courseId);
   if (!access.hasAccess) throw new Error("IDEA_BUNDLE_REVIEW_COURSE_FORBIDDEN");
   return "tutor";
+}
+
+export async function listIdeaItemReviews(importId: string, reviewerId: string) {
+  return db.select().from(reviewItemBundle).where(and(
+    eq(reviewItemBundle.imporBundleId, importId),
+    eq(reviewItemBundle.reviewerId, reviewerId),
+    eq(reviewItemBundle.targetType, "idea"),
+  )).orderBy(reviewItemBundle.targetId);
+}
+
+export async function upsertIdeaItemReview(input: {
+  importId: string;
+  reviewerId: string;
+  ideaId: string;
+  status: "pending" | "approved" | "changes_requested";
+  notes?: string;
+}) {
+  const importRow = await getIdeaBundleImport(input.importId);
+  if (!importRow) throw new Error("IDEA_BUNDLE_NOT_FOUND");
+  await assertReviewAccess(importRow, input.reviewerId);
+  if (importRow.status === "published") throw new Error("IDEA_ITEM_REVIEW_DRAFT_REQUIRED");
+  if (importRow.reviews.some((review) => review.reviewerId === input.reviewerId)) throw new Error("IDEA_ITEM_REVIEW_IMMUTABLE");
+  const notes = input.notes?.trim() || null;
+  if (notes && notes.length > 2000) throw new Error("IDEA_ITEM_REVIEW_NOTES_LIMIT");
+  const bundle = await parseStagedIdeaBundle(input.importId);
+  if (!bundle.entities.ideas.some((idea) => idea.id === input.ideaId)) throw new Error("IDEA_ITEM_REVIEW_IDEA_NOT_FOUND");
+  const id = stableId("review-idea-item", `${input.importId}:${input.reviewerId}:${input.ideaId}`);
+  const now = new Date();
+  await db.insert(reviewItemBundle).values({
+    id,
+    imporBundleId: input.importId,
+    reviewerId: input.reviewerId,
+    productId: null,
+    blockId: null,
+    targetType: "idea",
+    targetId: input.ideaId,
+    status: input.status,
+    notes,
+    createdAt: now,
+    updatedAt: now,
+  }).onConflictDoUpdate({
+    target: [reviewItemBundle.imporBundleId, reviewItemBundle.reviewerId, reviewItemBundle.targetType, reviewItemBundle.targetId],
+    set: { status: input.status, notes, updatedAt: now },
+  });
+  return { id, targetType: "idea" as const, targetId: input.ideaId, status: input.status, notes, updatedAt: now };
 }
 
 export async function reviewIdeaBundle(input: {

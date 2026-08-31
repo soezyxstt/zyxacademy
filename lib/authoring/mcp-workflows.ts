@@ -528,8 +528,8 @@ export function workflowContract(runToken: string) {
     ],
     outputs: workflow.key === "idea_product"
       ? {
-        ideaBundle: { validationTool: "authoring.validate_idea_bundle", reviewRequired: true },
-        productBundle: { validationTool: "authoring.validate_product_bundle", reviewRequired: true, ideaPublicationRequired: true },
+        ideaBundle: { schemaVersion: "idea-bundle.v3", compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"], validationTool: "authoring.validate_idea_bundle", reviewRequired: true },
+        productBundle: { schemaVersion: "product-bundle.v3", compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3"], validationTool: "authoring.validate_product_bundle", reviewRequired: true, ideaPublicationRequired: true },
       }
       : {
         quizDraft: {

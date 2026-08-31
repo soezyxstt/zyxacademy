@@ -17,12 +17,15 @@ bun run dev                  # http://localhost:3000
 | `bun run start` | Start production server |
 | `bun run lint` | Run ESLint |
 | `bun run typecheck` | bunx tsc --noEmit |
+| `bun run typecheck:structured-articles` | Type check the structured Article contracts and compiler core only |
 | `bun run test` | Run all Bun test suites |
 | `bun run test:ai-contracts` | Run deterministic AI contract tests (`tests/contracts`) |
 | `bun run db:generate` | Generate Drizzle migration from schema changes |
 | `bun run db:migrate` | Apply migrations to local SQLite |
 | `bun run db:push:prod` | Safe production migration (backup + verify) |
 | `bun run db:seed` | Seed local DB with test data |
+| `bun run structured-articles:inventory` | Dry run legacy Article structure classification |
+| `ALLOW_STRUCTURED_ARTICLE_RECONCILE=1 bun run structured-articles:reconcile` | Apply deterministic nonproduction Article conversion and review target backfill |
 | `bun --env-file=.env.staging run staging:preflight` | Fail-closed staging identity check |
 | `bun --env-file=.env.staging run staging:zyra-control:preflight -- --run-id <runId>` | Validate Plan 001 staging identity, resource aliases, and protected 768 cache policy |
 | `bun --env-file=.env.staging run staging:zyra-control:smoke -- --run-id <runId> --url <stagingWorkerUrl> --worker-version <versionId>` | Run safe public health and unauthorized-route smoke and write Plan 001 evidence |
@@ -321,10 +324,11 @@ Current approved vital flags (< 10 flags retained for high-impact runtime contro
 | `FEATURE_ZYRA_IMAGE_INPUT_V1` | Learner multimodal image input & vision quota switch | AI Architecture |
 | `FEATURE_ZYRA_SEMANTIC_CACHE_V1` | Vectorize semantic cache kill switch for semantic drift | AI Architecture |
 | `FEATURE_DRIVE_EDITOR_SYNC` | Auto-grant editor permission synchronization on Drive | Platform / Admin |
+| `FEATURE_STRUCTURED_ARTICLE_READER_V1` | Structured authoring, review, reader, and progress cutover | Academic / Student |
 
 > Foundational features (Tutor Portal & Overhaul, Remediation, Adaptive Quiz, Concept Graph, Interactive Material, Weekly Reflections, Tutor Analytics, Question Generator Critic, Idea & Product Bundles, Authoring Context, Zyra Allowance & Provider Router, Learning Canvas, Selection-to-Ask, Zyra Pet, AI Ops, Media Library, Link Library, Form Presets) are now mature and always-on by default, secured by role-based authorization (RBAC).
 
-The admin flag page reads this catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. Decommissioned flags have been removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
+The admin flag page reads this catalog from `lib/feature-flags.ts`; arbitrary `FEATURE_*` variables are not surfaced. `FEATURE_STRUCTURED_ARTICLE_READER_V1` defaults to disabled. It is owned by Akademik dan Konten together with the Zyx platform owner. Its rollback disables V3 submission and UI selection without deleting V3 data. See [the rollout runbook](operations/structured-article-v3-rollout.md). Decommissioned flags have been removed from `lib/env.ts`, runtime schemas, environment files, and operational scripts.
 
 ## Code Conventions
 

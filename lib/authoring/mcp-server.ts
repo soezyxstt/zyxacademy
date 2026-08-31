@@ -10,6 +10,7 @@ import { validateProductBundle } from "@/lib/bundle/product-validator";
 import { previewProducts } from "@/lib/bundle/product-preview";
 import { discardProductBundleDraft, getProductBundleImport, listProductBundleImports, reviewProductBundle, stageProductBundle } from "@/lib/bundle/product-staging";
 import { withdrawProductBundle } from "@/lib/bundle/product-publication";
+import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
 import { evaluateIdeaBundleQuality } from "@/lib/authoring/quality/idea-bundle";
 import { evaluateProductBundleQuality } from "@/lib/authoring/quality/product-bundle";
 import { sha256Text } from "@/lib/bundle/validator";
@@ -135,6 +136,7 @@ function ideaStageItems(bundle: ValidatedIdeaBundle) {
     ...bundle.entities.ideas.map((entity) => ({ entityType: "idea", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
     ...bundle.entities.provenance.map((entity) => ({ entityType: "provenance", entityId: entity.id, entityVersion: 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
     ...bundle.entities.relations.map((entity) => ({ entityType: "relation", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
+    ...bundle.entities.learningSections.map((entity) => ({ entityType: "learning_section", entityId: entity.id, entityVersion: 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
   ];
 }
 
@@ -475,6 +477,9 @@ async function stageIdeaArtifact(input: {
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
   const validation = validateIdeaBundleZip(bytes);
   if (!validation.success) return { ok: false, valid: false, staged: false, filename: input.filename, issues: validation.issues };
+  if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion !== "idea-bundle.v3") {
+    return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_IDEA_V3_REQUIRED", message: "Submission baru wajib memakai Idea Bundle V3 saat structured reader aktif.", path: "manifest.json.schemaVersion" }] };
+  }
   if (validation.data.manifest.courseId !== run.courseId) return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_COURSE_SCOPE_MISMATCH", message: "Idea Bundle course does not match the locked run scope", path: "manifest.json.courseId" }] };
   const chapterScope = validateIdeaChapterScope(run, validation.data);
   const quality = evaluateIdeaBundleQuality(validation.data);
@@ -522,6 +527,9 @@ async function stageProductArtifact(input: {
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
   const validation = validateProductBundle(bytes);
   if (!validation.success) return { ok: false, valid: false, staged: false, filename: input.filename, issues: validation.issues };
+  if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion !== "product-bundle.v3") {
+    return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_PRODUCT_V3_REQUIRED", message: "Submission baru wajib memakai Product Bundle V3 saat structured reader aktif.", path: "manifest.json.schemaVersion" }] };
+  }
   if (validation.data.manifest.courseId !== run.courseId) return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_COURSE_SCOPE_MISMATCH", message: "Product Bundle course does not match the locked run scope", path: "manifest.json.courseId" }] };
   const chapterScope = validateProductChapterScope(run, validation.data);
   const ideaScope = await validateProductIdeaScope(run, validation.data);

@@ -5,19 +5,15 @@ import { ASTBlock, WebsiteMaterialAST } from "../ast-validator";
 import {
   ArticleBlock,
   ArticleDocument,
+  ArticleSection,
   ArticleSourceReference,
   articleDocumentSchema,
   canonicalArticleBlockOrder,
+  canonicalArticleSectionOrder,
   normalizeArticleBlockType,
 } from "./article-contract";
 import { compileDiktatFromArticle, DiktatDocument, DiktatCompressionReport } from "./diktat-contract";
 import { evaluateArticleQuality, evaluateDiktatQuality, QualityGateResult } from "./quality-gates";
-
-/**
- * Plan 009: Semantic Material Compiler
- * Provides structured outline planning, preflight KO validation, typed exclusion tracking,
- * and deterministic serialization of validated semantic blocks into Markdown.
- */
 
 export const KOExclusionReasonSchema = z.enum([
   "duplicate",
@@ -70,9 +66,6 @@ export interface MaterialOutlinePlan {
   validationErrors: string[];
 }
 
-/**
- * Preflight check: Rejects inactive, needs-review, or provenance-less KOs for V2 compiler.
- */
 export function validatePreflightKos(kos: KOCompilerInput[]): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   for (const ko of kos) {
@@ -92,9 +85,6 @@ export function validatePreflightKos(kos: KOCompilerInput[]): { valid: boolean; 
   };
 }
 
-/**
- * Outline Planner: Builds structured section outline with typed inclusions and exclusions.
- */
 export function planMaterialOutline(
   courseId: string,
   topicTitle: string,
@@ -247,6 +237,116 @@ function articleBlockToAst(block: ArticleBlock, globalOrderIndex: number): ASTBl
   };
 }
 
+function v3BlockToAst(block: ArticleBlock, globalOrderIndex: number): ASTBlock {
+  const koId = block.ideaIds[0] ?? "";
+  switch (block.blockType) {
+    case "explanation":
+      return {
+        id: block.id,
+        type: "concept",
+        globalOrderIndex,
+        metadata: { koId },
+        content: {
+          title: block.title || "Penjelasan Konsep",
+          bodyMarkdown: block.content,
+        },
+      };
+    case "misconception":
+      return {
+        id: block.id,
+        type: "misconception",
+        globalOrderIndex,
+        metadata: { koId },
+        content: {
+          myth: block.title || "Miskonsepsi Umum",
+          correctionMarkdown: block.content,
+          physicalRationaleMarkdown: block.content,
+        },
+      };
+    case "worked_example":
+      return {
+        id: block.id,
+        type: "example",
+        globalOrderIndex,
+        metadata: { difficulty: "medium", koId },
+        content: {
+          problemStatement: block.title || block.content,
+          solutionSteps: [
+            {
+              stepIndex: 1,
+              label: "Langkah Solusi",
+              explanationMarkdown: block.content,
+            },
+          ],
+        },
+      };
+    case "summary": {
+      const lines = block.content.split("\n").map((l) => l.replace(/^[-*•]\s*/, "").trim()).filter(Boolean);
+      return {
+        id: block.id,
+        type: "summary",
+        globalOrderIndex,
+        metadata: {},
+        content: {
+          bullets: lines.length > 0 ? lines : [block.content],
+        },
+      };
+    }
+    case "application":
+      return {
+        id: block.id,
+        type: "engineering_insight",
+        globalOrderIndex,
+        metadata: { discipline: "general" },
+        content: {
+          title: block.title || "Aplikasi Praktis",
+          applicationMarkdown: block.content,
+        },
+      };
+    case "retrieval_prompt":
+    case "retrieval_close":
+      return {
+        id: block.id,
+        type: "exercise",
+        globalOrderIndex,
+        metadata: { questionId: block.id },
+        content: {
+          questionMarkdown: block.content,
+          questionType: "short_essay",
+        },
+      };
+    case "prior_knowledge_activation":
+      return {
+        id: block.id,
+        type: "note",
+        globalOrderIndex,
+        metadata: { collapsible: false },
+        content: {
+          title: block.title || "Aktivasi Pengetahuan Awal",
+          messageMarkdown: block.content,
+        },
+      };
+    case "problem_introduction":
+      return {
+        id: block.id,
+        type: "note",
+        globalOrderIndex,
+        metadata: { collapsible: false },
+        content: {
+          title: block.title || "Pengantar Masalah",
+          messageMarkdown: block.content,
+        },
+      };
+    default:
+      return {
+        id: block.id,
+        type: "p",
+        globalOrderIndex,
+        content: block.content,
+      };
+  }
+}
+
 export function compileArticleProduct(
   product: Extract<ProductEntity, { productType: "article" }>,
   options: ArticleCompileOptions = {},
@@ -254,6 +354,126 @@ export function compileArticleProduct(
   const sourceRefs = productArticleSourceRefs(product);
   const ideaIds = product.ideaLinks.map((link) => link.id).sort();
   const defaultReviewerState = statusToReviewerState(product.status);
+  const isV3 = Boolean(product.sections && product.sections.length > 0);
+
+  if (isV3) {
+    const sections: ArticleSection[] = product.sections.map((sectionInput, sectionIndex) => {
+      const sectionBlocks: ArticleBlock[] = sectionInput.blocks.map((blockInput, blockIndex) => {
+        const blockType = normalizeArticleBlockType(blockInput.blockType);
+        if (!blockType) throw new Error(`ARTICLE_UNSUPPORTED_BLOCK_TYPE:${blockInput.blockType}`);
+        return {
+          id: `${product.id}:block:${blockInput.id}`,
+          blockType,
+          title: blockInput.title,
+          orderIndex: blockInput.orderIndex ?? blockIndex,
+          content: blockInput.contentMarkdown,
+          ideaIds: [...blockInput.ideaIds].sort(),
+          sourceRefs: [...blockInput.sourceRefs].sort((left, right) => left.sourceId.localeCompare(right.sourceId)),
+          learningPurpose: `Mengembangkan pemahaman untuk ${blockType}.`,
+          generationHash: product.generationHash,
+          reviewerState: defaultReviewerState,
+          applicability: { status: "applicable" },
+        };
+      });
+      return {
+        id: sectionInput.id,
+        kind: sectionInput.kind,
+        learningSectionId: sectionInput.learningSectionId,
+        parentSectionId: sectionInput.parentSectionId,
+        title: sectionInput.title,
+        slug: sectionInput.slug,
+        orderIndex: sectionInput.orderIndex ?? sectionIndex,
+        learningObjective: sectionInput.learningObjective,
+        ideaIds: [...sectionInput.ideaIds].sort(),
+        sourceRefs: [...sectionInput.sourceRefs].sort((left, right) => left.sourceId.localeCompare(right.sourceId)),
+        blocks: canonicalArticleBlockOrder(sectionBlocks),
+      };
+    });
+
+    const canonicalSections = canonicalArticleSectionOrder(sections);
+    const allBlocks = canonicalSections.flatMap((section) => section.blocks);
+
+    const article: ArticleDocument = {
+      id: product.id,
+      courseId: product.courseId,
+      title: product.title,
+      version: product.version,
+      generationHash: product.generationHash,
+      ideaIds,
+      ideaVersions: Object.fromEntries(product.ideaLinks.map((link) => [link.id, link.version])),
+      blocks: allBlocks,
+      sections: canonicalSections,
+      reviewerState: defaultReviewerState,
+    };
+
+    const contract = articleDocumentSchema.safeParse(article);
+    if (!contract.success && options.strict !== false) {
+      throw new Error(`ARTICLE_CONTRACT_INVALID:${contract.error.issues[0]?.message ?? "invalid article"}`);
+    }
+
+    const quality = evaluateArticleQuality(article);
+    if (options.strict !== false && !quality.passed) {
+      throw new Error(`ARTICLE_QUALITY_GATE_FAILED:${quality.issues.map((entry) => entry.code).join(",")}`);
+    }
+
+    const sectionDepthMap = new Map<string, number>();
+    const sectionMap = new Map(canonicalSections.map((s) => [s.id, s]));
+    for (const section of canonicalSections) {
+      let depth = 1;
+      let curr = section;
+      while (curr.parentSectionId && sectionMap.has(curr.parentSectionId)) {
+        depth++;
+        curr = sectionMap.get(curr.parentSectionId)!;
+      }
+      sectionDepthMap.set(section.id, Math.min(3, depth));
+    }
+
+    let globalOrder = 0;
+    const astBlocks: ASTBlock[] = [
+      { id: `${product.id}:title`, type: "h", level: 1, globalOrderIndex: globalOrder++, content: product.title },
+    ];
+
+    for (const section of canonicalSections) {
+      const depth = sectionDepthMap.get(section.id) ?? 1;
+      const headingLevel = Math.min(6, depth + 1);
+      astBlocks.push({
+        id: `${section.id}:heading`,
+        type: "h",
+        level: headingLevel,
+        globalOrderIndex: globalOrder++,
+        content: section.title,
+      });
+
+      for (const block of section.blocks) {
+        astBlocks.push(v3BlockToAst(block, globalOrder++));
+      }
+    }
+
+    const totalWords = allBlocks.reduce((total, block) => total + block.content.length, 0);
+    const ast: WebsiteMaterialAST = {
+      schemaVersion: "1.0.0",
+      compilerVersion: "2.2.0",
+      chapterId: product.chapterId ?? product.id,
+      courseId: product.courseId,
+      documentMetadata: {
+        title: product.title,
+        lastModified: "1970-01-01T00:00:00.000Z",
+        estimatedReadingTimeMin: Math.max(1, Math.ceil(totalWords / 1000)),
+      },
+      blocks: astBlocks,
+    };
+
+    const markdown = serializeBlocksToMarkdown(astBlocks);
+    return {
+      article,
+      ast,
+      markdown,
+      quality,
+      generationHash: sha256({ product, article, ast, markdown }),
+      sourceHash: product.sourceHash,
+    };
+  }
+
   const blocks: ArticleBlock[] = product.blocks.map((input, index) => {
     const embedded = parseBlockMetadata(input.content);
     const metadata = { ...embedded.metadata, ...(options.blockMetadata?.[input.id] ?? {}) };
@@ -284,6 +504,7 @@ export function compileArticleProduct(
     ideaIds,
     ideaVersions: Object.fromEntries(product.ideaLinks.map((link) => [link.id, link.version])),
     blocks: canonicalArticleBlockOrder(blocks),
+    sections: [],
     reviewerState: defaultReviewerState,
   };
   const contract = articleDocumentSchema.safeParse(article);
@@ -333,9 +554,6 @@ export function compileDiktatFromApprovedArticle(article: ArticleDocument, id?: 
   return { ...compiled, quality };
 }
 
-/**
- * Deterministically serializes semantic AST blocks to canonical Markdown with stable formatting.
- */
 export function serializeBlocksToMarkdown(blocks: ASTBlock[]): string {
   const lines: string[] = [];
 
@@ -347,6 +565,34 @@ export function serializeBlocksToMarkdown(blocks: ASTBlock[]): string {
       case "p":
         lines.push(block.content);
         break;
+      case "concept":
+        lines.push(`### ${block.content.title}\n\n${block.content.bodyMarkdown}`);
+        break;
+      case "misconception":
+        lines.push(`> **Miskonsepsi**: ${block.content.myth}\n>\n> **Fakta**: ${block.content.correctionMarkdown}`);
+        break;
+      case "example":
+        lines.push(
+          `### Contoh: ${block.content.problemStatement}\n\n` +
+            block.content.solutionSteps.map((step) => `**${step.label}**: ${step.explanationMarkdown}`).join("\n\n")
+        );
+        break;
+      case "summary":
+        lines.push(`### Rangkuman\n\n${block.content.bullets.map((item) => `- ${item}`).join("\n")}`);
+        break;
+      case "engineering_insight":
+        lines.push(`### Wawasan: ${block.content.title}\n\n${block.content.applicationMarkdown}`);
+        break;
+      case "exercise":
+        lines.push(`### Latihan\n\n${block.content.questionMarkdown}`);
+        break;
+      case "warning":
+      case "note":
+        lines.push(`> **${block.content.title || block.type.toUpperCase()}**: ${block.content.messageMarkdown}`);
+        break;
+      case "formula":
+        lines.push(`$$\n${block.content.latex}\n$$`);
+        break;
       case "list":
         for (const item of block.items) {
           lines.push(item.ordered ? `1. ${item.text}` : `- ${item.text}`);
@@ -356,10 +602,9 @@ export function serializeBlocksToMarkdown(blocks: ASTBlock[]): string {
         lines.push(`> ${block.content}`);
         break;
       case "code":
-        lines.push(`\`\`\`${block.language}\n${block.content}\n\`\`\``);
+        lines.push(`\`\`\`${block.language || ""}\n${block.content}\n\`\`\``);
         break;
       default:
-        // Generic fallback for custom containers
         lines.push(`\n<!-- block: ${(block as any).type} -->\n`);
         break;
     }
