@@ -9,9 +9,18 @@ import {
   quizTemplates,
   flashcards,
   studyPaths,
+  ide,
+  relasiIde,
+  pemahamanIde,
+  bab,
+  flashcardIde,
+  flashcard as canonicalFlashcard,
+  setFlashcard,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import * as Sentry from "@sentry/nextjs";
+import { resolveStudentCourse } from "@/lib/student/course-catalog";
+import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 export interface StudyPathStep {
   conceptName: string;
@@ -26,6 +35,135 @@ export interface StudyPathStep {
   masteryScore?: number;
 }
 
+async function computeCanonicalStudyPath(
+  studentId: string,
+  courseId: string,
+): Promise<StudyPathStep[] | null> {
+  const course = await resolveStudentCourse(courseId);
+  if (!course?.canonicalId) return null;
+
+  const ideas = await db
+    .select({
+      id: ide.id,
+      name: ide.canonicalStatement,
+      chapterId: ide.babId,
+      chapterOrder: bab.orderIndex,
+      code: ide.code,
+      score: pemahamanIde.skor,
+      confidence: pemahamanIde.keyakinan,
+    })
+    .from(ide)
+    .innerJoin(bab, eq(ide.babId, bab.id))
+    .leftJoin(
+      pemahamanIde,
+      and(eq(pemahamanIde.ideId, ide.id), eq(pemahamanIde.penggunaId, studentId)),
+    )
+    .where(
+      and(
+        eq(ide.mataKuliahId, course.canonicalId),
+        eq(ide.status, "published"),
+        eq(bab.status, "active"),
+      ),
+    );
+  if (ideas.length === 0) return null;
+
+  const ideaIds = ideas.map((idea) => idea.id);
+  const [relations, articles, cardLinks] = await Promise.all([
+    db
+      .select({ sourceIdeaId: relasiIde.sourceIdeaId, targetIdeaId: relasiIde.targetIdeaId })
+      .from(relasiIde)
+      .where(
+        and(
+          eq(relasiIde.status, "active"),
+          eq(relasiIde.relationType, "prerequisite"),
+          inArray(relasiIde.sourceIdeaId, ideaIds),
+          inArray(relasiIde.targetIdeaId, ideaIds),
+        ),
+      ),
+    getCanonicalPublishedArticlesForCourse(courseId, studentId),
+    db
+      .select({ ideaId: flashcardIde.ideId, flashcardId: canonicalFlashcard.id })
+      .from(flashcardIde)
+      .innerJoin(canonicalFlashcard, eq(flashcardIde.flashcardId, canonicalFlashcard.id))
+      .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+      .where(
+        and(
+          inArray(flashcardIde.ideId, ideaIds),
+          eq(canonicalFlashcard.status, "published"),
+          eq(setFlashcard.status, "published"),
+        ),
+      ),
+  ]);
+
+  const byId = new Map(ideas.map((idea) => [idea.id, idea]));
+  const incoming = new Map(ideas.map((idea) => [idea.id, 0]));
+  const outgoing = new Map(ideas.map((idea) => [idea.id, [] as string[]]));
+  const prerequisites = new Map(ideas.map((idea) => [idea.id, [] as string[]]));
+  for (const relation of relations) {
+    if (!byId.has(relation.sourceIdeaId) || !byId.has(relation.targetIdeaId)) continue;
+    outgoing.get(relation.sourceIdeaId)!.push(relation.targetIdeaId);
+    incoming.set(relation.targetIdeaId, (incoming.get(relation.targetIdeaId) ?? 0) + 1);
+    prerequisites.get(relation.targetIdeaId)!.push(relation.sourceIdeaId);
+  }
+
+  const compareIdeas = (leftId: string, rightId: string) => {
+    const left = byId.get(leftId)!;
+    const right = byId.get(rightId)!;
+    return left.chapterOrder - right.chapterOrder || left.code.localeCompare(right.code, "id");
+  };
+  const ready = ideas.filter((idea) => incoming.get(idea.id) === 0).map((idea) => idea.id).sort(compareIdeas);
+  const orderedIds: string[] = [];
+  while (ready.length > 0) {
+    const current = ready.shift()!;
+    orderedIds.push(current);
+    for (const target of outgoing.get(current) ?? []) {
+      const next = (incoming.get(target) ?? 1) - 1;
+      incoming.set(target, next);
+      if (next === 0) ready.push(target);
+    }
+    ready.sort(compareIdeas);
+  }
+  if (orderedIds.length < ideas.length) {
+    orderedIds.push(...ideas.map((idea) => idea.id).filter((id) => !orderedIds.includes(id)).sort(compareIdeas));
+  }
+
+  const articleByChapter = new Map<string, (typeof articles)[number]>();
+  for (const article of articles) {
+    if (article.babId && !articleByChapter.has(article.babId)) articleByChapter.set(article.babId, article);
+  }
+  const cardCountByIdea = new Map<string, number>();
+  for (const link of cardLinks) cardCountByIdea.set(link.ideaId, (cardCountByIdea.get(link.ideaId) ?? 0) + 1);
+
+  return orderedIds.map((ideaId) => {
+    const current = byId.get(ideaId)!;
+    const prerequisiteIds = prerequisites.get(ideaId) ?? [];
+    const prerequisiteNames = prerequisiteIds.map((id) => byId.get(id)!.name);
+    const locked = prerequisiteIds.some((id) => (byId.get(id)?.score ?? 0) < 40);
+    const score = current.score ?? 0;
+    const confidence = current.confidence ?? 0;
+    const article = articleByChapter.get(current.chapterId);
+    const flashcardCount = cardCountByIdea.get(ideaId) ?? 0;
+    const status: StudyPathStep["status"] = score >= 70 && confidence >= 50
+      ? "mastered"
+      : locked
+        ? "locked"
+        : current.score === null
+          ? "available"
+          : "in_progress";
+    return {
+      conceptName: current.name,
+      status,
+      actions: {
+        moduleHref: article ? `/courses/${courseId}/material/${article.id}` : undefined,
+        flashcardCount: flashcardCount || undefined,
+      },
+      estimatedMinutes: Math.max(5, (article?.totalEstimatedReadingMinutes ?? 0) + Math.ceil(flashcardCount * 0.5)),
+      prerequisites: prerequisiteNames,
+      masteryScore: score,
+    };
+  });
+}
+
 /**
  * Computes the study path for a student in a course and returns the list of steps.
  */
@@ -33,6 +171,9 @@ export async function computeStudyPath(
   studentId: string,
   courseId: string
 ): Promise<StudyPathStep[]> {
+  const canonicalPath = await computeCanonicalStudyPath(studentId, courseId);
+  if (canonicalPath) return canonicalPath;
+
   // 1. Fetch all active Knowledge Objects for this course joined with published chapters
   const activeKOs = await db
     .select({
@@ -477,6 +618,9 @@ export async function recomputeStudyPath(studentId: string, courseId: string): P
  * Gets the student's study path from the cache, or computes it if missing.
  */
 export async function getOrComputeStudyPath(studentId: string, courseId: string): Promise<StudyPathStep[]> {
+  const canonicalPath = await computeCanonicalStudyPath(studentId, courseId);
+  if (canonicalPath) return canonicalPath;
+
   const [existing] = await db
     .select()
     .from(studyPaths)

@@ -11,8 +11,7 @@ import {
   getCourseQuizzes,
   getCourseTryouts,
 } from "@/lib/course-utils";
-import { db } from "@/db";
-import { courses as coursesTable } from "@/db/schema";
+import { listStudentCourses } from "@/lib/student/course-catalog";
 
 export const metadata: Metadata = {
   title: pageTitle("Courses"),
@@ -20,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CoursesPage() {
-  const dbCourses = await db.select().from(coursesTable);
+  const dbCourses = await listStudentCourses();
   const TEST_COURSE_IDS = new Set([
     "embed-test-course",
     "miscon-test-course",

@@ -7,24 +7,18 @@ import { pageTitle } from "@/lib/site";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { FlashcardClient } from "./flashcard-client";
 import { Reveal } from "@/components/ui/reveal";
-import { db } from "@/db";
-import { courses } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getReviewQueue } from "@/lib/flashcard-actions";
 import { EnrollmentForm } from "@/components/enrollment-form";
+import { getCourse } from "@/lib/course-utils";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const [course] = await db
-    .select({ title: courses.title })
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   return {
     title: pageTitle(course ? `${course.title} - Flashcard` : "Flashcard"),
@@ -35,11 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CourseFlashcardPage({ params }: Props) {
   const { id } = await params;
 
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   if (!course) notFound();
 

@@ -10,12 +10,10 @@ import { Reveal } from "@/components/ui/reveal";
 import { Badge } from "@/components/ui/badge";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { pageTitle } from "@/lib/site";
-import { db } from "@/db";
-import { courses } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { getConceptExplorerData, type ConceptRef } from "@/lib/concept-explorer-service";
+import { getCourse } from "@/lib/course-utils";
 
 type Props = { params: Promise<{ id: string; slug: string }> };
 
@@ -34,7 +32,7 @@ const TYPE_ORDER = ["concept_overview", "definition", "formula", "example", "mis
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, slug } = await params;
-  const [course] = await db.select().from(courses).where(eq(courses.id, id)).limit(1);
+  const course = await getCourse(id);
   const data = await getConceptExplorerData(id, slug);
 
   return {
@@ -60,7 +58,7 @@ function ConceptLinkRow({ courseId, refs }: { courseId: string; refs: ConceptRef
 export default async function ConceptExplorerPage({ params }: Props) {
   const { id, slug } = await params;
 
-  const [course] = await db.select().from(courses).where(eq(courses.id, id)).limit(1);
+  const course = await getCourse(id);
   if (!course) notFound();
 
   const isEnrolled = await checkEnrollment(id);

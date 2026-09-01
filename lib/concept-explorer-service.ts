@@ -10,8 +10,18 @@
  */
 
 import { db } from "@/db";
-import { concepts, conceptLocalizations, knowledgeObjects, knowledgeRelationships, studentConceptMastery } from "@/db/schema";
+import {
+  concepts,
+  conceptLocalizations,
+  ide,
+  knowledgeObjects,
+  knowledgeRelationships,
+  pemahamanIde,
+  relasiIde,
+  studentConceptMastery,
+} from "@/db/schema";
 import { and, eq, inArray, or } from "drizzle-orm";
+import { resolveStudentCourse } from "@/lib/student/course-catalog";
 
 export interface ConceptRef {
   conceptName: string;
@@ -62,12 +72,120 @@ export async function getConceptExplorerData(
 
   if (!conceptRow) return null;
 
+  const course = await resolveStudentCourse(courseId);
+  const canonicalIdeas = course?.canonicalId
+    ? await db
+        .select({
+          id: ide.id,
+          title: ide.canonicalStatement,
+          content: ide.conciseExplanation,
+          latex: ide.latex,
+          type: ide.knowledgeKind,
+        })
+        .from(ide)
+        .where(
+          and(
+            eq(ide.mataKuliahId, course.canonicalId),
+            eq(ide.conceptId, conceptRow.id),
+            eq(ide.status, "published"),
+          ),
+        )
+    : [];
+
+  if (canonicalIdeas.length > 0) {
+    const ideaIds = canonicalIdeas.map((item) => item.id);
+    const edges = await db
+      .select({
+        sourceIdeaId: relasiIde.sourceIdeaId,
+        targetIdeaId: relasiIde.targetIdeaId,
+        type: relasiIde.relationType,
+      })
+      .from(relasiIde)
+      .where(
+        and(
+          eq(relasiIde.status, "active"),
+          or(inArray(relasiIde.sourceIdeaId, ideaIds), inArray(relasiIde.targetIdeaId, ideaIds)),
+        ),
+      );
+    const otherIds = [...new Set(edges.flatMap((edge) => [edge.sourceIdeaId, edge.targetIdeaId]).filter((id) => !ideaIds.includes(id)))];
+    const otherIdeas = otherIds.length
+      ? await db
+          .select({
+            id: ide.id,
+            name: ide.canonicalStatement,
+            slug: concepts.canonicalSlug,
+          })
+          .from(ide)
+          .innerJoin(concepts, eq(ide.conceptId, concepts.id))
+          .where(and(inArray(ide.id, otherIds), eq(ide.status, "published")))
+      : [];
+    const otherById = new Map(otherIdeas.map((item) => [item.id, item]));
+    const prerequisites: ConceptRef[] = [];
+    const unlocks: ConceptRef[] = [];
+    const related: ConceptRef[] = [];
+    for (const edge of edges) {
+      const sourceHere = ideaIds.includes(edge.sourceIdeaId);
+      const targetHere = ideaIds.includes(edge.targetIdeaId);
+      if (edge.type === "prerequisite" && targetHere) {
+        const item = otherById.get(edge.sourceIdeaId);
+        if (item) prerequisites.push({ conceptName: item.name, slug: item.slug });
+      } else if (edge.type === "prerequisite" && sourceHere) {
+        const item = otherById.get(edge.targetIdeaId);
+        if (item) unlocks.push({ conceptName: item.name, slug: item.slug });
+      } else if ((edge.type === "related" || edge.type === "extends") && (sourceHere || targetHere)) {
+        const item = otherById.get(sourceHere ? edge.targetIdeaId : edge.sourceIdeaId);
+        if (item) related.push({ conceptName: item.name, slug: item.slug });
+      }
+    }
+
+    const typeMap: Record<string, keyof NonNullable<ConceptExplorerData["kosByType"]>> = {
+      definition: "definition",
+      formula: "formula",
+      example: "example",
+      misconception: "misconception",
+      procedure: "exercise",
+      principle: "concept_overview",
+      constraint: "summary",
+      other: "concept_overview",
+    };
+    const kosByType: ConceptExplorerData["kosByType"] = {};
+    for (const item of canonicalIdeas) {
+      const type = typeMap[item.type] ?? "concept_overview";
+      const list = kosByType[type] ?? [];
+      list.push({
+        id: item.id,
+        title: item.title,
+        content: item.latex ? `${item.content}\n\n$$${item.latex}$$` : item.content,
+      });
+      kosByType[type] = list;
+    }
+    const masteryRows = studentId
+      ? await db
+          .select({ score: pemahamanIde.skor })
+          .from(pemahamanIde)
+          .where(and(eq(pemahamanIde.penggunaId, studentId), inArray(pemahamanIde.ideId, ideaIds)))
+      : [];
+    const masteryScore = masteryRows.length
+      ? Math.round(masteryRows.reduce((total, row) => total + row.score, 0) / masteryRows.length)
+      : null;
+    return {
+      conceptId: conceptRow.id,
+      conceptName: conceptRow.displayName,
+      canonicalSlug: conceptRow.canonicalSlug,
+      masteryScore,
+      kosByType,
+      prerequisites: dedupeBySlug(prerequisites),
+      unlocks: dedupeBySlug(unlocks),
+      related: dedupeBySlug(related),
+    };
+  }
+
   const kos = await db
     .select({ id: knowledgeObjects.id, title: knowledgeObjects.title, content: knowledgeObjects.content, type: knowledgeObjects.type })
     .from(knowledgeObjects)
     .where(
       and(
-        eq(knowledgeObjects.courseId, courseId),
+        eq(knowledgeObjects.courseId, course?.legacyId ?? courseId),
         eq(knowledgeObjects.conceptId, conceptRow.id),
         eq(knowledgeObjects.status, "active"),
       ),

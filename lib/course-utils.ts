@@ -1,6 +1,5 @@
 import { db } from "@/db";
 import {
-  courses as coursesTable,
   aiMaterialInstances,
   websiteMaterials,
   diktats,
@@ -9,14 +8,17 @@ import {
   exams,
   studentQuizAttempts,
   submissions,
-  enrollments,
   user,
   chapters as chaptersTable,
   studentMaterialProgress,
+  bab,
+  diktatMateri,
 } from "@/db/schema";
 import { eq, and, desc, notLike, inArray, ne } from "drizzle-orm";
 // Fixture imports removed
 import { storage } from "@/lib/storage";
+import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
+import { isStudentEnrolled, resolveStudentCourse } from "@/lib/student/course-catalog";
 
 /**
  * True when the user holds an enrollment row for the course. Access control
@@ -24,39 +26,38 @@ import { storage } from "@/lib/storage";
  * `requirePkaSession`, which checks existence rather than expiry.
  */
 export async function isEnrolled(userId: string, courseId: string): Promise<boolean> {
-  if (!userId || !courseId) return false;
-  const [row] = await db
-    .select({ id: enrollments.id })
-    .from(enrollments)
-    .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)))
-    .limit(1);
-  return Boolean(row);
+  return isStudentEnrolled(userId, courseId);
 }
 
 export async function getCourse(id: string) {
-  const dbCourse = await db.query.courses.findFirst({
-    where: eq(coursesTable.id, id),
-  });
-  if (dbCourse) {
-    return {
-      id: dbCourse.id,
-      title: dbCourse.title,
-      category: dbCourse.category,
-      description: dbCourse.description || "",
-    };
-  }
-  return undefined;
+  const course = await resolveStudentCourse(id);
+  return course
+    ? {
+        id: course.id,
+        canonicalId: course.canonicalId,
+        legacyId: course.legacyId,
+        title: course.title,
+        category: course.category,
+        description: course.description,
+      }
+    : undefined;
 }
 
 export async function getCourseMaterials(courseId: string, studentId?: string) {
+  const course = await resolveStudentCourse(courseId);
+  const legacyCourseId = course?.legacyId ?? courseId;
+  const canonicalCourseId = course?.canonicalId;
+  const canonicalArticles = await getCanonicalPublishedArticlesForCourse(courseId, studentId);
+
   // AI material instances (active only ; drafts and archived stay hidden)
   const dbMaterials = await db
     .select({
       id: aiMaterialInstances.id,
       title: aiMaterialInstances.title,
+      chapterIds: aiMaterialInstances.chapterIds,
     })
     .from(aiMaterialInstances)
-    .where(and(eq(aiMaterialInstances.courseId, courseId), notLike(aiMaterialInstances.title, "[DRAF]%")));
+    .where(and(eq(aiMaterialInstances.courseId, legacyCourseId), notLike(aiMaterialInstances.title, "[DRAF]%")));
 
   // Website materials (published AST articles, linked 1:1 with chapters)
   const webMaterials = await db
@@ -66,7 +67,7 @@ export async function getCourseMaterials(courseId: string, studentId?: string) {
       chapterId: websiteMaterials.chapterId,
     })
     .from(websiteMaterials)
-    .where(and(eq(websiteMaterials.courseId, courseId), eq(websiteMaterials.status, "published")));
+    .where(and(eq(websiteMaterials.courseId, legacyCourseId), eq(websiteMaterials.status, "published")));
 
   // Diktats
   const courseDiktats = await db
@@ -75,9 +76,24 @@ export async function getCourseMaterials(courseId: string, studentId?: string) {
       title: diktats.title,
       fileUrl: diktats.fileUrl,
       updatedAt: diktats.updatedAt,
+      chapterIds: diktats.chapterIds,
     })
     .from(diktats)
-    .where(and(eq(diktats.courseId, courseId), eq(diktats.status, "ready")));
+    .where(and(eq(diktats.courseId, legacyCourseId), eq(diktats.status, "ready")));
+
+  const canonicalDiktats = canonicalCourseId
+    ? await db
+        .select({
+          id: diktatMateri.id,
+          title: diktatMateri.title,
+          babId: diktatMateri.babId,
+          legacyChapterId: bab.legacyChapterId,
+          updatedAt: diktatMateri.updatedAt,
+        })
+        .from(diktatMateri)
+        .leftJoin(bab, eq(diktatMateri.babId, bab.id))
+        .where(and(eq(diktatMateri.mataKuliahId, canonicalCourseId), eq(diktatMateri.status, "published")))
+    : [];
 
   // User progress
   let completedSet = new Set<string>();
@@ -93,7 +109,45 @@ export async function getCourseMaterials(courseId: string, studentId?: string) {
     );
   }
 
-  const mappedDiktats = courseDiktats.map((d) => ({
+  const canonicalChapterIds = new Set(
+    canonicalArticles.flatMap((article) => [article.babId, article.chapterId, article.legacyChapterId].filter((id): id is string => Boolean(id))),
+  );
+  const canonicalDiktatChapterIds = new Set(
+    canonicalDiktats.flatMap((diktat) => [diktat.babId, diktat.legacyChapterId].filter((id): id is string => Boolean(id))),
+  );
+
+  const mappedCanonicalArticles = canonicalArticles.map((article) => ({
+    id: article.id,
+    courseId,
+    chapterId: article.chapterId,
+    title: article.title,
+    kind: "article" as const,
+    docCategory: "materi" as const,
+    fileSize: `${article.totalEstimatedReadingMinutes} menit baca`,
+    completed: article.completed || completedSet.has(article.id),
+    completionPercent: completedSet.has(article.id) ? 100 : article.completionPercent,
+    isPastYear: false,
+    isPreview: false,
+  }));
+
+  const mappedCanonicalDiktats = canonicalDiktats.map((diktat) => ({
+    id: diktat.id,
+    courseId,
+    chapterId: diktat.legacyChapterId ?? diktat.babId,
+    title: diktat.title,
+    kind: "article" as const,
+    docCategory: "diktat" as const,
+    fileSize: "Diktat canonical",
+    completed: completedSet.has(diktat.id),
+    completionPercent: completedSet.has(diktat.id) ? 100 : 0,
+    isPastYear: false,
+    isPreview: false,
+  }));
+
+  const mappedDiktats = courseDiktats.filter((diktat) => {
+    const chapterIds = Array.isArray(diktat.chapterIds) ? diktat.chapterIds : [];
+    return !chapterIds.some((chapterId) => canonicalDiktatChapterIds.has(chapterId));
+  }).map((d) => ({
     id: d.id,
     courseId,
     title: d.title,
@@ -106,7 +160,10 @@ export async function getCourseMaterials(courseId: string, studentId?: string) {
     url: d.fileUrl ? storage.getUrl(d.fileUrl) : undefined,
   }));
 
-  const mappedDb = dbMaterials.map((m) => ({
+  const mappedDb = dbMaterials.filter((material) => {
+    const chapterIds = Array.isArray(material.chapterIds) ? material.chapterIds : [];
+    return !chapterIds.some((chapterId) => canonicalChapterIds.has(chapterId));
+  }).map((m) => ({
     id: m.id,
     courseId,
     title: m.title.replace(/^\[DRAF\]\s*/, ""),
@@ -118,7 +175,7 @@ export async function getCourseMaterials(courseId: string, studentId?: string) {
     isPreview: true,
   }));
 
-  const mappedWeb = webMaterials.map((m) => ({
+  const mappedWeb = webMaterials.filter((material) => !canonicalChapterIds.has(material.chapterId)).map((m) => ({
     id: m.id,
     courseId,
     chapterId: m.chapterId,
@@ -131,7 +188,7 @@ export async function getCourseMaterials(courseId: string, studentId?: string) {
     isPreview: true,
   }));
 
-  return [...mappedDiktats, ...mappedDb, ...mappedWeb];
+  return [...mappedCanonicalArticles, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb];
 }
 
 export type ChapterOutlineItem = {
@@ -154,43 +211,74 @@ export async function getCourseChapterOutline(
   courseId: string,
   studentId?: string
 ): Promise<ChapterOutlineItem[]> {
-  const chapterRows = await db
+  const course = await resolveStudentCourse(courseId);
+  const legacyCourseId = course?.legacyId ?? courseId;
+  const canonicalRows = course?.canonicalId
+    ? await db
+        .select({
+          id: bab.id,
+          legacyChapterId: bab.legacyChapterId,
+          title: bab.title,
+          orderIndex: bab.orderIndex,
+        })
+        .from(bab)
+        .where(and(eq(bab.mataKuliahId, course.canonicalId), eq(bab.status, "active")))
+        .orderBy(bab.orderIndex)
+    : [];
+  const legacyRows = await db
     .select({ id: chaptersTable.id, title: chaptersTable.title, orderIndex: chaptersTable.orderIndex })
     .from(chaptersTable)
-    .where(and(eq(chaptersTable.courseId, courseId), eq(chaptersTable.status, "published")))
+    .where(and(eq(chaptersTable.courseId, legacyCourseId), eq(chaptersTable.status, "published")))
     .orderBy(chaptersTable.orderIndex);
+  const chapterRows = canonicalRows.length > 0
+    ? canonicalRows.map((chapter) => ({
+        id: chapter.legacyChapterId ?? chapter.id,
+        canonicalId: chapter.id,
+        title: chapter.title,
+        orderIndex: chapter.orderIndex,
+      }))
+    : legacyRows.map((chapter) => ({ ...chapter, canonicalId: null }));
 
   if (chapterRows.length === 0) return [];
+
+  const canonicalArticles = await getCanonicalPublishedArticlesForCourse(courseId, studentId);
+  const canonicalByChapter = new Map<string, (typeof canonicalArticles)[number]>();
+  for (const article of canonicalArticles) {
+    for (const chapterId of [article.babId, article.chapterId, article.legacyChapterId]) {
+      if (chapterId && !canonicalByChapter.has(chapterId)) canonicalByChapter.set(chapterId, article);
+    }
+  }
 
   const webRows = await db
     .select({ id: websiteMaterials.id, chapterId: websiteMaterials.chapterId })
     .from(websiteMaterials)
-    .where(and(eq(websiteMaterials.courseId, courseId), eq(websiteMaterials.status, "published")));
+    .where(and(eq(websiteMaterials.courseId, legacyCourseId), eq(websiteMaterials.status, "published")));
 
   const materialByChapter = new Map(webRows.map((w) => [w.chapterId, w.id]));
 
   const completedSet = new Set<string>();
   const percentByMaterial = new Map<string, number>();
 
-  if (studentId && webRows.length > 0) {
-    const matIds = webRows.map((w) => w.id);
-    const progRows = await db
-      .select({
-        materialId: studentMaterialProgress.materialId,
-        completionPercent: studentMaterialProgress.completionPercent,
-      })
-      .from(studentMaterialProgress)
-      .where(
-        and(
-          eq(studentMaterialProgress.studentId, studentId),
-          inArray(studentMaterialProgress.materialId, matIds)
-        )
-      );
-    for (const p of progRows) {
-      percentByMaterial.set(p.materialId, p.completionPercent);
-      if (p.completionPercent >= 90) completedSet.add(p.materialId);
+  if (studentId) {
+    if (webRows.length > 0) {
+      const matIds = webRows.map((w) => w.id);
+      const progRows = await db
+        .select({
+          materialId: studentMaterialProgress.materialId,
+          completionPercent: studentMaterialProgress.completionPercent,
+        })
+        .from(studentMaterialProgress)
+        .where(
+          and(
+            eq(studentMaterialProgress.studentId, studentId),
+            inArray(studentMaterialProgress.materialId, matIds)
+          )
+        );
+      for (const p of progRows) {
+        percentByMaterial.set(p.materialId, p.completionPercent);
+        if (p.completionPercent >= 90) completedSet.add(p.materialId);
+      }
     }
-
     const legacyRows = await db
       .select({ materialId: progressTable.materialId })
       .from(progressTable)
@@ -201,7 +289,21 @@ export async function getCourseChapterOutline(
   }
 
   return chapterRows.map((c) => {
-    const materialId = materialByChapter.get(c.id) ?? null;
+    const legacyChapterId = c.canonicalId ? canonicalRows.find((chapter) => chapter.id === c.canonicalId)?.legacyChapterId : c.id;
+    const canonicalArticle = canonicalByChapter.get(c.canonicalId ?? c.id) ?? (legacyChapterId ? canonicalByChapter.get(legacyChapterId) : undefined);
+    const materialId = canonicalArticle?.id ?? materialByChapter.get(c.id) ?? null;
+    if (canonicalArticle) {
+      const completed = canonicalArticle.completed || completedSet.has(canonicalArticle.id);
+      return {
+        id: c.id,
+        title: c.title,
+        orderIndex: c.orderIndex,
+        materialId,
+        hasMaterial: true,
+        completed,
+        completionPercent: completed ? 100 : canonicalArticle.completionPercent,
+      };
+    }
     const completed = materialId ? completedSet.has(materialId) : false;
     const completionPercent = materialId
       ? percentByMaterial.get(materialId) ?? (completed ? 100 : 0)
@@ -219,10 +321,12 @@ export async function getCourseChapterOutline(
 }
 
 export async function getCourseQuizzes(courseId: string) {
+  const course = await resolveStudentCourse(courseId);
+  const compatibilityCourseId = course?.legacyId ?? courseId;
   const templates = await db
     .select()
     .from(quizTemplates)
-    .where(eq(quizTemplates.courseId, courseId))
+    .where(eq(quizTemplates.courseId, compatibilityCourseId))
     .orderBy(desc(quizTemplates.createdAt));
 
   const mappedQuizzes = templates.map((t) => ({
@@ -242,10 +346,12 @@ export async function getCourseQuizzes(courseId: string) {
 }
 
 export async function getCourseTryouts(courseId: string) {
+  const course = await resolveStudentCourse(courseId);
+  const compatibilityCourseId = course?.legacyId ?? courseId;
   const dbTryouts = await db
     .select()
     .from(exams)
-    .where(and(eq(exams.courseId, courseId), eq(exams.type, "tryout"), eq(exams.status, "published")));
+    .where(and(eq(exams.courseId, compatibilityCourseId), eq(exams.type, "tryout"), eq(exams.status, "published")));
 
   const mappedTryouts = dbTryouts.map((t) => {
     const settings = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
@@ -267,6 +373,8 @@ export async function getCourseSubmissions(courseId: string, studentId?: string)
   if (!studentId) {
     return [];
   }
+  const course = await resolveStudentCourse(courseId);
+  const compatibilityCourseId = course?.legacyId ?? courseId;
 
   const dbAttempts = await db
     .select({
@@ -281,7 +389,7 @@ export async function getCourseSubmissions(courseId: string, studentId?: string)
     .where(
       and(
         eq(studentQuizAttempts.studentId, studentId),
-        eq(quizTemplates.courseId, courseId),
+        eq(quizTemplates.courseId, compatibilityCourseId),
         eq(studentQuizAttempts.status, "completed")
       )
     );
@@ -299,7 +407,7 @@ export async function getCourseSubmissions(courseId: string, studentId?: string)
     .where(
       and(
         eq(submissions.userId, studentId),
-        eq(exams.courseId, courseId)
+        eq(exams.courseId, compatibilityCourseId)
       )
     );
 
@@ -333,6 +441,8 @@ export async function getCourseLeaderboard(
   courseId: string,
   filterType: "quiz" | "simulation" | "all" = "quiz"
 ) {
+  const course = await resolveStudentCourse(courseId);
+  const compatibilityCourseId = course?.legacyId ?? courseId;
   const categoryCondition =
     filterType === "simulation"
       ? eq(quizTemplates.category, "simulation")
@@ -346,7 +456,7 @@ export async function getCourseLeaderboard(
     .from(quizTemplates)
     .where(
       and(
-        eq(quizTemplates.courseId, courseId),
+        eq(quizTemplates.courseId, compatibilityCourseId),
         eq(quizTemplates.status, "published"),
         categoryCondition
       )
@@ -368,7 +478,7 @@ export async function getCourseLeaderboard(
     .innerJoin(user, eq(studentQuizAttempts.studentId, user.id))
     .where(
       and(
-        eq(quizTemplates.courseId, courseId),
+        eq(quizTemplates.courseId, compatibilityCourseId),
         eq(studentQuizAttempts.status, "completed"),
         categoryCondition
       ),

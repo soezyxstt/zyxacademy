@@ -8,6 +8,10 @@ import {
   flashcardReviews,
   learningEvents,
   flashcardIde,
+  flashcard as canonicalFlashcard,
+  setFlashcard,
+  kemajuanFlashcardMurid,
+  reviewFlashcard,
 } from "@/db/schema";
 import { eq, and, lte, or, inArray, isNull, gt } from "drizzle-orm";
 import { calculateSM2 } from "./flashcard-scheduler";
@@ -16,6 +20,7 @@ import { inngest } from "@/lib/inngest";
 import { markRecommendationDone } from "@/lib/recommendation-service";
 import { dualWriteFlashcardReview, dualWriteLearningEvent } from "@/lib/migrasi/repository-kompatibilitas";
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
+import { isStudentEnrolled, resolveStudentCourse } from "@/lib/student/course-catalog";
 
 export interface FlashcardHistoryItem {
   reviewedAt: string;
@@ -60,13 +65,62 @@ export function evaluateExamAnswer(userAnswer: string, correctAnswer: string): b
 // ==========================================
 
 export async function getReviewQueue(studentId: string, courseId: string) {
+  const course = await resolveStudentCourse(courseId);
+  if (course?.canonicalId) {
+    const canonicalCards = await db
+      .select({
+        id: canonicalFlashcard.id,
+        setId: canonicalFlashcard.setFlashcardId,
+        front: canonicalFlashcard.front,
+        back: canonicalFlashcard.back,
+        explanation: canonicalFlashcard.explanation,
+        status: canonicalFlashcard.status,
+        createdAt: canonicalFlashcard.createdAt,
+      })
+      .from(canonicalFlashcard)
+      .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+      .where(
+        and(
+          eq(setFlashcard.mataKuliahId, course.canonicalId),
+          eq(setFlashcard.status, "published"),
+          eq(canonicalFlashcard.status, "published"),
+        ),
+      );
+
+    if (canonicalCards.length > 0) {
+      const progressRows = await db
+        .select()
+        .from(kemajuanFlashcardMurid)
+        .where(
+          and(
+            eq(kemajuanFlashcardMurid.penggunaId, studentId),
+            inArray(kemajuanFlashcardMurid.flashcardId, canonicalCards.map((card) => card.id)),
+          ),
+        );
+      const progressByCard = new Map(progressRows.map((row) => [row.flashcardId, row]));
+      const now = Date.now();
+      return canonicalCards
+        .flatMap((card) => {
+          const progress = progressByCard.get(card.id);
+          if (progress && progress.dueAt.getTime() > now) return [];
+          return [{
+            card: { ...card, koId: null, metadata: { source: "canonical" } },
+            progress: progress ?? null,
+            dueStatus: progress ? "review" as const : "new" as const,
+            nextReviewDue: progress?.dueAt ?? new Date(0),
+          }];
+        })
+        .sort((left, right) => left.nextReviewDue.getTime() - right.nextReviewDue.getTime());
+    }
+  }
+
   // Find published flashcard sets of this course
   const publishedSets = await db
     .select()
     .from(flashcardSets)
     .where(
       and(
-        eq(flashcardSets.courseId, courseId),
+        eq(flashcardSets.courseId, course?.legacyId ?? courseId),
         eq(flashcardSets.status, "published")
       )
     );
@@ -158,13 +212,28 @@ export async function submitReview(
     .where(eq(flashcards.id, flashcardId))
     .limit(1);
 
-  if (!cardRecord) {
-    throw new Error(`Flashcard not found with ID: ${flashcardId}`);
+  const [canonicalCardRecord] = cardRecord
+    ? []
+    : await db.select().from(canonicalFlashcard).where(eq(canonicalFlashcard.id, flashcardId)).limit(1);
+  if (!cardRecord && !canonicalCardRecord) throw new Error(`Flashcard not found with ID: ${flashcardId}`);
+  const [reviewCourse] = cardRecord
+    ? await db
+        .select({ courseId: flashcardSets.courseId })
+        .from(flashcardSets)
+        .where(eq(flashcardSets.id, cardRecord.setId))
+        .limit(1)
+    : await db
+        .select({ courseId: setFlashcard.mataKuliahId })
+        .from(setFlashcard)
+        .where(eq(setFlashcard.id, canonicalCardRecord!.setFlashcardId))
+        .limit(1);
+  if (!reviewCourse || !(await isStudentEnrolled(studentId, reviewCourse.courseId))) {
+    throw new Error("Student is not enrolled in this flashcard course");
   }
 
   let examInputPassed: boolean | undefined = undefined;
   if (isExamMode && manualAnswer) {
-    examInputPassed = evaluateExamAnswer(manualAnswer, cardRecord.back);
+    examInputPassed = evaluateExamAnswer(manualAnswer, cardRecord?.back ?? canonicalCardRecord!.back);
   }
 
   const res = await submitFlashcardReviewTx(studentId, flashcardId, grade, 0);
@@ -175,6 +244,93 @@ export async function submitReview(
     nextBox: res.progress.repetitions,
     examInputPassed,
   };
+}
+
+async function submitCanonicalFlashcardReviewTx(
+  studentId: string,
+  flashcardId: string,
+  grade: number,
+  responseTimeMs: number,
+) {
+  const [card] = await db
+    .select({
+      id: canonicalFlashcard.id,
+      status: canonicalFlashcard.status,
+      setStatus: setFlashcard.status,
+    })
+    .from(canonicalFlashcard)
+    .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+    .where(eq(canonicalFlashcard.id, flashcardId))
+    .limit(1);
+  if (!card || card.status !== "published" || card.setStatus !== "published") {
+    throw new Error("Published canonical flashcard not found");
+  }
+
+  const correctnessMap: Record<number, number> = { 1: 0, 2: 0.5, 3: 0.8, 4: 1 };
+  const correctness = correctnessMap[grade] ?? 0;
+  const now = new Date();
+  const result = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(kemajuanFlashcardMurid)
+      .where(
+        and(
+          eq(kemajuanFlashcardMurid.penggunaId, studentId),
+          eq(kemajuanFlashcardMurid.flashcardId, flashcardId),
+        ),
+      )
+      .limit(1);
+    const schedule = calculateSM2(
+      {
+        easeFactor: existing?.easeFactor ?? 2.5,
+        intervalDays: existing?.intervalDays ?? 0,
+        repetitions: existing?.repetitions ?? 0,
+        lapses: existing?.lapses ?? 0,
+        lastReviewedAt: existing?.lastReviewedAt ?? null,
+      },
+      grade,
+    );
+    const progressValues = {
+      penggunaId: studentId,
+      flashcardId,
+      dueAt: schedule.dueDate,
+      intervalDays: schedule.intervalDays,
+      easeFactor: schedule.easeFactor,
+      repetitions: schedule.repetitions,
+      lapses: schedule.lapses,
+      lastReviewedAt: now,
+      status: "active" as const,
+      updatedAt: now,
+    };
+    const progressId = existing?.id ?? `canonical-progress-${randomUUID()}`;
+    if (existing) {
+      await tx.update(kemajuanFlashcardMurid).set(progressValues).where(eq(kemajuanFlashcardMurid.id, existing.id));
+    } else {
+      await tx.insert(kemajuanFlashcardMurid).values({ id: progressId, ...progressValues, createdAt: now });
+    }
+
+    const reviewId = `canonical-review-${randomUUID()}`;
+    await tx.insert(reviewFlashcard).values({
+      id: reviewId,
+      kemajuanFlashcardMuridId: progressId,
+      grade,
+      responseMs: Math.max(0, responseTimeMs),
+      previousDueAt: existing?.dueAt ?? now,
+      nextDueAt: schedule.dueDate,
+      reviewedAt: now,
+    });
+    return {
+      review: { id: reviewId, grade, reviewedAt: now },
+      progress: {
+        id: progressId,
+        ...progressValues,
+        dueDate: schedule.dueDate,
+      },
+    };
+  });
+
+  await recordFlashcardIdeaEvidence(studentId, flashcardId, result.review.id, correctness, now);
+  return result;
 }
 
 export async function submitFlashcardReviewTx(
@@ -194,7 +350,7 @@ export async function submitFlashcardReviewTx(
     .where(eq(flashcards.id, flashcardId))
     .limit(1);
 
-  if (!card) throw new Error("Flashcard not found");
+  if (!card) return submitCanonicalFlashcardReviewTx(studentId, flashcardId, grade, responseTimeMs);
 
   const [set] = await db
     .select({

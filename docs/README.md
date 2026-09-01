@@ -65,23 +65,23 @@ Every document in this repository has one of the following explicit statuses:
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
 | [README.md](README.md) | Index | `ACTIVE` | 2026-09-01 | Master documentation index, hierarchy map, and lifecycle status ledger. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-01 | Core platform architecture, data boundaries, transactional Admin course and chapter compatibility, retired legacy authoring CRUD, MCP stored-PDF retrieval, and system interfaces. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-01 | Core platform architecture, canonical-first student reads, compatibility boundaries, retired legacy authoring CRUD, MCP stored-PDF retrieval, and system interfaces. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-01 | Comprehensive catalog of database tables, relationships, indexes, constraints, and Admin legacy projection behavior. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | Current | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, secrets, and environments. |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | Current | Local development guide, scripts, environment variables, and `FEATURE_*` flags catalog. |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-09-01 | Local development guide, scripts, environment variables, and V3 authoring rollout flag boundaries. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |
-| [features.md](features.md) | Product | `ACTIVE` | 2026-09-01 | Authoritative catalog of student, tutor, admin, and prompt-only MCP authoring workflows, including live canonical catalog synchronization. |
+| [features.md](features.md) | Product | `ACTIVE` | 2026-09-01 | Authoritative catalog of canonical-first student, tutor, admin, and prompt-only MCP authoring workflows. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring context pack export format and security boundaries. |
 | [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring job packs and local or stored-original Source Pack ingestion. |
 | [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read and rollback submission contract for Idea Bundle V2. |
 | [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-08-31 | Learning section hierarchy, Idea membership, validation, editing, and MCP transition contract. |
 | [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read compatibility and Article block review adapter for Product Bundle V2. |
-| [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-08-31 | Structured Article sections, semantic blocks, quality gates, review, publication, and read models. |
+| [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-09-01 | Structured Article sections, semantic blocks, quality gates, review, publication, and canonical student read models. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, and staging validation checklist. |
 | [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | Current | Operational runbooks, health metrics, and alert responses for the Zyra AI system. |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Safe procedure for capturing staging visual audits and screenshots. |
-| [operations/structured-article-v3-rollout.md](operations/structured-article-v3-rollout.md) | Operations | `ACTIVE` | 2026-08-31 | Additive migration, staging gates, rollback, and per-course production rollout for structured Articles. |
+| [operations/structured-article-v3-rollout.md](operations/structured-article-v3-rollout.md) | Operations | `ACTIVE` | 2026-09-01 | Additive migration, authoring rollout gates, rollback, and published student visibility for structured Articles. |
 | [operations/manual-test-plan-bundles-v2.md](operations/manual-test-plan-bundles-v2.md) | Operations | `ACTIVE` | Current | Manual test procedure for Idea Bundle V2 and Product Bundle V2 ingestion, block review, and destructive confirmation flows. |
 | [operations/legacy-vector-contract-allowlist.md](operations/legacy-vector-contract-allowlist.md) | Operations | `TRANSITIONAL / LEGACY` | Current | Non-runtime vector matches permitted during the Vectorize 768d migration cutover. |
 | [audit/admin-visual-quality-audit.md](audit/admin-visual-quality-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-08-24 | Visual and responsive quality audit for admin pages. All 14 findings (F1-F14) resolved and verified. |
@@ -128,7 +128,7 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 | **Object Storage** | Cloudflare R2 via `lib/storage/keys.ts` | UploadThing | All new storage writes use Cloudflare R2 keys. UploadThing remains for legacy compatibility paths only. |
 | **Database** | Turso (Production/Staging), SQLite (Local `dev.db`) | PostgreSQL / `neon-client` | Turso and local SQLite are the only supported engines. PostgreSQL is not used. |
 | **Roles & Permissions** | Canonical `pengguna_peran` table with role assignments | Flat string role column on user | All new authorization checks use canonical `pengguna_peran`. |
-| **Course Ingestion** | Bundle V3 behind `FEATURE_STRUCTURED_ARTICLE_READER_V1` | Bundle V2 and legacy V1 readers | V2 and V3 remain readable. New submissions require V3 only while the flag is enabled. |
+| **Course Ingestion** | Bundle V3 behind `FEATURE_STRUCTURED_ARTICLE_READER_V1` | Bundle V2 submission and legacy readers | Published V2 and V3 remain readable. New submissions require V3 only while the flag is enabled. |
 | **AI Harness & Quota** | Zyra Control Plane with Durable Object Quota Coordinator | Uncoordinated direct provider calls | Tutoring and generation route through Zyra quota coordinator and allowance ledger. |
 
 ---

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { artikel, bagianArtikel, kemajuanBacaArtikel } from "@/db/schema";
-import { eq, and, or } from "drizzle-orm";
+import { artikel, artikelIde, bagianArtikel, kemajuanBacaArtikel } from "@/db/schema";
+import { eq, and, or, gte, isNotNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
+import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
+import { isStudentEnrolled } from "@/lib/student/course-catalog";
 
 const progressUpdateSchema = z.object({
   sectionId: z.string().min(1),
@@ -21,9 +22,6 @@ type RouteProps = {
 
 export async function PUT(req: NextRequest, { params }: RouteProps) {
   try {
-    if (!isStructuredArticleReaderEnabled()) {
-      return NextResponse.json({ error: "Pembaca artikel terstruktur belum aktif." }, { status: 404 });
-    }
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Silakan masuk untuk menyimpan progres." }, { status: 401 });
@@ -48,13 +46,16 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
 
     // Verify article existence
     const [articleRecord] = await db
-      .select({ id: artikel.id, version: artikel.version })
+      .select({ id: artikel.id, version: artikel.version, courseId: artikel.mataKuliahId })
       .from(artikel)
       .where(and(eq(artikel.status, "published"), or(eq(artikel.id, articleId), eq(artikel.slug, articleId))))
       .limit(1);
 
     if (!articleRecord) {
       return NextResponse.json({ error: "Artikel tidak ditemukan." }, { status: 404 });
+    }
+    if (!(await isStudentEnrolled(userId, articleRecord.courseId))) {
+      return NextResponse.json({ error: "Anda belum terdaftar di kelas ini." }, { status: 403 });
     }
 
     // Verify section belongs to article
@@ -126,6 +127,54 @@ export async function PUT(req: NextRequest, { params }: RouteProps) {
         createdAt: now,
         updatedAt: now,
       });
+    }
+
+    if (isCompleted) {
+      const [allSections, completedSections] = await Promise.all([
+        db
+          .select({ id: bagianArtikel.id })
+          .from(bagianArtikel)
+          .where(
+            and(
+              eq(bagianArtikel.artikelId, articleRecord.id),
+              eq(bagianArtikel.version, articleRecord.version),
+              eq(bagianArtikel.status, "published"),
+            ),
+          ),
+        db
+          .select({ sectionId: kemajuanBacaArtikel.bagianArtikelId })
+          .from(kemajuanBacaArtikel)
+          .where(
+            and(
+              eq(kemajuanBacaArtikel.penggunaId, userId),
+              eq(kemajuanBacaArtikel.artikelId, articleRecord.id),
+              eq(kemajuanBacaArtikel.artikelVersion, articleRecord.version),
+              or(
+                gte(kemajuanBacaArtikel.maxReadPercent, 90),
+                isNotNull(kemajuanBacaArtikel.completedAt),
+              ),
+            ),
+          ),
+      ]);
+      const completedIds = new Set(completedSections.map((row) => row.sectionId));
+      completedIds.add(sectionId);
+      if (allSections.length > 0 && allSections.every((section) => completedIds.has(section.id))) {
+        const links = await db
+          .select({ ideId: artikelIde.ideId, weight: artikelIde.weight })
+          .from(artikelIde)
+          .where(eq(artikelIde.artikelId, articleRecord.id));
+        await Promise.all(links.map((link) => recordLearningEvidence({
+          penggunaId: userId,
+          ideId: link.ideId,
+          evidenceSource: "article_completed",
+          sourceId: articleRecord.id,
+          scoreContribution: 0.65 * link.weight,
+          confidence: 60,
+          derivationStatus: "deterministic",
+          affectsMastery: true,
+          occurredAt: now,
+        })));
+      }
     }
 
     return NextResponse.json({

@@ -3,11 +3,11 @@ import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { pageTitle } from "@/lib/site";
-import { getCourse } from "@/lib/course-utils";
+import { getCourse, getCourseChapterOutline } from "@/lib/course-utils";
 import { DocumentListClient } from "./document-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
-import { aiMaterialInstances, websiteMaterials, diktats, courseMaterials, chapters, progress, studentMaterialProgress } from "@/db/schema";
+import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { storage } from "@/lib/storage";
@@ -34,6 +34,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
   const { id } = await params;
   const course = await getCourse(id);
   if (!course) return null;
+  const compatibilityCourseId = course.legacyId ?? id;
 
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
@@ -68,7 +69,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
     }
   }
 
-  // Fetch canonical articles under FEATURE_STRUCTURED_ARTICLE_READER_V1
+  // Published canonical content is student-visible independently of the V3 authoring flag.
   const canonicalArticles = await getCanonicalPublishedArticlesForCourse(id, studentId);
 
   // Set of chapters mapped to canonical articles (for legacy suppression)
@@ -79,16 +80,11 @@ export default async function CourseMaterialListPage({ params }: Props) {
     if (art.babId) canonicalMappedChapterIds.add(art.babId);
   }
 
-  // Fetch chapters
-  const courseChapters = await db
-    .select({
-      id: chapters.id,
-      title: chapters.title,
-      orderIndex: chapters.orderIndex,
-    })
-    .from(chapters)
-    .where(eq(chapters.courseId, id))
-    .orderBy(chapters.orderIndex);
+  const courseChapters = (await getCourseChapterOutline(id, studentId)).map((chapter) => ({
+    id: chapter.id,
+    title: chapter.title,
+    orderIndex: chapter.orderIndex,
+  }));
 
   // Fetch db-backed materials (active only ; drafts and archived instances stay hidden)
   const dbMaterials = await db
@@ -99,7 +95,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       thumbnailUrl: aiMaterialInstances.thumbnailUrl,
     })
     .from(aiMaterialInstances)
-    .where(and(eq(aiMaterialInstances.courseId, id), notLike(aiMaterialInstances.title, "[DRAF]%")));
+    .where(and(eq(aiMaterialInstances.courseId, compatibilityCourseId), notLike(aiMaterialInstances.title, "[DRAF]%")));
 
   // Fetch compiled diktats
   const courseDiktats = await db
@@ -112,7 +108,20 @@ export default async function CourseMaterialListPage({ params }: Props) {
       thumbnailUrl: diktats.thumbnailUrl,
     })
     .from(diktats)
-    .where(and(eq(diktats.courseId, id), eq(diktats.status, "ready")));
+    .where(and(eq(diktats.courseId, compatibilityCourseId), eq(diktats.status, "ready")));
+
+  const canonicalDiktats = course.canonicalId
+    ? await db
+        .select({
+          id: diktatMateri.id,
+          title: diktatMateri.title,
+          babId: diktatMateri.babId,
+          legacyChapterId: bab.legacyChapterId,
+        })
+        .from(diktatMateri)
+        .leftJoin(bab, eq(diktatMateri.babId, bab.id))
+        .where(and(eq(diktatMateri.mataKuliahId, course.canonicalId), eq(diktatMateri.status, "published")))
+    : [];
 
   // Fetch website materials (AST articles, 1:1 with chapters) ; published only
   const webMaterials = await db
@@ -124,7 +133,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       thumbnailUrl: websiteMaterials.thumbnailUrl,
     })
     .from(websiteMaterials)
-    .where(and(eq(websiteMaterials.courseId, id), eq(websiteMaterials.status, "published")));
+    .where(and(eq(websiteMaterials.courseId, compatibilityCourseId), eq(websiteMaterials.status, "published")));
 
   // Fetch manual PDF materials
   const manualMaterials = await db
@@ -140,7 +149,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       thumbnailUrl: courseMaterials.thumbnailUrl,
     })
     .from(courseMaterials)
-    .where(eq(courseMaterials.courseId, id));
+    .where(eq(courseMaterials.courseId, compatibilityCourseId));
 
   const mappedCanonical = canonicalArticles.map((a) => ({
     id: a.id,
@@ -156,7 +165,26 @@ export default async function CourseMaterialListPage({ params }: Props) {
     chapterIds: a.chapterId ? [a.chapterId] : [],
   }));
 
-  const mappedDiktats = courseDiktats.map((d) => ({
+  const mappedCanonicalDiktats = canonicalDiktats.map((diktat) => ({
+    id: diktat.id,
+    courseId: id,
+    title: diktat.title,
+    kind: "article" as const,
+    docCategory: "diktat" as const,
+    fileSize: "Diktat canonical",
+    completed: completedMaterialIds.has(diktat.id),
+    isPastYear: false,
+    isPreview: false,
+    chapterId: diktat.legacyChapterId ?? diktat.babId ?? undefined,
+    chapterIds: [diktat.legacyChapterId ?? diktat.babId].filter((chapterId): chapterId is string => Boolean(chapterId)),
+  }));
+  const canonicalDiktatChapterIds = new Set(mappedCanonicalDiktats.flatMap((diktat) => diktat.chapterIds));
+  const visibleCourseDiktats = courseDiktats.filter((diktat) => {
+    const chapterIds = Array.isArray(diktat.chapterIds) ? diktat.chapterIds : [];
+    return !chapterIds.some((chapterId) => canonicalDiktatChapterIds.has(chapterId));
+  });
+
+  const mappedDiktats = visibleCourseDiktats.map((d) => ({
     id: d.id,
     courseId: id,
     title: d.title,
@@ -171,7 +199,10 @@ export default async function CourseMaterialListPage({ params }: Props) {
     chapterIds: d.chapterIds as string[],
   }));
 
-  const mappedDb = dbMaterials.map((m) => ({
+  const mappedDb = dbMaterials.filter((material) => {
+    const chapterIds = Array.isArray(material.chapterIds) ? material.chapterIds : [];
+    return !chapterIds.some((chapterId) => canonicalMappedChapterIds.has(chapterId));
+  }).map((m) => ({
     id: m.id,
     courseId: id,
     title: m.title.replace(/^\[DRAF\]\s*/, ""),
@@ -229,7 +260,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       chapterIds: [m.chapterId],
     }));
 
-  const allMaterials = [...mappedCanonical, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual];
+  const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual];
 
   return (
     <CoursePageShell
@@ -238,11 +269,11 @@ export default async function CourseMaterialListPage({ params }: Props) {
       icon={FileText}
     >
       <Reveal>
-        {courseDiktats.length > 0 && (
+        {visibleCourseDiktats.length > 0 && (
           <div className="mb-8 space-y-3 text-left">
             <h2 className="font-heading text-body-base font-bold text-foreground">Diktat Kuliah (PDF)</h2>
             <div className="grid gap-4 sm:grid-cols-2">
-              {courseDiktats.map((d) => (
+              {visibleCourseDiktats.map((d) => (
                 <div key={d.id} className={studentCardClass("justify-between")}>
                   <div className="flex items-start gap-3">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-status-error/15 text-status-error">

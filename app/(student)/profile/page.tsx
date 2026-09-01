@@ -8,9 +8,8 @@ import { ShellPage } from "@/components/shell-page";
 import { pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
- enrollments,
  courses,
  progress,
  submissions,
@@ -20,6 +19,8 @@ import {
  groups,
  user as userTable,
 } from "@/db/schema";
+import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
+import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 export const metadata: Metadata = {
  title: pageTitle("Profil Pengguna"),
@@ -46,7 +47,7 @@ export default async function ProfilePage() {
 
  try {
  if (process.env.NODE_ENV === "development" && user.role === "admin") {
- const all = await db.select().from(courses);
+ const all = await listStudentCourses();
  activeEnrollments = all.map((c) => ({
  id: c.id,
  title: c.title,
@@ -55,38 +56,25 @@ export default async function ProfilePage() {
  expiresAt: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
  }));
  } else {
- activeEnrollments = await db
- .select({
- id: courses.id,
- title: courses.title,
- category: courses.category,
- enrolledAt: enrollments.enrolledAt,
- expiresAt: enrollments.expiresAt,
- })
- .from(enrollments)
- .innerJoin(courses, eq(enrollments.courseId, courses.id))
- .where(
- and(
- eq(enrollments.userId, user.id),
- gt(enrollments.expiresAt, now)
- )
- );
+ activeEnrollments = await listStudentEnrollments(user.id);
  }
  } catch (err) {
  console.error("Failed to fetch enrollments:", err);
  }
 
  try {
- const progressRes = await db
- .select()
+ const [progressRes, articleGroups] = await Promise.all([
+ db
+ .select({ materialId: progress.materialId })
  .from(progress)
- .where(
- and(
- eq(progress.userId, user.id),
- eq(progress.status, "completed")
- )
- );
- completedCount = progressRes.length;
+ .where(and(eq(progress.userId, user.id), eq(progress.status, "completed"))),
+ Promise.all(activeEnrollments.map((course) => getCanonicalPublishedArticlesForCourse(course.id, user.id))),
+ ]);
+ const completedIds = new Set(progressRes.flatMap((row) => row.materialId ? [row.materialId] : []));
+ for (const article of articleGroups.flat()) {
+ if (article.completed) completedIds.add(article.id);
+ }
+ completedCount = completedIds.size;
  } catch (err) {
  console.error("Failed to fetch progress:", err);
  }

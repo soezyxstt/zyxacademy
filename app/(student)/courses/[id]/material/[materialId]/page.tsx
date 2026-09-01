@@ -13,7 +13,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { getMaterial, type CourseMaterial } from "@/lib/student-course-fixtures";
 import { getCourse } from "@/lib/course-utils";
-import { getCanonicalPublishedArticle } from "@/lib/articles/structured-repository";
+import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
 import { db } from "@/db";
 import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
@@ -27,6 +27,8 @@ type Props = { params: Promise<{ id: string; materialId: string }> };
 async function fetchMaterial(courseId: string, materialId: string, studentId?: string): Promise<CourseMaterial | undefined> {
   const staticMat = getMaterial(courseId, materialId);
   if (staticMat) return staticMat;
+  const course = await getCourse(courseId);
+  const compatibilityCourseId = course?.legacyId ?? courseId;
 
   let completed = false;
   if (studentId) {
@@ -65,12 +67,29 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
     }
   }
 
+  const canonicalProduct = await getCanonicalPublishedTextProduct(courseId, materialId);
+  if (canonicalProduct) {
+    return {
+      id: canonicalProduct.id,
+      courseId,
+      title: canonicalProduct.title,
+      kind: "article",
+      docCategory: canonicalProduct.productType === "diktat" ? "diktat" : "materi",
+      fileSize: canonicalProduct.productType === "diktat" ? "Diktat canonical" : "Materi Zyx",
+      body: canonicalProduct.contentMarkdown,
+      completed,
+      isPastYear: false,
+      isPreview: false,
+      chapterId: canonicalProduct.chapterId ?? undefined,
+    };
+  }
+
   // First check if it is a compiled diktat in the diktats table
   try {
     const [diktatRecord] = await db
       .select()
       .from(diktats)
-      .where(eq(diktats.id, materialId));
+      .where(and(eq(diktats.id, materialId), eq(diktats.courseId, compatibilityCourseId)));
 
     if (diktatRecord) {
       return {
@@ -95,7 +114,7 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
     const [webMatRecord] = await db
       .select()
       .from(websiteMaterials)
-      .where(eq(websiteMaterials.id, materialId));
+      .where(and(eq(websiteMaterials.id, materialId), eq(websiteMaterials.courseId, compatibilityCourseId)));
 
     // Drafts must never be reachable by direct URL ; fall through to 404.
     if (webMatRecord && webMatRecord.status === "published") {
@@ -122,7 +141,7 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
     const [matRecord] = await db
       .select()
       .from(courseMaterials)
-      .where(eq(courseMaterials.id, materialId));
+      .where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.courseId, compatibilityCourseId)));
 
     if (matRecord) {
       let docCategory: "materi" | "soal" | "solusi" = "materi";
@@ -153,7 +172,11 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
 
   try {
     const dbMaterial = await db.query.aiMaterialInstances.findFirst({
-      where: and(eq(aiMaterialInstances.id, materialId), notLike(aiMaterialInstances.title, "[DRAF]%")),
+      where: and(
+        eq(aiMaterialInstances.id, materialId),
+        eq(aiMaterialInstances.courseId, compatibilityCourseId),
+        notLike(aiMaterialInstances.title, "[DRAF]%"),
+      ),
       with: {
         sections: {
           orderBy: (s, { asc }) => [asc(s.orderIndex)],
@@ -224,7 +247,8 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
 
-  // 1. Canonical structured article first under FEATURE_STRUCTURED_ARTICLE_READER_V1
+  // 1. Canonical structured article first. Published V2 Article and Diktat
+  // content falls through to the canonical text product reader below.
   const canonicalArticle = await getCanonicalPublishedArticle(id, materialId, studentId);
   if (canonicalArticle && course) {
     const isEnrolled = await checkEnrollment(id);

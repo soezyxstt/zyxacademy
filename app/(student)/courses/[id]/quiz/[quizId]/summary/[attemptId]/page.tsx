@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { studentQuizAttempts, quizTemplates, courses } from "@/db/schema";
+import { studentQuizAttempts, quizTemplates } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { QuizAnalyticsView } from "@/components/course/quiz-analytics-view";
 import { ArrowLeft, BookOpen, ChevronRight } from "lucide-react";
+import { getCourse } from "@/lib/course-utils";
 
 type Props = {
   params: Promise<{ id: string; quizId: string; attemptId: string }>;
@@ -37,11 +38,7 @@ export default async function QuizSummaryPage({ params }: Props) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) notFound();
 
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   if (!course) notFound();
 
@@ -97,7 +94,7 @@ export default async function QuizSummaryPage({ params }: Props) {
             </div>
           </div>
 
-          <QuizAnalyticsView attemptId={attemptId} courseId={id} />
+          <QuizAnalyticsView attemptId={attemptId} courseId={course.legacyId ?? id} />
         </div>
       </Reveal>
     </CoursePageShell>

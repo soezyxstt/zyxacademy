@@ -53,7 +53,7 @@ export const KNOWN_FEATURE_FLAGS: FeatureFlagMeta[] = [
   flag("FEATURE_ZYRA_IMAGE_INPUT_V1", "Zyra Image Input", "ai_v2_architecture", "Input gambar privat untuk tutoring multimodal Zyra."),
   flag("FEATURE_ZYRA_SEMANTIC_CACHE_V1", "Zyra Semantic Cache", "ai_v2_architecture", "Cache semantic yang profile-free dengan validasi scope."),
   flag("FEATURE_DRIVE_EDITOR_SYNC", "Drive Editor Sync", "platform", "Sinkronisasi akses editor admin pada artefak Google Drive."),
-  flag("FEATURE_STRUCTURED_ARTICLE_READER_V1", "Structured Article Reader", "academic_student", "Rollout sementara authoring, review, dan reader Artikel V3 berbasis subtopik."),
+  flag("FEATURE_STRUCTURED_ARTICLE_READER_V1", "Structured Article V3", "platform", "Rollout sementara authoring, submission, dan review Artikel V3 berbasis subtopik."),
 ];
 
 /** Returns true if a retained flag is active ("1" or "true"). */

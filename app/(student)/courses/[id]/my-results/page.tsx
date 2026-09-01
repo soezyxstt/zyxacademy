@@ -10,20 +10,17 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 import { pageTitle } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { db } from "@/db";
-import { studentQuizAttempts, quizTemplates, submissions, exams, courses } from "@/db/schema";
+import { studentQuizAttempts, quizTemplates, submissions, exams } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
+import { getCourse } from "@/lib/course-utils";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   return {
     title: pageTitle(course ? `${course.title} - Hasil saya` : "Hasil saya"),
@@ -46,11 +43,7 @@ function statusBadge(status: string) {
 export default async function CourseMyResultsPage({ params }: Props) {
   const { id } = await params;
   
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   if (!course) return null;
 
@@ -112,7 +105,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
       .where(
         and(
           eq(studentQuizAttempts.studentId, studentId),
-          eq(quizTemplates.courseId, id),
+          eq(quizTemplates.courseId, course.legacyId ?? id),
           eq(studentQuizAttempts.status, 'completed')
         )
       );
@@ -130,7 +123,7 @@ export default async function CourseMyResultsPage({ params }: Props) {
       .where(
         and(
           eq(submissions.userId, studentId),
-          eq(exams.courseId, id)
+          eq(exams.courseId, course.legacyId ?? id)
         )
       );
 

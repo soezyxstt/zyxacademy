@@ -3,20 +3,22 @@
 import { headers } from "next/headers";
 import { db } from "@/db";
 import {
-  courses as coursesTable,
   aiMaterialInstances,
   websiteMaterials,
   diktats,
   courseMaterials,
   exams,
   quizTemplates,
-  enrollments,
   blogArticles,
+  artikel,
+  bab,
+  diktatMateri,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { getSiteSearchDocuments } from "@/lib/site-search-index";
 import type { SiteSearchDocument } from "@/lib/site-search-index";
+import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
 
 export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]> {
   const staticDocs = getSiteSearchDocuments();
@@ -27,27 +29,9 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
     const session = await auth.api.getSession({ headers: h });
     const user = session?.user;
 
-    let dbCourses: any[] = [];
-    if (!user?.id || user.role === "admin") {
-      dbCourses = await db.select().from(coursesTable);
-    } else {
-      const now = new Date();
-      dbCourses = await db
-        .select({
-          id: coursesTable.id,
-          title: coursesTable.title,
-          category: coursesTable.category,
-          description: coursesTable.description,
-        })
-        .from(enrollments)
-        .innerJoin(coursesTable, eq(enrollments.courseId, coursesTable.id))
-        .where(
-          and(
-            eq(enrollments.userId, user.id),
-            gt(enrollments.expiresAt, now)
-          )
-        );
-    }
+    const dbCourses = !user?.id || user.role === "admin"
+      ? await listStudentCourses()
+      : await listStudentEnrollments(user.id);
 
     for (const course of dbCourses) {
       docs.push({
@@ -101,15 +85,34 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
       });
 
       // Fetch materials
+      const legacyCourseId = course.legacyId ?? course.id;
+      const canonicalArticles = course.canonicalId
+        ? await db
+            .select({
+              id: artikel.id,
+              title: artikel.title,
+              babId: artikel.babId,
+              legacyChapterId: bab.legacyChapterId,
+            })
+            .from(artikel)
+            .leftJoin(bab, eq(artikel.babId, bab.id))
+            .where(and(eq(artikel.mataKuliahId, course.canonicalId), eq(artikel.status, "published")))
+        : [];
+      const canonicalDiktats = course.canonicalId
+        ? await db
+            .select({ id: diktatMateri.id, title: diktatMateri.title })
+            .from(diktatMateri)
+            .where(and(eq(diktatMateri.mataKuliahId, course.canonicalId), eq(diktatMateri.status, "published")))
+        : [];
       const dbMats = await db
         .select({ id: aiMaterialInstances.id, title: aiMaterialInstances.title })
         .from(aiMaterialInstances)
-        .where(eq(aiMaterialInstances.courseId, course.id));
+        .where(eq(aiMaterialInstances.courseId, legacyCourseId));
 
       const dbDiktats = await db
         .select({ id: diktats.id, title: diktats.title })
         .from(diktats)
-        .where(and(eq(diktats.courseId, course.id), eq(diktats.status, "ready")));
+        .where(and(eq(diktats.courseId, legacyCourseId), eq(diktats.status, "ready")));
 
       const dbManuals = await db
         .select({
@@ -120,12 +123,35 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
           year: courseMaterials.year,
         })
         .from(courseMaterials)
-        .where(eq(courseMaterials.courseId, course.id));
+        .where(eq(courseMaterials.courseId, legacyCourseId));
 
       const dbWebMats = await db
-        .select({ id: websiteMaterials.id, title: websiteMaterials.title })
+        .select({ id: websiteMaterials.id, title: websiteMaterials.title, chapterId: websiteMaterials.chapterId })
         .from(websiteMaterials)
-        .where(eq(websiteMaterials.courseId, course.id));
+        .where(eq(websiteMaterials.courseId, legacyCourseId));
+
+      canonicalArticles.forEach((article) => {
+        docs.push({
+          id: `material:${course.id}:${article.id}`,
+          title: article.title,
+          subtitle: `${course.title} · Artikel`,
+          href: `/courses/${course.id}/material/${article.id}`,
+          group: "Materi",
+          keywords: `artikel canonical ${course.title}`,
+          content: article.title,
+        });
+      });
+      canonicalDiktats.forEach((diktat) => {
+        docs.push({
+          id: `material:${course.id}:${diktat.id}`,
+          title: diktat.title,
+          subtitle: `${course.title} · Diktat`,
+          href: `/courses/${course.id}/material/${diktat.id}`,
+          group: "Materi",
+          keywords: `diktat canonical ${course.title}`,
+          content: diktat.title,
+        });
+      });
 
       dbMats.forEach((m) => {
         docs.push({
@@ -166,7 +192,10 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
         });
       });
 
-      dbWebMats.forEach((m) => {
+      const canonicalChapterIds = new Set(
+        canonicalArticles.flatMap((article) => [article.babId, article.legacyChapterId].filter((id): id is string => Boolean(id))),
+      );
+      dbWebMats.filter((material) => !canonicalChapterIds.has(material.chapterId)).forEach((m) => {
         docs.push({
           id: `material:${course.id}:${m.id}`,
           title: m.title,
@@ -182,12 +211,12 @@ export async function getStudentSearchDocuments(): Promise<SiteSearchDocument[]>
       const dbQuizzes = await db
         .select({ id: quizTemplates.id, title: quizTemplates.title })
         .from(quizTemplates)
-        .where(eq(quizTemplates.courseId, course.id));
+        .where(eq(quizTemplates.courseId, legacyCourseId));
 
       const dbTryouts = await db
         .select({ id: exams.id, title: exams.title })
         .from(exams)
-        .where(and(eq(exams.courseId, course.id), eq(exams.type, "tryout"), eq(exams.status, "published")));
+        .where(and(eq(exams.courseId, legacyCourseId), eq(exams.type, "tryout"), eq(exams.status, "published")));
 
       dbQuizzes.forEach((q) => {
         docs.push({

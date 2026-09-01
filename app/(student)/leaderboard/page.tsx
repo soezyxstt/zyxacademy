@@ -4,17 +4,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Trophy, ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import {
-  enrollments,
-  courses,
-} from "@/db/schema";
-import { and, eq, gt, inArray } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { getCourseLeaderboard } from "@/lib/course-utils";
+import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
 
 
 export const metadata: Metadata = {
@@ -26,30 +21,9 @@ export default async function LeaderboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/sign-in");
 
-  const now = new Date();
-
-  // Get all courses the student is enrolled in
-  let enrolled;
-  if (process.env.NODE_ENV === "development" && session.user.role === "admin") {
-    const all = await db.select({ courseId: courses.id }).from(courses);
-    enrolled = all;
-  } else {
-    enrolled = await db
-      .select({ courseId: enrollments.courseId })
-      .from(enrollments)
-      .where(and(eq(enrollments.userId, session.user.id), gt(enrollments.expiresAt, now)));
-  }
-
-  const courseIds = enrolled.map((e) => e.courseId);
-
-  // Get course titles
-  const allCourses =
-    courseIds.length > 0
-      ? await db
-          .select({ id: courses.id, title: courses.title })
-          .from(courses)
-          .where(inArray(courses.id, courseIds))
-      : [];
+  const allCourses = process.env.NODE_ENV === "development" && session.user.role === "admin"
+    ? await listStudentCourses()
+    : await listStudentEnrollments(session.user.id);
 
   // Per-course leaderboard: top 10 per course
   const leaderboardByCourse: Record<

@@ -7,22 +7,19 @@ import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { QuizListClient } from "./quiz-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
-import { courses, quizTemplates, studentQuizAttempts } from "@/db/schema";
+import { quizTemplates, studentQuizAttempts } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq, desc, and, ne } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getWeakestConcepts } from "@/lib/learning-analytics";
+import { getCourse } from "@/lib/course-utils";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const [course] = await db
-    .select({ title: courses.title })
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   return {
     title: pageTitle(course ? `${course.title} - Kuis` : "Kuis"),
@@ -35,11 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CourseQuizListPage({ params }: Props) {
   const { id } = await params;
   
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   if (!course) notFound();
 
@@ -51,7 +44,7 @@ export default async function CourseQuizListPage({ params }: Props) {
     .from(quizTemplates)
     .where(
       and(
-        eq(quizTemplates.courseId, id),
+        eq(quizTemplates.courseId, course.legacyId ?? id),
         eq(quizTemplates.status, 'published'),
         ne(quizTemplates.category, 'simulation')
       )
@@ -70,7 +63,7 @@ export default async function CourseQuizListPage({ params }: Props) {
 
   // Weakest concepts steer targeted practice, mirroring the landing "latihan terarah" promise.
   const weakConcepts = studentId && isEnrolled
-    ? (await getWeakestConcepts(studentId, id, 3)).map((c) => c.conceptName)
+    ? (await getWeakestConcepts(studentId, course.legacyId ?? id, 3)).map((c) => c.conceptName)
     : [];
 
   return (

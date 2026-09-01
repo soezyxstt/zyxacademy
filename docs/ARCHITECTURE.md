@@ -155,10 +155,13 @@ flowchart LR
     T --> C[Compatibility repository]
     C --> N[Additive Indonesian target]
     C --> A[audit_mutasi]
-    R[Existing reads] --> LL
+    R[Student read boundary] --> C
+    C --> LL
 ```
 
-Admin course and chapter CRUD uses `lib/academic/course-canonical-sync.ts`. Create, update, and reorder write `courses` or `chapters` together with `mata_kuliah` or `bab` in one transaction. Admin delete keeps the compatibility delete behavior while archiving the canonical entity and recording `audit_mutasi`, so published Idea and Product dependencies are not removed by a legacy cascade. Tutor course certification replacement revokes the prior canonical `penugasan_tutor` set and activates the new legacy projection in the same transaction. Existing compatibility reads remain in place until an explicit read cutover.
+Admin course and chapter CRUD uses `lib/academic/course-canonical-sync.ts`. Create, update, and reorder write `courses` or `chapters` together with `mata_kuliah` or `bab` in one transaction. Admin delete keeps the compatibility delete behavior while archiving the canonical entity and recording `audit_mutasi`, so published Idea and Product dependencies are not removed by a legacy cascade. Tutor course certification replacement revokes the prior canonical `penugasan_tutor` set and activates the new legacy projection in the same transaction.
+
+Student course, enrollment, chapter, published Article, Diktat, flashcard, Idea mastery, Concept Explorer, and study path reads are canonical first. Historical PDFs, generated website materials, quiz and tryout templates, attempt snapshots, and submissions remain explicit compatibility fallbacks. A canonical entity suppresses its mapped legacy duplicate, and an archived canonical course cannot reappear through its legacy mapping.
 
 The boundary covers material publication, flashcard review, quiz attempt start and submission, learning events with exact Idea identity, enrollment, tutor assignment, and Tutorial PKA progress. Target failures roll back the transaction. Compatibility reads remain available for historical rows, while new writes use the canonical repository.
 
@@ -265,7 +268,7 @@ Product Bundle V2 extends the additive product tables with a strict three-state 
 
 Idea Bundle V3 publishes `bagian_pembelajaran` and Idea membership before Product Bundle V3 can link a topic to one learning section. Product publication writes `bagian_artikel`, semantic `blok_artikel`, block Idea and source junctions, and deterministic derived `artikel.contentMarkdown` in one transaction. Editing a source Article refreshes its generation hash and marks downstream Diktat dependency freshness `STALE`.
 
-`StructuredArticleReadModel` is shared by admin preview and the student reader. Public serialization omits Idea IDs, source provenance, checksums, lineage, and review state. The student route selects canonical structured Articles first when the feature flag is enabled, deduplicates legacy material, and falls back to the legacy reader when needed. Progress is version scoped per user, Article, and section.
+`StructuredArticleReadModel` is shared by admin preview and the student reader. Public serialization omits Idea IDs, source provenance, checksums, lineage, and review state. Student routes always select published canonical structured Articles first, deduplicate mapped legacy material, and fall back to the legacy reader only when no canonical published product exists. Progress is version scoped per user, Article, and section. `FEATURE_STRUCTURED_ARTICLE_READER_V1` controls V3 authoring, submission, and review rollout; it does not hide content that an admin has already published.
 
 Publication in `lib/bundle/product-publication.ts` is a single transaction. It verifies published Idea versions and semantic hashes, active source versions and excerpts, resolved creator and curator identities, dependency freshness, and typed product references before inserting article, diktat, question, solution, flashcard, blueprint, dependency, publication, audit, and canonical vector outbox rows. Product validation also runs the existing strict Article compiler gate, enforces one-Idea flashcards, normalized Idea weights, deterministic typed question options, exactly one solution per question, complete multi-Idea relations, required ITB source identity, allowed ITB curation references, and mandatory Article to Diktat lineage dependencies. Every Product Bundle question is written as `itb_example`; the source event must match the allowed `soal_itb_referensi.source_label`. The same transaction projects the question into `ai_question_bank` so legacy quiz and tryout assembly can use it. Correct-answer markers remain in the private grading representation but are stripped from runtime hydration and vector payloads. Version greater than one uses a versioned physical target ID so the prior published row is not overwritten.
 

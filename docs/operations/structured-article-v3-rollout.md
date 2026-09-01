@@ -6,8 +6,8 @@ Status: `ACTIVE`. This runbook separates local preparation, staging mutation, de
 
 - Flag: `FEATURE_STRUCTURED_ARTICLE_READER_V1`, default `false`.
 - Owners: Akademik dan Konten together with the Zyx platform owner.
-- Scope: V3 submission requirement, V3 admin review surfaces, canonical student reader selection, and section progress writes.
-- Rollback: set the flag to `0`. V3 rows and artifacts remain stored, while V2 submission and the legacy reader become available again.
+- Scope: V3 submission requirement and V3 admin review surfaces.
+- Rollback: set the flag to `0`. V3 rows and artifacts remain stored, while V2 submission becomes available again. Published canonical content remains visible to students.
 - Removal condition: every active Article is V3 or has a recorded exception, no V2 submission has occurred for 14 days, and runtime plus visual checks pass.
 
 ## Local preparation
@@ -34,7 +34,7 @@ Staging database mutation, MCP regeneration, application deployment, and flag en
 8. Run route, console, HTTP, overflow, reader parity, and visual checks at 380 by 844 and 1536 by 864.
 9. Enable the flag only after all checks pass.
 
-Disabling the flag is the first rollback action. Data contraction is not part of rollback.
+Disabling the flag is the first authoring rollback action. It does not unpublish or hide canonical student content. Data contraction is not part of rollback.
 
 ## Production rollout
 

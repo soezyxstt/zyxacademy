@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
-import { studentConceptMastery, knowledgeObjects, knowledgeRelationships, studentConceptMasteryHistory } from "@/db/schema";
+import { ide, pemahamanIde, relasiIde, studentConceptMastery, knowledgeObjects, knowledgeRelationships, studentConceptMasteryHistory } from "@/db/schema";
 import { AnalyticsService } from "@/lib/analytics-service";
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { evaluateInterventions } from "@/lib/intervention-service";
 import { recomputeStudyPath } from "@/lib/study-path-service";
+import { resolveStudentCourse } from "@/lib/student/course-catalog";
 export { getIdeaMasteryWithFallback } from "@/lib/pemahaman/compatibility";
 
 export interface MasteryRow {
@@ -117,6 +118,61 @@ export async function recomputeMastery(studentId: string, courseId: string): Pro
  * Returns mastery rows for (studentId, courseId) sorted by masteryScore ascending.
  */
 export async function getMastery(studentId: string, courseId: string): Promise<MasteryRow[]> {
+  const course = await resolveStudentCourse(courseId);
+  if (course?.canonicalId) {
+    const ideaRows = await db
+      .select({
+        id: ide.id,
+        title: ide.canonicalStatement,
+        updatedAt: ide.updatedAt,
+        score: pemahamanIde.skor,
+        confidence: pemahamanIde.keyakinan,
+        evidenceCount: pemahamanIde.evidenceCount,
+        masteryUpdatedAt: pemahamanIde.updatedAt,
+      })
+      .from(ide)
+      .leftJoin(
+        pemahamanIde,
+        and(eq(pemahamanIde.ideId, ide.id), eq(pemahamanIde.penggunaId, studentId)),
+      )
+      .where(and(eq(ide.mataKuliahId, course.canonicalId), eq(ide.status, "published")));
+    if (ideaRows.length > 0) {
+      const ids = ideaRows.map((idea) => idea.id);
+      const relations = await db
+        .select({ sourceIdeaId: relasiIde.sourceIdeaId, targetIdeaId: relasiIde.targetIdeaId })
+        .from(relasiIde)
+        .where(
+          and(
+            eq(relasiIde.status, "active"),
+            eq(relasiIde.relationType, "prerequisite"),
+            inArray(relasiIde.targetIdeaId, ids),
+          ),
+        );
+      const titleById = new Map(ideaRows.map((idea) => [idea.id, idea.title]));
+      const scoreById = new Map(ideaRows.map((idea) => [idea.id, idea.score ?? 0]));
+      const blockedBy = new Map<string, string[]>();
+      for (const relation of relations) {
+        if ((scoreById.get(relation.sourceIdeaId) ?? 0) >= 40) continue;
+        const title = titleById.get(relation.sourceIdeaId);
+        if (!title) continue;
+        const current = blockedBy.get(relation.targetIdeaId) ?? [];
+        current.push(title);
+        blockedBy.set(relation.targetIdeaId, current);
+      }
+      return ideaRows
+        .map((idea) => ({
+          conceptName: idea.title,
+          masteryScore: idea.score ?? 0,
+          confidence: idea.confidence ?? 0,
+          evidenceCount: idea.evidenceCount ?? 0,
+          trend: null,
+          blockedBy: blockedBy.get(idea.id) ?? [],
+          lastEvidenceAt: idea.masteryUpdatedAt ?? idea.updatedAt,
+        }))
+        .sort((left, right) => left.masteryScore - right.masteryScore || left.conceptName.localeCompare(right.conceptName, "id"));
+    }
+  }
+
   const rows = await db
     .select()
     .from(studentConceptMastery)

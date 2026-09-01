@@ -6,9 +6,9 @@ import {
   kemajuanBacaArtikel,
   mataKuliah,
   bab,
+  diktatMateri,
 } from "@/db/schema";
 import { eq, and, or, inArray, asc } from "drizzle-orm";
-import { isStructuredArticleReaderEnabled } from "./feature";
 import {
   buildPublicArticleReadModel,
   type PublicArticleReadModel,
@@ -30,10 +30,13 @@ export interface CanonicalArticleSummary {
   updatedAt: Date;
 }
 
-/**
- * Checks if the FEATURE_STRUCTURED_ARTICLE_READER_V1 feature flag is enabled.
- */
-export { isStructuredArticleReaderEnabled } from "./feature";
+export interface CanonicalTextProduct {
+  id: string;
+  title: string;
+  contentMarkdown: string;
+  productType: "article" | "diktat";
+  chapterId: string | null;
+}
 
 /**
  * Resolves a canonical course record from either mataKuliah.id or mataKuliah.legacyCourseId.
@@ -61,10 +64,6 @@ export async function getCanonicalPublishedArticle(
   articleIdOrSlug: string,
   userId?: string,
 ): Promise<PublicArticleReadModel | null> {
-  if (!isStructuredArticleReaderEnabled()) {
-    return null;
-  }
-
   try {
     const matchedCourse = await findCanonicalMataKuliah(courseId);
     const validCourseIds = matchedCourse
@@ -87,6 +86,8 @@ export async function getCanonicalPublishedArticle(
     if (!articleRecord) {
       return null;
     }
+
+    if (articleRecord.structureStatus !== "structured") return null;
 
     // Resolve chapter ID if babId is present
     let chapterRecord: typeof bab.$inferSelect | null = null;
@@ -115,6 +116,8 @@ export async function getCanonicalPublishedArticle(
         ),
       )
       .orderBy(asc(bagianArtikel.orderIndex));
+
+    if (sections.length === 0) return null;
 
     // Fetch published blocks for this article version
     const blocks = await db
@@ -170,6 +173,76 @@ export async function getCanonicalPublishedArticle(
   }
 }
 
+export async function getCanonicalPublishedTextProduct(
+  courseId: string,
+  productId: string,
+): Promise<CanonicalTextProduct | null> {
+  try {
+    const matchedCourse = await findCanonicalMataKuliah(courseId);
+    if (!matchedCourse) return null;
+
+    const [articleRecord] = await db
+      .select({
+        id: artikel.id,
+        title: artikel.title,
+        contentMarkdown: artikel.contentMarkdown,
+        structureStatus: artikel.structureStatus,
+        babId: artikel.babId,
+        legacyChapterId: bab.legacyChapterId,
+      })
+      .from(artikel)
+      .leftJoin(bab, eq(artikel.babId, bab.id))
+      .where(
+        and(
+          eq(artikel.mataKuliahId, matchedCourse.id),
+          eq(artikel.status, "published"),
+          or(eq(artikel.id, productId), eq(artikel.slug, productId)),
+        ),
+      )
+      .limit(1);
+    if (articleRecord && articleRecord.structureStatus !== "structured") {
+      return {
+        id: articleRecord.id,
+        title: articleRecord.title,
+        contentMarkdown: articleRecord.contentMarkdown,
+        productType: "article",
+        chapterId: articleRecord.legacyChapterId ?? articleRecord.babId,
+      };
+    }
+
+    const [diktatRecord] = await db
+      .select({
+        id: diktatMateri.id,
+        title: diktatMateri.title,
+        contentMarkdown: diktatMateri.contentMarkdown,
+        babId: diktatMateri.babId,
+        legacyChapterId: bab.legacyChapterId,
+      })
+      .from(diktatMateri)
+      .leftJoin(bab, eq(diktatMateri.babId, bab.id))
+      .where(
+        and(
+          eq(diktatMateri.mataKuliahId, matchedCourse.id),
+          eq(diktatMateri.status, "published"),
+          eq(diktatMateri.id, productId),
+        ),
+      )
+      .limit(1);
+    return diktatRecord
+      ? {
+          id: diktatRecord.id,
+          title: diktatRecord.title,
+          contentMarkdown: diktatRecord.contentMarkdown,
+          productType: "diktat",
+          chapterId: diktatRecord.legacyChapterId ?? diktatRecord.babId,
+        }
+      : null;
+  } catch (error) {
+    console.error("Error fetching canonical text product:", error);
+    return null;
+  }
+}
+
 /**
  * Fetches all canonical published articles for a course, with progress and chapter mapping.
  */
@@ -177,10 +250,6 @@ export async function getCanonicalPublishedArticlesForCourse(
   courseId: string,
   userId?: string,
 ): Promise<CanonicalArticleSummary[]> {
-  if (!isStructuredArticleReaderEnabled()) {
-    return [];
-  }
-
   try {
     const matchedCourse = await findCanonicalMataKuliah(courseId);
     const validCourseIds = matchedCourse
@@ -258,13 +327,13 @@ export async function getCanonicalPublishedArticlesForCourse(
       const legacyChapterId = babItem?.legacyChapterId ?? null;
       const chapterId = legacyChapterId ?? a.babId ?? null;
 
-      const artSections = sectionsByArticle.get(a.id) ?? [];
+      const artSections = (sectionsByArticle.get(a.id) ?? []).filter((section) => section.version === a.version);
       const totalEstimatedReadingMinutes = artSections.reduce(
         (acc, s) => acc + (s.estimatedReadingMinutes || 3),
         0,
       );
 
-      const userProg = progressByArticle.get(a.id) ?? [];
+      const userProg = (progressByArticle.get(a.id) ?? []).filter((progress) => progress.artikelVersion === a.version);
       let completed = false;
       let completionPercent = 0;
 

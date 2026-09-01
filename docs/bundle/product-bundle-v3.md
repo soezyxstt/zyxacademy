@@ -28,4 +28,4 @@ Publication requires the approving admin to have approved every Article section 
 
 Admin and student previews use the same semantic section renderer. The admin model adds provenance, Idea IDs, dependencies, and review state. The student model omits all internal Idea and provenance identifiers.
 
-When `FEATURE_STRUCTURED_ARTICLE_READER_V1=1`, new Product Bundle submission must use V3 and canonical Article rows are preferred by the student material reader. Disabling the flag restores V2 submission and the legacy reader without deleting V3 data.
+When `FEATURE_STRUCTURED_ARTICLE_READER_V1=1`, new Product Bundle submission must use V3. The student material reader always prefers published canonical Article rows. Disabling the flag restores V2 submission without deleting V3 data or hiding published products.

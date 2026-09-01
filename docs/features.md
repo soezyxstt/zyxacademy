@@ -137,6 +137,14 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 8. Publication verifies current published Ideas, active source excerpts, identities, dependency freshness, and ITB source identity before one transaction writes products, links, dependencies, the legacy bank compatibility projection, canonical vector outbox entries, publication state, and mutation audit records. Question answer-key fields are removed from runtime and Vectorize content. Only articles, questions, and solutions request runtime vectors; flashcards, Diktat, and assessment blueprints do not create generic product vectors.
 9. The workflow is always-on. Legacy material, Diktat, and assessment-source CRUD is retired. Existing legacy rows remain available to compatibility readers, but new authoring must use Source Pack, Idea Bundle, Product Bundle, and the canonical Bank Soal flow.
 
+### Student canonical content
+
+1. `/dashboard`, `/courses`, course detail, search, material lists, mastery, Concept Explorer, study path, flashcards, leaderboard course selection, and profile enrollment read `mata_kuliah`, `bab`, `pendaftaran_murid`, and published Product Bundle tables first.
+2. Published Article and Diktat content is visible immediately after publication. Structured Article section progress uses `kemajuan_baca_artikel`; canonical flashcard scheduling uses `kemajuan_flashcard_murid` and append-only `review_flashcard` rows.
+3. Article, Diktat, flashcard, and canonical assessment activity records attributable Idea evidence and updates `pemahaman_ide`. Student mastery and study paths use published Ideas and active Idea relations first.
+4. Quiz and tryout templates, attempt snapshots, submissions, original PDFs, and historical generated materials remain compatibility readers. Their course identity is resolved through `legacyCourseId`, so they do not replace or duplicate a canonical course.
+5. The old `/murid` preview route redirects to `/dashboard`; there is one primary student experience.
+
 ### Question origin and citation
 
 1. `ai_question_bank` and canonical `soal` classify each row as `zyx_original` or `itb_example`. Manual and generated bank questions default to `zyx_original`; Product Bundle publication always writes `itb_example`.
@@ -498,9 +506,9 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 
 ## Structured Article authoring and reading
 
-`FEATURE_STRUCTURED_ARTICLE_READER_V1` enables the coordinated Idea Bundle V3 and Product Bundle V3 workflow. Admin Idea review uses an Idea queue, safe editor, and source evidence. Product Article review uses a section queue, the same semantic renderer as students, provenance, dependency state, and per-section decisions.
+`FEATURE_STRUCTURED_ARTICLE_READER_V1` enables coordinated Idea Bundle V3 and Product Bundle V3 authoring, submission, and review. Admin Idea review uses an Idea queue, safe editor, and source evidence. Product Article review uses a section queue, the same semantic renderer as students, provenance, dependency state, and per-section decisions. Published canonical content remains visible to students regardless of the authoring rollout flag.
 
-Students read one meaningful section at a time with stable slug links, chapter search, collapsible table of contents, reading estimates, semantic callouts, resume, completion progress, and titled previous or next navigation. Desktop limits prose to about 75 characters. Mobile controls use Sheets and occupy normal layout space. Search results show title and snippet, open the matching section, and apply a temporary visual highlight. The legacy reader remains the fallback while the flag is disabled or an Article is not structured.
+Students read one meaningful section at a time with stable slug links, chapter search, collapsible table of contents, reading estimates, semantic callouts, resume, completion progress, and titled previous or next navigation. Desktop limits prose to about 75 characters. Mobile controls use Sheets and occupy normal layout space. Search results show title and snippet, open the matching section, and apply a temporary visual highlight. The legacy reader remains a fallback only when no published canonical Article exists.
 
 A section completes at 90 percent read depth or when the reader proceeds from its end. Chapter progress is the count of completed sections divided by all sections. Student payloads never expose Idea IDs or internal provenance.
 

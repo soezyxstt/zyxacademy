@@ -6,23 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { studentQuizAttempts, courses, submissions, exams } from "@/db/schema";
+import { studentQuizAttempts, submissions, exams } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { AttemptReview } from "@/components/course/attempt-review";
 import { ReviewClient } from "./review-client";
 import { ZyraMark } from "@/components/course/zyra-mark";
+import { getCourse } from "@/lib/course-utils";
 
 type Props = { params: Promise<{ id: string; submissionId: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   return {
     title: pageTitle(course ? `${course.title} - Tinjau Jawaban` : "Tinjau Jawaban"),
@@ -33,11 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SubmissionReviewPage({ params }: Props) {
   const { id, submissionId } = await params;
   
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   if (!course) notFound();
 

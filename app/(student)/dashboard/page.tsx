@@ -27,9 +27,21 @@ import { env } from "@/lib/env";
 import { getMastery } from "@/lib/mastery-store";
 import { InterventionBanner } from "@/components/dashboard/intervention-banner";
 import { db } from "@/db";
-import { weeklyReflections, studentMaterialProgress, flashcardReviews, flashcards, flashcardSets, courses } from "@/db/schema";
+import {
+  weeklyReflections,
+  studentMaterialProgress,
+  flashcardReviews,
+  flashcards,
+  flashcardSets,
+  courses,
+  reviewFlashcard,
+  kemajuanFlashcardMurid,
+  flashcard as canonicalFlashcard,
+  setFlashcard,
+  mataKuliah,
+} from "@/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
-import { getCardsDueToday } from "@/lib/learning-analytics";
+import { getReviewQueue } from "@/lib/flashcard-actions";
 import { WeeklyReflection } from "@/components/dashboard/weekly-reflection";
 import { getOrUpdateStreak } from "@/lib/streak-service";
 import { ActivateClassModal } from "@/components/dashboard/activate-class-modal";
@@ -37,6 +49,7 @@ import { PageHeader } from "@/components/page-header";
 import { cn } from "@/lib/utils";
 import { StudentOnboardingView } from "@/components/dashboard/student-onboarding-view";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
+import { listStudentCourses } from "@/lib/student/course-catalog";
 
 export const metadata: Metadata = {
   title: pageTitle("Dashboard Siswa"),
@@ -76,7 +89,7 @@ export default async function DashboardPage() {
   }> = [];
 
   if (!isEnrolledInAny) {
-    const dbCourses = await db.select().from(courses);
+    const dbCourses = await listStudentCourses();
     const TEST_COURSE_IDS = new Set([
       "embed-test-course",
       "miscon-test-course",
@@ -218,7 +231,7 @@ export default async function DashboardPage() {
       )
     ) : [];
 
-  const inProgressDocuments = inProgressMaterialProgress
+  const compatibilityInProgressDocuments = inProgressMaterialProgress
     .map((record) => {
       for (const courseData of courseDataList) {
         const mat = courseData.materials.find((m) => m.id === record.materialId);
@@ -236,25 +249,72 @@ export default async function DashboardPage() {
       return null;
     })
     .filter((document) => document !== null);
+  const canonicalInProgressDocuments = courseDataList.flatMap((courseData) => {
+    const course = enrollments.find((enrollment) => enrollment.id === courseData.courseId);
+    return courseData.materials.flatMap((material) => {
+      const completionPercent = "completionPercent" in material && typeof material.completionPercent === "number"
+        ? material.completionPercent
+        : 0;
+      if (completionPercent <= 0 || completionPercent >= 100) return [];
+      return [{
+        ...material,
+        courseTitle: course?.title || "Course",
+        courseId: courseData.courseId,
+        completionPercent,
+        lastSectionId: null,
+      }];
+    });
+  });
+  const inProgressDocuments = [...new Map(
+    [...canonicalInProgressDocuments, ...compatibilityInProgressDocuments]
+      .map((document) => [document.id, document]),
+  ).values()];
 
-  const totalDueFlashcards = user?.id && isEnrolledInAny ? await getCardsDueToday(user.id) : 0;
+  const totalDueFlashcards = user?.id && isEnrolledInAny
+    ? (await Promise.all(enrollments.map((course) => getReviewQueue(user.id, course.id))))
+        .reduce((total, queue) => total + queue.length, 0)
+    : 0;
 
-  const recentReviews = user?.id && isEnrolledInAny ? await db
-    .select({
-      id: flashcardReviews.id,
-      grade: flashcardReviews.grade,
-      reviewedAt: flashcardReviews.reviewedAt,
-      front: flashcards.front,
-      back: flashcards.back,
-      courseTitle: courses.title,
-    })
-    .from(flashcardReviews)
-    .innerJoin(flashcards, eq(flashcardReviews.flashcardId, flashcards.id))
-    .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
-    .innerJoin(courses, eq(flashcardSets.courseId, courses.id))
-    .where(eq(flashcardReviews.studentId, user.id))
-    .orderBy(desc(flashcardReviews.reviewedAt))
-    .limit(5) : [];
+  const recentReviews = user?.id && isEnrolledInAny
+    ? (await Promise.all([
+        db
+          .select({
+            id: flashcardReviews.id,
+            grade: flashcardReviews.grade,
+            reviewedAt: flashcardReviews.reviewedAt,
+            front: flashcards.front,
+            back: flashcards.back,
+            courseTitle: courses.title,
+          })
+          .from(flashcardReviews)
+          .innerJoin(flashcards, eq(flashcardReviews.flashcardId, flashcards.id))
+          .innerJoin(flashcardSets, eq(flashcards.setId, flashcardSets.id))
+          .innerJoin(courses, eq(flashcardSets.courseId, courses.id))
+          .where(eq(flashcardReviews.studentId, user.id))
+          .orderBy(desc(flashcardReviews.reviewedAt))
+          .limit(5),
+        db
+          .select({
+            id: reviewFlashcard.id,
+            grade: reviewFlashcard.grade,
+            reviewedAt: reviewFlashcard.reviewedAt,
+            front: canonicalFlashcard.front,
+            back: canonicalFlashcard.back,
+            courseTitle: mataKuliah.title,
+          })
+          .from(reviewFlashcard)
+          .innerJoin(kemajuanFlashcardMurid, eq(reviewFlashcard.kemajuanFlashcardMuridId, kemajuanFlashcardMurid.id))
+          .innerJoin(canonicalFlashcard, eq(kemajuanFlashcardMurid.flashcardId, canonicalFlashcard.id))
+          .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+          .innerJoin(mataKuliah, eq(setFlashcard.mataKuliahId, mataKuliah.id))
+          .where(eq(kemajuanFlashcardMurid.penggunaId, user.id))
+          .orderBy(desc(reviewFlashcard.reviewedAt))
+          .limit(5),
+      ]))
+        .flat()
+        .sort((left, right) => right.reviewedAt.getTime() - left.reviewedAt.getTime())
+        .slice(0, 5)
+    : [];
 
   // 2. Available exams
   const availableExams = courseDataList.flatMap((courseData) => {
@@ -361,7 +421,7 @@ export default async function DashboardPage() {
                     const courseCompletedIds = progressList
                       .filter((p) => p.status === "completed")
                       .map((p) => p.materialId);
-                    const doneCount = materials.filter((m) => courseCompletedIds.includes(m.id)).length;
+                    const doneCount = materials.filter((m) => m.completed || courseCompletedIds.includes(m.id)).length;
                     const progressPct = materials.length > 0 ? Math.round((doneCount / materials.length) * 100) : 0;
 
                     return (
