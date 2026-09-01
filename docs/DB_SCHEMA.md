@@ -325,11 +325,13 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 * `id`, `code`, `title`, `status`
 * `legacyCourseId`: Optional compatibility reference to `courses.id`.
 * `createdAt`, `updatedAt`
+* Admin course create and update mirror `courses` and `mata_kuliah` transactionally. Admin delete removes the legacy projection and archives the canonical row.
 
 ### bab
 * `id`, `mataKuliahId`, `code`, `title`, `orderIndex`, `status`
 * `legacyChapterId`: Optional compatibility reference to `chapters.id`.
 * `(mataKuliahId, code)` and `(mataKuliahId, orderIndex)` are unique.
+* Admin chapter create, update, and reorder mirror `chapters` and `bab` transactionally. Admin delete removes the legacy projection, moves the canonical row out of the active order range, and archives it.
 
 ### pendaftaranMurid
 * `id`, `penggunaId`, `mataKuliahId`, `status`
@@ -339,6 +341,7 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 ### penugasanTutor
 * `id`, `penggunaId`, `mataKuliahId`, `status`, `assignmentScope`
 * `legacyTutorCourseId`: Optional compatibility reference to `tutor_courses.id`.
+* Replacing tutor course certifications revokes the previous canonical course assignments, replaces `tutor_courses`, and reactivates the selected `penugasan_tutor` rows in one transaction.
 
 ### sumberMateri
 * `id`, `mataKuliahId`, optional `babId`, `sourceType`, `title`
@@ -687,6 +690,8 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 ## 6. Assessment & Ingestion Domain
 
 ### assessmentSources
+Existing rows remain available to compatibility readers. Admin create, re-ingest, archive, restore, and delete endpoints are retired; new source-backed questions enter through Product Bundle and canonical Bank Soal.
+
 * `id`
 * `courseId`
 * `title`
@@ -778,6 +783,8 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 ## 7. Published Assets & Materials
 
 ### websiteMaterials
+Existing rows remain available to student and compatibility readers. The standalone Admin material CRUD is retired; new Articles are published through Product Bundle.
+
 * `id`
 * `courseId`
 * `chapterId`
@@ -820,6 +827,8 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `updatedAt`
 
 ### diktats
+Existing rows remain available to compatibility readers. The standalone Admin compiler CRUD is retired; new Diktat records are published through Product Bundle.
+
 * `id`
 * `courseId`
 * `sourceMtdId`
@@ -1479,6 +1488,8 @@ Structured mutation-audit envelope written by every guarded canonical transition
 * Unique index: `idx_submissions_user_exam_attempt` on `(userId, examId, attemptNumber)`.
 
 ### aiMaterialInstances
+These tables are read-only compatibility data. The Admin `material-instances` CRUD and retry endpoint return HTTP 410 after authorization.
+
 * `id`
 * `courseId`
 * `status`

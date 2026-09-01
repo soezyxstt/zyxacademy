@@ -47,6 +47,10 @@ import {
 } from "@/app/(tutor)/tutor/schedule/actions";
 import { recordMutationAudit } from "@/lib/audit/mutasi";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
+import {
+  dualWriteTutorAssignment,
+  revokeCanonicalTutorCourseAssignments,
+} from "@/lib/migrasi/repository-kompatibilitas";
 
 async function requireUser() {
   const h = await headers();
@@ -1411,17 +1415,22 @@ export async function updateTutorCourses(targetTutorId: string, courseIds: strin
   }
 
   try {
-    await db.delete(tutorCourses).where(eq(tutorCourses.tutorId, targetTutorId));
+    const uniqueCourseIds = [...new Set(courseIds)];
+    await db.transaction(async (tx) => {
+      await revokeCanonicalTutorCourseAssignments(tx, targetTutorId, currentUser.id);
+      await tx.delete(tutorCourses).where(eq(tutorCourses.tutorId, targetTutorId));
 
-    if (courseIds.length > 0) {
-      await db.insert(tutorCourses).values(
-        courseIds.map((courseId) => ({
-          id: randomUUID(),
-          tutorId: targetTutorId,
-          courseId,
-        }))
-      );
-    }
+      if (uniqueCourseIds.length === 0) return;
+      const assignments = uniqueCourseIds.map((courseId) => ({
+        id: randomUUID(),
+        tutorId: targetTutorId,
+        courseId,
+      }));
+      await tx.insert(tutorCourses).values(assignments);
+      for (const assignment of assignments) {
+        await dualWriteTutorAssignment(tx, { ...assignment, status: "active" }, currentUser.id);
+      }
+    });
 
     revalidatePath("/dashboard/schedule");
     revalidatePath("/admin/schedules");

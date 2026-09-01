@@ -158,6 +158,8 @@ flowchart LR
     R[Existing reads] --> LL
 ```
 
+Admin course and chapter CRUD uses `lib/academic/course-canonical-sync.ts`. Create, update, and reorder write `courses` or `chapters` together with `mata_kuliah` or `bab` in one transaction. Admin delete keeps the compatibility delete behavior while archiving the canonical entity and recording `audit_mutasi`, so published Idea and Product dependencies are not removed by a legacy cascade. Tutor course certification replacement revokes the prior canonical `penugasan_tutor` set and activates the new legacy projection in the same transaction. Existing compatibility reads remain in place until an explicit read cutover.
+
 The boundary covers material publication, flashcard review, quiz attempt start and submission, learning events with exact Idea identity, enrollment, tutor assignment, and Tutorial PKA progress. Target failures roll back the transaction. Compatibility reads remain available for historical rows, while new writes use the canonical repository.
 
 Plan 005 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
@@ -180,7 +182,7 @@ flowchart LR
     P --> X[audit_mutasi and publikasi_bundle]
 ```
 
-`impor_bundle` stores the checksum identity, legacy course association, and immutable validation report. `review_bundle` stores one immutable decision per reviewer. Publication is idempotent and compares existing target versions field by field; conflicts fail rather than overwrite. The transaction also inserts deterministic vector jobs for embedding-eligible source chunks and published Ideas. The Idea Bundle workflow is always-on, while the legacy importer remains the rollback path.
+`impor_bundle` stores the checksum identity, legacy course association, and immutable validation report. `review_bundle` stores one immutable decision per reviewer. Publication is idempotent and compares existing target versions field by field; conflicts fail rather than overwrite. The transaction also inserts deterministic vector jobs for embedding-eligible source chunks and published Ideas. The Idea Bundle workflow is always-on. Legacy Learning Bundle and Assessment Bundle admin importers are retired and reject new writes.
 
 The admin presentation boundary for this workflow is split into `/admin/materials/review` and `/admin/materials/manual`. The Review page contains separate `Source Pack + Idea` and `Product` tabs, a filtered inventory, and a compact upload dialog. Artifact cards use stored creation time, requested-by identity, and course association as the primary review context; bundle IDs and checksums remain secondary technical details. Review actions navigate to dedicated `/admin/materials/review/idea/[slug]` or `/admin/materials/review/product/[slug]` pages, where the three-step indicator, focused one-item editing, product-family separation, relation and dependency context, KaTeX previews, reviewer notes, server-side draft reconstruction, and lifecycle actions live. The Upload Manual page contains the paginated Source Pack handoff and the preserved Context Pack export as internal process choices.
 
@@ -282,7 +284,7 @@ flowchart LR
     T --> W[Audited withdrawal]
 ```
 
-The public lifecycle is `draft -> published -> withdrawn`. A draft may be replaced in place by the same bundle ID or deleted. Publishing creates or refreshes an internal approved review record as accountability evidence and commits canonical products atomically. Published bundles cannot be replaced or deleted. Withdrawal retains rows and audit history, marks learner-facing products inactive, and queues removal for vectorized article, question, and solution content. The Product Bundle workflow is always-on. Legacy assessment import remains available as a rollback path, while changed legacy Assessment Bundle sources are now written as new source versions instead of overwriting the prior source. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
+The public lifecycle is `draft -> published -> withdrawn`. A draft may be replaced in place by the same bundle ID or deleted. Publishing creates or refreshes an internal approved review record as accountability evidence and commits canonical products atomically. Published bundles cannot be replaced or deleted. Withdrawal retains rows and audit history, marks learner-facing products inactive, and queues removal for vectorized article, question, and solution content. The Product Bundle workflow is always-on. Legacy assessment-source imports and mutations are retired; existing rows remain readable only for compatibility. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
 
 The Product review inventory uses `/admin/materials/review`, while detail review uses `/admin/materials/review/product/[slug]`. Product-family tabs and a searchable navigator keep one product active at a time. Article student mode and the student Material Viewer share `ArticleReadingCanvas`; the admin view omits progress, completion, Zyra, and consumer modals. Block mode adds persistent review controls and a provenance inspector. Diktat uses compact renderer density only in admin preview. The shared Markdown parser protects mathematical, escaped, and inline-code pipe characters when splitting table rows.
 
@@ -583,6 +585,8 @@ Tutor clicks "Generate Questions" (/admin/ai/questions)
 ```
 
 ### B. Website Material Generation
+The legacy Admin CRUD and `material-instances` mutation API are retired. This flow remains documented only for compatibility readers and historical records. New authoring uses Source Pack, Idea Bundle, and Product Bundle.
+
 ```
 Tutor clicks "Generate Material" (for a chapter)
   → generateMarkdownForChapter() in material-generator.ts
@@ -611,6 +615,8 @@ Tutor generates flashcards per chapter
 ```
 
 ### D. Diktat (PDF) Generation
+The standalone Admin Diktat compiler and its server actions are retired. New Diktat content is authored, reviewed, and published as part of Product Bundle.
+
 ```
 Tutor compiles diktat in /admin/ai/diktats
   → diktat-generator.ts

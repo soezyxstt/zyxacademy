@@ -12,7 +12,7 @@ import {
   aiQuestionBank,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/uploadthing-admin";
-import { eq, asc, desc, and, inArray } from "drizzle-orm";
+import { eq, asc, desc, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
@@ -22,6 +22,13 @@ import {
   type CourseMaterialCategory,
   type CourseMaterialSubcategory,
 } from "@/lib/course-materials";
+import {
+  archiveChapterWithLegacyDeletion,
+  archiveCourseWithLegacyDeletion,
+  reorderChaptersWithCanonicalProjection,
+  saveChapterWithCanonicalProjection,
+  saveCourseWithCanonicalProjection,
+} from "@/lib/academic/course-canonical-sync";
 
 export async function getCourses() {
   await assertAdmin();
@@ -69,7 +76,7 @@ export async function saveCourse(
   description: string | null,
   isNew: boolean
 ) {
-  await assertAdmin();
+  const { user: admin } = await assertAdmin();
 
   const cleanId = id.trim().toLowerCase();
   const cleanTitle = title.trim();
@@ -90,29 +97,14 @@ export async function saveCourse(
   }
 
   try {
-    if (isNew) {
-      const existing = await db.query.courses.findFirst({
-        where: eq(courses.id, cleanId),
-      });
-      if (existing) {
-        return { success: false, error: "ID Mata Kuliah sudah terdaftar" };
-      }
-      await db.insert(courses).values({
-        id: cleanId,
-        title: cleanTitle,
-        category: cleanCategory as Category,
-        description: cleanDesc,
-      });
-    } else {
-      await db
-        .update(courses)
-        .set({
-          title: cleanTitle,
-          category: cleanCategory as Category,
-          description: cleanDesc,
-        })
-        .where(eq(courses.id, cleanId));
-    }
+    await saveCourseWithCanonicalProjection({
+      id: cleanId,
+      title: cleanTitle,
+      category: cleanCategory as Category,
+      description: cleanDesc,
+      isNew,
+      actorId: admin.id,
+    });
 
     revalidatePath("/admin/courses");
     revalidatePath(`/admin/courses/${cleanId}`);
@@ -122,15 +114,18 @@ export async function saveCourse(
     return { success: true };
   } catch (err: any) {
     console.error("Failed to save course:", err);
+    if (err instanceof Error && err.message === "COURSE_ALREADY_EXISTS") {
+      return { success: false, error: "ID Mata Kuliah sudah terdaftar" };
+    }
     return { success: false, error: "Terjadi kesalahan saat menyimpan mata kuliah" };
   }
 }
 
 export async function deleteCourse(id: string) {
-  await assertAdmin();
+  const { user: admin } = await assertAdmin();
 
   try {
-    await db.delete(courses).where(eq(courses.id, id));
+    await archiveCourseWithLegacyDeletion(id, admin.id);
 
     revalidatePath("/admin/courses");
     revalidatePath("/courses");
@@ -291,7 +286,7 @@ export async function saveChapter(
   orderIndex: number,
   description?: string | null
 ) {
-  await assertAdmin();
+  const { user: admin } = await assertAdmin();
 
   const cleanTitle = title.trim();
   const cleanDesc = description?.trim() || null;
@@ -301,43 +296,32 @@ export async function saveChapter(
   }
 
   try {
-    if (!id) {
-      const newId = randomUUID();
-      await db.insert(chapters).values({
-        id: newId,
-        courseId,
-        title: cleanTitle,
-        orderIndex,
-        description: cleanDesc,
-        status: "published",
-      });
-      revalidatePath("/admin/courses");
-      revalidatePath(`/admin/courses/${courseId}`);
-      revalidatePath(`/courses/${courseId}/material`);
-      return { success: true, chapter: { id: newId, courseId, title: cleanTitle, orderIndex, description: cleanDesc } };
-    } else {
-      await db
-        .update(chapters)
-        .set({
-          title: cleanTitle,
-          orderIndex,
-          description: cleanDesc,
-        })
-        .where(eq(chapters.id, id));
-    }
+    const result = await saveChapterWithCanonicalProjection({
+      id,
+      courseId,
+      title: cleanTitle,
+      orderIndex,
+      description: cleanDesc,
+      actorId: admin.id,
+    });
 
     revalidatePath("/admin/courses");
     revalidatePath(`/admin/courses/${courseId}`);
     revalidatePath(`/courses/${courseId}/material`);
-    return { success: true };
+    return {
+      success: true,
+      chapter: id
+        ? undefined
+        : { id: result.id, courseId, title: cleanTitle, orderIndex, description: cleanDesc },
+    };
   } catch (err: any) {
     console.error("Failed to save chapter:", err);
-    return { success: false, error: err.message || "Gagal menyimpan bab" };
+    return { success: false, error: "Gagal menyimpan bab" };
   }
 }
 
 export async function deleteChapter(id: string) {
-  await assertAdmin();
+  const { user: admin } = await assertAdmin();
 
   try {
     const [existing] = await db.select().from(chapters).where(eq(chapters.id, id)).limit(1);
@@ -345,7 +329,7 @@ export async function deleteChapter(id: string) {
       return { success: false, error: "Bab tidak ditemukan" };
     }
 
-    await db.delete(chapters).where(eq(chapters.id, id));
+    await archiveChapterWithLegacyDeletion(id, admin.id);
 
     revalidatePath("/admin/courses");
     revalidatePath(`/admin/courses/${existing.courseId}`);
@@ -358,21 +342,14 @@ export async function deleteChapter(id: string) {
 }
 
 export async function reorderChapters(courseId: string, chapterIds: string[]) {
-  await assertAdmin();
+  const { user: admin } = await assertAdmin();
 
   if (!courseId || !Array.isArray(chapterIds)) {
     return { success: false, error: "Data urutan bab tidak valid" };
   }
 
   try {
-    await db.transaction(async (tx) => {
-      for (let i = 0; i < chapterIds.length; i++) {
-        await tx
-          .update(chapters)
-          .set({ orderIndex: i + 1 })
-          .where(and(eq(chapters.id, chapterIds[i]), eq(chapters.courseId, courseId)));
-      }
-    });
+    await reorderChaptersWithCanonicalProjection(courseId, chapterIds, admin.id);
 
     revalidatePath("/admin/courses");
     revalidatePath(`/admin/courses/${courseId}`);

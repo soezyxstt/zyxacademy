@@ -5,9 +5,6 @@ import {
   courses,
   enrollmentTokens,
   groupMembers,
-  aiMaterialInstances,
-  aiMaterialInstanceChunks,
-  diktats,
   aiGenerationJobs,
   aiQuestionBank,
   quizTemplates,
@@ -26,7 +23,6 @@ import {
   Zap,
   ListChecks,
   ClipboardList,
-  Archive,
   Bell,
   Activity,
   GraduationCap,
@@ -60,8 +56,6 @@ export default async function AdminHomePage() {
   const [
     courseCountRes,
     tokenStatsRes,
-    materialStatsRes,
-    diktatCountRes,
     jobStatsRes,
     questionStatsRes,
     quizCountRes,
@@ -82,13 +76,6 @@ export default async function AdminHomePage() {
         })
         .from(groupMembers),
     ]),
-
-    Promise.all([
-      db.select({ count: sql<number>`count(*)` }).from(aiMaterialInstances),
-      db.select({ count: sql<number>`count(*)` }).from(aiMaterialInstanceChunks),
-    ]),
-
-    db.select({ count: sql<number>`count(*)` }).from(diktats),
 
     db.select({ status: aiGenerationJobs.status }).from(aiGenerationJobs),
 
@@ -135,13 +122,6 @@ export default async function AdminHomePage() {
   ).length;
   const tokenStat = `${totalTokens} issued, ${redeemedTodayCount} diklaim hari ini`;
 
-  const totalMaterials = materialStatsRes[0][0]?.count ?? 0;
-  const totalChunks = materialStatsRes[1][0]?.count ?? 0;
-  const materialStat = `${totalMaterials} dokumen (${totalChunks} segmen)`;
-
-  const totalDiktats = diktatCountRes[0]?.count ?? 0;
-  const diktatStat = `${totalDiktats} diktat terbit`;
-
   const runningJobs = jobStatsRes.filter(
     (j) => j.status === "pending" || j.status === "processing"
   ).length;
@@ -183,20 +163,12 @@ export default async function AdminHomePage() {
           stat: courseStat,
         },
         {
-          title: "Materi & Dokumen",
+          title: "Review Materi",
           icon: BookText,
           iconColor: "text-tertiary-1",
-          href: "/admin/materials",
-          label: "Kelola materi",
-          stat: materialStat,
-        },
-        {
-          title: "Kompilasi Diktat",
-          icon: Archive,
-          iconColor: "text-brand-primary",
-          href: "/admin/diktats",
-          label: "Buka kompilator diktat",
-          stat: diktatStat,
+          href: "/admin/materials/review",
+          label: "Review Idea dan Product Bundle",
+          stat: "Workflow canonical",
         },
         {
           title: "Kelola Blog",

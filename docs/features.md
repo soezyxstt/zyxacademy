@@ -91,7 +91,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 2. The review page is a searchable, filterable inventory by course, author, and status. Artifact cards lead with course, creation time, author, and content summary; bundle IDs and checksums remain secondary technical details. `Buka review` navigates to `/admin/materials/review/idea/[slug]`, where the three-step workflow, Idea list, relations, source evidence, KaTeX preview, focused one-Idea editing, reviewer note, approval, rejection, and publication actions are presented together.
 3. The detail page reads the staged ZIP from R2 and reconstructs the validated preview before showing it. Stable identities and source spans stay locked. Identical upload retries are no-ops and a different checksum for the same bundle ID is blocked.
 4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically.
-5. The workflow is always-on; the legacy JSON importer remains visible for rollback.
+5. The workflow is always-on. The legacy Learning Bundle and Assessment Bundle importers are retired and reject new writes.
 
 ### Upload Manual and Authoring Context Pack V1
 
@@ -112,6 +112,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 4. `source.read_file` reads one current `fileKey`. Page mode returns extracted text plus PNG page images at 1280 px, up to four pages per call, so scanned pages and instructional visuals remain available to the agent. Blob mode embeds an `application/pdf` resource up to 32 MiB and is an explicit fallback after a page-read failure or timeout.
 5. `source.ingest` accepts a base64 Source Pack plus either ephemeral `originals`, server-resolved `storedOriginals`, or a unique mix of both. Stored PDFs may be up to 50 MiB and all originals together may be up to 96 MiB. The same checksum, content, and ZIP quality gates apply; stored references additionally bind the Source Pack token to their course and chapter.
 6. Course and chapter choices use short-lived signed keys, and stored file references use encrypted short-lived keys, so agents and operators do not exchange raw internal IDs or storage keys. `workflow.start` rejects a stored-source scope mismatch and returns a scoped run token and workflow contract.
+   Admin course and chapter CRUD keeps these choices current by mirroring every exact legacy mutation to `mata_kuliah` and `bab` in the same database transaction. MCP catalog calls query those canonical rows at request time without an application cache.
 7. Idea Bundle and Product Bundle validation combines technical compatibility with repository content-quality gates. Idea checks include meaningful source coverage, provenance coverage, duplicate candidates, and formula trace warnings. Product checks include published Idea scope, dependency freshness, Article depth, Diktat coverage, examples, visuals, retrieval, traps, formulas, and ITB provenance.
 8. For `quiz_bank`, `assessment.list_ideas` returns the published Idea catalog of the locked course and chapter with free-text query, knowledge kind, instructional role, and difficulty level filters plus distribution facets and offset paging. `assessment.get_idea` returns one Idea with active relations in both directions and a provenance summary so agents can respect prerequisites before linking. The workflow contract exposes scope guidance enumerating difficulty, cognitive level, question type, idea role, tag rules, and weight rules.
 9. Draft V2 accepts optional Idea links per question; linked weights must sum to 100%. `assessment.validate_quiz_draft` aggregates every blocking issue and warning in one response instead of failing on the first error. It reports difficulty, cognitive level, question type, and tag distributions plus per-Idea coverage so agents can close gaps before submission. Warnings include coverage gaps for uncovered catalog Ideas and empty explanations; blocking issues include duplicate draft IDs, malformed questions, duplicate answer keys, duplicate or out-of-scope Idea links, invalid weights, and unpublished Ideas. Valid submission writes `soal`, optional `soal_ide`, `pembahasan_soal`, the `ai_question_bank` compatibility projection, and an audit row in one transaction with `reviewStatus=generated`. The staging actor is derived from the authenticated admin principal and no MCP tool can publish content.
@@ -134,7 +135,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 6. Every Diktat declares its source Article ID, version, and generation hash. The bundle must include the matching Article dependency so the Diktat cannot silently drift from its Article.
 7. Product Bundle lifecycle is only `draft -> published -> withdrawn`. Explicit save stores a draft. Article block status and notes are stored immediately outside the ZIP for the active reviewer. They become immutable after that reviewer submits a bundle decision. Pending blocks and blocks marked `changes_requested` produce an approval warning but do not block approval or publication. Restaging or discarding a draft removes the old block review markers. A draft can be replaced with the same bundle ID, deleted, or published directly by an admin. Published bundles cannot be overwritten. Withdrawal keeps canonical and audit history while removing the products from active publication state.
 8. Publication verifies current published Ideas, active source excerpts, identities, dependency freshness, and ITB source identity before one transaction writes products, links, dependencies, the legacy bank compatibility projection, canonical vector outbox entries, publication state, and mutation audit records. Question answer-key fields are removed from runtime and Vectorize content. Only articles, questions, and solutions request runtime vectors; flashcards, Diktat, and assessment blueprints do not create generic product vectors.
-9. The workflow is always-on; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
+9. The workflow is always-on. Legacy material, Diktat, and assessment-source CRUD is retired. Existing legacy rows remain available to compatibility readers, but new authoring must use Source Pack, Idea Bundle, Product Bundle, and the canonical Bank Soal flow.
 
 ### Question origin and citation
 
@@ -159,6 +160,8 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 5. Admin previews expose block-level Idea and source traceability plus stable quality-gate reason codes. The material quality gate is always applied during review and publication.
 
 ### Website Material Generation
+The standalone Admin material editor is retired. Existing website material remains readable for compatibility, while new material is published through Product Bundle.
+
 1. All KOs for a chapter are collected in order
 2. Gemini compiles them into canonical markdown with custom containers (`:::concept`, `:::formula`, `:::misconception`)
 3. Custom compiler parses markdown → AST → interactive web page
@@ -194,17 +197,13 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Generated questions persisted with `qualityScore: null` (unverified) until independent verification
 
 ### Diktat PDF Compilation
-- Teacher selects chapters
-- System fetches KOs, formats into JSON config
-- HTML rendered with KaTeX math
-- Puppeteer compiles to A4 PDF, uploaded to R2
+- The standalone Admin Diktat compiler is retired.
+- New Diktat is authored from an approved Article inside Product Bundle, reviewed at `/admin/materials/review`, and published through the canonical bundle lifecycle.
 
 ### Bundle Import Pipeline
-- Split JSON format: Learning Bundle (chapters, KOs, flashcards) + Assessment Bundle (exams)
-- Learning Bundle imported first to create course/chapter shell
-- Assessment Bundle references chapters by title (not $id)
-- Incremental re-import with upsert/append/create modes
-- Post-processing: concept mapping, vector sync, assessment profile recompute
+- Legacy Learning Bundle and Assessment Bundle Admin importers are retired.
+- Direct server-action calls fail closed with a retirement message.
+- Source Pack, Idea Bundle, and Product Bundle are the supported authoring pipeline.
 
 ### PKA Tutorial Campaign
 - Free multi-stage simulation for incoming freshmen

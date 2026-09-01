@@ -203,10 +203,37 @@ export async function dualWriteTutorAssignment(
     assignmentScope: "course",
     legacyTutorCourseId: assignment.id,
   }).onConflictDoUpdate({
-    target: penugasanTutor.legacyTutorCourseId,
-    set: { penggunaId: assignment.tutorId, mataKuliahId, status: assignment.status ?? "active" },
+    target: [penugasanTutor.penggunaId, penugasanTutor.mataKuliahId, penugasanTutor.assignmentScope],
+    set: {
+      legacyTutorCourseId: assignment.id,
+      status: assignment.status ?? "active",
+      updatedAt: new Date(),
+    },
   });
   await audit(tx, "tutor_assignment", assignment.id, "dual_write", { legacyId: assignment.id, mataKuliahId, status: assignment.status ?? "active" }, actorId, `${assignment.id}:${assignment.status ?? "active"}`);
+}
+
+/** Revoke current course assignments before replacing the legacy projection. */
+export async function revokeCanonicalTutorCourseAssignments(
+  tx: CompatibilityTx,
+  tutorId: string,
+  actorId?: string | null,
+): Promise<void> {
+  if (!isEnabled()) return;
+  await requirePengguna(tx, tutorId);
+  await tx
+    .update(penugasanTutor)
+    .set({ status: "revoked", legacyTutorCourseId: null, updatedAt: new Date() })
+    .where(and(eq(penugasanTutor.penggunaId, tutorId), eq(penugasanTutor.assignmentScope, "course")));
+  await audit(
+    tx,
+    "tutor_assignment",
+    tutorId,
+    "dual_write_revoke_all",
+    { tutorId, assignmentScope: "course", status: "revoked" },
+    actorId,
+    `${tutorId}:revoke_all`,
+  );
 }
 
 /** Mirror the legacy SM-2 state and immutable review event. */
