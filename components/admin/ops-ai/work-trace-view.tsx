@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import {
-  Clock,
+  ChevronRight,
+  ChevronDown,
   Loader2,
-  CheckCircle2,
   AlertCircle,
   XCircle,
-  ChevronDown,
-  ChevronUp,
-  Activity,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import type { OpsAiWorkStep, OpsAiStepStatus } from "@/lib/admin-ops-ai/contracts";
 import { cn } from "@/lib/utils";
@@ -25,37 +24,37 @@ function getStatusBadge(status: OpsAiStepStatus) {
       return {
         label: "Menunggu",
         badgeClass: "bg-muted text-muted-foreground border-border/60",
-        icon: <Clock className="size-3.5 shrink-0 text-muted-foreground" />,
+        icon: <Clock className="size-3 text-muted-foreground shrink-0" />,
       };
     case "running":
       return {
         label: "Berjalan",
         badgeClass: "bg-primary/10 text-primary border-primary/30",
-        icon: <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" />,
+        icon: <Loader2 className="size-3 animate-spin text-primary shrink-0" />,
       };
     case "completed":
       return {
         label: "Selesai",
         badgeClass: "bg-status-success/15 text-status-success border-status-success/30",
-        icon: <CheckCircle2 className="size-3.5 shrink-0 text-status-success" />,
+        icon: <span className="text-muted-foreground shrink-0 select-none">→</span>,
       };
     case "failed":
       return {
         label: "Gagal",
         badgeClass: "bg-destructive/15 text-destructive border-destructive/30",
-        icon: <AlertCircle className="size-3.5 shrink-0 text-destructive" />,
+        icon: <AlertCircle className="size-3 text-destructive shrink-0" />,
       };
     case "cancelled":
       return {
         label: "Dibatalkan",
         badgeClass: "bg-muted text-muted-foreground border-border/60",
-        icon: <XCircle className="size-3.5 shrink-0 text-muted-foreground" />,
+        icon: <XCircle className="size-3 text-muted-foreground shrink-0" />,
       };
     default:
       return {
         label: status,
         badgeClass: "bg-muted text-muted-foreground border-border/60",
-        icon: <Clock className="size-3.5 shrink-0 text-muted-foreground" />,
+        icon: <span className="text-muted-foreground shrink-0 select-none">→</span>,
       };
   }
 }
@@ -69,7 +68,6 @@ function formatDuration(durationMs?: number): string {
 export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     if (typeof defaultExpanded === "boolean") return defaultExpanded;
-    // Keep expanded by default if currently running or failed
     return Boolean(steps?.some((s) => s.status === "running" || s.status === "failed"));
   });
 
@@ -79,102 +77,84 @@ export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
 
   const isRunning = steps.some((s) => s.status === "running");
   const hasFailed = steps.some((s) => s.status === "failed");
-  const isCancelled = steps.some((s) => s.status === "cancelled");
-  const completedCount = steps.filter((s) => s.status === "completed").length;
-
-  let summaryStatusText = `Selesai (${completedCount}/${steps.length} langkah)`;
-  if (isRunning) {
-    summaryStatusText = "Sedang memproses langkah audit...";
-  } else if (hasFailed) {
-    summaryStatusText = "Peringatan pada langkah audit";
-  } else if (isCancelled) {
-    summaryStatusText = "Langkah audit dibatalkan";
-  }
+  const runningStep = steps.find((s) => s.status === "running");
 
   return (
-    <div className="rounded-lg border border-border/70 bg-card/50 p-2.5 shadow-xs">
+    <div className="text-body-xs font-sans text-muted-foreground/90 my-2 select-text">
+      {/* Collapsible toggle header (Cloudflare style: > Jejak Kerja Audit) */}
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
         aria-expanded={isExpanded}
         aria-label="Buka atau tutup jejak kerja audit"
-        className="flex w-full items-start sm:items-center justify-between gap-2 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md"
+        className="group inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 focus-visible:outline-none"
       >
-        <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1">
-          <div className="flex size-6 items-center justify-center rounded-md bg-muted text-foreground shrink-0 mt-0.5 sm:mt-0">
-            {isRunning ? (
-              <Loader2 className="size-3.5 animate-spin text-primary" />
-            ) : hasFailed ? (
-              <AlertCircle className="size-3.5 text-destructive" />
-            ) : (
-              <Activity className="size-3.5 text-primary" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="font-heading text-body-xs font-bold text-foreground block leading-snug break-words">
-              Jejak Kerja Audit
-            </span>
-            <span className="text-[11px] text-muted-foreground block leading-tight mt-0.5">
-              {summaryStatusText}
-            </span>
-          </div>
-        </div>
+        {isExpanded ? (
+          <ChevronDown className="size-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+        ) : (
+          <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+        )}
 
-        <div className="flex items-center gap-1.5 shrink-0 mt-0.5 sm:mt-0">
-          <span className="rounded-md border border-border/80 bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
-            {steps.length} langkah
-          </span>
-          {isExpanded ? (
-            <ChevronUp className="size-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="size-4 text-muted-foreground" />
+        <span className="font-heading text-body-xs font-bold text-foreground block leading-snug break-words">
+          <span>Jejak Kerja Audit ({steps.length} langkah)</span>
+          {isRunning && runningStep && (
+            <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] text-primary font-normal font-sans">
+              <Loader2 className="size-2.5 animate-spin" />
+              <span>{runningStep.title}</span>
+            </span>
           )}
-        </div>
+        </span>
       </button>
 
+      {/* Expanded list with clean -> arrow items */}
       {isExpanded && (
-        <div className="mt-2.5 space-y-2 border-t border-border/50 pt-2.5">
+        <div className="mt-1.5 pl-2 border-l border-border/50 space-y-1 text-[11px] font-mono leading-relaxed text-muted-foreground">
           {steps.map((step) => {
             const badge = getStatusBadge(step.status);
-            const durationStr = formatDuration(step.durationMs);
+            const duration = formatDuration(step.durationMs);
 
             return (
-              <div
-                key={step.stepId}
-                className="flex items-start justify-between gap-2 rounded-md bg-background/80 p-2 border border-border/50 text-body-xs"
-              >
-                <div className="flex items-start gap-2 min-w-0 flex-1">
-                  <div className="mt-0.5 shrink-0">{badge.icon}</div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-body-xs font-medium text-foreground leading-snug">
+              <div key={step.stepId} className="flex items-start gap-1.5 group">
+                <div className="mt-0.5">{badge.icon}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        "break-words",
+                        step.status === "running" && "text-primary font-medium",
+                        step.status === "failed" && "text-destructive",
+                        step.status === "completed" && "text-foreground/85"
+                      )}
+                    >
                       {step.title}
-                    </p>
-                    {step.detail && (
-                      <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
-                        {step.detail}
-                      </p>
-                    )}
-                    {step.error && (
-                      <p className="mt-0.5 text-[11px] text-destructive">
-                        {step.error}
-                      </p>
+                    </span>
+
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-sm border px-1 py-0.2 text-[9px] font-semibold leading-tight font-sans",
+                        badge.badgeClass
+                      )}
+                    >
+                      {badge.label}
+                    </span>
+
+                    {duration && (
+                      <span className="text-[10px] text-muted-foreground/60 shrink-0">
+                        ({duration})
+                      </span>
                     )}
                   </div>
-                </div>
 
-                <div className="flex flex-col items-end gap-1 shrink-0">
-                  <span
-                    className={cn(
-                      "inline-flex items-center rounded-md border px-1.5 py-0.2 text-[10px] font-semibold leading-tight",
-                      badge.badgeClass
-                    )}
-                  >
-                    {badge.label}
-                  </span>
-                  {durationStr && (
-                    <span className="text-[10px] font-mono text-muted-foreground">
-                      {durationStr}
-                    </span>
+                  {step.detail && (
+                    <p className="text-[10px] text-muted-foreground/80 pl-2 mt-0.5 line-clamp-2 font-sans">
+                      {step.detail}
+                    </p>
+                  )}
+
+                  {step.error && (
+                    <p className="text-[10px] text-destructive pl-2 mt-0.5 font-sans">
+                      {step.error}
+                    </p>
                   )}
                 </div>
               </div>

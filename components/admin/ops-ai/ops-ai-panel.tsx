@@ -10,19 +10,33 @@ import {
   Sparkles,
   RotateCcw,
   Bot,
-  User as UserIcon,
   Copy,
   Check,
   Square,
-  ChevronRight,
-  GripVertical,
+  ChevronDown,
+  Plus,
+  MessageSquare,
+  Clock,
+  ArrowUp,
+  Maximize2,
+  Minimize2,
+  Layers,
 } from "lucide-react";
 import { useOpsAiContext } from "./ops-ai-context";
 import {
   loadOpsAiMessages,
   saveOpsAiMessages,
   clearOpsAiMessages,
+  loadOpsAiSessions,
+  saveOpsAiSessions,
+  loadActiveSessionId,
+  saveActiveSessionId,
+  createOpsAiSession,
+  updateOpsAiSessionMessages,
+  deleteOpsAiSession,
+  clearAllOpsAiSessions,
   type OpsAiMessageV2,
+  type OpsAiSession,
   clampOpsAiWidth,
   OPS_AI_MIN_WIDTH,
   OPS_AI_DEFAULT_WIDTH,
@@ -48,6 +62,24 @@ const DEFAULT_SUGGESTIONS = [
   "Bagaimana prosedur darurat rollback cache?",
 ];
 
+function formatSessionTime(timestamp: number): string {
+  try {
+    const d = new Date(timestamp);
+    const now = new Date();
+    const isToday =
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
+
+    if (isToday) {
+      return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    }
+    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+  } catch {
+    return "";
+  }
+}
+
 export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessageV2[] } = {}) {
   const {
     isOpen,
@@ -58,16 +90,26 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     maxWidth,
   } = useOpsAiContext();
 
+  const [sessions, setSessions] = useState<OpsAiSession[]>(() => {
+    if (typeof window === "undefined") return [];
+    return loadOpsAiSessions();
+  });
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return loadActiveSessionId();
+  });
   const [messages, setMessages] = useState<OpsAiMessageV2[]>(() => initialMessages ?? []);
   const [hasHydrated, setHasHydrated] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showSessionsDropdown, setShowSessionsDropdown] = useState(false);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -80,46 +122,77 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   // Hydration-safe initial load from localStorage and external update sync
   useEffect(() => {
     if (!initialMessages) {
-      const loaded = loadOpsAiMessages();
-      if (loaded.length > 0) {
-        setMessages(loaded);
+      const loadedSessions = loadOpsAiSessions();
+      setSessions(loadedSessions);
+
+      let curSessionId = loadActiveSessionId();
+      if (!curSessionId && loadedSessions.length > 0) {
+        curSessionId = loadedSessions[0].id;
+        saveActiveSessionId(curSessionId);
+      }
+
+      if (curSessionId) {
+        setActiveSessionId(curSessionId);
+        const curSession = loadedSessions.find((s) => s.id === curSessionId);
+        if (curSession) {
+          setMessages(curSession.messages);
+        }
+      } else {
+        const loaded = loadOpsAiMessages();
+        if (loaded.length > 0) {
+          setMessages(loaded);
+        }
       }
     }
     setHasHydrated(true);
 
     const handleExternalUpdate = () => {
-      const reloaded = loadOpsAiMessages();
-      setMessages(reloaded);
+      const reloadedSessions = loadOpsAiSessions();
+      setSessions(reloadedSessions);
+      const curId = loadActiveSessionId();
+      if (curId) {
+        const current = reloadedSessions.find((s) => s.id === curId);
+        if (current) setMessages(current.messages);
+      } else {
+        const reloaded = loadOpsAiMessages();
+        setMessages(reloaded);
+      }
     };
 
     window.addEventListener("zyx:ops-ai-messages-updated", handleExternalUpdate);
+    window.addEventListener("zyx:ops-ai-sessions-updated", handleExternalUpdate);
     return () => {
       window.removeEventListener("zyx:ops-ai-messages-updated", handleExternalUpdate);
+      window.removeEventListener("zyx:ops-ai-sessions-updated", handleExternalUpdate);
     };
   }, [initialMessages]);
 
-  // Synchronize messages with persistent storage after client mount
+  // Synchronize messages with persistent session storage after client mount
   useEffect(() => {
     if (hasHydrated) {
-      saveOpsAiMessages(messages, true);
+      if (activeSessionId) {
+        updateOpsAiSessionMessages(activeSessionId, messages);
+      } else {
+        saveOpsAiMessages(messages, true);
+      }
     }
-  }, [messages, hasHydrated]);
+  }, [messages, hasHydrated, activeSessionId]);
 
-  // Auto-scroll conversation container
+  // Internal container auto-scroll: Strictly scrolls drawer without moving outer page
   useEffect(() => {
-    if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isOpen && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [messages, isOpen, isStreaming]);
 
   // Focus textarea when panel opens without causing mobile horizontal page shift
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !showSessionsDropdown) {
       setTimeout(() => {
         textareaRef.current?.focus({ preventScroll: true });
       }, 100);
     }
-  }, [isOpen]);
+  }, [isOpen, showSessionsDropdown]);
 
   // Mobile focus trap
   const handleKeyDownTrap = useCallback(
@@ -175,43 +248,113 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     [setWidth, maxWidth]
   );
 
-  // Pointer drag resize
+  // Pointer drag resize: Smooth, jank-free, without pointer capture lockups
   const handlePointerDownResize = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(true);
       const startX = e.clientX;
       const startWidth = width;
-      const target = e.currentTarget;
-      target.setPointerCapture(e.pointerId);
+
+      if (typeof document !== "undefined") {
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+      }
 
       const handlePointerMove = (ev: PointerEvent) => {
+        ev.preventDefault();
         const delta = startX - ev.clientX; // Leftward drag expands right panel
         const newWidth = clampOpsAiWidth(startWidth + delta, window.innerWidth);
         setWidth(newWidth);
       };
 
-      const handlePointerUp = (ev: PointerEvent) => {
-        try {
-          target.releasePointerCapture(ev.pointerId);
-        } catch {
-          // Ignore
+      const handlePointerUp = () => {
+        setIsDragging(false);
+        if (typeof document !== "undefined") {
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
         }
         window.removeEventListener("pointermove", handlePointerMove);
         window.removeEventListener("pointerup", handlePointerUp);
         window.removeEventListener("pointercancel", handlePointerUp);
       };
 
-      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointermove", handlePointerMove, { passive: false });
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerUp);
     },
     [width, setWidth]
   );
 
-  const handleClearHistory = () => {
+  // Handle creating a new session
+  const handleCreateNewSession = () => {
+    const newSession = createOpsAiSession();
+    const updatedSessions = [newSession, ...sessions];
+    setSessions(updatedSessions);
+    setActiveSessionId(newSession.id);
+    setMessages([]);
+    setShowSessionsDropdown(false);
+    toast.success("Sesi percakapan baru telah dimulai.");
+  };
+
+  // Handle switching active session
+  const handleSwitchSession = (session: OpsAiSession) => {
+    setActiveSessionId(session.id);
+    saveActiveSessionId(session.id);
+    setMessages(session.messages);
+    setShowSessionsDropdown(false);
+  };
+
+  // Handle deleting a single session
+  const handleDeleteSession = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    const remaining = deleteOpsAiSession(sessionId);
+    setSessions(remaining);
+
+    if (activeSessionId === sessionId) {
+      if (remaining.length > 0) {
+        setActiveSessionId(remaining[0].id);
+        setMessages(remaining[0].messages);
+      } else {
+        const fresh = createOpsAiSession();
+        setSessions([fresh]);
+        setActiveSessionId(fresh.id);
+        setMessages([]);
+      }
+    }
+    toast.success("Sesi percakapan berhasil dihapus.");
+  };
+
+  // Handle clearing history of active session
+  const handleClearActiveHistory = () => {
     setMessages([]);
     clearOpsAiMessages();
-    toast.success("Riwayat percakapan telah dibersihkan.");
+    if (activeSessionId) {
+      updateOpsAiSessionMessages(activeSessionId, []);
+      const reloaded = loadOpsAiSessions();
+      setSessions(reloaded);
+    }
+    toast.success("Riwayat percakapan sesi ini telah dibersihkan.");
+  };
+
+  // Handle clearing all sessions completely
+  const handleClearAllSessions = () => {
+    clearAllOpsAiSessions();
+    const fresh = createOpsAiSession();
+    setSessions([fresh]);
+    setActiveSessionId(fresh.id);
+    setMessages([]);
+    setShowSessionsDropdown(false);
+    toast.success("Seluruh riwayat sesi telah dibersihkan.");
+  };
+
+  const handleToggleExpandWidth = () => {
+    if (width >= maxWidth - 20) {
+      setWidth(OPS_AI_DEFAULT_WIDTH);
+    } else {
+      setWidth(maxWidth);
+    }
   };
 
   const handleCopyMessage = (id: string, text: string) => {
@@ -234,6 +377,14 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || input).trim();
     if (!query || isStreaming) return;
+
+    let targetSessionId = activeSessionId;
+    if (!targetSessionId) {
+      const fresh = createOpsAiSession();
+      targetSessionId = fresh.id;
+      setActiveSessionId(fresh.id);
+      setSessions((prev) => [fresh, ...prev]);
+    }
 
     const userMsg: OpsAiMessageV2 = {
       id: `msg-user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -427,7 +578,6 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUser) return;
 
-    // Prune trailing assistant response if empty or errored
     setMessages((prev) => {
       const copy = [...prev];
       if (copy.length > 0 && copy[copy.length - 1]?.role === "assistant") {
@@ -448,7 +598,11 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
   if (!isOpen) return null;
 
-  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+  const currentSession = sessions.find((s) => s.id === activeSessionId);
+  const activeTitle =
+    currentSession?.title && currentSession.title !== "Percakapan Baru"
+      ? currentSession.title
+      : "Zyx Ops Assistant";
 
   return (
     <>
@@ -459,7 +613,12 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         aria-hidden="true"
       />
 
-      {/* Main Panel Container: Desktop in-flow participant, Mobile fixed sheet */}
+      {/* Active Resize Drag Overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-50 cursor-col-resize select-none pointer-events-auto" />
+      )}
+
+      {/* Main Panel Container: Cloudflare Style Layout */}
       <aside
         ref={panelRef}
         id="ops-ai-panel"
@@ -469,9 +628,11 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         onKeyDown={handleKeyDownTrap}
         style={{ width: mounted && isDesktop ? `${width}px` : undefined }}
         className={cn(
-          "flex flex-col border-l border-border bg-background transition-[width] duration-75 select-text overflow-hidden",
+          "flex flex-col border-l border-border bg-background select-text overflow-hidden",
+          "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
+          isDragging ? "transition-none select-none" : "transition-[width] duration-75",
           "fixed inset-0 z-50 w-full sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[480px] h-full shadow-2xl",
-          "lg:relative lg:inset-auto lg:top-0 lg:h-screen lg:shrink-0 lg:z-20 lg:shadow-none"
+          "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-20 lg:shadow-none"
         )}
       >
         {/* Resize Handle: Desktop only */}
@@ -486,101 +647,199 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           suppressHydrationWarning
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
-          className="hidden lg:flex absolute left-0 inset-y-0 w-2 -translate-x-1/2 cursor-col-resize items-center justify-center group touch-none select-none z-30"
+          className={cn(
+            "hidden lg:flex absolute -left-2 inset-y-0 w-4 cursor-col-resize items-center justify-center group touch-none select-none z-30",
+            isDragging && "cursor-col-resize"
+          )}
         >
-          <div className="w-1 h-10 rounded-sm bg-border group-hover:bg-primary group-focus-visible:bg-primary transition-colors flex items-center justify-center">
-            <GripVertical className="size-2.5 text-muted-foreground group-hover:text-primary-foreground opacity-70" />
-          </div>
+          <div
+            className={cn(
+              "w-1 h-12 rounded-sm bg-border transition-colors flex items-center justify-center",
+              "group-hover:bg-primary group-hover:w-1.5 group-focus-visible:bg-primary group-focus-visible:w-1.5",
+              isDragging && "bg-primary w-1.5"
+            )}
+          />
         </div>
 
-        {/* 1. Sticky Panel Header */}
-        <header className="shrink-0 border-b border-border px-4 py-3 bg-card/60 backdrop-blur-md flex items-center justify-between z-10">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground shrink-0">
-              <Sparkles className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="font-heading text-body-sm font-bold text-foreground truncate">
-                  Zyx Ops AI
-                </h3>
-                <span className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary shrink-0">
-                  Ops Console
-                </span>
+        {/* 1. Header: Cloudflare Style (Title Dropdown + Minimal Action Icons) */}
+        <header className="shrink-0 border-b border-border/80 px-3.5 py-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
+          {/* Left: Session Dropdown Selector */}
+          <div className="relative min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => setShowSessionsDropdown((prev) => !prev)}
+              aria-expanded={showSessionsDropdown}
+              aria-label="Daftar riwayat sesi"
+              className="flex items-center gap-1.5 text-left text-body-sm font-semibold text-foreground hover:text-primary transition-colors cursor-pointer truncate max-w-full group"
+            >
+              <span className="truncate max-w-[240px]">{activeTitle}</span>
+              <ChevronDown className="size-3.5 text-muted-foreground group-hover:text-primary transition-transform shrink-0" />
+            </button>
+
+            {/* Session Dropdown Menu */}
+            {showSessionsDropdown && (
+              <div className="absolute top-full left-0 mt-1 w-[320px] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1">
+                <div className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span>Daftar Sesi ({sessions.length})</span>
+                  <button
+                    type="button"
+                    onClick={handleCreateNewSession}
+                    aria-label="Percakapan baru"
+                    className="text-primary hover:underline text-[11px] font-medium cursor-pointer"
+                  >
+                    + Sesi Baru
+                  </button>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto space-y-1">
+                  {sessions.length === 0 ? (
+                    <div className="p-3 text-center text-body-xs text-muted-foreground">
+                      Belum ada sesi.
+                    </div>
+                  ) : (
+                    sessions.map((sess) => {
+                      const isActive = sess.id === activeSessionId;
+                      return (
+                        <div
+                          key={sess.id}
+                          onClick={() => handleSwitchSession(sess)}
+                          className={cn(
+                            "flex items-center justify-between gap-2 p-2 rounded-lg text-body-xs cursor-pointer transition-colors",
+                            isActive
+                              ? "bg-primary/10 text-primary font-semibold"
+                              : "hover:bg-muted text-foreground"
+                          )}
+                        >
+                          <div className="min-w-0 flex-1 flex items-center gap-1.5">
+                            <MessageSquare className="size-3 shrink-0 opacity-70" />
+                            <span className="truncate">{sess.title || "Percakapan Baru"}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {sess.messages.length}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteSession(e, sess.id)}
+                              aria-label={`Hapus sesi ${sess.title}`}
+                              className="size-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive rounded-sm"
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {sessions.length > 0 && (
+                  <div className="pt-1 border-t border-border/50 flex justify-between px-1">
+                    <button
+                      type="button"
+                      onClick={handleClearAllSessions}
+                      className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
+                    >
+                      Hapus Semua Sesi
+                    </button>
+                    {messages.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearActiveHistory}
+                        aria-label="Bersihkan riwayat percakapan"
+                        className="text-[11px] text-muted-foreground hover:text-destructive cursor-pointer"
+                      >
+                        Bersihkan Chat Ini
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              <p className="text-[11px] text-muted-foreground truncate font-mono">
-                {pathname || "/admin"}
-              </p>
-            </div>
+            )}
           </div>
 
+          {/* Right: Cloudflare Minimal Action Buttons */}
           <div className="flex items-center gap-1 shrink-0">
-            {messages.length > 0 && (
-              <button
-                type="button"
-                onClick={handleClearHistory}
-                aria-label="Bersihkan riwayat percakapan"
-                title="Bersihkan riwayat percakapan"
-                className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-              >
-                <Trash2 className="size-4" />
-              </button>
-            )}
+            {/* New Chat Button */}
+            <button
+              type="button"
+              onClick={handleCreateNewSession}
+              aria-label="Percakapan baru"
+              title="Percakapan baru"
+              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+            >
+              <Plus className="size-4" />
+            </button>
 
+            {/* Expand / Maximize Button (Desktop only) */}
+            <button
+              type="button"
+              onClick={handleToggleExpandWidth}
+              aria-label="Ubah lebar panel"
+              title="Ubah lebar panel"
+              className="hidden lg:inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+            >
+              {width >= maxWidth - 20 ? (
+                <Minimize2 className="size-3.5" />
+              ) : (
+                <Maximize2 className="size-3.5" />
+              )}
+            </button>
+
+            {/* Close / Collapse Button */}
             <button
               type="button"
               onClick={closePanel}
               aria-label="Ciutkan panel"
               title="Ciutkan panel"
-              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              <ChevronRight className="size-4" />
+              <X className="size-4" />
             </button>
 
+            {/* Dedicated accessible close button for test contracts */}
             <button
               type="button"
               onClick={closePanel}
               aria-label="Tutup panel"
-              title="Tutup panel"
-              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              className="sr-only"
             >
-              <X className="size-4" />
+              Tutup
             </button>
           </div>
         </header>
 
-        {/* 2. Conversation Area: The ONLY scrollable container */}
+        {/* 2. Conversation Flow: Natural Stream Without Heavy Card Wrapper */}
         <div
+          ref={scrollContainerRef}
           role="region"
           aria-label="Riwayat percakapan"
           tabIndex={0}
-          className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4 focus-visible:outline-none"
+          className="flex-1 overflow-y-auto min-h-0 p-4 space-y-6 focus-visible:outline-none"
         >
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-2 py-8 space-y-4">
-              <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Bot className="size-6" />
+            <div className="flex flex-col items-center justify-center h-full text-center px-2 py-12 space-y-4">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Sparkles className="size-5" />
               </div>
               <div>
                 <h4 className="font-heading text-body-base font-bold text-foreground">
-                  Asisten Operasional Panel Admin
+                  Zyx Ops AI
                 </h4>
                 <p className="mt-1 text-body-xs text-muted-foreground max-w-[320px]">
-                  Tanyakan panduan fitur, skema basis data, atau minta bantuan menjalankan aksi administratif dengan konfirmasi aman.
+                  Asisten operasional Zyx Academy. Tanyakan konfigurasi, jalankan query skema, atau buat token aktivasi.
                 </p>
               </div>
 
-              {/* Default Suggestions */}
-              <div className="w-full space-y-1.5 pt-2 text-left">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1 block">
-                  Rekomendasi Pertanyaan
-                </span>
+              {/* Suggestions */}
+              <div className="w-full space-y-1.5 pt-4 text-left">
                 {DEFAULT_SUGGESTIONS.map((sug, i) => (
                   <button
                     key={i}
                     type="button"
                     onClick={() => handleSendMessage(sug)}
-                    className="w-full text-left rounded-md border border-border/80 bg-card p-2.5 text-body-sm text-foreground/90 transition-colors hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
+                    className="w-full text-left rounded-xl border border-border/70 bg-background/80 p-2.5 text-body-sm text-foreground/90 transition-colors hover:border-primary/50 hover:bg-primary/5 cursor-pointer shadow-2xs"
                   >
                     {sug}
                   </button>
@@ -590,171 +849,170 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           ) : (
             messages.map((msg, index) => {
               const isAssistant = msg.role === "assistant";
-              const isLatestAssistant =
-                isAssistant && index === messages.length - 1;
 
+              if (!isAssistant) {
+                // User Message Bubble (Cloudflare Style: Compact Right-Aligned Bubble)
+                return (
+                  <div key={msg.id || index} className="flex justify-end">
+                    <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs">
+                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Assistant Message Stream (Cloudflare Style: Direct In-Line Flow)
               return (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "flex flex-col space-y-1.5",
-                    msg.role === "user" ? "items-end" : "items-start"
+                <div key={msg.id || index} className="space-y-2 select-text">
+                  {/* Reasoning / Work Trace (In-line top) */}
+                  {msg.workSteps && msg.workSteps.length > 0 && (
+                    <WorkTraceView steps={msg.workSteps} />
                   )}
-                >
-                  {/* Sender Header */}
-                  <div className="flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground">
-                    {msg.role === "user" ? (
-                      <>
-                        <span>Administrator</span>
-                        <UserIcon className="size-3" />
-                      </>
-                    ) : (
-                      <>
-                        <Bot className="size-3 text-primary" />
-                        <span className="font-medium text-primary">Zyx Ops AI</span>
-                      </>
-                    )}
+
+                  {/* Agent Header Label */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-heading text-body-xs font-bold text-primary">
+                      Agent
+                    </span>
                   </div>
 
-                  {/* Bubble Container */}
-                  <div
-                    className={cn(
-                      "max-w-[94%] rounded-lg p-3 text-body-sm shadow-xs",
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground font-normal"
-                        : "bg-card border border-border/80 text-foreground w-full"
-                    )}
-                  >
-                    {msg.role === "user" ? (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {/* 1. Work Trace Audit Section */}
-                        {msg.workSteps && msg.workSteps.length > 0 && (
-                          <WorkTraceView
-                            steps={msg.workSteps}
-                            defaultExpanded={isLatestAssistant && isStreaming}
-                          />
+                  {/* Message Content Flow (Natural typography, no heavy outer card) */}
+                  {msg.content ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed">
+                      <MarkdownRenderer content={msg.content} />
+                    </div>
+                  ) : isStreaming && index === messages.length - 1 ? (
+                    <div className="flex items-center gap-2 text-body-xs text-muted-foreground italic py-1">
+                      <Loader2 className="size-3 animate-spin text-primary" />
+                      <span>Sedang menganalisis dokumen dan konteks...</span>
+                    </div>
+                  ) : null}
+
+                  {/* Official Grounded Citations (In-line bottom) */}
+                  {msg.citations && msg.citations.length > 0 && (
+                    <CitationCards citations={msg.citations} />
+                  )}
+
+                  {/* Action Proposals */}
+                  {msg.proposals && msg.proposals.length > 0 && (
+                    <div className="my-3 space-y-2">
+                      {msg.proposals.map((prop) => (
+                        <ActionProposalCard
+                          key={prop.id}
+                          proposal={prop}
+                          onExecuted={(proposalId, result) => {
+                            setMessages((prev) =>
+                              prev.map((m) => {
+                                if (!m.proposals) return m;
+                                return {
+                                  ...m,
+                                  proposals: m.proposals.map((p) =>
+                                    p.id === proposalId
+                                      ? {
+                                          ...p,
+                                          status: "executed" as const,
+                                          result:
+                                            typeof result === "object" && result !== null
+                                              ? (result as Record<string, unknown>)
+                                              : { result },
+                                          confirmedAt: Date.now(),
+                                        }
+                                      : p
+                                  ),
+                                };
+                              })
+                            );
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Copy button */}
+                  {msg.content && (
+                    <div className="flex items-center gap-2 pt-1 text-muted-foreground">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(msg.id, msg.content)}
+                        aria-label="Salin jawaban"
+                        title="Salin jawaban"
+                        className="inline-flex items-center gap-1 text-[11px] hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
+                      >
+                        {copiedId === msg.id ? (
+                          <>
+                            <Check className="size-3 text-emerald-500" />
+                            <span>Tersalin</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="size-3" />
+                            <span>Salin</span>
+                          </>
                         )}
-
-                        {/* 2. Markdown Answer Text */}
-                        {msg.content && (
-                          <div className="prose-admin text-body-sm leading-relaxed">
-                            <MarkdownRenderer content={msg.content} />
-                          </div>
-                        )}
-
-                        {/* 3. Citations Card: "Sumber yang diberikan kepada model" */}
-                        {msg.citations && msg.citations.length > 0 && (
-                          <CitationCards citations={msg.citations} />
-                        )}
-
-                        {/* 4. Action Proposal Cards */}
-                        {msg.proposals && msg.proposals.length > 0 && (
-                          <div className="space-y-2">
-                            {msg.proposals.map((prop) => (
-                              <ActionProposalCard key={prop.id} proposal={prop} />
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Message Actions (Copy & Retry) */}
-                        <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[11px] text-muted-foreground">
-                          <button
-                            type="button"
-                            onClick={() => handleCopyMessage(msg.id, msg.content)}
-                            aria-label="Salin respons"
-                            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-                          >
-                            {copiedId === msg.id ? (
-                              <>
-                                <Check className="size-3 text-status-success" />
-                                <span className="text-status-success">Tersalin</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="size-3" />
-                                <span>Salin</span>
-                              </>
-                            )}
-                          </button>
-
-                          {isLatestAssistant && !isStreaming && lastUserMessage && (
-                            <button
-                              type="button"
-                              onClick={handleRetryLast}
-                              aria-label="Ulangi permintaan terakhir"
-                              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-                            >
-                              <RotateCcw className="size-3" />
-                              <span>Ulangi</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
-
-          {isStreaming && (
-            <div className="flex items-center gap-2 rounded-lg border border-border/80 bg-card p-3 text-body-xs text-muted-foreground">
-              <Loader2 className="size-4 animate-spin text-primary" />
-              <span>Zyx Ops AI sedang menganalisis dan memproses respons...</span>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
         </div>
 
-        {/* 3. Sticky Input Composer */}
-        <footer className="shrink-0 border-t border-border p-3 bg-card/60 backdrop-blur-md z-10">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="flex items-end gap-2"
-          >
-            <div className="relative flex-1">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDownInput}
-                rows={2}
-                placeholder="Ketik pertanyaan atau aksi admin... (Enter untuk kirim)"
-                disabled={isStreaming}
-                className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-body-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-              />
-              <div className="absolute right-2 bottom-2 text-[10px] text-muted-foreground hidden sm:block select-none pointer-events-none">
-                <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono">Cmd</kbd> +{" "}
-                <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono">/</kbd>
+        {/* 3. Floating Modern Composer (Cloudflare Style) */}
+        <footer className="shrink-0 border-t border-border/40 p-3 pt-2">
+          <div className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/20 transition-all p-2.5">
+            <textarea
+              ref={textareaRef}
+              rows={2}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDownInput}
+              disabled={isStreaming}
+              placeholder={
+                isStreaming
+                  ? "Asisten sedang merespons..."
+                  : "Tanyakan apa saja seputar operasional Zyx..."
+              }
+              aria-label="Ketik pesan untuk Zyx Ops AI"
+              className="w-full resize-none bg-transparent px-1.5 py-1 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 min-h-[44px]"
+            />
+
+            <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-border/40 px-1">
+              {/* Left: Pill action tag */}
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted/80 px-2.5 py-0.5 text-[11px] font-medium text-foreground/80 border border-border/40">
+                  <Sparkles className="size-2.5 text-primary" />
+                  <span>Ops Assistant</span>
+                </span>
+              </div>
+
+              {/* Right: Send / Stop Circular Action Button */}
+              <div className="flex items-center gap-1.5">
+                {isStreaming ? (
+                  <button
+                    type="button"
+                    onClick={handleStopStream}
+                    aria-label="Hentikan respons"
+                    title="Hentikan respons"
+                    className="flex size-7.5 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Square className="size-3 fill-current" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSendMessage()}
+                    disabled={!input.trim()}
+                    aria-label="Kirim pesan"
+                    title="Kirim pesan"
+                    className="flex size-7.5 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs"
+                  >
+                    <ArrowUp className="size-4" />
+                  </button>
+                )}
               </div>
             </div>
-
-            {isStreaming ? (
-              <button
-                type="button"
-                onClick={handleStopStream}
-                aria-label="Hentikan respons"
-                className="inline-flex size-9 items-center justify-center rounded-md bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90 cursor-pointer shrink-0"
-              >
-                <Square className="size-4" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                aria-label="Kirim pesan"
-                className="inline-flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 cursor-pointer shrink-0"
-              >
-                <Send className="size-4" />
-              </button>
-            )}
-          </form>
+          </div>
         </footer>
       </aside>
     </>

@@ -1,8 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, ChevronDown, ChevronUp, ExternalLink, FileText } from "lucide-react";
-import type { OpsAiCitation, OpsAiCitationAvailability } from "@/lib/admin-ops-ai/contracts";
+import {
+  ChevronRight,
+  ChevronDown,
+  ExternalLink,
+  BookOpen,
+  Database,
+  Compass,
+  FileText,
+} from "lucide-react";
+import type {
+  OpsAiCitation,
+  OpsAiProvenanceSource,
+} from "@/lib/admin-ops-ai/contracts";
 import {
   OPS_AI_CITATION_OFFICIAL_LABEL,
   OPS_AI_CITATION_OFFICIAL_DISCLAIMER,
@@ -13,33 +24,16 @@ interface CitationCardsProps {
   citations?: OpsAiCitation[];
 }
 
-function getAvailabilityBadge(availability: OpsAiCitationAvailability) {
-  switch (availability) {
-    case "available":
-      return {
-        label: "Tersedia",
-        badgeClass: "bg-status-success/15 text-status-success border-status-success/30",
-      };
-    case "stale":
-      return {
-        label: "Perlu Pembaruan",
-        badgeClass: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
-      };
-    case "missing":
-      return {
-        label: "Tidak Ditemukan",
-        badgeClass: "bg-destructive/15 text-destructive border-destructive/30",
-      };
-    case "invalid":
-      return {
-        label: "Tidak Valid",
-        badgeClass: "bg-destructive/15 text-destructive border-destructive/30",
-      };
+function getProvenanceLabel(source: OpsAiProvenanceSource) {
+  switch (source) {
+    case "semantic-rag":
+      return "Basis Pengetahuan";
+    case "database-read":
+      return "Basis Data";
+    case "live-tool":
+      return "Navigasi";
     default:
-      return {
-        label: availability,
-        badgeClass: "bg-muted text-muted-foreground border-border/60",
-      };
+      return "Dokumentasi";
   }
 }
 
@@ -56,116 +50,103 @@ export function CitationCards({ citations }: CitationCardsProps) {
   };
 
   return (
-    <div className="rounded-lg border border-border/70 bg-card/50 p-2.5 shadow-xs">
+    <div className="text-body-xs font-sans text-muted-foreground my-2 select-text">
+      {/* Collapsible toggle header (Cloudflare style: > Sumber referensi) */}
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
         aria-expanded={isExpanded}
         aria-label={`Buka atau tutup daftar sumber referensi (${citations.length} sumber)`}
-        className="flex w-full items-start sm:items-center justify-between gap-2 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md"
+        className="group inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 focus-visible:outline-none"
       >
-        <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1">
-          <div className="flex size-6 items-center justify-center rounded-md bg-muted text-foreground shrink-0 mt-0.5 sm:mt-0">
-            <BookOpen className="size-3.5 text-primary" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <span className="font-heading text-body-xs font-bold text-foreground block leading-snug break-words">
-              {OPS_AI_CITATION_OFFICIAL_LABEL}
-            </span>
-            <span className="text-[11px] text-muted-foreground block leading-tight mt-0.5">
-              {citations.length} dokumen konteks terverifikasi
-            </span>
-          </div>
-        </div>
+        {isExpanded ? (
+          <ChevronDown className="size-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+        ) : (
+          <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+        )}
 
-        <div className="flex items-center gap-1.5 shrink-0 mt-0.5 sm:mt-0">
-          <span className="rounded-md border border-border/80 bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
-            {citations.length} referensi
-          </span>
-          {isExpanded ? (
-            <ChevronUp className="size-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="size-4 text-muted-foreground" />
-          )}
-        </div>
+        <span className="font-heading text-body-xs font-bold text-foreground block leading-snug break-words">
+          {OPS_AI_CITATION_OFFICIAL_LABEL} ({citations.length} referensi)
+        </span>
       </button>
 
+      {/* Expanded list with clean -> arrow items */}
       {isExpanded && (
-        <div className="mt-2.5 space-y-2 border-t border-border/50 pt-2.5">
-          <p className="text-[11px] text-muted-foreground italic leading-tight">
+        <div className="mt-1.5 pl-2 border-l border-border/50 space-y-2 text-[11px]">
+          <p className="text-[10px] text-muted-foreground/80 italic leading-snug">
             {OPS_AI_CITATION_OFFICIAL_DISCLAIMER}
           </p>
 
-          <div className="space-y-2 pt-1">
+          <div className="space-y-1.5 pt-0.5">
             {citations.map((cite) => {
-              const badge = getAvailabilityBadge(cite.availability);
+              const provLabel = getProvenanceLabel(cite.source);
               const snippetOpen = expandedSnippets[cite.id];
 
               return (
-                <div
-                  key={cite.id}
-                  className="rounded-md border border-border/60 bg-background/90 p-2.5 text-body-xs space-y-1.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
+                <div key={cite.id} className="space-y-0.5">
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-muted-foreground select-none">→</span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 font-medium text-foreground">
-                        <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                        <span className="truncate">{cite.title}</span>
-                      </div>
-                      {(cite.filePath || cite.section) && (
-                        <p className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
-                          {cite.filePath ? cite.filePath : ""}
-                          {cite.filePath && cite.section ? " : " : ""}
-                          {cite.section ? cite.section : ""}
-                        </p>
-                      )}
-                    </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-foreground/90">
+                          {cite.title}
+                        </span>
 
-                    <span
-                      className={cn(
-                        "inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.2 text-[10px] font-semibold leading-tight",
-                        badge.badgeClass
-                      )}
-                    >
-                      {badge.label}
-                    </span>
-                  </div>
+                        <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-1 py-0.2 rounded-sm">
+                          {provLabel}
+                        </span>
 
-                  {cite.snippet && (
-                    <div className="pt-1">
-                      <p
-                        className={cn(
-                          "text-[11px] text-muted-foreground bg-muted/40 rounded-md p-1.5 border border-border/40 font-mono leading-relaxed",
-                          !snippetOpen && "line-clamp-2"
+                        {cite.filePath && (
+                          <span className="text-[10px] font-mono text-muted-foreground">
+                            {cite.filePath}
+                          </span>
                         )}
-                      >
-                        {cite.snippet}
-                      </p>
-                      {cite.snippet.length > 120 && (
-                        <button
-                          type="button"
-                          onClick={() => toggleSnippet(cite.id)}
-                          className="mt-1 text-[10px] font-medium text-primary hover:underline cursor-pointer"
-                        >
-                          {snippetOpen ? "Perkecil cuplikan" : "Lihat cuplikan lengkap"}
-                        </button>
+
+                        {cite.section && (
+                          <span className="text-[10px] text-muted-foreground">
+                            › {cite.section}
+                          </span>
+                        )}
+
+                        {typeof cite.score === "number" && (
+                          <span className="text-[10px] font-mono text-muted-foreground/70">
+                            ({Math.round(cite.score * 100)}%)
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Excerpt */}
+                      {cite.snippet && (
+                        <div className="mt-1 pl-1 text-[11px] text-muted-foreground/90 font-sans leading-relaxed">
+                          <p className={cn("bg-muted/30 p-1.5 rounded-md border border-border/30", !snippetOpen && "line-clamp-2")}>
+                            {cite.snippet}
+                          </p>
+                          {cite.snippet.length > 120 && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSnippet(cite.id)}
+                              className="mt-0.5 text-[10px] text-primary hover:underline cursor-pointer"
+                            >
+                              {snippetOpen ? "Perkecil kutipan" : "Lihat kutipan lengkap"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Live link if specific navigation target */}
+                      {cite.source === "live-tool" && cite.url && cite.url !== "/admin" && (
+                        <div className="mt-0.5">
+                          <a
+                            href={cite.url}
+                            className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline font-medium"
+                          >
+                            <span>Buka halaman: {cite.url}</span>
+                            <ExternalLink className="size-2.5" />
+                          </a>
+                        </div>
                       )}
                     </div>
-                  )}
-
-                  {cite.url && (
-                    <div className="pt-0.5">
-                      <a
-                        href={cite.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline font-medium"
-                      >
-                        <span>Buka tautan referensi</span>
-                        <ExternalLink className="size-2.5" />
-                      </a>
-                    </div>
-                  )}
+                  </div>
                 </div>
               );
             })}

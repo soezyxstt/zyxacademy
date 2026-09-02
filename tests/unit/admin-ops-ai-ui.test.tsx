@@ -1,10 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, it, expect, beforeEach, mock } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 import {
   calculateOpsAiMaxWidth,
   clampOpsAiWidth,
   migrateChatHistoryV1ToV2,
+  loadOpsAiSessions,
+  createOpsAiSession,
+  updateOpsAiSessionMessages,
+  deleteOpsAiSession,
+  clearAllOpsAiSessions,
   loadOpsAiMessages,
   saveOpsAiMessages,
   clearOpsAiMessages,
@@ -17,6 +22,8 @@ import {
   OPS_AI_MAX_WIDTH_CAP,
   STORAGE_KEY_PANEL_OPEN_V2,
   STORAGE_KEY_PANEL_WIDTH_V2,
+  STORAGE_KEY_SESSIONS_V2,
+  STORAGE_KEY_ACTIVE_SESSION_ID,
   STORAGE_KEY_MESSAGES_V2,
   STORAGE_KEY_MESSAGES_V1,
 } from "@/components/admin/ops-ai/ops-ai-storage";
@@ -28,7 +35,6 @@ import { OpsAiProvider } from "@/components/admin/ops-ai/ops-ai-context";
 import { OpsAiPanel } from "@/components/admin/ops-ai/ops-ai-panel";
 import {
   OPS_AI_CITATION_OFFICIAL_LABEL,
-  OPS_AI_CITATION_OFFICIAL_DISCLAIMER,
 } from "@/lib/admin-ops-ai/citations";
 import type {
   OpsAiWorkStep,
@@ -251,15 +257,14 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain('id="ops-ai-panel"');
 
       // Desktop layout participant classes
-      expect(html).toContain("lg:relative");
+      expect(html).toContain("lg:sticky");
       expect(html).toContain("lg:top-0");
+      expect(html).toContain("lg:self-start");
       expect(html).toContain("lg:h-screen");
       expect(html).toContain("lg:shrink-0");
 
       // Mobile overlay fallback classes
-      expect(html).toContain("fixed");
-      expect(html).toContain("inset-y-0");
-      expect(html).toContain("right-0");
+      expect(html).toContain("fixed inset-0 z-50 w-full");
     });
 
     it("renders the resize separator handle with ARIA attributes on desktop", () => {
@@ -769,7 +774,7 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       // Must strictly pin inset-0 z-50 w-full on mobile (< sm:) and sm:inset-y-0 sm:right-0
       expect(html).toContain("fixed inset-0 z-50 w-full");
       expect(html).toContain("sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[480px]");
-      expect(html).toContain("lg:relative lg:inset-auto lg:top-0 lg:h-screen lg:shrink-0");
+      expect(html).toContain("lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0");
 
       // Verify backdrop has z-40 and panel has z-50
       expect(html).toContain("fixed inset-0 z-40 bg-black/50");
@@ -872,6 +877,79 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
 
       expect(html).toContain("Halo admin, ada yang bisa Zyx bantu?");
       expect(html).not.toContain("Asisten Operasional Panel Admin");
+    });
+  });
+
+  // ==========================================================================
+  // Suite 11: Multi-Session Management & Safe History Deletion
+  // ==========================================================================
+  describe("Suite 11: Multi-Session Management & Safe History Deletion", () => {
+    it("creates a new session with unique ID and title", () => {
+      const sess = createOpsAiSession("Sesi Uji Operasional");
+      expect(sess.id).toMatch(/^session-/);
+      expect(sess.title).toBe("Sesi Uji Operasional");
+      expect(sess.messages).toEqual([]);
+
+      const all = loadOpsAiSessions();
+      expect(all.some((s) => s.id === sess.id)).toBe(true);
+    });
+
+    it("updates session messages and automatically infers title from first prompt", () => {
+      const sess = createOpsAiSession();
+      updateOpsAiSessionMessages(sess.id, [
+        {
+          id: "m-1",
+          role: "user",
+          content: "Bagaimana cara membuat token kelompok 10 orang?",
+          createdAt: Date.now(),
+        },
+      ]);
+
+      const all = loadOpsAiSessions();
+      const target = all.find((s) => s.id === sess.id);
+      expect(target).toBeDefined();
+      expect(target?.title).toBe("Bagaimana cara membuat token kelompok 10 orang?");
+      expect(target?.messages).toHaveLength(1);
+    });
+
+    it("deletes a session and safely switches active session", () => {
+      const s1 = createOpsAiSession("Sesi 1");
+      const s2 = createOpsAiSession("Sesi 2");
+
+      deleteOpsAiSession(s1.id);
+      const remaining = loadOpsAiSessions();
+      expect(remaining.some((s) => s.id === s1.id)).toBe(false);
+      expect(remaining.some((s) => s.id === s2.id)).toBe(true);
+    });
+
+    it("permanently clears all sessions and deletes legacy v1 keys without resurrection", () => {
+      mockStorage[STORAGE_KEY_MESSAGES_V1] = JSON.stringify([
+        { id: "legacy-1", role: "user", content: "Pesan lama" },
+      ]);
+      mockStorage[STORAGE_KEY_MESSAGES_V2] = JSON.stringify([
+        { id: "v2-1", role: "user", content: "Pesan v2", createdAt: 1000 },
+      ]);
+
+      clearAllOpsAiSessions();
+
+      expect(mockStorage[STORAGE_KEY_SESSIONS_V2]).toBeUndefined();
+      expect(mockStorage[STORAGE_KEY_ACTIVE_SESSION_ID]).toBeUndefined();
+      expect(mockStorage[STORAGE_KEY_MESSAGES_V2]).toBeUndefined();
+      expect(mockStorage[STORAGE_KEY_MESSAGES_V1]).toBeUndefined();
+
+      const messagesAfterClear = loadOpsAiMessages();
+      expect(messagesAfterClear).toEqual([]);
+    });
+
+    it("renders session management buttons in header with accessible labels", () => {
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel />
+        </OpsAiProvider>
+      );
+
+      expect(html).toContain('aria-label="Percakapan baru"');
+      expect(html).toContain('aria-label="Daftar riwayat sesi"');
     });
   });
 });
