@@ -626,16 +626,16 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         aria-label="Zyx Ops AI Assistant"
         suppressHydrationWarning
         onKeyDown={handleKeyDownTrap}
-        style={{ width: mounted && isDesktop ? `${width}px` : undefined }}
+        style={{ width: mounted ? `${width}px` : undefined }}
         className={cn(
-          "flex flex-col border-l border-border bg-background select-text overflow-hidden",
+          "flex flex-col border-l border-border bg-background select-text",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           isDragging ? "transition-none select-none" : "transition-[width] duration-75",
           "fixed inset-0 z-50 w-full sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[480px] h-full shadow-2xl",
           "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-20 lg:shadow-none"
         )}
       >
-        {/* Resize Handle: Desktop only */}
+        {/* Resize Handle: Desktop only with wide 24px hit area */}
         <div
           role="separator"
           tabIndex={0}
@@ -648,15 +648,15 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
           className={cn(
-            "hidden lg:flex absolute -left-2 inset-y-0 w-4 cursor-col-resize items-center justify-center group touch-none select-none z-30",
+            "hidden lg:flex absolute -left-3 inset-y-0 w-6 cursor-col-resize items-center justify-center group touch-none select-none z-50",
             isDragging && "cursor-col-resize"
           )}
         >
           <div
             className={cn(
-              "w-1 h-12 rounded-sm bg-border transition-colors flex items-center justify-center",
+              "w-1 h-16 rounded-full bg-border/90 transition-all duration-150 flex items-center justify-center",
               "group-hover:bg-primary group-hover:w-1.5 group-focus-visible:bg-primary group-focus-visible:w-1.5",
-              isDragging && "bg-primary w-1.5"
+              isDragging && "bg-primary w-1.5 shadow-sm"
             )}
           />
         </div>
