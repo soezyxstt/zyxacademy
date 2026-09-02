@@ -79,7 +79,7 @@ Every document in this repository has one of the following explicit statuses:
 | [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read compatibility and Article block review adapter for Product Bundle V2. |
 | [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-09-01 | Structured Article sections, semantic blocks, quality gates, review, publication, and canonical student read models. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, and staging validation checklist. |
-| [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | Current | Operational runbooks, health metrics, and alert responses for the Zyra AI system. |
+| [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | 2026-09-02 | Operational runbooks, health metrics, alert responses, and Admin Ops AI v2 operational procedures (Vectorize sync, rollback without flag, provider mitigation, proposal retention). |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Safe procedure for capturing staging visual audits and screenshots. |
 | [operations/structured-article-v3-rollout.md](operations/structured-article-v3-rollout.md) | Operations | `ACTIVE` | 2026-09-01 | Additive migration, authoring rollout gates, rollback, and published student visibility for structured Articles. |
 | [operations/manual-test-plan-bundles-v2.md](operations/manual-test-plan-bundles-v2.md) | Operations | `ACTIVE` | Current | Manual test procedure for Idea Bundle V2 and Product Bundle V2 ingestion, block review, and destructive confirmation flows. |
@@ -98,6 +98,12 @@ Implementation plans reside in `plans/` with detailed specifications:
 | Overhaul Plans 001-016 | `plans/README.md` | `COMPLETED / RESOLVED` | Core overhaul covering identity, schemas, bundles V2, Vectorize 768d cutover, and Zyra foundation. |
 | Plan 017 | `plans/017-audit-rework.md` | `OPEN / IN PROGRESS` | Minimal audit rework for Idea-centered authoring and learning workflows. |
 | Zyra AI System Plans 001-014 | `plans/zyra-ai-system/README.md` | `ACTIVE / IN PROGRESS` | AI control plane, quota coordinator, multi-model routing, semantic cache, canvas, and tutoring harness. |
+| Zyx Ops AI rebuild orchestration | `plans/orkestrasi-rebuild-zyx-ops-ai-agy-high.md` | `COMPLETED / RESOLVED` | Checkpoint-based orchestration plan for rebuilding Zyx Ops AI with AGY High (Checkpoints 1 through 7 completed and verified). |
+| Ops AI CP3 Runtime Handoff | `plans/handoff-cp3-runtime.md` | `COMPLETED / RESOLVED` | Checkpoint 3 runtime, streaming, and tool execution milestone handoff. |
+| Ops AI CP4 Citations Handoff | `plans/handoff-cp4-citations.md` | `COMPLETED / RESOLVED` | Checkpoint 4 citation contracts, provenance binding, and disclaimer handoff. |
+| Ops AI CP5 Mutations Handoff | `plans/handoff-cp5-mutations.md` | `COMPLETED / RESOLVED` | Checkpoint 5 two-phase mutation proposals and server-side execution store handoff. |
+| Ops AI CP6 UI Handoff | `plans/handoff-cp6-ui.md` | `COMPLETED / RESOLVED` | Checkpoint 6 desktop participant, mobile sheet, and proposal cards UI handoff. |
+| Ops AI CP7 Integration Handoff | `plans/handoff-cp7-integration.md` | `COMPLETED / RESOLVED` | Checkpoint 7 end-to-end integration tests, runbooks, and staging smoke workflow. |
 
 ---
 
@@ -130,6 +136,7 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 | **Roles & Permissions** | Canonical `pengguna_peran` table with role assignments | Flat string role column on user | All new authorization checks use canonical `pengguna_peran`. |
 | **Course Ingestion** | Bundle V3 behind `FEATURE_STRUCTURED_ARTICLE_READER_V1` | Bundle V2 submission and legacy readers | Published V2 and V3 remain readable. New submissions require V3 only while the flag is enabled. |
 | **AI Harness & Quota** | Zyra Control Plane with Durable Object Quota Coordinator | Uncoordinated direct provider calls | Tutoring and generation route through Zyra quota coordinator and allowance ledger. |
+| **Admin Ops AI** | Admin Ops AI v2 (isolated `admin_ops_knowledge` Vectorize namespace, two-phase mutation proposals, in-flow desktop panel) | Legacy ungrounded Ops AI v1 chat | Admin assistant uses isolated Vectorize 768d RAG and server-validated proposals only. |
 
 ---
 

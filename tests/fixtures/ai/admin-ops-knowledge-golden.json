@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Admin Ops Knowledge Golden Retrieval Fixtures",
+  "version": "1.0",
+  "namespace": "admin_ops_knowledge",
+  "entityType": "admin_document",
+  "accessClass": "admin",
+  "testCases": [
+    {
+      "id": "golden-pka-workflow",
+      "category": "feature_behavior",
+      "query": "bagaimana alur pendaftaran tutorial PKA dan verifikasi berkas bukti?",
+      "expectedTopSourcePaths": [
+        "docs/features.md",
+        "virtual:schema_projection"
+      ],
+      "requiredKeyTerms": [
+        "pka",
+        "pendaftaran",
+        "verifikasi"
+      ],
+      "minExpectedScore": 0.2
+    },
+    {
+      "id": "golden-schema-tokens",
+      "category": "db_schema",
+      "query": "apa struktur kolom dan relasi tabel enrollment_tokens untuk kelompok belajar?",
+      "expectedTopSourcePaths": [
+        "virtual:schema_projection",
+        "docs/DB_SCHEMA.md"
+      ],
+      "requiredKeyTerms": [
+        "enrollment_tokens",
+        "capacity",
+        "group"
+      ],
+      "minExpectedScore": 0.2
+    },
+    {
+      "id": "golden-zyra-incident-runbook",
+      "category": "runbook_incident",
+      "query": "bagaimana SOP mitigasi jika terjadi spike error rate pada Zyra AI?",
+      "expectedTopSourcePaths": [
+        "docs/operations/zyra-ops-runbooks.md"
+      ],
+      "requiredKeyTerms": [
+        "zyra",
+        "runbook",
+        "alert"
+      ],
+      "minExpectedScore": 0.25
+    },
+    {
+      "id": "golden-admin-navigation",
+      "category": "admin_route",
+      "query": "di mana link halaman menu navigasi feature flags dan token aktivasi admin?",
+      "expectedTopSourcePaths": [
+        "virtual:admin_routes_catalog",
+        "virtual:feature_flags_catalog"
+      ],
+      "requiredKeyTerms": [
+        "admin/ops/flags",
+        "tokens"
+      ],
+      "minExpectedScore": 0.2
+    },
+    {
+      "id": "golden-bundle-v3-contract",
+      "category": "bundle_contract",
+      "query": "bagaimana aturan validasi dan spesifikasi kontrak Idea Bundle V3?",
+      "expectedTopSourcePaths": [
+        "docs/bundle/idea-bundle-v3.md"
+      ],
+      "requiredKeyTerms": [
+        "idea bundle",
+        "v3"
+      ],
+      "minExpectedScore": 0.25
+    }
+  ]
+}

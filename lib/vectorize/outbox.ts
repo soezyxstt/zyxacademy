@@ -29,6 +29,7 @@ const namespaceMap: Record<string, CanonicalNamespace> = {
   itb_question_references: "itb_question_references",
   published_questions: "published_questions",
   published_solutions: "published_solutions",
+  admin_ops_knowledge: "admin_ops_knowledge",
 };
 
 const entityNamespaceMap: Partial<Record<string, CanonicalNamespace>> = {
@@ -39,6 +40,7 @@ const entityNamespaceMap: Partial<Record<string, CanonicalNamespace>> = {
   question_reference: "itb_question_references",
   question: "published_questions",
   solution: "published_solutions",
+  admin_document: "admin_ops_knowledge",
 };
 
 const productNamespaceMap: Partial<Record<string, CanonicalNamespace>> = {
@@ -54,6 +56,7 @@ const entityTypeMap: Record<CanonicalNamespace, CanonicalEntityType> = {
   itb_question_references: "question_reference",
   published_questions: "question",
   published_solutions: "solution",
+  admin_ops_knowledge: "admin_document",
 };
 
 function objectValue(value: unknown): Payload {
@@ -125,7 +128,7 @@ export function canonicalOutboxPayload(row: CanonicalOutboxRow): ProviderNeutral
     metadata: {
       namespace,
       status: statusValue(rawMetadata.status ?? payload.status),
-      accessClass: namespace === "published_solutions" ? "restricted_solution" : namespace === "itb_question_references" ? "public" : "enrolled",
+      accessClass: namespace === "admin_ops_knowledge" ? "admin" : namespace === "published_solutions" ? "restricted_solution" : namespace === "itb_question_references" ? "public" : "enrolled",
       language: String(rawMetadata.language ?? "id"),
       courseId: row.courseId,
       ...(typeof rawMetadata.chapterId === "string" && rawMetadata.chapterId ? { chapterId: rawMetadata.chapterId } : {}),

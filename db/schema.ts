@@ -5585,3 +5585,130 @@ export const searchDocuments = sqliteTable(
     index("idx_search_documents_course").on(table.courseId),
   ]
 );
+
+// ─── Admin Ops Knowledge ───────────────────────────────────────────────────
+
+export const adminOpsKnowledgeSources = sqliteTable(
+  "admin_ops_knowledge_sources",
+  {
+    id: text("id").primaryKey(),
+    sourcePath: text("source_path").notNull(),
+    sourceType: text("source_type")
+      .$type<"doc" | "schema_projection" | "catalog" | "bundle_contract" | "runbook">()
+      .notNull(),
+    title: text("title").notNull(),
+    version: integer("version").default(1).notNull(),
+    contentHash: text("content_hash").notNull(),
+    manifestHash: text("manifest_hash").notNull(),
+    chunkCount: integer("chunk_count").default(0).notNull(),
+    status: text("status").$type<"active" | "stale" | "archived">().default("active").notNull(),
+    metadata: text("metadata", { mode: "json" }),
+    lastSyncedAt: integer("last_synced_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_admin_ops_sources_path").on(table.sourcePath),
+    index("idx_admin_ops_sources_status").on(table.status),
+    index("idx_admin_ops_sources_hash").on(table.contentHash),
+  ]
+);
+
+export const adminOpsKnowledgeChunks = sqliteTable(
+  "admin_ops_knowledge_chunks",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => adminOpsKnowledgeSources.id, { onDelete: "cascade" }),
+    chunkIndex: integer("chunk_index").notNull(),
+    locator: text("locator").notNull(),
+    headingHierarchy: text("heading_hierarchy", { mode: "json" })
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+    startOffset: integer("start_offset").notNull(),
+    endOffset: integer("end_offset").notNull(),
+    content: text("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    version: integer("version").default(1).notNull(),
+    status: text("status").$type<"active" | "stale">().default("active").notNull(),
+    vectorId: text("vector_id").notNull(),
+    metadata: text("metadata", { mode: "json" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_admin_ops_chunks_source").on(table.sourceId),
+    index("idx_admin_ops_chunks_status").on(table.status),
+    index("idx_admin_ops_chunks_vector_id").on(table.vectorId),
+    index("idx_admin_ops_chunks_content_hash").on(table.contentHash),
+    uniqueIndex("idx_admin_ops_chunks_source_index_ver").on(
+      table.sourceId,
+      table.chunkIndex,
+      table.version
+    ),
+  ]
+);
+
+export const adminOpsKnowledgeSyncQueue = sqliteTable(
+  "admin_ops_knowledge_sync_queue",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id").references(() => adminOpsKnowledgeSources.id, {
+      onDelete: "set null",
+    }),
+    action: text("action")
+      .$type<"sync_source" | "sync_all" | "delete_source">()
+      .notNull(),
+    status: text("status")
+      .$type<"pending" | "processing" | "completed" | "failed">()
+      .default("pending")
+      .notNull(),
+    payload: text("payload", { mode: "json" }).notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    lastError: text("last_error"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_admin_ops_sync_queue_status").on(table.status),
+  ]
+);
+
+export const adminOpsKnowledgeSourcesRelations = relations(
+  adminOpsKnowledgeSources,
+  ({ many }) => ({
+    chunks: many(adminOpsKnowledgeChunks),
+    syncActions: many(adminOpsKnowledgeSyncQueue),
+  })
+);
+
+export const adminOpsKnowledgeChunksRelations = relations(
+  adminOpsKnowledgeChunks,
+  ({ one }) => ({
+    source: one(adminOpsKnowledgeSources, {
+      fields: [adminOpsKnowledgeChunks.sourceId],
+      references: [adminOpsKnowledgeSources.id],
+    }),
+  })
+);
+
+export const adminOpsKnowledgeSyncQueueRelations = relations(
+  adminOpsKnowledgeSyncQueue,
+  ({ one }) => ({
+    source: one(adminOpsKnowledgeSources, {
+      fields: [adminOpsKnowledgeSyncQueue.sourceId],
+      references: [adminOpsKnowledgeSources.id],
+    }),
+  })
+);

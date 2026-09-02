@@ -136,6 +136,7 @@ const NAMESPACE_BY_ENTITY: Record<CanonicalEntityType, CanonicalNamespace> = {
   question_reference: "itb_question_references",
   question: "published_questions",
   solution: "published_solutions",
+  admin_document: "admin_ops_knowledge",
 };
 
 const SOURCE_TYPE_BY_ENTITY: Record<CanonicalEntityType, TutorSource["type"]> = {
@@ -145,6 +146,7 @@ const SOURCE_TYPE_BY_ENTITY: Record<CanonicalEntityType, TutorSource["type"]> = 
   question_reference: "past_exam",
   question: "practice_question",
   solution: "past_exam",
+  admin_document: "chapter",
 };
 
 function hashContent(content: string): string {

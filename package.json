@@ -35,6 +35,7 @@
     "staging:reconcile-ai-usage": "bun scripts/staging/reconcile-ai-usage.ts",
     "staging:zyra-control:preflight": "bun scripts/staging/preflight-zyra-control-plane.ts",
     "staging:zyra-control:smoke": "bun scripts/staging/smoke-zyra-control-plane.ts",
+    "staging:admin-ops-knowledge:smoke": "bun scripts/staging/smoke-admin-ops-knowledge.ts",
     "staging:probe-gemini-models": "bun scripts/staging/probe-gemini-models.ts",
     "staging:inventory": "bun scripts/staging/inventory.ts",
     "staging:export": "bun scripts/staging/export.ts",

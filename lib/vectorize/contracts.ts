@@ -20,6 +20,7 @@ export const CANONICAL_NAMESPACES = [
   "itb_question_references",
   "published_questions",
   "published_solutions",
+  "admin_ops_knowledge",
 ] as const;
 
 export type CanonicalNamespace = (typeof CANONICAL_NAMESPACES)[number];
@@ -31,6 +32,7 @@ export const CANONICAL_ENTITY_TYPES = [
   "question_reference",
   "question",
   "solution",
+  "admin_document",
 ] as const;
 
 export type CanonicalEntityType = (typeof CANONICAL_ENTITY_TYPES)[number];
@@ -43,7 +45,7 @@ export type CanonicalStatus =
   | "retired"
   | "needs_review";
 
-export type CanonicalAccessClass = "public" | "enrolled" | "restricted_solution";
+export type CanonicalAccessClass = "public" | "enrolled" | "restricted_solution" | "admin";
 
 export type VectorMetadataScalar = string | number | boolean;
 
