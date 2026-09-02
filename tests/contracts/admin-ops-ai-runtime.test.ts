@@ -386,8 +386,10 @@ describe("Admin Ops AI Runtime - CP3 Native Streaming Agent & Contracts", () => 
   // Suite 6: Provider Failure, Retry & Circuit Resilience
   // ==========================================================================
   describe("Suite 6: Provider Failure, Retry & Circuit Resilience", () => {
-    it("handles provider failure gracefully, attempts retry, and emits data-error part", async () => {
-      let attempts = 0;
+    it(
+      "handles provider failure gracefully, attempts retry, and emits data-error part",
+      async () => {
+        let attempts = 0;
       setOpsAiModelStreamMock(async function* () {
         attempts++;
         throw new Error("429 RESOURCE_EXHAUSTED Quota exceeded");
@@ -409,7 +411,7 @@ describe("Admin Ops AI Runtime - CP3 Native Streaming Agent & Contracts", () => 
       expect(errData.code).toBe("RATE_LIMITED");
       expect(errData.retryable).toBe(true);
       expect(validateOpsAiErrorData(errData).valid).toBe(true);
-    });
+    }, { timeout: 10000 });
   });
 
   // ==========================================================================

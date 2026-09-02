@@ -966,4 +966,32 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain("Tanyakan apa saja seputar operasional &amp; dokumentasi Zyx...");
     });
   });
+
+  describe("Suite 13: Drag Resize Handle Reliability & Interaction Verification", () => {
+    it("renders separator with correct accessibility roles, touch-action none, and cursor-col-resize", () => {
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel />
+        </OpsAiProvider>
+      );
+
+      expect(html).toContain('role="separator"');
+      expect(html).toContain('aria-orientation="vertical"');
+      expect(html).toContain('aria-label="Ubah ukuran panel Ops AI"');
+      expect(html).toContain("cursor-col-resize");
+      expect(html).toContain("touch-action:none");
+      expect(html).toContain("lg:z-40");
+    });
+
+    it("verifies clampOpsAiWidth handles edge boundaries correctly", () => {
+      // Clamping within normal desktop viewport (1440px => max 720px)
+      expect(clampOpsAiWidth(200, 1440)).toBe(360);
+      expect(clampOpsAiWidth(500, 1440)).toBe(500);
+      expect(clampOpsAiWidth(900, 1440)).toBe(720);
+
+      // Clamping within 1024px screen (1024px => max 512px)
+      expect(clampOpsAiWidth(600, 1024)).toBe(512);
+      expect(clampOpsAiWidth(300, 1024)).toBe(360);
+    });
+  });
 });

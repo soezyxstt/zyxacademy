@@ -115,6 +115,12 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef<{ startX: number; startWidth: number; latestWidth: number }>({
+    startX: 0,
+    startWidth: 480,
+    latestWidth: 480,
+  });
 
   // Set mounted flag on client
   useEffect(() => {
@@ -250,49 +256,84 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     [setWidth, maxWidth]
   );
 
-  // Pointer drag resize: Immediate 60fps DOM mutation + React state sync
+  // Bulletproof Drag Resize: Direct 120fps DOM mutation + Pointer Capture + Mouse fallback
   const handlePointerDownResize = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
+    (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
 
       const asideEl = panelRef.current;
       const startX = e.clientX;
       const startWidth = asideEl ? asideEl.getBoundingClientRect().width : width;
-      let latestWidth = startWidth;
+
+      isDraggingRef.current = true;
+      dragStartRef.current = {
+        startX,
+        startWidth,
+        latestWidth: startWidth,
+      };
 
       setIsDragging(true);
+
+      const targetEl = e.currentTarget as HTMLElement;
+      if ("setPointerCapture" in targetEl && "pointerId" in e) {
+        try {
+          targetEl.setPointerCapture((e as React.PointerEvent).pointerId);
+        } catch {
+          // Ignore
+        }
+      }
 
       if (typeof document !== "undefined") {
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
       }
 
-      const handlePointerMove = (ev: PointerEvent) => {
+      const handleMove = (ev: MouseEvent | PointerEvent) => {
+        if (!isDraggingRef.current) return;
         ev.preventDefault();
-        const delta = startX - ev.clientX; // Leftward drag expands right panel
-        latestWidth = clampOpsAiWidth(startWidth + delta, window.innerWidth);
+        const delta = dragStartRef.current.startX - ev.clientX; // Leftward drag expands right panel
+        const newWidth = clampOpsAiWidth(dragStartRef.current.startWidth + delta, window.innerWidth);
+        dragStartRef.current.latestWidth = newWidth;
+
+        // Mutate DOM style directly at 120 FPS without React re-render lag
         if (asideEl) {
-          asideEl.style.width = `${latestWidth}px`;
+          asideEl.style.width = `${newWidth}px`;
         }
-        setWidth(latestWidth);
       };
 
-      const handlePointerUp = () => {
+      const handleUp = (ev?: MouseEvent | PointerEvent) => {
+        if (!isDraggingRef.current) return;
+        isDraggingRef.current = false;
         setIsDragging(false);
+
+        if (targetEl && "releasePointerCapture" in targetEl && ev && "pointerId" in ev) {
+          try {
+            targetEl.releasePointerCapture((ev as PointerEvent).pointerId);
+          } catch {
+            // Ignore
+          }
+        }
+
         if (typeof document !== "undefined") {
           document.body.style.cursor = "";
           document.body.style.userSelect = "";
         }
-        window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", handlePointerUp);
-        window.removeEventListener("pointercancel", handlePointerUp);
-        setWidth(latestWidth);
+
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("mousemove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+        window.removeEventListener("mouseup", handleUp);
+
+        // Commit final width to React state and persistent storage once upon drag end
+        const finalWidth = dragStartRef.current.latestWidth;
+        setWidth(finalWidth);
       };
 
-      window.addEventListener("pointermove", handlePointerMove, { passive: false });
-      window.addEventListener("pointerup", handlePointerUp);
-      window.addEventListener("pointercancel", handlePointerUp);
+      window.addEventListener("pointermove", handleMove, { passive: false });
+      window.addEventListener("mousemove", handleMove, { passive: false });
+      window.addEventListener("pointerup", handleUp);
+      window.addEventListener("mouseup", handleUp);
     },
     [width, setWidth]
   );
@@ -624,11 +665,6 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         aria-hidden="true"
       />
 
-      {/* Active Resize Drag Overlay */}
-      {isDragging && (
-        <div className="fixed inset-0 z-50 cursor-col-resize select-none pointer-events-auto" />
-      )}
-
       {/* Main Panel Container: Cloudflare Style Layout */}
       <aside
         ref={panelRef}
@@ -639,11 +675,11 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         onKeyDown={handleKeyDownTrap}
         style={{ width: mounted ? `${width}px` : undefined }}
         className={cn(
-          "flex flex-col border-l border-border bg-background select-text",
+          "flex flex-col border-l border-border bg-background select-text relative",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           isDragging ? "transition-none select-none" : "transition-[width] duration-75",
           "fixed inset-0 z-50 w-full sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[480px] h-full shadow-2xl",
-          "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-20 lg:shadow-none"
+          "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-40 lg:shadow-none"
         )}
       >
         {/* Resize Handle: Desktop & Tablet with wide 24px hit area */}
@@ -658,11 +694,10 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           suppressHydrationWarning
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
-          onMouseDown={(e) => {
-            handlePointerDownResize(e as unknown as React.PointerEvent<HTMLDivElement>);
-          }}
+          onMouseDown={handlePointerDownResize}
+          style={{ touchAction: "none" }}
           className={cn(
-            "hidden sm:flex absolute -left-3 inset-y-0 w-6 cursor-col-resize items-center justify-center group touch-none select-none z-50",
+            "hidden sm:flex absolute -left-3 inset-y-0 w-6 cursor-col-resize items-center justify-center group select-none z-50",
             isDragging && "cursor-col-resize"
           )}
         >
