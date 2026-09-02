@@ -5,6 +5,9 @@ import { db } from "@/db";
 import {
   courses,
   chapters,
+  mataKuliah,
+  bab,
+  sumberMateri,
   courseMaterials,
   quizTemplates,
   studentQuizAttempts,
@@ -12,7 +15,7 @@ import {
   aiQuestionBank,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/uploadthing-admin";
-import { eq, asc, desc, inArray } from "drizzle-orm";
+import { eq, asc, desc, inArray, and, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
@@ -32,19 +35,46 @@ import {
 
 export async function getCourses() {
   await assertAdmin();
+  const canonicalCourses = await db
+    .select()
+    .from(mataKuliah)
+    .where(eq(mataKuliah.status, "active"))
+    .orderBy(asc(mataKuliah.title));
+
+  const legacyList = await db.select().from(courses);
+  const legacyMap = new Map(legacyList.map((c) => [c.id, c]));
+
+  if (canonicalCourses.length > 0) {
+    return canonicalCourses.map((mk) => {
+      const legacy = legacyMap.get(mk.legacyCourseId ?? "") || legacyMap.get(mk.id);
+      return {
+        id: mk.id,
+        title: mk.title,
+        category: legacy?.category ?? "Umum",
+        description: legacy?.description ?? null,
+        status: mk.status,
+        createdAt: mk.createdAt,
+        updatedAt: mk.updatedAt,
+      };
+    });
+  }
+
   return db.select().from(courses).orderBy(asc(courses.title));
 }
 
 export async function getCoursesWithStats() {
   await assertAdmin();
 
-  const allCourses = await db.select().from(courses).orderBy(asc(courses.title));
-  const allChapters = await db.select({ courseId: chapters.courseId }).from(chapters);
-  const allMaterials = await db.select({ courseId: courseMaterials.courseId }).from(courseMaterials);
-  const allQuizzes = await db.select({ courseId: quizTemplates.courseId }).from(quizTemplates);
+  const [canonicalCourses, allBab, allMaterials, allQuizzes, legacyList] = await Promise.all([
+    db.select().from(mataKuliah).where(eq(mataKuliah.status, "active")).orderBy(asc(mataKuliah.title)),
+    db.select({ courseId: bab.mataKuliahId }).from(bab).where(eq(bab.status, "active")),
+    db.select({ courseId: courseMaterials.courseId }).from(courseMaterials),
+    db.select({ courseId: quizTemplates.courseId }).from(quizTemplates),
+    db.select().from(courses).orderBy(asc(courses.title)),
+  ]);
 
   const chapterCountMap: Record<string, number> = {};
-  for (const ch of allChapters) {
+  for (const ch of allBab) {
     if (ch.courseId) chapterCountMap[ch.courseId] = (chapterCountMap[ch.courseId] || 0) + 1;
   }
 
@@ -58,9 +88,36 @@ export async function getCoursesWithStats() {
     if (q.courseId) quizCountMap[q.courseId] = (quizCountMap[q.courseId] || 0) + 1;
   }
 
-  return allCourses.map((c) => ({
+  const legacyMap = new Map(legacyList.map((c) => [c.id, c]));
+
+  if (canonicalCourses.length > 0) {
+    return canonicalCourses.map((mk) => {
+      const legacy = legacyMap.get(mk.legacyCourseId ?? "") || legacyMap.get(mk.id);
+      const legacyId = mk.legacyCourseId ?? mk.id;
+      return {
+        id: mk.id,
+        title: mk.title,
+        category: legacy?.category ?? "Umum",
+        description: legacy?.description ?? null,
+        status: mk.status,
+        createdAt: mk.createdAt,
+        updatedAt: mk.updatedAt,
+        chapterCount: chapterCountMap[mk.id] || 0,
+        materialCount: (materialCountMap[mk.id] || 0) + (materialCountMap[legacyId] && legacyId !== mk.id ? materialCountMap[legacyId] : 0),
+        quizCount: (quizCountMap[mk.id] || 0) + (quizCountMap[legacyId] && legacyId !== mk.id ? quizCountMap[legacyId] : 0),
+      };
+    });
+  }
+
+  const allChapters = await db.select({ courseId: chapters.courseId }).from(chapters);
+  const legacyChapterCountMap: Record<string, number> = {};
+  for (const ch of allChapters) {
+    if (ch.courseId) legacyChapterCountMap[ch.courseId] = (legacyChapterCountMap[ch.courseId] || 0) + 1;
+  }
+
+  return legacyList.map((c) => ({
     ...c,
-    chapterCount: chapterCountMap[c.id] || 0,
+    chapterCount: legacyChapterCountMap[c.id] || 0,
     materialCount: materialCountMap[c.id] || 0,
     quizCount: quizCountMap[c.id] || 0,
   }));
@@ -146,39 +203,106 @@ export async function getCourseDetailData(courseId: string) {
   await assertAdmin();
 
   const cleanCourseId = courseId.trim().toLowerCase();
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, cleanCourseId))
-    .limit(1);
+  const [canonicalCourse, legacyCourse] = await Promise.all([
+    db
+      .select()
+      .from(mataKuliah)
+      .where(and(eq(mataKuliah.status, "active"), or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId))))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    db
+      .select()
+      .from(courses)
+      .where(eq(courses.id, cleanCourseId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+  ]);
 
-  if (!course) {
+  if (!canonicalCourse && !legacyCourse) {
     return null;
   }
 
-  const [chaptersList, materialsList, quizTemplatesList, rawQuestions] = await Promise.all([
+  const course = {
+    id: canonicalCourse?.id ?? legacyCourse!.id,
+    title: canonicalCourse?.title ?? legacyCourse!.title,
+    category: legacyCourse?.category ?? "Umum",
+    description: legacyCourse?.description ?? null,
+    status: canonicalCourse?.status ?? (legacyCourse as { status?: string } | null)?.status ?? "active",
+    createdAt: canonicalCourse?.createdAt ?? (legacyCourse as { createdAt?: Date } | null)?.createdAt ?? new Date(),
+    updatedAt: canonicalCourse?.updatedAt ?? (legacyCourse as { updatedAt?: Date } | null)?.updatedAt ?? new Date(),
+  };
+
+  const canonicalCourseId = canonicalCourse?.id ?? cleanCourseId;
+  const legacyCourseId = legacyCourse?.id ?? cleanCourseId;
+
+  const [babList, legacyChapters, materialsList, quizTemplatesList, rawQuestions] = await Promise.all([
+    db
+      .select()
+      .from(bab)
+      .where(and(eq(bab.mataKuliahId, canonicalCourseId), eq(bab.status, "active")))
+      .orderBy(asc(bab.orderIndex)),
     db
       .select()
       .from(chapters)
-      .where(eq(chapters.courseId, cleanCourseId))
+      .where(or(eq(chapters.courseId, canonicalCourseId), eq(chapters.courseId, legacyCourseId)))
       .orderBy(asc(chapters.orderIndex)),
     db
       .select()
       .from(courseMaterials)
-      .where(eq(courseMaterials.courseId, cleanCourseId))
+      .where(or(eq(courseMaterials.courseId, canonicalCourseId), eq(courseMaterials.courseId, legacyCourseId)))
       .orderBy(desc(courseMaterials.createdAt)),
     db
       .select()
       .from(quizTemplates)
-      .where(eq(quizTemplates.courseId, cleanCourseId))
+      .where(or(eq(quizTemplates.courseId, canonicalCourseId), eq(quizTemplates.courseId, legacyCourseId)))
       .orderBy(desc(quizTemplates.createdAt)),
     db
       .select()
       .from(aiQuestionBank)
-      .where(eq(aiQuestionBank.courseId, cleanCourseId))
+      .where(or(eq(aiQuestionBank.courseId, canonicalCourseId), eq(aiQuestionBank.courseId, legacyCourseId)))
       .orderBy(desc(aiQuestionBank.createdAt))
       .limit(100),
   ]);
+
+  // Map chapters from canonical bab if available, preserving legacy descriptions
+  let chaptersList: Array<{
+    id: string;
+    courseId: string;
+    title: string;
+    orderIndex: number;
+    description: string | null;
+    status: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+  }>;
+
+  if (babList.length > 0) {
+    const legacyMap = new Map(legacyChapters.map((lc) => [lc.id, lc]));
+    chaptersList = babList.map((b) => {
+      const legacy = legacyMap.get(b.legacyChapterId ?? "") || legacyMap.get(b.id);
+      return {
+        id: b.id,
+        courseId: canonicalCourseId,
+        title: b.title,
+        orderIndex: b.orderIndex,
+        description: legacy?.description ?? null,
+        status: b.status,
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt,
+      };
+    });
+  } else {
+    chaptersList = legacyChapters.map((ch) => ({
+      id: ch.id,
+      courseId: canonicalCourseId,
+      title: ch.title,
+      orderIndex: ch.orderIndex,
+      description: ch.description,
+      status: ch.status,
+      createdAt: ch.createdAt,
+      updatedAt: ch.updatedAt,
+    }));
+  }
 
   // Aggregate quiz attempts & AI insights for quizzes in this course
   const quizIds = quizTemplatesList.map((q) => q.id);
@@ -264,15 +388,63 @@ export async function getCourseDetailData(courseId: string) {
 
 export async function getCourseChapters(courseId: string) {
   await assertAdmin();
+  const cleanCourseId = courseId.trim().toLowerCase();
+
+  const [mk] = await db
+    .select({ id: mataKuliah.id })
+    .from(mataKuliah)
+    .where(or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId)))
+    .limit(1);
+
+  const targetId = mk?.id ?? cleanCourseId;
+
+  const babList = await db
+    .select()
+    .from(bab)
+    .where(and(eq(bab.mataKuliahId, targetId), eq(bab.status, "active")))
+    .orderBy(asc(bab.orderIndex));
+
+  if (babList.length > 0) {
+    return babList.map((b) => ({
+      id: b.id,
+      courseId: targetId,
+      title: b.title,
+      orderIndex: b.orderIndex,
+      description: null,
+      status: b.status,
+      createdAt: b.createdAt,
+      updatedAt: b.updatedAt,
+    }));
+  }
+
   return db
     .select()
     .from(chapters)
-    .where(eq(chapters.courseId, courseId))
+    .where(eq(chapters.courseId, cleanCourseId))
     .orderBy(asc(chapters.orderIndex));
 }
 
 export async function getAllChapters() {
   await assertAdmin();
+  const babList = await db
+    .select()
+    .from(bab)
+    .where(eq(bab.status, "active"))
+    .orderBy(asc(bab.orderIndex));
+
+  if (babList.length > 0) {
+    return babList.map((b) => ({
+      id: b.id,
+      courseId: b.mataKuliahId,
+      title: b.title,
+      orderIndex: b.orderIndex,
+      description: null,
+      status: b.status,
+      createdAt: b.createdAt,
+      updatedAt: b.updatedAt,
+    }));
+  }
+
   return db
     .select()
     .from(chapters)
@@ -391,7 +563,7 @@ export async function saveCourseMaterial(
   subcategory?: CourseMaterialSubcategory | null,
   year?: number | null
 ) {
-  await assertAdmin();
+  const { user } = await assertAdmin();
 
   const cleanCourseId = typeof courseId === "string" ? courseId.trim() : "";
   const cleanTitle = typeof title === "string" ? title.trim() : "";
@@ -452,6 +624,53 @@ export async function saveCourseMaterial(
       chapterIds,
     });
 
+    // Dual-write projection to canonical sumberMateri
+    try {
+      const [canonicalCourse] = await db
+        .select({ id: mataKuliah.id })
+        .from(mataKuliah)
+        .where(or(eq(mataKuliah.id, cleanCourseId), eq(mataKuliah.legacyCourseId, cleanCourseId)))
+        .limit(1);
+
+      const firstChapterId = chapterIds[0];
+      const [canonicalBab] = firstChapterId
+        ? await db
+            .select({ id: bab.id })
+            .from(bab)
+            .where(or(eq(bab.id, firstChapterId), eq(bab.legacyChapterId, firstChapterId)))
+            .limit(1)
+        : [null];
+
+      const canonicalCourseId = canonicalCourse?.id ?? cleanCourseId;
+      const canonicalBabId = canonicalBab?.id ?? null;
+
+      await db
+        .insert(sumberMateri)
+        .values({
+          id: `sm-legacy-${materialId}`,
+          mataKuliahId: canonicalCourseId,
+          babId: canonicalBabId,
+          sourceType: "pdf",
+          title: cleanTitle,
+          canonicalUriOrR2Key: cleanFileKey,
+          version: 1,
+          checksum: cleanFileKey,
+          status: "active",
+          creatorId: user.id,
+        })
+        .onConflictDoUpdate({
+          target: [sumberMateri.id],
+          set: {
+            title: cleanTitle,
+            canonicalUriOrR2Key: cleanFileKey,
+            status: "active",
+            updatedAt: new Date(),
+          },
+        });
+    } catch (projectionError) {
+      console.warn("Failed to project material to sumberMateri:", projectionError);
+    }
+
     revalidatePath("/admin/courses");
     revalidatePath(`/admin/courses/${cleanCourseId}`);
     revalidatePath(`/courses/${cleanCourseId}/material`);
@@ -466,7 +685,7 @@ export async function saveCourseMaterial(
 }
 
 export async function deleteCourseMaterial(id: string) {
-  await assertAdmin();
+  const { user: admin } = await assertAdmin();
 
   try {
     const [existing] = await db
@@ -492,6 +711,7 @@ export async function deleteCourseMaterial(id: string) {
     }
 
     await db.delete(courseMaterials).where(eq(courseMaterials.id, id));
+    await db.delete(sumberMateri).where(eq(sumberMateri.id, `sm-legacy-${id}`)).catch(() => null);
 
     revalidatePath("/admin/courses");
     revalidatePath(`/admin/courses/${existing.courseId}`);

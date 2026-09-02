@@ -495,32 +495,6 @@ function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
             "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
           )}
         >
-          <div className="flex items-center gap-3 px-2 py-2">
-            {session.user.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={session.user.image}
-                alt={name}
-                className="size-9 rounded-full object-cover ring-1 ring-border shrink-0"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-primary text-body-xs font-bold text-white">
-                {name.charAt(0).toUpperCase()}
-              </span>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-body-sm font-semibold text-foreground">
-                {name}
-              </p>
-              <p className="truncate text-body-xs text-muted-foreground">
-                {email}
-              </p>
-            </div>
-          </div>
-
-          <DropdownMenu.Separator className="my-1 h-px bg-border/60" />
-
           <DropdownMenu.Item asChild>
             <Link
               href="/profile"
@@ -746,6 +720,22 @@ export function SidebarShell({
     setActivePopoverId(null);
   }, [isCollapsed]);
 
+  useEffect(() => {
+    const handleOpen = () => setMobileOpen(true);
+    const handleClose = () => setMobileOpen(false);
+    const handleToggle = () => setMobileOpen((prev) => !prev);
+
+    window.addEventListener("zyx:open-mobile-sidebar", handleOpen);
+    window.addEventListener("zyx:close-mobile-sidebar", handleClose);
+    window.addEventListener("zyx:toggle-mobile-sidebar", handleToggle);
+
+    return () => {
+      window.removeEventListener("zyx:open-mobile-sidebar", handleOpen);
+      window.removeEventListener("zyx:close-mobile-sidebar", handleClose);
+      window.removeEventListener("zyx:toggle-mobile-sidebar", handleToggle);
+    };
+  }, []);
+
   const toggleCollapsed = useCallback(() => {
     setCollapsed((v) => {
       const next = !v;
@@ -769,17 +759,6 @@ export function SidebarShell({
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
-      )}
-
-      {mounted && !mobileOpen && (
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open navigation"
-          className="flex size-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground shadow-sm fixed top-3 left-3 z-40 md:hidden cursor-pointer"
-        >
-          <PanelLeftOpen className="size-4" />
-        </button>
       )}
 
       <aside
@@ -893,4 +872,22 @@ export function SidebarShell({
       </aside>
     </SidebarContext.Provider>
   );
+}
+
+export function openMobileSidebar() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("zyx:open-mobile-sidebar"));
+  }
+}
+
+export function closeMobileSidebar() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("zyx:close-mobile-sidebar"));
+  }
+}
+
+export function toggleMobileSidebar() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("zyx:toggle-mobile-sidebar"));
+  }
 }
