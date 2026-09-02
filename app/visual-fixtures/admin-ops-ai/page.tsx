@@ -11,7 +11,9 @@ export default async function AdminOpsAiVisualFixturePage({
     width?: string;
   }>;
 }) {
-  if (process.env.NODE_ENV !== "development") notFound();
+  if (process.env.NODE_ENV === "production" && process.env.ENABLE_VISUAL_FIXTURES !== "true") {
+    notFound();
+  }
   const { state, width } = await searchParams;
   const initialWidth = width ? Number.parseInt(width, 10) : undefined;
 

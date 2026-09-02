@@ -256,15 +256,19 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     [setWidth, maxWidth]
   );
 
-  // Bulletproof Drag Resize: Direct 120fps DOM mutation + Pointer Capture + Mouse fallback
+  // Bulletproof Drag Resize: Direct 120fps DOM mutation + Dual target/window listeners
   const handlePointerDownResize = useCallback(
-    (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
+    (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
 
       const asideEl = panelRef.current;
+      const mainEl = typeof document !== "undefined" ? document.getElementById("main-content") : null;
+      const targetEl = e.currentTarget;
+
       const startX = e.clientX;
       const startWidth = asideEl ? asideEl.getBoundingClientRect().width : width;
+      let currentWidth = startWidth;
 
       isDraggingRef.current = true;
       dragStartRef.current = {
@@ -275,18 +279,22 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
 
       setIsDragging(true);
 
-      const targetEl = e.currentTarget as HTMLElement;
-      if ("setPointerCapture" in targetEl && "pointerId" in e) {
-        try {
-          targetEl.setPointerCapture((e as React.PointerEvent).pointerId);
-        } catch {
-          // Ignore
-        }
-      }
+      // Disable CSS transitions immediately for instant 120fps tracking
+      if (asideEl) asideEl.style.transition = "none";
+      if (mainEl) mainEl.style.transition = "none";
 
       if (typeof document !== "undefined") {
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
+      }
+
+      const pointerId = e.pointerId;
+      let hasCapture = false;
+      try {
+        targetEl.setPointerCapture(pointerId);
+        hasCapture = true;
+      } catch {
+        // Fallback to window listeners if capture not supported
       }
 
       const handleMove = (ev: MouseEvent | PointerEvent) => {
@@ -295,6 +303,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         const delta = dragStartRef.current.startX - ev.clientX; // Leftward drag expands right panel
         const newWidth = clampOpsAiWidth(dragStartRef.current.startWidth + delta, window.innerWidth);
         dragStartRef.current.latestWidth = newWidth;
+        currentWidth = newWidth;
 
         // Mutate DOM style directly at 120 FPS without React re-render lag
         if (asideEl) {
@@ -307,9 +316,9 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         isDraggingRef.current = false;
         setIsDragging(false);
 
-        if (targetEl && "releasePointerCapture" in targetEl && ev && "pointerId" in ev) {
+        if (hasCapture) {
           try {
-            targetEl.releasePointerCapture((ev as PointerEvent).pointerId);
+            targetEl.releasePointerCapture(pointerId);
           } catch {
             // Ignore
           }
@@ -320,20 +329,33 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           document.body.style.userSelect = "";
         }
 
-        window.removeEventListener("pointermove", handleMove);
-        window.removeEventListener("mousemove", handleMove);
-        window.removeEventListener("pointerup", handleUp);
-        window.removeEventListener("mouseup", handleUp);
+        if (asideEl) asideEl.style.transition = "";
+        if (mainEl) mainEl.style.transition = "";
+
+        // Remove from target element (captured events)
+        targetEl.removeEventListener("pointermove", handleMove as EventListener);
+        targetEl.removeEventListener("pointerup", handleUp as EventListener);
+        targetEl.removeEventListener("pointercancel", handleUp as EventListener);
+
+        // Remove from window (bubbled / fallback events)
+        window.removeEventListener("pointermove", handleMove as EventListener);
+        window.removeEventListener("mousemove", handleMove as EventListener);
+        window.removeEventListener("pointerup", handleUp as EventListener);
+        window.removeEventListener("mouseup", handleUp as EventListener);
 
         // Commit final width to React state and persistent storage once upon drag end
-        const finalWidth = dragStartRef.current.latestWidth;
-        setWidth(finalWidth);
+        setWidth(currentWidth);
       };
 
-      window.addEventListener("pointermove", handleMove, { passive: false });
-      window.addEventListener("mousemove", handleMove, { passive: false });
-      window.addEventListener("pointerup", handleUp);
-      window.addEventListener("mouseup", handleUp);
+      // Listen on BOTH targetEl (for captured events) AND window (for bubbling / fallback)
+      targetEl.addEventListener("pointermove", handleMove as EventListener, { passive: false });
+      targetEl.addEventListener("pointerup", handleUp as EventListener);
+      targetEl.addEventListener("pointercancel", handleUp as EventListener);
+
+      window.addEventListener("pointermove", handleMove as EventListener, { passive: false });
+      window.addEventListener("mousemove", handleMove as EventListener, { passive: false });
+      window.addEventListener("pointerup", handleUp as EventListener);
+      window.addEventListener("mouseup", handleUp as EventListener);
     },
     [width, setWidth]
   );
@@ -675,7 +697,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         onKeyDown={handleKeyDownTrap}
         style={{ width: mounted ? `${width}px` : undefined }}
         className={cn(
-          "flex flex-col border-l border-border bg-background select-text relative",
+          "flex flex-col border-l border-border bg-background select-text relative min-w-0",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           isDragging ? "transition-none select-none" : "transition-[width] duration-75",
           "fixed inset-0 z-50 w-full sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[480px] h-full shadow-2xl",
@@ -694,18 +716,17 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           suppressHydrationWarning
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
-          onMouseDown={handlePointerDownResize}
           style={{ touchAction: "none" }}
           className={cn(
-            "hidden sm:flex absolute -left-3 inset-y-0 w-6 cursor-col-resize items-center justify-center group select-none z-50",
-            isDragging && "cursor-col-resize"
+            "hidden sm:flex absolute -left-3 inset-y-0 w-6 cursor-col-resize items-center justify-center group select-none z-50 hover:bg-primary/5 active:bg-primary/10 transition-colors",
+            isDragging && "cursor-col-resize bg-primary/10"
           )}
         >
           <div
             className={cn(
               "w-1 h-16 rounded-full bg-border/90 transition-all duration-150 flex items-center justify-center",
               "group-hover:bg-primary group-hover:w-1.5 group-focus-visible:bg-primary group-focus-visible:w-1.5",
-              isDragging && "bg-primary w-1.5 shadow-sm"
+              isDragging ? "bg-primary w-1.5 shadow-sm" : "active:bg-primary active:w-1.5"
             )}
           />
         </div>
