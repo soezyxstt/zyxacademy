@@ -952,4 +952,18 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       expect(html).toContain('aria-label="Daftar riwayat sesi"');
     });
   });
+
+  describe("Suite 12: Mode Selector & Interaction Modes (Ask vs Edit)", () => {
+    it("renders the interactive Mode Selector button defaulting to Mode Tanya", () => {
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel />
+        </OpsAiProvider>
+      );
+
+      expect(html).toContain("Mode Tanya");
+      expect(html).toContain('title="Klik untuk beralih ke Mode Edit"');
+      expect(html).toContain("Tanyakan apa saja seputar operasional &amp; dokumentasi Zyx...");
+    });
+  });
 });

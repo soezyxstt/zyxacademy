@@ -46,6 +46,7 @@ export interface OpsAiContextPayload {
     id?: string;
     title?: string;
   };
+  mode?: "ask" | "edit";
 }
 
 export interface OpsAiChatRequest {

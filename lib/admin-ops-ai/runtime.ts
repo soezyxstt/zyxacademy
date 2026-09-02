@@ -24,8 +24,10 @@ import {
 } from "./citations";
 import {
   executeOpsAiTool,
+  searchAdminKnowledge,
   type OpsAiToolContext,
 } from "./runtime-tools";
+import { searchDocs } from "./rag-store";
 import {
   streamOpsAiModel,
   type OpsAiModelGenerateStreamOptions,
@@ -62,6 +64,12 @@ export interface ExecuteOpsAiRuntimeOptions {
 // ============================================================================
 
 export function buildOpsAiSystemPrompt(context?: OpsAiChatRequest["context"]): string {
+  const mode = context?.mode ?? "ask";
+  const modeInstruction =
+    mode === "edit"
+      ? `\nMODE AKTIF: MODE EDIT / AKSI OPERASIONAL.\nFokus utama Anda adalah membantu administrator melakukan aksi perubahan data dengan memanggil tools aksi (seperti propose_create_token). Jangan hanya menjawab dengan penjelasan tekstual, melainkan buatkan Action Proposal terstruktur yang siap dikonfirmasi oleh administrator.`
+      : `\nMODE AKTIF: MODE TANYA / KONSULTASI OPERASIONAL.\nFokus utama Anda adalah menjawab pertanyaan, menganalisis status sistem, dan menerangkan SOP atau fitur teknis Zyx. Bila menjawab pertanyaan seputar fitur, SOP, skema, atau konfigurasi Zyx, panggil tool 'retrieve_admin_knowledge' terlebih dahulu agar sumber referensi resmi dapat tercantum pada jawaban.`;
+
   return `Anda adalah Zyx Ops AI, asisten teknis dan operasional untuk panel administrator Zyx Academy.
 Tugas Anda adalah membantu administrator memahami fitur sistem, skema basis data, arsitektur, prosedur runbook operasional, dan menavigasi admin panel.
 
@@ -72,6 +80,8 @@ ATURAN DAN PEDOMAN:
 4. Jangan menambahkan tanda seru berlebih atau kalimat basa-basi.
 5. Berikan jawaban berbasis data nyata dan dokumentasi yang diverifikasi.
 6. Bila memerlukan informasi dokumentasi, skema tabel, metrik sistem, navigasi halaman, atau data pengguna, gunakan native tool calling yang tersedia. JANGAN membuat format teks buatan sendiri seperti markdown tool_call.
+7. Setiap pertanyaan mengenai konfigurasi, SOP, fitur, alur kerja, atau arsitektur Zyx WAJIB memanggil tool 'retrieve_admin_knowledge' untuk menyertakan referensi resmi.
+${modeInstruction}
 
 KONTEKS HALAMAN SAAT INI:
 - Rute aktif: ${context?.currentPath || "/admin"}
@@ -331,7 +341,62 @@ export function createOpsAiRuntimeStream(
           startedAt: initialStepStart,
         });
 
-        const systemPrompt = buildOpsAiSystemPrompt(context);
+        let systemPrompt = buildOpsAiSystemPrompt(context);
+
+        const allRunCitations: OpsAiCitation[] = [];
+        const knownSourceIds = new Set<string>();
+        const knownStepIds = new Set<string>();
+        const knownToolCallIds = new Set<string>();
+
+        // ----------------------------------------------------------------------
+        // Automatic Knowledge Grounding & Citation Emission
+        // ----------------------------------------------------------------------
+        const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+        const lastUserQuery = lastUserMsg?.content || "";
+
+        if (lastUserQuery.trim().length > 0) {
+          try {
+            let initialDocs: Array<{
+              title: string;
+              filePath: string;
+              section?: string;
+              snippet: string;
+              score?: number;
+            }> = [];
+
+            try {
+              const vectorResults = await searchAdminKnowledge({
+                query: lastUserQuery,
+                callerRole: toolContext?.callerRole ?? "admin",
+                vectorProvider: toolContext?.vectorProvider,
+                embeddingAdapter: toolContext?.embeddingAdapter,
+              });
+              if (vectorResults?.results && vectorResults.results.length > 0) {
+                initialDocs = vectorResults.results;
+              }
+            } catch {
+              // Vectorize may not be available in local environment
+            }
+
+            if (initialDocs.length === 0) {
+              const localDocs = await searchDocs(lastUserQuery, 3);
+              initialDocs = localDocs;
+            }
+
+            if (initialDocs.length > 0) {
+              systemPrompt +=
+                `\n\nDOKUMEN REFERENSI TERKAIT DARI BASIS PENGETAHUAN ZYX (Gunakan untuk menjawab secara akurat dan panggil tool 'retrieve_admin_knowledge' bila ingin merujuk resmi):\n` +
+                initialDocs
+                  .map(
+                    (d) =>
+                      `--- Dokumen: ${d.title} (${d.filePath}${d.section ? ` › ${d.section}` : ""})\n${d.snippet}`
+                  )
+                  .join("\n\n");
+            }
+          } catch (err) {
+            console.warn("[OpsAi Knowledge Grounding Warn]:", err);
+          }
+        }
 
         // Transition initial step to completed
         const initialStepFinish = Date.now();
@@ -354,11 +419,6 @@ export function createOpsAiRuntimeStream(
           role: m.role === "assistant" ? "model" : "user",
           content: m.content,
         }));
-
-        const allRunCitations: OpsAiCitation[] = [];
-        const knownSourceIds = new Set<string>();
-        const knownStepIds = new Set<string>();
-        const knownToolCallIds = new Set<string>();
         let lastGeneratedText = "";
 
         let toolStepCount = 0;

@@ -21,6 +21,7 @@ import {
   Maximize2,
   Minimize2,
   Layers,
+  FileEdit,
 } from "lucide-react";
 import { useOpsAiContext } from "./ops-ai-context";
 import {
@@ -103,6 +104,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
   const [mounted, setMounted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showSessionsDropdown, setShowSessionsDropdown] = useState(false);
+  const [mode, setMode] = useState<"ask" | "edit">("ask");
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -248,14 +250,18 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     [setWidth, maxWidth]
   );
 
-  // Pointer drag resize: Smooth, jank-free, without pointer capture lockups
+  // Pointer drag resize: Immediate 60fps DOM mutation + React state sync
   const handlePointerDownResize = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
-      setIsDragging(true);
+
+      const asideEl = panelRef.current;
       const startX = e.clientX;
-      const startWidth = width;
+      const startWidth = asideEl ? asideEl.getBoundingClientRect().width : width;
+      let latestWidth = startWidth;
+
+      setIsDragging(true);
 
       if (typeof document !== "undefined") {
         document.body.style.cursor = "col-resize";
@@ -265,8 +271,11 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
       const handlePointerMove = (ev: PointerEvent) => {
         ev.preventDefault();
         const delta = startX - ev.clientX; // Leftward drag expands right panel
-        const newWidth = clampOpsAiWidth(startWidth + delta, window.innerWidth);
-        setWidth(newWidth);
+        latestWidth = clampOpsAiWidth(startWidth + delta, window.innerWidth);
+        if (asideEl) {
+          asideEl.style.width = `${latestWidth}px`;
+        }
+        setWidth(latestWidth);
       };
 
       const handlePointerUp = () => {
@@ -278,6 +287,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         window.removeEventListener("pointermove", handlePointerMove);
         window.removeEventListener("pointerup", handlePointerUp);
         window.removeEventListener("pointercancel", handlePointerUp);
+        setWidth(latestWidth);
       };
 
       window.addEventListener("pointermove", handlePointerMove, { passive: false });
@@ -432,6 +442,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           context: {
             currentPath: pathname || "/admin",
             queryParams: qParams,
+            mode,
           },
         }),
       });
@@ -635,7 +646,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-20 lg:shadow-none"
         )}
       >
-        {/* Resize Handle: Desktop only with wide 24px hit area */}
+        {/* Resize Handle: Desktop & Tablet with wide 24px hit area */}
         <div
           role="separator"
           tabIndex={0}
@@ -647,8 +658,11 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
           suppressHydrationWarning
           onKeyDown={handleKeyDownResize}
           onPointerDown={handlePointerDownResize}
+          onMouseDown={(e) => {
+            handlePointerDownResize(e as unknown as React.PointerEvent<HTMLDivElement>);
+          }}
           className={cn(
-            "hidden lg:flex absolute -left-3 inset-y-0 w-6 cursor-col-resize items-center justify-center group touch-none select-none z-50",
+            "hidden sm:flex absolute -left-3 inset-y-0 w-6 cursor-col-resize items-center justify-center group touch-none select-none z-50",
             isDragging && "cursor-col-resize"
           )}
         >
@@ -971,19 +985,41 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
               placeholder={
                 isStreaming
                   ? "Asisten sedang merespons..."
-                  : "Tanyakan apa saja seputar operasional Zyx..."
+                  : mode === "edit"
+                  ? "Perintahkan aksi atau edit (misal: Buatkan token kelompok 5 orang)..."
+                  : "Tanyakan apa saja seputar operasional & dokumentasi Zyx..."
               }
               aria-label="Ketik pesan untuk Zyx Ops AI"
               className="w-full resize-none bg-transparent px-1.5 py-1 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 min-h-[44px]"
             />
 
             <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-border/40 px-1">
-              {/* Left: Pill action tag */}
+              {/* Left: Mode Selector Button (Tanya vs Edit) */}
               <div className="flex items-center gap-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/80 px-2.5 py-0.5 text-[11px] font-medium text-foreground/80 border border-border/40">
-                  <Sparkles className="size-2.5 text-primary" />
-                  <span>Ops Assistant</span>
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setMode((prev) => (prev === "ask" ? "edit" : "ask"))}
+                  aria-label={`Beralih mode. Mode saat ini: ${mode === "ask" ? "Tanya" : "Edit"}`}
+                  title={`Klik untuk beralih ke Mode ${mode === "ask" ? "Edit" : "Tanya"}`}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-all cursor-pointer select-none border shadow-2xs",
+                    mode === "edit"
+                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/25"
+                      : "bg-muted/80 text-foreground/90 border-border/50 hover:bg-muted"
+                  )}
+                >
+                  {mode === "edit" ? (
+                    <>
+                      <FileEdit className="size-3 text-amber-600 dark:text-amber-400" />
+                      <span>Mode Edit</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="size-3 text-primary" />
+                      <span>Mode Tanya</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Right: Send / Stop Circular Action Button */}

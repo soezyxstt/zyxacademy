@@ -39,6 +39,7 @@ import { createCanonicalVectorClient } from "@/lib/vectorize-client";
 import { getCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/runtime";
 import type { CanonicalVectorProvider } from "@/lib/vectorize/contracts";
 import type { CanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/embedding";
+import { searchDocs } from "./rag-store";
 
 // ============================================================================
 // 1. Sitemap Directory for Admin Navigation
@@ -216,7 +217,27 @@ export async function executeOpsAiTool(
         mockHydrationCatalog: context?.mockHydrationCatalog,
       });
 
-      const citations: OpsAiCitation[] = retrieval.results.map((result) =>
+      let searchResults = retrieval.results;
+      if (searchResults.length === 0 && !context?.mockHydrationCatalog) {
+        try {
+          const localDocs = await searchDocs(query, 4);
+          searchResults = localDocs.map((doc, idx) => ({
+            id: `local-${encodeURIComponent(doc.filePath).slice(0, 30)}-${idx}`,
+            sourceId: doc.filePath,
+            source: "semantic-rag" as const,
+            title: doc.title,
+            filePath: doc.filePath,
+            section: doc.section,
+            snippet: doc.snippet,
+            score: 0.9,
+            availability: "available" as const,
+          }));
+        } catch {
+          // Ignore fallback errors
+        }
+      }
+
+      const citations: OpsAiCitation[] = searchResults.map((result) =>
         buildSemanticRagCitation(result, {
           runId: context?.runId ?? "standalone-run",
           stepId: context?.stepId ?? "standalone-step",
@@ -226,8 +247,8 @@ export async function executeOpsAiTool(
       );
 
       return {
-        summary: `Ditemukan ${retrieval.results.length} sumber dokumentasi relevan untuk '${query}'.`,
-        data: retrieval.results,
+        summary: `Ditemukan ${searchResults.length} sumber dokumentasi relevan untuk '${query}'.`,
+        data: searchResults,
         citations,
       };
     }
