@@ -3,6 +3,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import {
   courses,
+  mataKuliah,
   enrollmentTokens,
   groupMembers,
   aiGenerationJobs,
@@ -64,7 +65,11 @@ export default async function AdminHomePage() {
     blogCountRes,
     attemptCountRes,
   ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(courses),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active"))
+      .then((rows) => (rows[0]?.count > 0 ? rows : db.select({ count: sql<number>`count(*)` }).from(courses))),
 
     Promise.all([
       db.select({ count: sql<number>`count(*)` }).from(enrollmentTokens),

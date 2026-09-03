@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { quizTemplates, courses } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { quizTemplates, courses, mataKuliah } from "@/db/schema";
+import { desc, eq } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { QuizzesCurationClient } from "./quizzes-client";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -26,7 +26,11 @@ export default async function AIQuizzesPage({ searchParams }: Props) {
       .select()
       .from(quizTemplates)
       .orderBy(desc(quizTemplates.createdAt)),
-    db.select({ id: courses.id, title: courses.title }).from(courses),
+    db
+      .select({ id: mataKuliah.id, title: mataKuliah.title })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active"))
+      .then((rows) => (rows.length > 0 ? rows : db.select({ id: courses.id, title: courses.title }).from(courses))),
   ]);
 
   const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));

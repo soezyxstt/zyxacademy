@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { quizTemplates, courses } from "@/db/schema";
+import { quizTemplates, courses, mataKuliah } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { QuizForm, InitialQuizData } from "../../_components/quiz-form";
@@ -30,7 +30,11 @@ export default async function EditQuizPage({ params, searchParams }: Props) {
       .where(eq(quizTemplates.id, id))
       .limit(1)
       .then((rows) => rows[0] ?? null),
-    db.select({ id: courses.id, title: courses.title }).from(courses),
+    db
+      .select({ id: mataKuliah.id, title: mataKuliah.title })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active"))
+      .then((rows) => (rows.length > 0 ? rows : db.select({ id: courses.id, title: courses.title }).from(courses))),
   ]);
 
   if (!template) {

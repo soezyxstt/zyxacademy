@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { courses } from "@/db/schema";
+import { courses, mataKuliah } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { QuizForm } from "../_components/quiz-form";
 
@@ -25,8 +26,10 @@ export default async function NewQuizPage({ searchParams }: Props) {
   const { courseId: prefillCourseId, tags: prefillTags, returnUrl, courseSlug } = await searchParams;
 
   const allCourses = await db
-    .select({ id: courses.id, title: courses.title })
-    .from(courses);
+    .select({ id: mataKuliah.id, title: mataKuliah.title })
+    .from(mataKuliah)
+    .where(eq(mataKuliah.status, "active"))
+    .then((rows) => (rows.length > 0 ? rows : db.select({ id: courses.id, title: courses.title }).from(courses)));
 
   const initialData = {
     courseId: prefillCourseId && allCourses.some((c) => c.id === prefillCourseId)

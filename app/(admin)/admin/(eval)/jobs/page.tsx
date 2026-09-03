@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { aiGenerationJobs, courses, chapters, knowledgeObjects } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { aiGenerationJobs, courses, chapters, mataKuliah, bab, knowledgeObjects } from "@/db/schema";
+import { desc, eq, asc } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
 import { GenerationJobsClient } from "./jobs-client";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -33,15 +33,28 @@ export default async function GenerationJobsPage() {
       .from(aiGenerationJobs)
       .orderBy(desc(aiGenerationJobs.createdAt))
       .limit(50),
-    db.select({ id: courses.id, title: courses.title }).from(courses),
     db
-      .select({ id: chapters.id, courseId: chapters.courseId, title: chapters.title, orderIndex: chapters.orderIndex })
-      .from(chapters)
-      .orderBy(chapters.orderIndex),
+      .select({ id: mataKuliah.id, title: mataKuliah.title })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active"))
+      .then((rows) => (rows.length > 0 ? rows : db.select({ id: courses.id, title: courses.title }).from(courses))),
+    db
+      .select({ id: bab.id, courseId: bab.mataKuliahId, title: bab.title, orderIndex: bab.orderIndex })
+      .from(bab)
+      .where(eq(bab.status, "active"))
+      .orderBy(asc(bab.orderIndex))
+      .then((rows) =>
+        rows.length > 0
+          ? rows
+          : db
+              .select({ id: chapters.id, courseId: chapters.courseId, title: chapters.title, orderIndex: chapters.orderIndex })
+              .from(chapters)
+              .orderBy(asc(chapters.orderIndex)),
+      ),
     db
       .select({ id: knowledgeObjects.id, courseId: knowledgeObjects.courseId, chapterId: knowledgeObjects.chapterId, title: knowledgeObjects.title, conceptName: knowledgeObjects.conceptName })
       .from(knowledgeObjects)
-      .where(eq(knowledgeObjects.status, 'active')),
+      .where(eq(knowledgeObjects.status, "active")),
   ]);
 
   const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));

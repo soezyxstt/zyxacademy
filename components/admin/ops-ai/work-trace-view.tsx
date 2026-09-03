@@ -87,12 +87,12 @@ export function WorkTraceView({ steps, defaultExpanded }: WorkTraceViewProps) {
         onClick={() => setIsExpanded((prev) => !prev)}
         aria-expanded={isExpanded}
         aria-label="Buka atau tutup jejak kerja audit"
-        className="group inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 focus-visible:outline-none"
+        className="group flex items-start text-left gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 focus-visible:outline-none w-full"
       >
         {isExpanded ? (
-          <ChevronDown className="size-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <ChevronDown className="size-3 text-muted-foreground group-hover:text-foreground transition-colors mt-0.5 shrink-0" />
         ) : (
-          <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground transition-colors mt-0.5 shrink-0" />
         )}
 
         <span className="font-heading text-body-xs font-bold text-foreground block leading-snug break-words">

@@ -678,7 +678,7 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
     <>
       {/* Mobile Backdrop Overlay */}
       <div
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity lg:hidden"
+        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-300 lg:hidden"
         onClick={closePanel}
         aria-hidden="true"
       />
@@ -691,13 +691,14 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
         aria-label="Zyx Ops AI Assistant"
         suppressHydrationWarning
         onKeyDown={handleKeyDownTrap}
-        style={{ width: mounted ? `${width}px` : undefined }}
+        style={{ width: mounted && isDesktop ? `${width}px` : undefined }}
         className={cn(
           "flex flex-col border-l border-border bg-background select-text relative min-w-0",
           "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           "transition-[width] duration-75",
           "fixed inset-0 z-50 w-full sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[480px] h-full shadow-2xl",
-          "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-40 lg:shadow-none"
+          "animate-in slide-in-from-right duration-300 ease-out",
+          "lg:sticky lg:top-0 lg:self-start lg:h-screen lg:shrink-0 lg:z-40 lg:shadow-none lg:animate-none"
         )}
       >
         {/* Resize Handle: Desktop & Tablet with wide 24px hit area */}
