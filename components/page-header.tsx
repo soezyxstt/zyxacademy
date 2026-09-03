@@ -1,10 +1,8 @@
-"use client";
-
-import { useEffect, type ReactNode, type ComponentType } from "react";
+import type { ReactNode, ComponentType } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMobileNav } from "@/components/mobile-nav-context";
+import { PageHeaderSync } from "@/components/page-header-sync";
 
 export type PageHeaderProps = {
   title: ReactNode;
@@ -29,33 +27,22 @@ export function PageHeader({
   divider = true,
   className,
 }: PageHeaderProps) {
-  const mobileNav = useMobileNav();
-
-  useEffect(() => {
-    if (mobileNav) {
-      mobileNav.setTitle(title);
-      mobileNav.setBackHref(backHref ?? null);
-    }
-  }, [mobileNav, title, backHref]);
-
   const hasExtraOnMobile = Boolean(backHref || actions);
 
   return (
     <header
       className={cn(
         "flex w-full min-w-0 flex-col items-stretch text-left",
-        // When managed by MobileNav, divider/spacing on mobile applies only if extra mobile controls exist
-        mobileNav
-          ? cn(
-              divider && "md:border-b md:border-border md:pb-2.5 md:mb-3.5",
-              hasExtraOnMobile && divider && "border-b border-border pb-2 mb-3"
-            )
-          : cn(divider && "border-b border-border pb-2.5 mb-3.5"),
+        // Spacing & divider: on desktop always apply if divider is true; on mobile only if extra controls exist
+        divider && "md:border-b md:border-border md:pb-2.5 md:mb-3.5",
+        hasExtraOnMobile && divider && "border-b border-border pb-2 mb-3",
         className
       )}
     >
-      {/* Desktop view (md and up) or unmanaged view */}
-      <div className={cn("w-full min-w-0 flex-col items-stretch gap-2", mobileNav ? "hidden md:flex" : "flex")}>
+      <PageHeaderSync title={title} backHref={backHref} />
+
+      {/* Desktop view (md and up) */}
+      <div className="hidden md:flex w-full min-w-0 flex-col items-stretch gap-2">
         {backHref && (
           <Link
             href={backHref}
@@ -85,7 +72,7 @@ export function PageHeader({
       </div>
 
       {/* Mobile view when managed by MobileNav: only render secondary controls / actions */}
-      {mobileNav && hasExtraOnMobile && (
+      {hasExtraOnMobile && (
         <div className="flex md:hidden w-full min-w-0 flex-wrap items-center justify-between gap-2">
           {backHref && (
             <Link

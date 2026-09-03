@@ -15,4 +15,9 @@ describe("student learning cleanup", () => {
     expect(source("components/student-sidebar.tsx")).not.toContain("Tanya Zyra");
     expect(source("app/(student)/courses/[id]/material/document-list-client.tsx")).not.toContain("<iframe");
   });
+
+  it("keeps PageHeader as a Server Component to allow passing icon component references", () => {
+    expect(source("components/page-header.tsx")).not.toMatch(/^["']use client["']/);
+    expect(source("components/page-header-sync.tsx")).toMatch(/^["']use client["']/);
+  });
 });
