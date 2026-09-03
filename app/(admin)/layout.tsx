@@ -6,7 +6,6 @@ import { hasPeran } from "@/lib/auth/authorization";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { OpsAiDrawer } from "@/components/admin/ops-ai/ops-ai-drawer";
-import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
 import { OpsAiProvider } from "@/components/admin/ops-ai/ops-ai-context";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -25,7 +24,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         >
           {children}
         </main>
-        <OpsAiTrigger variant="floating" />
         <OpsAiDrawer />
       </div>
     </OpsAiProvider>
