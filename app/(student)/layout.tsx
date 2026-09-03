@@ -4,11 +4,12 @@ import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { MobileNavProvider } from "@/components/mobile-nav-context";
 import { MobileNavbar } from "@/components/mobile-navbar";
 import { env } from "@/lib/env";
+import { TutorProvider } from "@/components/course/tutor-drawer";
 
 export default function StudentLayout({ children }: { children: ReactNode }) {
   return (
     <MobileNavProvider>
-      <div className="relative flex min-h-screen flex-col md:flex-row bg-background overflow-x-clip">
+      <TutorProvider>
         <PageOrnaments variant="about" />
         <StudentSidebar
           showStudyPath
@@ -25,7 +26,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
             {children}
           </main>
         </div>
-      </div>
+      </TutorProvider>
     </MobileNavProvider>
   );
 }

@@ -3,7 +3,6 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   BookOpen,
   Layers,
@@ -44,6 +43,7 @@ import {
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { clampTutorPanelWidth, DEFAULT_TUTOR_PANEL_WIDTH, MAX_TUTOR_PANEL_WIDTH, MIN_TUTOR_PANEL_WIDTH } from "@/lib/tutor-panel-layout";
 import { normalizeTutorMathMarkdown } from "@/lib/tutor/math-markdown";
 import { getTutorCapabilities } from "@/lib/tutor-capabilities";
 import {
@@ -99,8 +99,9 @@ export function useTutor() {
   return context;
 }
 
-const MIN_SIDEBAR_WIDTH = 340;
-const DEFAULT_SIDEBAR_WIDTH = 600;
+const MIN_SIDEBAR_WIDTH = MIN_TUTOR_PANEL_WIDTH;
+const DEFAULT_SIDEBAR_WIDTH = DEFAULT_TUTOR_PANEL_WIDTH;
+const MAX_SIDEBAR_WIDTH = MAX_TUTOR_PANEL_WIDTH;
 const STORAGE_KEY_WIDTH = "zyra_tutor_sidebar_width";
 
 /** Returns a trimmed string or a fallback when the value is missing/blank. */
@@ -203,6 +204,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const savedDataRef = React.useRef<any>(null);
+  const focusReturnRef = React.useRef<HTMLElement | null>(null);
 
   // Resizable sidebar states
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(DEFAULT_SIDEBAR_WIDTH);
@@ -228,7 +230,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       if (stored) {
         const parsed = parseInt(stored, 10);
         if (!isNaN(parsed) && parsed >= MIN_SIDEBAR_WIDTH) {
-          setSidebarWidth(Math.min(window.innerWidth - 32, parsed));
+          setSidebarWidth(clampTutorPanelWidth(parsed, window.innerWidth));
         }
       }
     } catch {}
@@ -251,10 +253,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [courseIdFromPath]);
 
-  // Lock background page scroll while the drawer is open so only the drawer
-  // body scrolls (prevents the double-scrollbar effect on desktop).
+  // The desktop panel participates in layout. Only the mobile overlay locks body scroll.
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !window.matchMedia("(max-width: 767px)").matches) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -297,9 +298,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
   // Handle drag to resize (mouse and touch share the same width logic)
   const applyResizeClientX = React.useCallback((clientX: number) => {
-    const maxWidth = window.innerWidth - 24;
     const targetWidth = window.innerWidth - clientX;
-    const clamped = Math.min(maxWidth, Math.max(MIN_SIDEBAR_WIDTH, targetWidth));
+    const clamped = clampTutorPanelWidth(targetWidth, window.innerWidth);
     setIsExpanded(false);
     setSidebarWidth(clamped);
   }, []);
@@ -372,6 +372,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setIsExpanded((prev) => !prev);
   }, []);
 
+  const rememberFocus = React.useCallback(() => {
+    focusReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }, []);
+
   const openChat = React.useCallback(async () => {
     if (suppressPet) return;
     setKoId(null);
@@ -379,6 +383,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setUserAnswer(null);
     setActiveMode("chat");
     setActiveAction("none");
+    rememberFocus();
     setIsOpen(true);
     setAttachmentIds([]);
     setReadyAttachments([]);
@@ -419,7 +424,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         content: "Halo! Aku Zyra, asisten belajar buatan Zyx. Tanyakan apa saja seputar materi kuliah atau soal latihan, aku siap membimbingmu dengan pendekatan Socratic!",
       }]);
     }
-  }, [pathname, suppressPet]);
+  }, [pathname, rememberFocus, suppressPet]);
 
   const openChatWithQuestion = React.useCallback(async (question: string) => {
     await openChat();
@@ -442,8 +447,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setActiveMode("explain");
     setActiveAction("none");
     setMessages([]);
+    rememberFocus();
     setIsOpen(true);
-  }, [caps.explain, openChat, suppressPet]);
+  }, [caps.explain, openChat, rememberFocus, suppressPet]);
 
   const openMistake = React.useCallback((qId: string, answerText: string) => {
     if (suppressPet) return;
@@ -453,8 +459,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setActiveMode("mistake");
     setActiveAction("none");
     setMessages([]);
+    rememberFocus();
     setIsOpen(true);
-  }, [suppressPet]);
+  }, [rememberFocus, suppressPet]);
 
   const openStudyPlan = React.useCallback(() => {
     if (suppressPet) return;
@@ -468,8 +475,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setActiveMode("study-plan");
     setActiveAction("none");
     setMessages([]);
+    rememberFocus();
     setIsOpen(true);
-  }, [caps.studyPlan, openChat, suppressPet]);
+  }, [caps.studyPlan, openChat, rememberFocus, suppressPet]);
 
   const close = React.useCallback(() => {
     setIsOpen(false);
@@ -478,7 +486,17 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     setMessages([]);
     setErrors([]);
     setSessionId(null);
+    requestAnimationFrame(() => focusReturnRef.current?.focus());
   }, []);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [close, isOpen]);
 
   React.useEffect(() => {
     if (suppressPet && isOpen) close();
@@ -751,7 +769,8 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <TutorContext.Provider value={{ openExplain, openMistake, openStudyPlan, openChat, openChatWithQuestion, close, isOpen, activeMode, suppressPet, setSuppressPet }}>
-      {children}
+      <div className="relative flex min-h-screen w-full flex-row overflow-x-clip bg-background">
+        {children}
 
       {/* Global floating Zyra trigger */}
       {pathname?.startsWith("/courses/") &&
@@ -789,10 +808,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
         <aside
           aria-label="Zyra Learning Assistant"
           style={{
-            width: isExpanded ? "calc(100vw - 1rem)" : `min(${sidebarWidth}px, 100vw)`,
-          }}
+            "--zyra-panel-width": `${isExpanded ? Math.min(MAX_SIDEBAR_WIDTH, typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : window.innerWidth * 0.5) : sidebarWidth}px`,
+          } as React.CSSProperties}
           className={cn(
-            "fixed inset-y-0 right-0 z-50 flex flex-col bg-card border-l border-border shadow-2xl overflow-hidden",
+            "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-card shadow-2xl md:sticky md:inset-y-auto md:right-auto md:z-20 md:h-screen md:w-[var(--zyra-panel-width)] md:shrink-0 md:shadow-none",
             isDragging ? "transition-none select-none" : "transition-[width] duration-150 ease-out"
           )}
         >
@@ -806,14 +825,14 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
               event.preventDefault();
               setIsExpanded(false);
               const delta = event.key === "ArrowLeft" ? 40 : -40;
-              setSidebarWidth((width) => Math.min(window.innerWidth - 24, Math.max(MIN_SIDEBAR_WIDTH, width + delta)));
+              setSidebarWidth((width) => clampTutorPanelWidth(width + delta, window.innerWidth));
               persistWidth();
             }}
             role="separator"
             aria-orientation="vertical"
             aria-label="Ubah lebar sidebar Zyra"
             aria-valuemin={MIN_SIDEBAR_WIDTH}
-            aria-valuemax={typeof window === "undefined" ? DEFAULT_SIDEBAR_WIDTH : window.innerWidth - 24}
+            aria-valuemax={typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : Math.min(MAX_SIDEBAR_WIDTH, Math.floor(window.innerWidth * 0.5))}
             aria-valuenow={sidebarWidth}
             tabIndex={0}
             title="Seret untuk mengubah lebar, klik dua kali untuk layar penuh, panah kiri/kanan untuk mengatur"
@@ -839,14 +858,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                   <ZyraMark className="size-4.5" />
                 </div>
                 <div className="min-w-0 flex flex-col">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-heading text-body-sm font-bold text-foreground truncate">
-                      Zyra
-                    </span>
-                    <Badge className="text-[10px] px-2 py-0.5 font-sans font-semibold rounded-md shrink-0">
-                      Asisten Belajar
-                    </Badge>
-                  </div>
+                  <span className="truncate font-heading text-body-sm font-bold text-foreground">
+                    Zyra
+                  </span>
                   <span className="text-body-xs text-muted-foreground truncate">
                     {courseIdFromPath
                       ? (courseLabel ?? courseIdFromPath)
@@ -956,10 +970,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                     <div
                       key={msg.id}
                       className={cn(
-                        "max-w-[92%] rounded-2xl p-4 text-body-sm leading-relaxed text-left flex flex-col gap-2 relative group",
+                        "relative flex max-w-[92%] flex-col gap-2 text-left text-body-sm leading-relaxed group",
                         isStudent
-                          ? "w-fit bg-brand-primary text-white self-end rounded-tr-xs shadow-xs"
-                          : "w-full bg-muted/60 text-foreground self-start rounded-tl-xs"
+                          ? "w-fit self-end rounded-lg bg-brand-primary px-3.5 py-2.5 text-white shadow-xs"
+                          : "w-full self-start border-b border-border/50 px-0 py-3 text-foreground"
                       )}
                     >
                       {/* Copy Action Button */}
@@ -1130,7 +1144,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
                 {/* Typing Loader Indicator */}
                 {chatLoading && (
-                  <div className="flex w-fit items-center gap-1.5 rounded-2xl bg-muted/60 border border-border/60 px-4 py-3 self-start rounded-tl-xs">
+                  <div className="flex w-fit items-center gap-1.5 self-start px-0 py-3">
                     <span className="text-body-xs text-muted-foreground mr-1">Zyra sedang berpikir</span>
                     {[0, 1, 2].map((dot) => (
                       <span
@@ -1441,6 +1455,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
           )}
         </aside>
       )}
+      </div>
     </TutorContext.Provider>
   );
 }

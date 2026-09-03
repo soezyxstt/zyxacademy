@@ -14,7 +14,6 @@ import { Analytics } from "@vercel/analytics/next";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { ThemeProvider } from "next-themes";
-import { TutorProvider } from "@/components/course/tutor-drawer";
 import { CommandMenuProvider } from "@/components/command-menu";
 import Script from "next/script";
 import NextTopLoader from "nextjs-toploader";
@@ -79,11 +78,9 @@ export default function RootLayout({
         >
         Langsung ke isi utama
         </a>
-        <TutorProvider>
-         <CommandMenuProvider>
-          {children}
-         </CommandMenuProvider>
-        </TutorProvider>
+        <CommandMenuProvider>
+         {children}
+        </CommandMenuProvider>
         <AppToaster />
         {/* Silent FCM permission + token registration ; no UI rendered */}
         <PushPermissionInit />

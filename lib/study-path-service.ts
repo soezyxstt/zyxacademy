@@ -23,6 +23,11 @@ import { resolveStudentCourse } from "@/lib/student/course-catalog";
 import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 export interface StudyPathStep {
+  stepId: string;
+  ideaId: string | null;
+  chapterId: string;
+  chapterTitle: string;
+  chapterOrder: number;
   conceptName: string;
   status: "locked" | "available" | "in_progress" | "mastered";
   actions: {
@@ -33,6 +38,7 @@ export interface StudyPathStep {
   estimatedMinutes: number;
   prerequisites: string[]; // List of prereq concept names for UI unlocks-after description
   masteryScore?: number;
+  priorityReason: string;
 }
 
 async function computeCanonicalStudyPath(
@@ -48,6 +54,7 @@ async function computeCanonicalStudyPath(
       name: ide.canonicalStatement,
       chapterId: ide.babId,
       chapterOrder: bab.orderIndex,
+      chapterTitle: bab.title,
       code: ide.code,
       score: pemahamanIde.skor,
       confidence: pemahamanIde.keyakinan,
@@ -151,6 +158,11 @@ async function computeCanonicalStudyPath(
           ? "available"
           : "in_progress";
     return {
+      stepId: current.id,
+      ideaId: current.id,
+      chapterId: current.chapterId,
+      chapterTitle: current.chapterTitle,
+      chapterOrder: current.chapterOrder,
       conceptName: current.name,
       status,
       actions: {
@@ -160,6 +172,7 @@ async function computeCanonicalStudyPath(
       estimatedMinutes: Math.max(5, (article?.totalEstimatedReadingMinutes ?? 0) + Math.ceil(flashcardCount * 0.5)),
       prerequisites: prerequisiteNames,
       masteryScore: score,
+      priorityReason: status === "mastered" ? "Sudah dikuasai" : status === "locked" ? "Selesaikan prasyarat" : current.score === null ? "Mulai konsep baru" : score < 40 ? "Perkuat dasar" : "Lanjutkan latihan",
     };
   });
 }
@@ -183,6 +196,7 @@ export async function computeStudyPath(
       importance: knowledgeObjects.importance,
       chapterId: knowledgeObjects.chapterId,
       chapterOrderIndex: chapters.orderIndex,
+      chapterTitle: chapters.title,
       tags: knowledgeObjects.tags,
     })
     .from(knowledgeObjects)
@@ -569,6 +583,11 @@ export async function computeStudyPath(
     }
 
     steps.push({
+      stepId: firstKo?.id ?? `legacy-${conceptName}`,
+      ideaId: null,
+      chapterId: firstKo?.chapterId ?? "legacy",
+      chapterTitle: firstKo?.chapterTitle ?? "Materi",
+      chapterOrder: firstKo?.chapterOrderIndex ?? 0,
       conceptName,
       status,
       actions: {
@@ -579,6 +598,7 @@ export async function computeStudyPath(
       estimatedMinutes,
       prerequisites: prereqsList,
       masteryScore: score,
+      priorityReason: status === "mastered" ? "Sudah dikuasai" : status === "locked" ? "Selesaikan prasyarat" : mastery ? (score < 40 ? "Perkuat dasar" : "Lanjutkan latihan") : "Mulai konsep baru",
     });
   }
 
@@ -633,7 +653,11 @@ export async function getOrComputeStudyPath(studentId: string, courseId: string)
     .limit(1);
 
   if (existing) {
-    return existing.pathJson as StudyPathStep[];
+    const cached = existing.pathJson as Partial<StudyPathStep>[];
+    if (cached.every((step) => typeof step.stepId === "string" && typeof step.chapterId === "string")) {
+      return cached as StudyPathStep[];
+    }
+    return recomputeStudyPath(studentId, courseId);
   }
 
   return recomputeStudyPath(studentId, courseId);

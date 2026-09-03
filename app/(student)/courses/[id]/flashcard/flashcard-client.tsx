@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Brain, Check, X, RotateCw } from "lucide-react";
+import Link from "next/link";
+import { Brain, Check, X, RotateCw, RefreshCw, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
 import { submitReviewAction } from "./actions";
 import { toast } from "@/components/ui/toast";
+import { appendFlashcardRetry, skipFlashcardInSession } from "@/lib/flashcard-session";
 
 interface Flashcard {
   id: string;
@@ -24,6 +26,11 @@ interface QueueItem {
   progress: any;
   dueStatus: "new" | "review";
   nextReviewDue: Date;
+  ideaId: string | null;
+  masteryScore: number | null;
+  confidence: number | null;
+  seenBefore: boolean;
+  priorityReason: string;
 }
 
 type FlashcardClientProps = {
@@ -99,14 +106,11 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
 
       // If user selected "Again / Ulangi" (grade 1), put the card back at the end of the queue for retry
       if (grade === 1) {
-        setQueue((prevQueue) => [
-          ...prevQueue,
-          {
+        setQueue((prevQueue) => appendFlashcardRetry(prevQueue, {
             ...currentItem,
             dueStatus: "review", // now it is a review card in this session
             nextReviewDue: new Date(),
-          },
-        ]);
+          }));
         toast.info("Kartu dimasukkan kembali ke akhir antrean untuk diulangi.");
       }
 
@@ -124,6 +128,15 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSkip = () => {
+    if (!currentItem || queue.length - currentIndex <= 1 || loading) return;
+    setQueue((current) => skipFlashcardInSession(current, currentIndex));
+    setIsFlipped(false);
+    setTypedAnswer("");
+    setIsChecked(false);
+    setPassedExam(null);
   };
 
   // Helper styles for 3D card
@@ -160,22 +173,14 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
           <Check className="size-6" />
         </div>
-        <h3 className="mt-4 font-heading text-body-base font-bold text-foreground">
-          Sesi Review Selesai! 🎉
-        </h3>
+        <h3 className="mt-4 font-heading text-body-base font-bold text-foreground">Sesi review selesai</h3>
         <p className="mt-2 text-body-sm text-muted-foreground">
           Anda berhasil mengulas {completedCount} flashcard pada sesi ini. Tetap pertahankan konsistensi belajar Anda!
         </p>
-        <Button
-          onClick={() => {
-            setCurrentIndex(0);
-            setCompletedCount(0);
-            setIsFlipped(false);
-          }}
-          className="mt-6 rounded-md bg-brand-primary text-white hover:bg-brand-primary/95"
-        >
-          Ulangi Sesi
-        </Button>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Button type="button" onClick={() => window.location.reload()} className="rounded-md"><RefreshCw className="mr-1.5 size-4" />Muat kartu berikutnya</Button>
+          <Button asChild variant="outline" className="rounded-md"><Link href={`/courses/${courseId}`}>Kembali ke ringkasan</Link></Button>
+        </div>
       </div>
     );
   }
@@ -269,9 +274,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             style={faceStyle}
           >
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <span className="inline-flex rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2 py-0.5 text-body-xs font-semibold text-brand-primary capitalize">
-                Konsep: {activeCard.koId ? "Knowledge Object" : "Materi"}
-              </span>
+              <span className="inline-flex rounded-md border border-brand-primary/20 bg-brand-primary/5 px-2 py-0.5 text-body-xs font-semibold text-brand-primary">{currentItem.priorityReason}</span>
               <span className="text-body-xs font-medium text-muted-foreground">
                 Tanya
               </span>
@@ -341,6 +344,13 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-body-xs text-muted-foreground">Kartu {currentIndex + 1} dari {queue.length}</span>
+        <Button type="button" variant="ghost" size="sm" onClick={handleSkip} disabled={loading || queue.length - currentIndex <= 1} className="rounded-md text-body-sm">
+          Lewati <SkipForward className="ml-1.5 size-4" />
+        </Button>
       </div>
 
       {/* Interactive Input Area for Exam Mode */}

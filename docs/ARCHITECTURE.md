@@ -163,6 +163,8 @@ Admin course and chapter CRUD uses `lib/academic/course-canonical-sync.ts`. Crea
 
 Student course, enrollment, chapter, published Article, Diktat, flashcard, Idea mastery, Concept Explorer, and study path reads are canonical first. Historical PDFs, generated website materials, quiz and tryout templates, attempt snapshots, and submissions remain explicit compatibility fallbacks. A canonical entity suppresses its mapped legacy duplicate, and an archived canonical course cannot reappear through its legacy mapping.
 
+Student document thumbnails are stored raster assets, not browser viewer captures. `lib/thumbnail.ts` downloads or accepts the PDF bytes, renders page one with `PDFParse.getScreenshot()`, converts the raster to WebP with `sharp`, and writes an explicit key from `buildCourseThumbnailKey()`. Parser cleanup is guaranteed in `finally`. Upload and Diktat completion call the same generator. A missing or failed thumbnail remains a presentation fallback and never blocks access to the source document.
+
 The boundary covers material publication, flashcard review, quiz attempt start and submission, learning events with exact Idea identity, enrollment, tutor assignment, and Tutorial PKA progress. Target failures roll back the transaction. Compatibility reads remain available for historical rows, while new writes use the canonical repository.
 
 Plan 005 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan005-legacy-backfill/plan-005-result.json`.
@@ -665,7 +667,11 @@ Student redeems enrollment token
      │    ├── Records learning_events for mastery update
      │    └── Shows results with mistake feedback (attempt_feedback)
      ├── Tryout ; timed exam mode
-     ├── Flashcards ; SM-2 spaced repetition (student_flashcard_progress)
+     ├── Flashcards ; SM-2 eligibility, then canonical Idea mastery priority
+     │    ├── flashcard_ide + pemahaman_ide supply score and confidence
+     │    ├── mastery 80 or higher is suppressed
+     │    ├── mapped weak Ideas, unseen cards, due date, and stable ID define order
+     │    └── cards without an Idea remain a compatibility fallback at the tail
      ├── Live quiz ; join via code, real-time leaderboard (WebSocket/SSE via zyxrealtime Worker)
      ├── AI Tutor ; Gemini chat with canonical Vectorize retrieval, Query Action Router (`lib/tutor/query-action.ts`), and Tier 1 Cache Isolation (`lib/tutor/cache-contract.ts`)
      │    ├── Typed Query Actions: `retrieve`, `reuse_previous_evidence`, `answer_from_conversation`, `clarify`
@@ -1013,7 +1019,9 @@ Plan 009 adds `lib/zyra/canvas` as the application-owned visual protocol. A canv
 
 Legacy graph blocks remain readable for historical and ungrounded responses, but their expressions are normalized and evaluated by the bounded Learning Canvas expression AST. The compatibility parser accepts plural and singular function fields plus inline or expanded domains. A failed expression renders an explicit learner-facing error instead of an empty plot.
 
-The course shell renders a draggable pet launcher as part of the always-on murid experience. `ZyraCharacter` is an application-owned fox-like SVG companion whose ears, tail, paws, facial expression, and bounded status glyph are derived from the typed `ZyraPetState`; it does not execute or render provider-authored SVG. Its clamped viewport position and visibility preference are browser-local presentation state. They are not sent to the server or learner profile. Quiz-review page context is resolved server-side from the authenticated route, student, and course. Only a bounded title and prompt list enters the tutoring request, and any response using this attempt-specific context bypasses shared cache reads and writes.
+The student layout owns `TutorProvider`; Admin and other root surfaces do not mount it. The provider wraps the student sidebar and main content in one flex row, then mounts Zyra as a sibling panel on desktop or a fixed overlay on mobile. One clamp function governs pointer, touch, keyboard, restored, and expanded widths. Only the mobile overlay locks body scrolling.
+
+The course shell renders a draggable pet launcher as part of the always-on murid experience. `ZyraCharacter` is an application-owned fox-like SVG companion whose ears, tail, paws, facial expression, and bounded status glyph are derived from the typed `ZyraPetState`; it does not execute or render provider-authored SVG. Browser state stores one of four safe corner anchors plus the visibility preference, not raw coordinates. The position is recalculated around the sidebar and viewport. This state is not sent to the server or learner profile. Quiz-review page context is resolved server-side from the authenticated route, student, and course. Only a bounded title and prompt list enters the tutoring request, and any response using this attempt-specific context bypasses shared cache reads and writes.
 
 Staging shadow mode is an explicit internal execution mode, not a public feature flag. It requires `ZYX_ENVIRONMENT=staging` and an exact match with `STAGING_ZYRA_PEDAGOGY_USER_ID`. The legacy and candidate generations run beside one another with one attempt each; only the legacy answer is returned. Learner summary and learning-event writes are suppressed, while comparison metadata stores only hashes, stable outcomes, state, hint level, violation codes, counts, and an opaque trace ID. Synthetic review output is available only to the local staging runner and is not added to the application response.
 
@@ -1034,6 +1042,10 @@ An image turn bypasses text-only Vectorize retrieval and page-context injection.
 Plan 011 composes the existing tutor drawer with an authenticated allowance summary, bounded selection-to-ask context, the Plan 010 attachment composer, local Learning Canvas controls, and an application-owned SVG character pet. The pet state is derived from upload, request, response, quota, and error state, then represented through bounded facial expressions, glyphs, and accessible labels. Public flags are independent, so text tutoring remains available when image input, pet, or selection actions are disabled.
 
 The drawer exposes direct resize and viewport expansion controls. Grounded turns retain the Plan 007 typed pedagogy path. A no-evidence turn uses a separate bounded general-teaching contract with a learning goal and one checkpoint because it cannot claim canonical grounding.
+
+### Course-scoped Daily Trivia
+
+`getDailyTrivia(courseId)` resolves the canonical and legacy course boundary, then reads only active and published compatibility questions for that course. `lib/daily-trivia.ts` validates the normalized `trivia` tag, freshness, multiple-choice shape, unique options, one valid correct index, explanation, and a same-course Knowledge Object or published canonical Idea anchor. Survey and feedback tags fail closed. Selection hashes the Jakarta day with the resolved course ID, so it remains stable within a day and isolated across courses. An empty eligible set returns `null` and mounts no student surface.
 
 ### Proposal-first copilots
 

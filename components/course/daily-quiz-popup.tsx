@@ -2,47 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { BookOpenCheck, CheckCircle2, XCircle, BrainCircuit } from "lucide-react";
+import { BookOpenCheck, CheckCircle2, XCircle, BrainCircuit, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
-
-type TriviaQuestion = {
-  question: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
-};
-
-const TRIVIA_DATA: Record<string, TriviaQuestion> = {
-  "calc-1": {
-    question: "Siapakah ilmuwan Jerman yang dianggap sebagai penemu kalkulus modern bersama dengan Isaac Newton?",
-    options: ["Albert Einstein", "Gottfried Wilhelm Leibniz", "René Descartes", "Galileo Galilei"],
-    correctIndex: 1,
-    explanation: "Kalkulus dikembangkan secara independen pada pertengahan abad ke-17 oleh Sir Isaac Newton di Inggris dan Gottfried Wilhelm Leibniz di Jerman. Leibniz lah yang memperkenalkan notasi dx dan lambang integral (∫) yang kita gunakan sekarang.",
-  },
-  "physics-1": {
-    question: "Manakah dari berikut ini yang merupakan satu-satunya besaran vektor di bawah ini?",
-    options: ["Kelajuan", "Massa", "Suhu", "Perpindahan"],
-    correctIndex: 3,
-    explanation: "Perpindahan adalah besaran vektor karena memiliki besar dan arah. Sementara kelajuan, massa, dan suhu hanya memiliki besar saja sehingga termasuk besaran skalar.",
-  },
-  "chem-1": {
-    question: "Unsur kimia apakah yang memiliki nomor atom 1 dan merupakan unsur paling melimpah di alam semesta?",
-    options: ["Helium", "Hidrogen", "Oksigen", "Nitrogen"],
-    correctIndex: 1,
-    explanation: "Hidrogen (H) adalah unsur kimia dengan nomor atom 1. Sekitar 75% massa elemental alam semesta terdiri dari hidrogen, menjadikannya unsur paling melimpah.",
-  },
-};
+import { jakartaDay } from "@/lib/date-utils";
 
 const DAILY_QUIZ_STORAGE_PREFIX = "zyx-daily-quiz";
 
 function getTodayString() {
-  const today = new Date();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const date = String(today.getDate()).padStart(2, "0");
-
-  return `${today.getFullYear()}-${month}-${date}`;
+  return jakartaDay();
 }
 
 function getLegacyTodayString() {
@@ -98,7 +67,7 @@ export function DailyQuizPopup({
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
 
-  const trivia = dailyTrivia || TRIVIA_DATA[courseId] || TRIVIA_DATA["calc-1"];
+  const trivia = dailyTrivia;
 
   useEffect(() => {
     const quizCompleted = hasCompletedDailyQuizToday(courseId);
@@ -138,7 +107,7 @@ export function DailyQuizPopup({
   }, [triggerManual]);
 
   function handleSubmit() {
-    if (selectedIdx === null) return;
+    if (selectedIdx === null || !trivia) return;
 
     const correct = selectedIdx === trivia.correctIndex;
     setIsCorrect(correct);
@@ -154,14 +123,12 @@ export function DailyQuizPopup({
     }
   }
 
-  if (!show) return null;
+  if (!show || !trivia) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 grid min-h-dvh place-items-center overflow-y-auto bg-black/60 p-4 font-sans backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
       <div className="relative my-auto w-full max-w-lg rounded-3xl border border-brand-primary/30 bg-card/95 p-6 shadow-2xl backdrop-blur-md md:p-8 animate-in zoom-in-95 duration-200">
-        <span className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:bg-border cursor-pointer transition-colors" onClick={handleClose}>
-          ✕
-        </span>
+        <button type="button" aria-label="Tutup trivia" className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:bg-border cursor-pointer transition-colors" onClick={handleClose}><X className="size-4" /></button>
 
         <div className="flex items-center gap-2.5">
           <span className="flex size-10 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
@@ -239,11 +206,11 @@ export function DailyQuizPopup({
               )}
               <div>
                 <p className="font-bold text-body-base leading-none">
-                  {isCorrect ? "Jawaban Benar!" : "Jawaban Kurang Tepat"}
+                  {isCorrect ? "Jawaban benar" : "Jawaban kurang tepat"}
                 </p>
                 <p className="text-body-xs mt-1 text-foreground/80">
                   {isCorrect
-                    ? "Hebat! Kamu berhasil menjawab trivia hari ini dengan benar."
+                    ? "Kamu berhasil menjawab trivia hari ini dengan benar."
                     : (
                       <>
                         Jawaban yang benar adalah:{" "}

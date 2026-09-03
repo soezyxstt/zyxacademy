@@ -323,7 +323,8 @@ export async function checkEnrollment(courseId: string): Promise<boolean> {
  */
 export async function getDailyTrivia(courseId: string) {
   try {
-    const { aiQuestionBank } = await import("@/db/schema");
+    const { aiQuestionBank, soal, soalIde, ide, petaIdLegacy, knowledgeObjects } = await import("@/db/schema");
+    const { validateDailyTriviaCandidate, selectDailyTrivia } = await import("@/lib/daily-trivia");
     const course = await resolveStudentCourse(courseId);
     const questionCourseId = course?.legacyId ?? courseId;
     const activeQuestions = await db
@@ -337,46 +338,40 @@ export async function getDailyTrivia(courseId: string) {
         )
       );
 
-    if (activeQuestions.length === 0) {
-      return null;
-    }
-
-    // Deterministic selection based on today's date
-    const today = new Date();
-    const dayOfYear = Math.floor(
-      (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000
-    );
-    const index = dayOfYear % activeQuestions.length;
-    const q = activeQuestions[index];
-
-    let options: string[] = [];
-    if (typeof q.options === "string") {
-      try {
-        options = JSON.parse(q.options);
-      } catch {
-        options = [];
-      }
-    } else if (Array.isArray(q.options)) {
-      options = q.options as string[];
-    }
-
-    let correctIndex = 0;
-    if (typeof q.correctIndices === "string") {
-      try {
-        const arr = JSON.parse(q.correctIndices);
-        correctIndex = arr[0] ?? 0;
-      } catch {}
-    } else if (Array.isArray(q.correctIndices)) {
-      correctIndex = (q.correctIndices as number[])[0] ?? 0;
-    }
-
-    return {
-      id: q.id,
-      question: q.prompt,
-      options,
-      correctIndex,
-      explanation: q.explanation,
-    };
+    if (activeQuestions.length === 0) return null;
+    const canonicalAnchors = course?.canonicalId
+      ? await db.select({ questionId: petaIdLegacy.legacyId }).from(soal)
+          .innerJoin(soalIde, eq(soalIde.soalId, soal.id))
+          .innerJoin(ide, and(eq(ide.id, soalIde.ideId), eq(ide.status, "published")))
+          .innerJoin(
+            petaIdLegacy,
+            and(
+              eq(petaIdLegacy.targetId, soal.id),
+              eq(petaIdLegacy.legacyTable, "ai_question_bank"),
+              eq(petaIdLegacy.targetTable, "soal"),
+            ),
+          )
+          .where(and(eq(soal.mataKuliahId, course.canonicalId), eq(soal.status, "published")))
+      : [];
+    const anchoredIds = new Set(canonicalAnchors.map((row) => row.questionId));
+    const validKnowledgeObjects = await db
+      .select({ id: knowledgeObjects.id })
+      .from(knowledgeObjects)
+      .where(eq(knowledgeObjects.courseId, questionCourseId));
+    const validKnowledgeObjectIds = new Set(validKnowledgeObjects.map((row) => row.id));
+    const eligible = activeQuestions.flatMap((question) => {
+      const validated = validateDailyTriviaCandidate(
+        {
+          ...question,
+          knowledgeObjectId: question.knowledgeObjectId && validKnowledgeObjectIds.has(question.knowledgeObjectId)
+            ? question.knowledgeObjectId
+            : null,
+        },
+        anchoredIds.has(question.id),
+      );
+      return validated ? [validated] : [];
+    });
+    return selectDailyTrivia(eligible, course?.canonicalId ?? questionCourseId);
   } catch (error) {
     console.error("Failed to get daily trivia:", error);
     return null;

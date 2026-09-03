@@ -12,6 +12,7 @@ import {
   setFlashcard,
   kemajuanFlashcardMurid,
   reviewFlashcard,
+  pemahamanIde,
 } from "@/db/schema";
 import { eq, and, lte, or, inArray, isNull, gt } from "drizzle-orm";
 import { calculateSM2 } from "./flashcard-scheduler";
@@ -21,6 +22,7 @@ import { markRecommendationDone } from "@/lib/recommendation-service";
 import { dualWriteFlashcardReview, dualWriteLearningEvent } from "@/lib/migrasi/repository-kompatibilitas";
 import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
 import { isStudentEnrolled, resolveStudentCourse } from "@/lib/student/course-catalog";
+import { rankFlashcardQueue, type FlashcardQueuePriorityInput } from "@/lib/flashcard-ranking";
 
 export interface FlashcardHistoryItem {
   reviewedAt: string;
@@ -35,6 +37,13 @@ export interface FlashcardHistoryItem {
   isExamMode: boolean;
   examInputAnswer?: string;
   examInputPassed?: boolean;
+}
+
+function flashcardPriorityReason(item: FlashcardQueuePriorityInput): string {
+  if (!item.ideaId) return "Tanpa pemetaan Idea";
+  if ((item.masteryScore ?? 0) < 40) return "Perlu dikuasai";
+  if (!item.seenBefore) return "Kartu baru";
+  return "Waktunya mengulang";
 }
 
 // ==========================================
@@ -98,19 +107,53 @@ export async function getReviewQueue(studentId: string, courseId: string) {
           ),
         );
       const progressByCard = new Map(progressRows.map((row) => [row.flashcardId, row]));
+      const ideaRows = await db
+        .select({
+          flashcardId: flashcardIde.flashcardId,
+          ideaId: flashcardIde.ideId,
+          masteryScore: pemahamanIde.skor,
+          confidence: pemahamanIde.keyakinan,
+        })
+        .from(flashcardIde)
+        .leftJoin(
+          pemahamanIde,
+          and(eq(pemahamanIde.ideId, flashcardIde.ideId), eq(pemahamanIde.penggunaId, studentId)),
+        )
+        .where(inArray(flashcardIde.flashcardId, canonicalCards.map((card) => card.id)));
+      const ideaByCard = new Map<string, (typeof ideaRows)[number]>();
+      for (const row of ideaRows) {
+        const current = ideaByCard.get(row.flashcardId);
+        if (
+          !current
+          || (row.masteryScore ?? 0) < (current.masteryScore ?? 0)
+          || ((row.masteryScore ?? 0) === (current.masteryScore ?? 0) && row.ideaId.localeCompare(current.ideaId) < 0)
+        ) {
+          ideaByCard.set(row.flashcardId, row);
+        }
+      }
       const now = Date.now();
-      return canonicalCards
+      const eligible = canonicalCards
         .flatMap((card) => {
           const progress = progressByCard.get(card.id);
-          if (progress && progress.dueAt.getTime() > now) return [];
+          if (progress && (progress.status !== "active" || progress.dueAt.getTime() > now)) return [];
+          const idea = ideaByCard.get(card.id);
+          const priority = {
+            cardId: card.id,
+            ideaId: idea?.ideaId ?? null,
+            masteryScore: idea?.masteryScore ?? null,
+            confidence: idea?.confidence ?? null,
+            seenBefore: Boolean(progress?.lastReviewedAt),
+            nextReviewDue: progress?.dueAt ?? new Date(0),
+          };
           return [{
-            card: { ...card, koId: null, metadata: { source: "canonical" } },
+            ...priority,
+            priorityReason: flashcardPriorityReason(priority),
+            card: { ...card, koId: null, metadata: { source: "canonical", ideaId: priority.ideaId } },
             progress: progress ?? null,
             dueStatus: progress ? "review" as const : "new" as const,
-            nextReviewDue: progress?.dueAt ?? new Date(0),
           }];
-        })
-        .sort((left, right) => left.nextReviewDue.getTime() - right.nextReviewDue.getTime());
+        });
+      return rankFlashcardQueue(eligible);
     }
   }
 
@@ -185,7 +228,17 @@ export async function getReviewQueue(studentId: string, courseId: string) {
   });
 
   // Sort queue: New cards and overdue cards first
-  return queue.sort((a, b) => a.nextReviewDue.getTime() - b.nextReviewDue.getTime());
+  return rankFlashcardQueue(queue.map((item) => {
+    const priority = {
+      ...item,
+      cardId: item.card.id,
+      ideaId: null,
+      masteryScore: null,
+      confidence: null,
+      seenBefore: Boolean(item.progress?.lastReviewedAt),
+    };
+    return { ...priority, priorityReason: flashcardPriorityReason(priority) };
+  }));
 }
 
 // ==========================================

@@ -20,6 +20,8 @@ type DailyQuizSectionProps = {
 export function DailyQuizSection({ courseId, courseTitle, dailyTrivia }: DailyQuizSectionProps) {
   const [manualTrigger, setManualTrigger] = useState(false);
 
+  if (!dailyTrivia) return null;
+
   return (
     <div className="font-sans">
       <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/40 px-4 py-2.5">

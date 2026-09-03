@@ -97,6 +97,7 @@ Implementation plans reside in `plans/` with detailed specifications:
 |---|---|---|---|
 | Overhaul Plans 001-016 | `plans/README.md` | `COMPLETED / RESOLVED` | Core overhaul covering identity, schemas, bundles V2, Vectorize 768d cutover, and Zyra foundation. |
 | Plan 017 | `plans/017-audit-rework.md` | `OPEN / IN PROGRESS` | Minimal audit rework for Idea-centered authoring and learning workflows. |
+| Student course learning UX remediation | `plans/student-course-learning-ux-remediation.md` | `OPEN / IN PROGRESS` | Checkpoint plan for Documents, Flashcards, Quiz, Tryout, Study Path, Daily Trivia, and student Zyra UX. |
 | Zyra AI System Plans 001-014 | `plans/zyra-ai-system/README.md` | `ACTIVE / IN PROGRESS` | AI control plane, quota coordinator, multi-model routing, semantic cache, canvas, and tutoring harness. |
 | Zyx Ops AI rebuild orchestration | `plans/orkestrasi-rebuild-zyx-ops-ai-agy-high.md` | `COMPLETED / RESOLVED` | Checkpoint-based orchestration plan for rebuilding Zyx Ops AI with AGY High (Checkpoints 1 through 7 completed and verified). |
 | Ops AI CP3 Runtime Handoff | `plans/handoff-cp3-runtime.md` | `COMPLETED / RESOLVED` | Checkpoint 3 runtime, streaming, and tool execution milestone handoff. |

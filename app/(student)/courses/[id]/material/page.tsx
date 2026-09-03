@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { studentCardClass } from "@/components/course/course-surfaces";
 import { pageTitle } from "@/lib/site";
 import { getCourse, getCourseChapterOutline } from "@/lib/course-utils";
 import { DocumentListClient } from "./document-list-client";
@@ -9,11 +8,9 @@ import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
 import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
-import { Button } from "@/components/ui/button";
 import { storage } from "@/lib/storage";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { FormattedDate } from "@/components/ui/formatted-date";
 import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 type Props = { params: Promise<{ id: string }> };
@@ -269,36 +266,6 @@ export default async function CourseMaterialListPage({ params }: Props) {
       icon={FileText}
     >
       <Reveal>
-        {visibleCourseDiktats.length > 0 && (
-          <div className="mb-8 space-y-3 text-left">
-            <h2 className="font-heading text-body-base font-bold text-foreground">Diktat Kuliah (PDF)</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {visibleCourseDiktats.map((d) => (
-                <div key={d.id} className={studentCardClass("justify-between")}>
-                  <div className="flex items-start gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-status-error/15 text-status-error">
-                      <FileText className="size-5" />
-                    </span>
-                    <div>
-                      <h3 className="font-heading text-body-sm font-bold text-foreground line-clamp-1">{d.title}</h3>
-                      <p className="text-body-xs text-muted-foreground mt-0.5">Dikompilasi otomatis dari materi terbaru</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-body-xs text-muted-foreground select-none">
-                      Diperbarui: <FormattedDate date={d.updatedAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
-                    </span>
-                    {d.fileUrl && (
-                      <Button asChild size="xs" className="rounded-lg bg-gradient-to-r from-brand-secondary to-brand-secondary/90 hover:opacity-95 text-white font-semibold shadow-xs">
-                        <a href={storage.getUrl(d.fileUrl)} target="_blank" rel="noopener noreferrer">Unduh PDF</a>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         <DocumentListClient courseId={id} materials={allMaterials} chapters={courseChapters} />
       </Reveal>
     </CoursePageShell>

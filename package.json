@@ -26,6 +26,7 @@
     "vectorize:prepare-index": "bun scripts/vectorize-prepare-index.ts",
     "vectorize:reconcile": "bun scripts/vectorize-reconcile.ts",
     "vectorize:golden": "bun scripts/vectorize-golden.ts",
+    "thumbnails:backfill": "bun scripts/backfill-course-thumbnails.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bunx tsx db/migrate.ts",
     "db:seed": "bunx tsx db/seed.ts",

@@ -27,11 +27,9 @@ import {
   Bell,
 } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { useTutor } from "@/components/course/tutor-drawer";
 import { useSession } from "@/lib/auth-client";
 import { getStudentEnrollments, getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
-import { ZyraMark } from "@/components/course/zyra-mark";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { SidebarTooltip } from "@/components/sidebar-shell";
@@ -52,7 +50,6 @@ export function StudentSidebar({
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
-  const { openChat } = useTutor();
   const courseIdFromPath = pathname.startsWith("/courses/")
     ? pathname.split("/")[2]
     : undefined;
@@ -207,23 +204,6 @@ export function StudentSidebar({
               ));
             })()}
           </div>
-
-          <div className="h-px bg-border/50 my-3 shrink-0 w-full" />
-
-          <SidebarTooltip label="Tanya Zyra" collapsed={c}>
-            <button
-              type="button"
-              onClick={openChat}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-semibold transition-colors cursor-pointer",
-                "bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20",
-                c && "justify-center size-10 px-0 mx-auto"
-              )}
-            >
-              <ZyraMark className="size-5" />
-              {!c && <span>Tanya Zyra</span>}
-            </button>
-          </SidebarTooltip>
 
           <div className="flex-1" />
         </nav>

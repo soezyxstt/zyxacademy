@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Calendar, ChevronRight, Lock } from "lucide-react";
+import { ChevronRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -212,12 +212,6 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
         })}
       </ul>
 
-      <div className="flex items-start gap-2 rounded-lg border border-brand-secondary/20 bg-brand-secondary/5 p-3 text-body-sm text-muted-foreground">
-        <Calendar className="mt-0.5 size-4 shrink-0 text-brand-secondary" />
-        <p>
-          Maksimal 2 kali pengumpulan per tryout agar jeda belajar tetap terukur.
-        </p>
-      </div>
     </div>
   );
 }
