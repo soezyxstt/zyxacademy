@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { headers } from "next/headers";
-import { Lock, Target } from "lucide-react";
+import { Lock, Target, ArrowRight } from "lucide-react";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
@@ -18,6 +19,7 @@ import { ConceptGraphView } from "@/components/course/concept-graph-view";
 import { ConceptMap } from "@/components/course/concept-map";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
+import { Button } from "@/components/ui/button";
 import { getCourse } from "@/lib/course-utils";
 import { pageTitle } from "@/lib/site";
 import {
@@ -155,8 +157,24 @@ export default async function CourseMasteryPage({ params }: Props) {
     <CoursePageShell title={`Penguasaan Materi: ${course.title}`} description="Analisis tingkat penguasaan konsep Anda berdasarkan aktivitas belajar." icon={Target}>
       {!readModel || readModel.groups.length === 0 ? (
         <Reveal>
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 bg-card/10 py-12 text-center">
-            <p className="text-body-sm text-muted-foreground">Peta pemahaman akan muncul setelah konten konsep dipublikasikan.</p>
+          <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 sm:p-12 text-center">
+            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+              <Target className="size-6" />
+            </div>
+            <h3 className="font-heading text-body-base font-bold text-foreground">
+              Peta penguasaan belum tersedia
+            </h3>
+            <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
+              Peta pemahaman konsep akan otomatis terbentuk seiring Anda mempelajari bab materi dan menyelesaikan latihan kuis.
+            </p>
+            <div className="mt-5">
+              <Button asChild size="sm" className="rounded-lg text-body-sm">
+                <Link href={`/courses/${id}/path`}>
+                  Buka Alur Belajar
+                  <ArrowRight className="ml-1.5 size-3.5" />
+                </Link>
+              </Button>
+            </div>
           </div>
         </Reveal>
       ) : (

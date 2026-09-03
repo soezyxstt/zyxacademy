@@ -1,20 +1,233 @@
 import type { Metadata } from "next";
-import { ShellPage } from "@/components/shell-page";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { CalendarDays } from "lucide-react";
+import { auth } from "@/lib/auth";
+import { db } from "@/db";
+import {
+  quizTemplates,
+  exams,
+  bookings,
+  tutorSlots,
+  courses,
+  user as userTable,
+} from "@/db/schema";
+import { eq, and, inArray, desc } from "drizzle-orm";
+import { PageHeader } from "@/components/page-header";
+import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
+import { listStudentEnrollments } from "@/lib/student/course-catalog";
+import { CalendarAgendaClient, type CalendarEventItem } from "./calendar-agenda-client";
 
 export const metadata: Metadata = {
-  title: pageTitle("Calendar"),
-  description: "Kalender jadwal dan acara internal Zyx Academy.",
+  title: pageTitle("Kalender Akademik"),
+  description: "Jadwal kegiatan belajar, tenggat kuis, tryout, dan sesi tutorial kelompok Anda di Zyx Academy.",
 };
 
-export default function CalendarPage() {
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+  "Jul", "Agu", "Sep", "Okt", "Nov", "Des"
+];
+
+function formatDisplayDate(d: Date): string {
+  const day = d.getDate();
+  const month = MONTH_NAMES[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
+export default async function CalendarPage() {
+  const h = await headers();
+  const session = await auth.api.getSession({ headers: h });
+
+  if (!session?.user?.id) {
+    redirect("/sign-in?next=/calendar");
+  }
+
+  const userId = session.user.id;
+  const enrollments = await listStudentEnrollments(userId);
+  const enrolledCourseIds = enrollments.map((e) => e.id);
+
+  const now = new Date();
+  const nowMs = now.getTime();
+  const todayDateStr = now.toISOString().slice(0, 10);
+
+  const events: CalendarEventItem[] = [];
+
+  // 1. Fetch upcoming and active quizzes for enrolled courses
+  if (enrolledCourseIds.length > 0) {
+    try {
+      const activeQuizzes = await db
+        .select({
+          id: quizTemplates.id,
+          title: quizTemplates.title,
+          category: quizTemplates.category,
+          openAt: quizTemplates.openAt,
+          closeAt: quizTemplates.closeAt,
+          courseId: quizTemplates.courseId,
+          courseTitle: courses.title,
+        })
+        .from(quizTemplates)
+        .innerJoin(courses, eq(quizTemplates.courseId, courses.id))
+        .where(
+          and(
+            inArray(quizTemplates.courseId, enrolledCourseIds),
+            eq(quizTemplates.status, "published")
+          )
+        )
+        .limit(30);
+
+      for (const q of activeQuizzes) {
+        const targetDate = q.closeAt || q.openAt || null;
+        if (!targetDate) continue;
+
+        const dateObj = new Date(targetDate);
+        const dateIso = dateObj.toISOString().slice(0, 10);
+        const isPast = dateObj.getTime() < nowMs;
+        const isToday = dateIso === todayDateStr;
+
+        events.push({
+          id: `quiz-${q.id}`,
+          title: q.title,
+          courseTitle: q.courseTitle,
+          category: "quiz",
+          categoryLabel: q.category === "simulation" ? "Simulasi" : "Kuis",
+          dateStr: formatDisplayDate(dateObj),
+          timeStr: q.closeAt ? `Tenggat ${dateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB` : "Tersedia",
+          actionUrl: `/courses/${q.courseId}/quiz/${q.id}`,
+          actionLabel: isPast ? "Tinjau Kuis" : "Kerjakan Kuis",
+          status: isToday ? "today" : isPast ? "past" : "upcoming",
+        });
+      }
+    } catch (e) {
+      console.error("Error loading quiz events for calendar:", e);
+    }
+  }
+
+  // 2. Fetch tryouts for enrolled courses
+  if (enrolledCourseIds.length > 0) {
+    try {
+      const activeExams = await db
+        .select({
+          id: exams.id,
+          title: exams.title,
+          type: exams.type,
+          openAt: exams.openAt,
+          closeAt: exams.closeAt,
+          courseId: exams.courseId,
+          courseTitle: courses.title,
+        })
+        .from(exams)
+        .innerJoin(courses, eq(exams.courseId, courses.id))
+        .where(
+          and(
+            inArray(exams.courseId, enrolledCourseIds),
+            eq(exams.status, "published")
+          )
+        )
+        .limit(20);
+
+      for (const ex of activeExams) {
+        const targetDate = ex.openAt || ex.closeAt || null;
+        if (!targetDate) continue;
+
+        const dateObj = new Date(targetDate);
+        const dateIso = dateObj.toISOString().slice(0, 10);
+        const isPast = (ex.closeAt ? new Date(ex.closeAt).getTime() : dateObj.getTime()) < nowMs;
+        const isToday = dateIso === todayDateStr;
+
+        events.push({
+          id: `exam-${ex.id}`,
+          title: ex.title,
+          courseTitle: ex.courseTitle,
+          category: "tryout",
+          categoryLabel: ex.type === "tryout" ? "Tryout" : "Ujian",
+          dateStr: formatDisplayDate(dateObj),
+          timeStr: `${dateObj.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB`,
+          actionUrl: `/courses/${ex.courseId}/tryout/${ex.id}`,
+          actionLabel: isPast ? "Tinjau Tryout" : "Buka Tryout",
+          status: isToday ? "today" : isPast ? "past" : "upcoming",
+        });
+      }
+    } catch (e) {
+      console.error("Error loading exam events for calendar:", e);
+    }
+  }
+
+  // 3. Fetch student tutorial bookings
+  try {
+    const studentBookings = await db
+      .select({
+        id: bookings.id,
+        sessionDate: bookings.sessionDate,
+        status: bookings.status,
+        startTime: tutorSlots.startTime,
+        endTime: tutorSlots.endTime,
+        googleMeetUrl: bookings.googleMeetUrl,
+        topic: bookings.topic,
+        courseId: bookings.courseId,
+        courseTitle: courses.title,
+        tutorName: userTable.name,
+      })
+      .from(bookings)
+      .innerJoin(tutorSlots, eq(bookings.slotId, tutorSlots.id))
+      .innerJoin(courses, eq(bookings.courseId, courses.id))
+      .leftJoin(userTable, eq(tutorSlots.tutorId, userTable.id))
+      .where(eq(bookings.studentId, userId))
+      .orderBy(desc(bookings.bookedAt))
+      .limit(15);
+
+    for (const b of studentBookings) {
+      if (!b.sessionDate) continue;
+
+      const dateParts = b.sessionDate.split("-");
+      const sessionDateObj = new Date(
+        parseInt(dateParts[0], 10),
+        parseInt(dateParts[1], 10) - 1,
+        parseInt(dateParts[2], 10)
+      );
+
+      const isToday = b.sessionDate === todayDateStr;
+      const isPast = b.status === "completed" || b.status === "cancelled" || sessionDateObj.getTime() + 86400000 < nowMs;
+
+      events.push({
+        id: `booking-${b.id}`,
+        title: b.topic ? `Tutorial: ${b.topic}` : `Sesi Tutorial dengan ${b.tutorName || "Tutor"}`,
+        courseTitle: b.courseTitle,
+        category: "tutorial",
+        categoryLabel: "Tutorial Kelompok",
+        dateStr: formatDisplayDate(sessionDateObj),
+        timeStr: b.startTime ? `${b.startTime} - ${b.endTime || "Selesai"} WIB` : "Waktu terjadwal",
+        actionUrl: "/dashboard/schedule",
+        actionLabel: "Lihat Detail",
+        isOnlineMeet: Boolean(b.googleMeetUrl),
+        meetUrl: b.googleMeetUrl,
+        status: isToday ? "today" : isPast ? "past" : "upcoming",
+      });
+    }
+  } catch (e) {
+    console.error("Error loading tutorial bookings for calendar:", e);
+  }
+
+  // Sort events: today first, then upcoming ascending, then past descending
+  events.sort((a, b) => {
+    if (a.status === "today" && b.status !== "today") return -1;
+    if (b.status === "today" && a.status !== "today") return 1;
+    if (a.status === "upcoming" && b.status === "past") return -1;
+    if (a.status === "past" && b.status === "upcoming") return 1;
+    return 0;
+  });
+
   return (
-    <ShellPage title="Calendar">
-      <div className="rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
-        <p className="text-body-base text-muted-foreground">
-          Belum ada jadwal kegiatan.
-        </p>
-      </div>
-    </ShellPage>
+    <div className="marketing-container mx-auto w-full px-4 py-6 sm:px-6 md:py-8 max-w-5xl">
+      <PageHeader
+        title="Kalender Akademik"
+        icon={CalendarDays}
+      />
+
+      <Reveal className="mt-6">
+        <CalendarAgendaClient events={events} />
+      </Reveal>
+    </div>
   );
 }

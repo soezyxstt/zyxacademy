@@ -81,13 +81,13 @@ export function DashboardWeakConcepts({ concepts, courseTitle = "Kuliah" }: Dash
               style={{ animationDelay: `${index * 50}ms` }}
             >
               {/* Concept name + trend icon + score */}
-              <div className="flex items-center justify-between text-body-sm">
-                <span className="flex items-center gap-1.5 font-medium text-foreground truncate max-w-[80%]">
+              <div className="flex items-start justify-between gap-2 text-body-sm">
+                <span className="flex items-center gap-1.5 font-medium text-foreground line-clamp-2 max-w-[85%] leading-snug">
                   {c.conceptName}
                   <TrendIcon trend={c.trend} />
                 </span>
-                <span className="font-mono text-body-xs font-semibold text-muted-foreground">
-                  {c.masteryScore}
+                <span className="font-mono text-body-xs font-semibold text-muted-foreground shrink-0 mt-0.5">
+                  {c.masteryScore}%
                 </span>
               </div>
 
@@ -103,7 +103,7 @@ export function DashboardWeakConcepts({ concepts, courseTitle = "Kuliah" }: Dash
                 <div className="mt-0.5">
                   <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px] rounded-md py-0.5">
                     <Lock className="size-3" />
-                    butuh {c.blockedBy[0]}
+                    Prasyarat: {c.blockedBy[0]}
                   </Badge>
                 </div>
               )}

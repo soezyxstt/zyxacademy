@@ -39,8 +39,11 @@ type FlashcardClientProps = {
   studentId: string;
 };
 
+const BATCH_SIZE = 10;
+
 export function FlashcardClient({ courseId, initialQueue, studentId }: FlashcardClientProps) {
   const [queue, setQueue] = useState<QueueItem[]>(initialQueue);
+  const [batchOffset, setBatchOffset] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [mode, setMode] = useState<"standard" | "exam">("standard");
@@ -50,7 +53,8 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
   const [loading, setLoading] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
 
-  const currentItem = queue[currentIndex];
+  const activeBatch = queue.slice(batchOffset, batchOffset + BATCH_SIZE);
+  const currentItem = activeBatch[currentIndex];
 
   const handleFlip = () => {
     if (mode === "exam" && !isChecked) {
@@ -101,30 +105,26 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
         courseId
       );
 
-      toast.success("Penilaian berhasil disimpan!");
+      toast.success("Penilaian berhasil disimpan");
       setCompletedCount((prev) => prev + 1);
 
       // If user selected "Again / Ulangi" (grade 1), put the card back at the end of the queue for retry
       if (grade === 1) {
         setQueue((prevQueue) => appendFlashcardRetry(prevQueue, {
             ...currentItem,
-            dueStatus: "review", // now it is a review card in this session
-            nextReviewDue: new Date(),
+            dueStatus: "review",
           }));
-        toast.info("Kartu dimasukkan kembali ke akhir antrean untuk diulangi.");
       }
 
-      // Reset state for next card
+      // Move to next card in active batch
+      setCurrentIndex((prev) => prev + 1);
       setIsFlipped(false);
       setTypedAnswer("");
       setIsChecked(false);
       setPassedExam(null);
-
-      // Go to next card
-      setCurrentIndex((prev) => prev + 1);
-    } catch (error) {
-      console.error(error);
-      toast.error("Gagal menyimpan penilaian. Silakan coba lagi.");
+    } catch (err: any) {
+      console.error("Error submitting review:", err);
+      toast.error(err.message || "Gagal menyimpan ulasan kartu.");
     } finally {
       setLoading(false);
     }
@@ -165,28 +165,58 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
     );
   }
 
-  const isFinished = currentIndex >= queue.length;
+  const isBatchFinished = currentIndex >= activeBatch.length;
+  const hasMoreCards = batchOffset + BATCH_SIZE < queue.length;
 
-  if (isFinished) {
+  if (isBatchFinished) {
+    const currentSessionNum = Math.floor(batchOffset / BATCH_SIZE) + 1;
+    const totalSessions = Math.ceil(queue.length / BATCH_SIZE);
     return (
       <div className="mx-auto max-w-2xl rounded-2xl border border-border/60 bg-card p-8 text-center shadow-xs">
         <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
           <Check className="size-6" />
         </div>
-        <h3 className="mt-4 font-heading text-body-base font-bold text-foreground">Sesi review selesai</h3>
+        <h3 className="mt-4 font-heading text-body-base font-bold text-foreground">
+          Sesi {currentSessionNum} dari {totalSessions} selesai
+        </h3>
         <p className="mt-2 text-body-sm text-muted-foreground">
-          Anda berhasil mengulas {completedCount} flashcard pada sesi ini. Tetap pertahankan konsistensi belajar Anda!
+          Kamu telah menyelesaikan {activeBatch.length} kartu pada sesi ini (total {completedCount} kartu selesai).
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Button type="button" onClick={() => window.location.reload()} className="rounded-md"><RefreshCw className="mr-1.5 size-4" />Muat kartu berikutnya</Button>
-          <Button asChild variant="outline" className="rounded-md"><Link href={`/courses/${courseId}`}>Kembali ke ringkasan</Link></Button>
+          {hasMoreCards ? (
+            <Button
+              type="button"
+              onClick={() => {
+                setBatchOffset((prev) => prev + BATCH_SIZE);
+                setCurrentIndex(0);
+                setIsFlipped(false);
+                setTypedAnswer("");
+                setIsChecked(false);
+                setPassedExam(null);
+              }}
+              className="rounded-md"
+            >
+              <RefreshCw className="mr-1.5 size-4" />
+              Lanjut ke sesi berikutnya ({Math.min(BATCH_SIZE, queue.length - (batchOffset + BATCH_SIZE))} kartu)
+            </Button>
+          ) : (
+            <Button type="button" onClick={() => window.location.reload()} className="rounded-md">
+              <RefreshCw className="mr-1.5 size-4" />
+              Mulai ulang dari awal
+            </Button>
+          )}
+          <Button asChild variant="outline" className="rounded-md">
+            <Link href={`/courses/${courseId}`}>Kembali ke ringkasan</Link>
+          </Button>
         </div>
       </div>
     );
   }
 
   const activeCard = currentItem.card;
-  const progressPercent = Math.round((currentIndex / queue.length) * 100);
+  const currentSessionNum = Math.floor(batchOffset / BATCH_SIZE) + 1;
+  const totalSessions = Math.ceil(queue.length / BATCH_SIZE);
+  const progressPercent = Math.round((currentIndex / activeBatch.length) * 100);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -194,9 +224,9 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border/60 bg-card/60 p-4 backdrop-blur-xs">
         <div>
           <span className="text-body-xs font-semibold text-muted-foreground">
-            Progress Sesi: {currentIndex} / {queue.length} Kartu
+            Sesi {currentSessionNum} dari {totalSessions}: Kartu {currentIndex + 1} dari {activeBatch.length} (Total {queue.length} kartu)
           </span>
-          <div className="mt-1.5 h-1.5 w-40 overflow-hidden rounded bg-muted">
+          <div className="mt-1.5 h-1.5 w-48 overflow-hidden rounded bg-muted">
             <div
               className="h-full bg-brand-primary transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
@@ -411,7 +441,14 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
         </div>
       )}
 
-      {/* SM-2 Recall Self-Evaluation Grade Buttons (Visible when flipped or checked) */}
+      {/* Interaction Hint before flip */}
+      {!isFlipped && !isChecked && mode === "standard" && (
+        <p className="text-center text-body-xs text-muted-foreground animate-pulse">
+          Ketuk kartu untuk melihat jawaban dan evaluasi diri
+        </p>
+      )}
+
+      {/* Recall Self-Evaluation Grade Buttons (Visible when flipped or checked) */}
       {(isFlipped || isChecked) && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -421,7 +458,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               onClick={() => handleGrade(1)}
               className="w-full rounded-md border border-transparent bg-status-error/10 text-status-error hover:bg-status-error/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
             >
-              Ulangi (SM-2: 1)
+              Ulangi
             </Button>
             <Button
               type="button"
@@ -429,7 +466,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               onClick={() => handleGrade(2)}
               className="w-full rounded-md border border-transparent bg-status-warning/10 text-status-warning hover:bg-status-warning/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
             >
-              Sulit (SM-2: 2)
+              Sulit
             </Button>
             <Button
               type="button"
@@ -437,7 +474,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               onClick={() => handleGrade(3)}
               className="w-full rounded-md border border-transparent bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
             >
-              Bagus (SM-2: 3)
+              Paham
             </Button>
             <Button
               type="button"
@@ -445,7 +482,7 @@ export function FlashcardClient({ courseId, initialQueue, studentId }: Flashcard
               onClick={() => handleGrade(4)}
               className="w-full rounded-md border border-transparent bg-status-success/10 text-status-success hover:bg-status-success/20 active:scale-[0.98] text-body-xs font-bold py-3.5 h-auto transition-all"
             >
-              Mudah (SM-2: 4)
+              Mudah
             </Button>
           </div>
         </div>

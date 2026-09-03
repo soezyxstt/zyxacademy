@@ -16,6 +16,8 @@ import {
   flashcardIde,
   flashcard as canonicalFlashcard,
   setFlashcard,
+  concepts,
+  conceptLocalizations,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import * as Sentry from "@sentry/nextjs";
@@ -41,6 +43,25 @@ export interface StudyPathStep {
   priorityReason: string;
 }
 
+export function toConciseConceptName(statement: string, displayName?: string | null): string {
+  if (displayName && displayName.trim()) return displayName.trim();
+  const trimmed = statement.trim();
+  const words = trimmed.split(/\s+/);
+  if (words.length <= 5 && trimmed.length <= 40) return trimmed;
+
+  const defMatch = trimmed.match(/^([^.,;:\n]+?)\s+(?:adalah|merupakan|didefinisikan sebagai|dapat dihitung dengan|digunakan untuk|menyatakan bahwa|menyatakan|menjelaskan bahwa|menjelaskan)\b/i);
+  if (defMatch && defMatch[1].trim().length >= 3 && defMatch[1].trim().length <= 50) {
+    return defMatch[1].trim();
+  }
+
+  const punctMatch = trimmed.match(/^([^.,;:\n]+)/);
+  if (punctMatch && punctMatch[1].trim().length >= 3 && punctMatch[1].trim().length <= 40) {
+    return punctMatch[1].trim();
+  }
+
+  return words.slice(0, 5).join(" ");
+}
+
 async function computeCanonicalStudyPath(
   studentId: string,
   courseId: string,
@@ -52,6 +73,7 @@ async function computeCanonicalStudyPath(
     .select({
       id: ide.id,
       name: ide.canonicalStatement,
+      conceptDisplayName: conceptLocalizations.displayName,
       chapterId: ide.babId,
       chapterOrder: bab.orderIndex,
       chapterTitle: bab.title,
@@ -61,6 +83,11 @@ async function computeCanonicalStudyPath(
     })
     .from(ide)
     .innerJoin(bab, eq(ide.babId, bab.id))
+    .leftJoin(concepts, eq(ide.conceptId, concepts.id))
+    .leftJoin(
+      conceptLocalizations,
+      and(eq(conceptLocalizations.conceptId, concepts.id), eq(conceptLocalizations.lang, "id"))
+    )
     .leftJoin(
       pemahamanIde,
       and(eq(pemahamanIde.ideId, ide.id), eq(pemahamanIde.penggunaId, studentId)),
@@ -141,10 +168,21 @@ async function computeCanonicalStudyPath(
   const cardCountByIdea = new Map<string, number>();
   for (const link of cardLinks) cardCountByIdea.set(link.ideaId, (cardCountByIdea.get(link.ideaId) ?? 0) + 1);
 
-  return orderedIds.map((ideaId) => {
+  const seenConceptsPerChapter = new Set<string>();
+  const steps: StudyPathStep[] = [];
+
+  for (const ideaId of orderedIds) {
     const current = byId.get(ideaId)!;
+    const conciseName = toConciseConceptName(current.name, current.conceptDisplayName);
+    const dedupKey = `${current.chapterId}::${conciseName.toLowerCase()}`;
+    if (seenConceptsPerChapter.has(dedupKey)) continue;
+    seenConceptsPerChapter.add(dedupKey);
+
     const prerequisiteIds = prerequisites.get(ideaId) ?? [];
-    const prerequisiteNames = prerequisiteIds.map((id) => byId.get(id)!.name);
+    const prerequisiteNames = prerequisiteIds.map((id) => {
+      const p = byId.get(id)!;
+      return toConciseConceptName(p.name, p.conceptDisplayName);
+    });
     const locked = prerequisiteIds.some((id) => (byId.get(id)?.score ?? 0) < 40);
     const score = current.score ?? 0;
     const confidence = current.confidence ?? 0;
@@ -157,13 +195,14 @@ async function computeCanonicalStudyPath(
         : current.score === null
           ? "available"
           : "in_progress";
-    return {
+
+    steps.push({
       stepId: current.id,
       ideaId: current.id,
       chapterId: current.chapterId,
       chapterTitle: current.chapterTitle,
       chapterOrder: current.chapterOrder,
-      conceptName: current.name,
+      conceptName: conciseName,
       status,
       actions: {
         moduleHref: article ? `/courses/${courseId}/material/${article.id}` : undefined,
@@ -173,8 +212,10 @@ async function computeCanonicalStudyPath(
       prerequisites: prerequisiteNames,
       masteryScore: score,
       priorityReason: status === "mastered" ? "Sudah dikuasai" : status === "locked" ? "Selesaikan prasyarat" : current.score === null ? "Mulai konsep baru" : score < 40 ? "Perkuat dasar" : "Lanjutkan latihan",
-    };
-  });
+    });
+  }
+
+  return steps;
 }
 
 /**

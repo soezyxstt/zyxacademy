@@ -40,25 +40,25 @@ function statusLabel(step: StudyPathStep) {
 function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) {
   const href = primaryHref(step, courseId);
   return (
-    <div className={cn("grid gap-3 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center", step.status === "locked" && "bg-muted/20")}>
+    <div className={cn("grid gap-3 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center hover:bg-muted/15 transition-colors", step.status === "locked" && "bg-muted/20")}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className={cn("text-body-sm font-semibold", step.status === "locked" ? "text-muted-foreground" : "text-foreground")}>{step.conceptName}</span>
-          <span className={cn("rounded-md px-1.5 py-0.5 text-body-xs", step.status === "mastered" ? "bg-status-success/10 text-status-success" : step.status === "locked" ? "bg-muted text-muted-foreground" : "bg-brand-primary/10 text-brand-primary")}>{statusLabel(step)}</span>
+          <span className={cn("rounded-md px-1.5 py-0.5 text-body-xs", step.status === "mastered" ? "bg-status-success/10 text-status-success font-medium" : step.status === "locked" ? "bg-muted text-muted-foreground" : "bg-brand-primary/10 text-brand-primary font-medium")}>{statusLabel(step)}</span>
         </div>
         {step.status === "locked" ? (
           <p className="mt-1 flex items-start gap-1.5 text-body-xs text-muted-foreground"><Lock className="mt-0.5 size-3 shrink-0" />Selesaikan {step.prerequisites.slice(0, 2).join(" dan ") || "materi prasyarat"} terlebih dahulu.</p>
         ) : (
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
-            <span>{step.priorityReason}</span><span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{step.estimatedMinutes} menit</span>
-            {typeof step.masteryScore === "number" ? <span>Penguasaan {step.masteryScore}%</span> : null}
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{step.estimatedMinutes} menit</span>
+            {typeof step.masteryScore === "number" && step.masteryScore > 0 ? <span>Penguasaan {step.masteryScore}%</span> : null}
           </div>
         )}
       </div>
       <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-        {step.status !== "locked" && step.actions.quizTemplateId && href !== `/courses/${courseId}/quiz/${step.actions.quizTemplateId}` ? <Button asChild variant="ghost" size="sm" className="rounded-md"><Link href={`/courses/${courseId}/quiz/${step.actions.quizTemplateId}`}><BookOpen className="mr-1 size-3.5" />Kuis</Link></Button> : null}
-        {step.status !== "locked" && step.actions.flashcardCount && href !== `/courses/${courseId}/flashcard` ? <Button asChild variant="ghost" size="sm" className="rounded-md"><Link href={`/courses/${courseId}/flashcard`}><Brain className="mr-1 size-3.5" />{step.actions.flashcardCount} kartu</Link></Button> : null}
-        {step.status !== "locked" && href ? <Button asChild size="sm" className="rounded-md"><Link href={href}>Lanjutkan</Link></Button> : null}
+        {step.status !== "locked" && step.actions.quizTemplateId && href !== `/courses/${courseId}/quiz/${step.actions.quizTemplateId}` ? <Button asChild variant="ghost" size="sm" className="rounded-md h-8 text-body-xs"><Link href={`/courses/${courseId}/quiz/${step.actions.quizTemplateId}`}><BookOpen className="mr-1 size-3.5" />Kuis</Link></Button> : null}
+        {step.status !== "locked" && step.actions.flashcardCount && href !== `/courses/${courseId}/flashcard` ? <Button asChild variant="ghost" size="sm" className="rounded-md h-8 text-body-xs"><Link href={`/courses/${courseId}/flashcard`}><Brain className="mr-1 size-3.5" />{step.actions.flashcardCount} kartu</Link></Button> : null}
+        {step.status !== "locked" && href ? <Button asChild size="sm" className="rounded-md h-8 text-body-xs"><Link href={href}>Lanjutkan</Link></Button> : null}
       </div>
     </div>
   );
@@ -128,11 +128,47 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
           ) : <div className="flex items-center gap-2 rounded-lg border border-status-success/20 bg-status-success/5 p-4 text-body-sm text-status-success"><Check className="size-4" />Semua langkah sudah dikuasai.</div>}
 
           <div className="space-y-3">
-            {groups.map(([chapterId, group]) => {
+            {groups.map(([chapterId, group], groupIdx) => {
               const active = group.steps.filter((step) => step.status !== "mastered" && step.status !== "locked");
               const locked = group.steps.filter((step) => step.status === "locked");
               const mastered = group.steps.filter((step) => step.status === "mastered");
-              return <section key={chapterId} className="overflow-hidden rounded-lg border border-border/70 bg-card"><div className="flex items-center justify-between gap-3 border-b border-border/60 px-3 py-2.5"><h2 className="font-heading text-body-sm font-bold">Bab {group.order}: {group.title}</h2><span className="text-body-xs text-muted-foreground">{mastered.length}/{group.steps.length} dikuasai</span></div>{active.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}{locked.length > 0 ? <details className="group border-t border-border/60"><summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-body-xs font-semibold text-muted-foreground"><span>{locked.length} langkah terkunci</span><ChevronDown className="size-4 transition-transform group-open:rotate-180" /></summary>{locked.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}</details> : null}{mastered.length > 0 ? <details className="group border-t border-border/60"><summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-body-xs font-semibold text-muted-foreground"><span>{mastered.length} sudah dikuasai</span><ChevronDown className="size-4 transition-transform group-open:rotate-180" /></summary>{mastered.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}</details> : null}</section>;
+              const hasNextStep = group.steps.some((s) => s.stepId === nextStep?.stepId);
+              const defaultOpen = hasNextStep || (groupIdx === 0 && !nextStep);
+
+              return (
+                <details key={chapterId} open={defaultOpen} className="group overflow-hidden rounded-lg border border-border/70 bg-card">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 select-none hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                      <h2 className="font-heading text-body-sm font-bold truncate">Bab {group.order}: {group.title}</h2>
+                    </div>
+                    <span className="text-body-xs text-muted-foreground shrink-0 font-medium">
+                      {mastered.length}/{group.steps.length} konsep dikuasai
+                    </span>
+                  </summary>
+                  <div className="border-t border-border/60">
+                    {active.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
+                    {locked.length > 0 ? (
+                      <details className="group/locked border-t border-border/60">
+                        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-body-xs font-medium text-muted-foreground hover:bg-muted/20">
+                          <span>{locked.length} konsep terkunci</span>
+                          <ChevronDown className="size-3.5 transition-transform group-open/locked:rotate-180" />
+                        </summary>
+                        {locked.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
+                      </details>
+                    ) : null}
+                    {mastered.length > 0 ? (
+                      <details className="group/mastered border-t border-border/60">
+                        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-body-xs font-medium text-muted-foreground hover:bg-muted/20">
+                          <span>{mastered.length} konsep sudah dikuasai</span>
+                          <ChevronDown className="size-3.5 transition-transform group-open/mastered:rotate-180" />
+                        </summary>
+                        {mastered.map((step) => <StepRow key={step.stepId} step={step} courseId={courseId} />)}
+                      </details>
+                    ) : null}
+                  </div>
+                </details>
+              );
             })}
           </div>
         </>

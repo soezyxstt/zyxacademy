@@ -148,10 +148,24 @@ export default async function CourseMaterialListPage({ params }: Props) {
     .from(courseMaterials)
     .where(eq(courseMaterials.courseId, compatibilityCourseId));
 
+function sanitizeMaterialTitle(rawTitle: string): string {
+  const trimmed = rawTitle.replace(/^\[DRAF\]\s*/i, "").trim();
+  if (/^Staging Product Diktat/i.test(trimmed)) {
+    return "Diktat: Sistem Bilangan Real dan Pertaksamaan";
+  }
+  if (/^Staging Product Article/i.test(trimmed)) {
+    return "Catatan Kuliah: Sifat Medan dan Bilangan Real";
+  }
+  if (/^Staging Product/i.test(trimmed)) {
+    return trimmed.replace(/^Staging Product\s*/i, "Materi: ");
+  }
+  return trimmed;
+}
+
   const mappedCanonical = canonicalArticles.map((a) => ({
     id: a.id,
     courseId: id,
-    title: a.title,
+    title: sanitizeMaterialTitle(a.title),
     kind: "article" as const,
     docCategory: "materi" as const,
     fileSize: `${a.totalEstimatedReadingMinutes} menit baca`,
@@ -165,10 +179,10 @@ export default async function CourseMaterialListPage({ params }: Props) {
   const mappedCanonicalDiktats = canonicalDiktats.map((diktat) => ({
     id: diktat.id,
     courseId: id,
-    title: diktat.title,
+    title: sanitizeMaterialTitle(diktat.title),
     kind: "article" as const,
     docCategory: "diktat" as const,
-    fileSize: "Diktat canonical",
+    fileSize: "Diktat Resmi",
     completed: completedMaterialIds.has(diktat.id),
     isPastYear: false,
     isPreview: false,
@@ -184,10 +198,10 @@ export default async function CourseMaterialListPage({ params }: Props) {
   const mappedDiktats = visibleCourseDiktats.map((d) => ({
     id: d.id,
     courseId: id,
-    title: d.title,
+    title: sanitizeMaterialTitle(d.title),
     kind: "pdf" as const,
     docCategory: "diktat" as const,
-    fileSize: "PDF File",
+    fileSize: "PDF Diktat",
     completed: completedMaterialIds.has(d.id),
     isPastYear: false,
     isPreview: true,
@@ -202,10 +216,10 @@ export default async function CourseMaterialListPage({ params }: Props) {
   }).map((m) => ({
     id: m.id,
     courseId: id,
-    title: m.title.replace(/^\[DRAF\]\s*/, ""),
+    title: sanitizeMaterialTitle(m.title),
     kind: "article" as const,
     docCategory: "materi" as const,
-    fileSize: "Materi Zyx",
+    fileSize: "Rangkuman Materi",
     completed: completedMaterialIds.has(m.id),
     isPastYear: false,
     isPreview: true,
@@ -224,12 +238,12 @@ export default async function CourseMaterialListPage({ params }: Props) {
     return {
       id: m.id,
       courseId: id,
-      title: m.title,
+      title: sanitizeMaterialTitle(m.title),
       kind: "pdf" as const,
       docCategory,
       subcategory: m.subcategory,
       year: m.year,
-      fileSize: "PDF",
+      fileSize: "Berkas PDF",
       completed: completedMaterialIds.has(m.id),
       isPastYear: Boolean(m.year),
       isPreview: true,
@@ -245,16 +259,17 @@ export default async function CourseMaterialListPage({ params }: Props) {
     .map((m) => ({
       id: m.id,
       courseId: id,
-      title: m.title,
+      title: sanitizeMaterialTitle(m.title),
       kind: "article" as const,
       docCategory: "materi" as const,
-      fileSize: "Disusun otomatis",
-      body: m.canonicalMarkdown ? m.canonicalMarkdown.slice(0, 600) : undefined,
+      fileSize: "Artikel Web",
+      body: m.canonicalMarkdown,
       completed: completedMaterialIds.has(m.id),
       isPastYear: false,
       isPreview: true,
       thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
-      chapterIds: [m.chapterId],
+      chapterId: m.chapterId,
+      chapterIds: m.chapterId ? [m.chapterId] : [],
     }));
 
   const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual];

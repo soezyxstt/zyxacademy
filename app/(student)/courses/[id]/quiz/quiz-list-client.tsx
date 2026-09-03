@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Lock, CheckCircle2, AlertCircle } from "lucide-react";
+import { ChevronRight, Lock, CheckCircle2, AlertCircle, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FormattedDate } from "@/components/ui/formatted-date";
 import { cn } from "@/lib/utils";
 import type { quizTemplates, studentQuizAttempts } from "@/db/schema";
 
@@ -189,16 +190,20 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                       {isUpcoming && openDate && (
                         <span className="inline-flex items-center gap-1 text-status-warning font-medium">
                           <AlertCircle className="size-3.5" />
-                          Akan dibuka: {openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                          Akan dibuka: <FormattedDate date={openDate} options={{ dateStyle: "medium", timeStyle: "short" }} />
                         </span>
                       )}
 
                       {isClosed && (
                         <span className="inline-flex items-center gap-1 text-status-error font-medium">
                           <AlertCircle className="size-3.5" />
-                          {closeDate
-                            ? `Telah ditutup: ${closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`
-                            : "Telah ditutup"}
+                          {closeDate ? (
+                            <>
+                              Telah ditutup: <FormattedDate date={closeDate} options={{ dateStyle: "medium", timeStyle: "short" }} />
+                            </>
+                          ) : (
+                            "Telah ditutup"
+                          )}
                         </span>
                       )}
                     </div>
@@ -225,8 +230,16 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
       </ul>
 
       {templates.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-muted/15 py-10 text-center">
-          <p className="text-body-sm text-muted-foreground">Tidak ada kuis yang cocok.</p>
+        <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 sm:p-10 text-center">
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+            <ClipboardList className="size-6" />
+          </div>
+          <h3 className="font-heading text-body-base font-bold text-foreground">
+            Tidak ada kuis yang sesuai
+          </h3>
+          <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
+            Belum ada paket kuis yang cocok dengan kategori filter saat ini.
+          </p>
         </div>
       ) : null}
     </div>

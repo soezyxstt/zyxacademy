@@ -134,7 +134,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
   const handleCopy = (tokenStr: string) => {
     navigator.clipboard.writeText(tokenStr);
     setCopiedToken(tokenStr);
-    toast.success("Token kelompok disalin!");
+    toast.success("Token kelompok disalin");
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
@@ -146,8 +146,8 @@ export function StudentGroupsClient({ initialGroups }: Props) {
           <div className="size-16 rounded-2xl bg-brand-primary/10 text-brand-primary flex items-center justify-center mx-auto mb-4">
             <Users className="size-8" />
           </div>
-          <h2 className="font-heading text-h4 font-bold text-foreground mb-2">
-            Belum Tergabung dalam Kelompok Belajar
+          <h2 className="font-heading text-h5 font-bold text-foreground mb-2">
+            Belum tergabung dalam kelompok belajar
           </h2>
           <p className="text-body-sm text-muted-foreground mb-8 max-w-md mx-auto">
             Pembelajaran di Zyx Academy berbasis kelompok belajar terstruktur dengan kuota pertemuan berkala dan pendampingan tutor ahli setiap minggu.

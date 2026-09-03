@@ -10,8 +10,10 @@ import {
   Trophy,
   ArrowUpRight,
   Flame,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FormattedDate } from "@/components/ui/formatted-date";
 import { pageTitle } from "@/lib/site";
 import { Reveal } from "@/components/ui/reveal";
 import { auth } from "@/lib/auth";
@@ -607,7 +609,7 @@ export default async function DashboardPage() {
                               {review.front}
                             </p>
                             <p className="text-body-xs text-muted-foreground mt-0.5">
-                              {review.courseTitle}, {new Date(review.reviewedAt).toLocaleDateString("id-ID")}
+                              {review.courseTitle}, <FormattedDate date={review.reviewedAt} options={{ dateStyle: "medium" }} />
                             </p>
                           </div>
                         </li>
@@ -616,7 +618,8 @@ export default async function DashboardPage() {
                   </ul>
                 ) : (
                   <div className="flex flex-col items-center justify-center border-y border-dashed border-border/60 py-8 text-center">
-                    <p className="text-body-xs text-muted-foreground">Belum ada ulasan baru-baru ini.</p>
+                    <History className="size-6 text-muted-foreground/30 mb-1.5" />
+                    <p className="text-body-xs text-muted-foreground">Belum ada aktivitas ulasan baru-baru ini.</p>
                   </div>
                 )}
               </section>

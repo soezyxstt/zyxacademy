@@ -120,7 +120,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
                 <DocumentPreview material={material} />
                 <div className="flex items-start gap-2.5 p-3">
                   <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", config.className)}><Icon className="size-3.5" /></span>
-                  <div className="min-w-0 flex-1"><p className="truncate text-body-sm font-semibold text-foreground group-hover:text-primary">{material.title}</p><p className="mt-0.5 truncate text-body-xs text-muted-foreground">{categoryLabel[material.docCategory ?? "materi"]}{material.year ? ` · ${material.year}` : ""}{material.fileSize ? ` · ${material.fileSize}` : ""}</p></div>
+                  <div className="min-w-0 flex-1"><p className="line-clamp-2 text-body-sm font-semibold text-foreground group-hover:text-primary leading-snug">{material.title}</p><p className="mt-0.5 truncate text-body-xs text-muted-foreground">{categoryLabel[material.docCategory ?? "materi"]}{material.year ? ` · ${material.year}` : ""}{material.fileSize ? ` · ${material.fileSize}` : ""}</p></div>
                   {material.completed ? <CheckCircle2 className="size-4 shrink-0 text-status-success" aria-label="Selesai dipelajari" /> : null}
                 </div>
               </Link>
@@ -131,7 +131,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
         <ul className="divide-y divide-border/60 rounded-lg border border-border/70 bg-card">
           {filteredMaterials.map((material) => {
             const config = categoryConfig(material.docCategory); const Icon = config.icon;
-            return <li key={material.id}><Link href={`/courses/${courseId}/material/${material.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 hover:bg-muted/35 md:grid-cols-[minmax(0,1fr)_140px_80px_auto]"><div className="flex min-w-0 items-center gap-3"><span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", config.className)}><Icon className="size-3.5" /></span><span className="truncate text-body-sm font-semibold">{material.title}</span>{material.completed ? <CheckCircle2 className="size-3.5 shrink-0 text-status-success" /> : null}</div><span className="hidden truncate text-body-xs text-muted-foreground md:block">{categoryLabel[material.docCategory ?? "materi"]}</span><span className="hidden text-body-xs text-muted-foreground md:block">{material.year ?? "-"}</span><ChevronRight className="size-4 text-muted-foreground" /></Link></li>;
+            return <li key={material.id}><Link href={`/courses/${courseId}/material/${material.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 hover:bg-muted/35 md:grid-cols-[minmax(0,1fr)_140px_80px_auto]"><div className="flex min-w-0 items-center gap-3"><span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", config.className)}><Icon className="size-3.5" /></span><span className="line-clamp-2 text-body-sm font-semibold leading-snug">{material.title}</span>{material.completed ? <CheckCircle2 className="size-3.5 shrink-0 text-status-success" /> : null}</div><span className="hidden truncate text-body-xs text-muted-foreground md:block">{categoryLabel[material.docCategory ?? "materi"]}</span><span className="hidden text-body-xs text-muted-foreground md:block">{material.year ?? "-"}</span><ChevronRight className="size-4 text-muted-foreground" /></Link></li>;
           })}
         </ul>
       )}

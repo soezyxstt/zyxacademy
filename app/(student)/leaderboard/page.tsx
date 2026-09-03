@@ -25,21 +25,34 @@ export default async function LeaderboardPage() {
     ? await listStudentCourses()
     : await listStudentEnrollments(session.user.id);
 
-  // Per-course leaderboard: top 10 per course
+  // Per-course leaderboard: top 10 per course, loaded in parallel with defensive error boundary
+  const leaderboardEntries = await Promise.all(
+    allCourses.map(async (course) => {
+      try {
+        const ranked = await getCourseLeaderboard(course.id);
+        return {
+          courseId: course.id,
+          rows: ranked.slice(0, 10).map((r) => ({
+            rank: r.rank,
+            name: r.studentName,
+            avgScore: r.avgScore,
+            attempts: r.attemptCount,
+          })),
+        };
+      } catch (err) {
+        console.error(`Gagal memuat papan peringkat kelas ${course.id}:`, err);
+        return {
+          courseId: course.id,
+          rows: [],
+        };
+      }
+    })
+  );
+
   const leaderboardByCourse: Record<
     string,
     { rank: number; name: string; avgScore: number; attempts: number }[]
-  > = {};
-
-  for (const course of allCourses) {
-    const ranked = await getCourseLeaderboard(course.id);
-    leaderboardByCourse[course.id] = ranked.slice(0, 10).map((r) => ({
-      rank: r.rank,
-      name: r.studentName,
-      avgScore: r.avgScore,
-      attempts: r.attemptCount,
-    }));
-  }
+  > = Object.fromEntries(leaderboardEntries.map((e) => [e.courseId, e.rows]));
 
   return (
     <Reveal className="marketing-container mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
@@ -99,7 +112,7 @@ export default async function LeaderboardPage() {
                               <div className="absolute -top-5 flex size-9 items-center justify-center rounded-full bg-slate-200 border border-slate-300 dark:bg-slate-800 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-body-sm shadow-xs shrink-0">
                                 2
                               </div>
-                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
+                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-2 w-full px-1">
                                 {p2.name}
                               </div>
                               <div className="font-heading text-h6 font-bold text-slate-600 dark:text-slate-400 mt-1">
@@ -123,7 +136,7 @@ export default async function LeaderboardPage() {
                               <div className="absolute -top-7 flex size-11 items-center justify-center rounded-full bg-brand-secondary border-2 border-amber-300 text-white font-bold text-body-base shadow-md shrink-0">
                                 🥇
                               </div>
-                              <div className="font-heading text-body-sm font-extrabold text-foreground line-clamp-1 w-full px-1">
+                              <div className="font-heading text-body-sm font-extrabold text-foreground line-clamp-2 w-full px-1">
                                 {p1.name}
                               </div>
                               <div className="text-h6 font-extrabold text-brand-secondary mt-1">
@@ -147,7 +160,7 @@ export default async function LeaderboardPage() {
                               <div className="absolute -top-5 flex size-9 items-center justify-center rounded-full bg-amber-700/10 border border-amber-700/20 text-amber-800 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400 font-bold text-body-sm shadow-xs shrink-0">
                                 3
                               </div>
-                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
+                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-2 w-full px-1">
                                 {p3.name}
                               </div>
                               <div className="font-heading text-h6 font-bold text-amber-700 dark:text-amber-500 mt-1">

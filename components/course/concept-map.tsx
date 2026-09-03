@@ -64,19 +64,19 @@ export function ConceptMap({ courseId, groups }: ConceptMapProps) {
                     {c.conceptSlug ? (
                       <Link
                         href={`/courses/${courseId}/concept/${c.conceptSlug}`}
-                        className="text-body-base font-medium text-foreground block truncate hover:underline hover:text-primary transition-colors"
+                        className="text-body-sm font-semibold text-foreground block line-clamp-2 hover:underline hover:text-primary transition-colors"
                       >
                         {c.conceptName}
                       </Link>
                     ) : (
-                      <span className="text-body-base font-medium text-foreground block truncate">
+                      <span className="text-body-sm font-semibold text-foreground block line-clamp-2">
                         {c.conceptName}
                       </span>
                     )}
                     {c.blockedBy.length > 0 && (
                       <Badge variant="outline" className="text-muted-foreground mt-1 gap-1 text-body-xs rounded-md">
                         <Lock className="size-3" />
-                        needs {c.blockedBy[0]}
+                        Prasyarat: {c.blockedBy[0]}
                       </Badge>
                     )}
                   </div>
@@ -99,7 +99,9 @@ export function ConceptMap({ courseId, groups }: ConceptMapProps) {
                         </span>
                       </>
                     ) : (
-                      <span className="text-body-sm text-muted-foreground">no data</span>
+                      <span className="text-body-xs text-muted-foreground rounded bg-muted/60 px-2 py-0.5">
+                        Belum dinilai
+                      </span>
                     )}
                   </div>
 

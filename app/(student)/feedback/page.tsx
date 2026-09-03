@@ -1,24 +1,37 @@
 import type { Metadata } from "next";
-import { ShellPage } from "@/components/shell-page";
-import { Button } from "@/components/ui/button";
+import { headers } from "next/headers";
+import { MessageSquareHeart } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
+import { auth } from "@/lib/auth";
+import { FeedbackForm } from "./feedback-form";
 
 export const metadata: Metadata = {
-  title: pageTitle("Feedback"),
-  description: "Kirim masukan untuk kualitas layanan atau performa pengajar.",
+  title: pageTitle("Masukan Mahasiswa"),
+  description: "Sampaikan masukan, kendala materi, atau saran fitur untuk pembelajaran di Zyx Academy.",
 };
 
-export default function FeedbackPage() {
+export default async function FeedbackPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  const userEmail = session?.user?.email;
+
   return (
-    <ShellPage title="Feedback">
-      <div className="max-w-xl rounded-2xl border border-border bg-card p-8 shadow-sm">
-        <p className="text-body-base text-muted-foreground">
-          Form feedback dan masukan layanan. Hubungi tim Zyx melalui kanal resmi di footer untuk pertanyaan langsung.
+    <div className="marketing-container mx-auto w-full px-4 py-6 sm:px-6 md:py-8 max-w-4xl">
+      <PageHeader
+        title="Masukan Mahasiswa"
+        icon={MessageSquareHeart}
+      />
+
+      <Reveal className="mt-6 space-y-4">
+        <p className="text-body-sm text-muted-foreground max-w-2xl leading-relaxed">
+          Suara Anda sangat berharga bagi kami. Setiap kritik dan saran terkait materi TPB, kualitas kuis, bimbingan tutor, maupun antarmuka platform akan ditindaklanjuti secara berkala oleh tim akademik Zyx.
         </p>
-        <Button type="button" className="mt-6 rounded-lg" disabled>
-          Kirim Masukan
-        </Button>
-      </div>
-    </ShellPage>
+
+        <div className="pt-2">
+          <FeedbackForm initialEmail={userEmail} />
+        </div>
+      </Reveal>
+    </div>
   );
 }

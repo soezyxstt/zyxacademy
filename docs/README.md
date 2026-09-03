@@ -38,7 +38,8 @@ docs/
 │   └── zyra-ops-runbooks.md                  # Zyra AI Alert Runbooks and Incident Handling
 │
 ├── audit/                                    # Quality, Security, and Visual Audits
-│   └── admin-visual-quality-audit.md         # Admin Visual Quality and Responsive Audit
+│   ├── admin-visual-quality-audit.md         # Admin Visual Quality and Responsive Audit
+│   └── student-deep-ui-ux-audit.md           # Student Deep UI/UX Quality and Design Audit
 │
 └── handoffs/                                 # Milestone Handoff Records and Checkpoints
     └── zyra-ai-plans-001-007.md              # Zyra AI Plans 001-007 Staging Checkpoint
@@ -85,6 +86,7 @@ Every document in this repository has one of the following explicit statuses:
 | [operations/manual-test-plan-bundles-v2.md](operations/manual-test-plan-bundles-v2.md) | Operations | `ACTIVE` | Current | Manual test procedure for Idea Bundle V2 and Product Bundle V2 ingestion, block review, and destructive confirmation flows. |
 | [operations/legacy-vector-contract-allowlist.md](operations/legacy-vector-contract-allowlist.md) | Operations | `TRANSITIONAL / LEGACY` | Current | Non-runtime vector matches permitted during the Vectorize 768d migration cutover. |
 | [audit/admin-visual-quality-audit.md](audit/admin-visual-quality-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-08-24 | Visual and responsive quality audit for admin pages. All 14 findings (F1-F14) resolved and verified. |
+| [audit/student-deep-ui-ux-audit.md](audit/student-deep-ui-ux-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-09-03 | Comprehensive UI/UX and system audit for student pages. All 8 findings (AUD-STU-01 through 08) resolved and verified. |
 | [handoffs/zyra-ai-plans-001-007.md](handoffs/zyra-ai-plans-001-007.md) | Milestone Handoff | `HISTORICAL CHECKPOINT` | 2026-08-11 | Staging checkpoint and test evidence summary for Zyra AI system Plans 001 through 007. |
 
 ---

@@ -7,6 +7,7 @@ import { courseListRowClass, studentCardClass } from "@/components/course/course
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { FormattedDate } from "@/components/ui/formatted-date";
+import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { db } from "@/db";
@@ -202,7 +203,20 @@ export default async function CourseMyResultsPage({ params }: Props) {
           ))}
         </ul>
         {allSubmissions.length === 0 ? (
-          <p className="text-body-base text-muted-foreground">Belum ada pengumpulan untuk course ini.</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 p-8 sm:p-12 text-center max-w-md mx-auto">
+            <History className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
+            <h3 className="font-heading text-body-base font-bold text-foreground">
+              Belum ada riwayat ujian
+            </h3>
+            <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
+              Nilai kuis dan try out yang kamu selesaikan akan tercatat di sini bersama rincian pembahasan soal.
+            </p>
+            <Button asChild size="sm" className="mt-5 rounded-md text-body-xs">
+              <Link href={`/courses/${id}/quiz`}>
+                Mulai Kuis Latihan
+              </Link>
+            </Button>
+          </div>
         ) : null}
       </Reveal>
     </CoursePageShell>

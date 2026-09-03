@@ -1413,7 +1413,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    Integrated Viewer (Mock)
+                    Mode Interaktif
                   </button>
                 )}
                 <button
@@ -1426,17 +1426,30 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  Chrome Viewer
+                  Mode Dokumen
                 </button>
               </div>
 
-              {material.url && (
-                <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
-                  <a href={openUrl} target="_blank" rel="noopener noreferrer">
-                    Buka Berkas Asli
-                  </a>
-                </Button>
-              )}
+              <div className="flex items-center gap-1.5">
+                {material.url && (
+                  <>
+                    <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
+                      <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                        <Download className="mr-1 size-3" aria-hidden />
+                        <span className="hidden sm:inline">Unduh PDF</span>
+                        <span className="sm:hidden">Unduh</span>
+                      </a>
+                    </Button>
+                    <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
+                      <a href={openUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-1 size-3" aria-hidden />
+                        <span className="hidden sm:inline">Buka Berkas Asli</span>
+                        <span className="sm:hidden">Buka</span>
+                      </a>
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             {viewerType === "custom" ? (
@@ -2002,25 +2015,17 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
 
               </div>
             ) : (
-              <div className="flex-1 min-h-0 w-full flex flex-col p-4 bg-background">
-                {/* Chrome Native Browser PDF Viewer (iframe fallback) */}
-                <p className="text-body-sm text-muted-foreground mb-3 shrink-0">
-                  Pratinjau PDF bawaan browser di bawah ini. Gunakan tombol unduh jika tidak termuat.
+              <div className="flex-1 min-h-0 w-full flex flex-col p-2 sm:p-4 bg-background">
+                {/* Native Browser PDF Viewer (iframe fallback) */}
+                <p className="hidden sm:block text-body-xs text-muted-foreground mb-2 shrink-0">
+                  Pratinjau PDF bawaan browser di bawah ini. Gunakan tombol unduh atau buka berkas jika pratinjau tidak termuat.
                 </p>
-                <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-2xl relative shadow-md">
+                <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-xl sm:rounded-2xl relative shadow-md">
                   <iframe
                     title={material.title}
                     src={material.url}
                     className="w-full h-full border-0"
                   />
-                </div>
-                <div className="mt-4 shrink-0">
-                  <Button asChild variant="outline">
-                    <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                      <Download className="mr-2 size-4" aria-hidden />
-                      Unduh Dokumen PDF
-                    </a>
-                  </Button>
                 </div>
               </div>
             )}

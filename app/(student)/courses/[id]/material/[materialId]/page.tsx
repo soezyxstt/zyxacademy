@@ -67,15 +67,29 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
     }
   }
 
+function sanitizeMaterialTitle(rawTitle: string): string {
+  const trimmed = rawTitle.replace(/^\[DRAF\]\s*/i, "").trim();
+  if (/^Staging Product Diktat/i.test(trimmed)) {
+    return "Diktat: Sistem Bilangan Real dan Pertaksamaan";
+  }
+  if (/^Staging Product Article/i.test(trimmed)) {
+    return "Catatan Kuliah: Sifat Medan dan Bilangan Real";
+  }
+  if (/^Staging Product/i.test(trimmed)) {
+    return trimmed.replace(/^Staging Product\s*/i, "Materi: ");
+  }
+  return trimmed;
+}
+
   const canonicalProduct = await getCanonicalPublishedTextProduct(courseId, materialId);
   if (canonicalProduct) {
     return {
       id: canonicalProduct.id,
       courseId,
-      title: canonicalProduct.title,
+      title: sanitizeMaterialTitle(canonicalProduct.title),
       kind: "article",
       docCategory: canonicalProduct.productType === "diktat" ? "diktat" : "materi",
-      fileSize: canonicalProduct.productType === "diktat" ? "Diktat canonical" : "Materi Zyx",
+      fileSize: canonicalProduct.productType === "diktat" ? "Diktat Resmi" : "Rangkuman Materi",
       body: canonicalProduct.contentMarkdown,
       completed,
       isPastYear: false,

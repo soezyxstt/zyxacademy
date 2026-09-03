@@ -1,7 +1,8 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { bab, concepts, ide, pemahamanIde, relasiIde } from "@/db/schema";
+import { bab, concepts, conceptLocalizations, ide, pemahamanIde, relasiIde } from "@/db/schema";
 import { resolveStudentCourse } from "@/lib/student/course-catalog";
+import { toConciseConceptName } from "@/lib/study-path-service";
 
 export type StudentMasteryConcept = {
   conceptName: string;
@@ -34,7 +35,8 @@ export async function getStudentIdeaMasteryReadModel(
     .select({
       id: ide.id,
       chapterId: ide.babId,
-      conceptName: ide.canonicalStatement,
+      statement: ide.canonicalStatement,
+      conceptDisplayName: conceptLocalizations.displayName,
       conceptSlug: concepts.canonicalSlug,
       score: pemahamanIde.skor,
       confidence: pemahamanIde.keyakinan,
@@ -44,6 +46,10 @@ export async function getStudentIdeaMasteryReadModel(
     .from(ide)
     .innerJoin(bab, eq(ide.babId, bab.id))
     .leftJoin(concepts, eq(ide.conceptId, concepts.id))
+    .leftJoin(
+      conceptLocalizations,
+      and(eq(conceptLocalizations.conceptId, concepts.id), eq(conceptLocalizations.lang, "id"))
+    )
     .leftJoin(
       pemahamanIde,
       and(eq(pemahamanIde.ideId, ide.id), eq(pemahamanIde.penggunaId, studentId)),
@@ -72,7 +78,15 @@ export async function getStudentIdeaMasteryReadModel(
       ),
     );
 
-  const byId = new Map(rows.map((row) => [row.id, row]));
+  const byId = new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        ...row,
+        conceptName: toConciseConceptName(row.statement, row.conceptDisplayName),
+      },
+    ])
+  );
   const prerequisites = new Map<string, string[]>();
   const graphEdges: Array<{ from: string; to: string }> = [];
   for (const relation of relations) {
@@ -89,6 +103,7 @@ export async function getStudentIdeaMasteryReadModel(
 
   const groupMap = new Map<string, StudentMasteryGroup>();
   for (const row of rows) {
+    const conceptName = toConciseConceptName(row.statement, row.conceptDisplayName);
     let group = groupMap.get(row.chapterId);
     if (!group) {
       group = {
@@ -102,7 +117,7 @@ export async function getStudentIdeaMasteryReadModel(
       groupMap.set(row.chapterId, group);
     }
     group.concepts.push({
-      conceptName: row.conceptName,
+      conceptName,
       conceptSlug: row.conceptSlug,
       masteryScore: row.score,
       confidence: row.confidence,
@@ -113,7 +128,10 @@ export async function getStudentIdeaMasteryReadModel(
 
   return {
     groups: [...groupMap.values()],
-    graphNodes: rows.map((row) => ({ conceptName: row.conceptName, mastery: row.score })),
+    graphNodes: rows.map((row) => ({
+      conceptName: toConciseConceptName(row.statement, row.conceptDisplayName),
+      mastery: row.score,
+    })),
     graphEdges,
   };
 }

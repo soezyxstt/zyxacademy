@@ -180,13 +180,13 @@ export function StudentSidebar({
                   ]
                 : [
                     { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
-                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar", badge: "Beta" }] : []),
+                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
                     { href: `${base}/material`, icon: FileText, label: "Dokumen" },
                     { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
                     { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
                     { href: `${base}/tryout`, icon: GraduationCap, label: "Tryout" },
                     ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung", badge: "Beta" }] : []),
-                    ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan", badge: "Beta" }] : []),
+                    ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan" }] : []),
                     { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
                     { href: `${base}/my-results`, icon: History, label: "Hasil Ujian" },
                   ];
