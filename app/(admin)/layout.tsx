@@ -6,9 +6,8 @@ import { hasPeran } from "@/lib/auth/authorization";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
 import { OpsAiDrawer } from "@/components/admin/ops-ai/ops-ai-drawer";
+import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
 import { OpsAiProvider } from "@/components/admin/ops-ai/ops-ai-context";
-import { MobileNavProvider } from "@/components/mobile-nav-context";
-import { MobileNavbar } from "@/components/mobile-navbar";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -16,23 +15,19 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <OpsAiProvider>
-      <MobileNavProvider>
-        <div className="relative flex min-h-screen flex-col md:flex-row overflow-x-clip bg-background">
-          <PageOrnaments variant="about" />
-          <AdminSidebar />
-          <div className="relative z-10 flex flex-1 flex-col min-w-0">
-            <MobileNavbar surface="admin" />
-            <main
-              id="main-content"
-              tabIndex={-1}
-              className="relative min-w-0 flex-1 px-4 py-4 sm:px-6 md:py-8 lg:px-8 focus:outline-none transition-[width] duration-75"
-            >
-              {children}
-            </main>
-          </div>
-          <OpsAiDrawer />
-        </div>
-      </MobileNavProvider>
+      <div className="relative flex min-h-screen flex-row overflow-x-clip bg-background">
+        <PageOrnaments variant="about" />
+        <AdminSidebar />
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="relative z-10 min-w-0 flex-1 px-4 py-8 focus:outline-none sm:px-6 lg:px-8 transition-[width] duration-75"
+        >
+          {children}
+        </main>
+        <OpsAiTrigger variant="floating" />
+        <OpsAiDrawer />
+      </div>
     </OpsAiProvider>
   );
 }

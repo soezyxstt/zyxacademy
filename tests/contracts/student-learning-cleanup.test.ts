@@ -18,6 +18,6 @@ describe("student learning cleanup", () => {
 
   it("keeps PageHeader as a Server Component to allow passing icon component references", () => {
     expect(source("components/page-header.tsx")).not.toMatch(/^["']use client["']/);
-    expect(source("components/page-header-sync.tsx")).toMatch(/^["']use client["']/);
+    expect(source("components/mobile-sidebar-trigger.tsx")).toMatch(/^["']use client["']/);
   });
 });
