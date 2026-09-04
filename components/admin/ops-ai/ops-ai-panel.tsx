@@ -45,6 +45,7 @@ import {
 import { WorkTraceView } from "./work-trace-view";
 import { CitationCards } from "./citation-cards";
 import { ActionProposalCard } from "./action-proposal-card";
+import { QuickActionsBar, extractQuickActions } from "./quick-actions-bar";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -937,16 +938,34 @@ export function OpsAiPanel({ initialMessages }: { initialMessages?: OpsAiMessage
                   </div>
 
                   {/* Message Content Flow (Natural typography, no heavy outer card) */}
-                  {msg.content ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed">
-                      <MarkdownRenderer content={msg.content} />
-                    </div>
-                  ) : isStreaming && index === messages.length - 1 ? (
-                    <div className="flex items-center gap-2 text-body-xs text-muted-foreground italic py-1">
-                      <Loader2 className="size-3 animate-spin text-primary" />
-                      <span>Sedang menganalisis dokumen dan konteks...</span>
-                    </div>
-                  ) : null}
+                  {(() => {
+                    const { cleanedContent, quickActions } = extractQuickActions(msg.content);
+                    const isLatestAssistant = index === messages.length - 1;
+
+                    return (
+                      <>
+                        {cleanedContent ? (
+                          <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed">
+                            <MarkdownRenderer content={cleanedContent} />
+                          </div>
+                        ) : isStreaming && isLatestAssistant ? (
+                          <div className="flex items-center gap-2 text-body-xs text-muted-foreground italic py-1">
+                            <Loader2 className="size-3 animate-spin text-primary" />
+                            <span>Sedang menganalisis dokumen dan konteks...</span>
+                          </div>
+                        ) : null}
+
+                        {/* Interactive Quick Actions Bar */}
+                        {quickActions.length > 0 && isLatestAssistant && (
+                          <QuickActionsBar
+                            options={quickActions}
+                            onSelect={(opt) => handleSendMessage(opt)}
+                            disabled={isStreaming}
+                          />
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* Official Grounded Citations (In-line bottom) */}
                   {msg.citations && msg.citations.length > 0 && (

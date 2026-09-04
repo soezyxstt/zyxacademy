@@ -329,7 +329,16 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
     requiredRole: "admin",
     requiresHumanConfirmation: false,
     allowsMutation: false,
-    description: "Daftar mata kuliah kanonikal aktif beserta statistik bab materi.",
+    description: "Daftar atau cari mata kuliah kanonikal berdasarkan kata kunci nama atau kategori. Gunakan untuk mencari ID mata kuliah sebelum melakukan aksi.",
+  },
+  list_chapters: {
+    name: "list_chapters",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Daftar atau cari bab materi berdasarkan ID mata kuliah atau kata kunci judul bab untuk resolusi bab lintas mata kuliah.",
   },
   create_course: {
     name: "create_course",
@@ -375,6 +384,15 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
     requiresHumanConfirmation: false,
     allowsMutation: false,
     description: "Melihat daftar berkas materi kuliah yang tersimpan.",
+  },
+  audit_course_completeness: {
+    name: "audit_course_completeness",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Audit kelengkapan kurikulum mata kuliah, mendeteksi bab yang belum memiliki berkas materi atau bank soal.",
   },
 
   // ─── 2. Assessment & Question Bank ───────────────────────────────────────────
@@ -440,6 +458,15 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
     requiresHumanConfirmation: false,
     allowsMutation: false,
     description: "Mengambil statistik nilai dan performa siswa pada suatu kuis.",
+  },
+  reset_quiz_attempt: {
+    name: "reset_quiz_attempt",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mereset percobaan pengerjaan kuis siswa yang terputus atau bermasalah agar siswa dapat mengulang kembali.",
   },
 
   // ─── 3. Schedules & Meet ─────────────────────────────────────────────────────
@@ -525,6 +552,15 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
     requiresHumanConfirmation: false,
     allowsMutation: false,
     description: "Melihat daftar token aktivasi pendaftaran dan sisa kuotanya.",
+  },
+  diagnose_student_access: {
+    name: "diagnose_student_access",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Diagnosa lengkap hak akses belajar siswa, keanggotaan kelompok, status token, dan percobaan kuis bermasalah.",
   },
 
   // ─── 5. Users, Notifications & Operations ────────────────────────────────────

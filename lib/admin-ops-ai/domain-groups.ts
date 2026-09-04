@@ -7,8 +7,9 @@ import {
   enrollmentTokenCourses,
   courses,
   user,
+  studentQuizAttempts,
 } from "@/db/schema";
-import { eq, desc, inArray, and, like } from "drizzle-orm";
+import { eq, desc, inArray, and, like, or } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getSemesterEndDate } from "@/lib/utils";
 import { PACKAGE_PRESETS, type PackageType } from "@/lib/group-constants";
@@ -305,5 +306,132 @@ export async function executeListEnrollmentTokens(input: ListEnrollmentTokensInp
   return {
     summary: `Ditemukan ${list.length} token aktivasi.`,
     data: list,
+  };
+}
+
+export interface DiagnoseStudentAccessInput {
+  userIdentifier: string;
+  courseId?: string;
+}
+
+export async function executeDiagnoseStudentAccess(input: DiagnoseStudentAccessInput) {
+  const query = input.userIdentifier.trim().toLowerCase();
+  if (!query) throw new Error("Identitas pengguna (nama, email, atau ID) wajib diisi.");
+
+  const matchedUsers = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      lastActivityAt: user.lastActivityAt,
+    })
+    .from(user)
+    .where(
+      or(
+        eq(user.id, query),
+        like(user.email, `%${query}%`),
+        like(user.name, `%${query}%`)
+      )
+    )
+    .limit(5);
+
+  if (matchedUsers.length === 0) {
+    return {
+      summary: `Pengguna '${input.userIdentifier}' tidak ditemukan dalam sistem.`,
+      data: { found: false, userIdentifier: input.userIdentifier },
+    };
+  }
+
+  const targetUser = matchedUsers[0];
+
+  const memberships = await db.query.groupMembers.findMany({
+    where: eq(groupMembers.userId, targetUser.id),
+    with: {
+      group: {
+        with: {
+          courses: {
+            with: {
+              course: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const now = new Date();
+  const groupsList = memberships.map((m) => {
+    const grp = m.group;
+    const isExpired = grp.endDate ? new Date(grp.endDate) < now : false;
+    return {
+      groupId: grp.id,
+      groupName: grp.name,
+      status: isExpired ? "expired" : grp.status,
+      packageName: grp.packageName,
+      endDate: grp.endDate,
+      courses: grp.courses.map((c) => ({
+        id: c.course.id,
+        title: c.course.title,
+      })),
+    };
+  });
+
+  const recentAttempts = await db
+    .select({
+      id: studentQuizAttempts.id,
+      templateId: studentQuizAttempts.templateId,
+      score: studentQuizAttempts.score,
+      status: studentQuizAttempts.status,
+      submittedAt: studentQuizAttempts.submittedAt,
+    })
+    .from(studentQuizAttempts)
+    .where(eq(studentQuizAttempts.studentId, targetUser.id))
+    .orderBy(desc(studentQuizAttempts.startedAt))
+    .limit(3);
+
+  let courseAccessEvaluation = null;
+  if (input.courseId) {
+    const cId = input.courseId.trim().toLowerCase();
+    const activeGroupWithCourse = groupsList.find(
+      (g) => g.status === "active" && g.courses.some((c) => c.id.toLowerCase() === cId || c.title.toLowerCase().includes(cId))
+    );
+    const expiredGroupWithCourse = groupsList.find(
+      (g) => g.status === "expired" && g.courses.some((c) => c.id.toLowerCase() === cId || c.title.toLowerCase().includes(cId))
+    );
+
+    if (activeGroupWithCourse) {
+      courseAccessEvaluation = {
+        hasAccess: true,
+        reason: `Memiliki akses aktif melalui kelompok '${activeGroupWithCourse.groupName}' (paket ${activeGroupWithCourse.packageName}) hingga ${activeGroupWithCourse.endDate ? new Date(activeGroupWithCourse.endDate).toLocaleDateString("id-ID") : "akhir semester"}.`,
+      };
+    } else if (expiredGroupWithCourse) {
+      courseAccessEvaluation = {
+        hasAccess: false,
+        reason: `Akses telah kedaluwarsa sejak ${expiredGroupWithCourse.endDate ? new Date(expiredGroupWithCourse.endDate).toLocaleDateString("id-ID") : "periode sebelumnya"} (kelompok '${expiredGroupWithCourse.groupName}').`,
+      };
+    } else {
+      courseAccessEvaluation = {
+        hasAccess: false,
+        reason: `Murid belum terdaftar pada kelompok belajar yang mencakup mata kuliah '${input.courseId}'.`,
+      };
+    }
+  }
+
+  const isInterruptedQuiz = recentAttempts.some((a) => a.status === "in_progress" || (!a.submittedAt && a.status !== "completed"));
+
+  return {
+    summary: `Hasil Diagnosa Akun Murid '${targetUser.name}' (${targetUser.email}): ${
+      groupsList.length > 0 ? `terdaftar di ${groupsList.length} kelompok` : "belum terdaftar di kelompok manapun"
+    }.${courseAccessEvaluation ? ` Evaluasi Akses: ${courseAccessEvaluation.reason}` : ""}${
+      isInterruptedQuiz ? " Ditemukan sesi kuis yang belum selesai/terputus." : ""
+    }`,
+    data: {
+      user: targetUser,
+      groups: groupsList,
+      recentAttempts,
+      courseAccessEvaluation,
+      hasInterruptedAttempt: isInterruptedQuiz,
+    },
   };
 }

@@ -33,6 +33,7 @@ import { ActionProposalCard } from "@/components/admin/ops-ai/action-proposal-ca
 import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
 import { OpsAiProvider } from "@/components/admin/ops-ai/ops-ai-context";
 import { OpsAiPanel } from "@/components/admin/ops-ai/ops-ai-panel";
+import { QuickActionsBar, extractQuickActions } from "@/components/admin/ops-ai/quick-actions-bar";
 import {
   OPS_AI_CITATION_OFFICIAL_LABEL,
 } from "@/lib/admin-ops-ai/citations";
@@ -992,6 +993,93 @@ describe("Admin Ops AI UI Benchmark - CP6 Implementation Tests", () => {
       // Clamping within 1024px screen (1024px => max 512px)
       expect(clampOpsAiWidth(600, 1024)).toBe(512);
       expect(clampOpsAiWidth(300, 1024)).toBe(360);
+    });
+  });
+
+  describe("Suite 14: Interactive Quick Actions & Entity Resolution UX", () => {
+    it("parses explicit quick-actions code blocks and strips them from cleanedContent", () => {
+      const input =
+        "Berikut adalah proposal pembuatan bab baru 'Turunan'.\n\nApakah Anda ingin melanjutkan dengan proposal ini?\n\n```quick-actions\n[\"Ya\", \"Tidak\"]\n```";
+      const { cleanedContent, quickActions } = extractQuickActions(input);
+
+      expect(quickActions).toEqual(["Ya", "Tidak"]);
+      expect(cleanedContent).not.toContain("```quick-actions");
+      expect(cleanedContent).toContain("Apakah Anda ingin melanjutkan dengan proposal ini?");
+    });
+
+    it("parses multi-option disambiguation choices from quick-actions block", () => {
+      const input =
+        "Ditemukan bab 'Limit' pada 2 mata kuliah. Mana yang Anda maksud?\n\n```quick-actions\n[\"Matematika I\", \"Kalkulus Lanjut\"]\n```";
+      const { cleanedContent, quickActions } = extractQuickActions(input);
+
+      expect(quickActions).toEqual(["Matematika I", "Kalkulus Lanjut"]);
+      expect(cleanedContent).not.toContain("```quick-actions");
+    });
+
+    it("provides heuristic fallback options ['Ya', 'Tidak'] for proposal confirmation question without block", () => {
+      const input =
+        "Action Proposal: Membuat Bab Baru\n- Mata Kuliah: Matematika I (mat-i)\n- Judul Bab: Turunan\n\nApakah Anda ingin melanjutkan dengan proposal ini?";
+      const { quickActions } = extractQuickActions(input);
+
+      expect(quickActions).toEqual(["Ya", "Tidak"]);
+    });
+
+    it("extracts disambiguation list items when text asks which one is meant without code block", () => {
+      const input =
+        "Mata kuliah mana yang Anda maksud?\n1. Matematika I\n2. Kalkulus Lanjut";
+      const { quickActions } = extractQuickActions(input);
+
+      expect(quickActions).toEqual(["Matematika I", "Kalkulus Lanjut"]);
+    });
+
+    it("renders QuickActionsBar component with option buttons and custom input field", () => {
+      const html = renderToStaticMarkup(
+        <QuickActionsBar
+          options={["Ya", "Tidak"]}
+          onSelect={() => {}}
+          disabled={false}
+        />
+      );
+
+      expect(html).toContain('role="group"');
+      expect(html).toContain('aria-label="Pilihan aksi cepat"');
+      expect(html).toContain("Ya");
+      expect(html).toContain("Tidak");
+      expect(html).toContain('placeholder="Ketik sendiri..."');
+      expect(html).toContain("h-7");
+      expect(html).toContain("text-body-xs");
+    });
+
+    it("renders QuickActionsBar under the latest assistant proposal message in OpsAiPanel", () => {
+      const testMessages = [
+        {
+          id: "msg-user-1",
+          role: "user" as const,
+          content: "buat bab baru pada mata kuliah matematika i yaitu bab turunan",
+          createdAt: Date.now() - 2000,
+        },
+        {
+          id: "msg-asst-1",
+          role: "assistant" as const,
+          content:
+            "Berikut adalah proposal untuk membuat bab baru 'Turunan' pada mata kuliah Matematika I.\n\nApakah Anda ingin melanjutkan dengan proposal ini?\n\n```quick-actions\n[\"Ya\", \"Tidak\"]\n```",
+          createdAt: Date.now() - 1000,
+        },
+      ];
+
+      const html = renderToStaticMarkup(
+        <OpsAiProvider initialOpen={true}>
+          <OpsAiPanel initialMessages={testMessages} />
+        </OpsAiProvider>
+      );
+
+      // Verify buttons are rendered
+      expect(html).toContain('aria-label="Pilihan aksi cepat"');
+      expect(html).toContain("Ya");
+      expect(html).toContain("Tidak");
+      expect(html).toContain('placeholder="Ketik sendiri..."');
+      // Verify raw code block is NOT rendered in chat text
+      expect(html).not.toContain("&lt;code&gt;[&quot;Ya&quot;");
     });
   });
 });

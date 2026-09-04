@@ -87,6 +87,33 @@ describe("Zyx Ops AI - Expanded Autonomous & Query Tools", () => {
       expect(res.summary).toContain("Berhasil membuat 3 bab");
       expect((res.data as any).createdCount).toBe(3);
     });
+
+    it("lists and searches chapters across courses", async () => {
+      const res = await executeOpsAiTool(
+        "list_chapters",
+        {
+          courseId: sharedCourseId,
+          search: "Konsep Dasar",
+        },
+        adminContext
+      );
+      expect(res.summary).toContain("bab materi");
+      expect(Array.isArray(res.data)).toBe(true);
+      const matched = (res.data as any[]).find((c) => c.title === "Bab 2 Konsep Dasar");
+      expect(matched).toBeDefined();
+      expect(matched.courseId).toBe(sharedCourseId);
+    });
+
+    it("audits course completeness and identifies missing materials", async () => {
+      const res = await executeOpsAiTool(
+        "audit_course_completeness",
+        { courseId: sharedCourseId },
+        adminContext
+      );
+      expect(res.summary).toContain("Audit Kelengkapan");
+      expect((res.data as any).totalChapters).toBe(3);
+      expect((res.data as any).emptyCount).toBe(3);
+    });
   });
 
   describe("Assessment & Question Bank Tools", () => {
@@ -124,6 +151,19 @@ describe("Zyx Ops AI - Expanded Autonomous & Query Tools", () => {
       expect(res.summary).toContain("berhasil dibuat");
       expect((res.data as any).prompt).toContain("turunan");
     });
+
+    it("handles reset_quiz_attempt validation and rejects missing attempt", async () => {
+      expect(
+        executeOpsAiTool(
+          "reset_quiz_attempt",
+          {
+            attemptId: "non-existent-attempt-999",
+            reason: "Reset kendala teknis",
+          },
+          adminContext
+        )
+      ).rejects.toThrow("tidak ditemukan");
+    });
   });
 
   describe("Study Groups & Instant Tokens", () => {
@@ -149,6 +189,24 @@ describe("Zyx Ops AI - Expanded Autonomous & Query Tools", () => {
       );
       expect(tokenRes.summary).toContain("Token aktivasi");
       expect((tokenRes.data as any).token).toMatch(/^Zyx-[A-Z0-9]+-3-1$/);
+    });
+
+    it("diagnoses student access and handles unknown user", async () => {
+      const notFoundRes = await executeOpsAiTool(
+        "diagnose_student_access",
+        { userIdentifier: "non-existent-student@zyx.ac" },
+        adminContext
+      );
+      expect(notFoundRes.summary).toContain("tidak ditemukan");
+      expect((notFoundRes.data as any).found).toBe(false);
+
+      const existingRes = await executeOpsAiTool(
+        "diagnose_student_access",
+        { userIdentifier: "admin", courseId: sharedCourseId },
+        adminContext
+      );
+      expect(existingRes.summary).toContain("Hasil Diagnosa");
+      expect((existingRes.data as any).courseAccessEvaluation).toBeDefined();
     });
   });
 

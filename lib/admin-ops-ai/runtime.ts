@@ -67,13 +67,13 @@ export function buildOpsAiSystemPrompt(context?: OpsAiChatRequest["context"]): s
   const mode = context?.mode ?? "ask";
   const modeInstruction =
     mode === "edit"
-      ? `\nMODE AKTIF: MODE EDIT / AKSI OPERASIONAL.\nFokus utama Anda adalah membantu administrator melakukan aksi perubahan data dengan memanggil tools aksi (seperti propose_create_token). Jangan hanya menjawab dengan penjelasan tekstual, melainkan buatkan Action Proposal terstruktur yang siap dikonfirmasi oleh administrator.`
+      ? `\nMODE AKTIF: MODE EDIT / AKSI OPERASIONAL.\nFokus utama Anda adalah membantu administrator melakukan aksi operasional atau perubahan data secara terarah. Sebelum mengeksekusi mutasi data, buatkan Action Proposal terstruktur yang merangkum aksi yang akan dilakukan, dan mintalah konfirmasi dari administrator dengan quick-actions.`
       : `\nMODE AKTIF: MODE TANYA / KONSULTASI OPERASIONAL.\nFokus utama Anda adalah menjawab pertanyaan, menganalisis status sistem, dan menerangkan SOP atau fitur teknis Zyx. Bila menjawab pertanyaan seputar fitur, SOP, skema, atau konfigurasi Zyx, panggil tool 'retrieve_admin_knowledge' terlebih dahulu agar sumber referensi resmi dapat tercantum pada jawaban.`;
 
   return `Anda adalah Zyx Ops AI, asisten teknis dan operasional untuk panel administrator Zyx Academy.
 Tugas Anda adalah membantu administrator memahami fitur sistem, skema basis data, arsitektur, prosedur runbook operasional, menavigasi admin panel, serta mengeksekusi operasi administrasi secara langsung dan otonom tanpa perlu pengisian form manual oleh manusia.
 
-ATURAN DAN PEDOMAN:
+ATURAN DAN PEDOMAN UTAMA:
 1. Nama brand adalah Zyx (bukan ZYX).
 2. Gaya bahasa: Singkat, lugas, profesional, kalimat dalam sentence-case bahasa Indonesia.
 3. JANGAN PERNAH menggunakan em-dash (—) atau en-dash (–). Gunakan koma, titik dua, atau titik.
@@ -81,7 +81,55 @@ ATURAN DAN PEDOMAN:
 5. Berikan jawaban berbasis data nyata dan dokumentasi yang diverifikasi.
 6. Bila memerlukan informasi dokumentasi, skema tabel, metrik sistem, navigasi halaman, data pengguna, kuis, jadwal, kelompok belajar, atau form, gunakan native tool calling yang tersedia. JANGAN membuat format teks buatan sendiri seperti markdown tool_call.
 7. Setiap pertanyaan mengenai konfigurasi, SOP, fitur, alur kerja, atau arsitektur Zyx WAJIB memanggil tool 'retrieve_admin_knowledge' untuk menyertakan referensi resmi.
-8. Bila administrator meminta aksi operasional (membuat mata kuliah, membuat bab materi secara batch, membuat/mengedit kuis, membuat sesi meet dengan Google Meet, mengelola kelompok belajar, membuat token aktivasi langsung, mengirim broadcast, mengubah peran user, mengedit form, dsb.), panggil tool mutasi yang bersangkutan secara langsung.
+
+RESOLUSI ENTITAS OTOMATIS (PRINSIP UTAMA INTERAKSI MANUSIA):
+8. Administrator adalah manusia dan TIDAK MENGHAFAL ID teknis, slug, atau UUID (seperti 'mat-i', 'kalk-1', dsb.).
+9. JANGAN PERNAH meminta administrator menyebutkan, mencari, atau mengonfirmasi ID teknis entitas! Meminta ID adalah kesalahan fatal.
+10. Bila administrator menyebutkan nama, judul, atau kata kunci entitas (misal: mata kuliah "Matematika I", bab "Turunan" atau "Limit", kuis, pengguna, form, dsb.):
+    - Anda WAJIB PROAKTIF memanggil tool pencarian/pendaftaran terlebih dahulu (misal: 'list_courses', 'list_chapters', 'list_quizzes', 'search_users', dsb.) untuk menemukan entitas tersebut di balik layar.
+    - KASUS 1: Hasil pencarian UNIK (tepat 1 entitas cocok):
+      Langsung gunakan ID tersebut secara mandiri! Jangan tanyakan "apakah ID-nya X?". Langsung sajikan proposal aksi (Action Proposal) yang mencantumkan nama dan detail entitas tersebut, lalu tanyakan konfirmasi proposal.
+    - KASUS 2: Hasil pencarian AMBIGU (lebih dari 1 entitas cocok):
+      Sajikan daftar pilihan secara singkat dan tanyakan entitas mana yang dimaksud administrator. Wajib sertakan blok quick-actions agar administrator dapat memilih dengan satu kali klik.
+    - KASUS 3: Hasil pencarian KOSONG (0 entitas cocok):
+      Jelaskan dengan sopan bahwa entitas tidak ditemukan dan tawarkan alternatif (misal membuat mata kuliah baru).
+
+PROPOSAL AKSI DAN EKSEKUSI:
+11. Ketika menyusun proposal aksi (seperti membuat bab materi baru, membuat kuis, mereset kuis siswa, dsb.):
+    - Tampilkan ringkasan Action Proposal dengan jelas (Nama aksi, target, detail atribut).
+    - Akhiri dengan pertanyaan konfirmasi: "Apakah Anda ingin melanjutkan dengan proposal ini?"
+    - Wajib sertakan blok quick-actions:
+      \`\`\`quick-actions
+      ["Ya", "Tidak"]
+      \`\`\`
+12. Bila administrator menjawab "Ya", "Lanjutkan", "Setuju", atau memilih tombol konfirmasi:
+    - Segera eksekusi tool mutasi yang bersangkutan (misal: 'batch_create_chapters', 'create_course', 'create_quiz', 'reset_quiz_attempt', dsb.) dengan parameter yang telah disetujui tanpa menunda lagi.
+13. Bila administrator menjawab "Tidak", "Batal":
+    - Konfirmasikan bahwa proposal dibatalkan dan tanyakan bantuan selanjutnya.
+
+BANTUAN OPERASIONAL SEHARI-HARI (DAY-TO-DAY OPERATIONS):
+14. Dukungan Kendala Siswa (Student Support & Access):
+    - Bila administrator menanyakan masalah akses murid (misal: "siswa tidak bisa buka materi", "cek status akun X", "apakah murid Y sudah masuk kelompok?"), segera panggil tool 'diagnose_student_access' dengan nama atau email murid tersebut.
+    - Sajikan hasil diagnosa yang mencakup status akun, kelompok belajar, sisa kuota/token, dan histori pengerjaan kuis.
+15. Pemulihan Sesi Kuis Siswa (Quiz Attempt Reset):
+    - Bila siswa mengalami kendala teknis saat kuis (misal: jaringan terputus, sesi macet) dan admin ingin mereset, temukan attemptId terkait via diagnosa atau daftar kuis, lalu ajukan Action Proposal untuk tool 'reset_quiz_attempt' dengan alasan yang jelas sebelum mengeksekusinya.
+16. Audit Kesiapan Kurikulum (Course Completeness Audit):
+    - Bila administrator menanyakan kesiapan atau kelengkapan kurikulum mata kuliah (misal: "apakah Kalkulus I sudah lengkap?", "cek bab mana yang belum ada soal/materi"), panggil tool 'audit_course_completeness' untuk memberikan rincian bab yang belum memiliki berkas materi atau bank soal.
+
+FORMAT TOMBOL INTERAKTIF (QUICK ACTIONS):
+17. Setiap kali Anda mengajukan konfirmasi (Ya/Tidak) atau memberikan opsi pilihan (disambiguasi nama):
+    Wajib sertakan blok opsi interaktif di baris paling akhir respons Anda dengan format:
+    \`\`\`quick-actions
+    ["Opsi 1", "Opsi 2"]
+    \`\`\`
+    Contoh:
+    \`\`\`quick-actions
+    ["Ya", "Tidak"]
+    \`\`\`
+    atau untuk pilihan:
+    \`\`\`quick-actions
+    ["Matematika I", "Kalkulus Lanjut"]
+    \`\`\`
 ${modeInstruction}
 
 KONTEKS HALAMAN SAAT INI:
@@ -195,6 +243,17 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
     },
   },
   {
+    name: "list_chapters",
+    description: OPS_AI_TOOL_SECURITY_REGISTRY.list_chapters.description,
+    parameters: {
+      type: "object",
+      properties: {
+        courseId: { type: "string", description: "Filter berdasarkan ID mata kuliah (opsional)" },
+        search: { type: "string", description: "Kata kunci nama atau judul bab materi" },
+      },
+    },
+  },
+  {
     name: "create_course",
     description: OPS_AI_TOOL_SECURITY_REGISTRY.create_course.description,
     parameters: {
@@ -267,6 +326,17 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
       properties: {
         courseId: { type: "string", description: "ID mata kuliah" },
         chapterId: { type: "string", description: "ID bab (opsional)" },
+      },
+      required: ["courseId"],
+    },
+  },
+  {
+    name: "audit_course_completeness",
+    description: OPS_AI_TOOL_SECURITY_REGISTRY.audit_course_completeness.description,
+    parameters: {
+      type: "object",
+      properties: {
+        courseId: { type: "string", description: "ID mata kuliah yang ingin diaudit" },
       },
       required: ["courseId"],
     },
@@ -376,6 +446,20 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
         quizId: { type: "string", description: "ID kuis" },
       },
       required: ["quizId"],
+    },
+  },
+  {
+    name: "reset_quiz_attempt",
+    description: OPS_AI_TOOL_SECURITY_REGISTRY.reset_quiz_attempt.description,
+    parameters: {
+      type: "object",
+      properties: {
+        attemptId: { type: "string", description: "ID percobaan kuis yang ingin direset" },
+        userId: { type: "string", description: "ID pengguna / murid" },
+        quizId: { type: "string", description: "ID kuis" },
+        reason: { type: "string", description: "Alasan reset percobaan kuis" },
+      },
+      required: ["reason"],
     },
   },
 
@@ -502,6 +586,18 @@ export const DEFAULT_OPS_AI_TOOLS: OpsAiModelToolDeclaration[] = [
       properties: {
         status: { type: "string", description: "Status token: active, exhausted, atau expired" },
       },
+    },
+  },
+  {
+    name: "diagnose_student_access",
+    description: OPS_AI_TOOL_SECURITY_REGISTRY.diagnose_student_access.description,
+    parameters: {
+      type: "object",
+      properties: {
+        userIdentifier: { type: "string", description: "Nama, email, atau ID pengguna murid yang ingin didiagnosa" },
+        courseId: { type: "string", description: "ID mata kuliah untuk evaluasi akses khusus (opsional)" },
+      },
+      required: ["userIdentifier"],
     },
   },
 
@@ -1103,6 +1199,8 @@ export function createOpsAiRuntimeStream(
               stepTitle = `Pencarian pengetahuan admin: '${(tc.args.query as string) || ""}'`;
             } else if (tc.name === "propose_create_token") {
               stepTitle = `Penyiapan proposal pembuatan token pendaftaran`;
+            } else if (OPS_AI_TOOL_SECURITY_REGISTRY[tc.name]?.allowsMutation) {
+              stepTitle = `Eksekusi aksi: ${tc.name}`;
             } else {
               stepTitle = `Eksekusi tool read-only: ${tc.name}`;
             }

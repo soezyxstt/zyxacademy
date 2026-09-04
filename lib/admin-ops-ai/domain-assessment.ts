@@ -268,3 +268,57 @@ export async function executeGetQuizInsights(input: GetQuizInsightsInput) {
     },
   };
 }
+
+export interface ResetQuizAttemptInput {
+  attemptId?: string;
+  userId?: string;
+  quizId?: string;
+  reason: string;
+}
+
+export async function executeResetQuizAttempt(input: ResetQuizAttemptInput, actorId?: string) {
+  const reason = input.reason.trim();
+  if (!reason) throw new Error("Alasan reset percobaan kuis wajib disertakan.");
+
+  let attemptToReset = null;
+
+  if (input.attemptId) {
+    attemptToReset = await db.query.studentQuizAttempts.findFirst({
+      where: eq(studentQuizAttempts.id, input.attemptId.trim()),
+    });
+  } else if (input.userId && input.quizId) {
+    const cleanUserId = input.userId.trim();
+    const cleanQuizId = input.quizId.trim().toLowerCase();
+    attemptToReset = await db.query.studentQuizAttempts.findFirst({
+      where: and(
+        eq(studentQuizAttempts.studentId, cleanUserId),
+        eq(studentQuizAttempts.templateId, cleanQuizId)
+      ),
+      orderBy: [desc(studentQuizAttempts.startedAt)],
+    });
+  } else if (input.userId) {
+    const cleanUserId = input.userId.trim();
+    attemptToReset = await db.query.studentQuizAttempts.findFirst({
+      where: eq(studentQuizAttempts.studentId, cleanUserId),
+      orderBy: [desc(studentQuizAttempts.startedAt)],
+    });
+  }
+
+  if (!attemptToReset) {
+    throw new Error("Percobaan kuis yang ingin direset tidak ditemukan.");
+  }
+
+  await db.delete(studentQuizAttempts).where(eq(studentQuizAttempts.id, attemptToReset.id));
+
+  return {
+    summary: `Percobaan kuis '${attemptToReset.id}' milik siswa '${attemptToReset.studentId}' berhasil direset. Alasan: ${reason}. Siswa kini dapat memulai kuis kembali.`,
+    data: {
+      attemptId: attemptToReset.id,
+      studentId: attemptToReset.studentId,
+      templateId: attemptToReset.templateId,
+      resetAt: new Date().toISOString(),
+      resetBy: actorId ?? "admin",
+      reason,
+    },
+  };
+}

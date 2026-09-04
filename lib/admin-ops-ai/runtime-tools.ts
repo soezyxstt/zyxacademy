@@ -42,11 +42,13 @@ import { getCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/runtime";
 import { searchDocs } from "./rag-store";
 import {
   executeListCourses,
+  executeListChapters,
   executeCreateCourse,
   executeUpdateCourse,
   executeBatchCreateChapters,
   executeUpdateChapter,
   executeListMaterials,
+  executeAuditCourseCompleteness,
 } from "./domain-academic";
 import {
   executeListQuizzes,
@@ -56,6 +58,7 @@ import {
   executeCreateQuestion,
   executePublishQuestion,
   executeGetQuizInsights,
+  executeResetQuizAttempt,
 } from "./domain-assessment";
 import {
   executeListSchedules,
@@ -69,6 +72,7 @@ import {
   executeAssignTutorToGroup,
   executeCreateEnrollmentToken,
   executeListEnrollmentTokens,
+  executeDiagnoseStudentAccess,
 } from "./domain-groups";
 import {
   executeUpdateUserRole,
@@ -485,6 +489,10 @@ export async function executeOpsAiTool(
       const res = await executeListCourses(input as any);
       return { summary: res.summary, data: res.data };
     }
+    case "list_chapters": {
+      const res = await executeListChapters(input as any);
+      return { summary: res.summary, data: res.data };
+    }
     case "create_course": {
       const res = await executeCreateCourse(input as any, context?.actorId);
       return { summary: res.summary, data: res.data };
@@ -503,6 +511,10 @@ export async function executeOpsAiTool(
     }
     case "list_materials": {
       const res = await executeListMaterials(input as any);
+      return { summary: res.summary, data: res.data };
+    }
+    case "audit_course_completeness": {
+      const res = await executeAuditCourseCompleteness(input as any);
       return { summary: res.summary, data: res.data };
     }
 
@@ -533,6 +545,10 @@ export async function executeOpsAiTool(
     }
     case "get_quiz_insights": {
       const res = await executeGetQuizInsights(input as any);
+      return { summary: res.summary, data: res.data };
+    }
+    case "reset_quiz_attempt": {
+      const res = await executeResetQuizAttempt(input as any, context?.actorId);
       return { summary: res.summary, data: res.data };
     }
 
@@ -573,6 +589,10 @@ export async function executeOpsAiTool(
     }
     case "list_enrollment_tokens": {
       const res = await executeListEnrollmentTokens(input as any);
+      return { summary: res.summary, data: res.data };
+    }
+    case "diagnose_student_access": {
+      const res = await executeDiagnoseStudentAccess(input as any);
       return { summary: res.summary, data: res.data };
     }
 
@@ -731,6 +751,15 @@ export function createOpsAiTools(context?: OpsAiToolContext) {
       execute: async (args) => executeOpsAiTool("list_courses", args, context),
     }),
 
+    list_chapters: tool({
+      description: OPS_AI_TOOL_SECURITY_REGISTRY.list_chapters.description,
+      inputSchema: z.object({
+        courseId: z.string().optional().describe("Filter berdasarkan ID mata kuliah (opsional)"),
+        search: z.string().optional().describe("Kata kunci pencarian judul bab materi"),
+      }),
+      execute: async (args) => executeOpsAiTool("list_chapters", args, context),
+    }),
+
     create_course: tool({
       description: OPS_AI_TOOL_SECURITY_REGISTRY.create_course.description,
       inputSchema: z.object({
@@ -783,6 +812,14 @@ export function createOpsAiTools(context?: OpsAiToolContext) {
         chapterId: z.string().optional().describe("ID bab (opsional)"),
       }),
       execute: async (args) => executeOpsAiTool("list_materials", args, context),
+    }),
+
+    audit_course_completeness: tool({
+      description: OPS_AI_TOOL_SECURITY_REGISTRY.audit_course_completeness.description,
+      inputSchema: z.object({
+        courseId: z.string().describe("ID mata kuliah yang ingin diaudit"),
+      }),
+      execute: async (args) => executeOpsAiTool("audit_course_completeness", args, context),
     }),
 
     // ─── 2. Assessment & Questions ─────────────────────────────────────────────
@@ -859,6 +896,17 @@ export function createOpsAiTools(context?: OpsAiToolContext) {
         quizId: z.string().describe("ID kuis"),
       }),
       execute: async (args) => executeOpsAiTool("get_quiz_insights", args, context),
+    }),
+
+    reset_quiz_attempt: tool({
+      description: OPS_AI_TOOL_SECURITY_REGISTRY.reset_quiz_attempt.description,
+      inputSchema: z.object({
+        attemptId: z.string().optional().describe("ID percobaan kuis yang ingin direset"),
+        userId: z.string().optional().describe("ID pengguna / murid"),
+        quizId: z.string().optional().describe("ID kuis"),
+        reason: z.string().describe("Alasan reset percobaan kuis"),
+      }),
+      execute: async (args) => executeOpsAiTool("reset_quiz_attempt", args, context),
     }),
 
     // ─── 3. Schedules & Meet ───────────────────────────────────────────────────
@@ -952,6 +1000,15 @@ export function createOpsAiTools(context?: OpsAiToolContext) {
         status: z.enum(["active", "exhausted", "expired"]).optional().describe("Filter status token"),
       }),
       execute: async (args) => executeOpsAiTool("list_enrollment_tokens", args, context),
+    }),
+
+    diagnose_student_access: tool({
+      description: OPS_AI_TOOL_SECURITY_REGISTRY.diagnose_student_access.description,
+      inputSchema: z.object({
+        userIdentifier: z.string().describe("Nama, email, atau ID pengguna murid yang ingin didiagnosa"),
+        courseId: z.string().optional().describe("ID mata kuliah untuk evaluasi akses khusus (opsional)"),
+      }),
+      execute: async (args) => executeOpsAiTool("diagnose_student_access", args, context),
     }),
 
     // ─── 5. Users, Notifications & Operations ──────────────────────────────────

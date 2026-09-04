@@ -194,6 +194,106 @@ export async function executeUpdateCourse(input: UpdateCourseInput, actorId?: st
   };
 }
 
+export interface ListChaptersInput {
+  courseId?: string;
+  search?: string;
+}
+
+export async function executeListChapters(input: ListChaptersInput) {
+  const cleanCourseId = input.courseId?.trim().toLowerCase();
+  const cleanSearch = input.search?.trim().toLowerCase();
+
+  const [allCanonicalBab, allCourses, allLegacyBab] = await Promise.all([
+    db
+      .select({
+        id: bab.id,
+        title: bab.title,
+        orderIndex: bab.orderIndex,
+        courseId: bab.mataKuliahId,
+        status: bab.status,
+      })
+      .from(bab)
+      .where(eq(bab.status, "active"))
+      .orderBy(asc(bab.orderIndex)),
+    db
+      .select({
+        id: mataKuliah.id,
+        title: mataKuliah.title,
+        status: mataKuliah.status,
+      })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active")),
+    db
+      .select({
+        id: chapters.id,
+        title: chapters.title,
+        orderIndex: chapters.orderIndex,
+        courseId: chapters.courseId,
+      })
+      .from(chapters)
+      .orderBy(asc(chapters.orderIndex)),
+  ]);
+
+  const courseTitleMap = new Map<string, string>();
+  for (const c of allCourses) {
+    courseTitleMap.set(c.id, c.title);
+  }
+
+  const seenIds = new Set<string>();
+  let items: Array<{
+    id: string;
+    title: string;
+    orderIndex: number;
+    courseId: string;
+    courseTitle: string;
+  }> = [];
+
+  for (const b of allCanonicalBab) {
+    if (!seenIds.has(b.id)) {
+      seenIds.add(b.id);
+      const cId = b.courseId || "";
+      items.push({
+        id: b.id,
+        title: b.title,
+        orderIndex: b.orderIndex ?? 1,
+        courseId: cId,
+        courseTitle: courseTitleMap.get(cId) || cId,
+      });
+    }
+  }
+
+  for (const ch of allLegacyBab) {
+    if (!seenIds.has(ch.id)) {
+      seenIds.add(ch.id);
+      const cId = ch.courseId || "";
+      items.push({
+        id: ch.id,
+        title: ch.title,
+        orderIndex: ch.orderIndex ?? 1,
+        courseId: cId,
+        courseTitle: courseTitleMap.get(cId) || cId,
+      });
+    }
+  }
+
+  if (cleanCourseId) {
+    items = items.filter(
+      (it) => it.courseId.toLowerCase() === cleanCourseId || it.courseTitle.toLowerCase().includes(cleanCourseId)
+    );
+  }
+
+  if (cleanSearch) {
+    items = items.filter(
+      (it) => it.title.toLowerCase().includes(cleanSearch) || it.id.toLowerCase().includes(cleanSearch)
+    );
+  }
+
+  return {
+    summary: `Ditemukan ${items.length} bab materi${cleanSearch ? ` untuk pencarian '${cleanSearch}'` : ""}${cleanCourseId ? ` pada mata kuliah '${cleanCourseId}'` : ""}.`,
+    data: items,
+  };
+}
+
 export interface BatchCreateChaptersInput {
   courseId: string;
   chapters: Array<{
@@ -330,5 +430,59 @@ export async function executeListMaterials(input: ListMaterialsInput) {
       chapterIds: m.chapterIds,
       createdAt: m.createdAt,
     })),
+  };
+}
+
+export interface AuditCourseCompletenessInput {
+  courseId: string;
+}
+
+export async function executeAuditCourseCompleteness(input: AuditCourseCompletenessInput) {
+  const cleanCourseId = input.courseId.trim().toLowerCase();
+  if (!cleanCourseId) throw new Error("ID Mata Kuliah wajib diisi.");
+
+  const [courseRecord, chaptersList, materialsList] = await Promise.all([
+    db.query.mataKuliah.findFirst({ where: eq(mataKuliah.id, cleanCourseId) }) ||
+      db.query.courses.findFirst({ where: eq(courses.id, cleanCourseId) }),
+    db.select().from(bab).where(eq(bab.mataKuliahId, cleanCourseId)).orderBy(asc(bab.orderIndex)),
+    db.select().from(courseMaterials).where(eq(courseMaterials.courseId, cleanCourseId)),
+  ]);
+
+  if (!courseRecord) {
+    throw new Error(`Mata kuliah '${cleanCourseId}' tidak ditemukan.`);
+  }
+
+  const auditItems = chaptersList.map((ch) => {
+    const matchingMaterials = materialsList.filter((m) =>
+      m.chapterIds ? (m.chapterIds as string).includes(ch.id) : false
+    );
+    const hasMaterials = matchingMaterials.length > 0;
+
+    return {
+      chapterId: ch.id,
+      title: ch.title,
+      orderIndex: ch.orderIndex,
+      materialCount: matchingMaterials.length,
+      status: hasMaterials ? "complete" : "needs_material",
+    };
+  });
+
+  const emptyChapters = auditItems.filter((it) => it.status === "needs_material");
+  const isAllComplete = emptyChapters.length === 0 && auditItems.length > 0;
+
+  return {
+    summary: `Audit Kelengkapan '${courseRecord.title}' (${auditItems.length} bab): ${
+      isAllComplete
+        ? "Seluruh bab telah memiliki materi lengkap."
+        : `${emptyChapters.length} bab belum memiliki berkas materi: ${emptyChapters.map((c) => c.title).join(", ")}.`
+    }`,
+    data: {
+      courseId: cleanCourseId,
+      courseTitle: courseRecord.title,
+      totalChapters: auditItems.length,
+      completeCount: auditItems.length - emptyChapters.length,
+      emptyCount: emptyChapters.length,
+      chapters: auditItems,
+    },
   };
 }
