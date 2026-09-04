@@ -143,6 +143,19 @@ export function buildAuthoringContextKey(input: {
   );
 }
 
+export function buildSourcePackKey(input: {
+  packId: string;
+  checksum: string;
+  scopeKey?: string;
+}): string {
+  return joinKey(
+    "overhaul",
+    "source-packs",
+    slugifySegment(input.scopeKey || "shared", "shared"),
+    `${slugifySegment(input.packId, "source-pack")}-${input.checksum.slice(0, 16)}.zip`,
+  );
+}
+
 /**
  * Media Library leaf name. Unlike user-upload leaves, the Media Library is a
  * managed workspace where the human-visible filename IS the object name, so the

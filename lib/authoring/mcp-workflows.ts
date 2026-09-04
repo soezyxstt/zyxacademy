@@ -109,6 +109,8 @@ export type SourcePackSummary = {
   }>;
 };
 
+export type SourceSummary = SourcePackSummary;
+
 export type AuthoringWorkflowOption = {
   key: AuthoringWorkflow;
   label: string;
@@ -194,7 +196,7 @@ function optionToken(kind: "course_choice" | "chapter_choice", value: { courseId
   return issueToken({ kind, ...value, ttlMs: 60 * 60 * 1000 });
 }
 
-function sourceSummary(sourcePack: ValidatedSourcePack, quality: SourcePackQualityReport): SourcePackSummary {
+export function sourceSummary(sourcePack: ValidatedSourcePack, quality: SourcePackQualityReport): SourcePackSummary {
   return {
     packId: sourcePack.manifest.packId,
     name: sourcePack.manifest.name,
@@ -300,6 +302,11 @@ export function readMcpCatalogScope(courseKey: string, chapterKey: string): { co
   return { courseId: course.courseId, chapterId: chapter.chapterId };
 }
 
+export function readMcpCourseChoice(courseKey: string): { courseId: string } {
+  const course = verifyToken<SignedTokenPayload & { kind: "course_choice"; courseId: string }>(courseKey, "course_choice");
+  return { courseId: course.courseId };
+}
+
 export function issueMcpSourceFileKey(input: {
   materialId: string;
   storageKey: string;
@@ -368,6 +375,26 @@ export function ingestMcpSourcePack(
     source: summary,
     quality,
   };
+}
+
+export function issueSourcePackToken(input: {
+  checksum: string;
+  packId: string;
+  name: string;
+  summary: SourcePackSummary;
+  courseId?: string;
+  chapterId?: string;
+  ttlMs?: number;
+}): string {
+  return issueToken({
+    kind: "source",
+    checksum: input.checksum,
+    packId: input.packId,
+    name: input.name,
+    summary: input.summary,
+    ...(input.courseId && input.chapterId ? { courseId: input.courseId, chapterId: input.chapterId } : {}),
+    ttlMs: input.ttlMs ?? 24 * 60 * 60 * 1000,
+  });
 }
 
 export function readMcpSourcePackBinding(sourcePackToken: string): { courseId?: string; chapterId?: string } {

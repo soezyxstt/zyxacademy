@@ -26,9 +26,10 @@ Every instructional visual uses one closed `:::visual-explanation` block. Requir
 2. Call `source.list_files` with the opaque course and chapter keys. All PDF categories are returned by default; paginate until the relevant inventory is complete.
 3. Read selected files with `source.read_file` in `pages` mode, no more than four pages per call. Use the extracted text and every returned page image. After one page-read failure or client timeout, retry that file in `blob` mode when it is within the blob limit.
 4. Build and checksum the ZIP.
-5. Call `source.ingest` with `{ filename, contentBase64, storedOriginals: [{ documentId, fileKey }] }`.
+5. Call `source.ingest` with `{ filename, contentBase64, storedOriginals: [{ documentId, fileKey }] }`. Valid packs are automatically stored in R2 and `impor_bundle` (`status: validated`).
 6. Stop on any blocking `quality.issues`.
-7. Use the returned `sourcePackToken` only when `valid: true`, then call `workflow.start` with the same course and chapter.
+7. Use the returned `sourcePackToken` only when `valid: true`, then call `workflow.start` with the same course and chapter. Alternatively, use the returned `persisted.sourcePackId` in `workflow.start` directly.
+8. If a workflow run fails downstream during Idea or Product authoring, call `source.list_packs` to find existing stored packs or `source.get_pack` to inspect document markdown, avoiding redundant PDF reading and ingestion.
 
 If `fileKey` is expired, stale, moved, or no longer associated with the chapter, call `source.list_files` again and reselect the current reference. Never reconstruct or persist a `fileKey`, database ID, R2 key, or URL.
 

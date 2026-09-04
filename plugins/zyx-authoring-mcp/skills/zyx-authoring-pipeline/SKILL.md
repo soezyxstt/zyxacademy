@@ -35,7 +35,7 @@ Gunakan pilihan opaque dari MCP untuk mengunci course dan chapter. Jangan memint
 ## Orkestrasi
 
 1. Tentukan apakah pipeline baru atau resume dari checkpoint.
-2. Jalankan tahap Source Pack dengan `$zyx-source-pack-mcp` sampai `source.ingest` menghasilkan `valid: true`. Untuk prompt-only, gunakan `catalog.list_courses`, `catalog.list_chapters`, `source.list_files`, `source.read_file`, dan `storedOriginals`; file lokal tetap didukung melalui `originals`.
+2. Jalankan tahap Source Pack dengan `$zyx-source-pack-mcp` sampai `source.ingest` menghasilkan `valid: true`. Jika resume dari checkpoint atau Source Pack sudah pernah di-ingest sebelumnya, periksa `source.list_packs` untuk menggunakan Source Pack yang tersimpan di R2 dan database tanpa perlu transkripsi ulang. Untuk prompt-only baru, gunakan `catalog.list_courses`, `catalog.list_chapters`, `source.list_files`, `source.read_file`, dan `storedOriginals`; file lokal tetap didukung melalui `originals`.
 3. Kunci workflow `idea_product`, course, dan chapter; ambil run serta contract aktif.
 4. Jalankan tahap Idea dengan `$zyx-idea-bundle-mcp` sampai valid. Submit hanya jika diotorisasi.
 5. Setelah Idea staged, berhenti pada `WAITING_IDEA_PUBLICATION`. Laporkan checkpoint dan jangan mulai Product berdasarkan Idea draft.

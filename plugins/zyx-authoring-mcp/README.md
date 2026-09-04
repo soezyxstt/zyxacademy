@@ -35,11 +35,11 @@ A host without interactive OAuth can use a bearer token created by an authentica
 
 The Zyx Authoring MCP implements the following tools across workflow, validation, knowledge inspection, and lifecycle operations:
 
-- **Workflow and catalog**: `workflow.list`, `catalog.list_courses`, `catalog.list_chapters`, `source.list_files`, `source.read_file`, `source.ingest`, `workflow.start`, `workflow.get_run`, `workflow.get_contract` (`authoring:read`). Stored course PDFs can be inspected and ingested without a local attachment; local originals remain supported.
+- **Workflow and catalog**: `workflow.list`, `catalog.list_courses`, `catalog.list_chapters`, `source.list_files`, `source.read_file`, `source.ingest`, `source.list_packs`, `source.get_pack`, `workflow.start`, `workflow.get_run`, `workflow.get_contract` (`authoring:read`). Stored course PDFs can be inspected and ingested without a local attachment; local originals remain supported. Ingested Source Packs are persisted to R2 and `impor_bundle` (`status: validated`), enabling listing via `source.list_packs` and direct workflow startup via `workflow.start` with `sourcePackId`.
 - **Validation and staging**: `authoring.validate_idea_bundle`, `authoring.submit_idea_bundle`, `authoring.validate_product_bundle`, `authoring.submit_product_bundle`, `assessment.validate_quiz_draft`, `assessment.submit_quiz_draft` (`authoring:read` for validation, `authoring:stage` for submission).
 - **Knowledge and analysis**: `assessment.list_ideas`, `assessment.get_idea`, `knowledge.search_ideas`, `knowledge.get_idea`, `knowledge.list_products`, `knowledge.get_product`, `knowledge.list_sources`, `knowledge.get_source`, `knowledge.search_source_chunks`, `analysis.get_coverage`, `assessment.list_questions`, `assessment.get_question`, `assessment.analyze_bank`, `assessment.find_similar` (`authoring:read`).
 - **Lifecycle management**:
-  - `authoring.list_imports` and `authoring.get_import`: Inspect staged imports and review logs without exposing storage keys or reviewer IDs (`authoring:read`).
+  - `authoring.list_imports` and `authoring.get_import`: Inspect staged Source, Idea, and Product imports and review logs without exposing storage keys or reviewer IDs (`authoring:read`).
   - `authoring.restage_idea_bundle` and `authoring.restage_product_bundle`: Replace staged bundles and reset prior review state via lifecycle services (`authoring:stage`).
   - `authoring.discard_product_draft`: Permanently delete draft Product Bundles and staging artifacts (`authoring:withdraw`).
   - `authoring.review_idea_bundle` and `authoring.review_product_bundle`: Record immutable review decisions (`authoring:review`).

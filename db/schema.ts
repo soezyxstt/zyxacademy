@@ -2644,7 +2644,7 @@ export const imporBundle = sqliteTable(
  id: text("id").primaryKey(),
  bundleId: text("bundle_id").notNull(),
  checksum: text("checksum").notNull(),
- bundleType: text("bundle_type").$type<"idea" | "product" | "assessment" | "mixed">().notNull(),
+ bundleType: text("bundle_type").$type<"source" | "idea" | "product" | "assessment" | "mixed">().notNull(),
  courseId: text("course_id").references(() => courses.id, { onDelete: "restrict" }),
  sourceUriOrKey: text("source_uri_or_key").notNull(),
  version: integer("version").default(1).notNull(),

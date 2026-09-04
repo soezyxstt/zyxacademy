@@ -9,6 +9,13 @@ import { getIdeaBundleImport, listIdeaBundleImports, reviewIdeaBundle, stageIdea
 import { validateProductBundle } from "@/lib/bundle/product-validator";
 import { previewProducts } from "@/lib/bundle/product-preview";
 import { discardProductBundleDraft, getProductBundleImport, listProductBundleImports, reviewProductBundle, stageProductBundle } from "@/lib/bundle/product-staging";
+import {
+  getSourcePackImport,
+  listSourcePackImports,
+  readStoredSourcePackDocument,
+  stageSourcePack,
+} from "@/lib/bundle/source-staging";
+import { validateSourcePack } from "@/lib/authoring/source-pack";
 import { withdrawProductBundle } from "@/lib/bundle/product-publication";
 import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
 import { evaluateIdeaBundleQuality } from "@/lib/authoring/quality/idea-bundle";
@@ -32,13 +39,17 @@ import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
 import {
   AUTHORING_MCP_MAX_BUNDLE_BYTES,
   AUTHORING_MCP_MAX_ORIGINAL_BYTES,
+  AUTHORING_MCP_MAX_SOURCE_PACK_BYTES,
   authoringWorkflowSchema,
   decodeMcpArtifact,
   ingestMcpSourcePack,
+  issueSourcePackToken,
   listAuthoringWorkflows,
   listMcpChapterChoices,
   listMcpCourseChoices,
   publicMcpRun,
+  readMcpCatalogScope,
+  readMcpCourseChoice,
   readMcpRunToken,
   startAuthoringWorkflow,
   workflowContract,
@@ -628,7 +639,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
 
   (server as any).registerTool("source.ingest", {
     title: "Ingest Source Pack",
-    description: "Menerima Source Pack sebagai base64 melalui MCP, menjalankan compatibility checking, dan mengembalikan token sumber tervalidasi.",
+    description: "Menerima Source Pack sebagai base64 melalui MCP, menjalankan compatibility checking, menyimpan ke R2 dan database, dan mengembalikan token sumber tervalidasi.",
     inputSchema: {
       filename: z.string().min(1).max(255),
       contentBase64: z.string().min(1).max(96 * 1024 * 1024),
@@ -639,7 +650,149 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
   }, async ({ filename, contentBase64, originals, storedOriginals }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const resolved = await resolveSourceOriginals(originals, storedOriginals);
-    return ingestMcpSourcePack(filename, contentBase64, resolved.originals, resolved.boundScope);
+    const ingestResult = ingestMcpSourcePack(filename, contentBase64, resolved.originals, resolved.boundScope);
+    if (!ingestResult.ok) return ingestResult;
+
+    const bytes = decodeMcpArtifact(contentBase64, AUTHORING_MCP_MAX_SOURCE_PACK_BYTES);
+    const sourcePack = validateSourcePack(bytes);
+    const staged = await stageSourcePack({
+      filename,
+      bytes,
+      sourcePack,
+      requestedBy: principal.actorId,
+      courseId: resolved.boundScope?.courseId,
+      chapterId: resolved.boundScope?.chapterId,
+      quality: ingestResult.quality,
+      summary: ingestResult.source,
+    });
+
+    return {
+      ...ingestResult,
+      persisted: {
+        importId: staged.importId,
+        packId: staged.packId,
+        checksum: staged.checksum,
+        sourceKey: staged.sourceKey,
+        created: staged.created,
+      },
+    };
+  }));
+
+  (server as any).registerTool("source.list_packs", {
+    title: "List stored Source Packs",
+    description: "Mengembalikan daftar Source Pack tervalidasi yang tersimpan di R2 dan database untuk mata kuliah dan bab terpilih, lengkap dengan token sumber siap pakai.",
+    inputSchema: {
+      courseKey: z.string().min(1),
+      chapterKey: z.string().min(1).optional(),
+      limit: z.number().int().min(1).max(100).default(50),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ courseKey, chapterKey, limit }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const scope = chapterKey
+      ? readMcpCatalogScope(courseKey, chapterKey)
+      : readMcpCourseChoice(courseKey);
+    const chapterId = "chapterId" in scope ? (scope as { chapterId: string }).chapterId : undefined;
+    const rows = await listSourcePackImports({
+      courseId: scope.courseId,
+      chapterId,
+      limit,
+    });
+    return {
+      ok: true,
+      packs: rows.map((row) => ({
+        importId: row.id,
+        packId: row.bundleId,
+        checksum: row.checksum,
+        sourcePackToken: issueSourcePackToken({
+          checksum: row.checksum,
+          packId: row.bundleId,
+          name: row.validationReport?.name ?? row.bundleId,
+          summary: (row.validationReport?.summary as any) ?? {
+            packId: row.bundleId,
+            name: row.validationReport?.name ?? row.bundleId,
+            archiveChecksum: row.checksum,
+            documentCount: row.validationReport?.documentCount ?? 0,
+            unitCount: 0,
+            sectionCount: 0,
+            questionCount: 0,
+            solutionCount: 0,
+            quality: row.validationReport?.quality as any,
+            documents: (row.validationReport?.documents as any) ?? [],
+          },
+          courseId: (row.validationReport?.courseId as string | undefined) ?? row.courseId ?? scope.courseId,
+          chapterId: (row.validationReport?.chapterId as string | undefined) ?? chapterId,
+        }),
+        summary: row.validationReport?.summary,
+        documentCount: row.validationReport?.documentCount,
+        createdAt: row.createdAt,
+      })),
+    };
+  }));
+
+  (server as any).registerTool("source.get_pack", {
+    title: "Get stored Source Pack detail",
+    description: "Mengambil metadata, ringkasan, atau isi teks transkripsi Markdown dokumen dari Source Pack yang tersimpan.",
+    inputSchema: {
+      packId: z.string().trim().min(1),
+      documentId: z.string().trim().optional(),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ packId, documentId }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const stored = await getSourcePackImport(packId);
+    if (!stored) throw new Error("AUTHORING_MCP_SOURCE_PACK_NOT_FOUND");
+
+    const token = issueSourcePackToken({
+      checksum: stored.checksum,
+      packId: stored.bundleId,
+      name: stored.validationReport?.name ?? stored.bundleId,
+      summary: (stored.validationReport?.summary as any) ?? {
+        packId: stored.bundleId,
+        name: stored.validationReport?.name ?? stored.bundleId,
+        archiveChecksum: stored.checksum,
+        documentCount: stored.validationReport?.documentCount ?? 0,
+        unitCount: 0,
+        sectionCount: 0,
+        questionCount: 0,
+        solutionCount: 0,
+        quality: stored.validationReport?.quality as any,
+        documents: (stored.validationReport?.documents as any) ?? [],
+      },
+      courseId: stored.validationReport?.courseId ?? stored.courseId ?? undefined,
+      chapterId: stored.validationReport?.chapterId ?? undefined,
+    });
+
+    if (documentId) {
+      const { document } = await readStoredSourcePackDocument(stored.sourceUriOrKey, documentId);
+      return {
+        ok: true,
+        packId: stored.bundleId,
+        checksum: stored.checksum,
+        sourcePackToken: token,
+        document: {
+          id: document.id,
+          title: document.title,
+          role: document.role,
+          unitKind: document.unitKind,
+          expectedUnits: document.expectedUnits,
+          markdown: document.markdown,
+          sections: document.sections,
+          counts: document.counts,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      packId: stored.bundleId,
+      checksum: stored.checksum,
+      sourcePackToken: token,
+      summary: stored.validationReport?.summary,
+      documents: stored.validationReport?.documents,
+      quality: stored.validationReport?.quality,
+      createdAt: stored.createdAt,
+    };
   }));
 
   (server as any).registerTool("workflow.start", {
@@ -648,15 +801,40 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     inputSchema: {
       workflow: authoringWorkflowSchema,
       sourcePackToken: z.string().min(1).optional(),
+      sourcePackId: z.string().min(1).optional(),
       courseKey: z.string().min(1),
       chapterKey: z.string().min(1),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ workflow, sourcePackToken, courseKey, chapterKey }: any) => safeTool(async () => {
+  }, async ({ workflow, sourcePackToken, sourcePackId, courseKey, chapterKey }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
+    let resolvedToken = sourcePackToken;
+    if (!resolvedToken && sourcePackId) {
+      const stored = await getSourcePackImport(sourcePackId);
+      if (!stored) throw new Error("AUTHORING_MCP_SOURCE_PACK_NOT_FOUND");
+      resolvedToken = issueSourcePackToken({
+        checksum: stored.checksum,
+        packId: stored.bundleId,
+        name: stored.validationReport?.name ?? stored.bundleId,
+        summary: (stored.validationReport?.summary as any) ?? {
+          packId: stored.bundleId,
+          name: stored.validationReport?.name ?? stored.bundleId,
+          archiveChecksum: stored.checksum,
+          documentCount: stored.validationReport?.documentCount ?? 0,
+          unitCount: 0,
+          sectionCount: 0,
+          questionCount: 0,
+          solutionCount: 0,
+          quality: stored.validationReport?.quality as any,
+          documents: (stored.validationReport?.documents as any) ?? [],
+        },
+        courseId: stored.validationReport?.courseId ?? stored.courseId ?? undefined,
+        chapterId: stored.validationReport?.chapterId ?? undefined,
+      });
+    }
     return {
       ok: true,
-      ...(await startAuthoringWorkflow({ workflow, sourcePackToken, courseKey, chapterKey })),
+      ...(await startAuthoringWorkflow({ workflow, sourcePackToken: resolvedToken, courseKey, chapterKey })),
     };
   }));
 
@@ -961,15 +1139,19 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
 function registerLifecycleTools(server: McpServer, principal: McpPrincipal): void {
   (server as any).registerTool("authoring.list_imports", {
     title: "List staged bundle imports",
-    description: "Mengembalikan inventory Idea atau Product Bundle untuk inspeksi lifecycle sebelum edit, review, atau withdrawal.",
+    description: "Mengembalikan inventory Source Pack, Idea, atau Product Bundle untuk inspeksi lifecycle sebelum edit, review, atau withdrawal.",
     inputSchema: {
-      bundleType: z.enum(["idea", "product"]),
+      bundleType: z.enum(["source", "idea", "product"]),
       limit: z.number().int().min(1).max(100).default(50),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async ({ bundleType, limit }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
-    const rows = bundleType === "idea" ? await listIdeaBundleImports(limit) : await listProductBundleImports(limit);
+    const rows = bundleType === "source"
+      ? await listSourcePackImports({ limit })
+      : bundleType === "idea"
+        ? await listIdeaBundleImports(limit)
+        : await listProductBundleImports(limit);
     return {
       ok: true,
       bundleType,
@@ -990,12 +1172,29 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     title: "Get staged bundle import",
     description: "Mengembalikan detail import, inventory entity, laporan validasi, dan keputusan review tanpa mengekspos storage key atau identity internal reviewer.",
     inputSchema: {
-      bundleType: z.enum(["idea", "product"]),
+      bundleType: z.enum(["source", "idea", "product"]),
       importId: z.string().trim().min(1),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async ({ bundleType, importId }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
+    if (bundleType === "source") {
+      const row = await getSourcePackImport(importId);
+      if (!row) throw new Error("SOURCE_PACK_NOT_FOUND");
+      return {
+        ok: true,
+        import: {
+          importId: row.id,
+          bundleId: row.bundleId,
+          checksum: row.checksum,
+          version: row.version,
+          status: row.status,
+          validationReport: row.validationReport,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        },
+      };
+    }
     const row = bundleType === "idea" ? await getIdeaBundleImport(importId) : await getProductBundleImport(importId);
     if (!row) throw new Error(bundleType === "idea" ? "IDEA_BUNDLE_NOT_FOUND" : "PRODUCT_BUNDLE_NOT_FOUND");
     return { ok: true, import: publicBundleImport(row) };

@@ -9,8 +9,8 @@ Gunakan skill ini sebagai instruction layer untuk MCP. Validator repository dan 
 
 ## Prasyarat
 
-1. Dapatkan Source Pack `valid: true` melalui `$zyx-source-pack-mcp`. Jika prompt hanya menyebut mata kuliah dan bab, gunakan PDF course tersimpan melalui `source.list_files` dan `source.read_file`; jangan meminta upload sebelum katalog tersimpan diperiksa. File lokal tetap merupakan compatibility path.
-2. Panggil `workflow.start` dengan workflow `idea_product`, `sourcePackToken`, dan course serta chapter opaque yang sama dengan stored originals. Jangan meminta operator mengetik ID teknis.
+1. Periksa ketersediaan Source Pack tersimpan untuk mata kuliah dan bab terkait menggunakan `source.list_packs`. Jika sudah tersedia Source Pack valid, gunakan `sourcePackToken` yang dikembalikan atau `packId`, lalu baca dokumen transkripsinya via `source.get_pack` tanpa perlu membuat ulang dari PDF. Jika belum ada, dapatkan Source Pack `valid: true` melalui `$zyx-source-pack-mcp`.
+2. Panggil `workflow.start` dengan workflow `idea_product`, `sourcePackToken` (atau `sourcePackId`), dan course serta chapter opaque yang sama dengan stored originals. Jangan meminta operator mengetik ID teknis.
 3. Panggil `workflow.get_contract` dan pertahankan `runToken` sampai submission selesai.
 
 ## Workflow authoring

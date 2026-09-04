@@ -5,6 +5,7 @@ import {
   buildFormStorageKey,
   buildIdeaBundleKey,
   buildProductBundleKey,
+  buildSourcePackKey,
   formatQuestionFolder,
   isSafeKey,
   joinKey,
@@ -107,6 +108,12 @@ describe("overhaul artifact keys", () => {
     );
     expect(buildAuthoringContextKey({ runId: "Run 01", packId: "Pack Gerak" })).toBe(
       "overhaul/run-01/authoring-context/pack-gerak.zip",
+    );
+    expect(buildSourcePackKey({ scopeKey: "Kalkulus 1", packId: "Source Pack Gerak", checksum })).toBe(
+      `overhaul/source-packs/kalkulus-1/source-pack-gerak-${checksum.slice(0, 16)}.zip`,
+    );
+    expect(buildSourcePackKey({ packId: "Source Pack Gerak", checksum })).toBe(
+      `overhaul/source-packs/shared/source-pack-gerak-${checksum.slice(0, 16)}.zip`,
     );
   });
 });
