@@ -522,7 +522,6 @@ export default function AdminFormsBuilder({
 
   const executeDeleteForm = async (formId: string) => {
     setDeletingId(formId);
-    setConfirmDeleteFormId(null);
     try {
       const res = await fetch(`/api/admin/custom-forms/${formId}`, {
         method: "DELETE",
@@ -530,13 +529,16 @@ export default function AdminFormsBuilder({
       const data = await res.json();
       if (data.success) {
         setForms((prev) => prev.filter((f) => f.id !== formId));
+        setConfirmDeleteFormId(null);
       } else {
+        setConfirmDeleteFormId(null);
         setAlertDialogInfo({
           title: "Gagal Menghapus Formulir",
           message: data.error || "Gagal menghapus formulir dari daftar terbit.",
         });
       }
     } catch (err: any) {
+      setConfirmDeleteFormId(null);
       setAlertDialogInfo({
         title: "Kesalahan Jaringan",
         message: err.message || "Terjadi kesalahan jaringan saat menghapus formulir.",
@@ -1673,7 +1675,7 @@ export default function AdminFormsBuilder({
       <Dialog
         open={Boolean(confirmDeleteFormId)}
         onOpenChange={(open) => {
-          if (!open) setConfirmDeleteFormId(null);
+          if (deletingId === null && !open) setConfirmDeleteFormId(null);
         }}
       >
         <DialogContent>
@@ -1686,12 +1688,15 @@ export default function AdminFormsBuilder({
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
+              disabled={deletingId !== null}
               onClick={() => setConfirmDeleteFormId(null)}
             >
               Batal
             </Button>
             <Button
               variant="destructive"
+              disabled={deletingId !== null}
+              isLoading={deletingId !== null}
               onClick={() => {
                 if (confirmDeleteFormId) executeDeleteForm(confirmDeleteFormId);
               }}

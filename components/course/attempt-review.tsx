@@ -256,7 +256,7 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  {attempt.remediation.concepts.map((c) => (
  <li key={c.conceptName} className="space-y-1">
  <div className="flex items-center justify-between gap-3 text-body-sm">
- <span className="font-medium text-foreground">{c.conceptName}</span>
+ <span className="font-medium text-foreground"><MathText as="span">{c.conceptName}</MathText></span>
  <span className="tabular-nums text-muted-foreground">
  {c.before}
  <ArrowRight className="inline size-3 mx-1" />
@@ -290,11 +290,16 @@ export function AttemptReview({ attemptId }: { attemptId: string }) {
  {attempt.remediation.rootCauses.map((rc) => (
  <li key={rc.conceptName}>
  <span className="font-medium text-foreground">
- {rc.conceptName} ({rc.mastery})
+ <MathText as="span">{rc.conceptName}</MathText> ({rc.mastery})
  </span>
  <span className="text-muted-foreground"> bergantung pada: </span>
  <span className="text-status-error">
- {rc.blockedBy.map((b) => `${b.conceptName} (${b.mastery})`).join(", ")}
+ {rc.blockedBy.map((b, bIdx) => (
+   <span key={b.conceptName}>
+     {bIdx > 0 ? ", " : ""}
+     <MathText as="span">{b.conceptName}</MathText> ({b.mastery})
+   </span>
+ ))}
  </span>
  </li>
  ))}

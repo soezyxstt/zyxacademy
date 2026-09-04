@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Layers, ListChecks, BookOpen, ArrowRight, Flame } from "lucide-react";
 import { studentCardClass } from "@/components/course/course-surfaces";
+import { MathText } from "@/components/course/math-text";
 import type { CourseDailyPlan } from "@/types/course-learning";
 
 const KIND_ICON: Record<CourseDailyPlan["items"][number]["kind"], React.ComponentType<{ className?: string }>> = {
@@ -62,9 +63,13 @@ export function CourseTodayPlan({ plan }: { plan: CourseDailyPlan }) {
       )}
 
       <p className="mt-3 border-t border-border/30 pt-3 text-body-xs text-muted-foreground">
-        {plan.weakestConcept
-          ? `Latihan diarahkan ke konsep terlemahmu: ${plan.weakestConcept}.`
-          : "Rencana disusun ulang otomatis dari progres belajarmu."}
+        {plan.weakestConcept ? (
+          <>
+            Latihan diarahkan ke konsep terlemahmu: <MathText as="span">{plan.weakestConcept}</MathText>.
+          </>
+        ) : (
+          "Rencana disusun ulang otomatis dari progres belajarmu."
+        )}
       </p>
     </section>
   );

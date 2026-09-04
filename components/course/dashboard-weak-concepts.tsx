@@ -3,6 +3,7 @@
 import * as React from "react";
 import { TrendingUp, TrendingDown, Minus, Lock, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 
 interface MasteryConcept {
@@ -92,7 +93,7 @@ export function DashboardWeakConcepts({
               {/* Concept name + trend icon + score */}
               <div className="flex items-start justify-between gap-2 text-body-sm">
                 <span className="flex items-center gap-1.5 font-medium text-foreground line-clamp-2 max-w-[85%] leading-snug">
-                  {c.conceptName}
+                  <MathText as="span">{c.conceptName}</MathText>
                   <TrendIcon trend={c.trend} />
                 </span>
                 <span className="font-mono text-body-xs font-semibold text-muted-foreground shrink-0 mt-0.5">
@@ -112,7 +113,7 @@ export function DashboardWeakConcepts({
                 <div className="mt-0.5">
                   <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px] rounded-md py-0.5">
                     <Lock className="size-3" />
-                    Prasyarat: {c.blockedBy[0]}
+                    Prasyarat: <MathText as="span">{c.blockedBy[0]}</MathText>
                   </Badge>
                 </div>
               )}

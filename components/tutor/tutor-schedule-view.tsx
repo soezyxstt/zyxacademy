@@ -902,7 +902,12 @@ export function TutorScheduleView({
       </AdminTabs>
 
       {/* Dialog 1: Add Slot */}
-      <Dialog open={isAddSlotOpen} onOpenChange={setIsAddSlotOpen}>
+      <Dialog
+        open={isAddSlotOpen}
+        onOpenChange={(open) => {
+          if (!isPending) setIsAddSlotOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="text-body-base font-bold font-heading">
@@ -999,6 +1004,7 @@ export function TutorScheduleView({
             <Button
               variant="outline"
               size="sm"
+              disabled={isPending}
               onClick={() => setIsAddSlotOpen(false)}
               className="text-body-sm h-9 rounded-lg"
             >
@@ -1006,7 +1012,7 @@ export function TutorScheduleView({
             </Button>
             <Button
               size="sm"
-              disabled={isPending}
+              isLoading={isPending}
               onClick={handleAddSlot}
               className="text-body-sm h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
             >
@@ -1017,7 +1023,12 @@ export function TutorScheduleView({
       </Dialog>
 
       {/* Dialog 2: Create Session */}
-      <Dialog open={isCreateSessionOpen} onOpenChange={setIsCreateSessionOpen}>
+      <Dialog
+        open={isCreateSessionOpen}
+        onOpenChange={(open) => {
+          if (!isPending) setIsCreateSessionOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
             <DialogTitle className="text-body-base font-bold font-heading">
@@ -1111,6 +1122,7 @@ export function TutorScheduleView({
             <Button
               variant="outline"
               size="sm"
+              disabled={isPending}
               onClick={() => setIsCreateSessionOpen(false)}
               className="text-body-sm h-9 rounded-lg"
             >
@@ -1118,7 +1130,7 @@ export function TutorScheduleView({
             </Button>
             <Button
               size="sm"
-              disabled={isPending}
+              isLoading={isPending}
               onClick={handleCreateSession}
               className="text-body-sm h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
             >
@@ -1129,7 +1141,12 @@ export function TutorScheduleView({
       </Dialog>
 
       {/* Dialog 3: Move Session */}
-      <Dialog open={isMoveSessionOpen} onOpenChange={setIsMoveSessionOpen}>
+      <Dialog
+        open={isMoveSessionOpen}
+        onOpenChange={(open) => {
+          if (!isPending) setIsMoveSessionOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle className="text-body-base font-bold font-heading">
@@ -1185,6 +1202,7 @@ export function TutorScheduleView({
             <Button
               variant="outline"
               size="sm"
+              disabled={isPending}
               onClick={() => setIsMoveSessionOpen(false)}
               className="text-body-sm h-9 rounded-lg"
             >
@@ -1192,7 +1210,7 @@ export function TutorScheduleView({
             </Button>
             <Button
               size="sm"
-              disabled={isPending}
+              isLoading={isPending}
               onClick={handleMoveSession}
               className="text-body-sm h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
             >
@@ -1203,7 +1221,12 @@ export function TutorScheduleView({
       </Dialog>
 
       {/* Dialog 4: Decide Ticket */}
-      <Dialog open={isDecideTicketOpen} onOpenChange={setIsDecideTicketOpen}>
+      <Dialog
+        open={isDecideTicketOpen}
+        onOpenChange={(open) => {
+          if (!isPending) setIsDecideTicketOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="text-body-base font-bold font-heading">
@@ -1246,6 +1269,7 @@ export function TutorScheduleView({
             <Button
               variant="outline"
               size="sm"
+              disabled={isPending}
               onClick={() => setIsDecideTicketOpen(false)}
               className="text-body-sm h-9 rounded-lg"
             >
@@ -1253,7 +1277,7 @@ export function TutorScheduleView({
             </Button>
             <Button
               size="sm"
-              disabled={isPending}
+              isLoading={isPending}
               onClick={handleDecideTicket}
               className={`text-body-sm h-9 rounded-lg ${
                 ticketDecision === "approved"

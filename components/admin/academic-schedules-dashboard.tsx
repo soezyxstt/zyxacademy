@@ -73,6 +73,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any | null>(null);
   const [pendingDeleteSchedule, setPendingDeleteSchedule] = useState<any | null>(null);
+  const [isDeletingSchedule, setIsDeletingSchedule] = useState(false);
 
   // Form States for Academic Schedule
   const [formType, setFormType] = useState<"official_exam" | "tryout" | "quiz" | "general">("official_exam");
@@ -215,6 +216,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
   const handleDeleteConfirm = async () => {
     if (!pendingDeleteSchedule) return;
 
+    setIsDeletingSchedule(true);
     try {
       const res = await deleteAcademicSchedule(pendingDeleteSchedule.id);
       if (res.success) {
@@ -226,6 +228,8 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
       }
     } catch {
       toast.error("Terjadi kesalahan koneksi");
+    } finally {
+      setIsDeletingSchedule(false);
     }
   };
 
@@ -861,16 +865,17 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
 
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
-                <Button variant="outline" type="button">
+                <Button variant="outline" type="button" disabled={formLoading}>
                   Batal
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
                 disabled={formLoading}
+                isLoading={formLoading}
                 className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
               >
-                {formLoading ? "Menyimpan..." : "Simpan Jadwal"}
+                Simpan Jadwal
               </Button>
             </DialogFooter>
           </form>
@@ -993,16 +998,17 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
 
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
-                <Button variant="outline" type="button">
+                <Button variant="outline" type="button" disabled={formLoading}>
                   Batal
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
                 disabled={formLoading}
+                isLoading={formLoading}
                 className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
               >
-                {formLoading ? "Menyimpan..." : "Simpan Perubahan"}
+                Simpan Perubahan
               </Button>
             </DialogFooter>
           </form>
@@ -1020,6 +1026,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
             <strong className="text-foreground">{pendingDeleteSchedule?.title}</strong>?
           </>
         }
+        loading={isDeletingSchedule}
         onConfirm={handleDeleteConfirm}
       />
 
@@ -1087,17 +1094,18 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
 
           <DialogFooter className="gap-2 pt-2">
             <DialogClose asChild>
-              <Button variant="outline" type="button">
+              <Button variant="outline" type="button" disabled={certSaving}>
                 Batal
               </Button>
             </DialogClose>
             <Button
               type="button"
               disabled={certSaving}
+              isLoading={certSaving}
               onClick={handleSaveCerts}
               className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
             >
-              {certSaving ? "Menyimpan..." : "Simpan Sertifikasi"}
+              Simpan Sertifikasi
             </Button>
           </DialogFooter>
         </DialogContent>

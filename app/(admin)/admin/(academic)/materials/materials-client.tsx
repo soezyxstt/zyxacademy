@@ -1911,10 +1911,15 @@ function InstanceRow({
       )}
 
       {/* Confirmation Deletion Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!isDeleting) setIsDeleteDialogOpen(open);
+        }}
+      >
         <DialogContent className="rounded-xl border border-border">
           <DialogHeader>
-            <DialogTitle>Hapus Materi Pelajaran?</DialogTitle>
+            <DialogTitle>Hapus Materi Pembelajaran?</DialogTitle>
             <DialogDescription>
               Apakah Anda yakin ingin menghapus materi &quot;{cleanTitle}&quot;? Tindakan ini akan
               menghapus materi secara permanen dari basis data utama dan membersihkan seluruh
@@ -1935,8 +1940,9 @@ function InstanceRow({
               className="rounded-lg"
               onClick={handleDelete}
               disabled={isDeleting}
+              isLoading={isDeleting}
             >
-              {isDeleting ? "Menghapus..." : "Hapus Permanen"}
+              Hapus Permanen
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2056,7 +2062,12 @@ function AssessmentRow({
       )}
 
       {/* Confirmation Deletion Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!isDeleting) setIsDeleteDialogOpen(open);
+        }}
+      >
         <DialogContent className="rounded-xl border border-border">
           <DialogHeader>
             <DialogTitle>Hapus Dokumen Asesmen?</DialogTitle>
@@ -2080,8 +2091,9 @@ function AssessmentRow({
               className="rounded-lg"
               onClick={handleDelete}
               disabled={isDeleting}
+              isLoading={isDeleting}
             >
-              {isDeleting ? "Menghapus..." : "Hapus Permanen"}
+              Hapus Permanen
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2244,7 +2256,12 @@ function WebMaterialRow({
       </Dialog>
 
       {/* Confirmation Deletion Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!isDeleting) setIsDeleteDialogOpen(open);
+        }}
+      >
         <DialogContent className="rounded-xl border border-border">
           <DialogHeader>
             <DialogTitle>Hapus Materi Website?</DialogTitle>
@@ -2267,8 +2284,9 @@ function WebMaterialRow({
               className="rounded-lg"
               onClick={handleDelete}
               disabled={isDeleting}
+              isLoading={isDeleting}
             >
-              {isDeleting ? "Menghapus..." : "Hapus Permanen"}
+              Hapus Permanen
             </Button>
           </DialogFooter>
         </DialogContent>

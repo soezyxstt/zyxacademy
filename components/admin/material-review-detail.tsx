@@ -485,7 +485,7 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
                     <span className="font-semibold text-foreground">{idea.code || `Idea ${index + 1}`}</span>
                     <Badge variant="outline" className="text-[10px]">{idea.provenance.length} sumber</Badge>
                   </div>
-                  <p className="mt-1 line-clamp-2 text-muted-foreground">{idea.canonicalStatement}</p>
+                  <p className="mt-1 line-clamp-2 text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p>
                 </button>
               ))}
             </div>
@@ -511,7 +511,7 @@ export function IdeaBundleReviewDetail({ detailId, courseLabels = {} }: DetailPr
             <SearchBar size="sm" value={searchQuery} onSearch={setSearchQuery} onClear={() => setSearchQuery("")} placeholder="Cari Idea" />
             {filteredIdeas.map((idea) => {
               const status = payload.itemReviews.find((review) => review.targetId === idea.id)?.status ?? "pending";
-              return <button key={idea.id} type="button" onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); }} className={cn("w-full rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", activeIdea.id === idea.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/50")}><div className="flex items-center justify-between gap-2"><span className="text-body-sm font-semibold">{idea.code}</span><StatusBadge tone={blockReviewTones[status]}>{blockReviewLabels[status]}</StatusBadge></div><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground">{idea.canonicalStatement}</p></button>;
+              return <button key={idea.id} type="button" onClick={() => { setSelectedIdeaId(idea.id); setEditing(false); }} className={cn("w-full rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", activeIdea.id === idea.id ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/50")}><div className="flex items-center justify-between gap-2"><span className="text-body-sm font-semibold">{idea.code}</span><StatusBadge tone={blockReviewTones[status]}>{blockReviewLabels[status]}</StatusBadge></div><p className="mt-1 line-clamp-2 text-body-xs text-muted-foreground"><MathText as="span">{idea.canonicalStatement}</MathText></p></button>;
             })}
           </aside> : null}
         <article key={activeIdea.id} className="space-y-6 rounded-xl border border-border bg-card p-5 shadow-xs sm:p-7">

@@ -248,11 +248,11 @@ export function FormPresetsPanel({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setSaveOpen(false)}>
+            <Button variant="outline" onClick={() => setSaveOpen(false)} disabled={saving}>
               Batal
             </Button>
             <Button onClick={handleSave} disabled={saving} isLoading={saving}>
-              {saving ? "Menyimpan..." : "Simpan Preset"}
+              Simpan Preset
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -309,6 +309,7 @@ export function FormPresetsPanel({
                       variant="ghost"
                       size="icon-sm"
                       disabled={deletingId === preset.id}
+                      isLoading={deletingId === preset.id}
                       onClick={() => handleDelete(preset.id)}
                       title="Hapus preset"
                       className="text-status-error hover:text-status-error"

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Brain, Check, ChevronDown, CircleAlert, Clock3, Lock, Play, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 
 interface StudyPathStep {
@@ -43,11 +44,11 @@ function StepRow({ step, courseId }: { step: StudyPathStep; courseId: string }) 
     <div className={cn("grid gap-3 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center hover:bg-muted/15 transition-colors", step.status === "locked" && "bg-muted/20")}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cn("text-body-sm font-semibold", step.status === "locked" ? "text-muted-foreground" : "text-foreground")}>{step.conceptName}</span>
+          <span className={cn("text-body-sm font-semibold", step.status === "locked" ? "text-muted-foreground" : "text-foreground")}><MathText as="span">{step.conceptName}</MathText></span>
           <span className={cn("rounded-md px-1.5 py-0.5 text-body-xs", step.status === "mastered" ? "bg-status-success/10 text-status-success font-medium" : step.status === "locked" ? "bg-muted text-muted-foreground" : "bg-brand-primary/10 text-brand-primary font-medium")}>{statusLabel(step)}</span>
         </div>
         {step.status === "locked" ? (
-          <p className="mt-1 flex items-start gap-1.5 text-body-xs text-muted-foreground"><Lock className="mt-0.5 size-3 shrink-0" />Selesaikan {step.prerequisites.slice(0, 2).join(" dan ") || "materi prasyarat"} terlebih dahulu.</p>
+          <p className="mt-1 flex items-start gap-1.5 text-body-xs text-muted-foreground"><Lock className="mt-0.5 size-3 shrink-0" />Selesaikan <MathText as="span">{step.prerequisites.slice(0, 2).join(" dan ") || "materi prasyarat"}</MathText> terlebih dahulu.</p>
         ) : (
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-body-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1"><Clock3 className="size-3" />{step.estimatedMinutes} menit</span>
@@ -122,7 +123,7 @@ export function StudyPathTimeline({ courseId }: { courseId: string }) {
         <>
           {nextStep ? (
             <section className="grid gap-3 rounded-lg border border-brand-primary/25 bg-brand-primary/5 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-              <div><p className="text-body-xs font-semibold text-brand-primary">Lanjutkan belajar</p><h2 className="mt-1 font-heading text-body-base font-bold">{nextStep.conceptName}</h2><p className="mt-1 text-body-sm text-muted-foreground">{nextStep.priorityReason}, sekitar {nextStep.estimatedMinutes} menit.</p></div>
+              <div><p className="text-body-xs font-semibold text-brand-primary">Lanjutkan belajar</p><h2 className="mt-1 font-heading text-body-base font-bold"><MathText as="span">{nextStep.conceptName}</MathText></h2><p className="mt-1 text-body-sm text-muted-foreground">{nextStep.priorityReason}, sekitar {nextStep.estimatedMinutes} menit.</p></div>
               {primaryHref(nextStep, courseId) ? <Button asChild className="rounded-md"><Link href={primaryHref(nextStep, courseId)!}><Play className="mr-1.5 size-4" />Mulai</Link></Button> : null}
             </section>
           ) : <div className="flex items-center gap-2 rounded-lg border border-status-success/20 bg-status-success/5 p-4 text-body-sm text-status-success"><Check className="size-4" />Semua langkah sudah dikuasai.</div>}

@@ -9,6 +9,7 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { Badge } from "@/components/ui/badge";
 import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { MathText } from "@/components/course/math-text";
 import { pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -47,7 +48,7 @@ function ConceptLinkRow({ courseId, refs }: { courseId: string; refs: ConceptRef
       {refs.map((r) => (
         <Link key={r.slug} href={`/courses/${courseId}/concept/${r.slug}`}>
           <Badge variant="secondary" className="rounded-md hover:bg-muted cursor-pointer">
-            {r.conceptName}
+            <MathText as="span">{r.conceptName}</MathText>
           </Badge>
         </Link>
       ))}
@@ -101,7 +102,7 @@ export default async function ConceptExplorerPage({ params }: Props) {
         <Reveal>
           <div className={studentCardClass("space-y-4")}>
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <h2 className="text-body-base font-heading font-semibold text-foreground">{data.conceptName}</h2>
+              <h2 className="text-body-base font-heading font-semibold text-foreground"><MathText as="span">{data.conceptName}</MathText></h2>
               {typeof data.masteryScore === "number" && (
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-32 rounded-md bg-muted overflow-hidden">
@@ -150,7 +151,7 @@ export default async function ConceptExplorerPage({ params }: Props) {
                 <div className="space-y-4">
                   {items.map((ko) => (
                     <div key={ko.id} className={studentCardClass()}>
-                      <h3 className="text-body-base font-semibold text-foreground mb-2">{ko.title}</h3>
+                      <h3 className="text-body-base font-semibold text-foreground mb-2"><MathText as="span">{ko.title}</MathText></h3>
                       <MarkdownRenderer content={ko.content} />
                     </div>
                   ))}

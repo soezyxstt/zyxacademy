@@ -39,7 +39,14 @@ export function AdminConfirmDialog({
   onConfirm,
 }: AdminConfirmDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        if (!loading) {
+          onOpenChange(val);
+        }
+      }}
+    >
       <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-lg text-left">
         <DialogHeader>
           <DialogTitle
@@ -60,6 +67,7 @@ export function AdminConfirmDialog({
             variant="outline"
             className="rounded-lg cursor-pointer font-bold"
             onClick={() => onOpenChange(false)}
+            disabled={loading}
           >
             {cancelLabel}
           </Button>
@@ -67,7 +75,7 @@ export function AdminConfirmDialog({
             variant={destructive ? "destructive" : "default"}
             className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
             onClick={onConfirm}
-            disabled={loading}
+            isLoading={loading}
           >
             {confirmLabel}
           </Button>

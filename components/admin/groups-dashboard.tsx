@@ -140,6 +140,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
   const [editingGroup, setEditingGroup] = useState<GroupItem | null>(null);
   const [detailGroup, setDetailGroup] = useState<GroupItem | null>(null);
   const [pendingDeleteGroup, setPendingDeleteGroup] = useState<GroupItem | null>(null);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   // Form State for Create
@@ -308,6 +309,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
   const handleDeleteConfirm = async () => {
     if (!pendingDeleteGroup) return;
 
+    setIsDeletingGroup(true);
     try {
       const res = await deleteStudyGroup(pendingDeleteGroup.id);
       if (res.success) {
@@ -322,6 +324,8 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
       }
     } catch {
       toast.error("Terjadi kesalahan sistem");
+    } finally {
+      setIsDeletingGroup(false);
     }
   };
 
@@ -952,16 +956,17 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
-                <Button variant="outline" type="button">
+                <Button variant="outline" type="button" disabled={formLoading}>
                   Batal
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
                 disabled={formLoading}
+                isLoading={formLoading}
                 className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
               >
-                {formLoading ? "Menyimpan..." : "Simpan Kelompok"}
+                Simpan Kelompok
               </Button>
             </DialogFooter>
           </form>
@@ -1147,16 +1152,17 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
 
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
-                <Button variant="outline" type="button">
+                <Button variant="outline" type="button" disabled={formLoading}>
                   Batal
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
                 disabled={formLoading}
+                isLoading={formLoading}
                 className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
               >
-                {formLoading ? "Menyimpan..." : "Simpan Perubahan"}
+                Simpan Perubahan
               </Button>
             </DialogFooter>
           </form>
@@ -1399,6 +1405,7 @@ export function GroupsDashboard({ initialGroups, coursesList }: Props) {
             Seluruh data anggota, pemesanan sesi, dan token yang terhubung akan dicabut.
           </>
         }
+        loading={isDeletingGroup}
         onConfirm={handleDeleteConfirm}
       />
     </div>

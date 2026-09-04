@@ -476,7 +476,12 @@ export function UsersDashboard({
       )}
 
       {/* Edit Roles Dialog */}
-      <Dialog open={Boolean(editingUser)} onOpenChange={(open) => !open && setEditingUser(null)}>
+      <Dialog
+        open={Boolean(editingUser)}
+        onOpenChange={(open) => {
+          if (!isSavingRoles && !open) setEditingUser(null);
+        }}
+      >
         <DialogContent className="max-w-md rounded-xl border border-border p-6 shadow-xl text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
@@ -544,6 +549,7 @@ export function UsersDashboard({
               variant="outline"
               size="sm"
               onClick={() => setEditingUser(null)}
+              disabled={isSavingRoles}
               className="h-9 px-4 rounded-lg text-body-sm font-semibold"
             >
               Batal
@@ -552,9 +558,10 @@ export function UsersDashboard({
               size="sm"
               onClick={handleSaveRoles}
               disabled={isSavingRoles}
+              isLoading={isSavingRoles}
               className="h-9 px-5 rounded-lg text-body-sm font-semibold"
             >
-              {isSavingRoles ? "Menyimpan..." : "Simpan Peran"}
+              Simpan Peran
             </Button>
           </DialogFooter>
         </DialogContent>

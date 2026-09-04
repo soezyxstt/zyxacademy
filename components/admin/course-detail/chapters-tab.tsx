@@ -424,16 +424,22 @@ export function ChaptersTab({
               size="sm"
               onClick={handleSaveEdit}
               disabled={loading || !editTitle.trim()}
+              isLoading={loading}
               className="rounded-lg"
             >
-              {loading ? "Menyimpan..." : "Simpan Perubahan"}
+              Simpan Perubahan
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Chapter Dialog */}
-      <Dialog open={!!deletingChapter} onOpenChange={(open) => !open && setDeletingChapter(null)}>
+      <Dialog
+        open={!!deletingChapter}
+        onOpenChange={(open) => {
+          if (!loading && !open) setDeletingChapter(null);
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Hapus Bab Pembelajaran</DialogTitle>
@@ -452,9 +458,10 @@ export function ChaptersTab({
               size="sm"
               onClick={handleDeleteChapter}
               disabled={loading}
+              isLoading={loading}
               className="rounded-lg"
             >
-              {loading ? "Menghapus..." : "Hapus Bab"}
+              Hapus Bab
             </Button>
           </DialogFooter>
         </DialogContent>

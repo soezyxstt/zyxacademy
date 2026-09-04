@@ -210,7 +210,12 @@ export function SettingsTab({ course }: Props) {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+      <Dialog
+        open={deleteModalOpen}
+        onOpenChange={(open) => {
+          if (!loading) setDeleteModalOpen(open);
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Hapus Mata Kuliah Secara Permanen</DialogTitle>
@@ -229,9 +234,10 @@ export function SettingsTab({ course }: Props) {
               size="sm"
               onClick={handleDeleteConfirm}
               disabled={loading}
+              isLoading={loading}
               className="rounded-lg"
             >
-              {loading ? "Menghapus..." : "Ya, Hapus Sekarang"}
+              Ya, Hapus Sekarang
             </Button>
           </DialogFooter>
         </DialogContent>

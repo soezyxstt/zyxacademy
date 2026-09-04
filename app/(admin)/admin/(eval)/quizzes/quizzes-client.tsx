@@ -51,6 +51,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
   const [templates, setTemplates] = useState<TemplateType[]>(initialTemplates);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingTemplate, setDeletingTemplate] = useState<TemplateType | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Preview Dialog State
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -154,6 +155,7 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
 
   const handleDeleteConfirm = async () => {
     if (!deletingTemplate) return;
+    setIsDeleting(true);
     try {
       const res = await fetch(`/api/quiz/templates/${deletingTemplate.id}`, {
         method: "DELETE",
@@ -167,6 +169,8 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
       }
     } catch {
       toast.error("Terjadi kesalahan saat menghapus kuis.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -476,10 +480,14 @@ export function QuizzesCurationClient({ initialTemplates, courseMap, prefillCour
       {/* DELETE CONFIRM DIALOG */}
       <AdminConfirmDialog
         open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) setDeletingTemplate(null);
+        }}
         title="Hapus Kuis"
         description={`Tindakan ini akan menghapus kuis "${deletingTemplate?.title}" secara permanen dari database. Siswa tidak akan dapat mengakses kuis ini lagi.`}
         confirmLabel="Ya, Hapus Permanen"
+        loading={isDeleting}
         onConfirm={handleDeleteConfirm}
       />
 

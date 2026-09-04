@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import katex from "katex";
 import { cn } from "@/lib/utils";
+import { normalizeMathInText } from "@/lib/math/math-normalizer";
 
 type Segment =
   | { type: "text"; value: string }
@@ -76,7 +77,8 @@ function renderMath(value: string, displayMode: boolean) {
 
 export function MathText({ children, className, as = "span", bareMath = false }: MathTextProps) {
   const rawText = children ?? "";
-  const text = bareMath && rawText.trim() ? `$$${rawText.trim()}$$` : rawText;
+  const normalized = bareMath ? rawText : normalizeMathInText(rawText);
+  const text = bareMath && normalized.trim() ? `$$${normalized.trim()}$$` : normalized;
   const segments = parseMathText(text);
   const Component = as;
 

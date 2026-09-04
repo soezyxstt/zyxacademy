@@ -592,7 +592,12 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
       </div>
 
       {/* Confirmation Dialog before submitting */}
-      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+      <Dialog
+        open={showConfirmModal}
+        onOpenChange={(open) => {
+          if (!isSubmitting) setShowConfirmModal(open);
+        }}
+      >
         <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
@@ -663,13 +668,13 @@ export function TryoutForm({ courseId, exam }: TryoutFormProps) {
             <Button
               type="button"
               disabled={isSubmitting}
+              isLoading={isSubmitting}
               onClick={() => {
-                setShowConfirmModal(false);
                 handleSubmit();
               }}
               className="w-full sm:w-auto rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-bold"
             >
-              {isSubmitting ? "Mengirim..." : "Ya, Kumpulkan"}
+              Ya, Kumpulkan
             </Button>
           </DialogFooter>
         </DialogContent>

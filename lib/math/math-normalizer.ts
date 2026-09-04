@@ -1,0 +1,211 @@
+/**
+ * Utility to normalize mathematical expressions and symbols in natural language text (e.g. Indonesian)
+ * so that KaTeX can render them properly via MathText.
+ *
+ * Preserves text that already contains explicit LaTeX delimiters ($...$, $$...$$, \(...\), \[...\]).
+ */
+
+/**
+ * Normalizes unwrapped mathematical expressions within a plain text segment into LaTeX ($...$).
+ */
+function normalizePlainTextSegment(text: string): string {
+  if (!text || !text.trim()) return text;
+
+  let s = text;
+
+  // 1. Spelled out quadratic formula & variations
+  s = s.replace(
+    /x\s*=\s*\(\s*-b\s+(?:plus\s+atau\s+minus|\+-|\+\/-)\s+akar\s+D\s*\)\s*\/\s*\(\s*2a\s*\)/gi,
+    () => " $x = \\frac{-b \\pm \\sqrt{D}}{2a}$ "
+  );
+  s = s.replace(
+    /x\s*=\s*(?:plus\s+atau\s+minus|\+-)\s*sqrt\(([^)]+)\)/gi,
+    (_, inner) => ` $x = \\pm\\sqrt{${inner}}$ `
+  );
+  s = s.replace(
+    /y\s*=\s*(?:plus\s+atau\s+minus|\+-)\s*(?:\((b\/a)\)|b\/a)\s*x/gi,
+    () => " $y = \\pm\\frac{b}{a}x$ "
+  );
+
+  // 2. Trigonometry & angle conversions
+  s = s.replace(
+    /2\s*pi\s*radian\s*=\s*360\s*derajat\s*\(\s*pi\s*rad\s*=\s*180\s*derajat\s*\)/gi,
+    () => " $2\\pi\\text{ rad} = 360^\\circ$ ($\\pi\\text{ rad} = 180^\\circ$)"
+  );
+  s = s.replace(/(?<!\\)\b2\s*pi\s*rad(?:ian)?\b/gi, () => "$2\\pi\\text{ rad}$");
+  s = s.replace(/(?<!\\)\bpi\s*rad(?:ian)?\b/gi, () => "$\\pi\\text{ rad}$");
+
+  // 3. Spelled out root phrases
+  s = s.replace(/(?<!\\)\bakar\s+D\b/gi, () => "$\\sqrt{D}$");
+  s = s.replace(/(?<!\\)\bplus\s+atau\s+minus\b/gi, () => "$\\pm$");
+
+  // 4. Multi-term geometric equations (Circle, Ellipse, Hyperbola, Distance)
+  s = s.replace(
+    /\(\s*x\s*-\s*p\s*\)\^2\s*\+\s*\(\s*y\s*-\s*q\s*\)\^2\s*=\s*r\^2/g,
+    () => " $(x - p)^2 + (y - q)^2 = r^2$ "
+  );
+  s = s.replace(
+    /\(\s*x\s*-\s*p\s*\)\^2\s*\/\s*a\^2\s*\+\s*\(\s*y\s*-\s*q\s*\)\^2\s*\/\s*b\^2\s*=\s*1/g,
+    () => " $\\frac{(x - p)^2}{a^2} + \\frac{(y - q)^2}{b^2} = 1$ "
+  );
+  s = s.replace(
+    /x\^2\s*\/\s*a\^2\s*-\s*y\^2\s*\/\s*b\^2\s*=\s*1/g,
+    () => " $\\frac{x^2}{a^2} - \\frac{y^2}{b^2} = 1$ "
+  );
+  s = s.replace(
+    /\bx\^2\s*\+\s*y\^2\s*=\s*r\^2\b/g,
+    () => " $x^2 + y^2 = r^2$ "
+  );
+
+  // 5. Pythagorean trigonometric identities
+  s = s.replace(
+    /sin\^2\(theta\)\s*\+\s*cos\^2\(theta\)\s*=\s*1/gi,
+    () => " $\\sin^2\\theta + \\cos^2\\theta = 1$ "
+  );
+  s = s.replace(
+    /1\s*\+\s*tan\^2\(theta\)\s*=\s*sec\^2\(theta\)/gi,
+    () => " $1 + \\tan^2\\theta = \\sec^2\\theta$ "
+  );
+  s = s.replace(
+    /1\s*\+\s*cot\^2\(theta\)\s*=\s*csc\^2\(theta\)/gi,
+    () => " $1 + \\cot^2\\theta = \\csc^2\\theta$ "
+  );
+  s = s.replace(
+    /cos\(2\*theta\)\s*=\s*cos\^2\(theta\)\s*-\s*sin\^2\(theta\)/gi,
+    () => " $\\cos(2\\theta) = \\cos^2\\theta - \\sin^2\\theta$ "
+  );
+
+  // 6. Theta formulas BEFORE individual theta (with negative lookbehind for backslash)
+  s = s.replace(/(?<!\\)\btheta\s*=\s*s\/r\b/gi, () => "$\\theta = \\frac{s}{r}$");
+  s = s.replace(/(?<!\\)\b([a-zA-Z]+)\(theta\)/gi, (_, fn) => `$\\${fn}(\\theta)$`);
+  s = s.replace(/(?<!\\)\b(?:sudut\s+)?theta\b/gi, (match) => {
+    return match.toLowerCase().startsWith("sudut") ? "sudut $\\theta$" : "$\\theta$";
+  });
+
+  // 7. sqrt(...) expressions: sqrt(x), sqrt(x^2), sqrt((c - a)^2 + (d - b)^2), etc.
+  s = s.replace(/(?<!\\)\bsqrt\(([^)]+)\)/g, (_, inner) => {
+    return `$\\sqrt{${inner}}$`;
+  });
+
+  // 8. Single-variable power equations like a^2=x, x^2=b (ensure not followed by ^2)
+  s = s.replace(/(?<!\\)\b([a-zA-Z])\^2\s*=\s*([a-zA-Z0-9]+)(?!\^)\b/g, (_, v, res) => {
+    return `$${v}^2 = ${res}$`;
+  });
+  s = s.replace(/(?<!\\)\bD\s*=\s*b\^2\s*-\s*4ac\b/g, () => "$D = b^2 - 4ac$");
+  s = s.replace(/(?<!\\)\b([a-zA-Z])\(r\)\s*=\s*0\b/g, (_, fn) => `$${fn}(r) = 0$`);
+
+  // 9. Simple polynomial expressions: ax^2 + bx + c
+  s = s.replace(/(?<!\\)\bax\^2\s*\+\s*bx\s*\+\s*c\b/g, () => "$ax^2 + bx + c$");
+
+  // 10. Rational & reciprocal graphs: 1/x, 1/x^2
+  s = s.replace(/(?<!\\)\b(?:f\(x\)\s*=\s*)?1\/x\^2\b/g, (match) => {
+    return match.includes("=") ? "$f(x) = \\frac{1}{x^2}$" : "$\\frac{1}{x^2}$";
+  });
+  s = s.replace(/(?<!\\)\b(?:f\(x\)\s*=\s*)?1\/x\b/g, (match) => {
+    return match.includes("=") ? "$f(x) = \\frac{1}{x}$" : "$\\frac{1}{x}$";
+  });
+
+  // 11. Rational powers: x^(1/2), x^(1/3), x^(p/q), y = x^n
+  s = s.replace(/(?<!\\)\bx\^\(([0-9a-zA-Z]+)\/([0-9a-zA-Z]+)\)/g, (_, n, d) => `$x^{\\frac{${n}}{${d}}}$`);
+  s = s.replace(/(?<!\\)\b([xy])\s*=\s*([a-zA-Z])\^([a-zA-Z0-9]+)\b/g, (_, l, b, p) => `$${l} = ${b}^{${p}}$`);
+
+  // 12. Inequalities: e.g. x >= 0, a >= 0, r > 0, k > 0, n >= 3, c > 1, p > 0, b != 0, -1 < x < 1, |x| > 1
+  s = s.replace(
+    /(?<!\\)\b(-?[0-9]+)\s*<\s*([a-zA-Z])\s*<\s*(-?[0-9]+)\b/g,
+    (_, min, v, max) => `$${min} < ${v} < ${max}$`
+  );
+  s = s.replace(
+    /\|([a-zA-Z])\|\s*(>=|<=|>|<)\s*([0-9]+)\b/g,
+    (_, v, op, val) => {
+      const texOp = op === ">=" ? "\\ge" : op === "<=" ? "\\le" : op;
+      return `$|${v}| ${texOp} ${val}$`;
+    }
+  );
+  s = s.replace(
+    /(?<!\\)\b([a-zA-Z](?:[0-9]+)?)\s*(>=|<=|!=|>|<)\s*(-?[0-9a-zA-Z]+)\b/g,
+    (_, v, op, val) => {
+      const texOp =
+        op === ">=" ? "\\ge" : op === "<=" ? "\\le" : op === "!=" ? "\\ne" : op;
+      return `$${v} ${texOp} ${val}$`;
+    }
+  );
+
+  // 13. Absolute values: |x| = x, |x| = -x, |-a| = |a|, |ab| = |a||b|, |a + b| <= |a| + |b|
+  s = s.replace(/\|x\|\s*=\s*x\b/g, () => "$|x| = x$");
+  s = s.replace(/\|x\|\s*=\s*-x\b/g, () => "$|x| = -x$");
+  s = s.replace(/\|-a\|\s*=\s*\|a\|/g, () => "$|-a| = |a|$");
+  s = s.replace(/\|ab\|\s*=\s*\|a\|\|b\|/g, () => "$|ab| = |a||b|$");
+  s = s.replace(/\|a\s*\+\s*b\|\s*<=\s*\|a\|\s*\+\s*\|b\|/g, () => "$|a + b| \\le |a| + |b|$");
+
+  // 14. Double inequalities: |x| <= a <=> -a <= x <= a
+  s = s.replace(
+    /\|x\|\s*<=\s*a\s*<=>\s*-a\s*<=\s*x\s*<=\s*a/g,
+    () => "$|x| \\le a \\Leftrightarrow -a \\le x \\le a$"
+  );
+  s = s.replace(
+    /\|x\|\s*>=\s*a\s*<=>\s*x\s*<=\s*-a\s+atau\s+x\s*>=\s*a/g,
+    () => "$|x| \\ge a \\Leftrightarrow x \\le -a \\text{ atau } x \\ge a$"
+  );
+
+  // 15. Logical equivalence <=> and implication =>
+  s = s.replace(/\s*<=>\s*/g, () => " $\\Leftrightarrow$ ");
+  s = s.replace(/\s*=>\s*/g, () => " $\\Rightarrow$ ");
+
+  // 16. Center point (p,q) and (0,0) in geometric equations
+  s = s.replace(/(?<!\\)\bpusat\s*\(\s*p\s*,\s*q\s*\)/gi, () => "pusat $(p,q)$");
+  s = s.replace(/(?<!\\)\bpusat\s*\(\s*0\s*,\s*0\s*\)/gi, () => "pusat $(0,0)$");
+
+  // 17. Sets: HP = HP1 cap HP2
+  s = s.replace(/(?<!\\)\bHP\s*=\s*HP1\s*cap\s*HP2\b/g, () => "$\\text{HP} = \\text{HP}_1 \\cap \\text{HP}_2$");
+
+  // Normalize duplicate spaces while preserving outer whitespace
+  const leadingSpaces = s.match(/^\s*/)?.[0] || "";
+  const trailingSpaces = s.match(/\s*$/)?.[0] || "";
+  s = leadingSpaces + s.trim().replace(/[ \t]{2,}/g, " ") + trailingSpaces;
+
+  return s;
+}
+
+/**
+ * Main export: normalizes mixed prose so that all mathematical expressions are properly
+ * delimited for KaTeX parsing while leaving pre-existing math segments untouched.
+ */
+export function normalizeMathInText(input: string | null | undefined): string {
+  if (!input) return "";
+
+  // If the input doesn't contain any delimiters, normalize directly
+  if (!input.includes("$") && !input.includes("\\[") && !input.includes("\\(")) {
+    return normalizePlainTextSegment(input);
+  }
+
+  // Tokenize around existing math delimiters to ensure we don't double-process already-delimited math
+  const tokens: string[] = [];
+  let cursor = 0;
+
+  while (cursor < input.length) {
+    const startsDisplayDollar = input.startsWith("$$", cursor);
+    const startsInlineDollar = input[cursor] === "$" && !startsDisplayDollar;
+    const startsDisplayBracket = input.startsWith("\\[", cursor);
+    const startsInlineParen = input.startsWith("\\(", cursor);
+
+    if (startsDisplayDollar || startsInlineDollar || startsDisplayBracket || startsInlineParen) {
+      const open = startsDisplayDollar ? "$$" : startsInlineDollar ? "$" : startsDisplayBracket ? "\\[" : "\\(";
+      const close = startsDisplayDollar ? "$$" : startsInlineDollar ? "$" : startsDisplayBracket ? "\\]" : "\\)";
+
+      const closeIdx = input.indexOf(close, cursor + open.length);
+      if (closeIdx !== -1) {
+        if (cursor > 0) {
+          tokens.push(normalizePlainTextSegment(input.slice(0, cursor)));
+        }
+        tokens.push(input.slice(cursor, closeIdx + close.length));
+        const rest = input.slice(closeIdx + close.length);
+        return tokens.join("") + normalizeMathInText(rest);
+      }
+    }
+
+    cursor++;
+  }
+
+  tokens.push(normalizePlainTextSegment(input));
+  return tokens.join("");
+}

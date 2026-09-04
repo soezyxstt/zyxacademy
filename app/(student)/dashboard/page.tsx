@@ -26,6 +26,7 @@ import {
 } from "@/app/(student)/dashboard/actions";
 import { getCourseMaterials, getCourseQuizzes, getCourseTryouts } from "@/lib/course-utils";
 import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concepts";
+import { MathText } from "@/components/course/math-text";
 import { TodayPlan } from "@/components/dashboard/today-plan";
 import { env } from "@/lib/env";
 import { getMastery } from "@/lib/mastery-store";
@@ -470,7 +471,7 @@ export default async function DashboardPage() {
                                   <div className="mt-2.5 text-body-xs font-medium text-muted-foreground">
                                     Langkah selanjutnya:{" "}
                                     <span className="text-brand-primary font-semibold group-hover:underline">
-                                      {nextConcepts[course.id]}
+                                      <MathText as="span">{nextConcepts[course.id]}</MathText>
                                     </span>
                                   </div>
                                 )}

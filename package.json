@@ -168,6 +168,19 @@
     "typescript": "^5.9.3",
     "wrangler": "^4.118.0"
   },
+  "allowScripts": {
+    "@firebase/util": true,
+    "@google/genai": true,
+    "@sentry/cli": true,
+    "core-js": true,
+    "esbuild": true,
+    "msgpackr-extract": true,
+    "protobufjs": true,
+    "puppeteer": true,
+    "sharp": true,
+    "unrs-resolver": true,
+    "workerd": true
+  },
   "ignoreScripts": [
     "unrs-resolver"
   ],

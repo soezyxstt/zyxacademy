@@ -83,7 +83,7 @@ export function TermPopover({
     <div className="w-80 max-w-[90vw] rounded-xl border border-border bg-popover shadow-md p-3 space-y-3">
       {/* Header: concept + mastery chip */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-body-sm font-semibold text-foreground">{data.conceptName}</span>
+        <span className="text-body-sm font-semibold text-foreground"><MathText as="span">{data.conceptName}</MathText></span>
         <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-body-sm text-muted-foreground tabular-nums">
           {data.mastery.score}
           {data.mastery.trend ? ` · ${TREND_LABEL[data.mastery.trend]}` : ""}
@@ -118,7 +118,7 @@ export function TermPopover({
       {/* Active content (deterministic, from KO data) */}
       <div className="text-body-sm text-muted-foreground">
         {activeTab === "explain" && data.quickExplain && <MathText>{data.quickExplain.content}</MathText>}
-        {activeTab === "analogy" && data.analogy && <p>{data.analogy}</p>}
+        {activeTab === "analogy" && data.analogy && <MathText as="p">{data.analogy}</MathText>}
         {activeTab === "example" && data.example && <MathText>{data.example.content}</MathText>}
         {activeTab === "mistake" && data.commonMistake && <MathText>{data.commonMistake.content}</MathText>}
       </div>
