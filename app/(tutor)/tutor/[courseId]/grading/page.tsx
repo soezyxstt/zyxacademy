@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { GradingClient } from "./grading-client";
 import { Reveal } from "@/components/ui/reveal";
+import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
 import { resolveActorRoles, REVIEWABLE_SUBMISSION_STATUSES } from "@/lib/tutor/assessment-policy";
 
@@ -104,7 +105,7 @@ export default async function TutorGradingPage({ params }: Props) {
     .orderBy(desc(submissions.submittedAt));
 
   return (
-    <div className="px-6 py-8 max-w-5xl space-y-8 font-sans">
+    <ApplicationPage spacing="space-y-8">
       <Reveal>
         <div className="flex flex-col gap-1">
           <h1 className="text-h5 font-heading font-bold text-foreground">
@@ -119,6 +120,6 @@ export default async function TutorGradingPage({ params }: Props) {
       <Reveal>
         <GradingClient courseId={courseId} initialSubmissions={submissionsList} />
       </Reveal>
-    </div>
+    </ApplicationPage>
   );
 }

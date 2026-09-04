@@ -213,8 +213,7 @@ export async function POST(req: NextRequest, { params }: Context) {
       return trimmed.length > 0 && acceptable.some((ans: string) => ans.trim().toLowerCase() === trimmed);
     }
     if (qType === "essay") {
-      const text = typeof submitted === "string" ? submitted : Array.isArray(submitted) ? String(submitted[0] ?? "") : "";
-      return text.trim().length > 0;
+      return false;
     }
     const indices = Array.isArray(submitted) ? submitted : [];
     const correct = Array.isArray(q.correct_indices) ? q.correct_indices : Array.isArray(q.correctIndices) ? q.correctIndices : [];
@@ -241,7 +240,12 @@ export async function POST(req: NextRequest, { params }: Context) {
     if (checkAnswerCorrectness(q, submitted)) correct++;
   }
 
-  const score = snapshot.length > 0 ? Math.round((correct / snapshot.length) * 100) : 0;
+  const hasEssay = snapshot.some((q) => {
+    const qType = q.question_type || q.questionType;
+    return qType === "essay";
+  });
+  const gradingStatus = hasEssay ? "pending" : "not_required";
+  const score = hasEssay ? null : (snapshot.length > 0 ? Math.round((correct / snapshot.length) * 100) : 0);
 
   // Increment use counts + collect KO data for learning events
   const questionIds = snapshot.map((q) => q.id);
@@ -334,6 +338,7 @@ export async function POST(req: NextRequest, { params }: Context) {
       .update(studentQuizAttempts)
       .set({
         status: 'completed',
+        gradingStatus,
         score,
         durationSeconds: finalDurationSeconds,
         answersSnapshot: answers as unknown as Record<string, unknown>,
@@ -365,7 +370,7 @@ export async function POST(req: NextRequest, { params }: Context) {
         const isCorrect = checkAnswerCorrectness(question, submitted);
         const derived = deriveLegacyAnswerEvidence({ question, mapping, isCorrect });
         const questionType = mapping.questionType;
-        const isFreeResponse = questionType === "short_answer" || questionType === "essay";
+        const isEssay = questionType === "essay";
 
         await tx.insert(itemAsesmen).values({
           id: itemId,
@@ -388,8 +393,9 @@ export async function POST(req: NextRequest, { params }: Context) {
           responseSnapshot: buildLegacyResponseSnapshot(question, submitted),
           gradingPolicySnapshot: buildLegacyGradingPolicySnapshot(question, mapping),
           contentVersion: mapping.questionVersion,
-          score: isFreeResponse ? null : isCorrect ? 1 : 0,
-          status: isFreeResponse ? "needs_review" : isCorrect ? "correct" : "incorrect",
+          score: isEssay ? null : isCorrect ? 1 : 0,
+          status: isEssay ? "needs_review" : isCorrect ? "correct" : "incorrect",
+          reviewRevision: 0,
           answeredAt: now,
         }).onConflictDoNothing();
 
@@ -498,9 +504,9 @@ export async function POST(req: NextRequest, { params }: Context) {
     });
 
   // Auto-complete today's quiz recommendation when student passes
-  if (score >= 70) {
+  if (score !== null && score >= 70) {
     markRecommendationDone(attempt.templateId, attempt.studentId).catch(() => {});
   }
 
- return NextResponse.json({ score, correct, total: snapshot.length });
+  return NextResponse.json({ score, correct, total: snapshot.length, gradingStatus });
 }

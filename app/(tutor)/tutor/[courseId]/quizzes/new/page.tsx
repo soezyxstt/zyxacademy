@@ -5,6 +5,7 @@ import { eq, or } from "drizzle-orm";
 import { verifyTutorAccess } from "@/app/actions/tutor-management";
 import { getTutorQuestionBank } from "@/lib/tutor/quiz-read-model";
 import { TutorQuizForm } from "@/components/tutor/tutor-quiz-form";
+import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 
@@ -54,7 +55,7 @@ export default async function NewTutorQuizPage({ params }: Props) {
   const questionBank = await getTutorQuestionBank(courseId);
 
   return (
-    <div className="px-6 py-8 max-w-5xl space-y-6 font-sans">
+    <ApplicationPage>
       <Reveal>
         <TutorQuizForm
           courseId={courseId}
@@ -63,6 +64,6 @@ export default async function NewTutorQuizPage({ params }: Props) {
           isEdit={false}
         />
       </Reveal>
-    </div>
+    </ApplicationPage>
   );
 }

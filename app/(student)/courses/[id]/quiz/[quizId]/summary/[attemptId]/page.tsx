@@ -101,7 +101,23 @@ export default async function QuizSummaryPage({ params }: Props) {
             </div>
           </div>
 
-          <QuizAnalyticsView attemptId={attemptId} courseId={course.legacyId ?? id} />
+          {attempt.gradingStatus === "pending" ? (
+            <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <BookOpen className="size-6" />
+              </div>
+              <div className="space-y-1 max-w-md mx-auto">
+                <h3 className="font-heading text-body-base font-bold text-foreground">
+                  Menunggu penilaian
+                </h3>
+                <p className="text-body-sm text-muted-foreground">
+                  Jawaban esai Anda telah tersimpan dan sedang menunggu penilaian dari tutor. Nilai akhir dan diagnosis lengkap akan ditampilkan setelah proses koreksi selesai.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <QuizAnalyticsView attemptId={attemptId} courseId={course.legacyId ?? id} />
+          )}
         </div>
       </Reveal>
     </CoursePageShell>

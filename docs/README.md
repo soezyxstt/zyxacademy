@@ -66,9 +66,9 @@ Every document in this repository has one of the following explicit statuses:
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
 | [README.md](README.md) | Index | `ACTIVE` | 2026-09-04 | Master documentation index, hierarchy map, and lifecycle status ledger. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-04 | Core platform architecture, canonical-first student reads, compatibility boundaries, retired legacy authoring CRUD, MCP stored-PDF retrieval and Source Pack persistence, and system interfaces. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-04 | Core platform architecture, canonical-first student reads, compatibility boundaries, tutor grading, scheduling, retired legacy authoring CRUD, MCP stored-PDF retrieval and Source Pack persistence, and system interfaces. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
-| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-01 | Comprehensive catalog of database tables, relationships, indexes, constraints, and Admin legacy projection behavior. |
+| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-04 | Comprehensive catalog of database tables, relationships, indexes, constraints, and tutor grading persistence. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | Current | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, secrets, and environments. |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-09-04 | Local development guide, scripts, environment variables, and V3 authoring rollout flag boundaries. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |

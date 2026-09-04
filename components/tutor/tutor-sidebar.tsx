@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Users,
   ClipboardList,
+  ClipboardCheck,
   Radio,
   CheckSquare,
 } from "lucide-react";
@@ -32,6 +33,12 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
   if (parts[0] === "tutor" && parts[1] && parts[1] !== "schedule") {
     courseId = parts[1];
   }
+
+  const quizPath = courseId ? `/tutor/${courseId}/quizzes` : undefined;
+  const quizGradingPath = quizPath ? `${quizPath}/grading` : undefined;
+  const isQuizGradingPath =
+    quizGradingPath !== undefined &&
+    (pathname === quizGradingPath || pathname.startsWith(`${quizGradingPath}/`));
 
   const navContent = (c: boolean) => {
     return (
@@ -71,7 +78,7 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
                     collapsed={c}
                   />
                 </div>
-                <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-sans">
+                <p className="px-3 py-1 text-body-xs font-bold uppercase tracking-wider text-muted-foreground font-sans">
                   Navigasi Kelas
                 </p>
               </>
@@ -111,9 +118,19 @@ export function TutorSidebar({ assignedCourses = [] }: TutorSidebarProps) {
               icon={ClipboardList}
               label="Kuis"
               active={
-                pathname === `/tutor/${courseId}/quizzes` ||
-                pathname.startsWith(`/tutor/${courseId}/quizzes/`)
+                pathname === quizPath ||
+                (quizPath !== undefined &&
+                  pathname.startsWith(`${quizPath}/`) &&
+                  !isQuizGradingPath)
               }
+              collapsed={c}
+            />
+
+            <NavItem
+              href={`/tutor/${courseId}/quizzes/grading`}
+              icon={ClipboardCheck}
+              label="Penilaian Kuis"
+              active={isQuizGradingPath}
               collapsed={c}
             />
 

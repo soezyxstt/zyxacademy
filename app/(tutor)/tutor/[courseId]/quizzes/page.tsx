@@ -6,6 +6,7 @@ import { verifyTutorAccess } from "@/app/actions/tutor-management";
 import { getTutorQuizzesWithAttribution, getTutorQuestionBank } from "@/lib/tutor/quiz-read-model";
 import { QuizzesClient } from "./quizzes-client";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { ClipboardList } from "lucide-react";
@@ -59,7 +60,7 @@ export default async function TutorQuizzesPage({ params }: Props) {
   const questionBankList = await getTutorQuestionBank(courseId);
 
   return (
-    <div className="px-6 py-8 max-w-5xl space-y-6 font-sans">
+    <ApplicationPage>
       <Reveal>
         <PageHeader
           icon={ClipboardList}
@@ -76,6 +77,6 @@ export default async function TutorQuizzesPage({ params }: Props) {
           initialQuestionBank={questionBankList}
         />
       </Reveal>
-    </div>
+    </ApplicationPage>
   );
 }

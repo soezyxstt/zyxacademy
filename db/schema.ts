@@ -1281,6 +1281,7 @@ export const studentQuizAttempts = sqliteTable(
  score: integer("score"),
  durationSeconds: integer("duration_seconds"),
  status: text("status").$type<"in_progress" | "completed" | "abandoned">().default("in_progress").notNull(),
+ gradingStatus: text("grading_status").$type<"not_required" | "pending" | "graded">().default("not_required").notNull(),
  questionsSnapshot: text("questions_snapshot", { mode: "json" }).notNull(),
  answersSnapshot: text("answers_snapshot", { mode: "json" }),
  startedAt: integer("started_at", { mode: "timestamp" }).defaultNow().notNull(),
@@ -1294,6 +1295,7 @@ export const studentQuizAttempts = sqliteTable(
  (table) => [
  index("idx_attempts_student").on(table.studentId, table.status),
  index("idx_attempts_completed").on(table.templateId, table.score).where(sql`"status" = 'completed'`),
+ index("idx_attempts_grading_status").on(table.templateId, table.gradingStatus),
  ]
 );
 
@@ -2512,6 +2514,10 @@ export const jawabanMurid = sqliteTable(
   contentVersion: integer("content_version").notNull(),
   score: real("score"),
   status: text("status").$type<"ungraded" | "correct" | "incorrect" | "partial" | "needs_review">().default("ungraded").notNull(),
+  reviewerId: text("reviewer_id").references(() => pengguna.id, { onDelete: "set null" }),
+  reviewNotes: text("review_notes"),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+  reviewRevision: integer("review_revision").default(0).notNull(),
   answeredAt: integer("answered_at", { mode: "timestamp" }).defaultNow().notNull(),
  },
  (table) => [

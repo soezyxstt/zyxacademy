@@ -454,7 +454,7 @@ export async function executeAuditCourseCompleteness(input: AuditCourseCompleten
 
   const auditItems = chaptersList.map((ch) => {
     const matchingMaterials = materialsList.filter((m) =>
-      m.chapterIds ? (m.chapterIds as string).includes(ch.id) : false
+      Array.isArray(m.chapterIds) ? m.chapterIds.includes(ch.id) : false
     );
     const hasMaterials = matchingMaterials.length > 0;
 

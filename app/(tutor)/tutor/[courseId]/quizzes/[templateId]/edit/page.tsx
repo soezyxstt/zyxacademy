@@ -5,6 +5,7 @@ import { eq, or } from "drizzle-orm";
 import { verifyTutorAccess } from "@/app/actions/tutor-management";
 import { getTutorQuizWithAttribution, getTutorQuestionBank } from "@/lib/tutor/quiz-read-model";
 import { TutorQuizForm } from "@/components/tutor/tutor-quiz-form";
+import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 
@@ -87,7 +88,7 @@ export default async function EditTutorQuizPage({ params }: Props) {
   };
 
   return (
-    <div className="px-6 py-8 max-w-5xl space-y-6 font-sans">
+    <ApplicationPage>
       <Reveal>
         <TutorQuizForm
           courseId={courseId}
@@ -97,6 +98,6 @@ export default async function EditTutorQuizPage({ params }: Props) {
           isEdit={true}
         />
       </Reveal>
-    </div>
+    </ApplicationPage>
   );
 }

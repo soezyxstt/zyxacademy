@@ -23,10 +23,11 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 ### Tutor
 - Accesses a dedicated tutor portal (`/tutor`) with a course switcher for all assigned teaching responsibilities
-- Sets weekly availability and manages schedules (`/tutor/schedule`) directly in the tutor shell without redirecting to student pages
+- Manages availability and sessions in a calendar-first workspace (`/tutor/schedule`) with week, day, and month views. Available, booked, expired, and locked slots have distinct states.
 - Creates, edits, previews, and publishes native quiz templates (`/tutor/[courseId]/quizzes`) with visible creator attribution
 - Hosts interactive live classroom quizzes directly from the tutor console (`/tutor/[courseId]/live`)
 - Grades assigned tryout essay submissions (`/tutor/[courseId]/grading`), provides feedback notes, and inputs final scores (0 to 100) with concurrency guards
+- Grades quiz essays and may override deterministic short-answer scores (`/tutor/[courseId]/quizzes/grading`). Final quiz totals remain hidden from students until every essay has been reviewed.
 - Inspects student attempt spreadsheets and exports CSV records (`/tutor/[courseId]/quizzes/[templateId]/attempts`)
 - Reviews enrolled students, active study groups, and group representatives (`/tutor/[courseId]/participants`)
 - Cannot author or upload course materials (materials authoring is disabled for tutors; `/tutor/[courseId]/materials` redirects to the course overview)
@@ -461,6 +462,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
   - `/tutor/[courseId]`: Course-level dashboard summarizing teaching metrics, active groups, and recent quizzes, with quick-action links to quiz management, live console, grading, and participants.
   - `/tutor/[courseId]/participants`: Enrolled student roster and active study groups with member lists and deterministic representatives.
   - `/tutor/[courseId]/quizzes`: Full quiz template management (create, edit, delete, preview, toggle draft/published status) with creator attribution.
+  - `/tutor/[courseId]/quizzes/grading`: Pending quiz review queue. Tutors score essays from 0 to 100, add optional notes, and may override short-answer scores. Every question has equal weight in the final total.
   - `/tutor/[courseId]/quizzes/[templateId]/attempts`: Per-quiz attempt spreadsheet and answer inspection with CSV export.
   - `/tutor/[courseId]/live`: Real-time interactive quiz console for hosting live sessions.
   - `/tutor/[courseId]/grading`: Tryout essay grading queue for assigned courses. Essay attachments uploaded by students are stored under `exams/{examId}/attachments` in object storage and downloadable from the grading workspace; snapshots recorded before real uploads show the attachment as unavailable.
@@ -471,10 +473,12 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
   - Materials Authoring Disabled: Tutors cannot create, edit, or upload course materials. Accessing `/tutor/[courseId]/materials` redirects to `/tutor/[courseId]`, and server mutations throw `TUTOR_CAPABILITY_FORBIDDEN: MATERIALS_AUTHORING_DISABLED`.
   - Tryout Authoring Disabled: Tutors can only author quizzes (`daily`, `weekly`, `chapter`, `premium`). Attempting to author `simulation` or `tryout` categories throws `TUTOR_CAPABILITY_FORBIDDEN: SIMULATION_MUTATION_FORBIDDEN` or `TRYOUT_CATEGORY_FORBIDDEN`. Accessing `/tutor/[courseId]/tryouts` redirects to `/tutor/[courseId]`.
   - Tryout Essay Grading: Tutors can grade student essay submissions for tryouts in their assigned courses (`/tutor/[courseId]/grading`). Only reviewable statuses (`pending_review`, `late`, `graded`) can be graded. Submissions for non-assigned courses or non-tryout exams are forbidden. Grading updates score and teacher feedback notes with an optimistic concurrency check (`where(and(eq(id, submissionId), eq(status, currentStatus)))`).
+  - Quiz Essay Grading: Quiz submissions containing essays enter `pending` grading state and expose no final total or analytics to the student. Assigned tutors review canonical answer rows with revision-based optimistic concurrency. Completing every required essay changes the attempt to `graded`, recomputes the equal-weight total, and emits reviewed Idea evidence only where an exact published Idea mapping exists.
   - Creator Attribution: Quiz templates and questions track and display creator metadata (`creatorId`, `creatorName`, `creatorEmail`, `creatorRole`) joined from canonical `asesmen.creatorId` through `pengguna` to `user`.
 
 - Schedule Quotas, Refunds, and Notifications:
   - Exact 90-Minute Slots: Availability slots must span exactly 90 minutes. Start and end times are validated server-side.
+  - Calendar-First Availability: The tutor schedule opens in week view and also supports day and month views. Selecting a future calendar time creates a date-specific 90-minute slot; tutors may explicitly make it repeat weekly. Visual states distinguish available slots, booked sessions, and unavailable past or locked slots.
   - Group Eligibility & Representative Selection: Sessions are scheduled for active study groups enrolled in the course. Group representative is deterministically selected (leader first, earliest `joinedAt`, lexicographical `userId`, member record `id`).
   - Weekly Quota & Cancellation Refunds: Groups carry a weekly quota (`weekly_quota_sessions`, default 2). Usage is computed by counting booking rows in the target ISO week. Cancellations before the Saturday 23:59 WIB lock cut-off receive a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker in `booking_audit_logs`, keeping the booking row for traceability while exempting it from weekly quota. Post-lock cancellations forfeit the quota without refund (hangus).
   - Notifications: Schedule bookings, cancellations, and status changes dispatch real-time multi-recipient notifications via `sendToMany`.

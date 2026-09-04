@@ -19,6 +19,7 @@ import {
   GraduationCap,
   SlidersHorizontal,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -160,6 +161,9 @@ export type ScheduleCalendarProps = {
   onOpenAuditLog?: (booking: any) => void;
   onEditSchedule?: (schedule: any) => void;
   onDeleteSchedule?: (schedule: any) => void;
+  onMoveSession?: (booking: any) => void;
+  onDeleteSlot?: (slotId: string) => void;
+  onSelectSlotToSchedule?: (slot: any) => void;
 };
 
 // Helper: parse "09:00" or "09:30" to minutes from midnight
@@ -332,6 +336,9 @@ export function ScheduleCalendarView({
   onOpenAuditLog,
   onEditSchedule,
   onDeleteSchedule: _onDeleteSchedule,
+  onMoveSession,
+  onDeleteSlot,
+  onSelectSlotToSchedule,
 }: ScheduleCalendarProps) {
   // View Modes: "month" | "week" | "day"
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("week");
@@ -383,9 +390,10 @@ export function ScheduleCalendarView({
     if (!dragState?.isDragging) return;
 
     const handleGlobalMouseUp = () => {
-      const start = Math.min(dragState.startMin, dragState.currentMin);
-      let end = Math.max(dragState.startMin, dragState.currentMin);
-      if (end <= start) {
+      const isTeacher = role === "teacher";
+      const start = isTeacher ? dragState.startMin : Math.min(dragState.startMin, dragState.currentMin);
+      let end = isTeacher ? start + 90 : Math.max(dragState.startMin, dragState.currentMin);
+      if (!isTeacher && end <= start) {
         end = start + 90;
       }
       end = Math.min(END_HOUR * 60, end);
@@ -408,7 +416,7 @@ export function ScheduleCalendarView({
     return () => {
       window.removeEventListener("mouseup", handleGlobalMouseUp);
     };
-  }, [dragState, onCreateScheduleDirect]);
+  }, [dragState, onCreateScheduleDirect, role]);
 
   // Current time line calculation
   const nowJakarta = getJakartaNow();
@@ -467,13 +475,28 @@ export function ScheduleCalendarView({
     return slots.filter((s) => {
       if (
         selectedTutorFilter !== "all" &&
+        s.tutorId &&
         s.tutorId !== selectedTutorFilter
+      ) {
+        return false;
+      }
+      if (
+        selectedCourseFilter !== "all" &&
+        s.booking?.courseId &&
+        s.booking.courseId !== selectedCourseFilter
+      ) {
+        return false;
+      }
+      if (
+        selectedGroupFilter !== "all" &&
+        s.booking?.groupId &&
+        s.booking.groupId !== selectedGroupFilter
       ) {
         return false;
       }
       return true;
     });
-  }, [slots, selectedTutorFilter]);
+  }, [slots, selectedTutorFilter, selectedCourseFilter, selectedGroupFilter]);
 
   // Navigation handlers
   const handlePrev = () => {
@@ -551,9 +574,20 @@ export function ScheduleCalendarView({
   }, [activeDate]);
 
   // Grid Drag interaction handlers
+  const isPastTime = (dayIso: string, hour: number) => {
+    const now = getJakartaNow();
+    const todayStr = formatIsoDateUtc(now);
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    if (dayIso < todayStr) return true;
+    if (dayIso === todayStr && (hour + 1) * 60 <= nowMin) return true;
+    return false;
+  };
+
   const handleGridMouseDown = (dayIso: string, hour: number, e: React.MouseEvent<HTMLDivElement>) => {
-    if (role !== "admin" || !onCreateScheduleDirect) return;
+    if ((role !== "admin" && role !== "teacher") || !onCreateScheduleDirect) return;
     if ((e.target as HTMLElement).closest("button, a, .session-card")) return;
+
+    if (role === "teacher" && isPastTime(dayIso, hour)) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const clickY = e.clientY - rect.top;
@@ -564,12 +598,13 @@ export function ScheduleCalendarView({
       isDragging: true,
       dayIso,
       startMin,
-      currentMin: startMin + 60,
+      currentMin: role === "teacher" ? startMin + 90 : startMin + 60,
     });
   };
 
   const handleColumnMouseMove = (dayIso: string, e: React.MouseEvent<HTMLDivElement>) => {
     if (!dragState?.isDragging || dragState.dayIso !== dayIso) return;
+    if (role === "teacher") return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const offsetY = e.clientY - rect.top;
@@ -805,12 +840,36 @@ export function ScheduleCalendarView({
           </div>
         </div>
 
+        {/* Compact Legend for Teacher */}
+        {role === "teacher" && (
+          <div className="flex flex-wrap items-center gap-3 p-2 px-3 rounded-xl border border-border bg-card shadow-xs text-body-xs">
+            <span className="font-bold text-foreground">Keterangan:</span>
+            <div className="flex items-center gap-1.5">
+              <div className="size-2.5 rounded-xs bg-emerald-500 shrink-0" />
+              <span className="text-muted-foreground">Slot tersedia</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="size-2.5 rounded-xs bg-indigo-500 shrink-0" />
+              <span className="text-muted-foreground">Sesi terjadwal</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="size-2.5 rounded-xs bg-muted-foreground/40 shrink-0" />
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Lock className="size-2.5" />
+                Tidak aktif, lewat atau terkunci
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* VIEW 1: GOOGLE CALENDAR 7-DAY WEEKLY TIME GRID                     */}
         {/* ══════════════════════════════════════════════════════════════════ */}
         {viewMode === "week" && (
           <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col select-none">
-            {/* Top All-Day Row Header */}
+            <div className="overflow-x-auto">
+              <div className="min-w-[640px] md:min-w-0">
+                {/* Top All-Day Row Header */}
             <div className="grid grid-cols-[52px_repeat(7,minmax(0,1fr))] border-b border-border/80 bg-muted/20">
               {/* Timezone corner label */}
               <div className="p-1.5 text-center text-[10px] font-semibold text-muted-foreground border-r border-border/60 flex flex-col justify-center">
@@ -896,9 +955,11 @@ export function ScheduleCalendarView({
 
                 {/* 2. 7 Day Columns with Time Grid Lines & Event Blocks */}
                 {weekInfo.days.map((day) => {
-                  const daySlots = filteredSlots.filter(
-                    (s) => s.dayOfWeek === day.dayName
-                  );
+                  const daySlots = filteredSlots.filter((s) => {
+                    if (s.sessionDate && s.sessionDate !== day.dateIso) return false;
+                    if (!s.sessionDate && s.dayOfWeek !== day.dayName) return false;
+                    return true;
+                  });
 
                   const dayBookings = filteredBookings.filter((b) => {
                     if (b.sessionDate && b.sessionDate !== day.dateIso) return false;
@@ -927,11 +988,15 @@ export function ScheduleCalendarView({
                           onMouseDown={(e) => handleGridMouseDown(day.dateIso, hour, e)}
                           className={cn(
                             "border-b border-border/30 w-full transition-colors",
-                            role === "admin" && onCreateScheduleDirect && "cursor-pointer hover:bg-brand-primary/5"
+                            (role === "admin" || (role === "teacher" && !isPastTime(day.dateIso, hour))) &&
+                              onCreateScheduleDirect &&
+                              "cursor-pointer hover:bg-brand-primary/5"
                           )}
                           title={
                             role === "admin" && onCreateScheduleDirect
                               ? `Klik & drag untuk membuat jadwal pada ${day.dayName}, ${String(hour).padStart(2, "0")}:00`
+                              : role === "teacher" && onCreateScheduleDirect && !isPastTime(day.dateIso, hour)
+                              ? `Klik atau drag untuk tambah slot ketersediaan 90m pada ${day.dayName}, ${String(hour).padStart(2, "0")}:00`
                               : undefined
                           }
                         />
@@ -952,9 +1017,9 @@ export function ScheduleCalendarView({
 
                       {/* Interactive Drag Selection Preview Box */}
                       {dragState?.isDragging && dragState.dayIso === day.dateIso && (() => {
-                        const minMin = Math.min(dragState.startMin, dragState.currentMin);
-                        const maxMin = Math.max(dragState.startMin, dragState.currentMin);
-                        const duration = Math.max(30, maxMin - minMin);
+                        const isTeacher = role === "teacher";
+                        const minMin = isTeacher ? dragState.startMin : Math.min(dragState.startMin, dragState.currentMin);
+                        const duration = isTeacher ? 90 : Math.max(30, Math.max(dragState.startMin, dragState.currentMin) - minMin);
                         const top = ((minMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
                         const height = (duration / 60) * HOUR_HEIGHT;
 
@@ -962,7 +1027,7 @@ export function ScheduleCalendarView({
                         const sM = minMin % 60;
                         const eH = Math.floor((minMin + duration) / 60);
                         const eM = (minMin + duration) % 60;
-                        const timeLabel = `${String(sH).padStart(2, "0")}:${String(sM).padStart(2, "0")} – ${String(eH).padStart(2, "0")}:${String(eM).padStart(2, "0")}`;
+                        const timeLabel = `${String(sH).padStart(2, "0")}:${String(sM).padStart(2, "0")} - ${String(eH).padStart(2, "0")}:${String(eM).padStart(2, "0")}`;
 
                         return (
                           <div
@@ -973,7 +1038,7 @@ export function ScheduleCalendarView({
                             className="absolute left-0.5 right-0.5 z-40 rounded-md bg-blue-500/20 border-2 border-blue-500 p-1.5 flex flex-col justify-start pointer-events-none shadow-md backdrop-blur-[1px] animate-in fade-in-50"
                           >
                             <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 leading-tight">
-                              (Jadwal Baru)
+                              {isTeacher ? "Slot Baru (90m)" : "(Jadwal Baru)"}
                             </span>
                             <span className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
                               {timeLabel}
@@ -1181,14 +1246,27 @@ export function ScheduleCalendarView({
 
                               {/* Tutor action button */}
                               {role === "teacher" && !isCompleted && !isCancelled && (
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenPostSession?.(b)}
-                                  className="px-1.5 py-0.5 rounded bg-brand-primary text-white text-[9px] font-bold flex items-center gap-1"
-                                >
-                                  <CheckCircle2 className="size-2.5" />
-                                  <span>Selesai</span>
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => onOpenPostSession?.(b)}
+                                    className="px-1.5 py-0.5 rounded bg-brand-primary text-white text-[9px] font-bold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <CheckCircle2 className="size-2.5" />
+                                    <span>Selesai</span>
+                                  </button>
+                                  {onMoveSession && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onMoveSession(b)}
+                                      className="px-1.5 py-0.5 rounded border border-border bg-card text-foreground hover:bg-muted text-[9px] font-semibold flex items-center gap-0.5 cursor-pointer"
+                                      title="Pindah Jadwal"
+                                    >
+                                      <RotateCcw className="size-2.5" />
+                                      <span>Pindah</span>
+                                    </button>
+                                  )}
+                                </div>
                               )}
 
                               {/* Audit trail icon */}
@@ -1205,7 +1283,7 @@ export function ScheduleCalendarView({
                         );
                       })}
 
-                      {/* Render Available Slots for Booking */}
+                      {/* Render Available Slots for Booking (Student) */}
                       {role === "student" &&
                         daySlots
                           .filter((s) => !s.booking)
@@ -1256,13 +1334,145 @@ export function ScheduleCalendarView({
                               </button>
                             );
                           })}
+
+                      {/* Render Teacher Slot Occurrences (Unbooked slots: available future vs unavailable past/locked) */}
+                      {role === "teacher" &&
+                        daySlots
+                          .filter((s) => !s.booking)
+                          .map((s) => {
+                            const startMin = timeToMinutes(s.startTime);
+                            const endMin = timeToMinutes(s.endTime);
+                            const duration = Math.max(30, endMin - startMin);
+
+                            const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                            const height = (duration / 60) * HOUR_HEIGHT - 2;
+
+                            const isPastDate =
+                              day.isPast || (day.isToday && endMin <= nowMinutes);
+                            const isLocked = isWeekLocked;
+                            const isUnavailable = isPastDate || isLocked;
+
+                            if (isUnavailable) {
+                              return (
+                                <div
+                                  key={s.id}
+                                  style={{
+                                    top: `${Math.max(0, top)}px`,
+                                    height: `${Math.max(28, height)}px`,
+                                  }}
+                                  className="absolute left-0.5 right-0.5 z-15 rounded-md border border-border/80 bg-muted/40 p-1.5 flex flex-col justify-between overflow-hidden opacity-80 session-card"
+                                  title={
+                                    isLocked
+                                      ? "Jadwal minggu ini telah dikunci"
+                                      : "Slot telah melewati batas waktu"
+                                  }
+                                >
+                                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-muted-foreground/30" />
+                                  <div className="pl-1.5 min-w-0">
+                                    <div className="flex items-center justify-between gap-1 leading-tight">
+                                      <span className="text-[10px] font-bold text-muted-foreground truncate block">
+                                        {s.startTime} - {s.endTime}
+                                      </span>
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[8px] border-muted-foreground/30 text-muted-foreground px-1 py-0 flex items-center gap-0.5"
+                                      >
+                                        <Lock className="size-2 shrink-0" />
+                                        <span>{isLocked ? "Terkunci" : "Kedaluwarsa"}</span>
+                                      </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[9px] text-muted-foreground/80 mt-0.5">
+                                      <span>{s.mode === "online" ? "Online" : s.location || "Tatap Muka"}</span>
+                                      <span aria-hidden="true" className="h-3 border-l border-border" />
+                                      <span>{s.sessionDate ? "Khusus" : "Mingguan"}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            // Available Future Slot
+                            return (
+                              <div
+                                key={s.id}
+                                style={{
+                                  top: `${Math.max(0, top)}px`,
+                                  height: `${Math.max(30, height)}px`,
+                                }}
+                                className="absolute left-0.5 right-0.5 z-20 rounded-md border border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-950/30 p-1.5 flex flex-col justify-between overflow-hidden shadow-xs hover:z-30 hover:shadow-md transition-all session-card"
+                              >
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
+
+                                <div className="pl-1.5 min-w-0">
+                                  <div className="flex items-center justify-between gap-1 leading-tight">
+                                    <span className="text-[10px] font-bold text-foreground truncate block">
+                                      {s.startTime} - {s.endTime}
+                                    </span>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[8px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 px-1 py-0 flex items-center gap-0.5"
+                                    >
+                                      <CheckCircle2 className="size-2 shrink-0" />
+                                      <span>Tersedia</span>
+                                    </Badge>
+                                  </div>
+
+                                  <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5">
+                                    {s.mode === "online" ? (
+                                      <span className="inline-flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-semibold">
+                                        <Video className="size-2.5" />
+                                        Online
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-semibold truncate max-w-[80px]">
+                                        <MapPin className="size-2.5 shrink-0" />
+                                        {s.location || "Offline"}
+                                      </span>
+                                    )}
+                                    <span aria-hidden="true" className="h-3 border-l border-border" />
+                                    <span className="text-muted-foreground font-medium">
+                                      {s.sessionDate ? "Khusus" : "Mingguan"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="pl-1.5 flex items-center justify-between gap-1 pt-1 border-t border-emerald-500/20 mt-0.5">
+                                  {onSelectSlotToSchedule && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onSelectSlotToSchedule(s)}
+                                      className="px-1.5 py-0.5 rounded bg-brand-primary text-white text-[9px] font-bold hover:bg-brand-primary/90 transition-colors flex items-center gap-0.5 cursor-pointer"
+                                      title="Jadwalkan sesi dengan kelompok"
+                                    >
+                                      <Plus className="size-2.5" />
+                                      <span>Jadwalkan</span>
+                                    </button>
+                                  )}
+
+                                  {onDeleteSlot && (
+                                    <button
+                                      type="button"
+                                      onClick={() => onDeleteSlot(s.id)}
+                                      className="p-1 rounded text-muted-foreground hover:text-status-error hover:bg-status-error/10 text-[9px] transition-colors ml-auto cursor-pointer"
+                                      title="Hapus slot ketersediaan ini"
+                                      aria-label="Hapus slot"
+                                    >
+                                      <Trash2 className="size-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                     </div>
                   );
                 })}
               </div>
             </div>
           </div>
-        )}
+        </div>
+      </div>
+    )}
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* VIEW 2: GOOGLE CALENDAR SINGLE-DAY EXPANDED VIEW                   */}
@@ -1270,8 +1480,8 @@ export function ScheduleCalendarView({
         {viewMode === "day" && (
           <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col select-none">
             {/* Day Header */}
-            <div className="p-2.5 border-b border-border bg-muted/20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1.5 border-b border-border bg-muted/20 p-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="font-heading text-body-sm font-bold text-foreground">
                   {activeDate.toLocaleDateString("id-ID", {
                     weekday: "long",
@@ -1281,13 +1491,13 @@ export function ScheduleCalendarView({
                   })}
                 </span>
                 {activeDayIso === todayIso && (
-                  <Badge variant="default" className="text-[10px] bg-brand-primary">
-                    Hari Ini
+                  <Badge variant="default" className="shrink-0 whitespace-nowrap bg-brand-primary text-body-xs">
+                    Hari ini
                   </Badge>
                 )}
               </div>
-              <span className="text-[11px] text-muted-foreground font-semibold">
-                Zona Waktu: WIB (GMT+7)
+              <span className="shrink-0 text-body-xs font-semibold text-muted-foreground">
+                Zona waktu: WIB (GMT+7)
               </span>
             </div>
 
@@ -1327,11 +1537,15 @@ export function ScheduleCalendarView({
                       onMouseDown={(e) => handleGridMouseDown(activeDayIso, hour, e)}
                       className={cn(
                         "border-b border-border/30 w-full transition-colors",
-                        role === "admin" && onCreateScheduleDirect && "cursor-pointer hover:bg-brand-primary/5"
+                        (role === "admin" || (role === "teacher" && !isPastTime(activeDayIso, hour))) &&
+                          onCreateScheduleDirect &&
+                          "cursor-pointer hover:bg-brand-primary/5"
                       )}
                       title={
                         role === "admin" && onCreateScheduleDirect
                           ? `Klik & drag untuk membuat jadwal pada ${activeDayName}, ${String(hour).padStart(2, "0")}:00`
+                          : role === "teacher" && onCreateScheduleDirect && !isPastTime(activeDayIso, hour)
+                          ? `Klik atau drag untuk tambah slot ketersediaan 90m pada ${activeDayName}, ${String(hour).padStart(2, "0")}:00`
                           : undefined
                       }
                     />
@@ -1352,9 +1566,9 @@ export function ScheduleCalendarView({
 
                   {/* Interactive Drag Selection Preview Box */}
                   {dragState?.isDragging && dragState.dayIso === activeDayIso && (() => {
-                    const minMin = Math.min(dragState.startMin, dragState.currentMin);
-                    const maxMin = Math.max(dragState.startMin, dragState.currentMin);
-                    const duration = Math.max(30, maxMin - minMin);
+                    const isTeacher = role === "teacher";
+                    const minMin = isTeacher ? dragState.startMin : Math.min(dragState.startMin, dragState.currentMin);
+                    const duration = isTeacher ? 90 : Math.max(30, Math.max(dragState.startMin, dragState.currentMin) - minMin);
                     const top = ((minMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
                     const height = (duration / 60) * HOUR_HEIGHT;
 
@@ -1362,7 +1576,7 @@ export function ScheduleCalendarView({
                     const sM = minMin % 60;
                     const eH = Math.floor((minMin + duration) / 60);
                     const eM = (minMin + duration) % 60;
-                    const timeLabel = `${String(sH).padStart(2, "0")}:${String(sM).padStart(2, "0")} – ${String(eH).padStart(2, "0")}:${String(eM).padStart(2, "0")}`;
+                    const timeLabel = `${String(sH).padStart(2, "0")}:${String(sM).padStart(2, "0")} - ${String(eH).padStart(2, "0")}:${String(eM).padStart(2, "0")}`;
 
                     return (
                       <div
@@ -1373,7 +1587,7 @@ export function ScheduleCalendarView({
                         className="absolute left-2 right-2 z-40 rounded-xl bg-blue-500/20 border-2 border-blue-500 p-2 flex flex-col justify-start pointer-events-none shadow-md backdrop-blur-[1px] animate-in fade-in-50"
                       >
                         <span className="text-body-xs font-bold text-blue-600 dark:text-blue-400">
-                          (Jadwal Baru)
+                          {isTeacher ? "Slot Baru (90m)" : "(Jadwal Baru)"}
                         </span>
                         <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5">
                           {timeLabel}
@@ -1426,7 +1640,7 @@ export function ScheduleCalendarView({
                               </span>
                               {evt.schedule.course && (
                                 <>
-                                  <span>•</span>
+                                  <span aria-hidden="true" className="h-3 border-l border-border" />
                                   <span className="font-semibold text-brand-primary">
                                     {evt.schedule.course.title}
                                   </span>
@@ -1434,7 +1648,7 @@ export function ScheduleCalendarView({
                               )}
                               {evt.schedule.location && (
                                 <>
-                                  <span>•</span>
+                                  <span aria-hidden="true" className="h-3 border-l border-border" />
                                   <span className="flex items-center gap-1">
                                     <MapPin className="size-3" />
                                     {evt.schedule.location}
@@ -1518,6 +1732,31 @@ export function ScheduleCalendarView({
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
+                            {role === "teacher" && b.status !== "completed" && b.status !== "cancelled" && (
+                              <div className="flex items-center gap-1">
+                                {onOpenPostSession && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => onOpenPostSession(b)}
+                                    className="h-7 px-2 text-body-xs font-semibold rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 flex items-center gap-1"
+                                  >
+                                    <CheckCircle2 className="size-3" />
+                                    <span>Selesai</span>
+                                  </Button>
+                                )}
+                                {onMoveSession && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => onMoveSession(b)}
+                                    className="h-7 px-2 text-body-xs font-semibold rounded-lg flex items-center gap-1"
+                                  >
+                                    <RotateCcw className="size-3" />
+                                    <span>Pindah</span>
+                                  </Button>
+                                )}
+                              </div>
+                            )}
                             {b.googleMeetUrl && (
                               <a
                                 href={b.googleMeetUrl}
@@ -1584,6 +1823,131 @@ export function ScheduleCalendarView({
                           </button>
                         );
                       })}
+
+                  {/* Day Teacher Unbooked Slots */}
+                  {role === "teacher" &&
+                    filteredSlots
+                      .filter((s) => {
+                        if (s.sessionDate && s.sessionDate !== activeDayIso) return false;
+                        if (!s.sessionDate && s.dayOfWeek !== activeDayName) return false;
+                        return !s.booking;
+                      })
+                      .map((s) => {
+                        const startMin = timeToMinutes(s.startTime);
+                        const endMin = timeToMinutes(s.endTime);
+                        const duration = Math.max(45, endMin - startMin);
+
+                        const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                        const height = (duration / 60) * HOUR_HEIGHT - 2;
+
+                        const isPastDate =
+                          activeDayIso < todayIso ||
+                          (activeDayIso === todayIso && endMin <= nowMinutes);
+                        const isLocked = isWeekLocked;
+                        const isUnavailable = isPastDate || isLocked;
+
+                        if (isUnavailable) {
+                          return (
+                            <div
+                              key={s.id}
+                              style={{
+                                top: `${Math.max(0, top)}px`,
+                                height: `${Math.max(40, height)}px`,
+                              }}
+                              className="absolute left-2 right-2 z-15 rounded-xl border border-border/80 bg-muted/40 p-2.5 flex items-start justify-between gap-3 opacity-80 session-card"
+                            >
+                              <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl bg-muted-foreground/30" />
+                              <div className="pl-2 space-y-0.5 min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-heading text-body-sm font-bold text-muted-foreground">
+                                    {s.startTime} - {s.endTime} (90m)
+                                  </span>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] border-muted-foreground/30 text-muted-foreground flex items-center gap-1"
+                                  >
+                                    <Lock className="size-2.5" />
+                                    {isLocked ? "Terkunci" : "Kedaluwarsa"}
+                                  </Badge>
+                                </div>
+                                <div className="text-body-xs text-muted-foreground/80 flex items-center gap-2">
+                                  <span>{s.mode === "online" ? "Online" : s.location || "Tatap Muka"}</span>
+                                  <span>•</span>
+                                  <span>{s.sessionDate ? "Slot Khusus" : "Berulang Mingguan"}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={s.id}
+                            style={{
+                              top: `${Math.max(0, top)}px`,
+                              height: `${Math.max(48, height)}px`,
+                            }}
+                            className="absolute left-2 right-2 z-20 rounded-xl border border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-950/30 p-2.5 flex items-start justify-between gap-3 shadow-xs hover:shadow-md transition-all session-card"
+                          >
+                            <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl bg-emerald-500" />
+                            <div className="pl-2 space-y-0.5 min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-heading text-body-sm font-bold text-foreground">
+                                  {s.startTime} - {s.endTime} (90m)
+                                </h4>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 flex items-center gap-1"
+                                >
+                                  <CheckCircle2 className="size-2.5" />
+                                  Slot tersedia
+                                </Badge>
+                              </div>
+                              <div className="text-body-xs text-muted-foreground flex items-center gap-2">
+                                {s.mode === "online" ? (
+                                  <span className="flex items-center gap-1 text-blue-600 font-semibold">
+                                    <Video className="size-3" />
+                                    Online
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                                    <MapPin className="size-3" />
+                                    {s.location || "Tatap Muka"}
+                                  </span>
+                                )}
+                                <span aria-hidden="true" className="h-3 border-l border-border" />
+                                <span>{s.sessionDate ? "Slot Khusus Tanggal" : "Berulang Mingguan"}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {onSelectSlotToSchedule && (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => onSelectSlotToSchedule(s)}
+                                  className="h-7 px-2 text-body-xs font-semibold rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
+                                >
+                                  <Plus className="size-3 mr-1" />
+                                  Jadwalkan
+                                </Button>
+                              )}
+                              {onDeleteSlot && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onDeleteSlot(s.id)}
+                                  className="h-7 w-7 rounded-lg text-muted-foreground hover:text-status-error hover:bg-status-error/10"
+                                  title="Hapus slot"
+                                  aria-label="Hapus slot"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                 </div>
               </div>
             </div>
@@ -1595,135 +1959,190 @@ export function ScheduleCalendarView({
         {/* ══════════════════════════════════════════════════════════════════ */}
         {viewMode === "month" && (
           <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col select-none">
-            {/* 7 Days Column Headers */}
-            <div className="grid grid-cols-7 border-b border-border bg-muted/20 text-center">
-              {DAY_NAMES_ID.map((dayName) => (
-                <div
-                  key={dayName}
-                  className="p-1.5 text-body-xs font-bold text-muted-foreground uppercase tracking-wider"
-                >
-                  {dayName.slice(0, 3)}
+            <div className="overflow-x-auto">
+              <div className="min-w-[560px] md:min-w-0">
+                {/* 7 Days Column Headers */}
+                <div className="grid grid-cols-7 border-b border-border bg-muted/20 text-center">
+                  {DAY_NAMES_ID.map((dayName) => (
+                    <div
+                      key={dayName}
+                      className="p-1.5 text-body-xs font-bold text-muted-foreground uppercase tracking-wider"
+                    >
+                      {dayName.slice(0, 3)}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            {/* Month Day Cells (7 cols x 5/6 rows) */}
-            <div className="grid grid-cols-7 divide-x divide-y divide-border/60 zebra-no-rows">
-              {monthDays.map((cell) => {
-                // Find bookings on this day
-                const cellBookings = filteredBookings.filter(
-                  (b) => b.sessionDate === cell.dateIso
-                );
+                {/* Month Day Cells (7 cols x 5/6 rows) */}
+                <div className="grid grid-cols-7 divide-x divide-y divide-border/60 zebra-no-rows">
+                  {monthDays.map((cell) => {
+                    // Find bookings on this day
+                    const cellBookings = filteredBookings.filter((b) => {
+                      if (b.sessionDate && b.sessionDate !== cell.dateIso) return false;
+                      if (!b.sessionDate && b.slot?.dayOfWeek !== cell.dayName) return false;
+                      return true;
+                    });
 
-                // Find academic schedules on this day
-                const cellAcademic = parsedAcademicEvents.filter(
-                  (e) => e.dateIso === cell.dateIso
-                );
+                    // Find teacher slots on this day
+                    const cellSlots = filteredSlots.filter((s) => {
+                      if (s.sessionDate && s.sessionDate !== cell.dateIso) return false;
+                      if (!s.sessionDate && s.dayOfWeek !== cell.dayName) return false;
+                      return true;
+                    });
 
-                return (
-                  <div
-                    key={cell.dateIso}
-                    onClick={(e) => {
-                      if (e.target === e.currentTarget && role === "admin" && onCreateScheduleDirect) {
-                        onCreateScheduleDirect(cell.dateIso, "09:00", "10:30");
-                      }
-                    }}
-                    className={cn(
-                      "min-h-[96px] p-1.5 flex flex-col justify-between transition-colors",
-                      cell.isCurrentMonth
-                        ? "bg-card hover:bg-muted/10"
-                        : "bg-muted/30 opacity-60",
-                      cell.isToday && "bg-brand-primary/[0.04]",
-                      role === "admin" && onCreateScheduleDirect && "cursor-pointer"
-                    )}
-                  >
-                    {/* Cell Day Header */}
-                    <div className="flex items-center justify-between mb-1">
-                      <span
-                        className={cn(
-                          "inline-flex items-center justify-center size-5 text-[11px] font-bold rounded-full",
-                          cell.isToday
-                            ? "bg-brand-primary text-white"
-                            : "text-foreground"
-                        )}
-                      >
-                        {cell.dayOfMonth}
-                      </span>
+                    // Find academic schedules on this day
+                    const cellAcademic = parsedAcademicEvents.filter(
+                      (e) => e.dateIso === cell.dateIso
+                    );
 
-                      <div className="flex items-center gap-1">
-                        {role === "admin" && onCreateScheduleDirect && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCreateScheduleDirect(cell.dateIso, "09:00", "10:30");
-                            }}
-                            className="text-muted-foreground hover:text-brand-primary font-bold p-0.5 rounded transition-colors cursor-pointer"
-                            title="Buat Jadwal pada tanggal ini"
-                          >
-                            <Plus className="size-3" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                    return (
+                      <div
+                        key={cell.dateIso}
+                        onClick={(e) => {
+                          if (role === "teacher") {
                             setActiveDate(cell.date);
                             setViewMode("day");
-                          }}
-                          className="text-[9px] text-muted-foreground hover:text-brand-primary font-medium cursor-pointer"
-                        >
-                          Detail
-                        </button>
+                            return;
+                          }
+                          if (e.target === e.currentTarget && role === "admin" && onCreateScheduleDirect) {
+                            onCreateScheduleDirect(cell.dateIso, "09:00", "10:30");
+                          }
+                        }}
+                        className={cn(
+                          "min-h-[96px] p-1.5 flex flex-col justify-between transition-colors",
+                          cell.isCurrentMonth
+                            ? "bg-card hover:bg-muted/10"
+                            : "bg-muted/30 opacity-60",
+                          cell.isToday && "bg-brand-primary/[0.04]",
+                          ((role === "admin" && onCreateScheduleDirect) || role === "teacher") && "cursor-pointer"
+                        )}
+                        title={
+                          role === "teacher"
+                            ? `Buka tampilan hari untuk ${cell.dayName}, ${cell.dayOfMonth}`
+                            : undefined
+                        }
+                      >
+                        {/* Cell Day Header */}
+                        <div className="flex items-center justify-between mb-1">
+                          <span
+                            className={cn(
+                              "inline-flex items-center justify-center size-5 text-[11px] font-bold rounded-full",
+                              cell.isToday
+                                ? "bg-brand-primary text-white"
+                                : "text-foreground"
+                            )}
+                          >
+                            {cell.dayOfMonth}
+                          </span>
+
+                          <div className="flex items-center gap-1">
+                            {role === "admin" && onCreateScheduleDirect && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onCreateScheduleDirect(cell.dateIso, "09:00", "10:30");
+                                }}
+                                className="text-muted-foreground hover:text-brand-primary font-bold p-0.5 rounded transition-colors cursor-pointer"
+                                title="Buat Jadwal pada tanggal ini"
+                              >
+                                <Plus className="size-3" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDate(cell.date);
+                                setViewMode("day");
+                              }}
+                              className="text-[9px] text-muted-foreground hover:text-brand-primary font-medium cursor-pointer"
+                            >
+                              Detail
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Events List in Day Cell */}
+                        <div className="flex-1 space-y-1 overflow-y-auto max-h-[75px]">
+                          {/* Academic Schedules */}
+                          {cellAcademic.map((evt) => {
+                            const style = getAcademicStyle(evt.schedule.type);
+                            return (
+                              <div
+                                key={evt.schedule.id}
+                                onClick={() => onEditSchedule?.(evt.schedule)}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold truncate border ${style.border} ${style.bg} cursor-pointer`}
+                                title={`${evt.schedule.title} (${style.label})`}
+                              >
+                                * {evt.schedule.title}
+                              </div>
+                            );
+                          })}
+
+                          {/* Booked Sessions */}
+                          {cellBookings.map((b) => {
+                            const tutorStyle = getTutorColorStyle(
+                              b.slot?.tutorId || b.studentId
+                            );
+                            return (
+                              <div
+                                key={b.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (role === "student") {
+                                    onOpenPreSession?.(b);
+                                  } else if (role === "teacher") {
+                                    setActiveDate(cell.date);
+                                    setViewMode("day");
+                                  } else {
+                                    onOpenPostSession?.(b);
+                                  }
+                                }}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold truncate border ${tutorStyle.border} ${tutorStyle.bg} cursor-pointer hover:shadow-xs`}
+                                title={`${b.course?.title || "Tutorial"} (${b.startTime} - ${b.endTime})`}
+                              >
+                                <span className="font-bold">
+                                  {b.startTime?.slice(0, 5)}
+                                </span>{" "}
+                                {b.course?.title || "Tutorial"}
+                              </div>
+                            );
+                          })}
+
+                          {/* Teacher Unbooked Slots */}
+                          {role === "teacher" &&
+                            cellSlots
+                              .filter((s) => !s.booking)
+                              .map((s) => {
+                                const isPastDate = cell.dateIso < todayIso;
+                                return (
+                                  <div
+                                    key={s.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDate(cell.date);
+                                      setViewMode("day");
+                                    }}
+                                    className={cn(
+                                      "px-1.5 py-0.5 rounded text-[9px] font-semibold truncate border cursor-pointer hover:shadow-xs",
+                                      isPastDate
+                                        ? "border-border/80 bg-muted/40 text-muted-foreground opacity-75"
+                                        : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                    )}
+                                    title={`Slot: ${s.startTime} - ${s.endTime} (${isPastDate ? "Kedaluwarsa" : "Tersedia"})`}
+                                  >
+                                    <span className="font-bold">{s.startTime?.slice(0, 5)}</span>{" "}
+                                    {isPastDate ? "Slot lewat" : "Slot tersedia"}
+                                  </div>
+                                );
+                              })}
+                        </div>
                       </div>
-                    </div>
-
-                    {/* Events List in Day Cell */}
-                    <div className="flex-1 space-y-1 overflow-y-auto max-h-[75px]">
-                      {/* Academic Schedules */}
-                      {cellAcademic.map((evt) => {
-                        const style = getAcademicStyle(evt.schedule.type);
-                        return (
-                          <div
-                            key={evt.schedule.id}
-                            onClick={() => onEditSchedule?.(evt.schedule)}
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold truncate border ${style.border} ${style.bg} cursor-pointer`}
-                            title={`${evt.schedule.title} (${style.label})`}
-                          >
-                            ★ {evt.schedule.title}
-                          </div>
-                        );
-                      })}
-
-                      {/* Booked Sessions */}
-                      {cellBookings.map((b) => {
-                        const tutorStyle = getTutorColorStyle(
-                          b.slot?.tutorId || b.studentId
-                        );
-                        return (
-                          <div
-                            key={b.id}
-                            onClick={() => {
-                              if (role === "student") {
-                                onOpenPreSession?.(b);
-                              } else {
-                                onOpenPostSession?.(b);
-                              }
-                            }}
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-semibold truncate border ${tutorStyle.border} ${tutorStyle.bg} cursor-pointer hover:shadow-xs`}
-                            title={`${b.course?.title} (${b.startTime} - ${b.endTime})`}
-                          >
-                            <span className="font-bold">
-                              {b.startTime?.slice(0, 5)}
-                            </span>{" "}
-                            {b.course?.title || "Tutorial"}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}

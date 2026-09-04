@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { hasAnyPeran } from "@/lib/auth/authorization";
 import { getTutorScheduleReadModel } from "@/lib/schedule/tutor-read-model";
 import { TutorScheduleView } from "@/components/tutor/tutor-schedule-view";
+import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -30,11 +31,11 @@ export default async function TutorSchedulePage() {
   });
 
   return (
-    <div className="max-w-6xl px-4 sm:px-6 py-8 space-y-6">
+    <ApplicationPage>
       <TutorScheduleView
         initialData={readModel}
         currentUserId={session.user.id}
       />
-    </div>
+    </ApplicationPage>
   );
 }

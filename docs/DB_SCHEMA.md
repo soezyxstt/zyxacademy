@@ -530,6 +530,7 @@ Per-item answer with grading state.
 * `id`, `percobaanAsesmenId`, `itemAsesmenId`
 * Snapshots: optional `renderedQuestionSnapshot`, required `optionOrderSnapshot`, optional `responseSnapshot` and `gradingPolicySnapshot`, `contentVersion`.
 * Optional `score`; `status` default `ungraded`; `answeredAt`.
+* Manual review fields: optional `reviewerId`, `reviewNotes`, and `reviewedAt`; `reviewRevision` defaults to zero and supports optimistic concurrency.
 
 Quiz and tryout cardinality is enforced by the assessment contract: a quiz has exactly one chapter and a tryout has at least one chapter. Foreign keys and unique indexes protect assessment item and answer membership.
 
@@ -658,6 +659,8 @@ Plan 008 reuses the same import, item, review, publication, audit, dependency, a
 Migrations `0082_structured_article_expand.sql` and `0083_structured_article_review_targets.sql` add structured learning and Article tables, progress, generic review targets, and compatibility columns. V3 publication stores semantic rows and derived Markdown transactionally. V3 publication requires section approval from the same admin who approved the bundle.
 
 Migration `0068_typical_warbird.sql` adds `origin`, `source_event_name`, and `source_reference_id` to both `soal` and `ai_question_bank`, with `zyx_original` as the non-null default and an origin plus event index on each table. Existing rows therefore remain Zyx originals without a data rewrite. Product publication validates ITB completeness before writing and creates the `ai_question_bank` compatibility projection. Product Bundle source and curation data are retained in the publication audit snapshot, while `soal_itb_referensi.soal_id` links the single source reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
+
+Migration `0085_melodic_korvac.sql` adds `student_quiz_attempts.grading_status` with `not_required` as the compatibility-safe default and an index by template and grading state. It also adds reviewer identity, notes, timestamp, and revision fields to `jawaban_murid` for tutor quiz review.
 
 ### Plan 005 migration tables
 
