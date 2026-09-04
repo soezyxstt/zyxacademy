@@ -22,6 +22,7 @@ import {
   academicSchedules,
 } from "@/db/schema";
 import { STATIC_PAGES, LANDING_SUBJECTS } from "@/lib/site-search-index";
+import { inngest } from "@/lib/inngest";
 
 type SearchDocInsert = typeof searchDocuments.$inferInsert;
 
@@ -498,6 +499,13 @@ export async function runSearchBackfill(): Promise<{
 
   const total = Object.values(stats).reduce((acc, n) => acc + n, 0);
   console.log(`Search backfill completed successfully. Total indexed documents: ${total}`);
+
+  try {
+    await inngest.send({ name: "search.documents.sync" });
+  } catch (err) {
+    console.warn("Failed to trigger search.documents.sync:", err);
+  }
+
   return { total, stats };
 }
 

@@ -23,6 +23,7 @@ import { repairJsonString } from "./ko-utils";
 import { buildAssessmentBlueprint } from "@/lib/questions/blueprint";
 import { shuffleQuestionOptions } from "@/lib/questions/option-shuffle";
 import { buildDistractorProvenances } from "@/lib/questions/distractor-provenance";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { UnshuffledQuestionDraft } from "@/lib/questions/contracts";
 import { solveQuestionIndependently } from "@/lib/questions/independent-solver";
 import { evaluateQuestionWithCritic, type CriticEvaluation } from "@/lib/questions/pedagogical-critic";
@@ -586,6 +587,10 @@ export async function generateQuestionsForKOBatch(
       .where(eq(questionGenerationRuns.id, runId));
   } catch (err) {
     console.warn(`Failed to update questionGenerationRun status:`, err);
+  }
+
+  if (acceptedCountTotal > 0 && kos.length > 0) {
+    dispatchVectorSync(kos[0].courseId);
   }
 
   const results = koIds.map((id) => resultsMap.get(id)!);

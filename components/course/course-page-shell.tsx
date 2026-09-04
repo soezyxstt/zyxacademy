@@ -33,7 +33,7 @@ export function CoursePageShell({
 }: CoursePageShellProps) {
   return (
     <div className={cn("relative pb-8", className, fullWidth && "pb-0 h-full flex flex-col")}>
-      <div className={cn(fullWidth ? "w-full h-full flex flex-col" : "marketing-container pt-6 md:pt-8")}>
+      <div className={cn(fullWidth ? "w-full h-full flex flex-col" : "marketing-container pt-3 md:pt-3")}>
         {!hideHeader && title && (
           <PageHeader
             title={title}

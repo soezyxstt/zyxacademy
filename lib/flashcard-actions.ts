@@ -545,15 +545,8 @@ export async function submitFlashcardReviewTx(
 
   await recordFlashcardIdeaEvidence(studentId, flashcardId, result.review.id, correctness, new Date());
 
-  // Post-transaction tasks (Inngest, Recommendations)
-  try {
-    await inngest.send({
-      name: "mastery/recompute.requested",
-      data: { studentId, courseId: set.courseId },
-    });
-  } catch (err) {
-    console.error("Failed to trigger recompute:", err);
-  }
+  // Idea evidence is recorded via recordFlashcardIdeaEvidence above (debounced via Inngest).
+  // Legacy learningEvents are preserved in DB; legacy course-wide mastery is updated at session/quiz boundaries.
 
   {
     Promise.resolve().then(async () => {
@@ -728,14 +721,7 @@ export async function skipFlashcardTx(
 
   await recordFlashcardIdeaEvidence(studentId, flashcardId, result.review.id, 0, new Date());
 
-  try {
-    await inngest.send({
-      name: "mastery/recompute.requested",
-      data: { studentId, courseId: set.courseId },
-    });
-  } catch (err) {
-    console.error("Failed to trigger recompute:", err);
-  }
+  // Idea evidence is recorded via recordFlashcardIdeaEvidence above (debounced via Inngest).
 
   return result;
 }

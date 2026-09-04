@@ -240,6 +240,7 @@ export const OpsAiToolClassSchema = z.enum([
   "read-only",
   "retrieval",
   "proposal-only",
+  "autonomous-mutation",
   "confirmation-executor",
 ]);
 export type OpsAiToolClass = z.infer<typeof OpsAiToolClassSchema>;
@@ -255,6 +256,7 @@ export interface OpsAiToolSecurityClassification {
 }
 
 export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClassification> = {
+  // ─── 0. Baseline Tools ───────────────────────────────────────────────────────
   retrieve_admin_knowledge: {
     name: "retrieve_admin_knowledge",
     toolClass: "retrieval",
@@ -318,10 +320,362 @@ export const OPS_AI_TOOL_SECURITY_REGISTRY: Record<string, OpsAiToolSecurityClas
     allowsMutation: true,
     description: "Eksekutor server-side yang hanya dipicu klik eksplisit admin pada UI proposal.",
   },
+
+  // ─── 1. Academic & Curriculum ────────────────────────────────────────────────
+  list_courses: {
+    name: "list_courses",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Daftar mata kuliah kanonikal aktif beserta statistik bab materi.",
+  },
+  create_course: {
+    name: "create_course",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Membuat mata kuliah baru di platform Zyx secara otonom.",
+  },
+  update_course: {
+    name: "update_course",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mengubah metadata mata kuliah yang sudah ada.",
+  },
+  batch_create_chapters: {
+    name: "batch_create_chapters",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Membuat daftar bab materi sekaligus secara terurut dan atomik.",
+  },
+  update_chapter: {
+    name: "update_chapter",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mengubah judul atau urutan bab materi.",
+  },
+  list_materials: {
+    name: "list_materials",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Melihat daftar berkas materi kuliah yang tersimpan.",
+  },
+
+  // ─── 2. Assessment & Question Bank ───────────────────────────────────────────
+  list_quizzes: {
+    name: "list_quizzes",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Daftar kuis aktif dengan filter mata kuliah dan status.",
+  },
+  create_quiz: {
+    name: "create_quiz",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Membuat kuis asesmen baru secara otonom.",
+  },
+  update_quiz: {
+    name: "update_quiz",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mengubah properti kuis (judul, durasi, status publikasi).",
+  },
+  list_questions: {
+    name: "list_questions",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Mencari soal pada bank soal dengan filter topik dan tingkat kesulitan.",
+  },
+  create_question: {
+    name: "create_question",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Menambahkan soal baru ke bank soal Zyx.",
+  },
+  publish_question: {
+    name: "publish_question",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mempublikasikan soal di bank soal agar siap dipakai kuis.",
+  },
+  get_quiz_insights: {
+    name: "get_quiz_insights",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Mengambil statistik nilai dan performa siswa pada suatu kuis.",
+  },
+
+  // ─── 3. Schedules & Meet ─────────────────────────────────────────────────────
+  list_schedules: {
+    name: "list_schedules",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Menampilkan jadwal sesi tutorial dengan filter tanggal dan mata kuliah.",
+  },
+  create_meet_session: {
+    name: "create_meet_session",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Membuat jadwal meet sesi tutorial beserta link Google Meet terintegrasi.",
+  },
+  reschedule_or_cancel_meet: {
+    name: "reschedule_or_cancel_meet",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Memindahkan jadwal atau membatalkan sesi meet tutorial.",
+  },
+  list_tutor_availability: {
+    name: "list_tutor_availability",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Melihat slot ketersediaan waktu kosong tutor.",
+  },
+
+  // ─── 4. Study Groups & Tokens ────────────────────────────────────────────────
+  list_study_groups: {
+    name: "list_study_groups",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Menampilkan daftar kelompok belajar siswa beserta tutor pendamping.",
+  },
+  create_study_group: {
+    name: "create_study_group",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Membuat kelompok belajar baru dengan kuota anggota tertentu.",
+  },
+  assign_tutor_to_group: {
+    name: "assign_tutor_to_group",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Menugaskan tutor ke suatu kelompok belajar.",
+  },
+  create_enrollment_token: {
+    name: "create_enrollment_token",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Membuat token aktivasi pendaftaran grup belajar secara langsung.",
+  },
+  list_enrollment_tokens: {
+    name: "list_enrollment_tokens",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Melihat daftar token aktivasi pendaftaran dan sisa kuotanya.",
+  },
+
+  // ─── 5. Users, Notifications & Operations ────────────────────────────────────
+  update_user_role: {
+    name: "update_user_role",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mengubah hak akses peran pengguna (admin/tutor/murid).",
+  },
+  toggle_user_status: {
+    name: "toggle_user_status",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mengaktifkan atau menonaktifkan akun pengguna.",
+  },
+  send_broadcast_notification: {
+    name: "send_broadcast_notification",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mengirim notifikasi broadcast ke seluruh atau sebagian siswa.",
+  },
+  list_pka_registrations: {
+    name: "list_pka_registrations",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Melihat data pendaftar program gratis Tutorial PKA.",
+  },
+  create_pka_announcement: {
+    name: "create_pka_announcement",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mempublikasikan pengumuman untuk peserta program PKA.",
+  },
+  create_pka_schedule: {
+    name: "create_pka_schedule",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Menambahkan jadwal sesi belajar program PKA.",
+  },
+  list_forms: {
+    name: "list_forms",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Melihat daftar formulir kustom dan respon yang masuk.",
+  },
+  create_or_update_form: {
+    name: "create_or_update_form",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Membuat atau memperbarui struktur form kustom Zyx.",
+  },
+  get_form_responses_summary: {
+    name: "get_form_responses_summary",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Melihat ringkasan respon dari suatu formulir.",
+  },
+  list_blog_articles: {
+    name: "list_blog_articles",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Melihat daftar artikel blog edukasi Zyx.",
+  },
+  create_blog_article: {
+    name: "create_blog_article",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Membuat draf atau mempublikasikan artikel blog baru.",
+  },
+  publish_blog_article: {
+    name: "publish_blog_article",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mengubah status publikasi artikel blog.",
+  },
+  get_feature_flags: {
+    name: "get_feature_flags",
+    toolClass: "read-only",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: false,
+    description: "Melihat status semua feature flag pada platform.",
+  },
+  set_feature_flag: {
+    name: "set_feature_flag",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Mengaktifkan atau mematikan status feature flag.",
+  },
+  create_short_link: {
+    name: "create_short_link",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Membuat tautan redirect pendek kustom (/s/xyz).",
+  },
+  trigger_ai_job: {
+    name: "trigger_ai_job",
+    toolClass: "autonomous-mutation",
+    isModelCallable: true,
+    requiredRole: "admin",
+    requiresHumanConfirmation: false,
+    allowsMutation: true,
+    description: "Memicu background processing job AI untuk materi atau bank soal.",
+  },
 } as const;
 
 /**
- * Invariant Assertion: No model-callable tool may ever execute a mutation.
+ * Invariant Assertion: Model-callable tools may only mutate if classified as autonomous-mutation with admin role.
  */
 export function assertNoModelCallableMutation(
   registry: Record<string, OpsAiToolSecurityClassification> = OPS_AI_TOOL_SECURITY_REGISTRY
@@ -331,8 +685,11 @@ export function assertNoModelCallableMutation(
       if (tool.toolClass === "confirmation-executor") {
         throw new Error(`Security Invariant Violation: Model-callable tool '${name}' has forbidden class 'confirmation-executor'.`);
       }
-      if (tool.allowsMutation) {
-        throw new Error(`Security Invariant Violation: Model-callable tool '${name}' cannot have allowsMutation=true.`);
+      if (tool.toolClass !== "autonomous-mutation" && tool.allowsMutation) {
+        throw new Error(`Security Invariant Violation: Model-callable tool '${name}' with class '${tool.toolClass}' cannot have allowsMutation=true.`);
+      }
+      if (tool.toolClass === "autonomous-mutation" && tool.requiredRole !== "admin" && tool.requiredRole !== "superadmin") {
+        throw new Error(`Security Invariant Violation: Autonomous mutation tool '${name}' must require admin role.`);
       }
     }
   }

@@ -206,7 +206,11 @@ function sanitizeMaterialTitle(rawTitle: string): string {
     isPastYear: false,
     isPreview: true,
     url: d.fileUrl ? storage.getUrl(d.fileUrl) : undefined,
-    thumbnailUrl: d.thumbnailUrl ? storage.getUrl(d.thumbnailUrl) : undefined,
+    thumbnailUrl: d.thumbnailUrl
+      ? storage.getUrl(d.thumbnailUrl)
+      : d.fileUrl
+        ? `/api/courses/${id}/material/${d.id}/thumbnail`
+        : undefined,
     chapterIds: d.chapterIds as string[],
   }));
 
@@ -248,7 +252,11 @@ function sanitizeMaterialTitle(rawTitle: string): string {
       isPastYear: Boolean(m.year),
       isPreview: true,
       url: storage.getUrl(m.fileUrl),
-      thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
+      thumbnailUrl: m.thumbnailUrl
+        ? storage.getUrl(m.thumbnailUrl)
+        : m.fileUrl
+          ? `/api/courses/${id}/material/${m.id}/thumbnail`
+          : undefined,
       chapterIds: m.chapterIds as string[],
     };
   });

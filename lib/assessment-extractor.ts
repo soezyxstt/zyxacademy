@@ -23,6 +23,7 @@ import { z } from "zod";
 import { repairJsonString, slugify } from "./ko-utils";
 import { normalizeConceptName, cosineSimilarity } from "./ko-extractor";
 import { generateCanonicalHash } from "./assessment-utils";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { ExtractionResult, ExtractedAssessmentObject } from "./questions/contracts";
 import { parseFrontmatter } from "./assessment-frontmatter";
 
@@ -501,6 +502,7 @@ Ensure all fields are fully populated and valid JSON is returned. Do not wrap in
       .where(eq(assessmentSources.id, sourceId));
 
     await updateAssessmentProfile(source.courseId);
+    dispatchVectorSync(source.courseId);
 
     return {
       status: finalStatus,

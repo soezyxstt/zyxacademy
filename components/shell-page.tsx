@@ -13,7 +13,7 @@ type ShellPageProps = {
 export function ShellPage({ title, children, className }: ShellPageProps) {
   return (
     <div className={cn("relative pb-8", className)}>
-      <div className="marketing-container pt-6 md:pt-8">
+      <div className="marketing-container pt-3 md:pt-3">
         <Reveal>
           <PageHeader title={title} />
         </Reveal>

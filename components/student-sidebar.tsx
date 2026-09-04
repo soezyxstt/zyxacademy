@@ -274,20 +274,20 @@ export function StudentSidebar({
                 }
               }}
               className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors cursor-pointer",
+                "group/item relative flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] font-medium transition-colors cursor-pointer",
                 pathname.startsWith("/courses")
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 c && "justify-center size-10 px-0 mx-auto"
               )}
             >
-              <BookOpen className="size-5 shrink-0" />
+              <BookOpen className="size-4 shrink-0" />
               {!c && (
                 <>
-                  <span className="flex-1 text-left">Courses</span>
+                  <span className="truncate whitespace-nowrap flex-1 text-left min-w-0">Courses</span>
                   {coursesOpen
-                    ? <ChevronDown className="size-4" />
-                    : <ChevronRight className="size-4" />}
+                    ? <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
+                    : <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform" />}
                 </>
               )}
             </button>
@@ -304,7 +304,7 @@ export function StudentSidebar({
                     key={course.id}
                     href={`/courses/${course.id}`}
                     className={cn(
-                      "block truncate rounded-lg px-3 py-1.5 text-body-xs font-medium transition-colors",
+                      "block truncate rounded-lg px-2.5 py-1.5 text-body-xs font-medium transition-colors",
                       active
                         ? "bg-brand-primary/8 text-brand-primary font-semibold"
                         : "text-muted-foreground hover:text-foreground"
@@ -317,12 +317,12 @@ export function StudentSidebar({
               <Link
                 href="/courses"
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-body-xs font-semibold text-brand-secondary hover:underline",
-                  pathname === "/courses" && "underline"
+                  "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-body-xs font-medium text-brand-secondary hover:underline transition-colors",
+                  pathname === "/courses" && "font-semibold underline"
                 )}
               >
-                <Search className="size-3 shrink-0" />
-                Jelajahi Course
+                <Search className="size-3.5 shrink-0" />
+                <span>Jelajahi Course</span>
               </Link>
             </div>
           )}

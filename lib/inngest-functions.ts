@@ -152,13 +152,13 @@ export const vectorSyncWorker = inngest.createFunction(
 );
 
 /**
- * Scheduled cron worker running every 5 minutes
+ * Scheduled fallback cron worker running every 6 hours to catch stranded syncs
  */
 export const vectorSyncCronWorker = inngest.createFunction(
   {
     id: "vector-sync-cron-worker",
     name: "Vector Sync Cron Worker",
-    triggers: [{ cron: "*/5 * * * *" }]
+    triggers: [{ cron: "0 */6 * * *" }]
   },
   async ({ step }) => {
     return await processBatch(step);
@@ -337,15 +337,16 @@ export const masteryRecomputeWorker = inngest.createFunction(
     id: "mastery-recompute-worker",
     name: "Mastery Recompute Worker",
     triggers: [{ event: "mastery/recompute.requested" }],
+    debounce: {
+      key: "event.data.studentId",
+      period: "30s",
+    },
   },
   async ({ event, step }) => {
     const { studentId, courseId, reason } = event.data as { studentId: string; courseId: string; reason?: string };
 
-    await step.run("enqueue-request", async () => {
+    await step.run("process-recompute-job", async () => {
       await enqueueRecompute(studentId, courseId, reason || "inngest_trigger");
-    });
-
-    await step.run("process-queue-batch", async () => {
       await processQueueBatch();
     });
 
@@ -358,6 +359,10 @@ export const ideaMasteryRecomputeWorker = inngest.createFunction(
     id: "idea-mastery-recompute-v1",
     name: "Per-Idea Mastery Recompute V1",
     triggers: [{ event: "mastery/idea-recompute.requested.v1" }],
+    debounce: {
+      key: "event.data.studentId",
+      period: "30s",
+    },
   },
   async ({ event, step }) => {
     const { studentId, ideaId, idempotencyKey } = event.data as {
@@ -423,19 +428,19 @@ export const courseAnalyticsSnapshotCron = inngest.createFunction(
       return rows.map((r) => r.courseId);
     });
 
-    let built = 0;
-    let failed = 0;
-
-    for (const courseId of activeCourseIds) {
-      try {
-        await step.run(`snapshot-course-${courseId}`, async () => {
+    const { built, failed } = await step.run("snapshot-active-courses", async () => {
+      let b = 0;
+      let f = 0;
+      for (const courseId of activeCourseIds) {
+        try {
           await computeSnapshotPayload(courseId);
-        });
-        built++;
-      } catch {
-        failed++;
+          b++;
+        } catch {
+          f++;
+        }
       }
-    }
+      return { built: b, failed: f };
+    });
 
     return { activeCourseIds: activeCourseIds.length, built, failed };
   }
@@ -464,20 +469,20 @@ export const contentQualityAuditCron = inngest.createFunction(
       return rows.map((r) => r.courseId);
     });
 
-    let flagged = 0;
-    let failed = 0;
-
-    for (const courseId of activeCourseIds) {
-      try {
-        const flags = await step.run(`audit-course-${courseId}`, async () => {
-          const { auditCourseContentQuality } = await import("@/lib/content-quality-auditor");
-          return await auditCourseContentQuality(courseId);
-        });
-        flagged += flags.length;
-      } catch {
-        failed++;
+    const { flagged, failed } = await step.run("audit-active-courses", async () => {
+      const { auditCourseContentQuality } = await import("@/lib/content-quality-auditor");
+      let totalFlagged = 0;
+      let totalFailed = 0;
+      for (const courseId of activeCourseIds) {
+        try {
+          const flags = await auditCourseContentQuality(courseId);
+          totalFlagged += flags.length;
+        } catch {
+          totalFailed++;
+        }
       }
-    }
+      return { flagged: totalFlagged, failed: totalFailed };
+    });
 
     return { activeCourseIds: activeCourseIds.length, flagged, failed };
   }
@@ -515,27 +520,27 @@ export const weeklyReflectionCron = inngest.createFunction(
       return rows.map((r) => r.studentId);
     });
 
-    let processed = 0;
-    let failed = 0;
-
-    for (const studentId of activeStudentIds) {
-      try {
-        await step.run(`process-reflection-${studentId}`, async () => {
+    const { processed, failed } = await step.run("process-reflections-batch", async () => {
+      let p = 0;
+      let f = 0;
+      for (const studentId of activeStudentIds) {
+        try {
           await computeWeeklyReflection(studentId, now);
-        });
-        processed++;
-      } catch (err) {
-        console.error(`Failed to process reflection for student ${studentId}:`, err);
-        failed++;
+          p++;
+        } catch (err) {
+          console.error(`Failed to process reflection for student ${studentId}:`, err);
+          f++;
+        }
       }
-    }
+      return { processed: p, failed: f };
+    });
 
     const isEmailEnabled = env.FEATURE_REFLECTION_EMAIL === "1";
     if (isEmailEnabled && activeStudentIds.length <= 90) {
-      for (const studentId of activeStudentIds) {
-        try {
-          const weekStartStr = formatDateStr(monday);
-          await step.run(`send-reflection-email-${studentId}-${weekStartStr}`, async () => {
+      await step.run("send-reflection-emails-batch", async () => {
+        const weekStartStr = formatDateStr(monday);
+        for (const studentId of activeStudentIds) {
+          try {
             // 1. Fetch student details
             const [student] = await db
               .select({ name: user.name })
@@ -545,7 +550,7 @@ export const weeklyReflectionCron = inngest.createFunction(
 
             if (!student) {
               console.warn(`No account found for student ${studentId}`);
-              return;
+              continue;
             }
 
             // 2. Fetch weekly reflection row
@@ -562,7 +567,7 @@ export const weeklyReflectionCron = inngest.createFunction(
 
             if (!reflection) {
               console.warn(`No reflection row found for student ${studentId} and week ${weekStartStr}`);
-              return;
+              continue;
             }
 
             const payload = reflection.payload;
@@ -611,11 +616,11 @@ export const weeklyReflectionCron = inngest.createFunction(
                 </div>
               `
             });
-          });
-        } catch (err) {
-          console.error(`Failed to send reflection email to student ${studentId}:`, err);
+          } catch (err) {
+            console.error(`Failed to send reflection email to student ${studentId}:`, err);
+          }
         }
-      }
+      });
     }
 
     return {
@@ -874,7 +879,7 @@ export const syncSearchDocuments = inngest.createFunction(
   {
     id: "sync-search-documents",
     name: "Sync Search Documents",
-    triggers: [{ cron: "*/5 * * * *" }, { event: "search.documents.sync" }],
+    triggers: [{ event: "search.documents.sync" }],
   },
   async ({ step }) => {
     const pending = await step.run("fetch-unsynced-search-docs", async () => {

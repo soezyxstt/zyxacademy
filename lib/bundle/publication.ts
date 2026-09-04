@@ -27,6 +27,7 @@ import { parseIdeaBundle, serializeDeterministically, type ValidatedIdeaBundle }
 import { sha256Text } from "@/lib/bundle/validator";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
 import { resolveBundleIdentity } from "@/lib/bundle/attribution";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 export type IdeaBundlePublicationResult = {
   publicationId: string;
@@ -468,6 +469,8 @@ export async function publishIdeaBundle(input: {
       vectorJobCount: vectorJobs.length,
     };
   });
+  dispatchVectorSync(course.legacyId);
+  return result;
 }
 
 export async function reconcilePublishedIdeaBundle(importId: string) {

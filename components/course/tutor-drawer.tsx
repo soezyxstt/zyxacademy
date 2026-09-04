@@ -22,6 +22,9 @@ import {
   Send,
   HelpCircle,
   Paperclip,
+  Plus,
+  Square,
+  ArrowUp,
 } from "lucide-react";
 import {
   Tooltip,
@@ -52,6 +55,7 @@ import {
 } from "@/components/course/zyra-attachment-composer";
 import { ZyraAllowanceSummary } from "@/components/course/zyra-allowance-summary";
 import { ZyraMathPalette } from "@/components/course/zyra-math-palette";
+import { ZyraFormulaPreview } from "@/components/course/zyra-formula-preview";
 import { ZyraMark } from "@/components/course/zyra-mark";
 import { ZyraFloatingPet } from "@/components/course/zyra-floating-pet";
 import { petStateForTutorEvent } from "@/lib/zyra/murid";
@@ -206,11 +210,19 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
   const savedDataRef = React.useRef<any>(null);
   const focusReturnRef = React.useRef<HTMLElement | null>(null);
 
+  const panelRef = React.useRef<HTMLElement>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+
   // Resizable sidebar states
   const [sidebarWidth, setSidebarWidth] = React.useState<number>(DEFAULT_SIDEBAR_WIDTH);
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isDragging, setIsDragging] = React.useState(false);
-  const isResizingRef = React.useRef(false);
+  const isDraggingRef = React.useRef(false);
+  const dragStartRef = React.useRef<{ startX: number; startWidth: number; latestWidth: number }>({
+    startX: 0,
+    startWidth: DEFAULT_TUTOR_PANEL_WIDTH,
+    latestWidth: DEFAULT_TUTOR_PANEL_WIDTH,
+  });
 
   // Human-readable course label for the drawer header
   const [courseLabel, setCourseLabel] = React.useState<string | null>(null);
@@ -296,77 +308,124 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     textareaRef.current.style.height = `${Math.max(42, nextHeight)}px`;
   }, [inputVal]);
 
-  // Handle drag to resize (mouse and touch share the same width logic)
-  const applyResizeClientX = React.useCallback((clientX: number) => {
-    const targetWidth = window.innerWidth - clientX;
-    const clamped = clampTutorPanelWidth(targetWidth, window.innerWidth);
-    setIsExpanded(false);
-    setSidebarWidth(clamped);
-  }, []);
+  // Bulletproof Drag Resize: Direct 120fps DOM mutation + Dual target/window listeners (Ops AI pattern)
+  const handlePointerDownResize = React.useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-  const persistWidth = React.useCallback(() => {
-    try {
-      setSidebarWidth((current) => {
-        localStorage.setItem(STORAGE_KEY_WIDTH, String(current));
-        return current;
-      });
-    } catch {}
-  }, []);
+      const asideEl = panelRef.current;
+      const targetEl = e.currentTarget;
+      const startX = e.clientX;
+      const startWidth = asideEl ? asideEl.getBoundingClientRect().width : sidebarWidth;
+      let currentWidth = startWidth;
 
-  const beginResize = React.useCallback(() => {
-    isResizingRef.current = true;
-    setIsDragging(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }, []);
+      isDraggingRef.current = true;
+      setIsDragging(true);
+      dragStartRef.current = {
+        startX,
+        startWidth,
+        latestWidth: startWidth,
+      };
 
-  const endResize = React.useCallback(() => {
-    if (!isResizingRef.current) return;
-    isResizingRef.current = false;
-    setIsDragging(false);
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    persistWidth();
-  }, [persistWidth]);
+      if (asideEl) asideEl.style.transition = "none";
+      targetEl.classList.add("bg-brand-primary/10");
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
 
-  const startResize = React.useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    beginResize();
+      const pointerId = e.pointerId;
+      let hasCapture = false;
+      try {
+        targetEl.setPointerCapture(pointerId);
+        hasCapture = true;
+      } catch {}
 
-    const onMove = (ev: MouseEvent) => {
-      if (!isResizingRef.current) return;
-      applyResizeClientX(ev.clientX);
-    };
+      const handleMove = (ev: MouseEvent | PointerEvent) => {
+        if (!isDraggingRef.current) return;
+        ev.preventDefault();
+        const delta = dragStartRef.current.startX - ev.clientX; // Leftward drag expands right drawer
+        const newWidth = clampTutorPanelWidth(dragStartRef.current.startWidth + delta, window.innerWidth);
+        dragStartRef.current.latestWidth = newWidth;
+        currentWidth = newWidth;
 
-    const onUp = () => {
-      endResize();
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
+        if (asideEl) {
+          asideEl.style.width = `${newWidth}px`;
+        }
+      };
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }, [applyResizeClientX, beginResize, endResize]);
+      const handleUp = () => {
+        if (!isDraggingRef.current) return;
+        isDraggingRef.current = false;
+        setIsDragging(false);
 
-  const startResizeTouch = React.useCallback((e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    beginResize();
+        if (hasCapture) {
+          try {
+            targetEl.releasePointerCapture(pointerId);
+          } catch {}
+        }
 
-    const onMove = (ev: TouchEvent) => {
-      if (!isResizingRef.current) return;
-      const touch = ev.touches[0];
-      if (touch) applyResizeClientX(touch.clientX);
-    };
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        if (asideEl) asideEl.style.transition = "";
+        targetEl.classList.remove("bg-brand-primary/10");
 
-    const onEnd = () => {
-      endResize();
-      window.removeEventListener("touchmove", onMove);
-      window.removeEventListener("touchend", onEnd);
-    };
+        targetEl.removeEventListener("pointermove", handleMove as EventListener);
+        targetEl.removeEventListener("pointerup", handleUp as EventListener);
+        targetEl.removeEventListener("pointercancel", handleUp as EventListener);
 
-    window.addEventListener("touchmove", onMove, { passive: true });
-    window.addEventListener("touchend", onEnd);
-  }, [applyResizeClientX, beginResize, endResize]);
+        window.removeEventListener("pointermove", handleMove as EventListener);
+        window.removeEventListener("mousemove", handleMove as EventListener);
+        window.removeEventListener("pointerup", handleUp as EventListener);
+        window.removeEventListener("mouseup", handleUp as EventListener);
+
+        setIsExpanded(false);
+        setSidebarWidth(currentWidth);
+        try {
+          localStorage.setItem(STORAGE_KEY_WIDTH, String(currentWidth));
+        } catch {}
+      };
+
+      targetEl.addEventListener("pointermove", handleMove as EventListener, { passive: false });
+      targetEl.addEventListener("pointerup", handleUp as EventListener);
+      targetEl.addEventListener("pointercancel", handleUp as EventListener);
+
+      window.addEventListener("pointermove", handleMove as EventListener, { passive: false });
+      window.addEventListener("mousemove", handleMove as EventListener, { passive: false });
+      window.addEventListener("pointerup", handleUp as EventListener);
+      window.addEventListener("mouseup", handleUp as EventListener);
+    },
+    [sidebarWidth]
+  );
+
+  const handleKeyDownResize = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const next = clampTutorPanelWidth(sidebarWidth + 40, window.innerWidth);
+        setIsExpanded(false);
+        setSidebarWidth(next);
+        try { localStorage.setItem(STORAGE_KEY_WIDTH, String(next)); } catch {}
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const next = clampTutorPanelWidth(sidebarWidth - 40, window.innerWidth);
+        setIsExpanded(false);
+        setSidebarWidth(next);
+        try { localStorage.setItem(STORAGE_KEY_WIDTH, String(next)); } catch {}
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        setIsExpanded(false);
+        setSidebarWidth(MIN_SIDEBAR_WIDTH);
+        try { localStorage.setItem(STORAGE_KEY_WIDTH, String(MIN_SIDEBAR_WIDTH)); } catch {}
+      } else if (e.key === "End") {
+        e.preventDefault();
+        const maxW = Math.min(MAX_SIDEBAR_WIDTH, Math.floor(window.innerWidth * 0.7));
+        setIsExpanded(true);
+        setSidebarWidth(maxW);
+        try { localStorage.setItem(STORAGE_KEY_WIDTH, String(maxW)); } catch {}
+      }
+    },
+    [sidebarWidth]
+  );
 
   const toggleExpand = React.useCallback(() => {
     setIsExpanded((prev) => !prev);
@@ -659,12 +718,21 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Handle sending arbitrary chat messages
+  const handleStopStream = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setChatLoading(false);
+      toast.info("Pemrosesan respons telah dihentikan.");
+    }
+  };
+
+  // Handle sending arbitrary chat messages with SSE streaming
   const handleSend = async (suggestedQuestion?: string) => {
     const questionText = (suggestedQuestion ?? inputVal).trim();
     const requestedAttachmentIds = [...attachmentIds];
     const requestedAttachments = [...readyAttachments];
     if (!questionText && requestedAttachmentIds.length === 0) return;
+    if (chatLoading) return;
 
     const courseId = pathname?.startsWith("/courses/")
       ? pathname.split("/")[2]
@@ -677,55 +745,18 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       attachments: requestedAttachments,
     };
 
+    const aiMsgId = `ai-msg-${Date.now()}`;
+    const aiPlaceholder: ChatMessage = {
+      id: aiMsgId,
+      role: "ai",
+      content: "",
+      sources: [],
+      canvasSpec: null,
+    };
+
     setInputVal("");
-    setMessages((prev) => [...prev, studentMsg]);
+    setMessages((prev) => [...prev, studentMsg, aiPlaceholder]);
     setChatLoading(true);
-
-    let aiMsg: { id: string; role: "ai"; content: string; sources?: Array<{ type: string; id: string; label: string; href: string }>; canvasSpec?: CanvasSpec | null };
-    let activeSid = sessionId;
-
-    try {
-      const res = await askTutorRagAction(
-        courseId ?? "unknown",
-        null,
-        questionText || "Tolong jelaskan isi gambar ini sesuai materi kuliah.",
-        sessionId,
-        requestedAttachmentIds,
-        pathname,
-      );
-      if (res.sessionId && !sessionId) {
-        setSessionId(res.sessionId);
-        activeSid = res.sessionId;
-      }
-
-      let aiContent: string;
-      if (res.budgetExhausted) {
-        aiContent = "Zyra tidak dapat menjawab pertanyaan baru hari ini (batas harian tercapai). Silakan coba lagi besok, atau gunakan buku teks dan kartu hafalan untuk belajar mandiri.";
-      } else if (res.failureCode === "provider_unavailable") {
-        aiContent = "Gambar dan pertanyaanmu sudah diterima, tetapi layanan sedang mengalami kendala. Permintaan ini bukan ditolak karena kuota. Coba kirim ulang beberapa saat lagi.";
-      } else if (!res.answer) {
-        aiContent = "Maaf, terjadi gangguan saat memproses jawaban. Silakan coba lagi dalam beberapa saat.";
-      } else {
-        aiContent = res.answer;
-      }
-
-      aiMsg = {
-        id: `ai-msg-${Date.now()}`,
-        role: "ai",
-        content: aiContent,
-        sources: res.answer ? (res.sources || []) : [],
-        canvasSpec: res.answer ? (res.canvasSpec ?? null) : null,
-      };
-    } catch {
-      aiMsg = {
-        id: `ai-err-${Date.now()}`,
-        role: "ai",
-        content: "Maaf, terjadi kesalahan koneksi. Periksa jaringan Anda dan coba lagi.",
-        sources: [],
-      };
-    } finally {
-      setChatLoading(false);
-    }
 
     if (requestedAttachmentIds.length > 0) {
       setAttachmentIds([]);
@@ -733,12 +764,121 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       setAttachmentComposerKey((value) => value + 1);
     }
 
-    setMessages((prev) => [...prev, aiMsg!]);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    let activeSid = sessionId;
+    let accumulatedContent = "";
+    let finalSources: Array<{ type: string; id: string; label: string; href: string }> = [];
+    let finalCanvasSpec: CanvasSpec | null = null;
 
-    if (courseId) {
+    try {
+      const res = await fetch("/api/zyra/chat", {
+        method: "POST",
+        signal: abortController.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: courseId ?? "unknown",
+          question: questionText || "Tolong jelaskan materi sesuai konteks.",
+          sessionId: activeSid,
+          attachmentIds: requestedAttachmentIds,
+          pathname,
+        }),
+      });
+
+      if (!res.ok) {
+        let errText = "Gagal menghubungi layanan Zyra AI.";
+        try {
+          const errJson = await res.json();
+          if (errJson.error) errText = errJson.error;
+        } catch {}
+        throw new Error(errText);
+      }
+
+      if (!res.body) throw new Error("Respons stream tidak tersedia.");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) continue;
+          const dataStr = trimmed.slice(6).trim();
+          if (dataStr === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (parsed.type === "text-delta" && typeof parsed.textDelta === "string") {
+              accumulatedContent += parsed.textDelta;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+                )
+              );
+            } else if (parsed.type === "data-sources" && Array.isArray(parsed.sources)) {
+              finalSources = parsed.sources;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiMsgId ? { ...m, sources: parsed.sources } : m
+                )
+              );
+            } else if (parsed.type === "data-canvas" && parsed.canvasSpec) {
+              finalCanvasSpec = parsed.canvasSpec;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiMsgId ? { ...m, canvasSpec: parsed.canvasSpec } : m
+                )
+              );
+            } else if (parsed.type === "data-session" && parsed.sessionId) {
+              activeSid = parsed.sessionId;
+              setSessionId(parsed.sessionId);
+            } else if (parsed.type === "data-error" && parsed.data?.message) {
+              accumulatedContent = `Maaf, terjadi kendala: ${parsed.data.message}`;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+                )
+              );
+            }
+          } catch {
+            // Ignore parse errors on individual stream chunks
+          }
+        }
+      }
+    } catch (err: unknown) {
+      if (abortController.signal.aborted) {
+        accumulatedContent = accumulatedContent || "Tanggapan dihentikan oleh pengguna.";
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+          )
+        );
+      } else {
+        const msg = err instanceof Error ? err.message : "Terjadi kesalahan koneksi.";
+        accumulatedContent = `Maaf, terjadi kendala saat memproses jawaban: ${msg}`;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
+          )
+        );
+      }
+    } finally {
+      setChatLoading(false);
+      abortControllerRef.current = null;
+    }
+
+    if (courseId && accumulatedContent) {
       saveTutorMessagesAction(courseId, [
         { role: studentMsg.role, content: studentMsg.content, attachmentIds: requestedAttachmentIds },
-        { role: aiMsg!.role, content: aiMsg!.content, sources: aiMsg!.sources, canvasSpec: aiMsg!.canvasSpec },
+        { role: "ai", content: accumulatedContent, sources: finalSources, canvasSpec: finalCanvasSpec },
       ], activeSid).catch(() => {});
     }
   };
@@ -806,9 +946,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
       {/* Non-blocking, Docked Learning Assistant Sidebar */}
       {isOpen && (
         <aside
+          ref={panelRef}
           aria-label="Zyra Learning Assistant"
           style={{
-            "--zyra-panel-width": `${isExpanded ? Math.min(MAX_SIDEBAR_WIDTH, typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : window.innerWidth * 0.5) : sidebarWidth}px`,
+            "--zyra-panel-width": `${isExpanded ? Math.min(MAX_SIDEBAR_WIDTH, typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : window.innerWidth * 0.7) : sidebarWidth}px`,
           } as React.CSSProperties}
           className={cn(
             "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-card shadow-2xl md:sticky md:inset-y-auto md:right-auto md:z-20 md:h-screen md:w-[var(--zyra-panel-width)] md:shrink-0 md:shadow-none",
@@ -816,35 +957,27 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
             isDragging ? "transition-none select-none" : "transition-[width] duration-150 ease-out"
           )}
         >
-          {/* Drag-to-Resize Handle */}
+          {/* Drag-to-Resize Handle (Bulletproof 120fps direct DOM mutation from Ops AI) */}
           <div
-            onMouseDown={startResize}
-            onTouchStart={startResizeTouch}
+            onPointerDown={handlePointerDownResize}
             onDoubleClick={toggleExpand}
-            onKeyDown={(event) => {
-              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-              event.preventDefault();
-              setIsExpanded(false);
-              const delta = event.key === "ArrowLeft" ? 40 : -40;
-              setSidebarWidth((width) => clampTutorPanelWidth(width + delta, window.innerWidth));
-              persistWidth();
-            }}
+            onKeyDown={handleKeyDownResize}
             role="separator"
             aria-orientation="vertical"
             aria-label="Ubah lebar sidebar Zyra"
             aria-valuemin={MIN_SIDEBAR_WIDTH}
-            aria-valuemax={typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : Math.min(MAX_SIDEBAR_WIDTH, Math.floor(window.innerWidth * 0.5))}
+            aria-valuemax={typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : Math.min(MAX_SIDEBAR_WIDTH, Math.floor(window.innerWidth * 0.7))}
             aria-valuenow={sidebarWidth}
             tabIndex={0}
-            title="Seret untuk mengubah lebar, klik dua kali untuk layar penuh, panah kiri/kanan untuk mengatur"
+            title="Seret untuk mengubah ukuran, klik dua kali untuk toggle layar penuh, panah kiri/kanan untuk mengatur"
             className={cn(
-              "absolute left-0 top-0 bottom-0 z-50 hidden w-4 cursor-col-resize touch-none select-none items-center justify-center outline-none transition-colors group hover:bg-brand-primary/15 focus-visible:bg-brand-primary/25 md:flex",
+              "absolute left-0 top-0 bottom-0 z-50 hidden w-2.5 cursor-col-resize touch-none select-none items-center justify-center outline-none transition-colors group hover:bg-brand-primary/20 focus-visible:bg-brand-primary/25 md:flex",
               isDragging && "bg-brand-primary/30"
             )}
           >
             <div
               className={cn(
-                "h-12 w-1 rounded-full bg-border-strong transition-colors group-hover:bg-brand-primary group-focus-visible:bg-brand-primary",
+                "h-10 w-1 rounded-full bg-border-strong transition-all group-hover:bg-brand-primary group-hover:h-16 group-focus-visible:bg-brand-primary",
                 isDragging && "h-16 w-1.5 bg-brand-primary"
               )}
             />
@@ -872,6 +1005,25 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
 
               {/* Window Controls */}
               <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => {
+                    setSessionId(null);
+                    setMessages([{
+                      id: "chat-welcome",
+                      role: "ai",
+                      content: "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
+                    }]);
+                    toast.success("Sesi obrolan baru dimulai.");
+                  }}
+                  aria-label="Obrolan baru"
+                  title="Mulai obrolan baru (+)"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="size-4" />
+                </Button>
+
                 <Button
                   variant="ghost"
                   size="icon-xs"
@@ -971,9 +1123,9 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                     <div
                       key={msg.id}
                       className={cn(
-                        "relative flex max-w-[92%] flex-col gap-2 text-left text-body-sm leading-relaxed group",
+                        "relative flex max-w-[88%] flex-col gap-2 text-left text-body-sm leading-relaxed group",
                         isStudent
-                          ? "w-fit self-end rounded-lg bg-brand-primary px-3.5 py-2.5 text-white shadow-xs"
+                          ? "w-fit self-end rounded-2xl bg-muted/60 px-4 py-2.5 text-foreground border border-border/40 shadow-xs"
                           : "w-full self-start border-b border-border/50 px-0 py-3 text-foreground"
                       )}
                     >
@@ -996,7 +1148,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                       {/* Message Content */}
                       <MarkdownRenderer
                         content={normalizeTutorMathMarkdown(msg.content)}
-                        className={isStudent ? "text-white" : ""}
+                        className={isStudent ? "text-foreground" : ""}
                       />
 
                       {/* Attachments */}
@@ -1105,36 +1257,39 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                             }
                           }
                         } catch {
-                          toast.error("Gagal menyederhanakan.");
+                          toast.error("Gagal menyederhanakan penjelasan.");
                         } finally {
                           setChatLoading(false);
                         }
                       }}
                     >
-                      <RefreshCw className="size-3.5 mr-1.5 text-brand-secondary" />
+                      <RefreshCw className="size-3.5 mr-1.5 text-brand-primary" />
                       Sederhanakan
                     </Button>
                   </div>
                 )}
 
-                {/* Socratic Practice Launchers */}
-                {caps.microApps && activeMode === "explain" && activeAction === "none" && !chatLoading && koId && (
-                  <div className="pt-3 border-t border-border space-y-2 w-full">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-                      Latihan Terintegrasi:
+                {/* Quick Practice & Flashcard triggers on concepts */}
+                {caps.microApps && activeMode === "explain" && activeAction === "none" && !chatLoading && (
+                  <div className="pt-2 border-t border-border/40 w-full">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-2">
+                      Latihan Terkait Konsep Ini
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
-                        className="rounded-lg bg-brand-primary hover:bg-brand-primary/95 text-white text-body-xs"
-                        onClick={() => handleLaunchFlashcards(koId)}
+                        variant="secondary"
+                        size="sm"
+                        className="rounded-lg h-8 text-body-xs"
+                        onClick={() => handleLaunchFlashcards(koId!)}
                       >
-                        <Layers className="size-3.5 mr-1.5" />
+                        <Layers className="size-3.5 mr-1.5 text-brand-primary" />
                         Kartu Hafalan
                       </Button>
                       <Button
-                        variant="outline"
-                        className="rounded-lg text-body-xs"
-                        onClick={() => handleLaunchPracticeQuiz(koId)}
+                        variant="secondary"
+                        size="sm"
+                        className="rounded-lg h-8 text-body-xs"
+                        onClick={() => handleLaunchPracticeQuiz(koId!)}
                       >
                         <ClipboardList className="size-3.5 mr-1.5 text-brand-secondary" />
                         Kuis Kilat (3 Soal)
@@ -1162,10 +1317,10 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
-          {/* Multiline Socratic Input Composer */}
+          {/* Multiline Socratic Smart Math Composer (Ops AI style) */}
           {messages.length > 0 && activeAction === "none" && (
-            <div className="p-2.5 sm:p-3 border-t border-border/80 bg-card shrink-0 select-text">
-              <div className="flex flex-col rounded-xl border border-border bg-background focus-within:border-brand-primary/70 focus-within:ring-1 focus-within:ring-brand-primary/25 transition-colors">
+            <div className="p-3 border-t border-border/80 bg-background/60 backdrop-blur-xs shrink-0 select-text">
+              <div className="relative flex flex-col rounded-2xl border border-border/80 bg-card/85 p-2.5 shadow-xs focus-within:border-brand-primary/70 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-all">
                 {imageInputEnabled && sessionId && courseIdFromPath && (
                   <ZyraAttachmentComposer
                     key={attachmentComposerKey}
@@ -1180,33 +1335,38 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                   />
                 )}
 
-                <div className="flex items-end gap-1.5 px-1.5 pb-1.5">
-                  <textarea
-                    ref={textareaRef}
-                    placeholder="Tanyakan rumus, konsep, atau paste screenshot soal..."
-                    value={inputVal}
-                    rows={1}
-                    onChange={(e) => setInputVal(e.target.value)}
-                    onPaste={(event) => {
-                      const files = zyraImageFilesFromClipboard(event.clipboardData.items);
-                      if (files.length === 0) return;
-                      event.preventDefault();
-                      attachmentComposerRef.current?.addFiles(files);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        void handleSend();
-                      }
-                    }}
-                    disabled={chatLoading}
-                    className="flex-1 max-h-[160px] min-h-[36px] resize-none bg-transparent px-1.5 py-2 text-body-sm leading-relaxed text-foreground placeholder:text-muted-foreground/70 focus:outline-hidden"
-                  />
+                {/* Live Formula Preview */}
+                <ZyraFormulaPreview input={inputVal} className="mb-2" />
 
-                {/* Math Input Palette + Inline Composer Controls */}
-                  <div className="flex items-center gap-1 shrink-0 pb-1">
+                <textarea
+                  ref={textareaRef}
+                  placeholder="Tanyakan rumus, konsep, atau paste screenshot soal..."
+                  value={inputVal}
+                  rows={1}
+                  onChange={(e) => setInputVal(e.target.value)}
+                  onPaste={(event) => {
+                    const files = zyraImageFilesFromClipboard(event.clipboardData.items);
+                    if (files.length === 0) return;
+                    event.preventDefault();
+                    attachmentComposerRef.current?.addFiles(files);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleSend();
+                    }
+                  }}
+                  disabled={chatLoading}
+                  className="w-full max-h-[160px] min-h-[40px] resize-none bg-transparent px-1.5 py-1 text-body-sm leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-hidden"
+                />
+
+                {/* Bottom Control Bar */}
+                <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-border/40">
+                  <div className="flex items-center gap-1">
+                    {/* Math Symbol Palette */}
                     <ZyraMathPalette onInsert={insertMathSnippet} disabled={chatLoading} />
 
+                    {/* Image Attachment Trigger */}
                     {imageInputEnabled && (
                       <TooltipProvider>
                         <Tooltip>
@@ -1217,7 +1377,7 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                               size="icon"
                               onClick={() => attachmentComposerRef.current?.openFileDialog()}
                               disabled={chatLoading || attachmentIds.length >= 4}
-                              className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background/80"
+                              className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
                               aria-label="Lampirkan gambar (maks 4)"
                             >
                               <Paperclip className="size-4" />
@@ -1229,26 +1389,47 @@ export function TutorProvider({ children }: { children: React.ReactNode }) {
                         </Tooltip>
                       </TooltipProvider>
                     )}
+                  </div>
 
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            size="icon"
-                            onClick={() => void handleSend()}
-                            disabled={chatLoading || !attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)}
-                            className="size-8 rounded-lg bg-brand-primary hover:bg-brand-primary/95 text-white shadow-xs transition-transform active:scale-95"
-                            aria-label="Kirim Pertanyaan (Enter)"
-                          >
-                            <Send className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          Kirim (Enter) • Baris baru (Shift+Enter)
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                  <div className="flex items-center gap-1.5">
+                    {chatLoading ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              size="icon"
+                              onClick={handleStopStream}
+                              className="size-8 rounded-full bg-status-error hover:bg-status-error/90 text-white shadow-xs animate-pulse"
+                              aria-label="Hentikan pembuatan jawaban"
+                            >
+                              <Square className="size-3.5 fill-current" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">Hentikan (Stop)</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type="button"
+                              size="icon"
+                              onClick={() => void handleSend()}
+                              disabled={!attachmentsReady || (!inputVal.trim() && attachmentIds.length === 0)}
+                              className="size-8 rounded-full bg-brand-primary hover:bg-brand-primary/95 text-white shadow-xs transition-transform active:scale-95 disabled:opacity-40"
+                              aria-label="Kirim Pertanyaan (Enter)"
+                            >
+                              <ArrowUp className="size-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            Kirim (Enter) • Baris baru (Shift+Enter)
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </div>
                 </div>
               </div>

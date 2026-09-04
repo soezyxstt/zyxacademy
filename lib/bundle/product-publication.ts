@@ -43,6 +43,7 @@ import { redactQuestionAnswerKeys } from "@/lib/asesmen/question-options";
 import { canonicalNamespaceForProductType } from "@/lib/vectorize/outbox";
 import type { CanonicalEntityType, CanonicalNamespace } from "@/lib/vectorize/contracts";
 import { resolveBundleIdentity } from "./attribution";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { parseStagedProductBundle, getProductBundleImport, productBundleLifecycleStatus } from "./product-staging";
 import type { ProductDependency, ProductEntity } from "./product-validator";
 import { compileArticleProduct } from "@/lib/materials/compiler";
@@ -507,6 +508,8 @@ export async function publishProductBundle(input: { importId: string; publishedB
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "draft" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: vectorJobs.length, publicationHash, itbSources, itbCuration }, correlationId: input.importId });
     return { publicationId, importId: input.importId, published: true, productCount: bundle.products.length, vectorJobCount: vectorJobs.length };
   });
+  dispatchVectorSync(course.legacyId);
+  return result;
 }
 
 export async function withdrawProductBundle(input: { importId: string; withdrawnBy: string }): Promise<{ importId: string; withdrawn: boolean; productCount: number; vectorJobCount: number }> {
@@ -569,6 +572,8 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:withdrawn`), actorId: input.withdrawnBy, entityType: "product_bundle", entityId: input.importId, action: "withdrawn", beforeSnapshot: { status: "published" }, afterSnapshot: { status: "withdrawn", productCount: productIds.length, vectorJobCount: vectorJobs.length }, correlationId: input.importId });
     return { importId: input.importId, withdrawn: true, productCount: productIds.length, vectorJobCount: vectorJobs.length };
   });
+  dispatchVectorSync(course.legacyId);
+  return result;
 }
 
 export async function reconcileProductBundle(importId: string) {
