@@ -82,12 +82,14 @@ export function PushPermissionInit() {
       if (Date.now() - lastLater < LATER_COOLDOWN_MS) return;
     }
 
-    // Delay slightly to avoid competing with the critical render path.
+    // Delay to avoid interrupting immediate initial task on dashboard (P2-3)
+    const isExplicitPage = pathname.includes("/settings") || pathname.includes("/notifications");
+    const delayMs = isExplicitPage ? 2000 : 15000;
     const timer = setTimeout(() => {
       setShowPrompt(true);
-    }, 2000);
+    }, delayMs);
     return () => clearTimeout(timer);
-  }, [isPending, session?.user]); // Re-run when the session loads
+  }, [isPending, session?.user, pathname]);
 
   const initFCM = async (requestPermission: boolean) => {
     try {

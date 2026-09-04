@@ -56,6 +56,7 @@ import { StudentOnboardingView } from "@/components/dashboard/student-onboarding
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { listStudentCourses } from "@/lib/student/course-catalog";
 import { studentCardClass } from "@/components/course/course-surfaces";
+import { getCatalogCourseSummaries } from "@/lib/student/dashboard-read-model";
 
 export const metadata: Metadata = {
   title: pageTitle("Dashboard Siswa"),
@@ -104,35 +105,7 @@ export default async function DashboardPage() {
       (c) => !TEST_COURSE_IDS.has(c.id) && (c.id !== PKA_COURSE_ID || env.FEATURE_PKA === "1")
     );
 
-    catalogCourses = await Promise.all(
-      activeCourses.map(async (c) => {
-        if (c.id === PKA_COURSE_ID) {
-          return {
-            id: c.id,
-            title: c.title,
-            category: c.category,
-            description: c.description || "",
-            materialsCount: 0,
-            quizzesCount: 0,
-            tryoutsCount: 0,
-          };
-        }
-        const [materials, quizzes, tryouts] = await Promise.all([
-          getCourseMaterials(c.id),
-          getCourseQuizzes(c.id),
-          getCourseTryouts(c.id),
-        ]);
-        return {
-          id: c.id,
-          title: c.title,
-          category: c.category,
-          description: c.description || "",
-          materialsCount: materials.length,
-          quizzesCount: quizzes.length,
-          tryoutsCount: tryouts.length,
-        };
-      })
-    );
+    catalogCourses = await getCatalogCourseSummaries(activeCourses);
   }
 
   let streakInfo = null;

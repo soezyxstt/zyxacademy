@@ -22,7 +22,7 @@ const CommandMenuContext = createContext<CommandMenuContextValue | null>(null);
 export function useCommandMenu() {
   const ctx = useContext(CommandMenuContext);
   if (!ctx) {
-    throw new Error("useCommandMenu must be used within CommandMenuProvider");
+    return { open: false, setOpen: () => {} };
   }
   return ctx;
 }

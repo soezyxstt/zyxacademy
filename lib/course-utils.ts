@@ -21,9 +21,9 @@ import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structure
 import { isStudentEnrolled, resolveStudentCourse } from "@/lib/student/course-catalog";
 
 /**
- * True when the user holds an enrollment row for the course. Access control
- * source of truth for course-scoped features (e.g. the Zyra tutor). Mirrors
- * `requirePkaSession`, which checks existence rather than expiry.
+ * True when the user holds an active enrollment for the course. Access control
+ * source of truth for course-scoped features (e.g. the Zyra tutor). Validates
+ * that the enrollment is active and not expired via `isStudentEnrolled`.
  */
 export async function isEnrolled(userId: string, courseId: string): Promise<boolean> {
   return isStudentEnrolled(userId, courseId);
@@ -43,7 +43,7 @@ export async function getCourse(id: string) {
     : undefined;
 }
 
-export async function getCourseMaterials(courseId: string, studentId?: string) {
+export async function getCourseMaterials(courseId: string, studentId?: string, preloadedCompletedSet?: Set<string>) {
   const course = await resolveStudentCourse(courseId);
   const legacyCourseId = course?.legacyId ?? courseId;
   const canonicalCourseId = course?.canonicalId;
@@ -91,22 +91,39 @@ export async function getCourseMaterials(courseId: string, studentId?: string) {
           updatedAt: diktatMateri.updatedAt,
         })
         .from(diktatMateri)
-        .leftJoin(bab, eq(diktatMateri.babId, bab.id))
-        .where(and(eq(diktatMateri.mataKuliahId, canonicalCourseId), eq(diktatMateri.status, "published")))
+        .innerJoin(bab, eq(diktatMateri.babId, bab.id))
+        .where(eq(bab.mataKuliahId, canonicalCourseId))
     : [];
 
-  // User progress
+  // User progress - bounded to course material IDs or preloaded set to eliminate full table scans (P1-10)
   let completedSet = new Set<string>();
-  if (studentId) {
-    const progressRecords = await db
-      .select({ materialId: progressTable.materialId })
-      .from(progressTable)
-      .where(and(eq(progressTable.userId, studentId), eq(progressTable.status, "completed")));
-    completedSet = new Set(
-      progressRecords
-        .map((p) => p.materialId)
-        .filter((id): id is string => id !== null)
-    );
+  if (preloadedCompletedSet) {
+    completedSet = preloadedCompletedSet;
+  } else if (studentId) {
+    const courseMaterialIds = [
+      ...dbMaterials.map((m) => m.id),
+      ...webMaterials.map((m) => m.id),
+      ...courseDiktats.map((d) => d.id),
+      ...canonicalDiktats.map((d) => d.id),
+      ...canonicalArticles.map((a) => a.id),
+    ];
+    if (courseMaterialIds.length > 0) {
+      const progressRecords = await db
+        .select({ materialId: progressTable.materialId })
+        .from(progressTable)
+        .where(
+          and(
+            eq(progressTable.userId, studentId),
+            eq(progressTable.status, "completed"),
+            inArray(progressTable.materialId, courseMaterialIds)
+          )
+        );
+      completedSet = new Set(
+        progressRecords
+          .map((p) => p.materialId)
+          .filter((id): id is string => id !== null)
+      );
+    }
   }
 
   const canonicalChapterIds = new Set(

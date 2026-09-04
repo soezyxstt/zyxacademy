@@ -1,4 +1,5 @@
 import { inngest } from "@/lib/inngest";
+import { daysAgo, todayUtc } from "@/lib/date-utils";
 import { db } from "@/db";
 import { vectorSyncQueue, knowledgeObjects, chapters, masterTeachingDocuments, enrollments, studentConceptMasteryHistory, studentConceptMastery, user, aiGenerationJobs, searchDocuments } from "@/db/schema";
 import { computeSnapshotPayload } from "@/lib/cohort-analytics";
@@ -10,7 +11,7 @@ import {
   vectorizeCanonicalDelete,
   vectorizeCanonicalUpsert,
 } from "@/lib/vectorize-client";
-import { eq, and, or, lt, gt, sql, inArray } from "drizzle-orm";
+import { eq, and, or, lt, gt, sql, inArray, ne } from "drizzle-orm";
 import { generateFlashcardsForChapter } from "@/lib/flashcard-generator";
 import { generateQuestionsForKOBatch } from "@/lib/question-generator";
 import { executeGenerationJob } from "@/lib/generation-pipeline";
@@ -21,6 +22,26 @@ import { canonicalOutboxPayload, canonicalOutboxTitle } from "@/lib/vectorize/ou
 import { CANONICAL_VECTOR_PROFILE, type CanonicalVectorMetadata } from "@/lib/vectorize/contracts";
 
 type VectorSyncRow = typeof vectorSyncQueue.$inferSelect;
+const LEASE_DURATION_MS = 5 * 60 * 1000; // 5 minutes lease window
+
+/** Executes an async mapper across an array with bounded concurrency. */
+async function mapConcurrent<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let currentIndex = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (currentIndex < items.length) {
+      const idx = currentIndex++;
+      results[idx] = await fn(items[idx], idx);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 
 // Retrieve configurable batch size from environment or config, defaulting to 50
 const BATCH_SIZE = process.env.VECTOR_SYNC_BATCH_SIZE
@@ -44,22 +65,46 @@ async function processCanonicalBatch(step: any, rows: VectorSyncRow[]) {
   try {
     await step.run("canonical-vectorize-upsert", async () => {
       const adapter = await getCanonicalContentV2EmbeddingAdapter();
-      const upserts: Array<{ id: string; values: number[]; metadata: CanonicalVectorMetadata }> = [];
       const deletes: string[] = [];
+      const toEmbed: Array<{
+        title: string;
+        vectorId: string;
+        content: string;
+        metadata: any;
+      }> = [];
+
       for (const operation of operations) {
         if (operation.outbox.operation === "delete") {
           deletes.push(operation.outbox.vectorId);
-          continue;
+        } else if (operation.outbox.operation === "upsert") {
+          toEmbed.push({
+            title: operation.title,
+            vectorId: operation.outbox.vectorId,
+            content: operation.outbox.content,
+            metadata: operation.outbox.metadata,
+          });
         }
-        const values = await adapter.embedDocument(operation.title, operation.outbox.content);
-        upserts.push({ id: operation.outbox.vectorId, values, metadata: operation.outbox.metadata });
       }
+
+      // Bounded concurrency embedding (concurrency = 5) prevents serial latency while respecting Gemini quota
+      const upserts = await mapConcurrent(toEmbed, 5, async (item) => {
+        const values = await adapter.embedDocument(item.title, item.content);
+        return {
+          id: item.vectorId,
+          values,
+          metadata: item.metadata,
+        };
+      });
+
       if (upserts.length > 0) {
-        await vectorizeCanonicalUpsert({ profileId: CANONICAL_VECTOR_PROFILE.id, vectors: upserts.map((vector) => ({
-          id: vector.id,
-          values: vector.values,
-          metadata: vector.metadata,
-        })) });
+        await vectorizeCanonicalUpsert({
+          profileId: CANONICAL_VECTOR_PROFILE.id,
+          vectors: upserts.map((vector) => ({
+            id: vector.id,
+            values: vector.values,
+            metadata: vector.metadata,
+          })),
+        });
       }
       if (deletes.length > 0) {
         await vectorizeCanonicalDelete({ profileId: CANONICAL_VECTOR_PROFILE.id, ids: deletes });
@@ -87,6 +132,8 @@ async function processCanonicalBatch(step: any, rows: VectorSyncRow[]) {
             .update(vectorSyncQueue)
             .set({
               status: "completed",
+              leaseId: null,
+              leaseExpiresAt: null,
               payload: { ...existingPayload, providerNeutralOutbox: operation.outbox, vectorizeCompletion: completion },
               updatedAt: new Date(),
             })
@@ -97,12 +144,18 @@ async function processCanonicalBatch(step: any, rows: VectorSyncRow[]) {
     return { processed: rows.length, success: rows.length, failed: 0, provider: "canonical-content-v2" as const };
   } catch (error: any) {
     await step.run("canonical-vectorize-failure", async () => {
-      for (const row of rows) {
-        await db
-          .update(vectorSyncQueue)
-          .set({ status: "failed", attempts: row.attempts + 1, lastError: error?.message || String(error), updatedAt: new Date() })
-          .where(eq(vectorSyncQueue.id, row.id));
-      }
+      const rowIds = rows.map((r) => r.id);
+      await db
+        .update(vectorSyncQueue)
+        .set({
+          status: "failed",
+          attempts: sql`${vectorSyncQueue.attempts} + 1`,
+          lastError: error?.message || String(error),
+          leaseId: null,
+          leaseExpiresAt: null,
+          updatedAt: new Date(),
+        })
+        .where(inArray(vectorSyncQueue.id, rowIds));
     });
     return { processed: rows.length, success: 0, failed: rows.length, provider: "canonical-content-v2" as const };
   }
@@ -112,28 +165,62 @@ function rowPayload(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
-/** Processes pending outbox rows through the canonical 768-dimensional path. */
+/** Processes pending outbox rows through the canonical 768-dimensional path with atomic lease claiming. */
 export async function processBatch(step: any, courseId?: string) {
-  const batch = await step.run("fetch-pending-batch", async () => {
+  const claimed = await step.run("claim-pending-batch", async () => {
+    const workerId = crypto.randomUUID();
+    const now = new Date();
+    const leaseExpiresAt = new Date(now.getTime() + LEASE_DURATION_MS);
+
     const filters = [
-      or(eq(vectorSyncQueue.status, "pending"), eq(vectorSyncQueue.status, "failed")),
-      lt(vectorSyncQueue.attempts, 10),
+      or(
+        eq(vectorSyncQueue.status, "pending"),
+        and(eq(vectorSyncQueue.status, "failed"), lt(vectorSyncQueue.attempts, 10)),
+        and(eq(vectorSyncQueue.status, "processing"), lt(vectorSyncQueue.leaseExpiresAt, now))
+      ),
     ];
     if (courseId) filters.push(eq(vectorSyncQueue.courseId, courseId));
-    return db.select().from(vectorSyncQueue).where(and(...filters)).limit(BATCH_SIZE);
-  });
 
-  if (batch.length === 0) return { processed: 0, message: "No pending outbox records to process." };
+    const candidates = await db
+      .select({ id: vectorSyncQueue.id })
+      .from(vectorSyncQueue)
+      .where(and(...filters))
+      .limit(BATCH_SIZE);
 
-  const batchIds = batch.map((row: VectorSyncRow) => row.id);
-  await step.run("mark-records-processing", async () => {
+    if (candidates.length === 0) return [];
+
+    const candidateIds = candidates.map((row) => row.id);
+
+    // Atomically claim candidate rows
     await db
       .update(vectorSyncQueue)
-      .set({ status: "processing", updatedAt: new Date() })
-      .where(inArray(vectorSyncQueue.id, batchIds));
+      .set({
+        status: "processing",
+        leaseId: workerId,
+        leaseExpiresAt,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          inArray(vectorSyncQueue.id, candidateIds),
+          or(
+            eq(vectorSyncQueue.status, "pending"),
+            eq(vectorSyncQueue.status, "failed"),
+            and(eq(vectorSyncQueue.status, "processing"), lt(vectorSyncQueue.leaseExpiresAt, now))
+          )
+        )
+      );
+
+    // Return only rows successfully leased by this workerId
+    return await db
+      .select()
+      .from(vectorSyncQueue)
+      .where(and(inArray(vectorSyncQueue.id, candidateIds), eq(vectorSyncQueue.leaseId, workerId)));
   });
 
-  return processCanonicalBatch(step, batch);
+  if (claimed.length === 0) return { processed: 0, message: "No pending outbox records to process." };
+
+  return processCanonicalBatch(step, claimed);
 }
 
 /**
@@ -143,7 +230,10 @@ export const vectorSyncWorker = inngest.createFunction(
   {
     id: "vector-sync-worker",
     name: "Vector Sync Worker",
-    triggers: [{ event: "vector.sync.dispatch" }]
+    triggers: [{ event: "vector.sync.dispatch" }],
+    concurrency: {
+      limit: 1,
+    },
   },
   async ({ event, step }) => {
     const { courseId } = event.data as { courseId: string };
@@ -158,7 +248,10 @@ export const vectorSyncCronWorker = inngest.createFunction(
   {
     id: "vector-sync-cron-worker",
     name: "Vector Sync Cron Worker",
-    triggers: [{ cron: "0 */6 * * *" }]
+    triggers: [{ cron: "0 */6 * * *" }],
+    concurrency: {
+      limit: 1,
+    },
   },
   async ({ step }) => {
     return await processBatch(step);
@@ -536,10 +629,11 @@ export const weeklyReflectionCron = inngest.createFunction(
     });
 
     const isEmailEnabled = env.FEATURE_REFLECTION_EMAIL === "1";
-    if (isEmailEnabled && activeStudentIds.length <= 90) {
+    if (isEmailEnabled && activeStudentIds.length > 0) {
       await step.run("send-reflection-emails-batch", async () => {
         const weekStartStr = formatDateStr(monday);
-        for (const studentId of activeStudentIds) {
+        // Process in bounded waves to respect email throughput without arbitrary <=90 cutoff (P1-12)
+        await mapConcurrent(activeStudentIds, 5, async (studentId) => {
           try {
             // 1. Fetch student details
             const [student] = await db
@@ -550,7 +644,7 @@ export const weeklyReflectionCron = inngest.createFunction(
 
             if (!student) {
               console.warn(`No account found for student ${studentId}`);
-              continue;
+              return;
             }
 
             // 2. Fetch weekly reflection row
@@ -567,7 +661,7 @@ export const weeklyReflectionCron = inngest.createFunction(
 
             if (!reflection) {
               console.warn(`No reflection row found for student ${studentId} and week ${weekStartStr}`);
-              continue;
+              return;
             }
 
             const payload = reflection.payload;
@@ -619,7 +713,7 @@ export const weeklyReflectionCron = inngest.createFunction(
           } catch (err) {
             console.error(`Failed to send reflection email to student ${studentId}:`, err);
           }
-        }
+        });
       });
     }
 
@@ -643,8 +737,8 @@ export const masterySnapshotCron = inngest.createFunction(
   },
   async ({ step }) => {
     const now = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Compliance with AGENTS.md date guidelines (P1-14)
+    const thirtyDaysAgo = daysAgo(30, now);
 
     const activeStudentIds = await step.run("fetch-active-students", async () => {
       const rows = await db
@@ -663,42 +757,44 @@ export const masterySnapshotCron = inngest.createFunction(
       return { activeStudents: 0, snapshotsWritten: 0 };
     }
 
-    const todayStr = now.toISOString().split("T")[0];
+    const todayStr = todayUtc();
 
     const result = await step.run("snapshot-and-recompute-trends", async () => {
-      const masteryRows = await db
-        .select()
-        .from(studentConceptMastery)
-        .where(inArray(studentConceptMastery.studentId, activeStudentIds));
+      // Chunk processing across active students to avoid unbounded in-memory allocations (P1-13)
+      let snapshotsWritten = 0;
+      for (let i = 0; i < activeStudentIds.length; i += 50) {
+        const studentChunk = activeStudentIds.slice(i, i + 50);
+        const masteryRows = await db
+          .select()
+          .from(studentConceptMastery)
+          .where(inArray(studentConceptMastery.studentId, studentChunk));
 
-      if (masteryRows.length === 0) {
-        return { snapshotsWritten: 0 };
+        if (masteryRows.length > 0) {
+          const snapshotInserts = masteryRows.map((r) => ({
+            id: crypto.randomUUID(),
+            studentId: r.studentId,
+            courseId: r.courseId,
+            conceptName: r.conceptName,
+            masteryScore: r.masteryScore,
+            confidence: r.confidence,
+            snapshotDate: todayStr,
+          }));
+
+          for (let j = 0; j < snapshotInserts.length; j += 100) {
+            await db
+              .insert(studentConceptMasteryHistory)
+              .values(snapshotInserts.slice(j, j + 100))
+              .onConflictDoNothing();
+          }
+          snapshotsWritten += snapshotInserts.length;
+        }
+
+        for (const studentId of studentChunk) {
+          await recomputeTrends(studentId);
+        }
       }
 
-      const snapshotInserts = masteryRows.map((r) => ({
-        id: crypto.randomUUID(),
-        studentId: r.studentId,
-        courseId: r.courseId,
-        conceptName: r.conceptName,
-        masteryScore: r.masteryScore,
-        confidence: r.confidence,
-        snapshotDate: todayStr,
-      }));
-
-      // Chunk write snapshots for idempotency (uq_scmh_student_concept_date unique constraint)
-      for (let i = 0; i < snapshotInserts.length; i += 100) {
-        await db
-          .insert(studentConceptMasteryHistory)
-          .values(snapshotInserts.slice(i, i + 100))
-          .onConflictDoNothing();
-      }
-
-      // Recompute trend for each active student
-      for (const studentId of activeStudentIds) {
-        await recomputeTrends(studentId);
-      }
-
-      return { snapshotsWritten: snapshotInserts.length };
+      return { snapshotsWritten };
     });
 
     return {
@@ -880,78 +976,130 @@ export const syncSearchDocuments = inngest.createFunction(
     id: "sync-search-documents",
     name: "Sync Search Documents",
     triggers: [{ event: "search.documents.sync" }],
+    concurrency: {
+      limit: 1,
+    },
   },
   async ({ step }) => {
-    const pending = await step.run("fetch-unsynced-search-docs", async () => {
+    const pending = await step.run("claim-unsynced-search-docs", async () => {
+      const workerId = crypto.randomUUID();
+      const now = new Date();
+      const leaseExpiresAt = new Date(now.getTime() + LEASE_DURATION_MS);
+
+      const candidates = await db
+        .select({ id: searchDocuments.id })
+        .from(searchDocuments)
+        .where(
+          or(
+            and(eq(searchDocuments.isSynced, false), ne(searchDocuments.syncStatus, "processing")),
+            and(eq(searchDocuments.syncStatus, "processing"), lt(searchDocuments.leaseExpiresAt, now))
+          )
+        )
+        .limit(BATCH_SIZE);
+
+      if (candidates.length === 0) return [];
+
+      const candidateIds = candidates.map((d) => d.id);
+
+      await db
+        .update(searchDocuments)
+        .set({
+          syncStatus: "processing",
+          leaseId: workerId,
+          leaseExpiresAt,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            inArray(searchDocuments.id, candidateIds),
+            or(
+              ne(searchDocuments.syncStatus, "processing"),
+              lt(searchDocuments.leaseExpiresAt, now)
+            )
+          )
+        );
+
       return await db
         .select()
         .from(searchDocuments)
-        .where(eq(searchDocuments.isSynced, false))
-        .limit(BATCH_SIZE);
+        .where(and(inArray(searchDocuments.id, candidateIds), eq(searchDocuments.leaseId, workerId)));
     });
 
     if (pending.length === 0) {
       return { synced: 0, message: "No unsynced search documents to process." };
     }
 
-    await step.run("embed-and-upsert-search-docs", async () => {
-      const { embedSearchDocument, upsertSearchVectors } = await import("@/lib/search/service");
+    try {
+      await step.run("embed-and-upsert-search-docs", async () => {
+        const { embedSearchDocument, upsertSearchVectors } = await import("@/lib/search/service");
 
-      const vectors: Array<{
-        id: string;
-        values: number[];
-        metadata: Record<string, string | number | boolean>;
-      }> = [];
+        const vectors = await mapConcurrent(pending, 5, async (doc) => {
+          const textContent = doc.searchableText?.trim() || doc.title;
+          const values = await embedSearchDocument(doc.title, textContent);
 
-      for (const doc of pending) {
-        const textContent = doc.searchableText?.trim() || doc.title;
-        const values = await embedSearchDocument(doc.title, textContent);
+          let category = "Navigasi";
+          if (doc.entityType === "course") {
+            category = "Course & Modul";
+          } else if (
+            doc.entityType === "chapter" ||
+            doc.entityType === "material" ||
+            doc.entityType === "blog"
+          ) {
+            category = "Materi & Artikel";
+          } else if (doc.entityType === "quiz" || doc.entityType === "exam") {
+            category = "Kuis & Evaluasi";
+          }
 
-        let category = "Navigasi";
-        if (doc.entityType === "course") {
-          category = "Course & Modul";
-        } else if (
-          doc.entityType === "chapter" ||
-          doc.entityType === "material" ||
-          doc.entityType === "blog"
-        ) {
-          category = "Materi & Artikel";
-        } else if (doc.entityType === "quiz" || doc.entityType === "exam") {
-          category = "Kuis & Evaluasi";
-        }
-
-        vectors.push({
-          id: doc.id,
-          values,
-          metadata: {
-            title: doc.title,
-            href: doc.path,
-            category,
-            entity_type: doc.entityType,
-            entity_id: doc.entityId ?? "",
-            course_id: doc.courseId ?? "",
-            min_role: doc.minRole ?? 0,
-          },
+          return {
+            id: doc.id,
+            values,
+            metadata: {
+              title: doc.title,
+              href: doc.path,
+              category,
+              entity_type: doc.entityType,
+              entity_id: doc.entityId ?? "",
+              course_id: doc.courseId ?? "",
+              min_role: doc.minRole ?? 0,
+            },
+          };
         });
-      }
 
-      if (vectors.length > 0) {
-        await upsertSearchVectors(vectors);
-      }
-    });
+        if (vectors.length > 0) {
+          await upsertSearchVectors(vectors);
+        }
+      });
 
-    await step.run("mark-search-docs-synced", async () => {
-      const ids = pending.map((doc) => doc.id);
-      await db
-        .update(searchDocuments)
-        .set({
-          isSynced: true,
-          updatedAt: new Date(),
-        })
-        .where(inArray(searchDocuments.id, ids));
-    });
+      await step.run("mark-search-docs-synced", async () => {
+        const ids = pending.map((doc) => doc.id);
+        await db
+          .update(searchDocuments)
+          .set({
+            isSynced: true,
+            syncStatus: "completed",
+            leaseId: null,
+            leaseExpiresAt: null,
+            updatedAt: new Date(),
+          })
+          .where(inArray(searchDocuments.id, ids));
+      });
 
-    return { synced: pending.length, message: `Successfully synced ${pending.length} search documents.` };
+      return { synced: pending.length, message: `Successfully synced ${pending.length} search documents.` };
+    } catch (err: any) {
+      await step.run("mark-search-docs-failed", async () => {
+        const ids = pending.map((doc) => doc.id);
+        await db
+          .update(searchDocuments)
+          .set({
+            syncStatus: "failed",
+            leaseId: null,
+            leaseExpiresAt: null,
+            updatedAt: new Date(),
+          })
+          .where(inArray(searchDocuments.id, ids));
+      });
+      throw err;
+    }
   }
 );
 

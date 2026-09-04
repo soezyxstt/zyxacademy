@@ -3,13 +3,11 @@ import { Inter, Lexend } from "next/font/google";
 import "./globals.css";
 import { AppToaster } from "@/components/app-toaster";
 import { pageTitle, siteDescription } from "@/lib/site";
-import { PushPermissionInit } from "@/components/notifications/push-permission-init";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { ThemeProvider } from "next-themes";
-import { CommandMenuProvider } from "@/components/command-menu";
 import Script from "next/script";
 import NextTopLoader from "nextjs-toploader";
 
@@ -75,12 +73,8 @@ export default function RootLayout({
         >
         Langsung ke isi utama
         </a>
-        <CommandMenuProvider>
-         {children}
-        </CommandMenuProvider>
+        {children}
         <AppToaster />
-        {/* Silent FCM permission + token registration ; no UI rendered */}
-        <PushPermissionInit />
         {process.env.NODE_ENV === "production" && (
           <>
             <SpeedInsights />

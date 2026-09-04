@@ -3016,6 +3016,8 @@ export const vectorSyncQueue = sqliteTable(
  status: text("status").$type<"pending" | "processing" | "completed" | "failed">().default("pending").notNull(),
  attempts: integer("attempts").default(0).notNull(),
  lastError: text("last_error"),
+ leaseId: text("lease_id"),
+ leaseExpiresAt: integer("lease_expires_at", { mode: "timestamp" }),
  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  updatedAt: integer("updated_at", { mode: "timestamp" })
  .defaultNow()
@@ -3024,6 +3026,7 @@ export const vectorSyncQueue = sqliteTable(
  },
  (table) => [
  index("idx_vector_sync_status").on(table.status),
+ index("idx_vector_sync_lease").on(table.leaseExpiresAt),
  ]
 );
 
@@ -5572,6 +5575,9 @@ export const searchDocuments = sqliteTable(
     path: text("path").notNull(),
     minRole: integer("min_role").default(0).notNull(),
     isSynced: integer("is_synced", { mode: "boolean" }).default(false).notNull(),
+    syncStatus: text("sync_status").$type<"pending" | "processing" | "completed" | "failed">().default("pending").notNull(),
+    leaseId: text("lease_id"),
+    leaseExpiresAt: integer("lease_expires_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
       .defaultNow()
@@ -5581,6 +5587,7 @@ export const searchDocuments = sqliteTable(
   (table) => [
     index("idx_search_documents_entity").on(table.entityType, table.entityId),
     index("idx_search_documents_synced").on(table.isSynced),
+    index("idx_search_documents_sync_status").on(table.syncStatus),
     index("idx_search_documents_min_role").on(table.minRole),
     index("idx_search_documents_course").on(table.courseId),
   ]

@@ -10,6 +10,7 @@ import { listTutorAccessibleCourses } from "@/lib/auth/tutor-access";
 import { db } from "@/db";
 import { mataKuliah, courses } from "@/db/schema";
 import { inArray } from "drizzle-orm";
+import { CommandMenuProvider } from "@/components/command-menu";
 
 export default async function TutorLayout({ children }: { children: ReactNode }) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -66,19 +67,21 @@ export default async function TutorLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col md:flex-row bg-background overflow-x-clip">
-      <PageOrnaments variant="about" />
-      <TutorSidebar assignedCourses={assignedCourses} />
-      <div className="relative z-10 flex flex-1 flex-col min-w-0">
-        <MobileNavbar surface="tutor" />
-        <main
-          id="main-content"
-          tabIndex={-1}
-          className="relative min-w-0 flex-1 focus:outline-none"
-        >
-          {children}
-        </main>
+    <CommandMenuProvider>
+      <div className="relative flex min-h-screen flex-col md:flex-row bg-background overflow-x-clip">
+        <PageOrnaments variant="about" />
+        <TutorSidebar assignedCourses={assignedCourses} />
+        <div className="relative z-10 flex flex-1 flex-col min-w-0">
+          <MobileNavbar surface="tutor" />
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="relative min-w-0 flex-1 focus:outline-none"
+          >
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </CommandMenuProvider>
   );
 }

@@ -81,6 +81,7 @@ export class LiveQuizRoom {
     participants: {},
     answersByQuestion: {},
   };
+  private currentOptionCounts: number[] = [];
   private sessionId = "";
   private courseId = "";
 
@@ -96,7 +97,27 @@ export class LiveQuizRoom {
       if (sessionId) this.sessionId = sessionId;
       const courseId = await this.ctx.storage.get<string>("courseId");
       if (courseId) this.courseId = courseId;
+      this.recomputeCurrentOptionCounts();
     });
+  }
+
+  private recomputeCurrentOptionCounts(): void {
+    const qi = this.roomState.currentQuestionIndex;
+    const q = this.questions[qi];
+    if (!q) {
+      this.currentOptionCounts = [];
+      return;
+    }
+    const counts = new Array(q.options.length).fill(0);
+    const answersForQ = this.roomState.answersByQuestion[qi];
+    if (answersForQ) {
+      for (const ans of Object.values(answersForQ)) {
+        if (ans.choice >= 0 && ans.choice < counts.length) {
+          counts[ans.choice]++;
+        }
+      }
+    }
+    this.currentOptionCounts = counts;
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -266,7 +287,6 @@ export class LiveQuizRoom {
     if (!userId) return;
     if (this.roomState.participants[userId]) {
       this.roomState.participants[userId].connected = false;
-      await this.persistState();
     }
     if (this.roomState.sessionState === "lobby") {
       this.broadcastLobbyUpdate();
@@ -298,8 +318,12 @@ export class LiveQuizRoom {
       choice,
       receivedTs: Date.now(),
     };
-    await this.persistState();
 
+    if (choice >= 0 && choice < this.currentOptionCounts.length) {
+      this.currentOptionCounts[choice] = (this.currentOptionCounts[choice] ?? 0) + 1;
+    }
+
+    // Keep transient answers in DO memory; state transitions persist to storage
     // Push live counts to host connections
     this.sendAnswerCountsToHosts(questionIndex);
   }
@@ -317,9 +341,9 @@ export class LiveQuizRoom {
     this.roomState.sessionState = "question";
     this.roomState.currentQuestionIndex = 0;
     this.roomState.deadlineTs = Date.now() + QUESTION_WINDOW_MS;
-    await this.persistState();
-
     const q = this.questions[0];
+    this.currentOptionCounts = new Array(q.options.length).fill(0);
+    await this.persistState();
     this.broadcast({
       type: "question",
       questionIndex: 0,
@@ -348,9 +372,9 @@ export class LiveQuizRoom {
     this.roomState.sessionState = "question";
     this.roomState.currentQuestionIndex = nextIndex;
     this.roomState.deadlineTs = Date.now() + QUESTION_WINDOW_MS;
-    await this.persistState();
-
     const q = this.questions[nextIndex];
+    this.currentOptionCounts = new Array(q.options.length).fill(0);
+    await this.persistState();
     this.broadcast({
       type: "question",
       questionIndex: nextIndex,
@@ -379,9 +403,7 @@ export class LiveQuizRoom {
     const correctIndex = q.correctIndex;
     const questionDeadline = this.roomState.deadlineTs;
 
-    const perOptionCounts = q.options.map(
-      (_, i) => Object.values(answersForQ).filter((a) => a.choice === i).length
-    );
+    const perOptionCounts = [...this.currentOptionCounts];
 
     // Score: base + linear time bonus from server receive time
     for (const [userId, answer] of Object.entries(answersForQ)) {
@@ -471,7 +493,9 @@ export class LiveQuizRoom {
   }
 
   private broadcastLobbyUpdate(): void {
-    const participantCount = Object.keys(this.roomState.participants).length;
+    const participantCount = Object.values(this.roomState.participants).filter(
+      (p) => p.connected
+    ).length;
     this.broadcast({ type: "lobby_update", participantCount });
   }
 
@@ -479,11 +503,11 @@ export class LiveQuizRoom {
     const q = this.questions[questionIndex];
     if (!q) return;
     const answersForQ = this.roomState.answersByQuestion[questionIndex] ?? {};
-    const perOptionCounts = q.options.map(
-      (_, i) => Object.values(answersForQ).filter((a) => a.choice === i).length
-    );
+    const perOptionCounts = [...this.currentOptionCounts];
     const totalAnswered = Object.keys(answersForQ).length;
-    const totalParticipants = Object.keys(this.roomState.participants).length;
+    const totalParticipants = Object.values(this.roomState.participants).filter(
+      (p) => p.connected
+    ).length;
     const msg = JSON.stringify({
       type: "answer_counts",
       questionIndex,
@@ -505,10 +529,13 @@ export class LiveQuizRoom {
     const base = { type: "state_sync", sessionState, currentQuestionIndex };
 
     if (sessionState === "lobby") {
+      const participantCount = Object.values(this.roomState.participants).filter(
+        (p) => p.connected
+      ).length;
       ws.send(
         JSON.stringify({
           ...base,
-          participantCount: Object.keys(this.roomState.participants).length,
+          participantCount,
         })
       );
       return;
@@ -532,9 +559,7 @@ export class LiveQuizRoom {
           myAnswer,
           total: this.questions.length,
           ...(isHost && {
-            perOptionCounts: q.options.map(
-              (_, i) => Object.values(answersForQ).filter((a) => a.choice === i).length
-            ),
+            perOptionCounts: [...this.currentOptionCounts],
           }),
         })
       );
