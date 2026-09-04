@@ -136,7 +136,7 @@ export async function executeCreateCourse(input: CreateCourseInput, actorId?: st
     await db.insert(courses).values({
       id: cleanId,
       title: cleanTitle,
-      category: matchedCategory,
+      category: matchedCategory as Category,
       description: cleanDesc,
     });
     await db.insert(mataKuliah).values({
@@ -233,15 +233,14 @@ export async function executeBatchCreateChapters(input: BatchCreateChaptersInput
     const chapterId = `ch-${cleanCourseId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
     try {
-      await saveChapterWithCanonicalProjection({
-        id: chapterId,
+      const created = await saveChapterWithCanonicalProjection({
         courseId: cleanCourseId,
         title: cleanTitle,
         orderIndex,
         description: ch.description?.trim() || null,
-        isNew: true,
         actorId: await resolvePenggunaActorId(actorId),
       });
+      createdChapters.push({ id: created.id, title: cleanTitle, orderIndex });
     } catch (err: any) {
       await db.insert(chapters).values({
         id: chapterId,
@@ -259,9 +258,8 @@ export async function executeBatchCreateChapters(input: BatchCreateChaptersInput
         status: "active",
         legacyChapterId: chapterId,
       }).onConflictDoNothing();
+      createdChapters.push({ id: chapterId, title: cleanTitle, orderIndex });
     }
-
-    createdChapters.push({ id: chapterId, title: cleanTitle, orderIndex });
   }
 
   return {
@@ -291,7 +289,7 @@ export async function executeUpdateChapter(input: UpdateChapterInput, actorId?: 
   const courseId = existingBab?.mataKuliahId || existingCh?.courseId || "";
   const updatedTitle = input.title?.trim() || existingBab?.title || existingCh?.title || "";
   const updatedOrder = input.orderIndex ?? existingBab?.orderIndex ?? existingCh?.orderIndex ?? 1;
-  const updatedDesc = input.description !== undefined ? input.description.trim() : (existingBab?.description || existingCh?.description || null);
+  const updatedDesc = input.description !== undefined ? input.description.trim() : (existingCh?.description || null);
 
   await saveChapterWithCanonicalProjection({
     id: chapterId,
@@ -299,7 +297,6 @@ export async function executeUpdateChapter(input: UpdateChapterInput, actorId?: 
     title: updatedTitle,
     orderIndex: updatedOrder,
     description: updatedDesc,
-    isNew: false,
     actorId: await resolvePenggunaActorId(actorId),
   });
 
@@ -326,10 +323,11 @@ export async function executeListMaterials(input: ListMaterialsInput) {
     data: materials.map((m) => ({
       id: m.id,
       title: m.title,
-      category: m.category,
+      type: m.type,
       subcategory: m.subcategory,
-      fileKey: m.fileKey,
-      fileSize: m.fileSize,
+      fileUrl: m.fileUrl,
+      year: m.year,
+      chapterIds: m.chapterIds,
       createdAt: m.createdAt,
     })),
   };

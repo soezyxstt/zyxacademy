@@ -172,7 +172,8 @@ export async function publishIdeaBundle(input: {
     if (course.length === 0 || course[0].legacyCourseId !== bundle.manifest.courseId) throw new Error("IDEA_BUNDLE_COURSE_MISMATCH");
   }
 
-  return db.transaction(async (tx) => {
+  let courseLegacyId: string | undefined;
+  const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
     if (!row || row.bundleType !== "idea") throw new Error("IDEA_BUNDLE_NOT_FOUND");
     if (row.status === "published") throw new Error("IDEA_BUNDLE_ALREADY_PUBLISHED");
@@ -195,6 +196,7 @@ export async function publishIdeaBundle(input: {
     if (!approvedReview) throw new Error("IDEA_BUNDLE_ADMIN_APPROVAL_REQUIRED");
 
     const course = await resolveCourse(tx, bundle.manifest.courseId);
+    courseLegacyId = course.legacyId;
     const now = new Date();
     const attribution = { uploaderId: row.requestedBy, approvingReviewerId: approvedReview.reviewerId };
     const publicationId = deterministicId("publikasi-idea", input.importId);
@@ -469,7 +471,9 @@ export async function publishIdeaBundle(input: {
       vectorJobCount: vectorJobs.length,
     };
   });
-  dispatchVectorSync(course.legacyId);
+  if (courseLegacyId) {
+    dispatchVectorSync(courseLegacyId);
+  }
   return result;
 }
 

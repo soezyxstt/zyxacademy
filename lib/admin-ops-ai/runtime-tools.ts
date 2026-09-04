@@ -36,6 +36,8 @@ import { db } from "@/db";
 import { user } from "@/db/schema";
 import { like, or } from "drizzle-orm";
 import { createCanonicalVectorClient } from "@/lib/vectorize-client";
+import type { CanonicalVectorProvider } from "@/lib/vectorize/contracts";
+import type { CanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/embedding";
 import { getCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/runtime";
 import { searchDocs } from "./rag-store";
 import {

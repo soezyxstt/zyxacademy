@@ -399,7 +399,8 @@ export async function publishProductBundle(input: { importId: string; publishedB
   if (productBundleLifecycleStatus(snapshot.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
   if (bundle.publicationBlocked) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
-  return db.transaction(async (tx) => {
+  let courseLegacyId: string | undefined;
+  const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
     if (!row || row.bundleType !== "product" || productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
     const [publisher] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.publishedBy)).limit(1);
@@ -420,6 +421,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
       }
     }
     const course = await resolveCourse(tx, bundle.manifest.courseId);
+    courseLegacyId = course.legacyId;
     const now = new Date();
     const attribution = { uploaderId: row.requestedBy, approvingReviewerId: review.reviewerId };
     const products = bundle.products.map((product) => ({
@@ -508,7 +510,9 @@ export async function publishProductBundle(input: { importId: string; publishedB
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "draft" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: vectorJobs.length, publicationHash, itbSources, itbCuration }, correlationId: input.importId });
     return { publicationId, importId: input.importId, published: true, productCount: bundle.products.length, vectorJobCount: vectorJobs.length };
   });
-  dispatchVectorSync(course.legacyId);
+  if (courseLegacyId) {
+    dispatchVectorSync(courseLegacyId);
+  }
   return result;
 }
 
@@ -520,13 +524,15 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
   if (productBundleLifecycleStatus(snapshot.status) !== "published") throw new Error("PRODUCT_BUNDLE_PUBLISHED_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
 
-  return db.transaction(async (tx) => {
+  let courseLegacyId: string | undefined;
+  const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
     if (!row || row.bundleType !== "product" || productBundleLifecycleStatus(row.status) !== "published") throw new Error("PRODUCT_BUNDLE_PUBLISHED_REQUIRED");
     const [actor] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.withdrawnBy)).limit(1);
     if (!actor || actor.role !== "admin") throw new Error("PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN");
     await requireIdentity(tx, input.withdrawnBy, "PRODUCT_BUNDLE_WITHDRAWER_NOT_FOUND");
     const course = await resolveCourse(tx, bundle.manifest.courseId);
+    courseLegacyId = course.legacyId;
     const now = new Date();
     const productIds = bundle.products.map(targetId);
     const byType = <T extends ProductEntity["productType"]>(type: T) => bundle.products.filter((product): product is Extract<ProductEntity, { productType: T }> => product.productType === type).map(targetId);
@@ -572,7 +578,9 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:withdrawn`), actorId: input.withdrawnBy, entityType: "product_bundle", entityId: input.importId, action: "withdrawn", beforeSnapshot: { status: "published" }, afterSnapshot: { status: "withdrawn", productCount: productIds.length, vectorJobCount: vectorJobs.length }, correlationId: input.importId });
     return { importId: input.importId, withdrawn: true, productCount: productIds.length, vectorJobCount: vectorJobs.length };
   });
-  dispatchVectorSync(course.legacyId);
+  if (courseLegacyId) {
+    dispatchVectorSync(courseLegacyId);
+  }
   return result;
 }
 

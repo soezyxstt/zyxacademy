@@ -50,7 +50,7 @@ export async function executeUpdateUserRole(input: UpdateUserRoleInput, actorId?
     const roleRecord = await db.query.peran.findFirst({ where: eq(peran.code, roleCode) });
     if (roleRecord) {
       await db.insert(penggunaPeran).values({
-        id: membershipIdFor(userId, roleRecord.id),
+        id: membershipIdFor(userId, roleRecord.code as PeranCode),
         penggunaId: userId,
         peranId: roleRecord.id,
         source: "admin-ops-ai",
@@ -106,7 +106,7 @@ export async function executeToggleUserStatus(input: ToggleUserStatusInput, acto
 export interface SendBroadcastNotificationInput {
   title: string;
   body: string;
-  target?: "all" | "course" | "group";
+  target?: "all" | "course" | "group" | "user";
   targetId?: string;
   link?: string;
 }
@@ -119,17 +119,11 @@ export async function executeSendBroadcastNotification(input: SendBroadcastNotif
   const target = input.target || "all";
   const link = input.link || "/dashboard";
 
-  const result = await sendAdminBroadcast({
-    title,
-    body,
-    link,
-    target,
-    targetId: input.targetId,
-    actorId: actorId ?? "admin",
-  });
+  const targetVal: "all" | string[] = input.target === "user" && input.targetId ? [input.targetId] : "all";
+  const result = await sendAdminBroadcast(title, body, link, targetVal);
 
   return {
-    summary: `Notifikasi broadcast berhasil dikirim ke target '${target}' (${result.succeeded} berhasil, ${result.failedCount} gagal).`,
+    summary: `Notifikasi broadcast berhasil dikirim ke target '${target}' (${result.succeeded} berhasil, ${result.failedTokens.length} gagal).`,
     data: result,
   };
 }
@@ -191,7 +185,7 @@ export async function executeCreatePkaAnnouncement(input: CreatePkaAnnouncementI
   await db.insert(pkaAnnouncements).values({
     id,
     title,
-    content,
+    body: content,
     isPinned: input.isPinned ?? false,
     createdBy: validCreatorId,
     sentAt: new Date(),
@@ -557,16 +551,24 @@ export async function executeTriggerAiJob(input: TriggerAiJobInput, actorId?: st
   const cleanCourseId = input.courseId.trim().toLowerCase();
   if (!cleanCourseId) throw new Error("ID Mata Kuliah wajib diisi.");
 
+  const validTutorId = actorId || (await db.query.user.findFirst())?.id || "admin";
   const jobId = randomUUID();
   await db.insert(aiGenerationJobs).values({
     id: jobId,
+    tutorId: validTutorId,
     courseId: cleanCourseId,
-    jobType: input.jobType,
-    status: "queued",
+    status: "pending",
+    promptParameters: {
+      jobType: input.jobType,
+      logs: [`Job dibuat via Zyx Ops AI oleh ${actorId ?? "admin"}.`],
+    } as Record<string, unknown>,
+    targetCount: 1,
+    generatedCount: 0,
+    tokenUsage: 0,
   });
 
   return {
     summary: `Background job AI '${input.jobType}' untuk mata kuliah '${cleanCourseId}' berhasil dimasukkan ke antrean (Job ID: ${jobId}).`,
-    data: { jobId, jobType: input.jobType, courseId: cleanCourseId, status: "queued" },
+    data: { jobId, jobType: input.jobType, courseId: cleanCourseId, status: "pending" },
   };
 }

@@ -119,8 +119,8 @@ export async function executeCreateStudyGroup(input: CreateStudyGroupInput, acto
       name,
       packageType,
       packageName: preset.name,
-      totalQuotaSessions: preset.totalQuota,
-      weeklyQuotaSessions: preset.weeklyQuota,
+      totalQuotaSessions: preset.quota,
+      weeklyQuotaSessions: preset.weeklySessions,
       usedQuotaSessions: 0,
       academicYear: "2026/2027",
       semester: "Ganjil",
@@ -205,8 +205,8 @@ export async function executeCreateEnrollmentToken(input: CreateEnrollmentTokenI
       name: `Kelompok Token ${tokenString}`,
       packageType,
       packageName: preset.name,
-      totalQuotaSessions: preset.totalQuota,
-      weeklyQuotaSessions: preset.weeklyQuota,
+      totalQuotaSessions: preset.quota,
+      weeklyQuotaSessions: preset.weeklySessions,
       usedQuotaSessions: 0,
       startDate: now,
       endDate: expiresAt,
@@ -233,7 +233,6 @@ export async function executeCreateEnrollmentToken(input: CreateEnrollmentTokenI
 
     for (const cId of rawCourses) {
       await tx.insert(enrollmentTokenCourses).values({
-        id: randomUUID(),
         tokenId,
         courseId: cId,
       });
