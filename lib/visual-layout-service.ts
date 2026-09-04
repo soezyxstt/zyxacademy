@@ -92,7 +92,7 @@ export async function getLayoutedGraph(
     const elk = await getElkInstance();
     const layout = await elk.layout(graph);
     const positionedNodes = nodes.map(n => {
-      const nodeLayout = layout.children?.find(c => c.id === n.id);
+      const nodeLayout = layout.children?.find((c: any) => c.id === n.id);
       return {
         ...n,
         position: {
