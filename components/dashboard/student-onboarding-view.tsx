@@ -8,6 +8,7 @@ import {
   Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { planTiers } from "@/lib/plan-tiers";
@@ -183,9 +184,9 @@ export function StudentOnboardingView({
               {featureHighlights.map((feat) => {
                 const Icon = feat.icon;
                 return (
-                  <div
+                  <Card
                     key={feat.title}
-                    className="rounded-xl border border-border bg-background/50 p-3.5"
+                    className="p-3.5"
                   >
                     <div className="flex size-7 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
                       <Icon className="size-4" />
@@ -196,7 +197,7 @@ export function StudentOnboardingView({
                     <p className="text-body-xs text-muted-foreground mt-1 leading-snug">
                       {feat.desc}
                     </p>
-                  </div>
+                  </Card>
                 );
               })}
             </div>
@@ -206,7 +207,7 @@ export function StudentOnboardingView({
         {/* Right Column (5 cols): Activation Form & Subscription Plans */}
         <div className="space-y-6 lg:col-span-5">
           {/* Section 1: Activation Box */}
-          <section className="rounded-xl border border-border bg-background/50 p-4 sm:p-5">
+          <Card className="p-4 sm:p-5">
             <h2 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <span className="flex size-5 items-center justify-center rounded-full bg-brand-primary text-[10px] font-bold text-white">
                 1
@@ -218,10 +219,10 @@ export function StudentOnboardingView({
             </p>
 
             <EnrollmentForm />
-          </section>
+          </Card>
 
           {/* Section 2: Subscription Plans Preview */}
-          <section className="rounded-xl border border-border bg-background/50 p-4 sm:p-5">
+          <Card className="p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3.5">
               <div>
                 <h2 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
@@ -241,8 +242,8 @@ export function StudentOnboardingView({
                 <div
                   key={tier.key}
                   className={cn(
-                    "rounded-lg border border-border bg-background p-3 transition-colors",
-                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/5"
+                    "rounded-lg border border-border/60 bg-card/50 backdrop-blur-xs p-3 transition-colors",
+                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/10"
                   )}
                 >
                   <div className="flex items-baseline justify-between gap-2">
@@ -278,7 +279,7 @@ export function StudentOnboardingView({
                 <ArrowRight className="size-3.5" />
               </Link>
             </Button>
-          </section>
+          </Card>
         </div>
       </div>
     </div>

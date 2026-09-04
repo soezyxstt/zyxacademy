@@ -160,7 +160,7 @@ export function ActionProposalCard({
     : "Proposal berhasil dieksekusi.";
 
   return (
-    <div className="rounded-xl border border-border/80 bg-card p-3.5 shadow-xs space-y-2.5">
+    <div className="rounded-xl border border-border/70 bg-card/75 backdrop-blur-md p-3.5 shadow-xs space-y-2.5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1.5 sm:gap-2">
         <div className="min-w-0 flex-1">

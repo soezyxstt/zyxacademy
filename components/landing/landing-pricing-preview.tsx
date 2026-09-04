@@ -28,8 +28,8 @@ export function LandingPricingPreview() {
             <article
               key={tier.name}
               className={cn(
-                "flex flex-col rounded-2xl border p-6 shadow-sm md:p-7",
-                tier.highlighted ? "relative border-[var(--zx-accent)] bg-card ring-2 ring-[var(--zx-accent)]/25" : "border-border bg-card",
+                "flex flex-col rounded-2xl border p-6 shadow-xs md:p-7 backdrop-blur-md transition-colors",
+                tier.highlighted ? "relative border-[var(--zx-accent)] bg-card/75 ring-2 ring-[var(--zx-accent)]/25" : "border-border/70 bg-card/70",
               )}
             >
             {tier.highlighted ? (

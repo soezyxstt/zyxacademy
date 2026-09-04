@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Lexend } from "next/font/google";
-import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
-import { extractRouterConfig } from "uploadthing/server";
-import "@uploadthing/react/styles.css";
 import "./globals.css";
-import { uploadRouter } from "@/app/api/uploadthing/core";
 import { AppToaster } from "@/components/app-toaster";
-import { DesmosCalculatorScript } from "@/components/desmos-calculator-script";
 import { pageTitle, siteDescription } from "@/lib/site";
 import { PushPermissionInit } from "@/components/notifications/push-permission-init";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -58,20 +53,22 @@ export default function RootLayout({
       <QueryProvider>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <NextTopLoader color="var(--primary)" showSpinner={false} shadow="0 0 10px var(--primary), 0 0 5px var(--primary)" />
-        <NextSSRPlugin routerConfig={extractRouterConfig(uploadRouter)} />
-        <DesmosCalculatorScript />
-        <Script
-        src="https://www.googletagmanager.com/gtag/js?id=G-ENY8EJ44WD"
-        strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-        {`
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-ENY8EJ44WD');
-        `}
-        </Script>
+        {process.env.NODE_ENV === "production" && (
+          <>
+            <Script
+              src="https://www.googletagmanager.com/gtag/js?id=G-ENY8EJ44WD"
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-ENY8EJ44WD');
+              `}
+            </Script>
+          </>
+        )}
         <a
         href="#main-content"
         className="bg-background text-foreground focus:ring-ring sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-100 focus:rounded-md focus:px-4 focus:py-2 focus:ring-2"
@@ -84,8 +81,12 @@ export default function RootLayout({
         <AppToaster />
         {/* Silent FCM permission + token registration ; no UI rendered */}
         <PushPermissionInit />
-        <SpeedInsights />
-        <Analytics />
+        {process.env.NODE_ENV === "production" && (
+          <>
+            <SpeedInsights />
+            <Analytics />
+          </>
+        )}
         </ThemeProvider>
       </QueryProvider>
     </PostHogProvider>

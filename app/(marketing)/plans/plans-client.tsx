@@ -325,8 +325,8 @@ export default function PlansClient() {
                   key={tier.key}
                   className={
                     tier.highlighted
-                      ? "relative flex flex-col rounded-3xl border-2 border-[var(--zx-accent)] bg-card p-6 shadow-md ring-4 ring-[var(--zx-accent)]/10 md:p-7 transition-all duration-300 hover:scale-[1.02]"
-                      : "relative flex flex-col rounded-3xl border border-border bg-card p-6 shadow-sm md:p-7 transition-all duration-300 hover:scale-[1.01] hover:border-border-strong hover:shadow-md"
+                      ? "relative flex flex-col rounded-3xl border-2 border-[var(--zx-accent)] bg-card/75 backdrop-blur-md p-6 shadow-md ring-4 ring-[var(--zx-accent)]/10 md:p-7 transition-all duration-300 hover:scale-[1.02] hover:bg-card/90"
+                      : "relative flex flex-col rounded-3xl border border-border/70 bg-card/70 backdrop-blur-md p-6 shadow-sm md:p-7 transition-all duration-300 hover:scale-[1.01] hover:border-border-strong hover:bg-card/90 hover:shadow-md"
                   }
                 >
                   {tier.highlighted ? (

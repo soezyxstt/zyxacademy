@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, TrendingUp } from "lucide-react";
+import { X, TrendingUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { studentCardClass } from "@/components/course/course-surfaces";
 
 interface WeeklyReflectionProps {
   reflection: {
@@ -66,15 +67,18 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
   };
 
   return (
-    <section className="border-y border-border py-5 my-8 relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <section className={studentCardClass("relative overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-2 duration-300")}>
       <div className="flex items-center justify-between">
-        <h2 className="text-body-base font-heading font-semibold text-foreground">Your week</h2>
+        <h2 className="text-body-base font-heading font-bold text-foreground flex items-center gap-2">
+          <Sparkles className="size-4.5 text-brand-primary" />
+          Refleksi mingguan
+        </h2>
         <Button
           variant="ghost"
           size="icon"
           onClick={handleDismiss}
           className="size-8 text-muted-foreground hover:text-foreground"
-          aria-label="Dismiss weekly reflection"
+          aria-label="Tutup refleksi mingguan"
         >
           <X className="size-4" />
         </Button>
@@ -86,28 +90,28 @@ export function WeeklyReflection({ reflection }: WeeklyReflectionProps) {
             <span className="font-heading text-h3 font-bold text-status-success tabular-nums">
               +{masteryGrowth}
             </span>
-            <span className="text-body-sm text-muted-foreground">mastery points</span>
+            <span className="text-body-sm text-muted-foreground">poin penguasaan</span>
           </div>
         ) : (
           <div className="flex items-baseline gap-2">
             <span className="font-heading text-h3 font-bold text-foreground tabular-nums">
               {totalCompleted}
             </span>
-            <span className="text-body-sm text-muted-foreground">activities completed</span>
+            <span className="text-body-sm text-muted-foreground">aktivitas selesai</span>
           </div>
         )}
 
-        <div className="flex flex-wrap gap-x-8 gap-y-1 text-body-sm text-muted-foreground mt-2">
-          <span>{completed.quizzes} quizzes</span>
-          <span>{completed.flashcards} flashcards</span>
-          <span>{completed.modules} modules</span>
-          <span>{streak.currentStreak} day streak</span>
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-body-sm text-muted-foreground mt-2">
+          <span>{completed.quizzes} kuis</span>
+          <span>{completed.flashcards} flashcard</span>
+          <span>{completed.modules} modul</span>
+          <span>{streak.currentStreak} hari streak</span>
         </div>
 
         {mostImproved && (
-          <p className="text-body-base mt-2 flex items-center gap-1.5">
-            <span className="text-muted-foreground">Most improved:</span>{" "}
-            <span className="font-medium text-foreground">{mostImproved}</span>
+          <p className="text-body-sm mt-3 flex items-center gap-1.5 pt-2 border-t border-border/40">
+            <span className="text-muted-foreground">Peningkatan terbesar:</span>{" "}
+            <span className="font-semibold text-foreground">{mostImproved}</span>
             <TrendingUp className="size-3.5 text-status-success shrink-0" />
           </p>
         )}

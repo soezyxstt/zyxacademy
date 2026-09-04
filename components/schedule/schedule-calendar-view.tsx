@@ -1608,7 +1608,7 @@ export function ScheduleCalendarView({
             </div>
 
             {/* Month Day Cells (7 cols x 5/6 rows) */}
-            <div className="grid grid-cols-7 divide-x divide-y divide-border/60">
+            <div className="grid grid-cols-7 divide-x divide-y divide-border/60 zebra-no-rows">
               {monthDays.map((cell) => {
                 // Find bookings on this day
                 const cellBookings = filteredBookings.filter(

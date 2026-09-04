@@ -372,7 +372,7 @@ export default async function AdminHomePage() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group flex flex-col justify-between rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm transition-all duration-200 hover:border-brand-primary/40 hover:shadow-md hover:bg-card/90"
+                  className="group flex flex-col justify-between rounded-xl border border-border/70 bg-card/70 backdrop-blur-md p-4 sm:p-5 shadow-xs transition-all duration-200 hover:border-brand-primary/40 hover:shadow-md hover:bg-card/90 hover:-translate-y-0.5"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-3">

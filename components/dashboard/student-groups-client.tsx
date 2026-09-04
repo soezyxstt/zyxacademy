@@ -26,6 +26,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
 import { joinGroupWithToken } from "@/app/(student)/dashboard/groups/actions";
 import { formatIsoDate } from "@/lib/date-utils";
+import { studentCardClass } from "@/components/course/course-surfaces";
+import { cn } from "@/lib/utils";
 
 type StudentGroup = {
   id: string;
@@ -180,19 +182,19 @@ export function StudentGroupsClient({ initialGroups }: Props) {
 
         {/* Benefits Info Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
-          <div className="p-5 rounded-xl border border-border bg-card shadow-sm space-y-2">
+          <div className="p-5 rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs space-y-2">
             <div className="size-8 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center">
-              <CalendarDays className="size-4" />
+              <Users className="size-4" />
             </div>
             <h3 className="font-heading text-body-sm font-bold text-foreground">
-              Kuota Sesi Semester
+              Jadwal Sesi Terstruktur
             </h3>
             <p className="text-body-xs text-muted-foreground">
               Paket fleksibel mulai dari 15 sesi (1x/minggu) hingga 30 sesi (2x/minggu) untuk mendampingi persiapan ujian Anda.
             </p>
           </div>
 
-          <div className="p-5 rounded-xl border border-border bg-card shadow-sm space-y-2">
+          <div className="p-5 rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs space-y-2">
             <div className="size-8 rounded-lg bg-status-info/10 text-status-info flex items-center justify-center">
               <GraduationCap className="size-4" />
             </div>
@@ -204,7 +206,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
             </p>
           </div>
 
-          <div className="p-5 rounded-xl border border-border bg-card shadow-sm space-y-2">
+          <div className="p-5 rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs space-y-2">
             <div className="size-8 rounded-lg bg-brand-secondary/10 text-brand-secondary flex items-center justify-center">
               <Brain className="size-4" />
             </div>
@@ -243,7 +245,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
       )}
 
       {/* 1. Main Group Banner & Quota Metric */}
-      <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm space-y-6">
+      <div className={studentCardClass("space-y-6 sm:p-8")}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/80 pb-6">
           <div>
             <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
@@ -414,7 +416,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
       {/* 2. Mata Kuliah & Anggota Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Mata Kuliah Kelompok (2 cols) */}
-        <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+        <div className={cn("lg:col-span-2 space-y-4", studentCardClass())}>
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
               <BookOpen className="size-5 text-brand-primary" />
@@ -481,7 +483,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
         </div>
 
         {/* Rekan Belajar / Anggota Kelompok (1 col) */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+        <div className={studentCardClass("space-y-4")}>
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
               <Users className="size-5 text-brand-primary" />
@@ -524,7 +526,7 @@ export function StudentGroupsClient({ initialGroups }: Props) {
       </div>
 
       {/* 3. Riwayat Pertemuan Kelompok */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+      <div className={studentCardClass("space-y-4")}>
         <div className="flex items-center justify-between border-b border-border pb-3">
           <h3 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
             <Clock className="size-5 text-brand-primary" />

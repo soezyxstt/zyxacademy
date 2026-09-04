@@ -63,25 +63,25 @@ export function ZyraOpsPanel() {
             <caption className="sr-only">Internal Zyra capacity by model</caption>
             <thead>
               <tr className="border-b border-border text-left">
-                <th className="px-2 py-1 font-semibold">Model</th>
-                <th className="px-2 py-1 font-semibold">Per project</th>
-                <th className="px-2 py-1 font-semibold">Zyx usable ceiling</th>
-                <th className="px-2 py-1 font-semibold">Committed</th>
-                <th className="px-2 py-1 font-semibold">Active</th>
-                <th className="px-2 py-1 font-semibold">Reserve</th>
-                <th className="px-2 py-1 font-semibold">Usable remaining</th>
+                <th className="px-3 py-1.5 font-semibold">Model</th>
+                <th className="px-3 py-1.5 font-semibold">Per project</th>
+                <th className="px-3 py-1.5 font-semibold">Zyx usable ceiling</th>
+                <th className="px-3 py-1.5 font-semibold">Committed</th>
+                <th className="px-3 py-1.5 font-semibold">Active</th>
+                <th className="px-3 py-1.5 font-semibold">Reserve</th>
+                <th className="px-3 py-1.5 font-semibold">Usable remaining</th>
               </tr>
             </thead>
             <tbody>
               {metrics.capacity.modelPools.map((pool) => (
                 <tr key={pool.model} className="border-b border-border/60">
-                  <td className="px-2 py-1 font-mono text-body-xs">{pool.model}</td>
-                  <td className="px-2 py-1 tabular-nums">{pool.configuredPerProjectRpd}</td>
-                  <td className="px-2 py-1 tabular-nums">{pool.configuredUsableRpd}</td>
-                  <td className="px-2 py-1 tabular-nums">{pool.zyxCommittedRequests}</td>
-                  <td className="px-2 py-1 tabular-nums">{pool.activeReservations}</td>
-                  <td className="px-2 py-1 tabular-nums">{pool.safetyReserveRpd}</td>
-                  <td className="px-2 py-1 tabular-nums">{pool.usableRemainingRpd}</td>
+                  <td className="px-3 py-1.5 font-mono text-body-xs">{pool.model}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.configuredPerProjectRpd}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.configuredUsableRpd}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.zyxCommittedRequests}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.activeReservations}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.safetyReserveRpd}</td>
+                  <td className="px-3 py-1.5 tabular-nums">{pool.usableRemainingRpd}</td>
                 </tr>
               ))}
             </tbody>

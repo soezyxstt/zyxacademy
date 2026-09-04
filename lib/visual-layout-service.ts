@@ -1,10 +1,10 @@
-import ELK from "elkjs/lib/elk.bundled.js";
-import { Node, Edge } from "reactflow";
+import type { Node, Edge } from "reactflow";
 
-let elkInstance: InstanceType<typeof ELK> | null = null;
+let elkInstance: any = null;
 
-function getElkInstance() {
+async function getElkInstance() {
   if (!elkInstance) {
+    const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
     elkInstance = new ELK({
       workerFactory: () => null as any,
     });
@@ -89,7 +89,8 @@ export async function getLayoutedGraph(
   };
 
   try {
-    const layout = await getElkInstance().layout(graph);
+    const elk = await getElkInstance();
+    const layout = await elk.layout(graph);
     const positionedNodes = nodes.map(n => {
       const nodeLayout = layout.children?.find(c => c.id === n.id);
       return {

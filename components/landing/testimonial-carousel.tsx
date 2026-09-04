@@ -9,7 +9,7 @@ export function TestimonialCarousel() {
           key={story.id}
           itemScope
           itemType="https://schema.org/Review"
-          className="flex min-h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-sm ring-1 ring-black/[0.03]"
+          className="flex min-h-full flex-col rounded-2xl border border-border/70 bg-card/70 backdrop-blur-md p-5 shadow-xs ring-1 ring-black/[0.03]"
         >
           <div className="flex items-center gap-3 border-b border-border pb-4">
             <Image
