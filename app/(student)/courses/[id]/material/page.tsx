@@ -6,8 +6,8 @@ import { getCourse, getCourseChapterOutline } from "@/lib/course-utils";
 import { DocumentListClient } from "./document-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
-import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress } from "@/db/schema";
-import { eq, and, notLike } from "drizzle-orm";
+import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress, quizTemplates, studentQuizAttempts, exams } from "@/db/schema";
+import { eq, and, notLike, ne, desc } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -148,6 +148,60 @@ export default async function CourseMaterialListPage({ params }: Props) {
     .from(courseMaterials)
     .where(eq(courseMaterials.courseId, compatibilityCourseId));
 
+  // Fetch interactive quizzes for this course
+  const courseQuizzes = await db
+    .select({
+      id: quizTemplates.id,
+      title: quizTemplates.title,
+      visibility: quizTemplates.visibility,
+      selectionRules: quizTemplates.selectionRules,
+    })
+    .from(quizTemplates)
+    .where(
+      and(
+        eq(quizTemplates.courseId, compatibilityCourseId),
+        eq(quizTemplates.status, "published"),
+        ne(quizTemplates.category, "simulation")
+      )
+    )
+    .orderBy(desc(quizTemplates.createdAt));
+
+  // Fetch interactive tryouts for this course
+  const courseTryouts = await db
+    .select({
+      id: exams.id,
+      title: exams.title,
+      settings: exams.settings,
+    })
+    .from(exams)
+    .where(
+      and(
+        eq(exams.courseId, compatibilityCourseId),
+        eq(exams.type, "tryout"),
+        eq(exams.status, "published")
+      )
+    );
+
+  const completedQuizIds = new Set<string>();
+  if (studentId) {
+    try {
+      const userAttempts = await db
+        .select({
+          templateId: studentQuizAttempts.templateId,
+          status: studentQuizAttempts.status,
+        })
+        .from(studentQuizAttempts)
+        .where(eq(studentQuizAttempts.studentId, studentId));
+      for (const a of userAttempts) {
+        if (a.status === "completed") {
+          completedQuizIds.add(a.templateId);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading student quiz attempts:", err);
+    }
+  }
+
 function sanitizeMaterialTitle(rawTitle: string): string {
   const trimmed = rawTitle.replace(/^\[DRAF\]\s*/i, "").trim();
   if (/^Staging Product Diktat/i.test(trimmed)) {
@@ -168,12 +222,14 @@ function sanitizeMaterialTitle(rawTitle: string): string {
     title: sanitizeMaterialTitle(a.title),
     kind: "article" as const,
     docCategory: "materi" as const,
+    tabGroup: "materi" as const,
     fileSize: `${a.totalEstimatedReadingMinutes} menit baca`,
     completed: a.completed,
     isPastYear: false,
     isPreview: false,
     chapterId: a.chapterId ?? undefined,
     chapterIds: a.chapterId ? [a.chapterId] : [],
+    href: `/courses/${id}/material/${a.id}`,
   }));
 
   const mappedCanonicalDiktats = canonicalDiktats.map((diktat) => ({
@@ -182,12 +238,14 @@ function sanitizeMaterialTitle(rawTitle: string): string {
     title: sanitizeMaterialTitle(diktat.title),
     kind: "article" as const,
     docCategory: "diktat" as const,
+    tabGroup: "diktat" as const,
     fileSize: "Diktat Resmi",
     completed: completedMaterialIds.has(diktat.id),
     isPastYear: false,
     isPreview: false,
     chapterId: diktat.legacyChapterId ?? diktat.babId ?? undefined,
     chapterIds: [diktat.legacyChapterId ?? diktat.babId].filter((chapterId): chapterId is string => Boolean(chapterId)),
+    href: `/courses/${id}/material/${diktat.id}`,
   }));
   const canonicalDiktatChapterIds = new Set(mappedCanonicalDiktats.flatMap((diktat) => diktat.chapterIds));
   const visibleCourseDiktats = courseDiktats.filter((diktat) => {
@@ -201,6 +259,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
     title: sanitizeMaterialTitle(d.title),
     kind: "pdf" as const,
     docCategory: "diktat" as const,
+    tabGroup: "diktat" as const,
     fileSize: "PDF Diktat",
     completed: completedMaterialIds.has(d.id),
     isPastYear: false,
@@ -212,6 +271,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
         ? `/api/courses/${id}/material/${d.id}/thumbnail`
         : undefined,
     chapterIds: d.chapterIds as string[],
+    href: `/courses/${id}/material/${d.id}`,
   }));
 
   const mappedDb = dbMaterials.filter((material) => {
@@ -223,21 +283,37 @@ function sanitizeMaterialTitle(rawTitle: string): string {
     title: sanitizeMaterialTitle(m.title),
     kind: "article" as const,
     docCategory: "materi" as const,
+    tabGroup: "materi" as const,
     fileSize: "Rangkuman Materi",
     completed: completedMaterialIds.has(m.id),
     isPastYear: false,
     isPreview: true,
     thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
     chapterIds: m.chapterIds as string[],
+    href: `/courses/${id}/material/${m.id}`,
   }));
 
+  const isAssessmentMaterial = (type: string, subcategory?: string | null) => {
+    if (type === "soal" || type === "contoh_soal" || type === "pembahasan_soal") return true;
+    if (subcategory && ["kuis", "kbf", "uts", "uas", "tutorial"].includes(subcategory)) return true;
+    return false;
+  };
+
   const mappedManual = manualMaterials.map((m) => {
+    const isAssessment = isAssessmentMaterial(m.type, m.subcategory);
     let docCategory: "materi" | "soal" | "solusi" = "materi";
     if (m.type === "contoh_soal" || m.type === "soal") {
       docCategory = "soal";
     } else if (m.type === "pembahasan_soal") {
       docCategory = "solusi";
+    } else if (isAssessment) {
+      docCategory = "soal";
     }
+
+    const tabGroup = isAssessment ? ("bank_soal" as const) : ("pdf" as const);
+    const fileSizeLabel = isAssessment
+      ? m.type === "pembahasan_soal" ? "Pembahasan Soal" : "Lembar Soal"
+      : "Berkas PDF ITB";
 
     return {
       id: m.id,
@@ -245,9 +321,10 @@ function sanitizeMaterialTitle(rawTitle: string): string {
       title: sanitizeMaterialTitle(m.title),
       kind: "pdf" as const,
       docCategory,
+      tabGroup,
       subcategory: m.subcategory,
       year: m.year,
-      fileSize: "Berkas PDF",
+      fileSize: fileSizeLabel,
       completed: completedMaterialIds.has(m.id),
       isPastYear: Boolean(m.year),
       isPreview: true,
@@ -258,6 +335,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
           ? `/api/courses/${id}/material/${m.id}/thumbnail`
           : undefined,
       chapterIds: m.chapterIds as string[],
+      href: `/courses/${id}/material/${m.id}`,
     };
   });
 
@@ -270,6 +348,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
       title: sanitizeMaterialTitle(m.title),
       kind: "article" as const,
       docCategory: "materi" as const,
+      tabGroup: "materi" as const,
       fileSize: "Artikel Web",
       body: m.canonicalMarkdown,
       completed: completedMaterialIds.has(m.id),
@@ -278,9 +357,69 @@ function sanitizeMaterialTitle(rawTitle: string): string {
       thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
       chapterId: m.chapterId,
       chapterIds: m.chapterId ? [m.chapterId] : [],
+      href: `/courses/${id}/material/${m.id}`,
     }));
 
-  const allMaterials = [...mappedCanonical, ...mappedCanonicalDiktats, ...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual];
+  const mappedQuizzes = courseQuizzes.map((q) => {
+    let qCount = 10;
+    let quizChapterIds: string[] = [];
+    try {
+      const rules = typeof q.selectionRules === "string" ? JSON.parse(q.selectionRules) : q.selectionRules;
+      if (rules?.count) qCount = Number(rules.count);
+      if (rules?.chapterId) quizChapterIds = [rules.chapterId];
+      else if (Array.isArray(rules?.chapterIds)) quizChapterIds = rules.chapterIds;
+    } catch {}
+
+    return {
+      id: q.id,
+      courseId: id,
+      title: q.title,
+      kind: "quiz" as const,
+      docCategory: "soal" as const,
+      tabGroup: "bank_soal" as const,
+      subcategory: "kuis",
+      fileSize: `${qCount} Soal · Kuis Interaktif`,
+      completed: completedQuizIds.has(q.id),
+      isPastYear: false,
+      isPreview: false,
+      chapterIds: quizChapterIds,
+      href: `/courses/${id}/quiz/${q.id}`,
+    };
+  });
+
+  const mappedTryouts = courseTryouts.map((t) => {
+    let duration = 90;
+    try {
+      const parsed = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
+      if (parsed?.timeLimitMinutes) duration = parsed.timeLimitMinutes;
+    } catch {}
+    return {
+      id: t.id,
+      courseId: id,
+      title: t.title,
+      kind: "tryout" as const,
+      docCategory: "soal" as const,
+      tabGroup: "bank_soal" as const,
+      subcategory: "tryout",
+      fileSize: `${duration} Menit · Tryout Ujian`,
+      completed: false,
+      isPastYear: false,
+      isPreview: false,
+      chapterIds: [],
+      href: `/courses/${id}/tryout/${t.id}`,
+    };
+  });
+
+  const allMaterials = [
+    ...mappedCanonical,
+    ...mappedCanonicalDiktats,
+    ...mappedDiktats,
+    ...mappedDb,
+    ...mappedWeb,
+    ...mappedManual,
+    ...mappedQuizzes,
+    ...mappedTryouts,
+  ];
 
   return (
     <CoursePageShell

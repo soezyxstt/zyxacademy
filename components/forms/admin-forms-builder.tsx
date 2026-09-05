@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   FileText,
   PlusCircle,
@@ -38,8 +39,11 @@ import {
   Shuffle,
   ZoomIn,
   Link2,
+  Edit3,
+  Undo2,
 } from "lucide-react";
 import type { CreateCustomQuestionInput, QuestionType } from "@/lib/google-forms";
+import { formatDatetimeLocal } from "@/lib/date-utils";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +57,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/toast";
 import {
   Select,
   SelectContent,
@@ -82,6 +88,7 @@ interface StoredNativeForm {
   description?: string;
   category: "survey" | "quiz" | "feedback" | "registration";
   questions: ExtendedQuestionInput[];
+  settings?: any;
   googleResponderUri?: string;
   totalResponses: number;
   createdAt: string;
@@ -95,31 +102,38 @@ function settingsForSave<T extends { openAt?: string; closeAt?: string }>(settin
   };
 }
 
+const DEFAULT_FORM_SETTINGS = {
+  acceptingResponses: true,
+  closedMessage: "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
+  openAt: "",
+  closeAt: "",
+  collectEmail: "none" as "none" | "input" | "verified",
+  sendResponseCopy: "off" as "off" | "requested" | "always",
+  allowResponseEditing: false,
+  limitToOneResponse: false,
+  maxFileSizeLimit: "1GB" as "1GB" | "10GB" | "100GB",
+  customSuccessMessage: "Jawaban Anda telah berhasil disimpan.",
+};
+
 export default function AdminFormsBuilder({
   presetsEnabled,
 }: {
   presetsEnabled: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<"builder" | "settings" | "forms">("builder");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editIdParam = searchParams.get("edit");
 
-  const [creating, setCreating] = useState(false);
+  const [activeTab, setActiveTab] = useState<"builder" | "settings" | "forms">("builder");
+  const [editingFormId, setEditingFormId] = useState<string | null>(null);
+
+  const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<"survey" | "quiz" | "feedback" | "registration">("survey");
   const [slug, setSlug] = useState("");
 
-  const [settings, setSettings] = useState({
-    acceptingResponses: true,
-    closedMessage: "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
-    openAt: "",
-    closeAt: "",
-    collectEmail: "none" as "none" | "input" | "verified",
-    sendResponseCopy: "off" as "off" | "requested" | "always",
-    allowResponseEditing: false,
-    limitToOneResponse: false,
-    maxFileSizeLimit: "1GB" as "1GB" | "10GB" | "100GB",
-    customSuccessMessage: "Jawaban Anda telah berhasil disimpan.",
-  });
+  const [settings, setSettings] = useState(DEFAULT_FORM_SETTINGS);
 
   const [activeQIndex, setActiveQIndex] = useState<number>(0);
 
@@ -187,6 +201,95 @@ export default function AdminFormsBuilder({
   useEffect(() => {
     fetchForms();
   }, [fetchForms]);
+
+  const loadFormIntoEditor = useCallback((formToLoad: StoredNativeForm) => {
+    setEditingFormId(formToLoad.id);
+    setTitle(formToLoad.title || "");
+    setDescription(formToLoad.description || "");
+    setCategory(formToLoad.category || "survey");
+    setSlug(formToLoad.slug || "");
+    setQuestions(
+      Array.isArray(formToLoad.questions) && formToLoad.questions.length > 0
+        ? formToLoad.questions
+        : [
+            {
+              title: "",
+              description: "",
+              showDescription: true,
+              type: "TEXT",
+              required: true,
+            },
+          ]
+    );
+    const s = formToLoad.settings || {};
+    setSettings({
+      acceptingResponses: s.acceptingResponses ?? true,
+      closedMessage: s.closedMessage || "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
+      openAt: s.openAt ? formatDatetimeLocal(s.openAt) : "",
+      closeAt: s.closeAt ? formatDatetimeLocal(s.closeAt) : "",
+      collectEmail: s.collectEmail || "none",
+      sendResponseCopy: s.sendResponseCopy || "off",
+      allowResponseEditing: s.allowResponseEditing ?? false,
+      limitToOneResponse: s.limitToOneResponse ?? false,
+      maxFileSizeLimit: s.maxFileSizeLimit || "1GB",
+      customSuccessMessage: s.customSuccessMessage || "Jawaban Anda telah berhasil disimpan.",
+    });
+    setActiveQIndex(0);
+    setActiveTab("builder");
+    setErrorMsg(null);
+  }, []);
+
+  const handleStartEdit = useCallback((formToEdit: StoredNativeForm) => {
+    loadFormIntoEditor(formToEdit);
+    router.replace(`/admin/forms?edit=${formToEdit.id}`);
+  }, [loadFormIntoEditor, router]);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingFormId(null);
+    setTitle("");
+    setDescription("");
+    setCategory("survey");
+    setSlug("");
+    setQuestions([
+      {
+        title: "",
+        description: "",
+        showDescription: true,
+        type: "TEXT",
+        required: true,
+      },
+    ]);
+    setSettings({ ...DEFAULT_FORM_SETTINGS });
+    setActiveQIndex(0);
+    setErrorMsg(null);
+    router.replace("/admin/forms");
+  }, [router]);
+
+  useEffect(() => {
+    if (!editIdParam) return;
+    if (editIdParam === editingFormId) return;
+
+    const existing = forms.find((f) => f.id === editIdParam);
+    if (existing) {
+      loadFormIntoEditor(existing);
+    } else {
+      let isSubscribed = true;
+      (async () => {
+        try {
+          const res = await fetch(`/api/admin/custom-forms/${editIdParam}`);
+          const data = await res.json();
+          if (isSubscribed && data.success && data.form) {
+            loadFormIntoEditor(data.form);
+          }
+        } catch {
+          // ignore network error
+        }
+      })();
+      return () => {
+        isSubscribed = false;
+      };
+    }
+  }, [editIdParam, editingFormId, forms, loadFormIntoEditor]);
 
   const moveQuestion = (fromIdx: number, toIdx: number) => {
     if (toIdx < 0 || toIdx >= questions.length || fromIdx === toIdx) return;
@@ -425,7 +528,7 @@ export default function AdminFormsBuilder({
     }
   };
 
-  const handleCreateForm = async () => {
+  const handleSubmitForm = async () => {
     if (!title.trim()) {
       setErrorMsg("Nama / Judul Formulir tidak boleh kosong.");
       return;
@@ -471,54 +574,69 @@ export default function AdminFormsBuilder({
       }
     }
 
-    setCreating(true);
+    setSubmitting(true);
     setErrorMsg(null);
     try {
-      const res = await fetch("/api/admin/custom-forms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim() || undefined,
-          category,
-          slug: slug.trim() || undefined,
-          questions,
-          settings: settingsForSave(settings),
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.form) {
-        fetchForms();
-        setActiveTab("forms");
-        setTitle("");
-        setDescription("");
-        setCategory("survey");
-        setSlug("");
-        setQuestions([
-          { title: "", description: "", showDescription: true, type: "TEXT", required: true },
-        ]);
-        setSettings({
-          acceptingResponses: true,
-          closedMessage: "Formulir ini telah ditutup dan tidak lagi menerima tanggapan.",
-          openAt: "",
-          closeAt: "",
-          collectEmail: "none",
-          sendResponseCopy: "off",
-          allowResponseEditing: false,
-          limitToOneResponse: false,
-          maxFileSizeLimit: "1GB",
-          customSuccessMessage: "Jawaban Anda telah berhasil disimpan.",
+      if (editingFormId) {
+        const res = await fetch(`/api/admin/custom-forms/${editingFormId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: description.trim() || undefined,
+            category,
+            slug: slug.trim() || undefined,
+            questions,
+            settings: settingsForSave(settings),
+          }),
         });
-        setActiveQIndex(0);
+        const data = await res.json();
+        if (data.success && data.form) {
+          fetchForms();
+          if (data.form.slug) setSlug(data.form.slug);
+          toast.success("Perubahan formulir berhasil disimpan.");
+        } else {
+          setErrorMsg(data.error || "Gagal memperbarui formulir.");
+        }
       } else {
-        setErrorMsg(data.error || "Gagal membuat formulir.");
+        const res = await fetch("/api/admin/custom-forms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: description.trim() || undefined,
+            category,
+            slug: slug.trim() || undefined,
+            questions,
+            settings: settingsForSave(settings),
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.form) {
+          fetchForms();
+          setActiveTab("forms");
+          setTitle("");
+          setDescription("");
+          setCategory("survey");
+          setSlug("");
+          setQuestions([
+            { title: "", description: "", showDescription: true, type: "TEXT", required: true },
+          ]);
+          setSettings({ ...DEFAULT_FORM_SETTINGS });
+          setActiveQIndex(0);
+          toast.success("Formulir baru berhasil diterbitkan.");
+        } else {
+          setErrorMsg(data.error || "Gagal membuat formulir.");
+        }
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Terjadi kesalahan jaringan.");
     } finally {
-      setCreating(false);
+      setSubmitting(false);
     }
   };
+
+  const handleCreateForm = handleSubmitForm;
 
   const executeDeleteForm = async (formId: string) => {
     setDeletingId(formId);
@@ -568,7 +686,7 @@ export default function AdminFormsBuilder({
         <AdminTabsList>
           <AdminTabsTrigger value="builder">
             <FileText className="size-3.5" />
-            Editor Pertanyaan ({questions.length})
+            {editingFormId ? `Editor Pertanyaan (Edit)` : `Editor Pertanyaan (${questions.length})`}
           </AdminTabsTrigger>
           <AdminTabsTrigger value="settings">
             <Sliders className="size-3.5" />
@@ -584,6 +702,37 @@ export default function AdminFormsBuilder({
         <div className="grid gap-4 md:grid-cols-12 items-start">
           {/* Main Question Cards Column */}
           <div className="md:col-span-9 space-y-4" ref={builderListRef}>
+            {editingFormId && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-primary/40 bg-brand-primary/10 p-3.5 sm:p-4 text-body-xs shadow-2xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="bg-brand-primary text-brand-primary-foreground font-bold uppercase tracking-wider text-[10px]">
+                    Mode Edit
+                  </Badge>
+                  <span className="font-semibold text-foreground">
+                    Menyunting: <span className="font-bold text-brand-primary">{title || "Tanpa Judul"}</span>
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/admin/forms/${editingFormId}`}
+                    className="inline-flex items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline"
+                  >
+                    <BarChart3 className="size-3.5" />
+                    Visualisasi Respon
+                  </Link>
+                  <span className="text-muted-foreground">•</span>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  >
+                    <Undo2 className="size-3.5" />
+                    Batal Edit
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Header Card (Title, Description, & Compact Toolbar) */}
             <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm border-l-4 border-l-brand-primary space-y-3">
               <div>
@@ -1247,7 +1396,7 @@ export default function AdminFormsBuilder({
           <div className="md:col-span-3 space-y-3 md:sticky md:top-24">
             <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm space-y-2">
               <p className="text-body-xs font-bold text-foreground uppercase tracking-wider">
-                Aksi Formulir
+                {editingFormId ? "Aksi Edit Formulir" : "Aksi Formulir"}
               </p>
 
               <button
@@ -1270,14 +1419,19 @@ export default function AdminFormsBuilder({
 
               <button
                 type="button"
-                onClick={handleCreateForm}
-                disabled={creating}
+                onClick={handleSubmitForm}
+                disabled={submitting}
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-body-xs font-bold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
               >
-                {creating ? (
+                {submitting ? (
                   <>
                     <RefreshCw className="size-3.5 animate-spin" />
-                    Menerbitkan...
+                    {editingFormId ? "Menyimpan..." : "Menerbitkan..."}
+                  </>
+                ) : editingFormId ? (
+                  <>
+                    <Check className="size-3.5" />
+                    Simpan Perubahan
                   </>
                 ) : (
                   <>
@@ -1286,6 +1440,17 @@ export default function AdminFormsBuilder({
                   </>
                 )}
               </button>
+
+              {editingFormId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <Undo2 className="size-3.5" />
+                  Batal Edit
+                </button>
+              )}
             </div>
 
             {presetsEnabled && (
@@ -1317,13 +1482,49 @@ export default function AdminFormsBuilder({
           )}
 
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm space-y-4">
-            <div>
-              <h2 className="font-heading text-body-base font-bold text-foreground">
-                Pengaturan Tanggapan & Akses
-              </h2>
-              <p className="text-body-xs text-muted-foreground mt-0.5">
-                Kelola pengumpulan respon, privasi, dan batasan jadwal.
-              </p>
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
+              <div>
+                <h2 className="font-heading text-body-base font-bold text-foreground">
+                  Pengaturan Tanggapan & Akses
+                </h2>
+                <p className="text-body-xs text-muted-foreground mt-0.5">
+                  Kelola pengumpulan respon, privasi, dan batasan jadwal.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {editingFormId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    className="text-body-xs h-8"
+                  >
+                    <Undo2 className="size-3.5" />
+                    Batal Edit
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  onClick={handleSubmitForm}
+                  disabled={submitting}
+                  isLoading={submitting}
+                  size="sm"
+                  className="text-body-xs h-8"
+                >
+                  {editingFormId ? (
+                    <>
+                      <Check className="size-3.5" />
+                      Simpan Perubahan
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUpRight className="size-3.5" />
+                      Terbitkan
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
             {/* 1. Menerima Tanggapan & Jadwal Tutup/Buka */}
@@ -1506,6 +1707,41 @@ export default function AdminFormsBuilder({
                   className="w-full rounded-xl px-3 py-1.5 text-body-xs h-8"
                 />
               </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-4">
+                {editingFormId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    className="text-body-xs h-8"
+                  >
+                    <Undo2 className="size-3.5" />
+                    Batal Edit
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  onClick={handleSubmitForm}
+                  disabled={submitting}
+                  isLoading={submitting}
+                  size="sm"
+                  className="text-body-xs h-8"
+                >
+                  {editingFormId ? (
+                    <>
+                      <Check className="size-3.5" />
+                      Simpan Perubahan
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUpRight className="size-3.5" />
+                      Terbitkan
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1635,6 +1871,16 @@ export default function AdminFormsBuilder({
 
                           <td className="px-4 py-3.5 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(f)}
+                                title="Edit formulir"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+                              >
+                                <Edit3 className="size-3.5 text-brand-primary" />
+                                Edit
+                              </button>
+
                               <Link
                                 href={`/admin/forms/${f.id}`}
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-brand-primary/30 bg-brand-primary/10 px-3 py-1.5 text-body-xs font-semibold text-brand-primary hover:bg-brand-primary/20 transition-colors"

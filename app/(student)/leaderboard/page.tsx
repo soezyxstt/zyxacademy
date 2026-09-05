@@ -55,7 +55,7 @@ export default async function LeaderboardPage() {
   > = Object.fromEntries(leaderboardEntries.map((e) => [e.courseId, e.rows]));
 
   return (
-    <Reveal className="marketing-container mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
+    <Reveal className="w-full px-4 py-8 sm:px-6 lg:px-8 space-y-6">
       <PageHeader
         title="Papan Peringkat"
         icon={Trophy}

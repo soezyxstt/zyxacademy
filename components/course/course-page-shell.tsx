@@ -1,6 +1,7 @@
 import type { ReactNode, ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 
 export type CoursePageShellProps = {
   title?: ReactNode;
@@ -31,20 +32,26 @@ export function CoursePageShell({
   className,
   fullWidth = false,
 }: CoursePageShellProps) {
-  return (
-    <div className={cn("relative pb-8", className, fullWidth && "pb-0 h-full flex flex-col")}>
-      <div className={cn(fullWidth ? "w-full h-full flex flex-col" : "marketing-container pt-3 md:pt-3")}>
-        {!hideHeader && title && (
-          <PageHeader
-            title={title}
-            icon={icon}
-            actions={actions}
-            backHref={backHref}
-            backLabel={backLabel}
-          />
-        )}
-        <div className={cn(fullWidth && "w-full h-full flex flex-col")}>{children}</div>
+  if (fullWidth) {
+    return (
+      <div className={cn("relative h-full w-full flex flex-col", className)}>
+        {children}
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <ApplicationPage className={cn("relative pb-8", className)}>
+      {!hideHeader && title && (
+        <PageHeader
+          title={title}
+          icon={icon}
+          actions={actions}
+          backHref={backHref}
+          backLabel={backLabel}
+        />
+      )}
+      <div>{children}</div>
+    </ApplicationPage>
   );
 }

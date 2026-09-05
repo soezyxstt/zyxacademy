@@ -129,7 +129,7 @@ export default async function ProfilePage() {
 
  return (
  <ShellPage title="Profil Saya">
- <div className="max-w-5xl mx-auto pb-12">
+ <div className="w-full pb-12">
  {/* Profile Header */}
  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8">
  <div className="relative size-24 md:size-28 shrink-0">

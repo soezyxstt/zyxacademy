@@ -799,10 +799,11 @@ export function TutorDrawerView({
         ref={panelRef}
         aria-label="Zyra Learning Assistant"
         style={{
+          top: 0,
           "--zyra-panel-width": `${isExpanded ? Math.min(MAX_SIDEBAR_WIDTH, typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : window.innerWidth * 0.7) : sidebarWidth}px`,
         } as React.CSSProperties}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-card shadow-2xl md:sticky md:inset-y-auto md:right-auto md:z-20 md:h-screen md:w-[var(--zyra-panel-width)] md:shrink-0 md:shadow-none",
+          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-card shadow-2xl md:sticky md:top-0 md:bottom-auto md:right-auto md:self-start md:z-20 md:h-screen md:h-[100svh] md:w-[var(--zyra-panel-width)] md:shrink-0 md:shadow-none",
           "animate-in slide-in-from-right duration-300 ease-out md:animate-none",
           isDragging ? "transition-none select-none" : "transition-[width] duration-150 ease-out"
         )}

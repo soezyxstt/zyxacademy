@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { getEmailNotificationPreferences } from "@/lib/email-preferences/repository";
 import { pageTitle } from "@/lib/site";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default async function NotificationPreferencesPage() {
 
   const preferences = await getEmailNotificationPreferences(session.user.id);
   return (
-    <div className="marketing-container mx-auto w-full px-4 py-6 sm:px-6 md:py-8 max-w-4xl">
+    <ApplicationPage>
       <PageHeader
         title="Preferensi Notifikasi"
         icon={Bell}
@@ -32,6 +33,6 @@ export default async function NotificationPreferencesPage() {
       <Reveal className="mt-6">
         <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} />
       </Reveal>
-    </div>
+    </ApplicationPage>
   );
 }

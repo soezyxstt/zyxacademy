@@ -56,6 +56,7 @@ import { StudentOnboardingView } from "@/components/dashboard/student-onboarding
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { listStudentCourses } from "@/lib/student/course-catalog";
 import { studentCardClass } from "@/components/course/course-surfaces";
+import { ApplicationPage } from "@/components/application-page";
 import { getCatalogCourseSummaries } from "@/lib/student/dashboard-read-model";
 
 export const metadata: Metadata = {
@@ -317,9 +318,8 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="pb-16 pt-8 md:pt-12">
-      <div className="marketing-container">
-        {!isEnrolledInAny ? (
+    <ApplicationPage className="pb-16">
+      {!isEnrolledInAny ? (
           <Reveal duration="duration-500">
             <StudentOnboardingView
               userName={userName}
@@ -708,7 +708,6 @@ export default async function DashboardPage() {
             </Reveal>
           </>
         )}
-  </div>
-</div>
-);
+    </ApplicationPage>
+  );
 }

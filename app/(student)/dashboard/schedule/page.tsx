@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { getScheduleData } from "./actions";
 import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
 import { CollaborativeBookingModal } from "@/components/schedule/collaborative-booking-modal";
@@ -51,7 +52,7 @@ export default function SchedulePage() {
 
   if (loading && !data) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <ApplicationPage>
         <PageHeader
           icon={CalendarDays}
           title="Kalender & Jadwal Tutorial"
@@ -59,7 +60,7 @@ export default function SchedulePage() {
         <div className="p-16 text-center text-muted-foreground text-body-sm">
           Memuat data kalender dan slot tutorial...
         </div>
-      </div>
+      </ApplicationPage>
     );
   }
 
@@ -83,7 +84,7 @@ export default function SchedulePage() {
       : data.groups || [];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 space-y-4">
+    <ApplicationPage spacing="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <PageHeader
@@ -202,6 +203,6 @@ export default function SchedulePage() {
         onOpenChange={(open) => !open && setActiveAuditLogBooking(null)}
         booking={activeAuditLogBooking}
       />
-    </div>
+    </ApplicationPage>
   );
 }

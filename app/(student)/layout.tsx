@@ -12,6 +12,7 @@ export default function StudentLayout({ children }: { children: ReactNode }) {
     <CommandMenuProvider>
       <TutorProvider>
         <ApplicationShell
+          className="flex-1 min-w-0"
           sidebar={
             <StudentSidebar
               showStudyPath

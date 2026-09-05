@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { getStudentStudyGroups } from "./actions";
 import { StudentGroupsClient } from "@/components/dashboard/student-groups-client";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { Users } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -26,12 +27,12 @@ export default async function StudentGroupsPage() {
   const groups = await getStudentStudyGroups();
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto px-4 sm:px-6 py-4">
+    <ApplicationPage>
       <PageHeader
         icon={Users}
         title="Kelompok Belajar"
       />
       <StudentGroupsClient initialGroups={groups} />
-    </div>
+    </ApplicationPage>
   );
 }

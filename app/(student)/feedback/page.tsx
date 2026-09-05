@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { MessageSquareHeart } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
@@ -17,7 +18,7 @@ export default async function FeedbackPage() {
   const userEmail = session?.user?.email;
 
   return (
-    <div className="marketing-container mx-auto w-full px-4 py-6 sm:px-6 md:py-8 max-w-4xl">
+    <ApplicationPage>
       <PageHeader
         title="Masukan Mahasiswa"
         icon={MessageSquareHeart}
@@ -32,6 +33,6 @@ export default async function FeedbackPage() {
           <FeedbackForm initialEmail={userEmail} />
         </div>
       </Reveal>
-    </div>
+    </ApplicationPage>
   );
 }

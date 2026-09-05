@@ -58,7 +58,7 @@ export default async function ReflectionsArchivePage() {
   return (
     <div className="relative overflow-hidden min-h-screen">
       <PageOrnaments variant="about" />
-      <div className="relative z-10 marketing-container mx-auto w-full px-4 py-6 sm:px-6 md:py-8 max-w-4xl">
+      <div className="relative z-10 w-full px-4 py-8 sm:px-6 lg:px-8 space-y-6">
         <PageHeader
           title="Refleksi Mingguan"
           icon={BookmarkCheck}

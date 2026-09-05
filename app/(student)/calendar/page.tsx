@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { listStudentEnrollments } from "@/lib/student/course-catalog";
@@ -219,7 +220,7 @@ export default async function CalendarPage() {
   });
 
   return (
-    <div className="marketing-container mx-auto w-full px-4 py-6 sm:px-6 md:py-8 max-w-5xl">
+    <ApplicationPage>
       <PageHeader
         title="Kalender Akademik"
         icon={CalendarDays}
@@ -228,6 +229,6 @@ export default async function CalendarPage() {
       <Reveal className="mt-6">
         <CalendarAgendaClient events={events} />
       </Reveal>
-    </div>
+    </ApplicationPage>
   );
 }
