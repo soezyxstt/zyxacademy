@@ -7,6 +7,8 @@
     "dev:staging": "bun --env-file=.env.staging run dev",
     "cs:dev": "rm -rf .next node_modules && bun install && next dev --turbo",
     "build": "next build",
+    "deno:prep": "bun scripts/deno-prep-standalone.ts",
+    "deno:deploy": "bun run build && bun run deno:prep && deno run -A jsr:@deno/deploy .next/standalone --prod --allow-node-modules",
     "start": "next start",
     "preview": "NODE_OPTIONS=\"--max-old-space-size=4096\" next build --turbo && next start",
     "lint": "eslint",
