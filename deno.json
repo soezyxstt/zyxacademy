@@ -2,7 +2,9 @@
   "deploy": {
     "framework": "nextjs",
     "install": "npm install",
-    "build": "npm run build"
+    "build": "npm run build",
+    "org": "soezyxst",
+    "app": "zyx-standalone"
   },
   "unstable": [
     "detect-cjs",
@@ -10,7 +12,7 @@
     "unsafe-proto",
     "sloppy-imports"
   ],
-  "nodeModulesDir": "auto",
+  "nodeModulesDir": "none",
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
     "jsx": "react-jsx"
