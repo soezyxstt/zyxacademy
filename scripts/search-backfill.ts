@@ -40,7 +40,6 @@ async function upsertSearchDocument(doc: SearchDocInsert): Promise<void> {
         searchableText: doc.searchableText,
         path: doc.path,
         minRole: doc.minRole,
-        isSynced: doc.isSynced ?? false,
         updatedAt: new Date(),
       },
     });
@@ -503,19 +502,173 @@ export async function runSearchBackfill(): Promise<{
   try {
     await inngest.send({ name: "search.documents.sync" });
   } catch (err) {
-    console.warn("Failed to trigger search.documents.sync:", err);
+    console.warn("Failed to trigger search.documents.sync via Inngest:", err);
   }
 
   return { total, stats };
 }
 
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function embedWithRetry(
+  title: string,
+  text: string,
+  embedFn: (title: string, content: string) => Promise<number[]>,
+  maxRetries = 5,
+): Promise<number[]> {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      return await embedFn(title, text);
+    } catch (err: unknown) {
+      attempt++;
+      const errMsg = String((err as Error)?.message || err);
+      const isRateLimit =
+        errMsg.includes("429") ||
+        errMsg.toLowerCase().includes("rate") ||
+        errMsg.toLowerCase().includes("quota") ||
+        errMsg.toLowerCase().includes("exhausted");
+
+      if (isRateLimit && attempt < maxRetries) {
+        const delayMs = Math.min(1000 * Math.pow(2, attempt) + Math.random() * 500, 15000);
+        console.warn(`    [Rate Limit] Retrying "${title}" in ${(delayMs / 1000).toFixed(1)}s (attempt ${attempt}/${maxRetries})...`);
+        await sleep(delayMs);
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error(`Failed to embed "${title}" after ${maxRetries} attempts`);
+}
+
+export async function syncSearchVectorsDirect(): Promise<{ synced: number; failed: number }> {
+  const { embedSearchDocument, upsertSearchVectors, querySearchVectors } = await import("@/lib/search/service");
+  const { inArray, eq } = await import("drizzle-orm");
+
+  const pending = await db
+    .select()
+    .from(searchDocuments)
+    .where(eq(searchDocuments.isSynced, false));
+
+  console.log(`\n==================================================================`);
+  console.log(`  Direct Vectorize Sync: ${pending.length} unsynced search documents`);
+  console.log(`==================================================================`);
+
+  if (pending.length === 0) {
+    console.log("All search documents are already synchronized to Vectorize.");
+    return { synced: 0, failed: 0 };
+  }
+
+  let synced = 0;
+  let failed = 0;
+  const BATCH_SIZE = 20;
+
+  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+    const chunk = pending.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(pending.length / BATCH_SIZE);
+    console.log(`[Batch ${batchNum}/${totalBatches}] Embedding & uploading ${chunk.length} documents...`);
+
+    const vectors = [];
+    const successIds: string[] = [];
+
+    for (const doc of chunk) {
+      try {
+        const textContent = doc.searchableText?.trim() || doc.title;
+        const values = await embedWithRetry(doc.title, textContent, embedSearchDocument);
+
+        // Pacing delay between Gemini embedding calls to stay well clear of rate limits
+        await sleep(350);
+
+        let category = "Navigasi";
+        if (doc.entityType === "course") {
+          category = "Course & Modul";
+        } else if (
+          doc.entityType === "chapter" ||
+          doc.entityType === "material" ||
+          doc.entityType === "blog"
+        ) {
+          category = "Materi & Artikel";
+        } else if (doc.entityType === "quiz" || doc.entityType === "exam") {
+          category = "Kuis & Evaluasi";
+        }
+
+        vectors.push({
+          id: doc.id,
+          values,
+          metadata: {
+            title: doc.title,
+            href: doc.path,
+            category,
+            entity_type: doc.entityType,
+            entity_id: doc.entityId ?? "",
+            course_id: doc.courseId ?? "",
+            min_role: doc.minRole ?? 0,
+          },
+        });
+        successIds.push(doc.id);
+      } catch (err) {
+        console.error(`  - Failed to embed document ${doc.id} (${doc.title}):`, err);
+        failed++;
+      }
+    }
+
+    if (vectors.length > 0) {
+      try {
+        await upsertSearchVectors(vectors);
+        await db
+          .update(searchDocuments)
+          .set({
+            isSynced: true,
+            syncStatus: "completed",
+            updatedAt: new Date(),
+          })
+          .where(inArray(searchDocuments.id, successIds));
+        synced += vectors.length;
+        console.log(`  -> Successfully upserted ${vectors.length} vectors to Cloudflare Vectorize.`);
+      } catch (err) {
+        console.error(`  - Failed to upsert vector batch to Vectorize:`, err);
+        failed += vectors.length;
+      }
+    }
+  }
+
+  console.log(`\nVectorize sync complete: ${synced} synced, ${failed} failed.`);
+
+  // Sample query test to verify retrieval
+  try {
+    console.log("\nRunning sample semantic search verification query...");
+    const sampleVec = await embedSearchDocument("Kalkulus", "Kalkulus diferensial integral");
+    const testRes = await querySearchVectors({ vector: sampleVec, topK: 3 });
+    console.log(`Verification query for 'Kalkulus' returned ${testRes.matches.length} matches:`);
+    for (const match of testRes.matches) {
+      console.log(`  - [Score: ${match.score?.toFixed(4)}] ${match.metadata.title} (${match.metadata.category} -> ${match.metadata.href})`);
+    }
+  } catch (err) {
+    console.warn("Verification query test warning:", err);
+  }
+
+  return { synced, failed };
+}
+
 if (import.meta.main || process.argv[1]?.includes("search-backfill")) {
-  runSearchBackfill()
-    .then(() => {
-      process.exit(0);
-    })
-    .catch((err) => {
-      console.error("Search backfill failed:", err);
-      process.exit(1);
-    });
+  const shouldSyncVectors = process.argv.includes("--sync-vectors") || process.argv.includes("--direct");
+  const vectorsOnly = process.argv.includes("--vectors-only") || process.argv.includes("--only-vectors");
+
+  const run = async () => {
+    if (!vectorsOnly) {
+      await runSearchBackfill();
+    }
+    if (shouldSyncVectors || vectorsOnly) {
+      await syncSearchVectorsDirect();
+    }
+    process.exit(0);
+  };
+
+  run().catch((err) => {
+    console.error("Search backfill failed:", err);
+    process.exit(1);
+  });
 }
