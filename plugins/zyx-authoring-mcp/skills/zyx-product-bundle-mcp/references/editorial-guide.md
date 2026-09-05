@@ -20,9 +20,9 @@ Struktur chapter wajib:
 
 Hierarki maksimal tiga tingkat. Simpan `parentSectionId`, `slug`, dan `orderIndex`; jangan menulis nomor `1.1` ke data karena aplikasi menghitungnya dari hierarki.
 
-## 3. Ukuran dan kelengkapan topic
+## 3. Ketuntasan topic dan estimasi belajar
 
-Target satu topic adalah 3 sampai 8 menit baca. Gunakan sekitar 200 kata per menit sebagai estimasi. Hard limit adalah 1.500 kata setara prose per topic.
+Panjang topic mengikuti pekerjaan yang diperlukan untuk mencapai tujuan belajar. Jangan menetapkan target kata atau durasi sebelum konten direncanakan. Setelah draft tuntas, isi `pedagogy.timeEstimate` memakai `readingMinutes`, `examplesMinutes`, dan `practiceMinutes` sebagai metadata perencanaan mahasiswa, bukan target yang harus dikejar.
 
 Setiap topic wajib memiliki:
 
@@ -31,9 +31,23 @@ Setiap topic wajib memiliki:
 - minimal satu pemeriksaan pemahaman;
 - Idea dan source provenance pada section serta block.
 
-Topic di bawah target menjadi warning jika tetap tuntas. Jangan menambah filler, mengulang definisi, atau membuat contoh semu hanya untuk mengejar durasi.
+Topic yang singkat tetap sah bila tujuan, prasyarat, penjelasan, dan ceknya tuntas. Topic panjang harus dipecah ketika memuat lebih dari satu keputusan belajar utama atau sulit dinavigasi. Jangan menambah filler, mengulang definisi, atau membuat contoh semu untuk mengejar metrik.
 
-## 4. Block semantik
+## 4. Rencana pedagogi sebelum drafting
+
+Untuk setiap topic, catat terlebih dahulu:
+
+- tujuan terukur dan Idea yang dicakup;
+- prasyarat internal atau eksternal serta dukungan remediasinya;
+- urutan intuisi, representasi formal, kondisi berlaku, dan batas konsep;
+- worked example yang menyelesaikan masalah penting beserta alasan tiap langkah dan verifikasi;
+- cek formatif yang selaras dengan tujuan, jawaban, dan pembahasan;
+- miskonsepsi atau counterexample yang relevan;
+- visual atau representasi alternatif yang membawa informasi dan fallback-nya.
+
+Gunakan status typed `applicable` atau `inapplicable` beserta reason enum yang tersedia pada block kondisional sesuai kontrak. Jangan mengisi analogi, grafik, formula, atau counterexample yang tidak relevan hanya untuk terlihat lengkap.
+
+## 5. Block semantik
 
 Setiap block menyimpan `blockType`, optional `title`, `contentMarkdown`, `ideaIds`, dan `sourceRefs` sebagai field nyata. Jangan memasukkan JSON metadata ke `contentMarkdown`.
 
@@ -52,7 +66,7 @@ Gunakan block berikut sesuai kebutuhan:
 
 Contoh, analogi, visual, formula, penerapan, dan miskonsepsi hanya wajib jika relevan. Validator tidak boleh mendorong author membuat filler. Formula harus menjelaskan simbol, asumsi, kondisi berlaku, dan interpretasi hasil. Visual harus membawa informasi serta memiliki fallback teks.
 
-## 5. Alur baca
+## 6. Alur baca
 
 Tulis satu topic sebagai unit belajar mandiri yang tetap memiliki hubungan jelas dengan topic sebelum dan sesudahnya:
 
@@ -64,32 +78,47 @@ Tulis satu topic sebagai unit belajar mandiri yang tetap memiliki hubungan jelas
 
 Heading, tabel, daftar, formula, dan callout harus dipakai untuk membedakan konteks. Jangan menghasilkan satu rentetan paragraf panjang.
 
-## 6. Diktat sebagai review
+## 7. Contoh bersyarat, limit
 
-Diktat diturunkan dari Artikel yang disetujui dan tidak menambah fakta baru. Targetnya 2 sampai 4 halaman render, sekitar 1.200 sampai 1.600 kata, dengan Idea set, formula penting, kondisi penggunaan, source trace, contoh kilat, jebakan, dan cek ingatan yang sama.
+Pada topik limit epsilon-delta, rencana yang baik dapat mencakup urutan quantifier, ketergantungan delta pada epsilon, pengecualian `x = c`, visual pita epsilon-delta dengan fallback tabel, worked example, verifikasi substitusi, fungsi konstan, counterexample lompatan, serta cek verbal, matematis, dan reflektif. Ini contoh penerapan untuk materi limit, bukan template wajib bagi jaringan komputer, sejarah, atau topik lain.
+
+## 8. Diktat sebagai review
+
+Diktat diturunkan dari Artikel yang disetujui dan tidak menambah fakta baru. Pertahankan Idea set, formula penting, kondisi penggunaan, source trace, contoh kilat, jebakan, dan cek ingatan yang relevan. Ringkas sampai cocok sebagai review, kemudian render dengan fasilitas PDF. Target 2 sampai 4 halaman adalah hasil render nyata, bukan perkiraan dari jumlah kata.
 
 Gunakan struktur padat: peta konsep, intisari, formula penting, langkah cepat, contoh kilat, jebakan, dan cek ingatan. Bila Diktat dapat menggantikan Artikel untuk belajar pertama kali secara penuh, Diktat terlalu panjang.
 
-## 7. Produk lain
+Jangan menulis “PDF sesuai” dari Markdown, validator MCP, atau perkiraan panjang. Klaim itu memerlukan artefak PDF, checksum Diktat, versi renderer, profil cetak, page count, dan inspeksi setiap halaman. Render gagal, stale, lebih dari 4 halaman, glyph rusak, formula mentah, teks terpotong, atau halaman kosong memblokir publikasi sampai dirender ulang.
+
+## 9. Produk lain
 
 - Flashcard menguji satu konsep atau keputusan.
 - Question Product hanya menyalin contoh soal ITB yang diizinkan tanpa mengubah angka atau kondisi.
 - Solution menjelaskan alasan dan langkah dengan istilah manusiawi.
 - Blueprint hanya merujuk question yang ada dalam bundle.
 
-## 8. Preflight editorial
+## 10. Empat lapis keputusan
+
+Jangan menyatukan empat hasil berikut:
+
+1. **Preflight author** menilai ketuntasan tujuan, alur belajar, relevansi elemen, source grounding, dan bahasa mahasiswa sebelum MCP.
+2. **Validator MCP** menilai schema, checksum, provenance, dependency, contract, dan quality policy deterministik. `valid: true` belum berarti review pedagogi disetujui.
+3. **Review admin** menilai delapan kriteria pedagogi pada revisi dan policy version yang tepat. Edit Artikel atau Diktat membuat bukti lama stale.
+4. **Kesiapan publikasi** baru tercapai bila validator hijau, review admin lengkap dan fresh, PDF ready dengan lineage yang cocok, serta tidak ada blocker lain.
+
+## 11. Preflight author
 
 Sebelum validasi dan setelah setiap revisi:
 
 1. pastikan zero internal-ID leak pada learner-facing fields;
 2. pastikan overview, topic, summary, dan final check tersedia;
 3. pastikan setiap Idea memiliki tepat satu topic utama dan seluruh source trace lengkap;
-4. hitung kata serta estimasi baca setiap topic, tidak ada topic di atas 1.500 kata;
-5. pastikan tiap topic memiliki objective, explanation, dan understanding check;
-6. periksa formula, tabel, visual fallback, dan semantic callout;
+4. pastikan setiap tujuan memiliki explanation, contoh atau representasi yang relevan, dan understanding check dengan jawaban serta pembahasan;
+5. hitung estimasi belajar setelah konten tuntas dan pecah topic bila beban kognitif atau navigasinya terlalu padat;
+6. periksa formula, kondisi berlaku, tabel, visual fallback, dan semantic callout;
 7. hapus filler serta block yang tidak relevan;
 8. pastikan derived Markdown tetap setara dengan urutan section dan block;
-9. pastikan Diktat tetap ringkas dan lineage-nya cocok;
+9. pastikan Diktat tetap ringkas dan lineage Artikel serta Idea-nya cocok;
 10. baca satu topic seolah-olah tidak pernah melihat Source Pack atau Idea Bundle.
 
-Panggil `authoring.validate_product_bundle` hanya setelah preflight lulus.
+Panggil `authoring.validate_product_bundle` hanya setelah preflight lulus. Setelah revisi dari MCP atau admin, ulangi preflight dan anggap review serta bukti PDF lama stale sampai terbukti cocok dengan checksum baru.

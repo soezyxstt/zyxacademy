@@ -59,6 +59,10 @@ export function joinKey(...segments: string[]): string {
   return key;
 }
 
+export function isProtectedProductDiktatPdfKey(key: string): boolean {
+  return /^overhaul\/[^/]+\/diktat-pdf\/[^/]+\.pdf$/.test(key);
+}
+
 export function buildZyraAttachmentKey(input: {
   attachmentId: string;
   extension: "jpg" | "png" | "webp";

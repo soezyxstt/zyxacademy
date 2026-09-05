@@ -15,6 +15,7 @@ import {
   questionGenerationWorker,
   studentQuizAnalyticsWorker,
   syncSearchDocuments,
+  productDiktatPdfWorker,
 } from "@/lib/inngest-functions";
 
 /**
@@ -38,7 +39,7 @@ export const { GET, POST, PUT } = serve({
     questionGenerationWorker,
     studentQuizAnalyticsWorker,
     syncSearchDocuments,
+    productDiktatPdfWorker,
   ],
 });
-
 

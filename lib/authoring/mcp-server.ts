@@ -1,14 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { and, asc, eq, inArray, like, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asalIde, artikel, artikelIde, diktatIde, diktatMateri, flashcard, flashcardIde, ide, mataKuliah, potonganSumber, relasiIde, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
+import { asalIde, artikel, artikelIde, diktatIde, diktatMateri, flashcard, flashcardIde, ide, mataKuliah, potonganSumber, relasiIde, reviewPedagogiBundle, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
 import { getIdeaBundleImport, listIdeaBundleImports, reviewIdeaBundle, stageIdeaBundle } from "@/lib/bundle/staging";
 import { validateProductBundle } from "@/lib/bundle/product-validator";
 import { previewProducts } from "@/lib/bundle/product-preview";
-import { discardProductBundleDraft, getProductBundleImport, listProductBundleImports, reviewProductBundle, stageProductBundle } from "@/lib/bundle/product-staging";
+import { discardProductBundleDraft, getProductBundleImport, listProductBundleImports, stageProductBundle } from "@/lib/bundle/product-staging";
 import {
   getSourcePackImport,
   listSourcePackImports,
@@ -19,7 +19,14 @@ import { validateSourcePack } from "@/lib/authoring/source-pack";
 import { withdrawProductBundle } from "@/lib/bundle/product-publication";
 import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
 import { evaluateIdeaBundleQuality } from "@/lib/authoring/quality/idea-bundle";
-import { evaluateProductBundleQuality } from "@/lib/authoring/quality/product-bundle";
+import { evaluateProductBundleQualityPolicy } from "@/lib/bundle/product-review-gate";
+import { executePedagogicReview } from "@/lib/bundle/product-pedagogic-review";
+import {
+  QUALITY_POLICY_VERSION,
+  pedagogicRubricItemSchema,
+  pedagogicExceptionSchema,
+  type DiagnosticIssue,
+} from "@/lib/materials/quality-policy";
 import { sha256Text } from "@/lib/bundle/validator";
 import { createCanonicalQuestionBatch, QuestionAuthoringError, updateCanonicalQuestion, validateCanonicalQuestionBatch } from "@/lib/question-authoring";
 import { questionAuthoringQuestionSchema, questionIdeaLinkSchema } from "@/lib/question-authoring-contract";
@@ -84,12 +91,32 @@ async function safeTool(handler: () => Promise<ToolPayload> | ToolPayload) {
   }
 }
 
+function redactSensitiveDetails(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/(?:overhaul|courses|uploads|blog|forms|pka|media|zyx-attachments)\/[^\s"']+/gi, "[storage-key-redacted]")
+    .replace(/(?:password|secret|token|credential)\s*[:=]\s*[^\s,]+/gi, "$1=[redacted]");
+}
+
 function toolError(error: unknown) {
   const message = error instanceof Error ? error.message : "AUTHORING_MCP_REQUEST_FAILED";
-  const [rawCode, ...details] = message.split(":");
-  const code = rawCode.slice(0, 120);
-  const detail = details.join(":").slice(0, 600);
-  return toolResult({ ok: false, error: code, detail: detail || undefined }, true);
+  const firstLine = message.split("\n")[0] ?? "AUTHORING_MCP_REQUEST_FAILED";
+  const [rawCode, ...details] = firstLine.split(":");
+  const code = redactSensitiveDetails(rawCode.slice(0, 120)).trim();
+  const rawDetail = details.join(":").slice(0, 600);
+  const detail = rawDetail ? redactSensitiveDetails(rawDetail).trim() : undefined;
+  const issues = (error as any)?.issues;
+  const safeIssues = Array.isArray(issues) ? issues.map((iss: any) => ({
+    code: redactSensitiveDetails(String(iss.code ?? "")),
+    severity: iss.severity === "warning" ? "warning" : "blocking",
+    target: {
+      targetType: iss.target?.targetType ?? "document",
+      targetId: redactSensitiveDetails(String(iss.target?.targetId ?? "")),
+    },
+    reason: redactSensitiveDetails(String(iss.reason ?? "")),
+    remediation: redactSensitiveDetails(String(iss.remediation ?? "")),
+  })) : undefined;
+  return toolResult({ ok: false, error: code, detail: detail || undefined, ...(safeIssues ? { issues: safeIssues } : {}) }, true);
 }
 
 export function formatSourceFileReadResult(result: Awaited<ReturnType<typeof readStoredSourceFile>>) {
@@ -636,7 +663,10 @@ async function assertImportRunScope(storedCourseId: string | null, runCourseId: 
   }
 }
 
-function publicBundleImport(row: NonNullable<Awaited<ReturnType<typeof getIdeaBundleImport>> | Awaited<ReturnType<typeof getProductBundleImport>>>) {
+function publicBundleImport(
+  row: NonNullable<Awaited<ReturnType<typeof getIdeaBundleImport>> | Awaited<ReturnType<typeof getProductBundleImport>>>,
+  pedReviews: Array<{ id: string; status: string; policyVersion: string; contentFingerprint: string; rubric: unknown; exceptions: unknown; notes: string | null; createdAt: Date }> = [],
+) {
   return {
     importId: row.id,
     bundleId: row.bundleId,
@@ -659,6 +689,16 @@ function publicBundleImport(row: NonNullable<Awaited<ReturnType<typeof getIdeaBu
       notes: review.notes,
       reviewedAt: review.reviewedAt,
     })),
+    ...(pedReviews.length > 0 ? {
+      pedagogicReviews: pedReviews.map((r) => ({
+        status: r.status,
+        policyVersion: r.policyVersion,
+        contentFingerprint: r.contentFingerprint,
+        criteriaCount: Array.isArray((r.rubric as any)?.criteria) ? (r.rubric as any).criteria.length : Array.isArray(r.rubric) ? (r.rubric as any).length : 0,
+        notes: r.notes,
+        reviewedAt: r.createdAt,
+      })),
+    } : {}),
   };
 }
 
@@ -710,7 +750,16 @@ async function stageIdeaArtifact(input: {
     filename: input.filename,
     replaceImportId: input.replaceImportId,
   });
-  return { ok: true, valid: true, staged: true, result, warnings: dbConflicts.warnings, quality, next: "admin_review" };
+  const safeResult = {
+    importId: result.importId,
+    bundleId: result.bundleId,
+    checksum: result.checksum,
+    status: result.status,
+    created: result.created,
+    replaced: result.replaced,
+    itemCount: result.itemCount,
+  };
+  return { ok: true, valid: true, staged: true, result: safeResult, warnings: dbConflicts.warnings, quality, next: "admin_review" };
 }
 
 async function stageProductArtifact(input: {
@@ -724,18 +773,77 @@ async function stageProductArtifact(input: {
   if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
   const validation = validateProductBundle(bytes);
-  if (!validation.success) return { ok: false, valid: false, staged: false, filename: input.filename, issues: validation.issues };
-  if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion !== "product-bundle.v3") {
-    return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_PRODUCT_V3_REQUIRED", message: "Submission baru wajib memakai Product Bundle V3 saat structured reader aktif.", path: "manifest.json.schemaVersion" }] };
+  if (!validation.success) {
+    const mappedIssues = validation.issues.map((iss) =>
+      productValidationIssueToDiagnostic(iss, input.filename),
+    );
+    return { ok: false, valid: false, staged: false, publicationReady: false, filename: input.filename, issues: mappedIssues };
   }
-  if (validation.data.manifest.courseId !== run.courseId) return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_COURSE_SCOPE_MISMATCH", message: "Product Bundle course does not match the locked run scope", path: "manifest.json.courseId" }] };
+  if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion !== "product-bundle.v3") {
+    return {
+      ok: false,
+      valid: false,
+      staged: false,
+      publicationReady: false,
+      filename: input.filename,
+      issues: [{
+        code: "AUTHORING_MCP_PRODUCT_V3_REQUIRED",
+        severity: "blocking",
+        target: { targetType: "document", targetId: "manifest.json.schemaVersion" },
+        reason: "Submission baru wajib memakai Product Bundle V3 saat structured reader aktif.",
+        remediation: "Update manifest schemaVersion to product-bundle.v3.",
+      }],
+    };
+  }
+  if (validation.data.manifest.courseId !== run.courseId) {
+    return {
+      ok: false,
+      valid: false,
+      staged: false,
+      publicationReady: false,
+      filename: input.filename,
+      issues: [{
+        code: "AUTHORING_MCP_COURSE_SCOPE_MISMATCH",
+        severity: "blocking",
+        target: { targetType: "document", targetId: "manifest.json.courseId" },
+        reason: "Product Bundle course does not match the locked run scope",
+        remediation: "Ensure bundle manifest courseId matches the active run scope.",
+      }],
+    };
+  }
   const chapterScope = validateProductChapterScope(run, validation.data);
   const ideaScope = await validateProductIdeaScope(run, validation.data);
   const dbReferences = await validateProductDbReferences(run, validation.data);
-  const quality = evaluateProductBundleQuality(validation.data);
-  const dependencyIssues = validation.data.publicationBlocked ? [{ code: "PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW", message: "Product Bundle has dependencies that are not up to date.", path: "entities/dependencies.json" }] : [];
-  const blockingIssues = [...chapterScope.issues, ...ideaScope.issues, ...dbReferences.issues, ...dependencyIssues, ...quality.issues];
-  if (blockingIssues.length > 0) return { ok: false, valid: false, staged: false, filename: input.filename, issues: blockingIssues, quality, publicationBlocked: validation.data.publicationBlocked };
+  const scopeIssues: DiagnosticIssue[] = [
+    ...chapterScope.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "document" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all products declare and match the locked chapter." })),
+    ...ideaScope.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "idea" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all referenced Ideas are published and in the course scope." })),
+    ...dbReferences.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "document" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all external references exist and are permitted for authoring." })),
+  ];
+
+  const policyEvaluation = await evaluateProductBundleQualityPolicy({
+    bundle: validation.data,
+    dependencies: validation.data.dependencies,
+  });
+
+  const allIssues = [...scopeIssues, ...policyEvaluation.issues];
+  const deterministicValid = scopeIssues.length === 0 && policyEvaluation.valid;
+
+  if (!deterministicValid) {
+    return {
+      ok: false,
+      valid: false,
+      staged: false,
+      publicationReady: false,
+      filename: input.filename,
+      bundleId: validation.data.manifest.bundleId,
+      checksum: validation.data.manifest.bundleChecksum,
+      policyVersion: policyEvaluation.policyVersion,
+      contentFingerprint: policyEvaluation.contentFingerprint,
+      issues: allIssues,
+      next: "agent_revision",
+    };
+  }
+
   if (input.replaceImportId) {
     const target = await getProductBundleImport(input.replaceImportId);
     if (!target) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
@@ -743,7 +851,8 @@ async function stageProductArtifact(input: {
     if (target.status !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
     await assertImportRunScope(target.courseId, run.courseId);
   }
-  const result = await stageProductBundle({
+
+  const rawResult = await stageProductBundle({
     runId: run.runId,
     bundleId: validation.data.manifest.bundleId,
     courseId: run.courseId,
@@ -751,11 +860,58 @@ async function stageProductArtifact(input: {
     bytes,
     requestedBy: input.principal.actorId,
     bundle: validation.data,
-    qualityReport: quality as unknown as Record<string, unknown>,
+    qualityReport: policyEvaluation as unknown as Record<string, unknown>,
     filename: input.filename,
+    preserveUnchangedItemReviews: true,
   });
-  if (input.replaceImportId && result.importId !== input.replaceImportId) throw new Error("AUTHORING_MCP_IMPORT_REPLACE_TARGET_MISMATCH");
-  return { ok: true, valid: true, staged: true, result, quality, next: "admin_review" };
+
+  if (input.replaceImportId && rawResult.importId !== input.replaceImportId) {
+    throw new Error("AUTHORING_MCP_IMPORT_REPLACE_TARGET_MISMATCH");
+  }
+
+  const safeResult = {
+    importId: rawResult.importId,
+    bundleId: rawResult.bundleId,
+    checksum: rawResult.checksum,
+    status: rawResult.status,
+    created: rawResult.created,
+    replaced: rawResult.replaced,
+    itemCount: rawResult.itemCount,
+  };
+
+  return {
+    ok: true,
+    valid: true,
+    staged: true,
+    publicationReady: policyEvaluation.publicationReady,
+    result: safeResult,
+    policyVersion: policyEvaluation.policyVersion,
+    contentFingerprint: policyEvaluation.contentFingerprint,
+    issues: policyEvaluation.issues,
+    metrics: policyEvaluation.metrics,
+    next: "admin_review",
+  };
+}
+
+function productValidationIssueToDiagnostic(
+  issue: { code: string; message: string; path?: string },
+  filename: string,
+): DiagnosticIssue {
+  const visualValidationMessage =
+    issue.code === "BUNDLE_ENTITY_INVALID" &&
+    /(?:xMin must be strictly less than xMax|yMin must be strictly less than yMax|limitPoint .* x bounds|limitValue .* y bounds|delta neighborhood|epsilon band|Forbidden executable or markup pattern)/i.test(
+      issue.message,
+    );
+
+  return {
+    code: visualValidationMessage ? "VISUAL_SPEC_INVALID" : issue.code,
+    severity: "blocking",
+    target: { targetType: "document", targetId: issue.path || filename },
+    reason: issue.message,
+    remediation: visualValidationMessage
+      ? "Correct the typed visual specification, numeric bounds, and static fallback."
+      : "Correct the product bundle ZIP structure or schema according to manifest and entity specifications.",
+  };
 }
 
 function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void {
@@ -1127,29 +1283,90 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     requireMcpScope(principal, "authoring:read");
     const run = readMcpRunToken(runToken);
     if (run.workflow !== "idea_product") return { ok: false, error: "AUTHORING_MCP_WORKFLOW_MISMATCH" };
-    const validation = validateProductBundle(decodeMcpArtifact(bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES));
-    if (!validation.success) return { ok: false, valid: false, filename, issues: validation.issues };
+    const bytes = decodeMcpArtifact(bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
+    const validation = validateProductBundle(bytes);
+    if (!validation.success) {
+      const mappedIssues = validation.issues.map((iss) =>
+        productValidationIssueToDiagnostic(iss, filename),
+      );
+      return {
+        ok: false,
+        valid: false,
+        publicationReady: false,
+        policyVersion: QUALITY_POLICY_VERSION,
+        contentFingerprint: "",
+        filename,
+        issues: mappedIssues,
+        next: "agent_revision",
+      };
+    }
+    if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion !== "product-bundle.v3") {
+      return {
+        ok: false,
+        valid: false,
+        publicationReady: false,
+        policyVersion: QUALITY_POLICY_VERSION,
+        contentFingerprint: "",
+        filename,
+        issues: [{
+          code: "AUTHORING_MCP_PRODUCT_V3_REQUIRED",
+          severity: "blocking",
+          target: { targetType: "document", targetId: "manifest.json.schemaVersion" },
+          reason: "Submission baru wajib memakai Product Bundle V3 saat structured reader aktif.",
+          remediation: "Update manifest schemaVersion to product-bundle.v3.",
+        }],
+        next: "agent_revision",
+      };
+    }
     if (validation.data.manifest.courseId !== run.courseId) {
-      return { ok: false, valid: false, filename, issues: [{ code: "AUTHORING_MCP_COURSE_SCOPE_MISMATCH", message: "Product Bundle course does not match the locked run scope", path: "manifest.json.courseId" }] };
+      return {
+        ok: false,
+        valid: false,
+        publicationReady: false,
+        policyVersion: QUALITY_POLICY_VERSION,
+        contentFingerprint: "",
+        filename,
+        issues: [{
+          code: "AUTHORING_MCP_COURSE_SCOPE_MISMATCH",
+          severity: "blocking",
+          target: { targetType: "document", targetId: "manifest.json.courseId" },
+          reason: "Product Bundle course does not match the locked run scope",
+          remediation: "Ensure bundle manifest courseId matches the active run scope.",
+        }],
+        next: "agent_revision",
+      };
     }
     const chapterScope = validateProductChapterScope(run, validation.data);
     const ideaScope = await validateProductIdeaScope(run, validation.data);
     const dbReferences = await validateProductDbReferences(run, validation.data);
-    const quality = evaluateProductBundleQuality(validation.data);
-    const dependencyIssues = validation.data.publicationBlocked ? [{ code: "PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW", message: "Product Bundle has dependencies that are not up to date.", path: "entities/dependencies.json" }] : [];
-    const blockingIssues = [...chapterScope.issues, ...ideaScope.issues, ...dbReferences.issues, ...dependencyIssues, ...quality.issues];
-    if (blockingIssues.length > 0) return { ok: false, valid: false, filename, issues: blockingIssues, quality, publicationBlocked: validation.data.publicationBlocked };
+    const scopeIssues: DiagnosticIssue[] = [
+      ...chapterScope.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "document" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all products declare and match the locked chapter." })),
+      ...ideaScope.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "idea" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all referenced Ideas are published and in the course scope." })),
+      ...dbReferences.issues.map((i) => ({ code: i.code, severity: "blocking" as const, target: { targetType: "document" as const, targetId: i.path }, reason: i.message, remediation: "Ensure all external references exist and are permitted for authoring." })),
+    ];
+
+    const policyEvaluation = await evaluateProductBundleQualityPolicy({
+      bundle: validation.data,
+      dependencies: validation.data.dependencies,
+    });
+
+    const allIssues = [...scopeIssues, ...policyEvaluation.issues];
+    const valid = scopeIssues.length === 0 && policyEvaluation.valid;
+    const publicationReady = scopeIssues.length === 0 && policyEvaluation.publicationReady;
+
     return {
-      ok: true,
-      valid: true,
+      ok: valid,
+      valid,
+      publicationReady,
       filename,
       bundleId: validation.data.manifest.bundleId,
       checksum: validation.data.manifest.bundleChecksum,
-      publicationBlocked: validation.data.publicationBlocked,
-      issues: validation.data.issues,
-      quality,
+      policyVersion: policyEvaluation.policyVersion,
+      contentFingerprint: policyEvaluation.contentFingerprint,
+      issues: allIssues,
+      metrics: policyEvaluation.metrics,
       previews: previewProducts(validation.data.products),
-      next: "admin_review",
+      next: valid ? (publicationReady ? "ready_for_publication" : "submit_for_review") : "agent_revision",
     };
   }));
 
@@ -1404,6 +1621,23 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     }
     const row = bundleType === "idea" ? await getIdeaBundleImport(importId) : await getProductBundleImport(importId);
     if (!row) throw new Error(bundleType === "idea" ? "IDEA_BUNDLE_NOT_FOUND" : "PRODUCT_BUNDLE_NOT_FOUND");
+    if (bundleType === "product") {
+      const pedReviews = await db
+        .select({
+          id: reviewPedagogiBundle.id,
+          status: reviewPedagogiBundle.status,
+          policyVersion: reviewPedagogiBundle.policyVersion,
+          contentFingerprint: reviewPedagogiBundle.contentFingerprint,
+          rubric: reviewPedagogiBundle.rubric,
+          exceptions: reviewPedagogiBundle.exceptions,
+          notes: reviewPedagogiBundle.notes,
+          createdAt: reviewPedagogiBundle.createdAt,
+        })
+        .from(reviewPedagogiBundle)
+        .where(eq(reviewPedagogiBundle.imporBundleId, importId))
+        .orderBy(desc(reviewPedagogiBundle.createdAt));
+      return { ok: true, import: publicBundleImport(row, pedReviews) };
+    }
     return { ok: true, import: publicBundleImport(row) };
   }));
 
@@ -1463,16 +1697,46 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
 
   (server as any).registerTool("authoring.review_product_bundle", {
     title: "Review Product Bundle",
-    description: "Mencatat keputusan review immutable untuk Product Bundle draft tanpa mempublikasikannya.",
+    description: "Mencatat keputusan review pedagogi 8-kriteria immutable untuk Product Bundle draft tanpa mempublikasikannya.",
     inputSchema: {
       importId: z.string().trim().min(1),
-      decision: z.enum(["approved", "rejected"]),
+      runToken: z.string().min(1).optional(),
+      decision: z.enum(["approved", "rejected", "changes_requested"]),
+      policyVersion: z.string().trim().min(1),
+      contentFingerprint: z.string().trim().min(1),
+      criteria: z.array(pedagogicRubricItemSchema),
+      exceptions: z.array(pedagogicExceptionSchema).default([]),
+      expectedRevision: z.union([z.string(), z.number()]).optional(),
       notes: z.string().trim().max(4000).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-  }, async ({ importId, decision, notes }: any) => safeTool(async () => {
+  }, async (input: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:review");
-    return { ok: true, result: await reviewProductBundle({ importId, reviewerId: principal.actorId, decision, notes }) };
+
+    if (input.runToken) {
+      const run = readMcpRunToken(input.runToken);
+      if (run.workflow !== "idea_product") throw new Error("AUTHORING_MCP_WORKFLOW_MISMATCH");
+      const row = await getProductBundleImport(input.importId);
+      if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+      await assertImportRunScope(row.courseId, run.courseId);
+    }
+
+    const result = await executePedagogicReview({
+      importId: input.importId,
+      reviewerId: principal.actorId,
+      decision: input.decision,
+      policyVersion: input.policyVersion,
+      contentFingerprint: input.contentFingerprint,
+      criteria: input.criteria,
+      exceptions: input.exceptions,
+      expectedRevision: input.expectedRevision,
+      notes: input.notes,
+    });
+
+    return {
+      ...result,
+      next: input.decision === "approved" ? "ready_for_pdf_and_publication" : "author_remediation",
+    };
   }));
 
   (server as any).registerTool("authoring.withdraw_product_bundle", {

@@ -2,6 +2,7 @@
 
 import { IdeaBundleReviewDetail, ProductBundleReviewDetail } from "@/components/admin/material-review-detail";
 import { StructuredArticleReader } from "@/components/course/structured-article-reader";
+import { TutorProvider } from "@/components/course/tutor-drawer";
 import type { PublicArticleReadModel } from "@/lib/articles/structured-read-model";
 
 const sourceArticle: PublicArticleReadModel = {
@@ -64,12 +65,58 @@ const sourceArticle: PublicArticleReadModel = {
       sectionKind: "topic",
       learningObjective: "Menerapkan operasi ekuivalen pada pertaksamaan dan mengenali kapan arah tanda harus dibalik.",
       estimatedReadingMinutes: 6,
+      learningTimeEstimate: { readingMinutes: 6, examplesMinutes: 5, practiceMinutes: 4, totalMinutes: 15 },
       orderIndex: 2,
       parentSectionId: null,
+      visuals: [
+        {
+          id: "visual-epsilon-delta",
+          kind: "epsilon_delta_graph",
+          label: "Grafik epsilon delta untuk fungsi linear",
+          description: "Ubah epsilon untuk melihat pita keluaran dan delta yang menjamin nilai fungsi tetap di dalam pita.",
+          bounds: { xMin: -1, xMax: 5, yMin: -1, yMax: 7 },
+          limitPoint: 2,
+          limitValue: 3,
+          defaultEpsilon: 1,
+          defaultDelta: 1,
+          functionModel: { kind: "linear", m: 1, b: 1 },
+          staticFallback: {
+            type: "table",
+            summary: "Contoh pasangan jarak x dan nilai fungsi di sekitar titik limit.",
+            headers: ["x", "|x - 2|", "f(x)", "|f(x) - 3|"],
+            rows: [[1.5, 0.5, 2.5, 0.5], [1.9, 0.1, 2.9, 0.1], [2.1, 0.1, 3.1, 0.1], [2.5, 0.5, 3.5, 0.5]],
+          },
+        },
+      ],
       blocks: [
         { id: "ineq-1", blockKey: "ineq-1", blockType: "explanation", title: "Menjaga himpunan solusi", orderIndex: 0, content: "Operasi pada kedua ruas harus mempertahankan semua nilai yang memenuhi pertaksamaan semula. Penjumlahan dengan nilai yang sama mempertahankan urutan, sedangkan perkalian dengan bilangan negatif membalik urutan pada garis bilangan." },
-        { id: "ineq-2", blockKey: "ineq-2", blockType: "worked_example", title: "Contoh bertahap", orderIndex: 1, content: "Selesaikan $-2x+3>7$.\n\n$$-2x>4$$\n\nBagi kedua ruas dengan $-2$ dan balik tanda:\n\n$$x<-2$$" },
-        { id: "ineq-3", blockKey: "ineq-3", blockType: "retrieval_prompt", title: "Cek pemahaman", orderIndex: 2, content: "Selesaikan $5-3x\\leq14$, lalu periksa satu nilai yang berada di dalam himpunan solusi." },
+        {
+          id: "ineq-2", blockKey: "ineq-2", blockType: "worked_example", title: "Contoh bertahap", orderIndex: 1,
+          content: "Selesaikan $-2x+3>7$ dan verifikasi hasilnya.",
+          workedExample: {
+            steps: [
+              { stepIndex: 0, label: "Pisahkan suku konstanta", explanation: "Kurangi kedua ruas dengan 3 sehingga diperoleh $-2x>4$.", reason: "Operasi yang sama pada kedua ruas mempertahankan himpunan solusi." },
+              { stepIndex: 1, label: "Bagi dengan koefisien", explanation: "Bagi kedua ruas dengan $-2$ dan balik arah tanda sehingga $x<-2$.", reason: "Pembagian dengan bilangan negatif membalik urutan pada garis bilangan." },
+              { stepIndex: 2, label: "Uji titik batas", explanation: "Nilai $x=-2$ menghasilkan $7>7$ yang salah, maka batas tidak ikut.", reason: "Tanda lebih besar ketat menghasilkan interval terbuka pada titik batas." },
+              { stepIndex: 3, label: "Uji anggota solusi", explanation: "Nilai $x=-3$ menghasilkan $9>7$ yang benar.", reason: "Satu titik uji di sisi $x<-2$ mengonfirmasi arah interval solusi." },
+            ],
+            verification: "Substitusi $x=-3$ memenuhi pertaksamaan, sedangkan $x=0$ tidak. Jadi solusi $x<-2$ konsisten.",
+          },
+        },
+        {
+          id: "ineq-3", blockKey: "ineq-3", blockType: "retrieval_prompt", title: "Cek pemahaman", orderIndex: 2,
+          content: "Apa hasil penyelesaian $5-3x\\leq14$?",
+          formativeCheck: {
+            checkKind: "multiple_choice",
+            answer: "$x\\geq-3$",
+            explanation: "Kurangi kedua ruas dengan 5, lalu bagi dengan $-3$. Karena pembaginya negatif, arah tanda berubah menjadi $x\\geq-3$.",
+            options: [
+              { id: "a", text: "$x\\leq-3$", isCorrect: false },
+              { id: "b", text: "$x\\geq-3$", isCorrect: true },
+              { id: "c", text: "$x\\leq3$", isCorrect: false },
+            ],
+          },
+        },
       ],
     },
     {
@@ -91,13 +138,15 @@ const sourceArticle: PublicArticleReadModel = {
 };
 
 export function StructuredArticleVisualFixture({ mode }: { mode: "student" | "idea" | "product" }) {
-  if (mode === "student") return <StructuredArticleReader article={sourceArticle} course={{ id: "matematika-1", title: "Matematika I" }} />;
+  if (mode === "student") return <TutorProvider><StructuredArticleReader article={sourceArticle} course={{ id: "matematika-1", title: "Matematika I" }} /></TutorProvider>;
   return (
-    <main id="main-content" className="min-h-screen bg-background p-4 text-foreground sm:p-6">
-      <div className="mx-auto max-w-[1536px] space-y-4">
-        <h1 className="font-heading text-h5 font-bold">{mode === "idea" ? "Review Source Pack + Idea" : "Review Product"}</h1>
-        {mode === "idea" ? <IdeaBundleReviewDetail detailId="visual-idea" courseLabels={{ "matematika-1": "Matematika I" }} /> : <ProductBundleReviewDetail detailId="visual-product" courseLabels={{ "matematika-1": "Matematika I" }} />}
-      </div>
-    </main>
+    <TutorProvider>
+      <main id="main-content" className="min-h-screen bg-background p-4 text-foreground sm:p-6">
+        <div className="mx-auto max-w-[1536px] space-y-4">
+          <h1 className="font-heading text-h5 font-bold">{mode === "idea" ? "Review Source Pack + Idea" : "Review Product"}</h1>
+          {mode === "idea" ? <IdeaBundleReviewDetail detailId="visual-idea" courseLabels={{ "matematika-1": "Matematika I" }} /> : <ProductBundleReviewDetail detailId="visual-product" courseLabels={{ "matematika-1": "Matematika I" }} />}
+        </div>
+      </main>
+    </TutorProvider>
   );
 }

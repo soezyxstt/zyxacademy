@@ -9,8 +9,8 @@ Gunakan skill ini sebagai instruction layer untuk MCP. MCP adalah enforcement la
 
 ## Hasil yang wajib dicapai
 
-- **Artikel** adalah dokumen terstruktur per subtopik. Chapter memiliki overview, topic yang mengikuti learning section, summary, dan pemeriksaan akhir. Setiap topic dapat dibaca dalam satu layar reader tanpa kehilangan konteks bab.
-- **Diktat** adalah bahan review cepat, bukan Artikel kedua. Targetkan 2 sampai 4 halaman render, sekitar 1.200 sampai 1.600 kata Bahasa Indonesia yang padat, berisi intisari konsep, formula, prosedur, contoh kilat, jebakan, dan cek ingatan.
+- **Artikel** adalah sumber belajar mandiri terstruktur per subtopik. Chapter memiliki overview, topic yang mengikuti learning section, summary, dan pemeriksaan akhir. Panjangnya ditentukan oleh ketuntasan tujuan belajar, bukan target kata atau durasi baca.
+- **Diktat** adalah bahan review setelah Artikel, bukan Artikel kedua. Diktat mempertahankan seluruh Idea, formula penting, kondisi penggunaan, dan lineage, lalu harus benar-benar dirender menjadi PDF 2 sampai 4 halaman sebelum dinyatakan sesuai.
 - Semua teks yang dilihat mahasiswa memakai nama konsep manusiawi seperti `Kinematika Benda Tegar`. ID seperti `IDEA-001` hanya boleh berada pada field metadata, provenance, dependency, dan atribusi block yang tidak dirender.
 
 ## Prasyarat
@@ -22,18 +22,19 @@ Gunakan skill ini sebagai instruction layer untuk MCP. MCP adalah enforcement la
 
 ## Workflow authoring
 
-1. Kunci course, chapter, Source Pack checksum, Idea version, semantic hash, source references, dan allowed ITB reference.
+1. Kunci course, chapter, Source Pack checksum, Idea version, semantic hash, source references, allowed ITB reference, dan checksum contract MCP aktif.
 2. Buat peta kerja `ideaId -> nama konsep mahasiswa`. Ambil nama dari canonical statement atau intisari Idea, ringkas menjadi frasa konseptual yang alami, dan jangan menyalin kode Idea ke teks siswa.
-3. Tulis Artikel V3 terlebih dahulu sesuai learning outline dan budget pada editorial guide. Gunakan `sections[]` dan `blocks[].contentMarkdown`; jangan menyisipkan metadata JSON ke Markdown.
-4. Audit Artikel per topic. Pastikan semua Idea tercakup, setiap topic memiliki tujuan, penjelasan inti, cek pemahaman, dan provenance. Tambahkan formula, contoh, analogi, visual, penerapan, atau miskonsepsi hanya ketika membantu konsep.
-5. Turunkan Diktat hanya setelah Artikel lengkap. Kompres, jangan menambah fakta baru. Pertahankan seluruh Idea, formula penting, kondisi penggunaan, source trace, minimal dua contoh kilat, dua jebakan, dua retrieval check, dan satu visual ringkas.
-6. Buat flashcard atomic. Front, back, dan explanation memakai istilah konseptual, bukan kode pipeline.
-7. Untuk question Product, salin hanya soal ITB yang benar-benar ada pada Source Pack. Gunakan `itbSource.referenceId` dan event label exact dari allowed context. Jangan membuat soal original Zyx, mengubah angka, atau mengganti benchmark ID dengan reference ID. Prompt, opsi, dan solusi tidak boleh menampilkan ID internal.
-8. Buat solusi terpisah untuk setiap question dan blueprint hanya untuk question dalam bundle.
-9. Jalankan preflight editorial pada editorial guide. Jika ada ID internal pada learner-facing text, Artikel dangkal, Diktat terasa seperti Artikel kedua, formula rusak, atau isi tidak didukung source, berhenti dan revisi sebelum memanggil MCP.
-10. Package hanya `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`. Semua entry harus mode `0644`; jangan masukkan script, state, laporan, binary, symlink, archive bersarang, atau file tambahan.
-11. Panggil `authoring.validate_product_bundle`. Periksa technical issues, publication blocking dependency, published Idea scope, chapter scope, quality per section, batas 1.500 kata per topic, Diktat quality, formula, dan Idea coverage.
-12. Revisi sampai `valid: true` tanpa issue blocking dan ulangi preflight editorial. Panggil `authoring.submit_product_bundle` hanya jika kedua gate hijau. MCP menyimpan draft untuk review dan tidak dapat publish.
+3. Sebelum drafting, rencanakan prasyarat, urutan penjelasan, tujuan terukur, representasi atau visual yang relevan, worked example, cek formatif, jawaban, pembahasan, miskonsepsi, dan batas berlaku untuk setiap topic. Ketidakrelevanan harus dinyatakan secara typed, bukan diisi filler.
+4. Tulis Artikel V3 mengikuti rencana tersebut. Gunakan payload kontrak terbaru: `sections[]`, field section yang typed, dan `blocks[].contentMarkdown`, `ideaIds`, `sourceRefs`, serta payload typed untuk contoh, cek, dan visual. Jangan menyisipkan metadata JSON ke Markdown.
+5. Audit Artikel per topic. Pastikan semua Idea dan tujuan tercakup, prasyarat tersedia, urutan penjelasan koheren, serta setiap cek memiliki jawaban dan pembahasan. Estimasi belajar adalah hasil dari konten tuntas, bukan batas yang harus dikejar.
+6. Turunkan Diktat hanya setelah Artikel lengkap. Kompres, jangan menambah fakta baru. Pertahankan seluruh Idea, formula penting, kondisi penggunaan, source trace, contoh kilat, jebakan, dan cek ingatan yang memang relevan.
+7. Buat flashcard atomic. Front, back, dan explanation memakai istilah konseptual, bukan kode pipeline.
+8. Untuk question Product, salin hanya soal ITB yang benar-benar ada pada Source Pack. Gunakan `itbSource.referenceId` dan event label exact dari allowed context. Jangan membuat soal original Zyx, mengubah angka, atau mengganti benchmark ID dengan reference ID. Prompt, opsi, dan solusi tidak boleh menampilkan ID internal.
+9. Buat solusi terpisah untuk setiap question dan blueprint hanya untuk question dalam bundle.
+10. Jalankan preflight author pada editorial guide. Jika ada ID internal pada learner-facing text, tujuan belum tuntas, prasyarat hilang, cek tanpa pembahasan, Diktat terasa seperti Artikel kedua, formula rusak, visual tidak informatif, atau isi tidak didukung source, berhenti dan revisi sebelum memanggil MCP.
+11. Package hanya `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`. Semua entry harus mode `0644`; jangan masukkan script, state, laporan, binary, symlink, archive bersarang, atau file tambahan.
+12. Panggil `authoring.validate_product_bundle`. Periksa technical issues, publication blocking dependency, published Idea scope, chapter scope, quality per section, Diktat quality, formula, dan Idea coverage.
+13. Revisi sampai `valid: true` tanpa issue blocking dan ulangi preflight author. Panggil `authoring.submit_product_bundle` hanya jika kedua gate hijau. MCP hanya membuat draft review, bukan bukti pedagogi lulus, PDF sesuai, atau siap publikasi.
 
 ## Siklus hidup dan pemeliharaan
 
@@ -46,7 +47,7 @@ Gunakan skill ini sebagai instruction layer untuk MCP. MCP adalah enforcement la
 
 ## Ambang konten
 
-Artikel harus memenuhi compiler semantik dan gate per topic pada editorial guide. Jangan memenuhi angka dengan filler, pengulangan definisi, contoh semu, atau visual label kosong. Topic yang singkat tetapi tuntas menghasilkan warning, bukan alasan memperpanjang teks. Diktat harus memiliki Idea set yang sama dengan Artikel dan tetap menjadi review ringkas.
+Artikel harus memenuhi compiler semantik dan menuntaskan tujuan per topic pada editorial guide. Jangan menambah filler, pengulangan definisi, contoh semu, atau visual label kosong untuk mengejar angka. Diktat harus memiliki Idea set yang sama dengan Artikel dan tetap menjadi review ringkas. Status PDF hanya boleh disebut siap setelah artefak nyata dirender, page count terukur, dan pemeriksaan visual selesai.
 
 ## Aturan keamanan dan provenance
 
@@ -56,4 +57,4 @@ Di seluruh learner-facing text, larang `IDEA-*`, `idea-*`, `source-doc-*`, `chun
 
 ## Selesai
 
-Laporkan bundle ID, checksum, jumlah produk per jenis, dependency status, quality report, hasil preflight editorial, rentang kata Artikel dan Diktat, hasil pemeriksaan kebocoran ID, dan hasil staging. Berhenti bila Idea belum published, context stale, dependency perlu review, learner-facing text belum layak, atau MCP mengembalikan issue blocking. Jangan mengklaim tindakan publikasi otomatis.
+Laporkan bundle ID, checksum, checksum contract, jumlah produk per jenis, dependency status, quality report MCP, hasil preflight author, estimasi belajar per topic, hasil pemeriksaan kebocoran ID, hasil render PDF bila benar-benar dilakukan, dan hasil staging. Bedakan secara eksplisit preflight author, validator MCP, review pedagogi admin, status PDF, dan kesiapan publikasi. Berhenti bila Idea belum published, context stale, dependency perlu review, learner-facing text belum layak, atau MCP mengembalikan issue blocking. Jangan mengklaim tindakan publikasi otomatis.

@@ -1,5 +1,5 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { leafFilename } from "@/lib/storage/keys";
+import { isProtectedProductDiktatPdfKey, leafFilename } from "@/lib/storage/keys";
 
 const bucket = process.env.R2_BUCKET || "zyx";
 const s3 = new S3Client({
@@ -21,6 +21,12 @@ export async function GET(
     
     if (!key) {
       return new Response("Missing file key", { status: 400 });
+    }
+
+    // Product Bundle Diktat PDFs carry enrollment-gated course material. They
+    // are served only by the authenticated admin preview and learner routes.
+    if (isProtectedProductDiktatPdfKey(key)) {
+      return new Response("File not found", { status: 404 });
     }
 
     const command = new GetObjectCommand({

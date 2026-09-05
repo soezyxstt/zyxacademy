@@ -147,6 +147,61 @@ export async function getCanonicalPublishedArticle(
         );
     }
 
+    // Extract visuals from article contentMarkdown if present
+    let articleVisuals: unknown[] = [];
+    const visualMatch = articleRecord.contentMarkdown.match(/<!--__ZYX_V3_ARTICLE_VISUALS__:([A-Za-z0-9_-]+)-->/);
+    if (visualMatch) {
+      try {
+        articleVisuals = JSON.parse(Buffer.from(visualMatch[1], "base64url").toString("utf8"));
+      } catch {
+        // Fallback to empty array if parsing fails
+      }
+    }
+
+    // Process sections to extract pedagogy metadata
+    const parsedSections = sections.map((s) => {
+      let pedagogy: unknown = undefined;
+      let cleanObjective = s.learningObjective;
+      const pedMatch = s.learningObjective.match(/<!--__ZYX_V3_SECTION_PEDAGOGY__:([A-Za-z0-9_-]+)-->/);
+      if (pedMatch) {
+        try {
+          pedagogy = JSON.parse(Buffer.from(pedMatch[1], "base64url").toString("utf8"));
+          cleanObjective = s.learningObjective.replace(/<!--__ZYX_V3_SECTION_PEDAGOGY__:[A-Za-z0-9_-]+-->/, "").trim();
+        } catch {
+          // Fallback to undefined pedagogy
+        }
+      }
+      return {
+        ...s,
+        learningObjective: cleanObjective,
+        pedagogy,
+      };
+    });
+
+    // Process blocks to extract workedExamplePayload and formativeCheckPayload
+    const parsedBlocks = blocks.map((b) => {
+      let workedExamplePayload: unknown = undefined;
+      let formativeCheckPayload: unknown = undefined;
+      let cleanContent = b.content;
+      const payloadMatch = b.content.match(/<!--__ZYX_V3_BLOCK_PAYLOAD__:([A-Za-z0-9_-]+)-->/);
+      if (payloadMatch) {
+        try {
+          const parsed = JSON.parse(Buffer.from(payloadMatch[1], "base64url").toString("utf8"));
+          workedExamplePayload = parsed.workedExamplePayload;
+          formativeCheckPayload = parsed.formativeCheckPayload;
+          cleanContent = b.content.replace(/<!--__ZYX_V3_BLOCK_PAYLOAD__:[A-Za-z0-9_-]+-->/, "").trim();
+        } catch {
+          // Fallback to undefined payloads
+        }
+      }
+      return {
+        ...b,
+        content: cleanContent,
+        workedExamplePayload,
+        formativeCheckPayload,
+      };
+    });
+
     return buildPublicArticleReadModel(
       {
         id: articleRecord.id,
@@ -156,9 +211,10 @@ export async function getCanonicalPublishedArticle(
         title: articleRecord.title,
         version: articleRecord.version,
         status: articleRecord.status,
+        visuals: articleVisuals,
       },
-      sections,
-      blocks,
+      parsedSections,
+      parsedBlocks,
       progressRecords,
       {
         id: resolvedChapterId,

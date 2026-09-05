@@ -13,6 +13,7 @@ import {
   normalizeArticleBlockType,
 } from "./article-contract";
 import { compileDiktatFromArticle, DiktatDocument, DiktatCompressionReport } from "./diktat-contract";
+import { validateSectionPedagogyReferences } from "./pedagogy-contract";
 import { evaluateArticleQuality, evaluateDiktatQuality, QualityGateResult } from "./quality-gates";
 
 export const KOExclusionReasonSchema = z.enum([
@@ -263,7 +264,33 @@ function v3BlockToAst(block: ArticleBlock, globalOrderIndex: number): ASTBlock {
           physicalRationaleMarkdown: block.content,
         },
       };
-    case "worked_example":
+    case "worked_example": {
+      const solutionSteps = block.workedExamplePayload
+        ? [
+            ...block.workedExamplePayload.steps.map((step) => ({
+              stepIndex: step.stepIndex + 1,
+              label: step.label,
+              explanationMarkdown: step.reason
+                ? `${step.explanation}\n\n*Alasan*: ${step.reason}`
+                : step.explanation,
+            })),
+            ...(block.workedExamplePayload.verification
+              ? [
+                  {
+                    stepIndex: block.workedExamplePayload.steps.length + 1,
+                    label: "Verifikasi",
+                    explanationMarkdown: block.workedExamplePayload.verification,
+                  },
+                ]
+              : []),
+          ]
+        : [
+            {
+              stepIndex: 1,
+              label: "Langkah Solusi",
+              explanationMarkdown: block.content,
+            },
+          ];
       return {
         id: block.id,
         type: "example",
@@ -271,15 +298,10 @@ function v3BlockToAst(block: ArticleBlock, globalOrderIndex: number): ASTBlock {
         metadata: { difficulty: "medium", koId },
         content: {
           problemStatement: block.title || block.content,
-          solutionSteps: [
-            {
-              stepIndex: 1,
-              label: "Langkah Solusi",
-              explanationMarkdown: block.content,
-            },
-          ],
+          solutionSteps,
         },
       };
+    }
     case "summary": {
       const lines = block.content.split("\n").map((l) => l.replace(/^[-*•]\s*/, "").trim()).filter(Boolean);
       return {
@@ -304,7 +326,9 @@ function v3BlockToAst(block: ArticleBlock, globalOrderIndex: number): ASTBlock {
         },
       };
     case "retrieval_prompt":
-    case "retrieval_close":
+    case "retrieval_close": {
+      const formative = block.formativeCheckPayload;
+      const questionType = formative?.checkKind === "multiple_choice" ? "multiple_choice" : "short_essay";
       return {
         id: block.id,
         type: "exercise",
@@ -312,9 +336,11 @@ function v3BlockToAst(block: ArticleBlock, globalOrderIndex: number): ASTBlock {
         metadata: { questionId: block.id },
         content: {
           questionMarkdown: block.content,
-          questionType: "short_essay",
+          questionType,
+          ...(formative?.options ? { options: formative.options.map((opt) => opt.text) } : {}),
         },
       };
+    }
     case "prior_knowledge_activation":
       return {
         id: block.id,
@@ -373,6 +399,8 @@ export function compileArticleProduct(
           generationHash: product.generationHash,
           reviewerState: defaultReviewerState,
           applicability: { status: "applicable" },
+          workedExamplePayload: blockInput.workedExamplePayload,
+          formativeCheckPayload: blockInput.formativeCheckPayload,
         };
       });
       return {
@@ -387,6 +415,7 @@ export function compileArticleProduct(
         ideaIds: [...sectionInput.ideaIds].sort(),
         sourceRefs: [...sectionInput.sourceRefs].sort((left, right) => left.sourceId.localeCompare(right.sourceId)),
         blocks: canonicalArticleBlockOrder(sectionBlocks),
+        pedagogy: sectionInput.pedagogy,
       };
     });
 
@@ -403,12 +432,32 @@ export function compileArticleProduct(
       ideaVersions: Object.fromEntries(product.ideaLinks.map((link) => [link.id, link.version])),
       blocks: allBlocks,
       sections: canonicalSections,
+      visuals: product.visuals,
       reviewerState: defaultReviewerState,
     };
 
     const contract = articleDocumentSchema.safeParse(article);
     if (!contract.success && options.strict !== false) {
       throw new Error(`ARTICLE_CONTRACT_INVALID:${contract.error.issues[0]?.message ?? "invalid article"}`);
+    }
+
+    if (options.strict !== false) {
+      const allSectionIds = product.sections.map((sec) => sec.id);
+      const availableVisualIds = (product.visuals ?? []).map((v) => v.id);
+      for (const s of product.sections) {
+        if (s.pedagogy) {
+          const pedResult = validateSectionPedagogyReferences({
+            sectionId: s.id,
+            sectionBlocks: s.blocks.map((b) => ({ id: b.id, blockType: b.blockType })),
+            pedagogy: s.pedagogy,
+            availableSectionIds: allSectionIds,
+            availableVisualIds,
+          });
+          if (!pedResult.valid) {
+            throw new Error(`ARTICLE_PEDAGOGY_REFERENCE_INVALID:${pedResult.errors.join("; ")}`);
+          }
+        }
+      }
     }
 
     const quality = evaluateArticleQuality(article);
@@ -493,6 +542,8 @@ export function compileArticleProduct(
       ...(metadata.internalLinks ? { internalLinks: metadata.internalLinks } : {}),
       ...(metadata.assets ? { assets: metadata.assets } : {}),
       applicability: metadata.applicability ?? { status: "applicable" },
+      workedExamplePayload: metadata.workedExamplePayload,
+      formativeCheckPayload: metadata.formativeCheckPayload,
     };
   });
   const article: ArticleDocument = {
@@ -505,6 +556,7 @@ export function compileArticleProduct(
     ideaVersions: Object.fromEntries(product.ideaLinks.map((link) => [link.id, link.version])),
     blocks: canonicalArticleBlockOrder(blocks),
     sections: [],
+    visuals: product.visuals,
     reviewerState: defaultReviewerState,
   };
   const contract = articleDocumentSchema.safeParse(article);

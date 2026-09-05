@@ -1,13 +1,28 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { auditMutasi, courses, imporBundle, itemImporBundle, mataKuliah, reviewBundle, reviewItemBundle, user } from "@/db/schema";
+import {
+  auditMutasi,
+  buktiPdfBundle,
+  courses,
+  imporBundle,
+  itemImporBundle,
+  mataKuliah,
+  reviewBundle,
+  reviewItemBundle,
+  reviewPedagogiBundle,
+  user,
+} from "@/db/schema";
 import { storage } from "@/lib/storage";
 import { buildProductBundleKey } from "@/lib/storage/keys";
 import { productEntityHash, parseProductBundleZip } from "./product-bundle-v2";
 import { deterministicProductSerialization, type ProductDependency } from "./product-validator";
 import { type ProductBundleValidation } from "./product-validator";
-import { unchangedArticleSectionIds } from "./product-review-preservation";
+import {
+  canPreservePedagogicReview,
+  findStalePdfEvidenceProductIds,
+  unchangedArticleSectionIds,
+} from "./product-review-preservation";
 import { hasPeran } from "@/lib/auth/authorization";
 import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
 
@@ -65,14 +80,29 @@ export async function stageProductBundle(input: ProductStageInput) {
   const [conflict] = await db.select().from(imporBundle).where(eq(imporBundle.bundleId, input.bundleId)).limit(1);
   if (conflict && productBundleLifecycleStatus(conflict.status) !== "draft") throw new Error(`PRODUCT_BUNDLE_CONFLICT:${input.bundleId}`);
   let preservedItemReviews: Array<typeof reviewItemBundle.$inferSelect> = [];
-  if (conflict && input.preserveUnchangedItemReviews) {
-    if (!storage.download) throw new Error("PRODUCT_BUNDLE_STORAGE_DOWNLOAD_UNAVAILABLE");
-    const previous = parseProductBundleZip(await storage.download(conflict.sourceUriOrKey));
-    if (!previous.success) throw new Error("PRODUCT_BUNDLE_PREVIOUS_ARTIFACT_INVALID");
-    const unchangedSectionIds = unchangedArticleSectionIds(previous.data, input.bundle);
-    const existingItemReviews = await db.select().from(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
-    preservedItemReviews = existingItemReviews.filter((review) => review.targetType === "article_section" && review.targetId && unchangedSectionIds.has(review.targetId));
+  let stalePdfProductIds = new Set<string>();
+  let canPreservePedagogy = false;
+  let previousBundleParsed: Extract<ProductBundleValidation, { success: true }>["data"] | null = null;
+
+  if (conflict && storage.download) {
+    try {
+      const previousBytes = await storage.download(conflict.sourceUriOrKey);
+      const previous = parseProductBundleZip(previousBytes);
+      if (previous.success) {
+        previousBundleParsed = previous.data;
+        canPreservePedagogy = canPreservePedagogicReview(previous.data, input.bundle);
+        stalePdfProductIds = findStalePdfEvidenceProductIds(previous.data, input.bundle);
+        if (input.preserveUnchangedItemReviews) {
+          const unchangedSectionIds = unchangedArticleSectionIds(previous.data, input.bundle);
+          const existingItemReviews = await db.select().from(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
+          preservedItemReviews = existingItemReviews.filter((review) => review.targetType === "article_section" && review.targetId && unchangedSectionIds.has(review.targetId));
+        }
+      }
+    } catch {
+      // If previous artifact download or parsing fails, cannot verify identity
+    }
   }
+
   const importId = stableId("impor-product", `${input.bundleId}:${input.checksum}`);
   const sourceKey = buildProductBundleKey(input);
   await storage.upload(input.bytes, input.filename ?? `${input.bundleId}.zip`, "application/zip", { key: sourceKey, metadata: { bundleId: input.bundleId, runId: input.runId, checksum: input.checksum } });
@@ -88,6 +118,28 @@ export async function stageProductBundle(input: ProductStageInput) {
         await tx.delete(reviewItemBundle).where(eq(reviewItemBundle.imporBundleId, conflict.id));
         await tx.delete(reviewBundle).where(eq(reviewBundle.imporBundleId, conflict.id));
         await tx.delete(itemImporBundle).where(eq(itemImporBundle.imporBundleId, conflict.id));
+
+        if (!canPreservePedagogy) {
+          await tx.delete(reviewPedagogiBundle).where(eq(reviewPedagogiBundle.imporBundleId, conflict.id));
+        }
+
+        if (stalePdfProductIds.size > 0) {
+          await tx
+            .update(buktiPdfBundle)
+            .set({ status: "stale", updatedAt: new Date() })
+            .where(
+              and(
+                eq(buktiPdfBundle.imporBundleId, conflict.id),
+                inArray(buktiPdfBundle.productId, [...stalePdfProductIds]),
+              ),
+            );
+        } else if (!previousBundleParsed) {
+          await tx
+            .update(buktiPdfBundle)
+            .set({ status: "stale", updatedAt: new Date() })
+            .where(eq(buktiPdfBundle.imporBundleId, conflict.id));
+        }
+
         await tx.update(imporBundle).set({ checksum: input.checksum, courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: schemaVersion, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length, quality: input.qualityReport ?? null }, updatedAt: new Date() }).where(eq(imporBundle.id, conflict.id));
       } else {
         await tx.insert(imporBundle).values({ id: targetImportId, bundleId: input.bundleId, checksum: input.checksum, bundleType: "product", courseId: legacyCourseId, sourceUriOrKey: sourceKey, version: schemaVersion, status: "draft", requestedBy: input.requestedBy, validationReport: { valid: true, publicationBlocked: input.bundle.publicationBlocked, issues: input.bundle.issues, productCount: input.bundle.products.length, dependencyCount: input.bundle.dependencies.length, quality: input.qualityReport ?? null } });

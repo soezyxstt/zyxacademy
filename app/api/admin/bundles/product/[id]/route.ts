@@ -1,10 +1,15 @@
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { eq, desc } from "drizzle-orm";
+import { db } from "@/db";
+import { reviewPedagogiBundle, buktiPdfBundle } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { previewProducts } from "@/lib/bundle/product-preview";
 import { discardProductBundleDraft, getProductBundleImport, listProductBlockReviews, parseStagedProductBundle, productBundleLifecycleStatus, stageProductBundle } from "@/lib/bundle/product-staging";
 import { createProductBundleDraft, finalizeProductBundleDraft, type ProductBundleDraft } from "@/lib/bundle/product-draft";
 import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
+import { evaluateProductBundleQualityPolicy } from "@/lib/bundle/product-review-gate";
+import { QUALITY_POLICY_VERSION, computePedagogyContentFingerprint } from "@/lib/materials/quality-policy";
 
 export const runtime = "nodejs";
 
@@ -21,6 +26,91 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const approved = blockReviews.filter((review) => review.status === "approved").length;
     const changesRequested = blockReviews.filter((review) => review.status === "changes_requested").length;
     const currentReview = row.reviews.find((review) => review.reviewerId === session.user.id) ?? null;
+
+    const qualityEvaluation = await evaluateProductBundleQualityPolicy({
+      products: bundle.products,
+      dependencies: bundle.dependencies,
+    }, {
+      imporBundleId: id,
+    });
+
+    const [pedagogicReviewRow] = await db
+      .select()
+      .from(reviewPedagogiBundle)
+      .where(eq(reviewPedagogiBundle.imporBundleId, id))
+      .orderBy(desc(reviewPedagogiBundle.createdAt))
+      .limit(1);
+
+    const pedagogicReview = pedagogicReviewRow
+      ? {
+          id: pedagogicReviewRow.id,
+          status: pedagogicReviewRow.status,
+          policyVersion: pedagogicReviewRow.policyVersion,
+          contentFingerprint: pedagogicReviewRow.contentFingerprint,
+          criteria: Array.isArray(pedagogicReviewRow.rubric)
+            ? pedagogicReviewRow.rubric
+            : Array.isArray((pedagogicReviewRow.rubric as any)?.criteria)
+              ? (pedagogicReviewRow.rubric as any).criteria
+              : [],
+          exceptions: Array.isArray(pedagogicReviewRow.exceptions)
+            ? pedagogicReviewRow.exceptions
+            : Array.isArray((pedagogicReviewRow.exceptions as any)?.exceptions)
+              ? (pedagogicReviewRow.exceptions as any).exceptions
+              : [],
+          notes: pedagogicReviewRow.notes,
+          createdAt: pedagogicReviewRow.createdAt,
+        }
+      : null;
+
+    const [pdfEvidenceRow] = await db
+      .select()
+      .from(buktiPdfBundle)
+      .where(eq(buktiPdfBundle.imporBundleId, id))
+      .orderBy(desc(buktiPdfBundle.createdAt))
+      .limit(1);
+
+    const pdfStatus = pdfEvidenceRow
+      ? {
+          id: pdfEvidenceRow.id,
+          status: pdfEvidenceRow.status,
+          productId: pdfEvidenceRow.productId,
+          pageCount: pdfEvidenceRow.pageCount,
+          failureCode: pdfEvidenceRow.failureCode,
+          createdAt: pdfEvidenceRow.createdAt,
+        }
+      : { status: "pending", message: "Belum ada bukti PDF" };
+
+    const article = bundle.products.find((p) => p.productType === "article");
+    const diktat = bundle.products.find((p) => p.productType === "diktat");
+    const currentFingerprint = article
+      ? computePedagogyContentFingerprint({
+          article: article as unknown as Record<string, unknown>,
+          diktat: diktat ? (diktat as unknown as Record<string, unknown>) : undefined,
+        })
+      : "";
+
+    const isFingerprintMatch = Boolean(
+      pedagogicReview && pedagogicReview.contentFingerprint === currentFingerprint,
+    );
+    const isPolicyMatch = Boolean(
+      pedagogicReview && pedagogicReview.policyVersion === QUALITY_POLICY_VERSION,
+    );
+    const revisionFreshness = {
+      currentFingerprint,
+      reviewFingerprint: pedagogicReview?.contentFingerprint ?? null,
+      isFresh: Boolean(isFingerprintMatch && isPolicyMatch),
+      isFingerprintMatch,
+      isPolicyMatch,
+      policyVersion: QUALITY_POLICY_VERSION,
+      completenessState: !pedagogicReview
+        ? ("incomplete" as const)
+        : !isFingerprintMatch || !isPolicyMatch
+          ? ("stale" as const)
+          : ("complete" as const),
+    };
+
+    const blockingIssues = qualityEvaluation.issues.filter((i) => i.severity === "blocking");
+
     return NextResponse.json({
       bundle: {
         id: row.id,
@@ -45,6 +135,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       previews: previewProducts(bundle.products),
       draft: createProductBundleDraft(bundle),
       structuredReaderEnabled: isStructuredArticleReaderEnabled(),
+      qualityEvaluation,
+      pedagogicReview,
+      pdfStatus,
+      blockingIssues,
+      revisionFreshness,
     });
   } catch (error) {
     const code = error instanceof Error ? error.message.split(":", 1)[0] : "PRODUCT_BUNDLE_DETAIL_FAILED";

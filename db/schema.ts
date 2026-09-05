@@ -2747,6 +2747,121 @@ export const publikasiBundle = sqliteTable(
  ],
 );
 
+export const reviewPedagogiBundle = sqliteTable(
+  "review_pedagogi_bundle",
+  {
+    id: text("id").primaryKey(),
+    imporBundleId: text("impor_bundle_id")
+      .notNull()
+      .references(() => imporBundle.id, { onDelete: "cascade" }),
+    reviewerId: text("reviewer_id")
+      .notNull()
+      .references(() => pengguna.id, { onDelete: "restrict" }),
+    contentFingerprint: text("content_fingerprint").notNull(),
+    policyVersion: text("policy_version").notNull(),
+    status: text("status")
+      .$type<"pending" | "approved" | "rejected" | "changes_requested">()
+      .default("pending")
+      .notNull(),
+    rubric: text("rubric", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    exceptions: text("exceptions", { mode: "json" })
+      .$type<Array<Record<string, unknown>>>()
+      .default([])
+      .notNull(),
+    notes: text("notes"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("review_pedagogi_bundle_decision_idx").on(
+      table.imporBundleId,
+      table.reviewerId,
+      table.contentFingerprint,
+      table.policyVersion,
+    ),
+    index("review_pedagogi_bundle_import_idx").on(table.imporBundleId),
+    index("review_pedagogi_bundle_reviewer_idx").on(table.reviewerId),
+    index("review_pedagogi_bundle_fingerprint_idx").on(table.contentFingerprint),
+    index("review_pedagogi_bundle_status_idx").on(table.status),
+    check(
+      "review_pedagogi_bundle_status_check",
+      sql`${table.status} IN ('pending', 'approved', 'rejected', 'changes_requested')`,
+    ),
+  ],
+);
+
+export const reviewPedagogiBundleRelations = relations(reviewPedagogiBundle, ({ one }) => ({
+  imporBundle: one(imporBundle, {
+    fields: [reviewPedagogiBundle.imporBundleId],
+    references: [imporBundle.id],
+  }),
+  reviewer: one(pengguna, {
+    fields: [reviewPedagogiBundle.reviewerId],
+    references: [pengguna.id],
+  }),
+}));
+
+export const buktiPdfBundle = sqliteTable(
+  "bukti_pdf_bundle",
+  {
+    id: text("id").primaryKey(),
+    imporBundleId: text("impor_bundle_id")
+      .notNull()
+      .references(() => imporBundle.id, { onDelete: "cascade" }),
+    productId: text("product_id").notNull(),
+    articleVersion: integer("article_version").notNull(),
+    articleHash: text("article_hash").notNull(),
+    diktatHash: text("diktat_hash").notNull(),
+    rendererVersion: text("renderer_version").notNull(),
+    printProfile: text("print_profile").notNull(),
+    storageKey: text("storage_key"),
+    pageCount: integer("page_count"),
+    status: text("status")
+      .$type<"pending" | "ready" | "failed" | "stale">()
+      .default("pending")
+      .notNull(),
+    failureCode: text("failure_code"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("bukti_pdf_bundle_lineage_idx").on(
+      table.imporBundleId,
+      table.productId,
+      table.diktatHash,
+      table.printProfile,
+    ),
+    index("bukti_pdf_bundle_import_idx").on(table.imporBundleId),
+    index("bukti_pdf_bundle_product_idx").on(table.productId),
+    index("bukti_pdf_bundle_status_idx").on(table.status),
+    index("bukti_pdf_bundle_diktat_hash_idx").on(table.diktatHash),
+    index("bukti_pdf_bundle_article_hash_idx").on(table.articleHash),
+    check(
+      "bukti_pdf_bundle_page_count_check",
+      sql`${table.pageCount} IS NULL OR (${table.pageCount} >= 2 AND ${table.pageCount} <= 4)`,
+    ),
+    check(
+      "bukti_pdf_bundle_status_check",
+      sql`${table.status} IN ('pending', 'ready', 'failed', 'stale')`,
+    ),
+    check(
+      "bukti_pdf_bundle_article_version_check",
+      sql`${table.articleVersion} > 0`,
+    ),
+  ],
+);
+
+export const buktiPdfBundleRelations = relations(buktiPdfBundle, ({ one }) => ({
+  imporBundle: one(imporBundle, {
+    fields: [buktiPdfBundle.imporBundleId],
+    references: [imporBundle.id],
+  }),
+}));
+
 export const auditMutasi = sqliteTable(
  "audit_mutasi",
  {

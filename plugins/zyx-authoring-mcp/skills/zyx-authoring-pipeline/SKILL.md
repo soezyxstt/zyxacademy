@@ -39,8 +39,8 @@ Gunakan pilihan opaque dari MCP untuk mengunci course dan chapter. Jangan memint
 3. Kunci workflow `idea_product`, course, dan chapter; ambil run serta contract aktif.
 4. Jalankan tahap Idea dengan `$zyx-idea-bundle-mcp` sampai valid. Submit hanya jika diotorisasi.
 5. Setelah Idea staged, berhenti pada `WAITING_IDEA_PUBLICATION`. Laporkan checkpoint dan jangan mulai Product berdasarkan Idea draft.
-6. Saat operator meminta resume setelah publikasi, verifikasi ulang run, contract, Idea published, source excerpt aktif, versi, semantic hash, dan dependency freshness melalui MCP.
-7. Jalankan tahap Product dengan `$zyx-product-bundle-mcp` sampai valid. Wajib lulus MCP quality gate per section dan learner-facing editorial preflight, termasuk zero internal-ID leaks, topic 3 sampai 8 menit, hard limit 1.500 kata, serta perbedaan Artikel terstruktur dan Diktat review. Submit hanya jika diotorisasi.
+6. Saat operator meminta resume setelah publikasi, cocokkan checkpoint berdasarkan artifact checksum, run ID, contract checksum, scope, Source Pack checksum, lalu verifikasi ulang Idea published, source excerpt aktif, versi, semantic hash, dan dependency freshness melalui MCP. Jangan mengandalkan ingatan sesi.
+7. Jalankan tahap Product dengan `$zyx-product-bundle-mcp` sampai valid. Sebelum drafting, rencanakan prasyarat, urutan penjelasan, representasi atau visual, contoh, cek, jawaban, dan pembahasan. Wajib lulus preflight author dan MCP quality gate per section, termasuk ketuntasan tujuan, estimasi belajar, zero internal-ID leaks, serta perbedaan Artikel belajar mandiri dan Diktat review. Submit hanya jika diotorisasi.
 8. Laporkan hasil terpadu dan status akhir tanpa mengklaim publication yang tidak dilakukan MCP.
 
 Validation loop boleh berjalan tanpa meminta keputusan untuk perbaikan mekanis yang langsung ditentukan oleh `issues` dan `quality.metrics`. Berhenti dan diskusikan bila sumber ambigu, pemetaan scope tidak pasti, pemecahan Idea substantif, warning membutuhkan judgment, kandidat soal ITB harus dipilih, context stale, atau dependency publication-blocking.
@@ -51,8 +51,8 @@ Gunakan status yang didefinisikan dalam reference. Pada setiap jeda, laporkan mi
 
 - status dan tahap terakhir yang selesai;
 - label course dan chapter terkunci;
-- nama atau path bila ada, serta checksum artifact yang sudah dibuat;
-- bundle ID, checksum, quality result, dan staging result yang tersedia;
+- run ID, contract checksum, nama atau path bila ada, serta checksum artifact yang sudah dibuat;
+- bundle ID, checksum, hasil preflight author, hasil validator MCP, dan staging result yang tersedia;
 - blocker atau keputusan yang dibutuhkan;
 - kondisi objektif untuk melanjutkan dan instruksi resume singkat.
 
@@ -67,4 +67,4 @@ Checkpoint tidak boleh dimasukkan ke ZIP Source Pack, Idea Bundle, atau Product 
 
 ## Selesai
 
-Pipeline selesai pada `PRODUCT_VALIDATED` untuk target `product_validated`, atau `PRODUCT_STAGED` untuk target `product_staged`. Kedua target tetap memerlukan Idea staged dan published sebagai prasyarat Product. Setelah selesai, jelaskan bahwa Product belum published dan, bila staged, masih menunggu review/publication admin.
+Pipeline selesai pada `PRODUCT_VALIDATED` untuk target `product_validated`, atau `PRODUCT_STAGED` untuk target `product_staged`. Kedua target tetap memerlukan Idea staged dan published sebagai prasyarat Product. Setelah selesai, jelaskan bahwa MCP hijau bukan review pedagogi, bukti PDF, atau kesiapan publikasi. Bila staged, Product masih menunggu review admin, render PDF nyata, dan publication gate.

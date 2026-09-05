@@ -1,0 +1,413 @@
+import type { ArticleDocument } from "@/lib/materials/article-contract";
+import type { EpsilonDeltaGraphSpec } from "@/lib/materials/visual-contract";
+
+export const LIMIT_EPSILON_DELTA_GRAPH: EpsilonDeltaGraphSpec = {
+  id: "visual-limit-linear-2x-plus-1",
+  kind: "epsilon_delta_graph",
+  label: "Grafik Epsilon Delta f(x) = 2x + 1 pada x mendekati 3",
+  description: "Visualisasi interaktif batas epsilon dan delta untuk membuktikan limit f(x) = 7 saat x mendekati 3",
+  bounds: {
+    xMin: 0,
+    xMax: 6,
+    yMin: 0,
+    yMax: 10,
+  },
+  staticFallback: {
+    type: "table",
+    summary: "Tabel nilai x dan f(x) dalam pita delta dan epsilon",
+    headers: ["x", "f(x)", "|x - 3|", "|f(x) - 7|"],
+    rows: [
+      [2.6, 6.2, 0.4, 0.8],
+      [2.8, 6.6, 0.2, 0.4],
+      [3.0, 7.0, 0.0, 0.0],
+      [3.2, 7.4, 0.2, 0.4],
+      [3.4, 7.8, 0.4, 0.8],
+    ],
+  },
+  limitPoint: 3,
+  limitValue: 7,
+  defaultEpsilon: 1,
+  defaultDelta: 0.5,
+  functionModel: {
+    kind: "linear",
+    m: 2,
+    b: 1,
+  },
+};
+
+const HASH_FIXTURE = "11".repeat(32);
+const SOURCE_HASH = "22".repeat(32);
+
+export const LIMIT_ARTICLE_FIXTURE: ArticleDocument = {
+  id: "article-limit-definition",
+  courseId: "kalkulus-1",
+  title: "Definisi Presisi Limit Fungsi Real",
+  version: 1,
+  generationHash: HASH_FIXTURE,
+  reviewerState: "draft",
+  ideaIds: ["idea-limit-precision"],
+  visuals: [LIMIT_EPSILON_DELTA_GRAPH],
+  blocks: [],
+  sections: [
+    {
+      id: "sec-overview",
+      kind: "overview",
+      title: "Pengantar dan Intuisi Limit",
+      slug: "pengantar-dan-intuisi-limit",
+      orderIndex: 0,
+      learningObjective: "Memahami mengapa intuisi pendekatan memerlukan definisi formal",
+      ideaIds: ["idea-limit-precision"],
+      sourceRefs: [
+        {
+          sourceId: "stewart-calculus-ch2",
+          version: 1,
+          checksum: SOURCE_HASH,
+          excerptIds: ["sec-2.4-def"],
+        },
+      ],
+      blocks: [
+        {
+          id: "block-ov-pka",
+          blockType: "prior_knowledge_activation",
+          title: "Aktivasi Konsep Pendekatan",
+          orderIndex: 0,
+          content: "Sebelumnya kita memahami limit secara intuitif: f(x) mendekati L saat x mendekati c. Namun intuisi kata 'mendekati' menyisakan ambiguitas matematis.",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Mengingat kembali konsep intuitif limit.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+        },
+        {
+          id: "block-ov-exp",
+          blockType: "explanation",
+          title: "Tantangan Definisi Presisi",
+          orderIndex: 1,
+          content: "Kelemahan pendekatan intuitif terlihat saat menghadapi fungsi dengan osilasi liar atau lompatan diskontinu. Diperlukan bahasa presisi dengan toleransi jarak.",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Menjelaskan kebutuhan formalisasi.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+        },
+      ],
+    },
+    {
+      id: "sec-epsilon-delta",
+      kind: "topic",
+      learningSectionId: "ls-limit-formal-definition",
+      title: "Definisi Formal Epsilon Delta",
+      slug: "definisi-formal-epsilon-delta",
+      orderIndex: 1,
+      learningObjective: "Menguasai struktur kuantor formal limit, peran delta terhadap epsilon, dan pengecualian titik x = c",
+      ideaIds: ["idea-limit-precision"],
+      sourceRefs: [
+        {
+          sourceId: "stewart-calculus-ch2",
+          version: 1,
+          checksum: SOURCE_HASH,
+          excerptIds: ["sec-2.4-def"],
+        },
+      ],
+      pedagogy: {
+        objectives: [
+          {
+            id: "obj-quantifier-order",
+            description: "Memahami urutan kuantor formal untuk setiap epsilon lebih dari nol terdapat delta lebih dari nol",
+            explanationBlockIds: ["block-ed-exp-def"],
+            formativeCheckBlockIds: ["block-ed-chk-mcq"],
+          },
+          {
+            id: "obj-delta-dependency",
+            description: "Membuktikan ketergantungan delta terhadap epsilon yang diberikan penantang",
+            explanationBlockIds: ["block-ed-exp-dep"],
+            formativeCheckBlockIds: ["block-ed-chk-short"],
+          },
+        ],
+        prerequisites: [
+          {
+            id: "prereq-inequalities",
+            type: "external",
+            label: "Pertidaksamaan Nilai Mutlak",
+            supportBlockIds: ["block-ed-pka"],
+          },
+        ],
+        symbols: [
+          {
+            symbol: "epsilon",
+            meaning: "Batas toleransi kesalahan pada sumbu vertikal keluaran f(x)",
+            condition: "Harus bernilai riil positif sembarang yang diberikan di awal",
+            introductionBlockId: "block-ed-exp-def",
+          },
+          {
+            symbol: "delta",
+            meaning: "Jarak toleransi masukan x terhadap c pada sumbu horizontal",
+            condition: "Dipilih bergantung pada epsilon dan titik c",
+            introductionBlockId: "block-ed-exp-def",
+          },
+        ],
+        timeEstimate: {
+          readingMinutes: 6,
+          examplesMinutes: 8,
+          practiceMinutes: 6,
+        },
+        visualRequirement: {
+          status: "required",
+          visualIds: ["visual-limit-linear-2x-plus-1"],
+        },
+      },
+      blocks: [
+        {
+          id: "block-ed-pka",
+          blockType: "prior_knowledge_activation",
+          title: "Jarak Antara Dua Bilangan Riil",
+          orderIndex: 0,
+          content: "Ingat bahwa jarak antara x dan c dinyatakan sebagai nilai mutlak |x - c|. Syarat 0 < |x - c| berarti x tidak sama dengan c.",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Mengingat arti geometris pertidaksamaan nilai mutlak.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+        },
+        {
+          id: "block-ed-exp-def",
+          blockType: "explanation",
+          title: "Definisi Presisi Limit Cauchy-Weierstrass",
+          orderIndex: 1,
+          content: "Kita katakan limit f(x) saat x mendekati c bernilai L jika untuk setiap bilangan epsilon > 0 terdapat bilangan delta > 0 sedemikian hingga jika 0 < |x - c| < delta maka |f(x) - L| < epsilon.",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Menyajikan definisi formal limit.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+        },
+        {
+          id: "block-ed-exp-dep",
+          blockType: "explanation",
+          title: "Urutan Kuantor dan Ketergantungan Delta",
+          orderIndex: 2,
+          content: "Urutan kuantor bersifat krusial: penantang memberikan epsilon terlebih dahulu, kemudian kita mencari delta yang cocok. Pertidaksamaan 0 < |x - c| dengan tegas mengecualikan titik x = c, sehingga nilai f(c) tidak relevan bagi nilai limit.",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Menjelaskan urutan kuantor dan pengecualian x sama dengan c.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+        },
+        {
+          id: "block-ed-example-linear",
+          blockType: "worked_example",
+          title: "Bukti Formal Limit Fungsi Linier f(x) = 2x + 1",
+          orderIndex: 3,
+          content: "Buktikan menggunakan definisi formal bahwa limit (2x + 1) saat x mendekati 3 adalah 7.",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Melatih prosedur penentuan delta untuk fungsi linier.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+          workedExamplePayload: {
+            steps: [
+              {
+                stepIndex: 0,
+                label: "Analisis pendahuluan",
+                explanation: "Kita ingin |(2x + 1) - 7| < epsilon. Sederhanakan menjadi |2x - 6| < epsilon atau 2|x - 3| < epsilon.",
+                reason: "Menghubungkan bentuk |f(x) - L| langsung ke kelipatan |x - c|.",
+              },
+              {
+                stepIndex: 1,
+                label: "Pemilihan delta",
+                explanation: "Dari 2|x - 3| < epsilon diperoleh |x - 3| < epsilon / 2. Maka kita pilih delta = epsilon / 2.",
+                reason: "Menentukan kandidat delta eksplisit sebagai fungsi epsilon positif.",
+              },
+              {
+                stepIndex: 2,
+                label: "Penyusunan bukti formal",
+                explanation: "Diberikan sembarang epsilon > 0. Pilih delta = epsilon / 2. Jika 0 < |x - 3| < delta, maka |(2x + 1) - 7| = 2|x - 3| < 2(epsilon / 2) = epsilon.",
+                reason: "Menjalankan implikasi arah maju sesuai tuntutan definisi formal.",
+              },
+            ],
+            verification: "Untuk setiap epsilon positif, pemilihan delta = epsilon / 2 menjamin jarak f(x) ke 7 kurang dari epsilon.",
+          },
+        },
+        {
+          id: "block-ed-chk-mcq",
+          blockType: "retrieval_prompt",
+          title: "Cek Pemahaman: Urutan Kuantor",
+          orderIndex: 4,
+          content: "Manakah pernyataan yang benar mengenai urutan penentuan epsilon dan delta pada definisi limit?",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Menguji pemahaman arah ketergantungan kuantor.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+          formativeCheckPayload: {
+            checkKind: "multiple_choice",
+            answer: "opt-b",
+            explanation: "Epsilon selalu ditentukan lebih dulu sebagai batas toleransi keluaran, kemudian nilai delta dicari sesuai kebutuhan epsilon tersebut.",
+            options: [
+              {
+                id: "opt-a",
+                text: "Delta dipilih terlebih dahulu, kemudian epsilon dihitung.",
+                isCorrect: false,
+              },
+              {
+                id: "opt-b",
+                text: "Epsilon diberikan terlebih dahulu sembarang positif, lalu delta dicari.",
+                isCorrect: true,
+              },
+              {
+                id: "opt-c",
+                text: "Epsilon dan delta harus selalu bernilai sama.",
+                isCorrect: false,
+              },
+            ],
+          },
+        },
+        {
+          id: "block-ed-chk-short",
+          blockType: "retrieval_prompt",
+          title: "Cek Pemahaman: Menghitung Delta",
+          orderIndex: 5,
+          content: "Jika f(x) = 4x - 3 dan kita ingin membuktikan limit f(x) saat x mendekati 2 sama dengan 5 dengan epsilon = 0.04, berapa nilai delta terbesar yang dapat kita pilih?",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Latihan numerik menghitung delta linier.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+          formativeCheckPayload: {
+            checkKind: "short_answer",
+            answer: "0.01",
+            explanation: "|(4x - 3) - 5| = 4|x - 2| < epsilon. Maka delta = epsilon / 4 = 0.04 / 4 = 0.01.",
+          },
+        },
+      ],
+    },
+    {
+      id: "sec-summary",
+      kind: "summary",
+      title: "Rangkuman dan Evaluasi Mandiri",
+      slug: "rangkuman-dan-evaluasi-mandiri",
+      orderIndex: 2,
+      learningObjective: "Merangkum definisi limit dan memverifikasi batas berlaku",
+      ideaIds: ["idea-limit-precision"],
+      sourceRefs: [
+        {
+          sourceId: "stewart-calculus-ch2",
+          version: 1,
+          checksum: SOURCE_HASH,
+          excerptIds: ["sec-2.4-def"],
+        },
+      ],
+      blocks: [
+        {
+          id: "block-sum-content",
+          blockType: "summary",
+          title: "Intisari Definisi Presisi",
+          orderIndex: 0,
+          content: "Definisi limit menyatakan kontrol input terhadap toleransi output. Pada fungsi konstan f(x) = c, sembarang delta memenuhi. Pada lompatan tangga, limit tidak ada karena delta gagal ditemukan untuk epsilon kecil.",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Merangkum poin utama bab.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+        },
+        {
+          id: "block-sum-close",
+          blockType: "retrieval_close",
+          title: "Evaluasi Konseptual Akhir",
+          orderIndex: 1,
+          content: "Mengapa pada definisi limit disyaratkan 0 < |x - c| dan bukan cukup |x - c| < delta?",
+          ideaIds: ["idea-limit-precision"],
+          sourceRefs: [
+            {
+              sourceId: "stewart-calculus-ch2",
+              version: 1,
+              checksum: SOURCE_HASH,
+              excerptIds: ["sec-2.4-def"],
+            },
+          ],
+          learningPurpose: "Konfirmasi final pemahaman titik limit.",
+          generationHash: HASH_FIXTURE,
+          reviewerState: "draft",
+          applicability: { status: "applicable" },
+          formativeCheckPayload: {
+            checkKind: "conceptual_explanation",
+            answer: "Untuk mengecualikan nilai fungsi tepat pada titik x = c sehingga limit hanya bergantung pada perilaku di sekitar titik tersebut.",
+            explanation: "Limit adalah konsep lokal di sekeliling titik c. Fungsi bahkan tidak harus terdefinisi di c agar limitnya ada.",
+          },
+        },
+      ],
+    },
+  ],
+};

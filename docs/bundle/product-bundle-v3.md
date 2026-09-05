@@ -13,8 +13,10 @@ Each block stores `contentMarkdown`, `blockType`, optional title, Idea IDs, and 
 - Every Idea is covered and traceable to a source.
 - Every topic has a learning objective, core explanation, understanding check, and provenance.
 - Examples, analogies, visuals, formulas, misconceptions, and warnings are required only when pedagogically relevant.
-- A topic targets 3 to 8 reading minutes and has a hard prose equivalent limit of 1,500 words. A short topic produces a warning, not filler.
+- Each topic declares a structured learning-time estimate for reading, examples, and practice. Completeness is judged against its objectives, not a fixed word count or reading-duration target.
 - A chapter has overview, synthesis or summary, and a final understanding check.
+- Pedagogy metadata binds objectives to explanation and formative-check blocks, declares prerequisites and symbols, and records whether a visual is required or not relevant.
+- Required visuals use typed, non-executable payloads. A mathematically sampled graph is explanatory evidence only and never replaces an analytic proof.
 
 ## Review, edit, and publication
 
@@ -22,7 +24,9 @@ Each block stores `contentMarkdown`, `blockType`, optional title, Idea IDs, and 
 
 Admin edits require `expectedRevision`, accept only safe content fields, recompute generation hashes and bundle checksum, preserve approval for unchanged sections, reset changed section approval, and mark an Article to Diktat dependency `STALE`. Stable IDs, provenance, and lineage identity cannot be edited.
 
-Publication requires the approving admin to have approved every Article section and no section may have `changes_requested`. A different reviewer cannot reuse another reviewer's approval. Any stale dependency blocks publication. Publishing is transactional and idempotent.
+Publication requires the approving admin to have approved every Article section and all eight pedagogic criteria against the current content fingerprint and policy version. A different reviewer cannot reuse another reviewer's approval. Missing or stale approvals, stale dependencies, failed visual contracts, and missing, failed, or stale Diktat PDF evidence block publication. Publishing is transactional and idempotent.
+
+The Diktat PDF worker compiles only the linked Article and Diktat revision, renders formulas fail-closed, records renderer and print-profile identity, verifies a 2 to 4 page PDF, then stores revision-bound evidence outside the ZIP. Admins may render, retry, and preview this artifact. Students may download the published PDF only when authorized for the course. The generic storage proxy cannot expose protected Product Diktat keys.
 
 ## Read models
 

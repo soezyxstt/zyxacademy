@@ -465,6 +465,35 @@ export function readMcpRunToken(runToken: string): RunTokenPayload {
   return verifyToken<RunTokenPayload>(runToken, "run");
 }
 
+export function issueMcpRunToken(input: {
+  runId?: string;
+  workflow?: AuthoringWorkflow;
+  courseId: string;
+  chapterId: string;
+  courseLabel?: string;
+  chapterLabel?: string;
+  sourcePackChecksum?: string | null;
+  sourcePackId?: string | null;
+  sourcePackName?: string | null;
+  sourcePackSummary?: string | null;
+  ttlMs?: number;
+}): string {
+  return issueToken({
+    kind: "run",
+    runId: input.runId ?? `mcp-run-${randomUUID()}`,
+    workflow: input.workflow ?? "idea_product",
+    courseId: input.courseId,
+    chapterId: input.chapterId,
+    courseLabel: input.courseLabel ?? input.courseId,
+    chapterLabel: input.chapterLabel ?? input.chapterId,
+    sourcePackChecksum: input.sourcePackChecksum ?? null,
+    sourcePackId: input.sourcePackId ?? null,
+    sourcePackName: input.sourcePackName ?? null,
+    sourcePackSummary: input.sourcePackSummary ?? null,
+    ttlMs: input.ttlMs ?? 7 * 24 * 60 * 60 * 1000,
+  });
+}
+
 export function issueMcpConnectionToken(input: {
   userId: string;
   sessionId: string;
@@ -536,6 +565,111 @@ export function quizBankScopeGuidance() {
   };
 }
 
+export function productBundleV3Contract() {
+  return {
+    schemaVersion: "product-bundle.v3",
+    compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3"],
+    toolSequence: [
+      "authoring.validate_product_bundle",
+      "authoring.submit_product_bundle",
+      "authoring.restage_product_bundle",
+      "authoring.review_product_bundle",
+    ],
+    validationTool: "authoring.validate_product_bundle",
+    submitTool: "authoring.submit_product_bundle",
+    restageTool: "authoring.restage_product_bundle",
+    reviewTool: "authoring.review_product_bundle",
+    reviewRequired: true,
+    ideaPublicationRequired: true,
+    publicationPermitted: false,
+    evaluationStages: {
+      authorPreflight: "Local AST compilation, schema validation, and quality policy gate checking prior to submission.",
+      deterministicValid: "Pure content validity checking pedagogy references, payloads, and typed visuals. Independent from admin review and PDF evidence.",
+      adminReview: "Pedagogic quality assessment across eight criteria with content anchors and approved exceptions.",
+      pdfEvidence: "Diktat PDF rendering evidence states: pending, ready, failed, stale; ready requires 2-4 pages.",
+      publicationReady: "Final readiness requiring valid content, approved review with matching fingerprint and policy, and ready PDF evidence.",
+    },
+    pedagogyFields: {
+      section: {
+        objectives: "Array of learning objectives with id, description, explanationBlockIds, and formativeCheckBlockIds.",
+        prerequisites: "Array of prerequisite references with id, type (section, idea, or external), label, and supportBlockIds.",
+        symbols: "Array of introduced mathematical or domain symbols with symbol, meaning, condition, and introductionBlockId.",
+        timeEstimate: "Reading, worked examples, and practice minutes heuristics (readingMinutes, examplesMinutes, practiceMinutes).",
+        visualRequirement: "Required with visualIds or not_required with justification reason.",
+      },
+      blocks: {
+        workedExamplePayload: {
+          targetBlockType: "worked_example",
+          fields: {
+            steps: "Contiguous 0-indexed steps with stepIndex, label, explanation, and reason.",
+            verification: "Explicit verification or sanity check of the solution.",
+          },
+        },
+        formativeCheckPayload: {
+          targetBlockTypes: ["retrieval_prompt", "retrieval_close"],
+          fields: {
+            checkKind: "multiple_choice, short_answer, or conceptual_explanation.",
+            answer: "Canonical answer key.",
+            explanation: "Self-study explanation or solution walkthrough.",
+            options: "For multiple_choice, at least 2 options with id, text, and exactly 1 marked isCorrect.",
+          },
+        },
+      },
+    },
+    typedVisuals: {
+      supportedKinds: ["epsilon_delta_graph"],
+      specFields: {
+        id: "Unique visual identifier within article registry.",
+        kind: "epsilon_delta_graph",
+        label: "Accessible visual title or label.",
+        description: "Detailed description for screen readers and search.",
+        bounds: "Numeric bounding box: xMin, xMax, yMin, yMax with xMin < xMax and yMin < yMax.",
+        limitPoint: "Approached limit point c.",
+        limitValue: "Function limit value L.",
+        defaultEpsilon: "Default initial epsilon tolerance band.",
+        defaultDelta: "Default initial delta radius.",
+        functionModel: "constant (c), linear (m, b), or quadratic (a, b, c).",
+        staticFallback: "table (summary, headers, rows) or text (summary, content).",
+      },
+      securityRestrictions: "No executable JavaScript or eval, no raw HTML, and no raw SVG.",
+    },
+    reviewRubric: {
+      criteriaCount: 8,
+      criteria: [
+        "concept_accuracy",
+        "prerequisite_completeness",
+        "explanation_sequence",
+        "symbol_and_condition_clarity",
+        "example_reasoning",
+        "representation_or_visual",
+        "misconceptions_and_limits",
+        "formative_check_and_explanation",
+      ],
+      statuses: ["not_met", "needs_revision", "met"],
+      anchorTargetTypes: ["document", "section", "block", "visual"],
+      exceptionPolicy: "Non-met criteria require an explicit approved exception with justification reason.",
+    },
+    pdfEvidenceStates: {
+      statuses: ["pending", "ready", "failed", "stale"],
+      readyPageRange: { minPages: 2, maxPages: 4 },
+      safeFailureCodes: [
+        "RENDER_TIMEOUT",
+        "LAYOUT_OVERFLOW",
+        "FONT_MISSING",
+        "FORMULA_RENDER_ERROR",
+        "STORAGE_UNAVAILABLE",
+        "INVALID_SOURCE_MARKDOWN",
+        "PAGE_BUDGET_EXCEEDED",
+      ],
+    },
+    remediationWorkflow: {
+      deterministicIssues: "Resolve reported diagnostic issues pointing to specific section, block, or visual targets.",
+      staleReview: "Resubmit modified draft and record fresh review matching the updated content fingerprint.",
+      stalePdfEvidence: "Re-render PDF artifact against modified article or diktat generation hash.",
+    },
+  };
+}
+
 export function workflowContract(runToken: string) {
   const run = readMcpRunToken(runToken);
   const workflow = getAuthoringWorkflow(run.workflow);
@@ -556,7 +690,7 @@ export function workflowContract(runToken: string) {
     outputs: workflow.key === "idea_product"
       ? {
         ideaBundle: { schemaVersion: "idea-bundle.v3", compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"], validationTool: "authoring.validate_idea_bundle", reviewRequired: true },
-        productBundle: { schemaVersion: "product-bundle.v3", compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3"], validationTool: "authoring.validate_product_bundle", reviewRequired: true, ideaPublicationRequired: true },
+        productBundle: productBundleV3Contract(),
       }
       : {
         quizDraft: {

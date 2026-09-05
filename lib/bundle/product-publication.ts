@@ -10,6 +10,7 @@ import {
   bagianArtikel,
   bagianPembelajaran,
   blueprintAsesmen,
+  buktiPdfBundle,
   blokArtikel,
   blokArtikelIde,
   blokArtikelSumber,
@@ -47,7 +48,7 @@ import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { parseStagedProductBundle, getProductBundleImport, productBundleLifecycleStatus } from "./product-staging";
 import type { ProductDependency, ProductEntity } from "./product-validator";
 import { compileArticleProduct } from "@/lib/materials/compiler";
-import { assertProductSectionReviews } from "./product-review-gate";
+import { assertProductSectionReviews, evaluateProductBundleQualityPolicy } from "./product-review-gate";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type FailureStage = ProductEntity["productType"] | "outbox";
@@ -201,7 +202,10 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
   const chapterId = await resolveChapter(tx, product.chapterId, course.targetId);
   const [existing] = await tx.select({ id: artikel.id, title: artikel.title, version: artikel.version, sourceHash: artikel.sourceHash, generationHash: artikel.generationHash }).from(artikel).where(eq(artikel.id, articleId)).limit(1);
   const content = articleMarkdown(product);
-  const values = { id: articleId, mataKuliahId: course.targetId, babId: chapterId, slug: product.version === 1 ? product.slug : `${product.slug}-v${product.version}`, title: product.title, contentMarkdown: content, structureStatus: product.sections.length > 0 ? "structured" as const : "legacy_unreviewed" as const, version: product.version, status: "published" as const, sourceHash: product.sourceHash, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
+  const visualMeta = product.visuals && product.visuals.length > 0
+    ? `\n\n<!--__ZYX_V3_ARTICLE_VISUALS__:${Buffer.from(JSON.stringify(product.visuals)).toString("base64url")}-->`
+    : "";
+  const values = { id: articleId, mataKuliahId: course.targetId, babId: chapterId, slug: product.version === 1 ? product.slug : `${product.slug}-v${product.version}`, title: product.title, contentMarkdown: `${content}${visualMeta}`, structureStatus: product.sections.length > 0 ? "structured" as const : "legacy_unreviewed" as const, version: product.version, status: "published" as const, sourceHash: product.sourceHash, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
   if (existing) {
     if (!equal(existing.title, values.title) || existing.version !== values.version || existing.sourceHash !== values.sourceHash || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
   } else await tx.insert(artikel).values(values);
@@ -220,6 +224,9 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
         if (!learningSection) throw new Error(`PRODUCT_ARTICLE_LEARNING_SECTION_NOT_FOUND:${section.learningSectionId}`);
       }
       const wordCount = section.blocks.reduce((total, block) => total + block.contentMarkdown.trim().split(/\s+/).filter(Boolean).length, 0);
+      const pedagogyMeta = section.pedagogy
+        ? `\n<!--__ZYX_V3_SECTION_PEDAGOGY__:${Buffer.from(JSON.stringify(section.pedagogy)).toString("base64url")}-->`
+        : "";
       await tx.insert(bagianArtikel).values({
         id: sectionRowId(section.id),
         artikelId: articleId,
@@ -229,7 +236,7 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
         sectionKind: section.kind,
         slug: section.slug,
         title: section.title,
-        learningObjective: section.learningObjective,
+        learningObjective: `${section.learningObjective}${pedagogyMeta}`,
         orderIndex: section.orderIndex,
         estimatedReadingMinutes: Math.max(1, Math.ceil(wordCount / 180)),
         version: product.version,
@@ -239,6 +246,13 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
       }).onConflictDoNothing();
       for (const block of section.blocks) {
         const blockId = id("artikel-block", `${articleId}:${block.id}`);
+        let blockContent = block.contentMarkdown;
+        if (block.workedExamplePayload || block.formativeCheckPayload) {
+          const payloadMeta: Record<string, unknown> = {};
+          if (block.workedExamplePayload) payloadMeta.workedExamplePayload = block.workedExamplePayload;
+          if (block.formativeCheckPayload) payloadMeta.formativeCheckPayload = block.formativeCheckPayload;
+          blockContent = `${block.contentMarkdown}\n\n<!--__ZYX_V3_BLOCK_PAYLOAD__:${Buffer.from(JSON.stringify(payloadMeta)).toString("base64url")}-->`;
+        }
         await tx.insert(blokArtikel).values({
           id: blockId,
           artikelId: articleId,
@@ -247,7 +261,7 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
           blockType: block.blockType,
           title: block.title ?? null,
           orderIndex: block.orderIndex,
-          content: block.contentMarkdown,
+          content: blockContent,
           version: product.version,
           generationHash: product.generationHash,
           status: "published",
@@ -276,11 +290,11 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
   }
 }
 
-async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productType: "diktat" }>, course: { targetId: string }, now: Date): Promise<void> {
+async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productType: "diktat" }>, course: { targetId: string }, now: Date, fileKey: string): Promise<void> {
   const materialId = targetId(product);
   const chapterId = await resolveChapter(tx, product.chapterId, course.targetId);
   const [existing] = await tx.select({ id: diktatMateri.id, version: diktatMateri.version, sourceHash: diktatMateri.sourceHash, generationHash: diktatMateri.generationHash }).from(diktatMateri).where(eq(diktatMateri.id, materialId)).limit(1);
-  const values = { id: materialId, mataKuliahId: course.targetId, babId: chapterId, title: product.title, contentMarkdown: product.contentMarkdown, fileKey: null, version: product.version, status: "published" as const, sourceHash: product.sourceHash, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
+  const values = { id: materialId, mataKuliahId: course.targetId, babId: chapterId, title: product.title, contentMarkdown: product.contentMarkdown, fileKey, version: product.version, status: "published" as const, sourceHash: product.sourceHash, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
   if (existing) {
     if (existing.version !== values.version || existing.sourceHash !== values.sourceHash || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
   } else await tx.insert(diktatMateri).values(values);
@@ -409,7 +423,7 @@ export async function publishProductBundle(input: { importId: string; publishedB
     const [review] = await tx.select({ id: reviewBundle.id, reviewerId: reviewBundle.reviewerId, status: reviewBundle.status }).from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.publishedBy), eq(reviewBundle.status, "approved"))).limit(1);
     if (!review) throw new Error("PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED");
 
-    if (bundle.manifest.schemaVersion === "product-bundle.v3") {
+    if (bundle.manifest.schemaVersion === "product-bundle.v3" || bundle.products.some((p) => p.productType === "article" && (p.sections?.length ?? 0) > 0)) {
       const requiredSectionIds = bundle.products.flatMap((product) => product.productType === "article" ? product.sections.map((section) => section.id) : []);
       if (requiredSectionIds.length > 0) {
         const sectionReviews = await tx.select({ reviewerId: reviewItemBundle.reviewerId, targetType: reviewItemBundle.targetType, targetId: reviewItemBundle.targetId, status: reviewItemBundle.status }).from(reviewItemBundle).where(and(
@@ -418,6 +432,24 @@ export async function publishProductBundle(input: { importId: string; publishedB
           eq(reviewItemBundle.targetType, "article_section"),
         ));
         assertProductSectionReviews({ requiredSectionIds, reviewerId: input.publishedBy, reviews: sectionReviews });
+      }
+
+      const qualityEvaluation = await evaluateProductBundleQualityPolicy(
+        {
+          products: bundle.products,
+          dependencies: bundle.dependencies,
+          manifest: bundle.manifest,
+        },
+        {
+          imporBundleId: input.importId,
+          publisherId: input.publishedBy,
+          tx,
+        },
+      );
+
+      if (!qualityEvaluation.publicationReady) {
+        const blocking = qualityEvaluation.issues.find((i) => i.severity === "blocking");
+        throw new Error(`PRODUCT_BUNDLE_PUBLICATION_BLOCKED:${blocking ? blocking.code : "QUALITY_POLICY_FAILED"}`);
       }
     }
     const course = await resolveCourse(tx, bundle.manifest.courseId);
@@ -455,7 +487,17 @@ export async function publishProductBundle(input: { importId: string; publishedB
         case "flashcard_set": await insertFlashcardSet(tx, product, course, now); break;
         case "question": await insertQuestion(tx, product, course, now); break;
         case "article": await insertArticle(tx, product, course, now); break;
-        case "diktat": await insertDiktat(tx, product, course, now); break;
+        case "diktat": {
+          const [pdfEvidence] = await tx.select({ storageKey: buktiPdfBundle.storageKey }).from(buktiPdfBundle).where(and(
+            eq(buktiPdfBundle.imporBundleId, input.importId),
+            eq(buktiPdfBundle.productId, product.id),
+            eq(buktiPdfBundle.diktatHash, product.generationHash),
+            eq(buktiPdfBundle.status, "ready"),
+          )).limit(1);
+          if (!pdfEvidence?.storageKey) throw new Error(`PRODUCT_DIKTAT_PDF_NOT_READY:${product.id}`);
+          await insertDiktat(tx, product, course, now, pdfEvidence.storageKey);
+          break;
+        }
         case "flashcard": await insertFlashcard(tx, product, setProducts, now); break;
         case "solution": {
           const solutionId = targetId(product);

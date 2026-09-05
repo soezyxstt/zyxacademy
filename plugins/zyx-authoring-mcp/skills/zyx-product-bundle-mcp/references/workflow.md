@@ -12,18 +12,18 @@ entities/dependencies.json
 
 All products are drafts. Every product must use published Idea links, active source references, deterministic generation hashes, and exact dependency hashes. Questions are source ITB examples only; they are never Zyx-original questions.
 
-Article products use Product Bundle V3. The learner document is stored in `sections[]`; each topic has exactly one `learningSectionId`, while overview and summary may cover several Ideas. Each block stores `blockType`, optional title, `contentMarkdown`, Idea IDs, and source refs as separate fields.
+Article products use Product Bundle V3. The learner document is stored in `sections[]`; each topic has exactly one `learningSectionId`, while overview and summary may cover several Ideas. Each block stores `blockType`, optional title, `contentMarkdown`, `ideaIds`, and `sourceRefs` as separate fields. Use the typed section pedagogy, worked example, formative check, and visual payloads returned by the current `workflow.get_contract`; do not embed compatibility JSON inside Markdown.
 
 ## Quality gates
 
-MCP checks typed products, checksums, source and Idea provenance, chapter scope, published Idea versions and semantic hashes, dependency freshness, holdout markers, semantic Article compiler gates, question and solution links, flashcard atomicity, Diktat lineage, and ITB reference identity. The content gate checks every topic objective, explanation, understanding check, provenance, Idea coverage, reading budget, final chapter check, and Diktat coverage.
+MCP checks typed products, checksums, source and Idea provenance, chapter scope, published Idea versions and semantic hashes, dependency freshness, holdout markers, semantic Article compiler gates, question and solution links, flashcard atomicity, Diktat lineage, and ITB reference identity. The content gate checks every topic objective, prerequisite plan, explanation sequence, understanding check and explanation, provenance, Idea coverage, estimated learning time, final chapter check, and Diktat coverage.
 
 `publicationBlocked`, stale Idea links, missing chapter, or any blocking quality issue prevents validation and submission. MCP green is necessary but not sufficient: the learner-facing preflight in [editorial-guide.md](editorial-guide.md) must also pass, including zero internal-ID leaks.
 
 ## MCP tool sequence
 
-1. Use the same scoped `idea_product` run and fresh published Idea context. If no run exists and the request only names a course and chapter, create the validated Source Pack through `$zyx-source-pack-mcp` from stored PDFs before starting the run.
-2. Build Article first, then Diktat, flashcards, ITB examples, solutions, and blueprint.
+1. Use the same scoped `idea_product` run and fresh published Idea context. Record the run ID, contract checksum, Source Pack checksum, published Idea versions and hashes, and intended Product Bundle checksum at every checkpoint. If no run exists and the request only names a course and chapter, create the validated Source Pack through `$zyx-source-pack-mcp` from stored PDFs before starting the run.
+2. Plan prerequisites, sequence, representations or visuals, examples, checks, answers, and explanations before building Article. Build Article first, then Diktat, flashcards, ITB examples, solutions, and blueprint.
 3. Call `authoring.validate_product_bundle` during each revision loop (`authoring:read`).
 4. Call `authoring.submit_product_bundle` only when the report is green (`authoring:stage`).
 5. For existing staged or published Product Bundles:
@@ -33,4 +33,10 @@ MCP checks typed products, checksums, source and Idea provenance, chapter scope,
    - Call `authoring.discard_product_draft` to permanently remove a draft Product Bundle and staging artifacts (`authoring:withdraw`). Cannot discard published or withdrawn bundles.
    - Call `authoring.review_product_bundle` to record an immutable review decision with notes (`authoring:review`).
    - Call `authoring.withdraw_product_bundle` to execute an audited, idempotent, destructive withdrawal of a published Product Bundle (`authoring:withdraw`).
-6. Stop condition: Admin reviews, edits, and publishes the staged draft via Zyx admin UI. MCP does not provide a publication tool (`authoring:publish` is not supported). Destructive lifecycle tools must never be invoked autonomously without explicit instruction.
+6. Stop condition: Admin reviews, renders or previews the Diktat PDF, edits, and publishes the staged draft via Zyx admin UI. MCP does not provide a publication tool (`authoring:publish` is not supported). Destructive lifecycle tools must never be invoked autonomously without explicit instruction.
+
+## Resume and evidence
+
+Resume only when the artifact checksum, run ID, contract checksum, course and chapter scope, Source Pack checksum, published Idea versions and hashes, and dependency freshness match the checkpoint. A remembered success from an earlier conversation is not evidence. If any value differs, enter stale context, refresh the contract, and revalidate affected artifacts.
+
+Keep these decisions separate in reports: author preflight, MCP validation, admin pedagogic review, PDF render evidence, and publication readiness. Never infer admin approval from MCP green or infer PDF quality without a rendered artifact and inspected pages.

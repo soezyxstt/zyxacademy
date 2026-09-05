@@ -6,7 +6,8 @@ const HASH_B = "b".repeat(64);
 
 async function stabilize(page: Page) {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}nextjs-portal{display:none!important}" });
+  await page.waitForTimeout(250);
+  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}nextjs-portal{display:none!important}" });
   await page.evaluate(async () => document.fonts.ready);
 }
 
@@ -133,7 +134,84 @@ const productPayload = {
     { id: "review-sec-real", productId: articleProduct.id, targetType: "article_section", targetId: "sec-real", status: "changes_requested", notes: "Pastikan tabel tetap terbaca pada layar kecil." },
   ],
   blockReviewSummary: { total: 3, pending: 1, approved: 1, changesRequested: 1 },
+  qualityEvaluation: {
+    valid: false,
+    publicationReady: false,
+    policyVersion: "2026.09.1",
+    contentFingerprint: HASH_A,
+    issues: [{ code: "PEDAGOGIC_REVIEW_REQUIRED", severity: "blocking", target: { targetType: "document", targetId: articleProduct.id }, reason: "Review pedagogi belum lengkap.", remediation: "Lengkapi delapan kriteria review." }],
+  },
+  pedagogicReview: null,
+  pdfStatus: { status: "pending", message: "Bukti PDF belum tersedia." },
+  blockingIssues: [{ code: "PEDAGOGIC_REVIEW_REQUIRED", severity: "blocking", target: { targetType: "document", targetId: articleProduct.id }, reason: "Review pedagogi belum lengkap.", remediation: "Lengkapi delapan kriteria review." }],
+  revisionFreshness: {
+    currentFingerprint: HASH_A,
+    reviewFingerprint: null,
+    isFresh: false,
+    isFingerprintMatch: false,
+    isPolicyMatch: false,
+    policyVersion: "2026.09.1",
+    completenessState: "incomplete",
+  },
 };
+
+const criterionIds = [
+  "concept_accuracy",
+  "prerequisite_completeness",
+  "explanation_sequence",
+  "symbol_and_condition_clarity",
+  "example_reasoning",
+  "representation_or_visual",
+  "misconceptions_and_limits",
+  "formative_check_and_explanation",
+] as const;
+
+function reviewedProductPayload(state: "incomplete" | "complete" | "stale") {
+  if (state === "incomplete") return productPayload;
+  const stale = state === "stale";
+  return {
+    ...productPayload,
+    publicationBlocked: stale,
+    qualityEvaluation: {
+      ...productPayload.qualityEvaluation,
+      valid: !stale,
+      publicationReady: !stale,
+      issues: stale
+        ? [{ code: "PEDAGOGIC_REVIEW_STALE", severity: "blocking", target: { targetType: "document", targetId: articleProduct.id }, reason: "Konten berubah setelah review.", remediation: "Ulangi review pada revisi terbaru." }]
+        : [],
+    },
+    pedagogicReview: {
+      id: `review-${state}`,
+      status: "approved",
+      policyVersion: stale ? "2026.08.1" : "2026.09.1",
+      contentFingerprint: stale ? HASH_B : HASH_A,
+      criteria: criterionIds.map((criterionId) => ({
+        criterionId,
+        status: "met",
+        reason: "Konten memenuhi kriteria dan bukti terkait dapat diperiksa.",
+        contentAnchors: [{ targetType: "document", targetId: articleProduct.id }],
+      })),
+      exceptions: [],
+      notes: null,
+      createdAt: "2026-09-05T10:00:00.000Z",
+    },
+    pdfStatus: stale
+      ? { status: "failed", failureCode: "PDF_PAGE_COUNT_INVALID" }
+      : { status: "ready", pageCount: 3 },
+    blockingIssues: stale
+      ? [{ code: "PEDAGOGIC_REVIEW_STALE", severity: "blocking", target: { targetType: "document", targetId: articleProduct.id }, reason: "Konten berubah setelah review.", remediation: "Ulangi review pada revisi terbaru." }]
+      : [],
+    revisionFreshness: {
+      currentFingerprint: HASH_A,
+      reviewFingerprint: stale ? HASH_B : HASH_A,
+      isFresh: !stale,
+      isFingerprintMatch: !stale,
+      isPolicyMatch: !stale,
+      policyVersion: "2026.09.1",
+      completenessState: stale ? "stale" : "complete",
+    },
+  };
+}
 
 test.describe("Structured Article V3 visual acceptance", () => {
   test("student reader, TOC, search, callouts, formula, and navigation", async ({ page }, testInfo) => {
@@ -157,6 +235,47 @@ test.describe("Structured Article V3 visual acceptance", () => {
     expect(errors).toEqual([]);
   });
 
+  test("self study reader visual, example, formative answer, focus, and mobile navigation", async ({ page }, testInfo) => {
+    const errors = observeFailures(page);
+    await page.route("**/api/student/articles/visual-article/progress", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ maxReadPercent: 50, completed: false, timeSpentSeconds: 120 }) }));
+    const response = await page.goto(`${ROUTE}?mode=student&section=aturan-pertaksamaan`, { waitUntil: "domcontentloaded", timeout: 90_000 });
+    expect(response?.status()).toBeLessThan(400);
+    await expect(page.getByRole("heading", { name: "Aturan operasi pertaksamaan" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Grafik epsilon delta untuk fungsi linear" })).toBeVisible();
+    await expect(page.getByText("Verifikasi dan Pemeriksaan Solusi")).toBeVisible();
+    await capture(page, testInfo, "self-study-normal-example-answer-closed-visual-default");
+
+    const slider = page.getByRole("slider", { name: "Toleransi epsilon" });
+    await slider.fill("0.5");
+    await expect(page.getByText("0.50", { exact: true }).first()).toBeVisible();
+    await capture(page, testInfo, "self-study-visual-changed");
+
+    await page.getByRole("button", { name: "Tampilkan tabel nilai" }).click();
+    await expect(page.getByRole("table")).toBeVisible();
+    await capture(page, testInfo, "self-study-visual-fallback");
+
+    await page.getByRole("button", { name: /Buka Jawaban/ }).click();
+    await expect(page.getByText("Penjelasan / Pembahasan")).toBeVisible();
+    await capture(page, testInfo, "self-study-answer-open");
+
+    const focusButton = page.getByRole("button", { name: "Masuk mode fokus" });
+    await focusButton.focus();
+    await page.keyboard.press("Enter");
+    const exitFocus = page.getByRole("button", { name: "Keluar mode fokus" });
+    await expect(exitFocus).toBeFocused();
+    await capture(page, testInfo, "self-study-focus");
+    await page.keyboard.press("Escape");
+    await expect(focusButton).toBeFocused();
+
+    const mobileToc = page.getByRole("button", { name: "Daftar Isi" });
+    if (await mobileToc.isVisible()) {
+      await mobileToc.click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await capture(page, testInfo, "self-study-mobile-navigation-open");
+    }
+    expect(errors).toEqual([]);
+  });
+
   test("Idea split pane and mobile evidence", async ({ page }, testInfo) => {
     const errors = observeFailures(page);
     await page.route("**/api/admin/bundles/idea/visual-idea", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(ideaPayload) }));
@@ -176,14 +295,27 @@ test.describe("Structured Article V3 visual acceptance", () => {
 
   test("Product section review and semantic reader parity", async ({ page }, testInfo) => {
     const errors = observeFailures(page);
-    await page.route("**/api/admin/bundles/product/visual-product", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(productPayload) }));
+    let reviewState: "incomplete" | "complete" | "stale" = "incomplete";
+    await page.route("**/api/admin/bundles/product/visual-product", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(reviewedProductPayload(reviewState)) }));
     const response = await page.goto(`${ROUTE}?mode=product`, { waitUntil: "domcontentloaded", timeout: 90_000 });
     expect(response?.status()).toBeLessThan(400);
     await expect(page.getByRole("heading", { name: "Review Product" })).toBeVisible();
-    const realSection = page.getByRole("button", { name: /Bilangan real dan representasi desimal/ });
-    if (await realSection.isVisible()) await realSection.click();
-    await expect(page.getByText("Pastikan tabel tetap terbaca pada layar kecil.")).toBeVisible();
-    await capture(page, testInfo, "product-section-review-status");
+    await expect(page.getByRole("heading", { name: "Review pedagogi" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Review belum lengkap")).toBeVisible();
+    await expect(page.getByText("PDF menunggu")).toBeVisible();
+    await capture(page, testInfo, "product-review-incomplete-pdf-pending");
+
+    reviewState = "complete";
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Review lengkap")).toBeVisible();
+    await expect(page.getByText(/PDF siap, 3 halaman/)).toBeVisible();
+    await capture(page, testInfo, "product-review-complete-pdf-ready");
+
+    reviewState = "stale";
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Review kedaluwarsa")).toBeVisible();
+    await expect(page.getByText("PDF gagal")).toBeVisible();
+    await capture(page, testInfo, "product-review-stale-pdf-failed");
     const queue = page.getByRole("button", { name: "Daftar bagian" });
     if (await queue.isVisible()) {
       await queue.click();

@@ -1,0 +1,207 @@
+import crypto from "node:crypto";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { reviewPedagogiBundle, user } from "@/db/schema";
+import { hasPeran } from "@/lib/auth/authorization";
+import { checkTutorCourseAccess } from "@/lib/auth/tutor-access";
+import {
+  getProductBundleImport,
+  parseStagedProductBundle,
+  productBundleLifecycleStatus,
+} from "@/lib/bundle/product-staging";
+import {
+  QUALITY_POLICY_VERSION,
+  computePedagogyContentFingerprint,
+  validatePedagogicRubricDecision,
+  type PedagogicReviewDecision,
+  type PedagogicRubricItem,
+  type PedagogicException,
+} from "@/lib/materials/quality-policy";
+
+function stableId(prefix: string, value: string): string {
+  return `${prefix}-${crypto.createHash("sha256").update(value).digest("hex").slice(0, 16)}`;
+}
+
+export interface ExecutePedagogicReviewInput {
+  importId: string;
+  reviewerId: string;
+  decision: "approved" | "rejected" | "changes_requested";
+  policyVersion: string;
+  contentFingerprint: string;
+  criteria: PedagogicRubricItem[];
+  exceptions?: PedagogicException[];
+  expectedRevision?: string | number | null;
+  notes?: string | null;
+}
+
+export interface ExecutePedagogicReviewResult {
+  ok: true;
+  reviewId: string;
+  importId: string;
+  decision: "approved" | "rejected" | "changes_requested";
+  policyVersion: string;
+  contentFingerprint: string;
+  criteriaCount: number;
+  exceptionsCount: number;
+  createdAt: string;
+}
+
+/**
+ * Execute and persist an 8-criterion pedagogic review for a draft Product Bundle.
+ * Shared between the MCP tool and Admin API route to guarantee semantic parity.
+ *
+ * Invariants:
+ * - Enforces tutor/admin authorization.
+ * - Requires staged bundle to be in draft state (draft review NEVER publishes).
+ * - Verifies policy version matches current QUALITY_POLICY_VERSION.
+ * - Verifies content fingerprint matches staged content.
+ * - Verifies expectedRevision if supplied.
+ * - Validates all 8 criteria and ensures referenced content anchors exist.
+ * - Persists immutable review into reviewPedagogiBundle.
+ */
+export async function executePedagogicReview(
+  input: ExecutePedagogicReviewInput,
+): Promise<ExecutePedagogicReviewResult> {
+  const row = await getProductBundleImport(input.importId);
+  if (!row) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
+  if (productBundleLifecycleStatus(row.status) !== "draft") {
+    throw new Error("PRODUCT_BUNDLE_REVIEW_DRAFT_REQUIRED");
+  }
+
+  const [actor] = await db
+    .select({ role: user.role })
+    .from(user)
+    .where(eq(user.id, input.reviewerId))
+    .limit(1);
+
+  if (!actor) throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
+  const isAdmin = actor.role === "admin" || (await hasPeran(input.reviewerId, "admin"));
+  if (!isAdmin) {
+    const isTutor = (await hasPeran(input.reviewerId, "tutor")) || actor.role === "teacher";
+    if (!isTutor || !row.courseId) throw new Error("PRODUCT_BUNDLE_REVIEW_FORBIDDEN");
+    const access = await checkTutorCourseAccess(input.reviewerId, row.courseId);
+    if (!access.hasAccess) throw new Error("PRODUCT_BUNDLE_REVIEW_COURSE_FORBIDDEN");
+  }
+
+  if (input.expectedRevision !== undefined && input.expectedRevision !== null) {
+    const revStr = String(input.expectedRevision);
+    const matches = revStr === String(row.version) || revStr === String(row.checksum);
+    if (!matches) {
+      throw new Error(
+        `PRODUCT_BUNDLE_STALE_CONTEXT:Expected revision ${input.expectedRevision} but current staged revision is ${row.version}`,
+      );
+    }
+  }
+
+  if (input.policyVersion !== QUALITY_POLICY_VERSION) {
+    throw new Error(
+      `POLICY_VERSION_MISMATCH:Review policy version '${input.policyVersion}' does not match current '${QUALITY_POLICY_VERSION}'`,
+    );
+  }
+
+  const rubricDecision: PedagogicReviewDecision = {
+    imporBundleId: input.importId,
+    reviewerId: input.reviewerId,
+    policyVersion: input.policyVersion,
+    contentFingerprint: input.contentFingerprint,
+    status: input.decision,
+    criteria: input.criteria,
+    exceptions: input.exceptions ?? [],
+    notes: input.notes ?? undefined,
+  };
+
+  const rubricValidation = validatePedagogicRubricDecision(rubricDecision);
+  if (!rubricValidation.valid) {
+    const firstIssue = rubricValidation.issues[0];
+    const err = new Error(`${firstIssue.code}:${firstIssue.reason}`);
+    (err as unknown as { issues: unknown }).issues = rubricValidation.issues;
+    throw err;
+  }
+
+  const stagedBundle = await parseStagedProductBundle(input.importId);
+  const article = stagedBundle.products.find((p) => p.productType === "article");
+  if (!article) throw new Error("PRODUCT_BUNDLE_ARTICLE_MISSING");
+  const diktat = stagedBundle.products.find((p) => p.productType === "diktat");
+
+  const freshFingerprint = computePedagogyContentFingerprint({
+    article: article as unknown as Record<string, unknown>,
+    diktat: diktat ? (diktat as unknown as Record<string, unknown>) : undefined,
+  });
+
+  if (input.contentFingerprint !== freshFingerprint) {
+    throw new Error(
+      `FINGERPRINT_MISMATCH:Supplied content fingerprint '${input.contentFingerprint}' does not match staged content '${freshFingerprint}'`,
+    );
+  }
+
+  const validDocIds = new Set(stagedBundle.products.map((p) => p.id));
+  const validSectionIds = new Set((article.sections ?? []).map((s) => s.id));
+  const validBlockIds = new Set([
+    ...(article.sections ?? []).flatMap((s) => s.blocks.map((b) => b.id)),
+    ...(article.blocks ?? []).map((b) => b.id),
+  ]);
+  const validVisualIds = new Set((article.visuals ?? []).map((v) => v.id));
+
+  for (const crit of input.criteria) {
+    for (const anchor of crit.contentAnchors) {
+      let anchorFound = false;
+      if (anchor.targetType === "document") anchorFound = validDocIds.has(anchor.targetId);
+      else if (anchor.targetType === "section") anchorFound = validSectionIds.has(anchor.targetId);
+      else if (anchor.targetType === "block") anchorFound = validBlockIds.has(anchor.targetId);
+      else if (anchor.targetType === "visual") anchorFound = validVisualIds.has(anchor.targetId);
+      if (!anchorFound) {
+        throw new Error(
+          `RUBRIC_ANCHOR_NOT_FOUND:Anchor '${anchor.targetType}:${anchor.targetId}' in criterion '${crit.criterionId}' does not exist in staged content`,
+        );
+      }
+    }
+  }
+
+  const reviewPedId = stableId(
+    "rev-ped",
+    `${input.importId}:${input.reviewerId}:${freshFingerprint}:${QUALITY_POLICY_VERSION}`,
+  );
+  const now = new Date();
+
+  await db
+    .insert(reviewPedagogiBundle)
+    .values({
+      id: reviewPedId,
+      imporBundleId: input.importId,
+      reviewerId: input.reviewerId,
+      contentFingerprint: freshFingerprint,
+      policyVersion: QUALITY_POLICY_VERSION,
+      status: input.decision,
+      rubric: { criteria: input.criteria },
+      exceptions: input.exceptions ?? [],
+      notes: input.notes ?? null,
+      createdAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [
+        reviewPedagogiBundle.imporBundleId,
+        reviewPedagogiBundle.reviewerId,
+        reviewPedagogiBundle.contentFingerprint,
+        reviewPedagogiBundle.policyVersion,
+      ],
+      set: {
+        status: input.decision,
+        rubric: { criteria: input.criteria },
+        exceptions: input.exceptions ?? [],
+        notes: input.notes ?? null,
+        createdAt: now,
+      },
+    });
+
+  return {
+    ok: true,
+    reviewId: reviewPedId,
+    importId: input.importId,
+    decision: input.decision,
+    policyVersion: QUALITY_POLICY_VERSION,
+    contentFingerprint: freshFingerprint,
+    criteriaCount: input.criteria.length,
+    exceptionsCount: (input.exceptions ?? []).length,
+    createdAt: now.toISOString(),
+  };
+}

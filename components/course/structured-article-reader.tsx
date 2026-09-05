@@ -28,6 +28,8 @@ import {
   Zap,
   AlignLeft,
   Menu,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +50,12 @@ import {
   resolveActiveSection,
   searchArticleContent,
 } from "@/lib/articles/structured-read-model";
+import { ProductLearningVisual } from "@/components/course/product-learning-visual";
+import {
+  ProductWorkedExample,
+  ProductFormativeCheck,
+  ProductLearningTimeBadge,
+} from "@/components/course/product-learning-blocks";
 
 export interface StructuredArticleReaderProps {
   article: PublicArticleReadModel;
@@ -169,7 +177,7 @@ export function StructuredArticleSectionContent({
 }) {
   return (
     <>
-      <header className="space-y-2 border-b border-border/80 pb-5">
+      <header className="space-y-3 border-b border-border/80 pb-5">
         <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
           <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
             {section.sectionNumber}
@@ -188,6 +196,15 @@ export function StructuredArticleSectionContent({
         <h1 className="font-heading text-h4 font-bold tracking-tight text-foreground sm:text-h3">
           {section.title}
         </h1>
+
+        {/* Learning Time Estimate Heuristics */}
+        {section.learningTimeEstimate ? (
+          <ProductLearningTimeBadge
+            timeEstimate={section.learningTimeEstimate}
+            className="w-fit"
+          />
+        ) : null}
+
         {section.learningObjective ? (
           <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
             <div className="flex items-start gap-2.5">
@@ -205,8 +222,42 @@ export function StructuredArticleSectionContent({
         ) : null}
       </header>
 
+      {/* Typed Visuals */}
+      {section.visuals && section.visuals.length > 0 ? (
+        <div className="space-y-4 py-2">
+          {section.visuals.map((visual) => (
+            <ProductLearningVisual key={visual.id} spec={visual} />
+          ))}
+        </div>
+      ) : null}
+
       <div className="space-y-6 py-2">
         {section.blocks.map((block, blockIndex) => {
+          if (block.blockType === "worked_example" && block.workedExample) {
+            return (
+              <ProductWorkedExample
+                key={block.id || blockIndex}
+                title={block.title}
+                content={block.content}
+                workedExample={block.workedExample}
+              />
+            );
+          }
+
+          if (
+            (block.blockType === "retrieval_prompt" || block.blockType === "retrieval_close") &&
+            block.formativeCheck
+          ) {
+            return (
+              <ProductFormativeCheck
+                key={block.id || blockIndex}
+                title={block.title}
+                content={block.content}
+                formativeCheck={block.formativeCheck}
+              />
+            );
+          }
+
           const meta = getBlockMetadata(block.blockType);
           const Icon = meta.icon;
           const displayTitle = block.title || meta.label;
@@ -272,6 +323,37 @@ export function StructuredArticleReader({
   const [searchQuery, setSearchQuery] = useState("");
   const [temporaryHighlight, setTemporaryHighlight] = useState<string | null>(null);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Focus mode state & refs
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const focusButtonRef = useRef<HTMLButtonElement | null>(null);
+  const exitFocusButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const enterFocusMode = useCallback(() => {
+    setIsFocusMode(true);
+    setTimeout(() => {
+      exitFocusButtonRef.current?.focus();
+    }, 50);
+  }, []);
+
+  const exitFocusMode = useCallback(() => {
+    setIsFocusMode(false);
+    setTimeout(() => {
+      focusButtonRef.current?.focus();
+    }, 50);
+  }, []);
+
+  useEffect(() => {
+    if (!isFocusMode) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        exitFocusMode();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFocusMode, exitFocusMode]);
 
   // Reading progress tracking state
   const [sectionProgressMap, setSectionProgressMap] = useState<
@@ -661,85 +743,127 @@ export function StructuredArticleReader({
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* Sticky Reader Header */}
-      <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
-        <div className="flex items-center justify-between px-4 py-2.5 gap-3 max-w-7xl mx-auto w-full">
-          <div className="flex items-center gap-2 min-w-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground shrink-0"
-            >
-              <Link href={`/courses/${article.courseId}/material`}>
-                <ArrowLeft className="size-4" />
-                <span className="hidden sm:inline">Kembali ke Materi</span>
-              </Link>
-            </Button>
-            <div className="h-4 w-px bg-border shrink-0 hidden sm:block" />
-            <div className="min-w-0">
-              <p className="truncate text-body-xs font-medium text-muted-foreground">
-                {courseTitle}
-              </p>
+      {/* Sticky Reader Header / Focus Header */}
+      {isFocusMode ? (
+        <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
+          <div className="flex items-center justify-between px-4 py-2.5 gap-3 max-w-4xl mx-auto w-full">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-body-xs font-semibold text-primary shrink-0">
+                Mode Fokus
+              </span>
               <h1 className="text-body-sm font-bold text-foreground truncate font-heading">
-                {article.title}
+                {activeSection ? `${activeSection.sectionNumber}. ${activeSection.title}` : article.title}
               </h1>
             </div>
+            <Button
+              ref={exitFocusButtonRef}
+              variant="outline"
+              size="sm"
+              onClick={exitFocusMode}
+              className="gap-1.5 text-body-xs font-semibold shrink-0"
+              aria-label="Keluar mode fokus"
+            >
+              <Minimize2 className="size-3.5" />
+              <span>Keluar Fokus</span>
+              <kbd className="hidden sm:inline rounded border border-border bg-muted px-1.5 py-0.5 text-body-2xs font-mono text-muted-foreground">
+                Esc
+              </kbd>
+            </Button>
           </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Progress indicator */}
-            <div className="hidden md:flex items-center gap-2 text-body-xs text-muted-foreground">
-              <div className="w-24 h-2 rounded-md bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300 rounded-md"
-                  style={{ width: `${overallPercent}%` }}
-                />
+        </header>
+      ) : (
+        <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur-sm">
+          <div className="flex items-center justify-between px-4 py-2.5 gap-3 max-w-7xl mx-auto w-full">
+            <div className="flex items-center gap-2 min-w-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <Link href={`/courses/${article.courseId}/material`}>
+                  <ArrowLeft className="size-4" />
+                  <span className="hidden sm:inline">Kembali ke Materi</span>
+                </Link>
+              </Button>
+              <div className="h-4 w-px bg-border shrink-0 hidden sm:block" />
+              <div className="min-w-0">
+                <p className="truncate text-body-xs font-medium text-muted-foreground">
+                  {courseTitle}
+                </p>
+                <h1 className="text-body-sm font-bold text-foreground truncate font-heading">
+                  {article.title}
+                </h1>
               </div>
-              <span className="text-body-xs font-semibold text-foreground">{overallPercent}%</span>
             </div>
 
-            {/* Mobile Sheet Trigger */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsMobileSheetOpen(true)}
-              className="md:hidden gap-1.5 text-body-xs"
-            >
-              <Menu className="size-4" />
-              <span>Daftar Isi</span>
-            </Button>
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Progress indicator */}
+              <div className="hidden md:flex items-center gap-2 text-body-xs text-muted-foreground">
+                <div className="w-24 h-2 rounded-md bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300 rounded-md"
+                    style={{ width: `${overallPercent}%` }}
+                  />
+                </div>
+                <span className="text-body-xs font-semibold text-foreground">{overallPercent}%</span>
+              </div>
 
-            {/* Desktop TOC Toggle */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsTocOpen(!isTocOpen)}
-              className="hidden md:flex gap-1.5 text-body-xs"
-            >
-              {isTocOpen ? (
-                <>
-                  <PanelLeftClose className="size-4" />
-                  <span>Sembunyikan Menu</span>
-                </>
-              ) : (
-                <>
-                  <PanelLeft className="size-4" />
-                  <span>Buka Menu</span>
-                </>
-              )}
-            </Button>
+              {/* Focus Mode Trigger */}
+              <Button
+                ref={focusButtonRef}
+                variant="outline"
+                size="sm"
+                onClick={enterFocusMode}
+                className="gap-1.5 text-body-xs"
+                aria-label="Masuk mode fokus"
+              >
+                <Maximize2 className="size-3.5" />
+                <span className="hidden sm:inline">Mode Fokus</span>
+              </Button>
+
+              {/* Mobile Sheet Trigger */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsMobileSheetOpen(true)}
+                className="md:hidden gap-1.5 text-body-xs"
+              >
+                <Menu className="size-4" />
+                <span>Daftar Isi</span>
+              </Button>
+
+              {/* Desktop TOC Toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsTocOpen(!isTocOpen)}
+                className="hidden md:flex gap-1.5 text-body-xs"
+              >
+                {isTocOpen ? (
+                  <>
+                    <PanelLeftClose className="size-4" />
+                    <span>Sembunyikan Menu</span>
+                  </>
+                ) : (
+                  <>
+                    <PanelLeft className="size-4" />
+                    <span>Buka Menu</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
 
-        {/* Thin progress bar for top header */}
-        <div className="w-full h-1 bg-muted">
-          <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${overallPercent}%` }}
-          />
-        </div>
-      </header>
+          {/* Thin progress bar for top header */}
+          <div className="w-full h-1 bg-muted">
+            <div
+              className="h-full bg-primary transition-all duration-300"
+              style={{ width: `${overallPercent}%` }}
+            />
+          </div>
+        </header>
+      )}
 
       {/* Mobile Sheet for TOC & Search */}
       <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
@@ -754,16 +878,16 @@ export function StructuredArticleReader({
       </Sheet>
 
       {/* Main Layout Body */}
-      <div className="flex-1 flex max-w-7xl mx-auto w-full">
+      <div className={cn("flex-1 flex w-full", isFocusMode ? "max-w-4xl mx-auto" : "max-w-7xl mx-auto")}>
         {/* Desktop Collapsible Sidebar */}
-        {isTocOpen && (
+        {!isFocusMode && isTocOpen && (
           <aside className="hidden md:block w-72 lg:w-80 shrink-0 border-r border-border/80 h-[calc(100vh-53px)] sticky top-[53px] overflow-hidden bg-card/40">
             {renderTocContent()}
           </aside>
         )}
 
         {/* Main Content Area (75 character measure) */}
-        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-8">
+        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-8 pb-32">
           {activeSection ? (
             <article
               ref={contentContainerRef}

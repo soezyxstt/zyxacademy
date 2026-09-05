@@ -1,3 +1,84 @@
+import {
+  inspectPayloadSecurity,
+  epsilonDeltaGraphSpecSchema,
+} from "@/lib/materials/visual-contract";
+
+export interface PublicWorkedExampleStep {
+  stepIndex: number;
+  label: string;
+  explanation: string;
+  reason: string;
+}
+
+export interface PublicWorkedExamplePayload {
+  steps: PublicWorkedExampleStep[];
+  verification: string;
+}
+
+export interface PublicFormativeCheckOption {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface PublicFormativeCheckPayload {
+  checkKind: "multiple_choice" | "short_answer" | "conceptual_explanation";
+  answer: string;
+  explanation: string;
+  options?: PublicFormativeCheckOption[];
+}
+
+export interface PublicEpsilonDeltaGraphSpec {
+  id: string;
+  kind: "epsilon_delta_graph";
+  label: string;
+  description: string;
+  bounds: {
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+  };
+  staticFallback:
+    | {
+        type: "table";
+        summary: string;
+        headers: string[];
+        rows: Array<Array<string | number>>;
+      }
+    | {
+        type: "text";
+        summary: string;
+        content: string;
+      };
+  limitPoint: number;
+  limitValue: number;
+  defaultEpsilon: number;
+  defaultDelta: number;
+  functionModel:
+    | { kind: "constant"; c: number }
+    | { kind: "linear"; m: number; b: number }
+    | { kind: "quadratic"; a: number; b: number; c: number };
+}
+
+export type PublicVisualSpec = PublicEpsilonDeltaGraphSpec;
+
+export interface PublicLearningTimeEstimate {
+  readingMinutes: number;
+  examplesMinutes: number;
+  practiceMinutes: number;
+  totalMinutes: number;
+}
+
+export interface PublicSectionPedagogy {
+  timeEstimate: PublicLearningTimeEstimate;
+  visualRequirement?: {
+    status: "required" | "not_required";
+    visualIds?: string[];
+    reason?: string;
+  };
+}
+
 export interface PublicBlockReadModel {
   id: string;
   blockKey: string;
@@ -5,6 +86,8 @@ export interface PublicBlockReadModel {
   title: string | null;
   orderIndex: number;
   content: string;
+  workedExample?: PublicWorkedExamplePayload | null;
+  formativeCheck?: PublicFormativeCheckPayload | null;
 }
 
 export interface PublicSectionReadModel {
@@ -18,6 +101,9 @@ export interface PublicSectionReadModel {
   orderIndex: number;
   parentSectionId: string | null;
   blocks: PublicBlockReadModel[];
+  pedagogy?: PublicSectionPedagogy | null;
+  learningTimeEstimate?: PublicLearningTimeEstimate;
+  visuals?: PublicVisualSpec[];
 }
 
 export interface SectionProgressDetail {
@@ -46,6 +132,8 @@ export interface PublicArticleReadModel {
   version: number;
   sections: PublicSectionReadModel[];
   totalEstimatedReadingMinutes: number;
+  totalLearningTimeEstimate?: PublicLearningTimeEstimate;
+  visuals?: PublicVisualSpec[];
   progress?: PublicArticleProgress | null;
 }
 
@@ -250,6 +338,150 @@ export function searchArticleContent(
 }
 
 /**
+ * Sanitizes a worked example payload. Returns null if invalid or unsafe.
+ */
+export function sanitizeWorkedExample(payload: unknown): PublicWorkedExamplePayload | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (!Array.isArray(p.steps) || typeof p.verification !== "string" || !p.verification.trim()) return null;
+
+  const secCheck = inspectPayloadSecurity(payload);
+  if (!secCheck.safe) return null;
+
+  const steps: PublicWorkedExampleStep[] = [];
+  for (let i = 0; i < p.steps.length; i++) {
+    const s = p.steps[i];
+    if (!s || typeof s !== "object") return null;
+    const item = s as Record<string, unknown>;
+    if (
+      typeof item.stepIndex !== "number" ||
+      typeof item.label !== "string" ||
+      typeof item.explanation !== "string" ||
+      typeof item.reason !== "string" ||
+      !item.label.trim() ||
+      !item.explanation.trim() ||
+      !item.reason.trim()
+    ) {
+      return null;
+    }
+    steps.push({
+      stepIndex: item.stepIndex,
+      label: item.label.trim(),
+      explanation: item.explanation.trim(),
+      reason: item.reason.trim(),
+    });
+  }
+
+  // Contiguity check
+  const sorted = [...steps].sort((a, b) => a.stepIndex - b.stepIndex);
+  for (let i = 0; i < sorted.length; i++) {
+    if (sorted[i].stepIndex !== i) return null;
+  }
+
+  return {
+    steps: sorted,
+    verification: p.verification.trim(),
+  };
+}
+
+/**
+ * Sanitizes a formative check payload. Returns null if invalid or unsafe.
+ */
+export function sanitizeFormativeCheck(payload: unknown): PublicFormativeCheckPayload | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  const kind = p.checkKind;
+  if (kind !== "multiple_choice" && kind !== "short_answer" && kind !== "conceptual_explanation") {
+    return null;
+  }
+  if (typeof p.answer !== "string" || typeof p.explanation !== "string" || !p.answer.trim() || !p.explanation.trim()) {
+    return null;
+  }
+
+  const secCheck = inspectPayloadSecurity(payload);
+  if (!secCheck.safe) return null;
+
+  let options: PublicFormativeCheckOption[] | undefined = undefined;
+  if (kind === "multiple_choice") {
+    if (!Array.isArray(p.options) || p.options.length < 2) return null;
+    options = [];
+    const seenIds = new Set<string>();
+    let correctCount = 0;
+    for (const opt of p.options) {
+      if (!opt || typeof opt !== "object") return null;
+      const o = opt as Record<string, unknown>;
+      if (typeof o.id !== "string" || typeof o.text !== "string" || typeof o.isCorrect !== "boolean") return null;
+      const trimmedId = o.id.trim();
+      const trimmedText = o.text.trim();
+      if (!trimmedId || !trimmedText || seenIds.has(trimmedId)) return null;
+      seenIds.add(trimmedId);
+      if (o.isCorrect) correctCount++;
+      options.push({
+        id: trimmedId,
+        text: trimmedText,
+        isCorrect: o.isCorrect,
+      });
+    }
+    if (correctCount !== 1) return null;
+  } else if (Array.isArray(p.options)) {
+    options = [];
+    for (const opt of p.options) {
+      if (!opt || typeof opt !== "object") continue;
+      const o = opt as Record<string, unknown>;
+      if (typeof o.id === "string" && typeof o.text === "string" && typeof o.isCorrect === "boolean") {
+        options.push({
+          id: o.id.trim(),
+          text: o.text.trim(),
+          isCorrect: o.isCorrect,
+        });
+      }
+    }
+  }
+
+  return {
+    checkKind: kind,
+    answer: p.answer.trim(),
+    explanation: p.explanation.trim(),
+    options: options && options.length > 0 ? options : undefined,
+  };
+}
+
+/**
+ * Sanitizes a visual specification. Accepts only validated epsilon_delta_graph specs.
+ */
+export function sanitizeVisualSpec(payload: unknown): PublicVisualSpec | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (p.kind !== "epsilon_delta_graph") return null;
+
+  const secCheck = inspectPayloadSecurity(payload);
+  if (!secCheck.safe) return null;
+
+  const parsed = epsilonDeltaGraphSpecSchema.safeParse(payload);
+  if (!parsed.success) return null;
+
+  const data = parsed.data;
+  return {
+    id: data.id,
+    kind: "epsilon_delta_graph",
+    label: data.label,
+    description: data.description,
+    bounds: {
+      xMin: data.bounds.xMin,
+      xMax: data.bounds.xMax,
+      yMin: data.bounds.yMin,
+      yMax: data.bounds.yMax,
+    },
+    staticFallback: data.staticFallback,
+    limitPoint: data.limitPoint,
+    limitValue: data.limitValue,
+    defaultEpsilon: data.defaultEpsilon,
+    defaultDelta: data.defaultDelta,
+    functionModel: data.functionModel,
+  };
+}
+
+/**
  * Pure function to build a sanitized, serializable public article read model.
  * Strictly redacts all internal Idea/source/provenance/hash/identity fields.
  */
@@ -263,6 +495,7 @@ export function buildPublicArticleReadModel(
     title: string;
     version: number;
     status?: string;
+    visuals?: unknown[];
     [key: string]: unknown;
   },
   rawSections: Array<{
@@ -277,6 +510,8 @@ export function buildPublicArticleReadModel(
     estimatedReadingMinutes?: number | null;
     version?: number;
     status?: string;
+    pedagogy?: unknown;
+    visuals?: unknown[];
     [key: string]: unknown;
   }>,
   rawBlocks: Array<{
@@ -289,6 +524,8 @@ export function buildPublicArticleReadModel(
     content: string;
     version?: number;
     status?: string;
+    workedExamplePayload?: unknown;
+    formativeCheckPayload?: unknown;
     [key: string]: unknown;
   }>,
   rawProgress?: Array<{
@@ -324,11 +561,19 @@ export function buildPublicArticleReadModel(
     .filter((b) => !b.status || b.status === "published")
     .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0) || a.id.localeCompare(b.id));
 
-  // Group blocks by section
+  // Group blocks by section, sanitizing worked examples and formative checks
   const blocksBySection = new Map<string, PublicBlockReadModel[]>();
   for (const b of validBlocks) {
     if (!b.bagianArtikelId) continue;
     const existing = blocksBySection.get(b.bagianArtikelId) ?? [];
+
+    const workedExample =
+      b.blockType === "worked_example" ? sanitizeWorkedExample(b.workedExamplePayload) : null;
+    const formativeCheck =
+      b.blockType === "retrieval_prompt" || b.blockType === "retrieval_close"
+        ? sanitizeFormativeCheck(b.formativeCheckPayload)
+        : null;
+
     existing.push({
       id: b.id,
       blockKey: b.blockKey || `block-${b.id}`,
@@ -336,9 +581,21 @@ export function buildPublicArticleReadModel(
       title: b.title ?? null,
       orderIndex: b.orderIndex ?? 0,
       content: b.content,
+      workedExample: workedExample ?? undefined,
+      formativeCheck: formativeCheck ?? undefined,
     });
     blocksBySection.set(b.bagianArtikelId, existing);
   }
+
+  // Sanitize article visuals
+  const sanitizedArticleVisuals: PublicVisualSpec[] = [];
+  if (Array.isArray(rawArticle.visuals)) {
+    for (const v of rawArticle.visuals) {
+      const sv = sanitizeVisualSpec(v);
+      if (sv) sanitizedArticleVisuals.push(sv);
+    }
+  }
+  const visualMap = new Map(sanitizedArticleVisuals.map((v) => [v.id, v]));
 
   // Build public sections
   const publicSections: PublicSectionReadModel[] = validSections.map((s, idx) => {
@@ -346,10 +603,87 @@ export function buildPublicArticleReadModel(
     const sectionKind: "overview" | "topic" | "summary" =
       rawKind === "overview" || rawKind === "summary" ? rawKind : "topic";
 
-    const readingMins =
+    const sectionBlocks = blocksBySection.get(s.id) ?? [];
+    const workedCount = sectionBlocks.filter((b) => b.blockType === "worked_example").length;
+    const practiceCount = sectionBlocks.filter(
+      (b) => b.blockType === "retrieval_prompt" || b.blockType === "retrieval_close",
+    ).length;
+
+    const baseReadingMinutes =
       typeof s.estimatedReadingMinutes === "number" && s.estimatedReadingMinutes > 0
         ? s.estimatedReadingMinutes
         : 3;
+
+    const rawPed = (s.pedagogy && typeof s.pedagogy === "object" ? s.pedagogy : null) as Record<
+      string,
+      unknown
+    > | null;
+
+    let learningTimeEstimate: PublicLearningTimeEstimate;
+    if (rawPed?.timeEstimate && typeof rawPed.timeEstimate === "object") {
+      const te = rawPed.timeEstimate as Record<string, unknown>;
+      const r =
+        typeof te.readingMinutes === "number" ? Math.max(0, te.readingMinutes) : baseReadingMinutes;
+      const e =
+        typeof te.examplesMinutes === "number"
+          ? Math.max(0, te.examplesMinutes)
+          : workedCount * 2;
+      const p =
+        typeof te.practiceMinutes === "number"
+          ? Math.max(0, te.practiceMinutes)
+          : practiceCount * 2;
+      learningTimeEstimate = {
+        readingMinutes: r,
+        examplesMinutes: e,
+        practiceMinutes: p,
+        totalMinutes: r + e + p,
+      };
+    } else {
+      learningTimeEstimate = {
+        readingMinutes: baseReadingMinutes,
+        examplesMinutes: workedCount * 2,
+        practiceMinutes: practiceCount * 2,
+        totalMinutes: baseReadingMinutes + workedCount * 2 + practiceCount * 2,
+      };
+    }
+
+    let visualReq: PublicSectionPedagogy["visualRequirement"] = undefined;
+    if (rawPed?.visualRequirement && typeof rawPed.visualRequirement === "object") {
+      const vr = rawPed.visualRequirement as Record<string, unknown>;
+      if (vr.status === "required" && Array.isArray(vr.visualIds)) {
+        visualReq = {
+          status: "required",
+          visualIds: vr.visualIds.filter((id): id is string => typeof id === "string"),
+        };
+      } else if (vr.status === "not_required" && typeof vr.reason === "string") {
+        visualReq = {
+          status: "not_required",
+          reason: vr.reason,
+        };
+      }
+    }
+
+    const sectionPedagogy: PublicSectionPedagogy = {
+      timeEstimate: learningTimeEstimate,
+      visualRequirement: visualReq,
+    };
+
+    // Attach section visuals
+    const sectionVisuals: PublicVisualSpec[] = [];
+    if (Array.isArray(s.visuals)) {
+      for (const v of s.visuals) {
+        const sv = sanitizeVisualSpec(v);
+        if (sv) sectionVisuals.push(sv);
+      }
+    }
+    if (visualReq?.status === "required" && visualReq.visualIds) {
+      for (const vid of visualReq.visualIds) {
+        const matched = visualMap.get(vid);
+        if (matched && !sectionVisuals.some((v) => v.id === matched.id)) {
+          sectionVisuals.push(matched);
+        }
+      }
+    }
 
     return {
       id: s.id,
@@ -358,10 +692,13 @@ export function buildPublicArticleReadModel(
       sectionNumber: sectionNumberMap.get(s.id) || String(idx + 1),
       sectionKind,
       learningObjective: s.learningObjective || "",
-      estimatedReadingMinutes: readingMins,
+      estimatedReadingMinutes: learningTimeEstimate.readingMinutes,
       orderIndex: s.orderIndex ?? idx,
       parentSectionId: s.parentSectionId ?? null,
-      blocks: blocksBySection.get(s.id) ?? [],
+      blocks: sectionBlocks,
+      pedagogy: sectionPedagogy,
+      learningTimeEstimate,
+      visuals: sectionVisuals.length > 0 ? sectionVisuals : undefined,
     };
   });
 
@@ -369,6 +706,25 @@ export function buildPublicArticleReadModel(
     (acc, s) => acc + s.estimatedReadingMinutes,
     0,
   );
+
+  const totalReading = publicSections.reduce(
+    (acc, s) => acc + (s.learningTimeEstimate?.readingMinutes ?? s.estimatedReadingMinutes),
+    0,
+  );
+  const totalExamples = publicSections.reduce(
+    (acc, s) => acc + (s.learningTimeEstimate?.examplesMinutes ?? 0),
+    0,
+  );
+  const totalPractice = publicSections.reduce(
+    (acc, s) => acc + (s.learningTimeEstimate?.practiceMinutes ?? 0),
+    0,
+  );
+  const totalLearningTimeEstimate: PublicLearningTimeEstimate = {
+    readingMinutes: totalReading,
+    examplesMinutes: totalExamples,
+    practiceMinutes: totalPractice,
+    totalMinutes: totalReading + totalExamples + totalPractice,
+  };
 
   // Compute progress if provided
   let progress: PublicArticleProgress | null = null;
@@ -423,6 +779,8 @@ export function buildPublicArticleReadModel(
     version: rawArticle.version,
     sections: publicSections,
     totalEstimatedReadingMinutes: Math.max(1, totalEstimatedReadingMinutes),
+    totalLearningTimeEstimate,
+    visuals: sanitizedArticleVisuals.length > 0 ? sanitizedArticleVisuals : undefined,
     progress,
   };
 }

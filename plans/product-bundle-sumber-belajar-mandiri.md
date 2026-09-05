@@ -1,10 +1,10 @@
 # Product Bundle sebagai sumber belajar mandiri
 
-Status: `OPEN / IN PROGRESS`
+Status: `COMPLETED / RESOLVED`
 
 Tanggal: 2026-09-05
 
-Plan ini disetujui pengguna untuk implementasi. Status checkpoint hanya berubah berdasarkan keputusan primary dan bukti yang terikat pada fingerprint hasil. Dokumen ini tidak menyatakan implementasi atau deployment telah selesai.
+Implementasi lokal CP0 sampai CP8 selesai dan siap diajukan untuk perubahan staging. Dokumen ini tidak menyatakan deployment, mutation staging, atau validasi production telah dilakukan.
 
 ## 1. Hasil akhir dan pembagian tanggung jawab
 
@@ -427,3 +427,11 @@ Pada akhir perencanaan belum dilakukan implementasi, inspeksi artikel staging se
 - AGY CP0 memakai `gemini-3.8-flash-high`. Eksekusi terminal sandbox mengalami error keystore Java read-only; bypass sandbox ditolak. AGY diarahkan memakai tool file, dengan status dan baseline tests dijalankan primary.
 - Pekerjaan CP0 dijeda atas permintaan pengguna untuk mengekstrak, commit, dan push plan. CP1 sampai CP8 belum dijalankan. Tidak ada deployment, publikasi, atau mutation staging.
 - Saat resume, verifikasi ulang baseline, worktree, artifact lokal, dan status worker. Jangan menganggap checkpoint selesai berdasarkan dokumen ini.
+
+## 7. Hasil pelaksanaan
+
+- CP0 sampai CP7 diputuskan `PASS` oleh primary berdasarkan kontrak, migrasi lokal, integration tests, walkthrough skills, empat rehearsal authoring bersih, dan inspeksi visual langsung.
+- Suite akhir: 160 tes terfokus lulus, lint penuh exit 0 dengan warning baseline saja, Next.js production compile mode exit 0, dan `git diff --check` exit 0.
+- Typecheck terpisah tidak dijalankan sesuai arahan operator. Build default sempat gagal karena cache generated `.next/dev` rusak; sesudah cache dipindahkan, production compilation sukses, lalu pemeriksaan TypeScript internal yang lama dihentikan sesuai batas waktu operator. `next build --experimental-build-mode compile` menutup exit 0.
+- Tidak ada deployment, publikasi eksternal, migration staging, atau mutation production. Hasil CP8 adalah siap diajukan untuk rollout staging terjaga.
+- Bukti checkpoint dan rehearsal lokal berada di `artifacts/product-bundle-self-study/` dan sengaja tidak menjadi artifact source yang dikomit.

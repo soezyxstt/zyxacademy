@@ -646,6 +646,18 @@ Persistent Product Bundle item review state for one reviewer. This metadata stay
 * Import deletion cascades to item reviews. Reviewer deletion is restricted.
 * Admin draft edit preserves unchanged section rows and resets changed section rows. A bundle decision makes the same reviewer's rows immutable at the service boundary.
 
+### review_pedagogi_bundle
+Revision-bound Product Bundle pedagogic review evidence stored outside the authored ZIP.
+* `id`, `imporBundleId`, `reviewerId`, `contentFingerprint`, `policyVersion`
+* `status` is `pending`, `approved`, `rejected`, or `changes_requested`; `rubric` stores all eight criteria, while `exceptions` and optional `notes` preserve the decision rationale.
+* The unique decision identity is import, reviewer, content fingerprint, and policy version. Publication accepts only the current approving publisher's matching approval.
+
+### bukti_pdf_bundle
+Revision-bound Diktat PDF renderer evidence stored outside the authored ZIP.
+* `id`, `imporBundleId`, `productId`, Article version and hash, Diktat hash, renderer version, and print profile.
+* `status` is `pending`, `ready`, `failed`, or `stale`; ready rows require a protected `storageKey` and a verified `pageCount` from 2 to 4, while failed rows retain only a safe `failureCode`.
+* One lineage row is selected by import, Diktat product, Diktat hash, and print profile. Newer unrelated or Article-owned rows cannot outrank current Diktat evidence.
+
 ### publikasi_bundle
 Publication record created or refreshed at atomic publication.
 * `id`, `imporBundleId`, `approvedReviewId`, `version`
@@ -657,6 +669,8 @@ Plan 006 uses these tables as a staged workflow. Uploads do not write canonical 
 Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Migration `0081_numerous_gwen_stacy.sql` adds `review_item_bundle` as advisory staged review metadata with no backfill. Existing drafts therefore begin with every Article block effectively pending. Draft replacement rewrites the import inventory and R2 artifact and clears block review rows before publication. Publication inserts canonical article, diktat, question, solution, flashcard, and assessment blueprint rows after traceability and dependency checks pass. Withdrawal marks canonical rows inactive or retired according to their existing table contract and adds vector delete jobs. Question products are exclusively ITB examples and require `itbSource`, ITB curation, typed option IDs with deterministic correct markers, exactly one paired solution, and a HOT cognitive level for multi-Idea questions. Correct markers remain inside the private `soal.options_snapshot` grading representation and are redacted from runtime and vector content. Versions greater than one use versioned product IDs so prior rows remain queryable.
 
 Migrations `0082_structured_article_expand.sql` and `0083_structured_article_review_targets.sql` add structured learning and Article tables, progress, generic review targets, and compatibility columns. V3 publication stores semantic rows and derived Markdown transactionally. V3 publication requires section approval from the same admin who approved the bundle.
+
+Migrations `0087_curly_black_tom.sql` and `0088_talented_shinobi_shaw.sql` add Product Bundle pedagogic-review and PDF-evidence tables, then apply their lineage uniqueness, status, page-count, and Article-version constraints. They are additive to canonical product data; no existing Article or Diktat rows are rewritten.
 
 Migration `0068_typical_warbird.sql` adds `origin`, `source_event_name`, and `source_reference_id` to both `soal` and `ai_question_bank`, with `zyx_original` as the non-null default and an origin plus event index on each table. Existing rows therefore remain Zyx originals without a data rewrite. Product publication validates ITB completeness before writing and creates the `ai_question_bank` compatibility projection. Product Bundle source and curation data are retained in the publication audit snapshot, while `soal_itb_referensi.soal_id` links the single source reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
 

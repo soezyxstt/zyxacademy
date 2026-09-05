@@ -19,7 +19,8 @@ import { generateMarkdownForChapter } from "@/lib/material-generator";
 import { saveWebsiteMaterial } from "@/lib/material-storage";
 import { getCanonicalContentV2EmbeddingAdapter } from "@/lib/vectorize/runtime";
 import { canonicalOutboxPayload, canonicalOutboxTitle } from "@/lib/vectorize/outbox";
-import { CANONICAL_VECTOR_PROFILE, type CanonicalVectorMetadata } from "@/lib/vectorize/contracts";
+import { CANONICAL_VECTOR_PROFILE } from "@/lib/vectorize/contracts";
+import { generateProductDiktatPdfEvidence } from "@/lib/bundle/product-diktat-pdf";
 
 type VectorSyncRow = typeof vectorSyncQueue.$inferSelect;
 const LEASE_DURATION_MS = 5 * 60 * 1000; // 5 minutes lease window
@@ -239,6 +240,20 @@ export const vectorSyncWorker = inngest.createFunction(
     const { courseId } = event.data as { courseId: string };
     return await processBatch(step, courseId);
   }
+);
+
+export const productDiktatPdfWorker = inngest.createFunction(
+  {
+    id: "product-diktat-pdf-worker",
+    name: "Product Diktat PDF Worker",
+    triggers: [{ event: "product.diktat.pdf.requested" }],
+    retries: 2,
+    concurrency: { limit: 2 },
+  },
+  async ({ event, step }) => {
+    const data = event.data as { importId: string; requestedBy: string };
+    return step.run("render-product-diktat-pdf", () => generateProductDiktatPdfEvidence({ ...data, throwOnFailure: true }));
+  },
 );
 
 /**

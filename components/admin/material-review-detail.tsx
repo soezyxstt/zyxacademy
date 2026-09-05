@@ -42,6 +42,12 @@ import { StructuredArticleSectionContent } from "@/components/course/structured-
 import { computeDeterministicSectionNumbering, type PublicSectionReadModel } from "@/lib/articles/structured-read-model";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
 import { ProductDraftEditor } from "@/components/admin/product-draft-editor";
+import {
+  PEDAGOGIC_CRITERION_IDS,
+  QUALITY_POLICY_VERSION,
+  type PedagogicCriterionId,
+  type PedagogicRubricItem,
+} from "@/lib/materials/quality-policy";
 import type { ProductPreview } from "@/lib/bundle/product-preview";
 import type { ProductDependency, ProductEntity } from "@/lib/bundle/product-validator";
 import { cn } from "@/lib/utils";
@@ -100,6 +106,62 @@ export type ProductBlockReviewSummary = {
   changesRequested: number;
 };
 
+export type QualityIssue = {
+  code: string;
+  severity: "blocking" | "warning";
+  target: { targetType: string; targetId: string };
+  reason: string;
+  remediation?: string;
+};
+
+export type QualityEvaluationState = {
+  valid: boolean;
+  publicationReady: boolean;
+  policyVersion: string;
+  contentFingerprint: string;
+  issues: QualityIssue[];
+  metrics?: Record<string, number>;
+};
+
+export type PedagogicReviewState = {
+  id: string;
+  status: "approved" | "rejected" | "changes_requested";
+  policyVersion: string;
+  contentFingerprint: string;
+  criteria: Array<{
+    criterionId: PedagogicCriterionId;
+    status: "met" | "needs_revision" | "not_met";
+    reason: string;
+    contentAnchors: Array<{ targetType: "section" | "block" | "visual" | "document"; targetId: string }>;
+  }>;
+  exceptions?: Array<{
+    criterionId: PedagogicCriterionId;
+    approved: boolean;
+    reason: string;
+  }>;
+  notes?: string | null;
+  createdAt: string | Date;
+};
+
+export type PdfEvidenceState = {
+  id?: string;
+  status: "none" | "pending" | "ready" | "failed" | "stale";
+  productId?: string;
+  pageCount?: number;
+  failureCode?: string;
+  message?: string;
+};
+
+export type RevisionFreshnessState = {
+  currentFingerprint: string;
+  reviewFingerprint: string | null;
+  isFresh: boolean;
+  isFingerprintMatch: boolean;
+  isPolicyMatch: boolean;
+  policyVersion: string;
+  completenessState: "incomplete" | "complete" | "stale";
+};
+
 export type ProductDetailPayload = {
   bundle: {
     id: string;
@@ -118,6 +180,11 @@ export type ProductDetailPayload = {
   blockReviews?: ProductBlockReview[];
   blockReviewSummary?: ProductBlockReviewSummary;
   structuredReaderEnabled?: boolean;
+  qualityEvaluation?: QualityEvaluationState;
+  pedagogicReview?: PedagogicReviewState | null;
+  pdfStatus?: PdfEvidenceState;
+  blockingIssues?: QualityIssue[];
+  revisionFreshness?: RevisionFreshnessState;
 };
 
 type IdeaDraftItem = IdeaPreview["ideas"][number] & {
@@ -1694,10 +1761,194 @@ function AssessmentBlueprintProductView({ product }: { product: Extract<ProductE
 // ---------------------------------------------------------------------------
 
 type ConfirmActionState =
-  | { type: "approve_with_warnings"; pending: number; changesRequested: number }
   | { type: "discard" }
   | { type: "withdraw" }
   | null;
+
+const pedagogicCriterionLabels: Record<PedagogicCriterionId, string> = {
+  concept_accuracy: "Akurasi konsep",
+  prerequisite_completeness: "Kelengkapan prasyarat",
+  explanation_sequence: "Urutan penjelasan",
+  symbol_and_condition_clarity: "Kejelasan simbol dan kondisi",
+  example_reasoning: "Penalaran contoh",
+  representation_or_visual: "Representasi atau visual",
+  misconceptions_and_limits: "Miskonsepsi dan batas berlaku",
+  formative_check_and_explanation: "Cek formatif dan pembahasan",
+};
+
+type ReviewSubmission = {
+  decision: "approved" | "rejected" | "changes_requested";
+  criteria: PedagogicRubricItem[];
+};
+
+function PedagogicReviewPanel({
+  payload,
+  saving,
+  onSubmit,
+  onRefresh,
+}: {
+  payload: ProductDetailPayload;
+  saving: boolean;
+  onSubmit: (submission: ReviewSubmission) => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfRequestFailed, setPdfRequestFailed] = useState(false);
+  const article = payload.draft.products.find((product) => product.productType === "article");
+  const anchorOptions = useMemo(() => {
+    if (!article || article.productType !== "article") return [];
+    return [
+      { targetType: "document" as const, targetId: article.id, label: `Artikel: ${article.title}` },
+      ...article.sections.flatMap((section) => [
+        { targetType: "section" as const, targetId: section.id, label: `Bagian: ${section.title}` },
+        ...section.blocks.map((block) => ({
+          targetType: "block" as const,
+          targetId: block.id,
+          label: `Blok: ${block.title || block.id}`,
+        })),
+      ]),
+      ...(article.visuals ?? []).map((visual) => ({
+        targetType: "visual" as const,
+        targetId: visual.id,
+        label: `Visual: ${visual.label}`,
+      })),
+    ];
+  }, [article]);
+
+  const [criteria, setCriteria] = useState<PedagogicRubricItem[]>([]);
+
+  useEffect(() => {
+    const existing = payload.pedagogicReview?.criteria;
+    setCriteria(
+      PEDAGOGIC_CRITERION_IDS.map((criterionId) => {
+        const saved = existing?.find((item) => item.criterionId === criterionId);
+        return saved ?? {
+          criterionId,
+          status: "needs_revision" as const,
+          contentAnchors: anchorOptions[0]
+            ? [{ targetType: anchorOptions[0].targetType, targetId: anchorOptions[0].targetId }]
+            : [],
+          reason: "",
+        };
+      }),
+    );
+  }, [payload.pedagogicReview?.criteria, payload.pedagogicReview?.id, payload.revisionFreshness?.currentFingerprint, anchorOptions]);
+
+  const updateCriterion = (criterionId: PedagogicCriterionId, update: Partial<PedagogicRubricItem>) => {
+    setCriteria((current) => current.map((item) => item.criterionId === criterionId ? { ...item, ...update } : item));
+  };
+  const complete = criteria.length === PEDAGOGIC_CRITERION_IDS.length && criteria.every(
+    (item) => item.reason.trim() && item.contentAnchors.length > 0,
+  );
+  const allMet = complete && criteria.every((item) => item.status === "met");
+  const freshness = payload.revisionFreshness?.completenessState ?? "incomplete";
+  const pdf = payload.pdfStatus ?? { status: "pending" as const };
+
+  const requestPdf = async () => {
+    setPdfBusy(true);
+    setPdfRequestFailed(false);
+    try {
+      const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/pdf`, { method: "POST" });
+      if (!response.ok) {
+        setPdfRequestFailed(true);
+        return;
+      }
+      await onRefresh();
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs sm:p-5" aria-labelledby="pedagogic-review-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="pedagogic-review-title" className="font-heading text-body-base font-bold text-foreground">Review pedagogi</h2>
+          <p className="mt-1 text-body-xs text-muted-foreground">Nilai delapan kriteria dan tautkan setiap keputusan ke bukti konten.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className={cn("text-body-xs", freshness === "complete" ? "text-status-success" : freshness === "stale" ? "text-status-error" : "text-status-warning")}>
+            {freshness === "complete" ? "Review lengkap" : freshness === "stale" ? "Review kedaluwarsa" : "Review belum lengkap"}
+          </Badge>
+          <Badge variant="outline" className={cn("text-body-xs", pdf.status === "ready" ? "text-status-success" : pdf.status === "failed" ? "text-status-error" : "text-status-warning")}>
+            PDF {pdf.status === "ready" ? `siap${pdf.pageCount ? `, ${pdf.pageCount} halaman` : ""}` : pdf.status === "failed" ? "gagal" : "menunggu"}
+          </Badge>
+          {pdf.status === "ready" ? (
+            <Button asChild type="button" size="sm" variant="outline">
+              <a href={`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/pdf`} target="_blank" rel="noreferrer">Pratinjau PDF</a>
+            </Button>
+          ) : (
+            <Button type="button" size="sm" variant="outline" disabled={pdfBusy} onClick={() => void requestPdf()}>
+              {pdfBusy ? "Mengantrekan..." : pdf.status === "failed" ? "Coba render lagi" : "Render PDF"}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {pdfRequestFailed && (
+        <div className="rounded-lg border border-status-error/30 bg-status-error/5 p-3 text-body-xs text-status-error">
+          PDF belum dapat diproses. Periksa layanan renderer, lalu coba lagi.
+        </div>
+      )}
+
+      {(payload.blockingIssues?.length ?? 0) > 0 && (
+        <div className="rounded-lg border border-status-error/30 bg-status-error/5 p-3">
+          <div className="flex items-center gap-2 text-body-sm font-semibold text-status-error"><ShieldAlert className="size-4" />Penghambat publikasi</div>
+          <ul className="mt-2 space-y-1.5 text-body-xs text-foreground">
+            {payload.blockingIssues?.map((issue) => (
+              <li key={`${issue.code}:${issue.target.targetId}`}>{issue.reason}{issue.remediation ? ` ${issue.remediation}` : ""}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="divide-y divide-border rounded-lg border border-border">
+        {criteria.map((item, index) => {
+          const anchor = item.contentAnchors[0];
+          const anchorValue = anchor ? `${anchor.targetType}|${anchor.targetId}` : "";
+          return (
+            <div key={item.criterionId} className="grid gap-3 p-3 lg:grid-cols-[minmax(180px,0.8fr)_160px_minmax(220px,1fr)_minmax(220px,1.2fr)] lg:items-start">
+              <Label className="pt-2 text-body-sm font-semibold">{index + 1}. {pedagogicCriterionLabels[item.criterionId]}</Label>
+              <Select value={item.status} onValueChange={(status: PedagogicRubricItem["status"]) => updateCriterion(item.criterionId, { status })}>
+                <SelectTrigger className="h-9 text-body-sm" aria-label={`Status ${pedagogicCriterionLabels[item.criterionId]}`}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="met">Terpenuhi</SelectItem>
+                  <SelectItem value="needs_revision">Perlu revisi</SelectItem>
+                  <SelectItem value="not_met">Tidak terpenuhi</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={anchorValue} onValueChange={(value) => {
+                const separator = value.indexOf("|");
+                updateCriterion(item.criterionId, { contentAnchors: [{ targetType: value.slice(0, separator) as PedagogicRubricItem["contentAnchors"][number]["targetType"], targetId: value.slice(separator + 1) }] });
+              }}>
+                <SelectTrigger className="h-9 text-body-sm" aria-label={`Bukti ${pedagogicCriterionLabels[item.criterionId]}`}><SelectValue placeholder="Pilih bukti konten" /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {anchorOptions.map((option) => <SelectItem key={`${option.targetType}:${option.targetId}`} value={`${option.targetType}|${option.targetId}`}>{option.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Input
+                value={item.reason}
+                onChange={(event) => updateCriterion(item.criterionId, { reason: event.target.value })}
+                placeholder="Alasan penilaian"
+                aria-label={`Alasan ${pedagogicCriterionLabels[item.criterionId]}`}
+                className="h-9 text-body-sm"
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-body-xs text-muted-foreground">{complete ? `${criteria.filter((item) => item.status === "met").length} dari 8 kriteria terpenuhi.` : "Lengkapi alasan dan bukti untuk seluruh kriteria."}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={saving || !complete} onClick={() => onSubmit({ decision: "changes_requested", criteria })}>Minta revisi</Button>
+          <Button type="button" size="sm" variant="destructive" disabled={saving || !complete} onClick={() => onSubmit({ decision: "rejected", criteria })}>Tolak</Button>
+          <Button type="button" size="sm" disabled={saving || !allMet} onClick={() => onSubmit({ decision: "approved", criteria })}><Check className="size-3.5" />Setujui</Button>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: DetailProps) {
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
@@ -1727,7 +1978,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
       setDraftProducts(nextPayload.draft?.products ?? []);
       setEditing(false);
       setSelectedProductId((current) => nextPayload.previews.some((preview) => preview.id === current) ? current : nextPayload.previews[0]?.id ?? null);
-      const existingReview = nextPayload.bundle.currentReview;
+      const existingReview = nextPayload.pedagogicReview;
       setReviewDecision(existingReview?.status === "approved" || existingReview?.status === "rejected" ? existingReview.status : null);
       setReviewNote(existingReview?.notes ?? "");
     } catch (loadError) {
@@ -1739,12 +1990,24 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
 
   useEffect(() => { void load(); }, [load]);
 
-  async function decide(decision: "approved" | "rejected") {
+  async function decide({ decision, criteria }: ReviewSubmission) {
     if (!payload) return;
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/review`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision, notes: reviewNote || undefined }) });
+      const response = await fetch(`/api/admin/bundles/product/${encodeURIComponent(payload.bundle.id)}/review`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          decision,
+          policyVersion: payload.revisionFreshness?.policyVersion ?? QUALITY_POLICY_VERSION,
+          contentFingerprint: payload.revisionFreshness?.currentFingerprint ?? payload.qualityEvaluation?.contentFingerprint,
+          expectedRevision: payload.bundle.checksum,
+          criteria,
+          exceptions: [],
+          notes: reviewNote || undefined,
+        }),
+      });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error || "PRODUCT_BUNDLE_REVIEW_FAILED");
       setReviewDecision(decision);
@@ -1825,21 +2088,6 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
     });
   }
 
-  function handleApproveClick() {
-    const summary = payload?.blockReviewSummary;
-    const pending = summary?.pending ?? 0;
-    const changesRequested = summary?.changesRequested ?? 0;
-    if (pending > 0 || changesRequested > 0) {
-      setConfirmAction({
-        type: "approve_with_warnings",
-        pending,
-        changesRequested,
-      });
-    } else {
-      void decide("approved");
-    }
-  }
-
   function handleDiscardClick() {
     setConfirmAction({ type: "discard" });
   }
@@ -1852,9 +2100,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
     if (!confirmAction) return;
     const action = confirmAction;
     setConfirmAction(null);
-    if (action.type === "approve_with_warnings") {
-      await decide("approved");
-    } else if (action.type === "discard") {
+    if (action.type === "discard") {
       await mutate("discard");
     } else if (action.type === "withdraw") {
       await mutate("withdraw");
@@ -2117,6 +2363,10 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
         </AdminTabsContent>
       </AdminTabs>
 
+      {payload.bundle.status === "draft" && (
+        <PedagogicReviewPanel payload={payload} saving={saving} onSubmit={(submission) => void decide(submission)} onRefresh={load} />
+      )}
+
       {/* Review Actions Sticky Footer */}
       <section className="sticky bottom-0 z-50 rounded-xl border border-border bg-card p-3 shadow-lg space-y-2 md:static md:z-auto md:p-4 md:space-y-3">
         {/* Block Review Summary Strip */}
@@ -2161,18 +2411,19 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 md:pt-3">
           <div className="flex flex-wrap gap-2">
-            {payload.bundle.status === "draft" && !reviewDecision && (
-              <>
-                <Button type="button" size="sm" disabled={saving} onClick={handleApproveClick}>
-                  <Check className="size-3.5" />Setujui
-                </Button>
-                <Button type="button" size="sm" variant="destructive" disabled={saving} onClick={() => void decide("rejected")}>
-                  <X className="size-3.5" />Tolak
-                </Button>
-              </>
-            )}
             {payload.bundle.status === "draft" && reviewDecision === "approved" && (
-              <Button type="button" size="sm" disabled={saving || payload.publicationBlocked} onClick={() => void mutate("publish")}>
+              <Button
+                type="button"
+                size="sm"
+                disabled={
+                  saving ||
+                  payload.publicationBlocked ||
+                  !payload.qualityEvaluation?.publicationReady ||
+                  !payload.revisionFreshness?.isFresh ||
+                  payload.pdfStatus?.status !== "ready"
+                }
+                onClick={() => void mutate("publish")}
+              >
                 <FileCheck2 className="size-3.5" />Publikasikan
               </Button>
             )}
@@ -2251,34 +2502,26 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
         open={confirmAction !== null}
         onOpenChange={(open) => { if (!open) setConfirmAction(null); }}
         title={
-          confirmAction?.type === "approve_with_warnings"
-            ? "Setujui dengan catatan blok"
-            : confirmAction?.type === "withdraw"
+          confirmAction?.type === "withdraw"
             ? "Tarik publikasi Product"
             : "Hapus draft Product"
         }
         description={
-          confirmAction?.type === "approve_with_warnings"
-            ? `Terdapat ${confirmAction.pending > 0 ? `${confirmAction.pending} blok belum direview` : ""}${confirmAction.pending > 0 && confirmAction.changesRequested > 0 ? " dan " : ""}${confirmAction.changesRequested > 0 ? `${confirmAction.changesRequested} blok meminta perbaikan` : ""}. Apakah Anda yakin ingin tetap menyetujui bundle ini?`
-            : confirmAction?.type === "withdraw"
+          confirmAction?.type === "withdraw"
             ? "Produk tidak lagi terlihat oleh mahasiswa. Riwayat dan audit tetap disimpan."
             : "Draft dan ZIP staging akan dihapus permanen. Tindakan ini tidak memengaruhi produk yang sudah terbit."
         }
         confirmLabel={
-          confirmAction?.type === "approve_with_warnings"
-            ? "Tetap Setujui"
-            : confirmAction?.type === "withdraw"
+          confirmAction?.type === "withdraw"
             ? "Ya, Tarik Publikasi"
             : "Ya, Hapus Draft"
         }
         icon={
-          confirmAction?.type === "approve_with_warnings"
-            ? ShieldAlert
-            : confirmAction?.type === "withdraw"
+          confirmAction?.type === "withdraw"
             ? ArchiveX
             : Trash2
         }
-        destructive={confirmAction?.type !== "approve_with_warnings"}
+        destructive
         loading={saving}
         onConfirm={() => void handleConfirmDialog()}
       />

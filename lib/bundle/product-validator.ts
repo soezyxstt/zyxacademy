@@ -3,6 +3,13 @@ import { z } from "zod";
 import { BundleValidationError, parseSchema, parseStrictJson, sha256Bytes } from "@/lib/bundle/validator";
 import { readSecureZip, type SecureZipArchive } from "@/lib/bundle/zip-reader";
 import { compileArticleProduct } from "@/lib/materials/compiler";
+import {
+  formativeCheckPayloadSchema,
+  sectionPedagogyMetadataSchema,
+  validateSectionPedagogyReferences,
+  workedExamplePayloadSchema,
+} from "@/lib/materials/pedagogy-contract";
+import { visualSpecSchema } from "@/lib/materials/visual-contract";
 
 export const productBundleEntityTypeSchema = z.enum(["products", "dependencies"]);
 export type ProductBundleEntityType = z.infer<typeof productBundleEntityTypeSchema>;
@@ -80,6 +87,8 @@ export const productArticleV3BlockSchema = z.object({
   contentMarkdown: z.string().min(1),
   ideaIds: z.array(id).min(1),
   sourceRefs: z.array(productSourceRefSchema).min(1),
+  workedExamplePayload: workedExamplePayloadSchema.optional(),
+  formativeCheckPayload: formativeCheckPayloadSchema.optional(),
 }).strict();
 export type ProductArticleV3Block = z.infer<typeof productArticleV3BlockSchema>;
 
@@ -95,6 +104,7 @@ export const productArticleV3SectionSchema = z.object({
   ideaIds: z.array(id).min(1),
   sourceRefs: z.array(productSourceRefSchema).min(1),
   blocks: z.array(productArticleV3BlockSchema).min(1),
+  pedagogy: sectionPedagogyMetadataSchema.optional(),
 }).strict();
 export type ProductArticleV3Section = z.infer<typeof productArticleV3SectionSchema>;
 
@@ -105,6 +115,7 @@ export const productEntitySchema = z.discriminatedUnion("productType", [
     title: z.string().min(1),
     blocks: z.array(productArticleV2BlockSchema).default([]),
     sections: z.array(productArticleV3SectionSchema).default([]),
+    visuals: z.array(visualSpecSchema).default([]).optional(),
   }),
   commonProduct.extend({ productType: z.literal("diktat"), title: z.string().min(1), contentMarkdown: z.string().min(1), sourceArticleId: id, sourceArticleVersion: positive, sourceArticleHash: hash }),
   commonProduct.extend({ productType: z.literal("question"), questionType: z.enum(["multiple_choice", "multiple_choices", "short_answer", "essay"]), prompt: z.string().min(1), options: z.array(productQuestionOptionSchema), difficulty: z.enum(["easy", "medium", "hard"]), cognitiveLevel: z.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]), reasoningPattern: id, relationTypes: z.array(questionRelationTypeSchema).default([]), ideaRelations: z.array(productIdeaRelationSchema).default([]), itbSource: productItbSourceSchema, itbCuration: z.array(productItbCurationSchema).min(1) }),
@@ -162,7 +173,13 @@ function issue(code: string, message: string, path?: string): ProductValidationI
 
 export function deterministicProductSerialization(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(deterministicProductSerialization).join(",")}]`;
-  if (value && typeof value === "object") return `{${Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right)).map(([key, nested]) => `${JSON.stringify(key)}:${deterministicProductSerialization(nested)}`).join(",")}}`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .filter(([, nested]) => nested !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => `${JSON.stringify(key)}:${deterministicProductSerialization(nested)}`)
+      .join(",")}}`;
+  }
   return JSON.stringify(value);
 }
 
@@ -346,6 +363,40 @@ export function parseProductBundle(input: SecureZipArchive | ProductBundleFiles)
                 if (!sSource || sSource.version !== bSource.version || sSource.checksum !== bSource.checksum || !bSource.excerptIds.every((e) => sSource.excerptIds.includes(e))) {
                   return { success: false, issues: [issue("PRODUCT_BLOCK_REFERENCE_INVALID", `block ${b.id} references sourceRef not in section sourceRefs`)] };
                 }
+              }
+
+              if (b.workedExamplePayload && b.blockType !== "worked_example") {
+                return { success: false, issues: [issue("PRODUCT_BLOCK_PAYLOAD_MISMATCH", `block ${b.id} has workedExamplePayload but blockType is ${b.blockType}`)] };
+              }
+              if (b.formativeCheckPayload && b.blockType !== "retrieval_prompt" && b.blockType !== "retrieval_close") {
+                return { success: false, issues: [issue("PRODUCT_BLOCK_PAYLOAD_MISMATCH", `block ${b.id} has formativeCheckPayload but blockType is ${b.blockType}`)] };
+              }
+            }
+          }
+
+          if (product.visuals && product.visuals.length > 0) {
+            const visualIds = product.visuals.map((v) => v.id);
+            if (new Set(visualIds).size !== visualIds.length) {
+              return { success: false, issues: [issue("PRODUCT_VISUAL_DUPLICATE_ID", `article ${product.id} contains duplicate visual IDs`)] };
+            }
+          }
+
+          const allSectionIds = product.sections.map((sec) => sec.id);
+          const availableVisualIds = (product.visuals ?? []).map((v) => v.id);
+          for (const s of product.sections) {
+            if (s.pedagogy) {
+              const pedResult = validateSectionPedagogyReferences({
+                sectionId: s.id,
+                sectionBlocks: s.blocks.map((b) => ({ id: b.id, blockType: b.blockType })),
+                pedagogy: s.pedagogy,
+                availableSectionIds: allSectionIds,
+                availableVisualIds,
+              });
+              if (!pedResult.valid) {
+                return {
+                  success: false,
+                  issues: [issue("PRODUCT_PEDAGOGY_REFERENCE_INVALID", pedResult.errors.join("; "))],
+                };
               }
             }
           }

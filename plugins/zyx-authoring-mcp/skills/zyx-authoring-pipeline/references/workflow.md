@@ -13,7 +13,7 @@ Gunakan state machine ini untuk memulai, menjeda, dan melanjutkan workflow `idea
 | `IDEA_VALIDATED` | Idea Bundle valid | Operator mengotorisasi submission Idea |
 | `IDEA_STAGED` | `authoring.submit_idea_bundle` berhasil | Checkpoint dicatat |
 | `WAITING_IDEA_PUBLICATION` | Idea staged tetapi belum terbukti published | MCP menunjukkan Idea target sudah published dan context tetap fresh |
-| `PRODUCT_AUTHORING` | Idea published, source aktif, dan dependency fresh | Product Bundle V3 lolos validation per section |
+| `PRODUCT_AUTHORING` | Idea published, source aktif, dependency fresh, dan rencana pedagogi tersedia | Product Bundle V3 lolos preflight author dan validation per section |
 | `PRODUCT_VALIDATED` | Product Bundle valid | Selesai untuk target `product_validated`, atau operator mengotorisasi submission Product |
 | `PRODUCT_STAGED` | `authoring.submit_product_bundle` berhasil | Laporan akhir diberikan |
 
@@ -21,11 +21,11 @@ Gunakan state tambahan `NEEDS_OPERATOR_DECISION`, `BLOCKED_BY_VALIDATION`, atau 
 
 ## Resume protocol
 
-1. Baca checkpoint terakhir dan cocokkan artifact berdasarkan path, checksum, bundle ID, serta scope yang dilaporkan.
-2. Panggil MCP read tools yang relevan untuk memastikan run, contract, published Idea, source excerpt, dan dependency masih sesuai.
+1. Baca checkpoint terakhir dan cocokkan artifact berdasarkan path, checksum, bundle ID, run ID, contract checksum, Source Pack checksum, serta scope yang dilaporkan.
+2. Panggil MCP read tools yang relevan untuk memastikan run, contract, published Idea version dan hash, source excerpt, dan dependency masih sesuai.
 3. Jangan mengandalkan pernyataan operator saja untuk status yang dapat diverifikasi MCP. Bila MCP belum menunjukkan Idea published, tetap di `WAITING_IDEA_PUBLICATION`.
 4. Bila context stale atau token tidak valid, ambil run/contract baru. Pertahankan artifact lama sebagai evidence, tetapi validasi ulang semua dependency sebelum submit.
-5. Lanjutkan dari entry condition paling akhir yang masih terbukti benar. Jangan mengulang ekstraksi atau authoring hanya karena sesi sebelumnya telah berakhir.
+5. Lanjutkan dari entry condition paling akhir yang masih terbukti benar. Jangan mengulang ekstraksi atau authoring hanya karena sesi sebelumnya telah berakhir, dan jangan menerima keberhasilan dari ingatan tanpa checksum.
 
 ## Validation and retry
 
@@ -44,6 +44,7 @@ Selalu jeda ketika:
 - course/chapter ambigu, near-match, atau berbeda dari scope terkunci;
 - pemecahan atau relasi Idea memerlukan judgment substantif;
 - warning near-duplicate atau formula trace membutuhkan keputusan;
+- rencana prasyarat, urutan penjelasan, visual, contoh, atau cek tidak dapat diselesaikan dari sumber;
 - submission belum diotorisasi;
 - Idea belum terbukti published;
 - kandidat soal ITB memerlukan pilihan operator;
@@ -57,8 +58,9 @@ Gunakan format ringkas berikut. Jangan sertakan credential atau token akses.
 Pipeline: <status>
 Completed: <last completed state>
 Scope: <course label> / <chapter label>
+Context: <run ID, contract checksum, Source Pack checksum>
 Artifacts: <path, checksum, bundle ID where applicable>
-Quality: <valid/invalid and blocking issue summary>
+Quality: <author preflight, MCP validation, and blocking issue summary>
 Staging: <not requested/not submitted/submitted>
 Waiting for: <objective condition or operator decision>
 Resume: <one concise instruction>

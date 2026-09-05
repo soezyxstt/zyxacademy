@@ -610,6 +610,20 @@
       "when": 1788564239470,
       "tag": "0086_melodic_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "6",
+      "when": 1788596292327,
+      "tag": "0087_curly_black_tom",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "6",
+      "when": 1788596419767,
+      "tag": "0088_talented_shinobi_shaw",
+      "breakpoints": true
     }
   ]
 }

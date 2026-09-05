@@ -1,4 +1,5 @@
 import { deterministicProductSerialization, type ProductBundleValidation } from "@/lib/bundle/product-validator";
+import { computePedagogyContentFingerprint } from "@/lib/materials/quality-policy";
 
 type ValidProductBundle = Extract<ProductBundleValidation, { success: true }>["data"];
 
@@ -22,4 +23,76 @@ export function unchangedArticleSectionIds(previous: ValidProductBundle, next: V
     }
   }
   return unchanged;
+}
+
+export function canPreservePedagogicReview(previous: ValidProductBundle, next: ValidProductBundle): boolean {
+  const previousArticles = previous.products.filter((product) => product.productType === "article");
+  const nextArticles = next.products.filter((product) => product.productType === "article");
+  if (previousArticles.length !== nextArticles.length) return false;
+
+  const previousDiktats = new Map(
+    previous.products
+      .filter((product) => product.productType === "diktat")
+      .map((product) => [product.id, product]),
+  );
+  const nextDiktats = new Map(
+    next.products
+      .filter((product) => product.productType === "diktat")
+      .map((product) => [product.id, product]),
+  );
+  const previousArticleMap = new Map(previousArticles.map((p) => [p.id, p]));
+
+  for (const nextArticle of nextArticles) {
+    const prevArticle = previousArticleMap.get(nextArticle.id);
+    if (!prevArticle || prevArticle.productType !== "article") return false;
+
+    const nextDiktat = [...nextDiktats.values()].find((d) => d.sourceArticleId === nextArticle.id);
+    const prevDiktat = [...previousDiktats.values()].find((d) => d.sourceArticleId === prevArticle.id);
+
+    const prevFingerprint = computePedagogyContentFingerprint({
+      article: prevArticle as unknown as Record<string, unknown>,
+      diktat: prevDiktat as unknown as Record<string, unknown>,
+    });
+    const nextFingerprint = computePedagogyContentFingerprint({
+      article: nextArticle as unknown as Record<string, unknown>,
+      diktat: nextDiktat as unknown as Record<string, unknown>,
+    });
+
+    if (prevFingerprint !== nextFingerprint) return false;
+  }
+
+  return true;
+}
+
+export function findStalePdfEvidenceProductIds(previous: ValidProductBundle, next: ValidProductBundle): Set<string> {
+  const stale = new Set<string>();
+  const previousById = new Map(previous.products.map((p) => [p.id, p]));
+
+  for (const nextProduct of next.products) {
+    if (nextProduct.productType !== "article" && nextProduct.productType !== "diktat") continue;
+    const prevProduct = previousById.get(nextProduct.id);
+    if (!prevProduct) {
+      stale.add(nextProduct.id);
+      continue;
+    }
+    if (prevProduct.generationHash !== nextProduct.generationHash) {
+      stale.add(nextProduct.id);
+    }
+  }
+
+  const nextDiktats = next.products.filter((p) => p.productType === "diktat");
+  for (const diktat of nextDiktats) {
+    if (diktat.sourceArticleId && stale.has(diktat.sourceArticleId)) {
+      stale.add(diktat.id);
+    }
+    if (stale.has(diktat.id) && diktat.sourceArticleId) {
+      stale.add(diktat.sourceArticleId);
+    }
+  }
+
+  return stale;
+}
+
+export function canPreservePdfEvidence(previous: ValidProductBundle, next: ValidProductBundle, productId: string): boolean {
+  return !findStalePdfEvidenceProductIds(previous, next).has(productId);
 }
