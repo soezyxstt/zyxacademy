@@ -6,7 +6,7 @@
     "dev": "next dev --turbo",
     "dev:staging": "bun --env-file=.env.staging run dev",
     "cs:dev": "rm -rf .next node_modules && bun install && next dev --turbo",
-    "build": "NODE_OPTIONS=\"--max-old-space-size=4096\" next build",
+    "build": "next build",
     "start": "next start",
     "preview": "NODE_OPTIONS=\"--max-old-space-size=4096\" next build --turbo && next start",
     "lint": "eslint",

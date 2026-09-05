@@ -1,9 +1,15 @@
 {
   "deploy": {
     "framework": "nextjs",
-    "install": "PUPPETEER_SKIP_DOWNLOAD=1 npm install",
+    "install": "npm install",
     "build": "npm run build"
   },
+  "unstable": [
+    "detect-cjs",
+    "node-globals",
+    "unsafe-proto",
+    "sloppy-imports"
+  ],
   "nodeModulesDir": "auto",
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
