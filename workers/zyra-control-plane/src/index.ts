@@ -358,9 +358,10 @@ async function handleCacheRequest(request: Request, env: WorkerEnv): Promise<Res
     if (request.method !== "GET") return methodNotAllowed("GET");
     const cacheKey = url.searchParams.get("key");
     if (!cacheKey || !validateCacheKey(cacheKey)) return invalidRequest("invalid_cache_key");
-    if (!env.ZYX_STAGING_KV) return cacheInternalError("cache_binding_unavailable");
+    const kv = env.ZYX_KV ?? env.ZYX_STAGING_KV;
+    if (!kv) return cacheInternalError("cache_binding_unavailable");
     try {
-      const payload = await env.ZYX_STAGING_KV.get(cacheKey, "json") as unknown;
+      const payload = await kv.get(cacheKey, "json") as unknown;
       if (payload === null || payload === undefined) return jsonResponse({ status: "miss", cacheKey });
       if (!validateCachePayload(payload)) return jsonResponse({ status: "miss", cacheKey, code: "CACHE_PAYLOAD_REJECTED" });
       return jsonResponse({ status: "hit", cacheKey, payload });
@@ -371,7 +372,8 @@ async function handleCacheRequest(request: Request, env: WorkerEnv): Promise<Res
 
   if (url.pathname === "/cache/put") {
     if (request.method !== "POST") return methodNotAllowed("POST");
-    if (!env.ZYX_STAGING_KV) return cacheInternalError("cache_binding_unavailable");
+    const kv = env.ZYX_KV ?? env.ZYX_STAGING_KV;
+    if (!kv) return cacheInternalError("cache_binding_unavailable");
     const body = await readJson(request);
     const ttlSeconds = body?.ttlSeconds;
     if (!body || typeof body.key !== "string" || !validateCacheKey(body.key)
@@ -385,7 +387,7 @@ async function handleCacheRequest(request: Request, env: WorkerEnv): Promise<Res
     const claimBody = await claim.json().catch(() => null) as { accepted?: boolean; claimed?: number; remaining?: number } | null;
     if (!claimBody?.accepted) return jsonResponse({ status: "skipped", code: "CACHE_WRITE_BUDGET_EXHAUSTED", remaining: claimBody?.remaining ?? 0 }, 429);
     try {
-      await env.ZYX_STAGING_KV.put(body.key, JSON.stringify(body.payload), { expirationTtl: ttlSeconds });
+      await kv.put(body.key, JSON.stringify(body.payload), { expirationTtl: ttlSeconds });
       return jsonResponse({ status: "stored", cacheKey: body.key, kvWrites: 1, remainingWrites: claimBody.remaining ?? 0 });
     } catch {
       return cacheInternalError("cache_operation_failed");
