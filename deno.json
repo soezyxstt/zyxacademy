@@ -1,0 +1,7 @@
+{
+  "deploy": {
+    "framework": "nextjs",
+    "install": "npm install",
+    "build": "npm run build"
+  }
+}
