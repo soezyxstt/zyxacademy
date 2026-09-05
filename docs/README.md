@@ -65,7 +65,7 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
-| [README.md](README.md) | Index | `ACTIVE` | 2026-09-04 | Master documentation index, hierarchy map, and lifecycle status ledger. |
+| [README.md](README.md) | Index | `ACTIVE` | 2026-09-05 | Master documentation index, hierarchy map, and lifecycle status ledger. |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-04 | Core platform architecture, canonical-first student reads, compatibility boundaries, tutor grading, scheduling, retired legacy authoring CRUD, MCP stored-PDF retrieval and Source Pack persistence, and system interfaces. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-04 | Comprehensive catalog of database tables, relationships, indexes, constraints, and tutor grading persistence. |
@@ -97,16 +97,9 @@ Implementation plans reside in `plans/` with detailed specifications:
 
 | Plan Track | Path | Status | Summary |
 |---|---|---|---|
-| Overhaul Plans 001-016 | `plans/README.md` | `COMPLETED / RESOLVED` | Core overhaul covering identity, schemas, bundles V2, Vectorize 768d cutover, and Zyra foundation. |
-| Plan 017 | `plans/017-audit-rework.md` | `OPEN / IN PROGRESS` | Minimal audit rework for Idea-centered authoring and learning workflows. |
-| Student course learning UX remediation | `plans/student-course-learning-ux-remediation.md` | `OPEN / IN PROGRESS` | Checkpoint plan for Documents, Flashcards, Quiz, Tryout, Study Path, Daily Trivia, and student Zyra UX. |
-| Zyra AI System Plans 001-014 | `plans/zyra-ai-system/README.md` | `ACTIVE / IN PROGRESS` | AI control plane, quota coordinator, multi-model routing, semantic cache, canvas, and tutoring harness. |
-| Zyx Ops AI rebuild orchestration | `plans/orkestrasi-rebuild-zyx-ops-ai-agy-high.md` | `COMPLETED / RESOLVED` | Checkpoint-based orchestration plan for rebuilding Zyx Ops AI with AGY High (Checkpoints 1 through 7 completed and verified). |
-| Ops AI CP3 Runtime Handoff | `plans/handoff-cp3-runtime.md` | `COMPLETED / RESOLVED` | Checkpoint 3 runtime, streaming, and tool execution milestone handoff. |
-| Ops AI CP4 Citations Handoff | `plans/handoff-cp4-citations.md` | `COMPLETED / RESOLVED` | Checkpoint 4 citation contracts, provenance binding, and disclaimer handoff. |
-| Ops AI CP5 Mutations Handoff | `plans/handoff-cp5-mutations.md` | `COMPLETED / RESOLVED` | Checkpoint 5 two-phase mutation proposals and server-side execution store handoff. |
-| Ops AI CP6 UI Handoff | `plans/handoff-cp6-ui.md` | `COMPLETED / RESOLVED` | Checkpoint 6 desktop participant, mobile sheet, and proposal cards UI handoff. |
-| Ops AI CP7 Integration Handoff | `plans/handoff-cp7-integration.md` | `COMPLETED / RESOLVED` | Checkpoint 7 end-to-end integration tests, runbooks, and staging smoke workflow. |
+| Product Bundle sebagai sumber belajar mandiri | [product-bundle-sumber-belajar-mandiri.md](../plans/product-bundle-sumber-belajar-mandiri.md) | `OPEN / IN PROGRESS` | Approved CP0 through CP8 plan for standalone learning articles, chapter review Diktat with real PDF export, revision-bound pedagogic review, shared MCP gates, UI, skills, and evidence-based AGY orchestration. |
+
+On 2026-09-05, the previous plan index, Plan 017, student learning UX plan, Ops AI orchestration and checkpoint handoffs/corrections, and Zyra AI System Plans 001 through 014 were removed at the user's direction. Their prior versions remain in Git history. Removal does not certify completion of previously open work; current runtime behavior remains documented in the canonical documents above.
 
 ---
 
