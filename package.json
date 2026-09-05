@@ -32,6 +32,8 @@
     "db:migrate": "bunx tsx db/migrate.ts",
     "db:seed": "bunx tsx db/seed.ts",
     "db:push:prod": "bunx tsx db/push-prod.ts",
+    "db:migrate-legacy:dry": "bun scripts/migrate-legacy-to-canonical.ts",
+    "db:migrate-legacy:apply": "bun scripts/migrate-legacy-to-canonical.ts --apply",
     "staging:preflight": "bun scripts/staging/preflight.ts",
     "staging:manifest-ai-usage": "bun scripts/staging/manifest-ai-usage.ts",
     "staging:reconcile-ai-usage": "bun scripts/staging/reconcile-ai-usage.ts",
