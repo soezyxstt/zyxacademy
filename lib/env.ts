@@ -4,6 +4,10 @@ import { resolveAuthBaseUrl } from '@/lib/auth-site-url';
 import { publicAppUrlSchema } from '@/lib/public-app-url';
 
 export const env = createEnv({
+  skipValidation:
+    Boolean(process.env.SKIP_ENV_VALIDATION) ||
+    Boolean(process.env.DENO_DEPLOYMENT_ID) ||
+    process.env.npm_lifecycle_event === 'lint',
  server: {
  DATABASE_URL: z.string().min(1),
  TURSO_CONNECTION_URL: z.string().optional(),
