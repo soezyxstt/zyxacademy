@@ -59,6 +59,55 @@
           "storage": "sqlite"
         }
       }
+    },
+    "production": {
+      "name": "zyx-zyra-control-production",
+      "vars": {
+        "ZYX_ENVIRONMENT": "production",
+        "ZYRA_DEPLOYMENT_VERSION": "prod-v1",
+        "ZYRA_CACHE_INDEX_NAME": "zyx-zyra-cache-production",
+        "ZYRA_PRIVATE_BUCKET_NAME": "zyx-zyra-private-production",
+        "ZYRA_ANALYTICS_DATASET": "zyx_zyra_events_production"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "ZYX_KV",
+          "id": "d447dde1d8ac42539130625e1face97d"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ZYRA_PRIVATE_ATTACHMENTS",
+          "bucket_name": "zyx-zyra-private-production"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "ZYRA_SEMANTIC_CACHE",
+          "index_name": "zyx-zyra-cache-production"
+        }
+      ],
+      "analytics_engine_datasets": [
+        {
+          "binding": "ZYRA_ANALYTICS",
+          "dataset": "zyx_zyra_events_production"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ZYRA_QUOTA_COORDINATOR",
+            "class_name": "ZyraQuotaCoordinator"
+          }
+        ]
+      },
+      "exports": {
+        "ZyraQuotaCoordinator": {
+          "type": "durable-object",
+          "state": "created",
+          "storage": "sqlite"
+        }
+      }
     }
   }
 }

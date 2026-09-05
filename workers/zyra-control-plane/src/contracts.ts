@@ -71,11 +71,11 @@ export type HealthPayload = {
     quotaCoordinator: boolean;
   };
   resources: {
-    worker: typeof STAGING_RESOURCES.worker;
-    kv: typeof STAGING_RESOURCES.kv;
-    privateBucket: typeof STAGING_RESOURCES.privateBucket;
-    semanticCache: typeof STAGING_RESOURCES.semanticCache;
-    analyticsDataset: typeof STAGING_RESOURCES.analyticsDataset;
+    worker: string;
+    kv: string;
+    privateBucket: string;
+    semanticCache: string;
+    analyticsDataset: string;
     semanticCacheDimensions: typeof SEMANTIC_CACHE_DIMENSIONS;
     semanticCacheMetric: typeof SEMANTIC_CACHE_METRIC;
     privateAttachmentPrefix: typeof PRIVATE_ATTACHMENT_PREFIX;
@@ -84,6 +84,7 @@ export type HealthPayload = {
 };
 
 export function buildHealthPayload(env: WorkerEnv): HealthPayload {
+  const isProd = env.ZYX_ENVIRONMENT === "production";
   return {
     status: "ok",
     service: "zyra-control-plane",
@@ -94,18 +95,18 @@ export function buildHealthPayload(env: WorkerEnv): HealthPayload {
       controlPlaneTokenConfigured: Boolean(env.ZYRA_CONTROL_PLANE_TOKEN)
     },
     bindings: {
-      stagingKv: Boolean(env.ZYX_STAGING_KV),
+      stagingKv: Boolean(env.ZYX_KV ?? env.ZYX_STAGING_KV),
       privateAttachments: Boolean(env.ZYRA_PRIVATE_ATTACHMENTS),
       semanticCache: Boolean(env.ZYRA_SEMANTIC_CACHE),
       analytics: Boolean(env.ZYRA_ANALYTICS),
       quotaCoordinator: Boolean(env.ZYRA_QUOTA_COORDINATOR)
     },
     resources: {
-      worker: STAGING_RESOURCES.worker,
-      kv: STAGING_RESOURCES.kv,
-      privateBucket: STAGING_RESOURCES.privateBucket,
-      semanticCache: STAGING_RESOURCES.semanticCache,
-      analyticsDataset: STAGING_RESOURCES.analyticsDataset,
+      worker: isProd ? "zyx-zyra-control-production" : STAGING_RESOURCES.worker,
+      kv: isProd ? "zyx" : STAGING_RESOURCES.kv,
+      privateBucket: (env.ZYRA_PRIVATE_BUCKET_NAME as string) ?? (isProd ? "zyx-zyra-private-production" : STAGING_RESOURCES.privateBucket),
+      semanticCache: (env.ZYRA_CACHE_INDEX_NAME as string) ?? (isProd ? "zyx-zyra-cache-production" : STAGING_RESOURCES.semanticCache),
+      analyticsDataset: (env.ZYRA_ANALYTICS_DATASET as string) ?? (isProd ? "zyx_zyra_events_production" : STAGING_RESOURCES.analyticsDataset),
       semanticCacheDimensions: SEMANTIC_CACHE_DIMENSIONS,
       semanticCacheMetric: SEMANTIC_CACHE_METRIC,
       privateAttachmentPrefix: PRIVATE_ATTACHMENT_PREFIX,
