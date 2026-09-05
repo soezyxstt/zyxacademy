@@ -1,7 +1,12 @@
 {
   "deploy": {
     "framework": "nextjs",
-    "install": "npm install",
+    "install": "PUPPETEER_SKIP_DOWNLOAD=1 npm install",
     "build": "npm run build"
+  },
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "jsx": "react-jsx"
   }
 }
