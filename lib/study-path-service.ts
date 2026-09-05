@@ -9,11 +9,27 @@ import {
   quizTemplates,
   flashcards,
   studyPaths,
+  ide,
+  relasiIde,
+  pemahamanIde,
+  bab,
+  flashcardIde,
+  flashcard as canonicalFlashcard,
+  setFlashcard,
+  concepts,
+  conceptLocalizations,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import * as Sentry from "@sentry/nextjs";
+import { resolveStudentCourse } from "@/lib/student/course-catalog";
+import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 export interface StudyPathStep {
+  stepId: string;
+  ideaId: string | null;
+  chapterId: string;
+  chapterTitle: string;
+  chapterOrder: number;
   conceptName: string;
   status: "locked" | "available" | "in_progress" | "mastered";
   actions: {
@@ -24,6 +40,182 @@ export interface StudyPathStep {
   estimatedMinutes: number;
   prerequisites: string[]; // List of prereq concept names for UI unlocks-after description
   masteryScore?: number;
+  priorityReason: string;
+}
+
+export function toConciseConceptName(statement: string, displayName?: string | null): string {
+  if (displayName && displayName.trim()) return displayName.trim();
+  const trimmed = statement.trim();
+  const words = trimmed.split(/\s+/);
+  if (words.length <= 5 && trimmed.length <= 40) return trimmed;
+
+  const defMatch = trimmed.match(/^([^.,;:\n]+?)\s+(?:adalah|merupakan|didefinisikan sebagai|dapat dihitung dengan|digunakan untuk|menyatakan bahwa|menyatakan|menjelaskan bahwa|menjelaskan)\b/i);
+  if (defMatch && defMatch[1].trim().length >= 3 && defMatch[1].trim().length <= 50) {
+    return defMatch[1].trim();
+  }
+
+  const punctMatch = trimmed.match(/^([^.,;:\n]+)/);
+  if (punctMatch && punctMatch[1].trim().length >= 3 && punctMatch[1].trim().length <= 40) {
+    return punctMatch[1].trim();
+  }
+
+  return words.slice(0, 5).join(" ");
+}
+
+async function computeCanonicalStudyPath(
+  studentId: string,
+  courseId: string,
+): Promise<StudyPathStep[] | null> {
+  const course = await resolveStudentCourse(courseId);
+  if (!course?.canonicalId) return null;
+
+  const ideas = await db
+    .select({
+      id: ide.id,
+      name: ide.canonicalStatement,
+      conceptDisplayName: conceptLocalizations.displayName,
+      chapterId: ide.babId,
+      chapterOrder: bab.orderIndex,
+      chapterTitle: bab.title,
+      code: ide.code,
+      score: pemahamanIde.skor,
+      confidence: pemahamanIde.keyakinan,
+    })
+    .from(ide)
+    .innerJoin(bab, eq(ide.babId, bab.id))
+    .leftJoin(concepts, eq(ide.conceptId, concepts.id))
+    .leftJoin(
+      conceptLocalizations,
+      and(eq(conceptLocalizations.conceptId, concepts.id), eq(conceptLocalizations.lang, "id"))
+    )
+    .leftJoin(
+      pemahamanIde,
+      and(eq(pemahamanIde.ideId, ide.id), eq(pemahamanIde.penggunaId, studentId)),
+    )
+    .where(
+      and(
+        eq(ide.mataKuliahId, course.canonicalId),
+        eq(ide.status, "published"),
+        eq(bab.status, "active"),
+      ),
+    );
+  if (ideas.length === 0) return null;
+
+  const ideaIds = ideas.map((idea) => idea.id);
+  const [relations, articles, cardLinks] = await Promise.all([
+    db
+      .select({ sourceIdeaId: relasiIde.sourceIdeaId, targetIdeaId: relasiIde.targetIdeaId })
+      .from(relasiIde)
+      .where(
+        and(
+          eq(relasiIde.status, "active"),
+          eq(relasiIde.relationType, "prerequisite"),
+          inArray(relasiIde.sourceIdeaId, ideaIds),
+          inArray(relasiIde.targetIdeaId, ideaIds),
+        ),
+      ),
+    getCanonicalPublishedArticlesForCourse(courseId, studentId),
+    db
+      .select({ ideaId: flashcardIde.ideId, flashcardId: canonicalFlashcard.id })
+      .from(flashcardIde)
+      .innerJoin(canonicalFlashcard, eq(flashcardIde.flashcardId, canonicalFlashcard.id))
+      .innerJoin(setFlashcard, eq(canonicalFlashcard.setFlashcardId, setFlashcard.id))
+      .where(
+        and(
+          inArray(flashcardIde.ideId, ideaIds),
+          eq(canonicalFlashcard.status, "published"),
+          eq(setFlashcard.status, "published"),
+        ),
+      ),
+  ]);
+
+  const byId = new Map(ideas.map((idea) => [idea.id, idea]));
+  const incoming = new Map(ideas.map((idea) => [idea.id, 0]));
+  const outgoing = new Map(ideas.map((idea) => [idea.id, [] as string[]]));
+  const prerequisites = new Map(ideas.map((idea) => [idea.id, [] as string[]]));
+  for (const relation of relations) {
+    if (!byId.has(relation.sourceIdeaId) || !byId.has(relation.targetIdeaId)) continue;
+    outgoing.get(relation.sourceIdeaId)!.push(relation.targetIdeaId);
+    incoming.set(relation.targetIdeaId, (incoming.get(relation.targetIdeaId) ?? 0) + 1);
+    prerequisites.get(relation.targetIdeaId)!.push(relation.sourceIdeaId);
+  }
+
+  const compareIdeas = (leftId: string, rightId: string) => {
+    const left = byId.get(leftId)!;
+    const right = byId.get(rightId)!;
+    return left.chapterOrder - right.chapterOrder || left.code.localeCompare(right.code, "id");
+  };
+  const ready = ideas.filter((idea) => incoming.get(idea.id) === 0).map((idea) => idea.id).sort(compareIdeas);
+  const orderedIds: string[] = [];
+  while (ready.length > 0) {
+    const current = ready.shift()!;
+    orderedIds.push(current);
+    for (const target of outgoing.get(current) ?? []) {
+      const next = (incoming.get(target) ?? 1) - 1;
+      incoming.set(target, next);
+      if (next === 0) ready.push(target);
+    }
+    ready.sort(compareIdeas);
+  }
+  if (orderedIds.length < ideas.length) {
+    orderedIds.push(...ideas.map((idea) => idea.id).filter((id) => !orderedIds.includes(id)).sort(compareIdeas));
+  }
+
+  const articleByChapter = new Map<string, (typeof articles)[number]>();
+  for (const article of articles) {
+    if (article.babId && !articleByChapter.has(article.babId)) articleByChapter.set(article.babId, article);
+  }
+  const cardCountByIdea = new Map<string, number>();
+  for (const link of cardLinks) cardCountByIdea.set(link.ideaId, (cardCountByIdea.get(link.ideaId) ?? 0) + 1);
+
+  const seenConceptsPerChapter = new Set<string>();
+  const steps: StudyPathStep[] = [];
+
+  for (const ideaId of orderedIds) {
+    const current = byId.get(ideaId)!;
+    const conciseName = toConciseConceptName(current.name, current.conceptDisplayName);
+    const dedupKey = `${current.chapterId}::${conciseName.toLowerCase()}`;
+    if (seenConceptsPerChapter.has(dedupKey)) continue;
+    seenConceptsPerChapter.add(dedupKey);
+
+    const prerequisiteIds = prerequisites.get(ideaId) ?? [];
+    const prerequisiteNames = prerequisiteIds.map((id) => {
+      const p = byId.get(id)!;
+      return toConciseConceptName(p.name, p.conceptDisplayName);
+    });
+    const locked = prerequisiteIds.some((id) => (byId.get(id)?.score ?? 0) < 40);
+    const score = current.score ?? 0;
+    const confidence = current.confidence ?? 0;
+    const article = articleByChapter.get(current.chapterId);
+    const flashcardCount = cardCountByIdea.get(ideaId) ?? 0;
+    const status: StudyPathStep["status"] = score >= 70 && confidence >= 50
+      ? "mastered"
+      : locked
+        ? "locked"
+        : current.score === null
+          ? "available"
+          : "in_progress";
+
+    steps.push({
+      stepId: current.id,
+      ideaId: current.id,
+      chapterId: current.chapterId,
+      chapterTitle: current.chapterTitle,
+      chapterOrder: current.chapterOrder,
+      conceptName: conciseName,
+      status,
+      actions: {
+        moduleHref: article ? `/courses/${courseId}/material/${article.id}` : undefined,
+        flashcardCount: flashcardCount || undefined,
+      },
+      estimatedMinutes: Math.max(5, (article?.totalEstimatedReadingMinutes ?? 0) + Math.ceil(flashcardCount * 0.5)),
+      prerequisites: prerequisiteNames,
+      masteryScore: score,
+      priorityReason: status === "mastered" ? "Sudah dikuasai" : status === "locked" ? "Selesaikan prasyarat" : current.score === null ? "Mulai konsep baru" : score < 40 ? "Perkuat dasar" : "Lanjutkan latihan",
+    });
+  }
+
+  return steps;
 }
 
 /**
@@ -33,6 +225,9 @@ export async function computeStudyPath(
   studentId: string,
   courseId: string
 ): Promise<StudyPathStep[]> {
+  const canonicalPath = await computeCanonicalStudyPath(studentId, courseId);
+  if (canonicalPath) return canonicalPath;
+
   // 1. Fetch all active Knowledge Objects for this course joined with published chapters
   const activeKOs = await db
     .select({
@@ -42,6 +237,7 @@ export async function computeStudyPath(
       importance: knowledgeObjects.importance,
       chapterId: knowledgeObjects.chapterId,
       chapterOrderIndex: chapters.orderIndex,
+      chapterTitle: chapters.title,
       tags: knowledgeObjects.tags,
     })
     .from(knowledgeObjects)
@@ -428,6 +624,11 @@ export async function computeStudyPath(
     }
 
     steps.push({
+      stepId: firstKo?.id ?? `legacy-${conceptName}`,
+      ideaId: null,
+      chapterId: firstKo?.chapterId ?? "legacy",
+      chapterTitle: firstKo?.chapterTitle ?? "Materi",
+      chapterOrder: firstKo?.chapterOrderIndex ?? 0,
       conceptName,
       status,
       actions: {
@@ -438,6 +639,7 @@ export async function computeStudyPath(
       estimatedMinutes,
       prerequisites: prereqsList,
       masteryScore: score,
+      priorityReason: status === "mastered" ? "Sudah dikuasai" : status === "locked" ? "Selesaikan prasyarat" : mastery ? (score < 40 ? "Perkuat dasar" : "Lanjutkan latihan") : "Mulai konsep baru",
     });
   }
 
@@ -477,6 +679,9 @@ export async function recomputeStudyPath(studentId: string, courseId: string): P
  * Gets the student's study path from the cache, or computes it if missing.
  */
 export async function getOrComputeStudyPath(studentId: string, courseId: string): Promise<StudyPathStep[]> {
+  const canonicalPath = await computeCanonicalStudyPath(studentId, courseId);
+  if (canonicalPath) return canonicalPath;
+
   const [existing] = await db
     .select()
     .from(studyPaths)
@@ -489,7 +694,11 @@ export async function getOrComputeStudyPath(studentId: string, courseId: string)
     .limit(1);
 
   if (existing) {
-    return existing.pathJson as StudyPathStep[];
+    const cached = existing.pathJson as Partial<StudyPathStep>[];
+    if (cached.every((step) => typeof step.stepId === "string" && typeof step.chapterId === "string")) {
+      return cached as StudyPathStep[];
+    }
+    return recomputeStudyPath(studentId, courseId);
   }
 
   return recomputeStudyPath(studentId, courseId);

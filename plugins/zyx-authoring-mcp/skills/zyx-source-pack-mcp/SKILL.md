@@ -23,7 +23,7 @@ Pertahankan judul, unit, formula, tabel, contoh, penerapan, soal, solusi, refere
 6. Untuk file Zyx, panggil `source.ingest` dengan `storedOriginals: [{ documentId, fileKey }]`. Untuk file lokal, gunakan `originals: [{ documentId, contentBase64 }]`. Kedua bentuk boleh digabungkan bila `documentId` unik.
 7. MCP memverifikasi checksum binary asli, unit, marker, formula, tabel, visual, count, unresolved marker, ZIP security, dan scope course/chapter untuk stored originals.
 8. Jika MCP mengembalikan `valid: false`, perbaiki artifact berdasarkan `issues` dan `quality.metrics`. Jangan mengubah checksum secara manual dan jangan mengirimkan bundle yang gagal.
-9. Hanya gunakan `sourcePackToken` setelah MCP mengembalikan `valid: true`. Panggil `workflow.start` dengan course dan chapter yang sama dengan stored originals.
+9. Hanya gunakan `sourcePackToken` setelah MCP mengembalikan `valid: true`. Source Pack yang valid otomatis disimpan di Cloudflare R2 dan database (`impor_bundle`) sehingga dapat digunakan kembali jika alur berikutnya terputus. Panggil `workflow.start` dengan course dan chapter yang sama dengan stored originals.
 
 ## Aturan ZIP wajib
 

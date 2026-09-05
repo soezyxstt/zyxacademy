@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "bun:test";
-import { clampZyraPetPosition } from "@/components/course/zyra-floating-pet";
+import { clampZyraPetPosition, nearestZyraPetAnchor, zyraPetAnchorPositions } from "@/components/course/zyra-floating-pet";
 import {
   ZYRA_PET_VISIBILITY_KEY,
   getZyraPetVisible,
@@ -30,6 +30,15 @@ describe("Zyra floating pet", () => {
   it("keeps a dragged pet inside the visible viewport", () => {
     expect(clampZyraPetPosition({ x: -200, y: -50 }, { width: 1200, height: 800 })).toEqual({ x: 16, y: 16 });
     expect(clampZyraPetPosition({ x: 2000, y: 900 }, { width: 1200, height: 800 })).toEqual({ x: 1104, y: 696 });
+  });
+
+  it("provides four reachable anchors outside the student sidebar", () => {
+    const anchors = zyraPetAnchorPositions({ width: 1200, height: 800 }, 264);
+    expect(Object.keys(anchors)).toHaveLength(4);
+    expect(anchors["top-left"]).toEqual({ x: 264, y: 16 });
+    expect(anchors["bottom-right"]).toEqual({ x: 1104, y: 696 });
+    expect(nearestZyraPetAnchor({ x: 280, y: 700 }, { width: 1200, height: 800 }, 264)).toBe("bottom-left");
+    expect(nearestZyraPetAnchor({ x: 1100, y: 20 }, { width: 1200, height: 800 }, 264)).toBe("top-right");
   });
 
   it("defaults to visible when no preference is saved", () => {

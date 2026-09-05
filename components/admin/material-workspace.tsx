@@ -7,7 +7,7 @@ import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
 import type { BundleRow as IdeaBundleRow } from "@/components/admin/idea-bundle-v2-panel";
-import type { BundleRow as ProductBundleRow } from "@/components/admin/product-bundle-v2-panel";
+import type { MaterialBundleRow as ProductBundleRow } from "@/components/admin/material-workflow-ui";
 import { AuthoringJobBuilder } from "@/components/admin/authoring-job-builder";
 import { AuthoringContextExport, type AuthoringContextExportRow } from "@/components/admin/authoring-context-export";
 import { MaterialArtifactList } from "@/components/admin/material-artifact-list";

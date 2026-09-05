@@ -170,7 +170,16 @@ As A1, open `/admin/materials/review?section=product`. Expect the Product review
 **PB-02A Edit and stage.** Edit one Article block, Diktat content, question option and key, solution, flashcard, blueprint title, Idea weight or role, relation rationale, and ITB curator note. Confirm invalid weights and answer keys show plain-language warnings and disable saving. Restore a valid state and save. Confirm the staged ZIP contains the edits, locked identity and source fields are unchanged, and Article generation hash, Diktat source Article hash, dependency hashes, file checksums, and bundle checksum are refreshed.
 
 **PB-03 Preview and traceability.**
-Click "Tinjau isi". Expect a "Preview dan traceability" section listing one article per product, each showing `title (productType vN)`, the linked Idea ids and source ids, and every content section. Confirm options, correct markers for the authorized reviewer, reasoning, Idea relations, ITB curation, solutions, and all Article blocks are visible. Math in previews renders through `MathText`; confirm a formula in the article body renders as math, not raw LaTeX.
+Click "Buka review". Use the product type tabs and searchable navigator. In Artikel, switch between "Tampilan Siswa" and "Mode Blok". The student view must read as one continuous article with no block IDs, type badges, or admin dividers. Block mode must show the active block's Idea, source references, excerpts, learning purpose, applicability, dependency freshness, and review state in the sticky desktop inspector or the explicitly opened mobile Sheet. Selecting a block must not move the reading position. Confirm options, correct markers for the authorized reviewer, reasoning, Idea relations, ITB curation, solutions, and all Article blocks remain available in their product views.
+
+**PB-03A Persistent block review.**
+In block mode, mark one block "Disetujui", mark another "Perlu revisi", enter a note, and leave a third pending. Confirm dirty, saving, and saved indicators. Save a note with blur, then another with `Ctrl+Enter`. Reload and confirm status and notes remain for the same reviewer. Force one PUT failure and confirm the failed state and "Coba lagi" action remain visible. Submit the bundle decision, then confirm the block controls and notes are immutable.
+
+**PB-03B Non-blocking approval warning.**
+With at least one pending block and one block marked "Perlu revisi", select "Setujui". Expect a confirmation dialog containing both counts. Continue and confirm the approval succeeds. Repeat publication and confirm the advisory block state does not block it. Dependency and canonical validation gates remain authoritative.
+
+**PB-03C Formula, table, and Diktat density.**
+Open a Diktat containing `$|x| < 1$`, display math, an escaped pipe, inline code containing a pipe, and a formula symbol table. Confirm every table has the expected columns and KaTeX remains intact. Diktat spacing is compact, while the student Article view retains the normal reader spacing. Confirm Diktat source Article ID, version, and dependency freshness are visible.
 
 **PB-04 Publication not blocked.**
 With current dependencies, the warning "Publikasi tertahan karena dependency memerlukan review." is absent.
@@ -193,9 +202,11 @@ Click "Tarik publikasi" and confirm. Expect status `withdrawn`, retained import,
 
 **PB-06 Identical retry is a no-op.** HTTP 200, "sudah ada", no new rows.
 
-**PB-07 Same bundle id, different checksum while draft.** The existing draft import ID is retained, its item inventory and ZIP are replaced, status remains `draft`, and the old R2 object is deleted after the transaction. Once the bundle is `published` or `withdrawn`, the same operation returns 422 `PRODUCT_BUNDLE_CONFLICT`.
+**PB-07 Same bundle id, different checksum while draft.** The existing draft import ID is retained, its item inventory and ZIP are replaced, status remains `draft`, and the old R2 object is deleted after the transaction. Confirm all `review_item_bundle` and `review_bundle` rows for the replaced draft are removed, so the replacement Article starts with every block pending. Once the bundle is `published` or `withdrawn`, the same operation returns 422 `PRODUCT_BUNDLE_CONFLICT`.
 
 **PB-07A Delete a draft.** Click "Hapus draft" and confirm. The import, items, review evidence, and staged ZIP are deleted, while an audit tombstone remains. Deleting a published or withdrawn bundle returns 422 `PRODUCT_BUNDLE_DRAFT_REQUIRED`.
+
+Before confirming PB-07A, cancel the dialog and verify no DELETE request was sent. For a published fixture, do the same with "Tarik publikasi" and verify no POST request is sent before confirmation.
 
 **PB-08 Versioned re-import.**
 Bump every product `version` to `2`, refresh `generationHash`, give the bundle a new `bundleId`, point the question at a second `allowed` ITB reference, recompute checksums. Upload and publish. Expect success, and expect both generations to remain queryable: version 2 rows exist under versioned target ids such as `product-id:v2`, and the original version 1 rows are still present and unchanged.
@@ -340,6 +351,7 @@ Run these on the two panels with both bundles in the list.
 - **UI-04** During upload, the submit button shows its loading state and all row actions are disabled.
 - **UI-05** A failed upload shows the joined reason codes, not a generic message. Verify against IB-10, which should render `BUNDLE_ENTITY_CHECKSUM_MISMATCH` verbatim.
 - **UI-06** Keyboard only: tab to the file input, select, submit, then reach "Setujui" and "Publikasikan" with a visible focus ring.
+- **UI-07** On Product detail at 380 by 844 and 1536 by 864, operate the student/block toggle, searchable navigator, inspector Sheet, block decisions, approval warning, and destructive confirmations using only the keyboard. Confirm there is no horizontal overflow, clipping, sticky-action overlap, unexpected redirect, response with status 400 or higher, console error, or page error.
 
 ---
 

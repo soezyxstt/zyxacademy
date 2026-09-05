@@ -67,14 +67,34 @@ export async function GET(
       `${isDownload ? "attachment" : "inline"}; filename="${filename.replace(/"/g, '\\"')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
     );
 
+    headers.set("Access-Control-Allow-Origin", "*");
+    headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+
     return new Response(webStream, {
       headers,
     });
   } catch (err: any) {
     if (err.name === "NoSuchKey") {
-      return new Response("File not found", { status: 404 });
+      return new Response("File not found", {
+        status: 404,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      });
     }
     console.error("Storage proxy route error:", err);
-    return new Response(err.message || "Internal server error", { status: 500 });
+    return new Response(err.message || "Internal server error", {
+      status: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+      "Access-Control-Allow-Headers": "Range, Content-Type",
+    },
+  });
 }

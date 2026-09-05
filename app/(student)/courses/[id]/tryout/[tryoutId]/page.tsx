@@ -42,7 +42,7 @@ export default async function CourseTryoutTakePage({ params }: Props) {
   const [dbExam] = await db
     .select()
     .from(exams)
-    .where(and(eq(exams.id, tryoutId), eq(exams.courseId, id), eq(exams.type, "tryout")))
+    .where(and(eq(exams.id, tryoutId), eq(exams.courseId, course.legacyId ?? id), eq(exams.type, "tryout")))
     .limit(1);
 
   if (dbExam) {

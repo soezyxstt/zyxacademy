@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -93,9 +94,19 @@ export default function LiveStudentPage() {
   if (!process.env.NEXT_PUBLIC_REALTIME_URL) {
     return (
       <CoursePageShell title={title} description="Ikuti kuis langsung bersama teman sekelas." icon={Play}>
-        <div className="mx-auto max-w-xl px-4 py-16 text-center">
-          <AlertTriangle className="mx-auto mb-3 size-8 text-status-warning" />
-          <p className="text-body-sm text-muted-foreground">Kuis langsung tidak tersedia saat ini.</p>
+        <div className="mx-auto max-w-md px-4 py-12 text-center rounded-xl border border-dashed border-border bg-card/50">
+          <Play className="mx-auto mb-3 size-10 text-muted-foreground/40" />
+          <h3 className="font-heading text-body-base font-bold text-foreground">
+            Belum ada sesi kuis langsung
+          </h3>
+          <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
+            Kuis interaktif langsung diadakan pada waktu tertentu bersama tutor. Pantau jadwal kelas untuk sesi mendatang.
+          </p>
+          <Button asChild size="sm" variant="outline" className="mt-5 rounded-md text-body-xs">
+            <Link href={`/courses/${courseId}`}>
+              Kembali ke Ringkasan
+            </Link>
+          </Button>
         </div>
       </CoursePageShell>
     );

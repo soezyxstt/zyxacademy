@@ -15,6 +15,7 @@ import {
   User,
   HelpCircle as QuestionIcon,
   Settings as SettingsIcon,
+  Edit3,
 } from "lucide-react";
 import { formatIsoDate, formatDatetimeLocal } from "@/lib/date-utils";
 import { slugifySegment } from "@/lib/storage/keys";
@@ -397,13 +398,22 @@ export default function DetailedFormAnalyticsPage({
           }
           description={form.description}
           actions={
-            <Link
-              href={`/f/${form.slug}`}
-              target="_blank"
-              className="inline-flex items-center gap-1 text-body-xs font-semibold text-primary hover:underline"
-            >
-              Short Link: /f/{form.slug} <ExternalLink className="size-3.5" />
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href={`/admin/forms?edit=${form.id}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-body-xs font-semibold text-foreground hover:bg-muted transition-colors"
+              >
+                <Edit3 className="size-3.5 text-primary" />
+                Edit Formulir
+              </Link>
+              <Link
+                href={`/f/${form.slug}`}
+                target="_blank"
+                className="inline-flex items-center gap-1 text-body-xs font-semibold text-primary hover:underline"
+              >
+                Short Link: /f/{form.slug} <ExternalLink className="size-3.5" />
+              </Link>
+            </div>
           }
         />
       )}

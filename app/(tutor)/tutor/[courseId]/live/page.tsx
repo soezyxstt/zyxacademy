@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
 import { requireTutorCourseAccess } from "@/lib/auth/tutor-access";
 import { TutorLiveConsole } from "@/components/tutor/tutor-live-console";
@@ -66,7 +67,7 @@ export default async function TutorLivePage({ params }: Props) {
   }
 
   return (
-    <div className="px-6 py-8 max-w-4xl space-y-6">
+    <ApplicationPage>
       <PageHeader
         title={`Kuis Langsung: ${courseTitle}`}
         backHref={`/tutor/${courseId}`}
@@ -74,6 +75,6 @@ export default async function TutorLivePage({ params }: Props) {
       />
 
       <TutorLiveConsole courseId={courseId} courseTitle={courseTitle} />
-    </div>
+    </ApplicationPage>
   );
 }

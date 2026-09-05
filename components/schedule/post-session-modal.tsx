@@ -22,6 +22,7 @@ import {
   Trash2,
   ExternalLink,
   Link as LinkIcon,
+  Loader2,
 } from "lucide-react";
 import { tutorCompleteSession } from "@/app/(student)/dashboard/schedule/actions";
 
@@ -47,6 +48,7 @@ export function PostSessionModal({
   const [loading, setLoading] = useState(false);
 
   const handleOpen = (isOpen: boolean) => {
+    if (loading) return;
     if (isOpen && booking) {
       setNotes(booking.postSessionNotes || "");
       setLinkUrl(booking.postSessionLinkUrl || "");
@@ -207,9 +209,13 @@ export function PostSessionModal({
                 <label className="text-body-xs font-semibold text-foreground block">
                   Foto Catatan Tangan / Berkas Pembahasan ({attachments.length})
                 </label>
-                <label className="cursor-pointer">
+                <label className={`cursor-pointer ${fileUploading ? "opacity-60 pointer-events-none" : ""}`}>
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-primary hover:underline">
-                    <Upload className="size-3" />
+                    {fileUploading ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Upload className="size-3" />
+                    )}
                     {fileUploading ? "Mengunggah..." : "+ Unggah Berkas (Foto/PDF)"}
                   </span>
                   <input
@@ -265,16 +271,17 @@ export function PostSessionModal({
 
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
-                <Button variant="outline" type="button">
+                <Button variant="outline" type="button" disabled={loading || fileUploading}>
                   Batal
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
-                disabled={loading || !notes.trim()}
+                isLoading={loading}
+                disabled={loading || fileUploading || !notes.trim()}
                 className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg"
               >
-                {loading ? "Menyimpan..." : "Simpan & Selesaikan Sesi"}
+                Simpan & Selesaikan Sesi
               </Button>
             </DialogFooter>
           </form>

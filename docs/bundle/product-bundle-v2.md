@@ -1,5 +1,7 @@
 # Product Bundle V2
 
+Status: `TRANSITIONAL / LEGACY`. V2 remains readable and its block review endpoint remains a compatibility adapter. New flagged authoring uses [Product Bundle V3](product-bundle-v3.md).
+
 Product Bundle V2 is the strict ZIP workflow for externally authored articles, diktat material, ITB example questions, solutions, flashcards, and assessment blueprints. Every question entering through this workflow is an ITB example. Zyx original questions are created through the normal bank question workflows and never through Product Bundle.
 
 ## Contract
@@ -83,7 +85,9 @@ The Authoring Context Pack exposes the required source metadata as `referenceId`
 
 ## Article and diktat quality boundary
 
-Article products are compiled through `lib/materials/compiler.ts` after Product Bundle validation. The compiler orders prerequisite Ideas, normalizes each staged block into the typed article contract, and produces deterministic AST and Markdown output. Publication requires 100 percent required block coverage, source and Idea traceability for factual content, valid math delimiters, current dependencies, and approved block reviewer state.
+Article products are compiled through `lib/materials/compiler.ts` after Product Bundle validation. The compiler orders prerequisite Ideas, normalizes each staged block into the typed article contract, and produces deterministic AST and Markdown output. Publication requires 100 percent required block coverage, source and Idea traceability for factual content, valid math delimiters, and current dependencies. Per-reviewer block status and notes are advisory admin metadata stored in `review_item_bundle`. Pending or `changes_requested` blocks trigger a warning but do not block approval or publication.
+
+Block review metadata is never serialized into `manifest.json` or an entity file. It therefore does not affect product generation hashes, file checksums, or `manifest.bundleChecksum`. Restaging or discarding a draft clears its block review rows so decisions cannot attach to a replacement artifact.
 
 Diktat products are derived from the approved article representation through `compileDiktatFromApprovedArticle`. The compiler never reads raw source independently for diktat content. Its report records the source article version and hash, removed block IDs, preserved core statements, formulas, Idea IDs, and source references. Any mismatch returns a stable reason code and blocks publication.
 

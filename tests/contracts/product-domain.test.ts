@@ -91,6 +91,7 @@ describe("Plan 004 product contracts", () => {
       "publikasi_bundle",
       "rekomendasi_flashcard",
       "review_bundle",
+      "review_item_bundle",
       "review_flashcard",
       "set_flashcard",
       "soal",
@@ -214,6 +215,28 @@ describe("Plan 004 product contracts", () => {
         sql: "INSERT INTO review_bundle (id, impor_bundle_id, reviewer_id, status, reviewed_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
         args: ["review-plan004-db", "import-plan004-db", "user-plan004-db", "approved", 0, 0],
       });
+      await client.execute({
+        sql: "INSERT INTO impor_bundle (id, bundle_id, checksum, bundle_type, source_uri_or_key, version, status, validation_report, requested_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        args: ["import-block-review-db", "bundle-block-review-db", "b".repeat(64), "product", "bundles/block-review.json", 2, "draft", JSON.stringify({}), "user-plan004-db", 0, 0],
+      });
+      await client.execute({
+        sql: "INSERT INTO review_item_bundle (id, impor_bundle_id, reviewer_id, product_id, block_id, status, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        args: ["review-item-plan004-db", "import-block-review-db", "user-plan004-db", "article-1", "block-1", "approved", "Sudah diperiksa", 0, 0],
+      });
+      await expect(client.execute({
+        sql: "INSERT INTO review_item_bundle (id, impor_bundle_id, reviewer_id, product_id, block_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        args: ["review-item-duplicate-plan004-db", "import-block-review-db", "user-plan004-db", "article-1", "block-1", "changes_requested", 0, 0],
+      })).rejects.toThrow();
+      await expect(client.execute({
+        sql: "INSERT INTO review_item_bundle (id, impor_bundle_id, reviewer_id, product_id, block_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        args: ["review-item-orphan-plan004-db", "missing-import", "user-plan004-db", "article-1", "block-2", "pending", 0, 0],
+      })).rejects.toThrow();
+      await client.execute({ sql: "DELETE FROM impor_bundle WHERE id = ?", args: ["import-block-review-db"] });
+      const remainingBlockReviews = await client.execute({
+        sql: "SELECT COUNT(*) AS count FROM review_item_bundle WHERE impor_bundle_id = ?",
+        args: ["import-block-review-db"],
+      });
+      expect(Number(remainingBlockReviews.rows[0]?.count)).toBe(0);
       await client.execute({
         sql: "INSERT INTO publikasi_bundle (id, impor_bundle_id, approved_review_id, version, publication_hash, status, published_by, published_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         args: ["publication-plan004-db", "import-plan004-db", "review-plan004-db", 1, hash, "published", "user-plan004-db", 0, 0],

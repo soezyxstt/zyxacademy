@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, ClipboardList, Layers } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { CoursePageShell } from "@/components/course/course-page-shell";
+import { studentInteractiveCardClass } from "@/components/course/course-surfaces";
 import { Reveal } from "@/components/ui/reveal";
 import { env } from "@/lib/env";
 import { pageTitle } from "@/lib/site";
@@ -11,8 +12,7 @@ import {
   getCourseQuizzes,
   getCourseTryouts,
 } from "@/lib/course-utils";
-import { db } from "@/db";
-import { courses as coursesTable } from "@/db/schema";
+import { listStudentCourses } from "@/lib/student/course-catalog";
 
 export const metadata: Metadata = {
   title: pageTitle("Courses"),
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CoursesPage() {
-  const dbCourses = await db.select().from(coursesTable);
+  const dbCourses = await listStudentCourses();
   const TEST_COURSE_IDS = new Set([
     "embed-test-course",
     "miscon-test-course",
@@ -69,7 +69,7 @@ export default async function CoursesPage() {
               <Link
                 key={c.id}
                 href={`/courses/${c.id}`}
-                className="group relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/60 p-5 shadow-xs backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:border-brand-primary/40 hover:bg-card/90 hover:shadow-md hover:shadow-brand-primary/5"
+                className={studentInteractiveCardClass("justify-between p-5")}
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">

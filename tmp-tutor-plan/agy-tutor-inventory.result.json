@@ -1,2 +1,0 @@
-{"conversation_id":"e9554602-eb5a-47b0-94c3-1323f13c3236","status":"ERROR","response":"","error":"permission check failed for read_file \"D:\\\\ZYX\\\\zyx-web\\\\app\": user denied permission for read_file(D:\\ZYX\\zyx-web\\app)","duration_seconds":8.2993922,"num_turns":1,"usage":{"input_tokens":40527,"output_tokens":935,"thinking_tokens":707,"cache_read_tokens":24387,"total_tokens":41462}}
-

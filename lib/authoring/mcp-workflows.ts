@@ -10,6 +10,7 @@ export const AUTHORING_MCP_VERSION = "authoring-mcp.v1";
 export const AUTHORING_MCP_MAX_SOURCE_PACK_BYTES = 64 * 1024 * 1024;
 export const AUTHORING_MCP_MAX_BUNDLE_BYTES = 32 * 1024 * 1024;
 export const AUTHORING_MCP_MAX_ORIGINAL_BYTES = 32 * 1024 * 1024;
+export const MCP_CONNECTION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export const authoringWorkflowSchema = z.enum(["idea_product", "quiz_bank"]);
 export type AuthoringWorkflow = z.infer<typeof authoringWorkflowSchema>;
@@ -108,6 +109,8 @@ export type SourcePackSummary = {
   }>;
 };
 
+export type SourceSummary = SourcePackSummary;
+
 export type AuthoringWorkflowOption = {
   key: AuthoringWorkflow;
   label: string;
@@ -193,7 +196,7 @@ function optionToken(kind: "course_choice" | "chapter_choice", value: { courseId
   return issueToken({ kind, ...value, ttlMs: 60 * 60 * 1000 });
 }
 
-function sourceSummary(sourcePack: ValidatedSourcePack, quality: SourcePackQualityReport): SourcePackSummary {
+export function sourceSummary(sourcePack: ValidatedSourcePack, quality: SourcePackQualityReport): SourcePackSummary {
   return {
     packId: sourcePack.manifest.packId,
     name: sourcePack.manifest.name,
@@ -299,6 +302,11 @@ export function readMcpCatalogScope(courseKey: string, chapterKey: string): { co
   return { courseId: course.courseId, chapterId: chapter.chapterId };
 }
 
+export function readMcpCourseChoice(courseKey: string): { courseId: string } {
+  const course = verifyToken<SignedTokenPayload & { kind: "course_choice"; courseId: string }>(courseKey, "course_choice");
+  return { courseId: course.courseId };
+}
+
 export function issueMcpSourceFileKey(input: {
   materialId: string;
   storageKey: string;
@@ -367,6 +375,26 @@ export function ingestMcpSourcePack(
     source: summary,
     quality,
   };
+}
+
+export function issueSourcePackToken(input: {
+  checksum: string;
+  packId: string;
+  name: string;
+  summary: SourcePackSummary;
+  courseId?: string;
+  chapterId?: string;
+  ttlMs?: number;
+}): string {
+  return issueToken({
+    kind: "source",
+    checksum: input.checksum,
+    packId: input.packId,
+    name: input.name,
+    summary: input.summary,
+    ...(input.courseId && input.chapterId ? { courseId: input.courseId, chapterId: input.chapterId } : {}),
+    ttlMs: input.ttlMs ?? 24 * 60 * 60 * 1000,
+  });
 }
 
 export function readMcpSourcePackBinding(sourcePackToken: string): { courseId?: string; chapterId?: string } {
@@ -451,7 +479,7 @@ export function issueMcpConnectionToken(input: {
     clientId: input.clientId,
     resource: input.resource,
     scopes: [...input.scopes],
-    ttlMs: 60 * 60 * 1000,
+    ttlMs: MCP_CONNECTION_TOKEN_TTL_SECONDS * 1000,
   });
 }
 
@@ -527,8 +555,8 @@ export function workflowContract(runToken: string) {
     ],
     outputs: workflow.key === "idea_product"
       ? {
-        ideaBundle: { validationTool: "authoring.validate_idea_bundle", reviewRequired: true },
-        productBundle: { validationTool: "authoring.validate_product_bundle", reviewRequired: true, ideaPublicationRequired: true },
+        ideaBundle: { schemaVersion: "idea-bundle.v3", compatibleReadVersions: ["idea-bundle.v2", "idea-bundle.v3"], validationTool: "authoring.validate_idea_bundle", reviewRequired: true },
+        productBundle: { schemaVersion: "product-bundle.v3", compatibleReadVersions: ["product-bundle.v2", "product-bundle.v3"], validationTool: "authoring.validate_product_bundle", reviewRequired: true, ideaPublicationRequired: true },
       }
       : {
         quizDraft: {

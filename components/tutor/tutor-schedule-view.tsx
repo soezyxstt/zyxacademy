@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -16,7 +16,6 @@ import {
   Send,
   ExternalLink,
   ShieldCheck,
-  Search,
   RotateCcw,
   MessageSquare,
 } from "lucide-react";
@@ -24,6 +23,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
@@ -51,13 +51,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { INDONESIAN_DAYS, type IndonesianDay } from "@/lib/date-utils";
+import {
+  INDONESIAN_DAYS,
+  type IndonesianDay,
+  getWeekScheduleDays,
+  isSessionLocked,
+  getJakartaNow,
+  formatIsoDateUtc,
+  parseDateInput,
+  daysFrom,
+} from "@/lib/date-utils";
+import { ScheduleCalendarView } from "@/components/schedule/schedule-calendar-view";
+import { PostSessionModal } from "@/components/schedule/post-session-modal";
+import { AuditLogDrawer } from "@/components/schedule/audit-log-drawer";
 import { cn } from "@/lib/utils";
 import type {
   TutorScheduleReadModel,
   OwnedBookingItem,
   OwnedTicketItem,
 } from "@/lib/schedule/tutor-read-model";
+
+function computeEndTime(startStr: string): string {
+  if (!startStr) return "10:30";
+  const [h, m] = startStr.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return "10:30";
+  const totalMin = h * 60 + m + 90;
+  const endH = Math.floor(totalMin / 60) % 24;
+  const endM = totalMin % 60;
+  return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+}
+
+function getIndonesianWeekdayFromDate(dateStr: string): IndonesianDay {
+  if (!dateStr) return "Senin";
+  const d = parseDateInput(dateStr);
+  const dayIdx = d.getDay();
+  return dayIdx === 0 ? "Minggu" : INDONESIAN_DAYS[dayIdx - 1];
+}
 import {
   addTutorSlotAction,
   deleteTutorSlotAction,
@@ -78,9 +107,27 @@ export function TutorScheduleView({
 }: TutorScheduleViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [activeTab, setActiveTab] = useState("slots");
+  const [activeTab, setActiveTab] = useState("calendar");
+  const [weekOffset, setWeekOffset] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDayFilter, setSelectedDayFilter] = useState<string>("all");
+
+  // Modals for session post-session and audit
+  const [activePostSessionBooking, setActivePostSessionBooking] = useState<OwnedBookingItem | null>(null);
+  const [activeAuditLogBooking, setActiveAuditLogBooking] = useState<OwnedBookingItem | null>(null);
+
+  // Week calculation
+  const anchorDate = useMemo(() => {
+    return daysFrom(weekOffset * 7, getJakartaNow());
+  }, [weekOffset]);
+
+  const weekInfo = useMemo(() => {
+    return getWeekScheduleDays(anchorDate);
+  }, [anchorDate]);
+
+  const isWeekLocked = useMemo(() => {
+    return isSessionLocked(weekInfo.days[0].dateIso);
+  }, [weekInfo]);
 
   // Feedback message
   const [feedback, setFeedback] = useState<{
@@ -94,13 +141,18 @@ export function TutorScheduleView({
   const [isMoveSessionOpen, setIsMoveSessionOpen] = useState(false);
   const [isDecideTicketOpen, setIsDecideTicketOpen] = useState(false);
 
-  // Form State: Add Slot
-  const [newSlotDay, setNewSlotDay] = useState<IndonesianDay>("Senin");
+  // Form State: Add Slot (No weekday Select; derived from selected date; default date-specific)
+  const [newSlotDate, setNewSlotDate] = useState(() => formatIsoDateUtc(getJakartaNow()));
+  const [isRepeatWeekly, setIsRepeatWeekly] = useState(false);
   const [newSlotStart, setNewSlotStart] = useState("09:00");
   const [newSlotEnd, setNewSlotEnd] = useState("10:30");
   const [newSlotMode, setNewSlotMode] = useState<"online" | "offline">("online");
   const [newSlotLocation, setNewSlotLocation] = useState("");
-  const [newSlotDate, setNewSlotDate] = useState("");
+
+  const derivedWeekday = useMemo(
+    () => getIndonesianWeekdayFromDate(newSlotDate),
+    [newSlotDate]
+  );
 
   // Form State: Create Session
   const [selectedSlotForSession, setSelectedSlotForSession] = useState<string>("");
@@ -187,12 +239,12 @@ export function TutorScheduleView({
     setFeedback(null);
     startTransition(async () => {
       const res = await addTutorSlotAction({
-        dayOfWeek: newSlotDay,
+        dayOfWeek: derivedWeekday,
         startTime: newSlotStart,
         endTime: newSlotEnd,
         mode: newSlotMode,
         location: newSlotLocation,
-        sessionDate: newSlotDate || undefined,
+        sessionDate: isRepeatWeekly ? undefined : (newSlotDate || undefined),
       });
 
       if (res.success) {
@@ -203,6 +255,45 @@ export function TutorScheduleView({
         setFeedback({ type: "error", message: res.error || "Gagal menambahkan slot." });
       }
     });
+  };
+
+  const handleStartTimeChange = (val: string) => {
+    setNewSlotStart(val);
+    setNewSlotEnd(computeEndTime(val));
+  };
+
+  const handleCreateSlotDirect = (
+    dateIso: string,
+    startTimeStr?: string,
+    endTimeStr?: string
+  ) => {
+    setFeedback(null);
+    setNewSlotDate(dateIso);
+    setIsRepeatWeekly(false);
+    const start = startTimeStr || "09:00";
+    setNewSlotStart(start);
+    setNewSlotEnd(endTimeStr || computeEndTime(start));
+    setIsAddSlotOpen(true);
+  };
+
+  const handleSelectSlotToSchedule = (slot: any) => {
+    setFeedback(null);
+    setSelectedSlotForSession(slot.id);
+    if (slot.sessionDate) {
+      setSessionDateInput(slot.sessionDate);
+    } else {
+      setSessionDateInput(formatIsoDateUtc(getJakartaNow()));
+    }
+    setIsCreateSessionOpen(true);
+  };
+
+  const handleOpenMoveModal = (booking: OwnedBookingItem) => {
+    setFeedback(null);
+    setMovingBooking(booking);
+    setTargetMoveSlotId("");
+    setTargetMoveDate(booking.sessionDate || "");
+    setMoveReasonInput("");
+    setIsMoveSessionOpen(true);
   };
 
   // Handler: Delete Slot
@@ -339,6 +430,10 @@ export function TutorScheduleView({
               size="sm"
               onClick={() => {
                 setFeedback(null);
+                setNewSlotDate(formatIsoDateUtc(getJakartaNow()));
+                setIsRepeatWeekly(false);
+                setNewSlotStart("09:00");
+                setNewSlotEnd("10:30");
                 setIsAddSlotOpen(true);
               }}
               className="text-body-sm font-semibold h-9 rounded-lg"
@@ -406,81 +501,80 @@ export function TutorScheduleView({
         </div>
       )}
 
-      {/* Filter and Search Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex-1 min-w-[140px] max-w-sm">
-          <SearchBar
-            placeholder="Cari slot, topik, kelompok..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            size="sm"
-          />
+      {/* Filter and Search Toolbar (for list views) */}
+      {activeTab !== "calendar" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 min-w-[140px] max-w-sm">
+            <SearchBar
+              placeholder="Cari slot, topik, kelompok..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              size="sm"
+            />
+          </div>
+
+          <Select
+            value={selectedDayFilter}
+            onValueChange={setSelectedDayFilter}
+          >
+            <SelectTrigger className="w-[130px] h-9 text-body-sm rounded-lg shrink-0">
+              <SelectValue placeholder="Pilih Hari" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Hari</SelectItem>
+              {INDONESIAN_DAYS.map((day) => (
+                <SelectItem key={day} value={day}>
+                  {day}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {initialData.assignedActiveCourses.length > 0 && (
+            <Select
+              value={selectedCourseFilter}
+              onValueChange={setSelectedCourseFilter}
+            >
+              <SelectTrigger className="w-[150px] h-9 text-body-sm rounded-lg shrink-0">
+                <SelectValue placeholder="Semua Mata Kuliah" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+                {initialData.assignedActiveCourses.map((course) => (
+                  <SelectItem key={course.courseId} value={course.courseId}>
+                    {course.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {initialData.eligibleGroups.length > 0 && (
+            <Select
+              value={selectedGroupFilter}
+              onValueChange={setSelectedGroupFilter}
+            >
+              <SelectTrigger className="w-[150px] h-9 text-body-sm rounded-lg shrink-0">
+                <SelectValue placeholder="Semua Kelompok" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Kelompok</SelectItem>
+                {initialData.eligibleGroups.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
+                    {group.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
-
-        <Select
-          value={selectedDayFilter}
-          onValueChange={setSelectedDayFilter}
-        >
-          <SelectTrigger className="w-[130px] h-9 text-body-sm rounded-lg shrink-0">
-            <SelectValue placeholder="Pilih Hari" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Hari</SelectItem>
-            {INDONESIAN_DAYS.map((day) => (
-              <SelectItem key={day} value={day}>
-                {day}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {initialData.assignedActiveCourses.length > 0 && (
-          <Select
-            value={selectedCourseFilter}
-            onValueChange={setSelectedCourseFilter}
-          >
-            <SelectTrigger className="w-[150px] h-9 text-body-sm rounded-lg shrink-0">
-              <SelectValue placeholder="Semua Mata Kuliah" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-              {initialData.assignedActiveCourses.map((course) => (
-                <SelectItem key={course.courseId} value={course.courseId}>
-                  {course.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {initialData.eligibleGroups.length > 0 && (
-          <Select
-            value={selectedGroupFilter}
-            onValueChange={setSelectedGroupFilter}
-          >
-            <SelectTrigger className="w-[150px] h-9 text-body-sm rounded-lg shrink-0">
-              <SelectValue placeholder="Semua Kelompok" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Kelompok</SelectItem>
-              {initialData.eligibleGroups.map((group) => (
-                <SelectItem key={group.id} value={group.id}>
-                  {group.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
+      )}
 
       {/* Tabs */}
       <AdminTabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <AdminTabsList>
-          <AdminTabsTrigger value="slots">
-            Slot ({initialData.ownedSlots.length})
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="sessions">
-            Sesi ({initialData.ownedBookings.length})
+          <AdminTabsTrigger value="calendar">
+            Kalender
           </AdminTabsTrigger>
           <AdminTabsTrigger value="tickets">
             Tiket ({initialData.ownedTickets.length})
@@ -488,7 +582,41 @@ export function TutorScheduleView({
           <AdminTabsTrigger value="groups">
             Kelas & Kelompok
           </AdminTabsTrigger>
+          <AdminTabsTrigger value="slots">
+            Daftar Slot ({initialData.ownedSlots.length})
+          </AdminTabsTrigger>
+          <AdminTabsTrigger value="sessions">
+            Daftar Sesi ({initialData.ownedBookings.length})
+          </AdminTabsTrigger>
         </AdminTabsList>
+
+        {/* Tab 0: Kalender (Default) */}
+        <AdminTabsContent value="calendar" className="space-y-4">
+          <ScheduleCalendarView
+            role="teacher"
+            currentUserId={currentUserId}
+            weekInfo={weekInfo}
+            isWeekLocked={isWeekLocked}
+            weekOffset={weekOffset}
+            onWeekChange={setWeekOffset}
+            coursesList={initialData.assignedActiveCourses.map((c) => ({
+              id: c.courseId,
+              title: c.title,
+            }))}
+            groupsList={initialData.eligibleGroups.map((g) => ({
+              id: g.id,
+              name: g.name,
+            }))}
+            slots={initialData.ownedSlots}
+            bookings={initialData.ownedBookings}
+            onCreateScheduleDirect={handleCreateSlotDirect}
+            onSelectSlotToSchedule={handleSelectSlotToSchedule}
+            onMoveSession={handleOpenMoveModal}
+            onDeleteSlot={handleDeleteSlot}
+            onOpenPostSession={setActivePostSessionBooking}
+            onOpenAuditLog={setActiveAuditLogBooking}
+          />
+        </AdminTabsContent>
 
         {/* Tab 1: Slots */}
         <AdminTabsContent value="slots" className="space-y-3">
@@ -902,7 +1030,12 @@ export function TutorScheduleView({
       </AdminTabs>
 
       {/* Dialog 1: Add Slot */}
-      <Dialog open={isAddSlotOpen} onOpenChange={setIsAddSlotOpen}>
+      <Dialog
+        open={isAddSlotOpen}
+        onOpenChange={(open) => {
+          if (!isPending) setIsAddSlotOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="text-body-base font-bold font-heading">
@@ -915,22 +1048,29 @@ export function TutorScheduleView({
 
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">Hari</Label>
-              <Select
-                value={newSlotDay}
-                onValueChange={(val) => setNewSlotDay(val as IndonesianDay)}
-              >
-                <SelectTrigger className="text-body-sm h-9">
-                  <SelectValue placeholder="Pilih Hari" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INDONESIAN_DAYS.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {d}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-body-sm font-semibold">Tanggal</Label>
+              <Input
+                type="date"
+                value={newSlotDate}
+                onChange={(e) => setNewSlotDate(e.target.value)}
+                className="text-body-sm h-9"
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-border p-3 bg-muted/20">
+              <div className="space-y-0.5">
+                <Label htmlFor="repeat-weekly" className="text-body-sm font-semibold cursor-pointer">
+                  Ulangi Setiap Minggu
+                </Label>
+                <p className="text-body-xs text-muted-foreground">
+                  Hari: <span className="font-semibold text-foreground">{derivedWeekday}</span>
+                </p>
+              </div>
+              <Checkbox
+                id="repeat-weekly"
+                checked={isRepeatWeekly}
+                onCheckedChange={(checked) => setIsRepeatWeekly(Boolean(checked))}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -938,7 +1078,7 @@ export function TutorScheduleView({
                 <Label className="text-body-sm font-semibold">Mulai (HH:MM)</Label>
                 <Input
                   value={newSlotStart}
-                  onChange={(e) => setNewSlotStart(e.target.value)}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
                   placeholder="09:00"
                   className="text-body-sm h-9"
                 />
@@ -947,9 +1087,9 @@ export function TutorScheduleView({
                 <Label className="text-body-sm font-semibold">Selesai (HH:MM)</Label>
                 <Input
                   value={newSlotEnd}
-                  onChange={(e) => setNewSlotEnd(e.target.value)}
+                  readOnly
                   placeholder="10:30"
-                  className="text-body-sm h-9"
+                  className="text-body-sm h-9 bg-muted text-muted-foreground cursor-not-allowed"
                 />
               </div>
             </div>
@@ -981,24 +1121,13 @@ export function TutorScheduleView({
                 />
               </div>
             )}
-
-            <div className="space-y-1">
-              <Label className="text-body-sm font-semibold">
-                Tanggal Spesifik (Opsional)
-              </Label>
-              <Input
-                type="date"
-                value={newSlotDate}
-                onChange={(e) => setNewSlotDate(e.target.value)}
-                className="text-body-sm h-9"
-              />
-            </div>
           </div>
 
           <DialogFooter>
             <Button
               variant="outline"
               size="sm"
+              disabled={isPending}
               onClick={() => setIsAddSlotOpen(false)}
               className="text-body-sm h-9 rounded-lg"
             >
@@ -1006,7 +1135,7 @@ export function TutorScheduleView({
             </Button>
             <Button
               size="sm"
-              disabled={isPending}
+              isLoading={isPending}
               onClick={handleAddSlot}
               className="text-body-sm h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
             >
@@ -1017,7 +1146,12 @@ export function TutorScheduleView({
       </Dialog>
 
       {/* Dialog 2: Create Session */}
-      <Dialog open={isCreateSessionOpen} onOpenChange={setIsCreateSessionOpen}>
+      <Dialog
+        open={isCreateSessionOpen}
+        onOpenChange={(open) => {
+          if (!isPending) setIsCreateSessionOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
             <DialogTitle className="text-body-base font-bold font-heading">
@@ -1111,6 +1245,7 @@ export function TutorScheduleView({
             <Button
               variant="outline"
               size="sm"
+              disabled={isPending}
               onClick={() => setIsCreateSessionOpen(false)}
               className="text-body-sm h-9 rounded-lg"
             >
@@ -1118,7 +1253,7 @@ export function TutorScheduleView({
             </Button>
             <Button
               size="sm"
-              disabled={isPending}
+              isLoading={isPending}
               onClick={handleCreateSession}
               className="text-body-sm h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
             >
@@ -1129,7 +1264,12 @@ export function TutorScheduleView({
       </Dialog>
 
       {/* Dialog 3: Move Session */}
-      <Dialog open={isMoveSessionOpen} onOpenChange={setIsMoveSessionOpen}>
+      <Dialog
+        open={isMoveSessionOpen}
+        onOpenChange={(open) => {
+          if (!isPending) setIsMoveSessionOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle className="text-body-base font-bold font-heading">
@@ -1185,6 +1325,7 @@ export function TutorScheduleView({
             <Button
               variant="outline"
               size="sm"
+              disabled={isPending}
               onClick={() => setIsMoveSessionOpen(false)}
               className="text-body-sm h-9 rounded-lg"
             >
@@ -1192,7 +1333,7 @@ export function TutorScheduleView({
             </Button>
             <Button
               size="sm"
-              disabled={isPending}
+              isLoading={isPending}
               onClick={handleMoveSession}
               className="text-body-sm h-9 rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
             >
@@ -1203,7 +1344,12 @@ export function TutorScheduleView({
       </Dialog>
 
       {/* Dialog 4: Decide Ticket */}
-      <Dialog open={isDecideTicketOpen} onOpenChange={setIsDecideTicketOpen}>
+      <Dialog
+        open={isDecideTicketOpen}
+        onOpenChange={(open) => {
+          if (!isPending) setIsDecideTicketOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="text-body-base font-bold font-heading">
@@ -1246,6 +1392,7 @@ export function TutorScheduleView({
             <Button
               variant="outline"
               size="sm"
+              disabled={isPending}
               onClick={() => setIsDecideTicketOpen(false)}
               className="text-body-sm h-9 rounded-lg"
             >
@@ -1253,7 +1400,7 @@ export function TutorScheduleView({
             </Button>
             <Button
               size="sm"
-              disabled={isPending}
+              isLoading={isPending}
               onClick={handleDecideTicket}
               className={`text-body-sm h-9 rounded-lg ${
                 ticketDecision === "approved"
@@ -1266,6 +1413,32 @@ export function TutorScheduleView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Post Session Modal */}
+      <PostSessionModal
+        open={Boolean(activePostSessionBooking)}
+        onOpenChange={(open) => {
+          if (!open) setActivePostSessionBooking(null);
+        }}
+        booking={activePostSessionBooking}
+        onSuccess={() => {
+          setActivePostSessionBooking(null);
+          setFeedback({
+            type: "success",
+            message: "Catatan dan berkas sesi berhasil disimpan.",
+          });
+          router.refresh();
+        }}
+      />
+
+      {/* Audit Log Drawer */}
+      <AuditLogDrawer
+        open={Boolean(activeAuditLogBooking)}
+        onOpenChange={(open) => {
+          if (!open) setActiveAuditLogBooking(null);
+        }}
+        booking={activeAuditLogBooking}
+      />
     </div>
   );
 }

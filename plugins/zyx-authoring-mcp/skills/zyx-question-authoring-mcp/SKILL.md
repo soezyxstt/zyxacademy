@@ -13,7 +13,7 @@ Skill ini netral provider dan berlaku untuk host apa pun yang bisa memanggil MCP
 
 ## Prasyarat
 
-1. Koneksi ke Zyx Authoring MCP memakai akun admin Zyx aktif. Host dengan OAuth akan membuka alur sign-in; host tanpa OAuth interaktif memakai connection token singkat dari `/api/mcp/authoring/connection`.
+1. Koneksi ke Zyx Authoring MCP memakai akun admin Zyx aktif. Host dengan OAuth akan membuka alur sign-in; host tanpa OAuth interaktif memakai connection token dengan batas keras 30 hari dari `/api/mcp/authoring/connection` (tetap terikat pada sesi Better Auth dan peran admin aktif sehingga dapat tidak valid lebih awal, dan tidak pernah bersifat permanen).
 2. Tentukan mata kuliah dan bab bersama operator. Jangan minta operator mengetik course ID, chapter ID, atau Idea ID internal.
 3. Workflow `quiz_bank` tidak mewajibkan Source Pack. Jika konteks sumber tambahan diperlukan dan prompt hanya menyebut mata kuliah serta bab, jalankan `$zyx-source-pack-mcp` untuk membaca PDF course tersimpan tanpa meminta attachment. File lokal tetap dapat digunakan bila memang diberikan.
 

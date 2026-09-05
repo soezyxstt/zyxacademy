@@ -12,9 +12,11 @@ entities/dependencies.json
 
 All products are drafts. Every product must use published Idea links, active source references, deterministic generation hashes, and exact dependency hashes. Questions are source ITB examples only; they are never Zyx-original questions.
 
+Article products use Product Bundle V3. The learner document is stored in `sections[]`; each topic has exactly one `learningSectionId`, while overview and summary may cover several Ideas. Each block stores `blockType`, optional title, `contentMarkdown`, Idea IDs, and source refs as separate fields.
+
 ## Quality gates
 
-MCP checks typed products, checksums, source and Idea provenance, chapter scope, published Idea versions and semantic hashes, dependency freshness, holdout markers, Article compiler gates, question and solution links, flashcard atomicity, Diktat lineage, and ITB reference identity. The content gate checks Article depth and per-Idea coverage, examples, analogies, visuals, retrieval prompts, Diktat length, sections, examples, visuals, traps, retrievals, formulas, and Idea coverage.
+MCP checks typed products, checksums, source and Idea provenance, chapter scope, published Idea versions and semantic hashes, dependency freshness, holdout markers, semantic Article compiler gates, question and solution links, flashcard atomicity, Diktat lineage, and ITB reference identity. The content gate checks every topic objective, explanation, understanding check, provenance, Idea coverage, reading budget, final chapter check, and Diktat coverage.
 
 `publicationBlocked`, stale Idea links, missing chapter, or any blocking quality issue prevents validation and submission. MCP green is necessary but not sufficient: the learner-facing preflight in [editorial-guide.md](editorial-guide.md) must also pass, including zero internal-ID leaks.
 

@@ -46,6 +46,7 @@ export type ArticleTrace = z.infer<typeof articleTraceSchema>;
 export const articleBlockSchema = z.object({
   id: z.string().min(1),
   blockType: articleBlockTypeSchema,
+  title: z.string().trim().min(1).optional(),
   orderIndex: z.number().int().nonnegative(),
   content: z.string().trim().min(1),
   ideaIds: z.array(z.string().min(1)),
@@ -65,6 +66,24 @@ export const articleBlockSchema = z.object({
 }).strict();
 export type ArticleBlock = z.infer<typeof articleBlockSchema>;
 
+export const articleSectionKindSchema = z.enum(["overview", "topic", "summary"]);
+export type ArticleSectionKind = z.infer<typeof articleSectionKindSchema>;
+
+export const articleSectionSchema = z.object({
+  id: z.string().min(1),
+  kind: articleSectionKindSchema,
+  learningSectionId: z.string().min(1).optional(),
+  parentSectionId: z.string().min(1).optional(),
+  title: z.string().trim().min(1),
+  slug: z.string().min(1),
+  orderIndex: z.number().int().nonnegative(),
+  learningObjective: z.string().trim().min(1),
+  ideaIds: z.array(z.string().min(1)).min(1),
+  sourceRefs: z.array(articleSourceReferenceSchema).min(1),
+  blocks: z.array(articleBlockSchema).min(1),
+}).strict();
+export type ArticleSection = z.infer<typeof articleSectionSchema>;
+
 export const articleDocumentSchema = z.object({
   id: z.string().min(1),
   courseId: z.string().min(1),
@@ -72,7 +91,8 @@ export const articleDocumentSchema = z.object({
   version: z.number().int().positive(),
   generationHash: z.string().regex(/^[a-f0-9]{64}$/i),
   ideaIds: z.array(z.string().min(1)).min(1),
-  blocks: z.array(articleBlockSchema).min(1),
+  blocks: z.array(articleBlockSchema).default([]),
+  sections: z.array(articleSectionSchema).default([]),
   reviewerState: reviewerStateSchema,
   ideaVersions: z.record(z.string(), z.number().int().positive()).optional(),
 }).strict();
@@ -134,4 +154,14 @@ export function canonicalArticleBlockOrder(blocks: readonly ArticleBlock[]): Art
   return [...blocks]
     .sort((left, right) => left.orderIndex - right.orderIndex || left.id.localeCompare(right.id))
     .map((block, orderIndex) => ({ ...block, orderIndex }));
+}
+
+export function canonicalArticleSectionOrder(sections: readonly ArticleSection[]): ArticleSection[] {
+  return [...sections]
+    .sort((left, right) => left.orderIndex - right.orderIndex || left.id.localeCompare(right.id))
+    .map((section, orderIndex) => ({
+      ...section,
+      orderIndex,
+      blocks: canonicalArticleBlockOrder(section.blocks),
+    }));
 }

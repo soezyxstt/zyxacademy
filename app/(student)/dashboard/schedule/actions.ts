@@ -9,7 +9,6 @@ import {
   groups,
   groupMembers,
   courses,
-  enrollments,
   tutorSlots,
   tutorCourses,
   bookings,
@@ -47,6 +46,11 @@ import {
 } from "@/app/(tutor)/tutor/schedule/actions";
 import { recordMutationAudit } from "@/lib/audit/mutasi";
 import { type DbExecutor } from "@/lib/auth/tutor-access";
+import {
+  dualWriteTutorAssignment,
+  revokeCanonicalTutorCourseAssignments,
+} from "@/lib/migrasi/repository-kompatibilitas";
+import { listStudentEnrollments } from "@/lib/student/course-catalog";
 
 async function requireUser() {
   const h = await headers();
@@ -285,16 +289,17 @@ export async function getScheduleData(weekOffset = 0) {
   }));
 
   // 2. Get student active enrollments
-  const now = new Date();
-  const activeEnrollments = await db.query.enrollments.findMany({
-    where: and(
-      eq(enrollments.userId, dbUser.id),
-      sql`${enrollments.expiresAt} > ${now}`
-    ),
-    with: {
-      course: true,
+  const activeEnrollments = (await listStudentEnrollments(dbUser.id)).map((enrollment) => ({
+    id: enrollment.id,
+    enrolledAt: enrollment.enrolledAt,
+    expiresAt: enrollment.expiresAt,
+    course: {
+      id: enrollment.id,
+      title: enrollment.title,
+      category: enrollment.category,
+      description: enrollment.description,
     },
-  });
+  }));
 
   // 3. Find all available tutor slots with tutors & their certified courses
   const allTutorSlots = await db.query.tutorSlots.findMany({
@@ -1411,17 +1416,22 @@ export async function updateTutorCourses(targetTutorId: string, courseIds: strin
   }
 
   try {
-    await db.delete(tutorCourses).where(eq(tutorCourses.tutorId, targetTutorId));
+    const uniqueCourseIds = [...new Set(courseIds)];
+    await db.transaction(async (tx) => {
+      await revokeCanonicalTutorCourseAssignments(tx, targetTutorId, currentUser.id);
+      await tx.delete(tutorCourses).where(eq(tutorCourses.tutorId, targetTutorId));
 
-    if (courseIds.length > 0) {
-      await db.insert(tutorCourses).values(
-        courseIds.map((courseId) => ({
-          id: randomUUID(),
-          tutorId: targetTutorId,
-          courseId,
-        }))
-      );
-    }
+      if (uniqueCourseIds.length === 0) return;
+      const assignments = uniqueCourseIds.map((courseId) => ({
+        id: randomUUID(),
+        tutorId: targetTutorId,
+        courseId,
+      }));
+      await tx.insert(tutorCourses).values(assignments);
+      for (const assignment of assignments) {
+        await dualWriteTutorAssignment(tx, { ...assignment, status: "active" }, currentUser.id);
+      }
+    });
 
     revalidatePath("/dashboard/schedule");
     revalidatePath("/admin/schedules");

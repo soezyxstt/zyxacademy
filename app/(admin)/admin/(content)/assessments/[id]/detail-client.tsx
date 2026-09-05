@@ -532,7 +532,12 @@ export function AssessmentDetailClient({
         </TabsContent>
       </Tabs>
       {/* Confirmation Deletion Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <Dialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!deleting) setIsDeleteDialogOpen(open);
+        }}
+      >
         <DialogContent className="rounded-xl border border-border">
           <DialogHeader>
             <DialogTitle>Hapus Dokumen Asesmen?</DialogTitle>
@@ -556,8 +561,9 @@ export function AssessmentDetailClient({
               className="rounded-lg"
               onClick={handleDelete}
               disabled={deleting}
+              isLoading={deleting}
             >
-              {deleting ? "Menghapus..." : "Hapus Permanen"}
+              Hapus Permanen
             </Button>
           </DialogFooter>
         </DialogContent>

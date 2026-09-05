@@ -47,22 +47,27 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG || "zyx-academy",
-  project: process.env.SENTRY_PROJECT || "zyx-academy",
-  authToken: process.env.SENTRY_AUTH_TOKEN,
+const isProduction = process.env.NODE_ENV === "production";
+const enableSentryInDev = process.env.ENABLE_SENTRY_DEV === "true";
 
-  // Only print logs for uploading source maps in CI
-  silent: !process.env.CI,
+export default (isProduction || enableSentryInDev)
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG || "zyx-academy",
+      project: process.env.SENTRY_PROJECT || "zyx-academy",
+      authToken: process.env.SENTRY_AUTH_TOKEN,
 
-  // Upload a larger set of source maps for prettier stack traces (increases build time)
-  widenClientFileUpload: true,
+      // Only print logs for uploading source maps in CI
+      silent: !process.env.CI,
 
-  // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-  tunnelRoute: "/monitoring",
+      // Upload a larger set of source maps for prettier stack traces (increases build time)
+      widenClientFileUpload: true,
 
-  // Tree shake Sentry logger statements to reduce bundle size
-  bundleSizeOptimizations: {
-    excludeDebugStatements: true,
-  },
-});
+      // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+      tunnelRoute: "/monitoring",
+
+      // Tree shake Sentry logger statements to reduce bundle size
+      bundleSizeOptimizations: {
+        excludeDebugStatements: true,
+      },
+    })
+  : nextConfig;

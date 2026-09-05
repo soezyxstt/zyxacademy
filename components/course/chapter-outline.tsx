@@ -36,7 +36,7 @@ export function ChapterOutline({ courseId, chapters }: ChapterOutlineProps) {
         </span>
       </div>
 
-      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card/75 backdrop-blur-sm">
+      <ul className="divide-y divide-border/60 zebra-no-rows overflow-hidden rounded-xl border border-border/70 bg-card/70 backdrop-blur-md shadow-xs">
         {chapters.map((ch, idx) => {
           const statusLabel = ch.hasMaterial
             ? ch.completed

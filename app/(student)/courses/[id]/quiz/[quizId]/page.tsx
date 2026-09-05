@@ -9,7 +9,7 @@ import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { courses, quizTemplates, studentQuizAttempts, aiQuestionBank } from "@/db/schema";
+import { quizTemplates, studentQuizAttempts, aiQuestionBank } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { hasAnyPeran } from "@/lib/auth/authorization";
 import { and, or, eq, desc, sql, inArray } from "drizzle-orm";
@@ -23,6 +23,7 @@ import { MistakeFeedbackButton } from "@/components/pka/mistake-feedback-button"
 import { normalizeDate } from "@/lib/date-utils";
 import { ZyraMark } from "@/components/course/zyra-mark";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
+import { getCourse } from "@/lib/course-utils";
 
 type Props = {
   params: Promise<{ id: string; quizId: string }>;
@@ -31,11 +32,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, quizId } = await params;
-  const [course] = await db
-    .select({ title: courses.title })
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   const [template] = await db
     .select({ title: quizTemplates.title })
@@ -66,11 +63,7 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
   const studentId = session?.user?.id;
   if (!studentId) return redirect("/sign-in");
 
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   const [template] = await db
     .select()

@@ -627,7 +627,12 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
       </div>
 
       {/* Confirmation Dialog before submitting */}
-      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+      <Dialog
+        open={showConfirmModal}
+        onOpenChange={(open) => {
+          if (!submitting) setShowConfirmModal(open);
+        }}
+      >
         <DialogContent className="max-w-md rounded-2xl border border-border p-6 shadow-xl text-left">
           <DialogHeader>
             <DialogTitle className="font-heading text-body-base font-bold text-foreground">
@@ -698,20 +703,13 @@ export function QuizPlayer({ courseId, exam, attemptId, getRedirectPath, redirec
             <Button
               type="button"
               disabled={submitting}
+              isLoading={submitting}
               onClick={() => {
-                setShowConfirmModal(false);
                 handleSubmit(false);
               }}
               className="w-full sm:w-auto rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 font-bold"
             >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-1.5 size-4 animate-spin" />
-                  Mengirim...
-                </>
-              ) : (
-                "Ya, Kumpulkan"
-              )}
+              Ya, Kumpulkan
             </Button>
           </DialogFooter>
         </DialogContent>

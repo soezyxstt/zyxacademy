@@ -5,6 +5,7 @@ import { BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContinueReadingData } from "@/types/course-learning";
 import { studentCardClass } from "@/components/course/course-surfaces";
+import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 
 export function ContinueReadingSkeleton() {
@@ -58,10 +59,10 @@ export function ContinueReadingCard({
           <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div>
               <p className="text-body-sm font-semibold text-foreground truncate" title={data.materialTitle}>
-                {data.materialTitle}
+                <MathText as="span">{data.materialTitle}</MathText>
               </p>
               <p className="text-body-xs text-muted-foreground mt-0.5 truncate" title={data.chapterTitle}>
-                Bagian terakhir: {data.chapterTitle || "Awal materi"}
+                Bagian terakhir: <MathText as="span">{data.chapterTitle || "Awal materi"}</MathText>
               </p>
             </div>
             <div className="space-y-1">

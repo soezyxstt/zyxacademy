@@ -8,9 +8,8 @@ import { ShellPage } from "@/components/shell-page";
 import { pageTitle } from "@/lib/site";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
- enrollments,
  courses,
  progress,
  submissions,
@@ -20,6 +19,8 @@ import {
  groups,
  user as userTable,
 } from "@/db/schema";
+import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
+import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 export const metadata: Metadata = {
  title: pageTitle("Profil Pengguna"),
@@ -46,7 +47,7 @@ export default async function ProfilePage() {
 
  try {
  if (process.env.NODE_ENV === "development" && user.role === "admin") {
- const all = await db.select().from(courses);
+ const all = await listStudentCourses();
  activeEnrollments = all.map((c) => ({
  id: c.id,
  title: c.title,
@@ -55,38 +56,25 @@ export default async function ProfilePage() {
  expiresAt: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
  }));
  } else {
- activeEnrollments = await db
- .select({
- id: courses.id,
- title: courses.title,
- category: courses.category,
- enrolledAt: enrollments.enrolledAt,
- expiresAt: enrollments.expiresAt,
- })
- .from(enrollments)
- .innerJoin(courses, eq(enrollments.courseId, courses.id))
- .where(
- and(
- eq(enrollments.userId, user.id),
- gt(enrollments.expiresAt, now)
- )
- );
+ activeEnrollments = await listStudentEnrollments(user.id);
  }
  } catch (err) {
  console.error("Failed to fetch enrollments:", err);
  }
 
  try {
- const progressRes = await db
- .select()
+ const [progressRes, articleGroups] = await Promise.all([
+ db
+ .select({ materialId: progress.materialId })
  .from(progress)
- .where(
- and(
- eq(progress.userId, user.id),
- eq(progress.status, "completed")
- )
- );
- completedCount = progressRes.length;
+ .where(and(eq(progress.userId, user.id), eq(progress.status, "completed"))),
+ Promise.all(activeEnrollments.map((course) => getCanonicalPublishedArticlesForCourse(course.id, user.id))),
+ ]);
+ const completedIds = new Set(progressRes.flatMap((row) => row.materialId ? [row.materialId] : []));
+ for (const article of articleGroups.flat()) {
+ if (article.completed) completedIds.add(article.id);
+ }
+ completedCount = completedIds.size;
  } catch (err) {
  console.error("Failed to fetch progress:", err);
  }
@@ -141,7 +129,7 @@ export default async function ProfilePage() {
 
  return (
  <ShellPage title="Profil Saya">
- <div className="max-w-5xl mx-auto pb-12">
+ <div className="w-full pb-12">
  {/* Profile Header */}
  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8">
  <div className="relative size-24 md:size-28 shrink-0">
@@ -284,7 +272,7 @@ export default async function ProfilePage() {
             {studentBookings.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {studentBookings.map((booking) => (
-                  <div key={booking.id} className="flex items-start gap-3 p-3.5 rounded-lg border border-border/50 bg-muted/15">
+                  <div key={booking.id} className="flex items-start gap-3 p-3.5 rounded-lg border border-border/70 bg-card/60 backdrop-blur-xs">
                     <div className="size-8 shrink-0 flex items-center justify-center rounded bg-brand-secondary/10 text-brand-secondary">
                       <User2 className="size-4" />
                     </div>
@@ -317,41 +305,41 @@ export default async function ProfilePage() {
             <h3 className="font-heading text-body-base font-bold text-foreground mb-3">
               Google Identity Account
             </h3>
- <dl className="text-body-sm divide-y divide-border/40 border-t border-border/40">
- <div className="py-3 flex justify-between gap-4">
- <dt className="text-muted-foreground">Hubungan Akun</dt>
- <dd className="font-semibold text-foreground flex items-center gap-1.5">
- <svg className="size-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
- <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
- <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
- <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
- <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
- </svg>
- Google
- </dd>
- </div>
- <div className="py-3 flex justify-between gap-4">
- <dt className="text-muted-foreground">Status Email</dt>
- <dd className="font-semibold text-status-success">
- Terverifikasi
- </dd>
- </div>
- <div className="py-3 flex justify-between gap-4">
- <dt className="text-muted-foreground">Tanggal Terdaftar</dt>
- <dd className="font-semibold text-foreground">
- {new Date(user.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
- </dd>
- </div>
- {user.lastActivityAt && (
- <div className="py-3 flex justify-between gap-4">
- <dt className="text-muted-foreground">Aktivitas Terakhir</dt>
- <dd className="font-semibold text-foreground">
- {new Date(user.lastActivityAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
- </dd>
- </div>
- )}
- </dl>
- </div>
+            <dl className="text-body-sm divide-y divide-border/40 border-t border-border/40 zebra-no-rows">
+              <div className="py-3 flex justify-between gap-4">
+                <dt className="text-muted-foreground">Hubungan Akun</dt>
+                <dd className="font-semibold text-foreground flex items-center gap-1.5">
+                  <svg className="size-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
+                  </svg>
+                  Google
+                </dd>
+              </div>
+              <div className="py-3 flex justify-between gap-4">
+                <dt className="text-muted-foreground">Status Email</dt>
+                <dd className="font-semibold text-status-success">
+                  Terverifikasi
+                </dd>
+              </div>
+              <div className="py-3 flex justify-between gap-4">
+                <dt className="text-muted-foreground">Tanggal Terdaftar</dt>
+                <dd className="font-semibold text-foreground">
+                  {new Date(user.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </dd>
+              </div>
+              {user.lastActivityAt && (
+                <div className="py-3 flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Aktivitas Terakhir</dt>
+                  <dd className="font-semibold text-foreground">
+                    {new Date(user.lastActivityAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </div>
 
  {/* Groups list */}
  <div>
@@ -359,7 +347,7 @@ export default async function ProfilePage() {
  Kelompok Belajar
  </h3>
  {userGroups.length > 0 ? (
- <div className="divide-y divide-border/40 border-t border-border/40">
+ <div className="divide-y divide-border/40 border-t border-border/40 zebra-no-rows">
  {userGroups.map((grp) => (
  <div key={grp.id} className="py-3 flex items-center justify-between gap-4">
  <span className="font-semibold text-body-sm text-foreground">

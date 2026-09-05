@@ -13,8 +13,11 @@ export function normalizeTutorMathMarkdown(text: string): string {
     },
   );
 
+  // Unescape literal \n strings outside math/code blocks (fixes raw "\n" prefix bugs)
+  const cleanNewlines = protectedText.replace(/\\n/g, "\n");
+
   const equationSegments: string[] = [];
-  const withEquations = protectedText.replace(
+  const withEquations = cleanNewlines.replace(
     /\b([A-Za-z](?:')?\([^\n)]+\)\s*=\s*[-+]?[^,.;:!?\n]+)/g,
     (equation) => {
       const marker = `@@ZYRA_EQUATION_${equationSegments.length}@@`;

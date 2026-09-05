@@ -30,8 +30,6 @@ export default async function AdminCoursesPage({ searchParams }: Props) {
     getAllChapters(),
     getUploadedMaterials(),
   ]);
-  const ideaBundleV2Enabled = true;
-
   return (
     <div className="space-y-6 font-sans">
       <AdminPageHeader
@@ -43,7 +41,6 @@ export default async function AdminCoursesPage({ searchParams }: Props) {
         coursesList={coursesList}
         chaptersList={chaptersList}
         materialsList={materialsList}
-        ideaBundleV2Enabled={ideaBundleV2Enabled}
         defaultTab={tab || "courses"}
       />
     </div>

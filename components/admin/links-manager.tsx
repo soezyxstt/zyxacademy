@@ -496,8 +496,10 @@ export function LinksManager() {
       <Dialog
         open={dialogOpen}
         onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setFormError(null);
+          if (!saving) {
+            setDialogOpen(open);
+            if (!open) setFormError(null);
+          }
         }}
       >
         <DialogContent className="max-w-lg rounded-xl border border-border p-6 shadow-lg text-left">
@@ -693,6 +695,7 @@ export function LinksManager() {
               variant="outline"
               className="rounded-lg cursor-pointer font-bold"
               onClick={() => setDialogOpen(false)}
+              disabled={saving}
             >
               Batal
             </Button>
@@ -700,12 +703,9 @@ export function LinksManager() {
               className="rounded-lg cursor-pointer font-bold px-6 shadow-sm"
               onClick={handleSave}
               disabled={saving}
+              isLoading={saving}
             >
-              {saving
-                ? "Menyimpan..."
-                : editing
-                  ? "Simpan Perubahan"
-                  : "Tambahkan"}
+              {editing ? "Simpan Perubahan" : "Tambahkan"}
             </Button>
           </DialogFooter>
         </DialogContent>

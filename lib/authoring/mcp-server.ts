@@ -2,14 +2,22 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { and, asc, eq, inArray, like, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asalIde, artikel, artikelIde, diktatIde, diktatMateri, flashcard, flashcardIde, ide, mataKuliah, potonganSumber, relasiIde, setFlashcard, soal, soalIde, sumberMateri } from "@/db/schema";
+import { asalIde, artikel, artikelIde, diktatIde, diktatMateri, flashcard, flashcardIde, ide, mataKuliah, potonganSumber, relasiIde, setFlashcard, soal, soalIde, soalItbReferensi, sumberMateri } from "@/db/schema";
 import { serializeDeterministically, validateIdeaBundleZip, type ValidatedIdeaBundle } from "@/lib/bundle/idea-bundle-v2";
 import { previewIdeaBundle } from "@/lib/bundle/idea-preview";
 import { getIdeaBundleImport, listIdeaBundleImports, reviewIdeaBundle, stageIdeaBundle } from "@/lib/bundle/staging";
 import { validateProductBundle } from "@/lib/bundle/product-validator";
 import { previewProducts } from "@/lib/bundle/product-preview";
 import { discardProductBundleDraft, getProductBundleImport, listProductBundleImports, reviewProductBundle, stageProductBundle } from "@/lib/bundle/product-staging";
+import {
+  getSourcePackImport,
+  listSourcePackImports,
+  readStoredSourcePackDocument,
+  stageSourcePack,
+} from "@/lib/bundle/source-staging";
+import { validateSourcePack } from "@/lib/authoring/source-pack";
 import { withdrawProductBundle } from "@/lib/bundle/product-publication";
+import { isStructuredArticleReaderEnabled } from "@/lib/articles/feature";
 import { evaluateIdeaBundleQuality } from "@/lib/authoring/quality/idea-bundle";
 import { evaluateProductBundleQuality } from "@/lib/authoring/quality/product-bundle";
 import { sha256Text } from "@/lib/bundle/validator";
@@ -31,13 +39,17 @@ import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
 import {
   AUTHORING_MCP_MAX_BUNDLE_BYTES,
   AUTHORING_MCP_MAX_ORIGINAL_BYTES,
+  AUTHORING_MCP_MAX_SOURCE_PACK_BYTES,
   authoringWorkflowSchema,
   decodeMcpArtifact,
   ingestMcpSourcePack,
+  issueSourcePackToken,
   listAuthoringWorkflows,
   listMcpChapterChoices,
   listMcpCourseChoices,
   publicMcpRun,
+  readMcpCatalogScope,
+  readMcpCourseChoice,
   readMcpRunToken,
   startAuthoringWorkflow,
   workflowContract,
@@ -135,6 +147,7 @@ function ideaStageItems(bundle: ValidatedIdeaBundle) {
     ...bundle.entities.ideas.map((entity) => ({ entityType: "idea", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
     ...bundle.entities.provenance.map((entity) => ({ entityType: "provenance", entityId: entity.id, entityVersion: 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
     ...bundle.entities.relations.map((entity) => ({ entityType: "relation", entityId: entity.id, entityVersion: entity.version, entityHash: sha256Text(serializeDeterministically(entity)) })),
+    ...bundle.entities.learningSections.map((entity) => ({ entityType: "learning_section", entityId: entity.id, entityVersion: 1, entityHash: sha256Text(serializeDeterministically(entity)) })),
   ];
 }
 
@@ -205,6 +218,192 @@ function validateProductChapterScope(run: ReturnType<typeof readMcpRunToken>, bu
     if (!product.chapterId) issues.push(scopeIssue("AUTHORING_MCP_CHAPTER_SCOPE_MISSING", `Product ${product.id} must declare the locked chapter.`, `entities/products.json:${product.id}`));
     else if (product.chapterId !== run.chapterId) issues.push(scopeIssue("AUTHORING_MCP_CHAPTER_SCOPE_MISMATCH", `Product ${product.id} does not belong to the locked chapter.`, `entities/products.json:${product.id}`));
   }
+  return { valid: issues.length === 0, issues };
+}
+
+async function validateIdeaDbConflicts(
+  run: ReturnType<typeof readMcpRunToken>,
+  bundle: ValidatedIdeaBundle,
+): Promise<{ valid: boolean; issues: { code: string; message: string; path: string }[]; warnings: string[] }> {
+  const issues: { code: string; message: string; path: string }[] = [];
+  const warnings: string[] = [];
+
+  const sourceIds = bundle.entities.sourceMaterials.map((s) => s.id);
+  if (sourceIds.length > 0) {
+    for (const source of bundle.entities.sourceMaterials) {
+      if (/^source-doc-\d+$/i.test(source.id)) {
+        warnings.push(`Source material ID '${source.id}' is unscoped. Prefer a chapter-scoped format such as 'source-doc-${run.chapterId}-${source.id}'.`);
+      }
+    }
+    for (const chunk of chunkValues(sourceIds)) {
+      const existingSources = await db
+        .select({ id: sumberMateri.id, babId: sumberMateri.babId, mataKuliahId: sumberMateri.mataKuliahId, checksum: sumberMateri.checksum, version: sumberMateri.version })
+        .from(sumberMateri)
+        .where(inArray(sumberMateri.id, chunk));
+
+      const existingMap = new Map(existingSources.map((s) => [s.id, s]));
+      for (const source of bundle.entities.sourceMaterials) {
+        const existing = existingMap.get(source.id);
+        if (existing) {
+          if (existing.babId !== run.chapterId) {
+            issues.push(scopeIssue(
+              "IDEA_BUNDLE_SOURCE_VERSION_CONFLICT",
+              `Source material '${source.id}' already exists in chapter '${existing.babId}' but this bundle is for chapter '${run.chapterId}'. Use a chapter-scoped ID.`,
+              `entities/source_materials.json:${source.id}`,
+            ));
+          } else if (existing.mataKuliahId !== run.courseId) {
+            issues.push(scopeIssue(
+              "IDEA_BUNDLE_SOURCE_VERSION_CONFLICT",
+              `Source material '${source.id}' already exists in course '${existing.mataKuliahId}' but this bundle is for course '${run.courseId}'.`,
+              `entities/source_materials.json:${source.id}`,
+            ));
+          } else if (existing.checksum !== source.checksum || existing.version !== source.version) {
+            issues.push(scopeIssue(
+              "IDEA_BUNDLE_SOURCE_VERSION_CONFLICT",
+              `Source material '${source.id}' already exists with different checksum or version.`,
+              `entities/source_materials.json:${source.id}`,
+            ));
+          }
+        }
+      }
+    }
+  }
+
+  const chunkIds = bundle.entities.sourceChunks.map((c) => c.id);
+  if (chunkIds.length > 0) {
+    for (const chunk of bundle.entities.sourceChunks) {
+      if (/^chunk-\d+$/i.test(chunk.id)) {
+        warnings.push(`Source chunk ID '${chunk.id}' is unscoped. Prefer a chapter-scoped format such as 'chunk-${run.chapterId}-${chunk.id}'.`);
+      }
+    }
+    for (const chunkBatch of chunkValues(chunkIds)) {
+      const existingChunks = await db
+        .select({ id: potonganSumber.id, sumberMateriId: potonganSumber.sumberMateriId, checksum: potonganSumber.checksum })
+        .from(potonganSumber)
+        .where(inArray(potonganSumber.id, chunkBatch));
+
+      const existingMap = new Map(existingChunks.map((c) => [c.id, c]));
+      for (const chunk of bundle.entities.sourceChunks) {
+        const existing = existingMap.get(chunk.id);
+        if (existing) {
+          if (existing.sumberMateriId !== chunk.sourceMaterialId || existing.checksum !== chunk.checksum) {
+            issues.push(scopeIssue(
+              "IDEA_BUNDLE_SOURCE_CHUNK_CONFLICT",
+              `Source chunk '${chunk.id}' already exists pointing to different material '${existing.sumberMateriId}' or has different checksum. Use a chapter-scoped ID.`,
+              `entities/source_chunks.json:${chunk.id}`,
+            ));
+          }
+        }
+      }
+    }
+  }
+
+  const provIds = bundle.entities.provenance.map((p) => p.id);
+  if (provIds.length > 0) {
+    for (const prov of bundle.entities.provenance) {
+      if (/^prov-\d+$/i.test(prov.id)) {
+        warnings.push(`Provenance ID '${prov.id}' is unscoped. Prefer a chapter-scoped format such as 'prov-${run.chapterId}-${prov.id}'.`);
+      }
+    }
+    for (const chunk of chunkValues(provIds)) {
+      const existingProvs = await db
+        .select({ id: asalIde.id, ideId: asalIde.ideId, sourceChunkId: asalIde.sourceChunkId })
+        .from(asalIde)
+        .where(inArray(asalIde.id, chunk));
+
+      const existingMap = new Map(existingProvs.map((p) => [p.id, p]));
+      for (const prov of bundle.entities.provenance) {
+        const existing = existingMap.get(prov.id);
+        if (existing) {
+          if (existing.ideId !== prov.ideaId || existing.sourceChunkId !== prov.sourceChunkId) {
+            issues.push(scopeIssue(
+              "IDEA_BUNDLE_PROVENANCE_CONFLICT",
+              `Provenance record '${prov.id}' already exists pointing to different idea '${existing.ideId}' or chunk '${existing.sourceChunkId}'. Use a chapter-scoped ID.`,
+              `entities/provenance.json:${prov.id}`,
+            ));
+          }
+        }
+      }
+    }
+  }
+
+  const relIds = bundle.entities.relations.map((r) => r.id);
+  if (relIds.length > 0) {
+    for (const rel of bundle.entities.relations) {
+      if (/^rel-\d+$/i.test(rel.id)) {
+        warnings.push(`Relation ID '${rel.id}' is unscoped. Prefer a chapter-scoped format such as 'rel-${run.chapterId}-${rel.id}'.`);
+      }
+    }
+    for (const chunk of chunkValues(relIds)) {
+      const existingRels = await db
+        .select({ id: relasiIde.id, sourceIdeaId: relasiIde.sourceIdeaId, targetIdeaId: relasiIde.targetIdeaId, relationType: relasiIde.relationType })
+        .from(relasiIde)
+        .where(inArray(relasiIde.id, chunk));
+
+      const existingMap = new Map(existingRels.map((r) => [r.id, r]));
+      for (const rel of bundle.entities.relations) {
+        const existing = existingMap.get(rel.id);
+        if (existing) {
+          if (existing.sourceIdeaId !== rel.sourceIdeaId || existing.targetIdeaId !== rel.targetIdeaId || existing.relationType !== rel.relationType) {
+            issues.push(scopeIssue(
+              "IDEA_BUNDLE_RELATION_CONFLICT",
+              `Relation record '${rel.id}' already exists with different source/target or relation type. Use a chapter-scoped ID.`,
+              `entities/relations.json:${rel.id}`,
+            ));
+          }
+        }
+      }
+    }
+  }
+
+  return { valid: issues.length === 0, issues, warnings };
+}
+
+async function validateProductDbReferences(
+  run: ReturnType<typeof readMcpRunToken>,
+  bundle: Extract<ReturnType<typeof validateProductBundle>, { success: true }>['data'],
+): Promise<{ valid: boolean; issues: { code: string; message: string; path: string }[] }> {
+  const issues: { code: string; message: string; path: string }[] = [];
+  const questionProducts = bundle.products.filter((p) => p.productType === "question");
+
+  if (questionProducts.length > 0) {
+    const itbRefIds = [
+      ...new Set(
+        questionProducts.flatMap((p: any) => [
+          p.itbSource?.referenceId,
+          ...(p.itbCuration?.map((c: any) => c.referenceId) ?? []),
+        ]).filter(Boolean),
+      ),
+    ];
+
+    if (itbRefIds.length > 0) {
+      for (const chunk of chunkValues(itbRefIds)) {
+        const existingRefs = await db
+          .select({ id: soalItbReferensi.id, authoringVisibility: soalItbReferensi.authoringVisibility })
+          .from(soalItbReferensi)
+          .where(inArray(soalItbReferensi.id, chunk));
+
+        const existingMap = new Map(existingRefs.map((r) => [r.id, r]));
+        for (const refId of chunk) {
+          const existing = existingMap.get(refId);
+          if (!existing) {
+            issues.push(scopeIssue(
+              "PRODUCT_ITB_REFERENCE_MISSING",
+              `ITB reference '${refId}' does not exist in staging database. For standalone quiz bank authoring, use the 'zyx-question-authoring-mcp' workflow instead.`,
+              `entities/products.json:${refId}`,
+            ));
+          } else if (existing.authoringVisibility !== "allowed") {
+            issues.push(scopeIssue(
+              "PRODUCT_ITB_REFERENCE_NOT_ALLOWED",
+              `ITB reference '${refId}' is not allowed for authoring.`,
+              `entities/products.json:${refId}`,
+            ));
+          }
+        }
+      }
+    }
+  }
+
   return { valid: issues.length === 0, issues };
 }
 
@@ -475,10 +674,14 @@ async function stageIdeaArtifact(input: {
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
   const validation = validateIdeaBundleZip(bytes);
   if (!validation.success) return { ok: false, valid: false, staged: false, filename: input.filename, issues: validation.issues };
+  if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion !== "idea-bundle.v3") {
+    return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_IDEA_V3_REQUIRED", message: "Submission baru wajib memakai Idea Bundle V3 saat structured reader aktif.", path: "manifest.json.schemaVersion" }] };
+  }
   if (validation.data.manifest.courseId !== run.courseId) return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_COURSE_SCOPE_MISMATCH", message: "Idea Bundle course does not match the locked run scope", path: "manifest.json.courseId" }] };
   const chapterScope = validateIdeaChapterScope(run, validation.data);
+  const dbConflicts = await validateIdeaDbConflicts(run, validation.data);
   const quality = evaluateIdeaBundleQuality(validation.data);
-  if (!chapterScope.valid || !quality.valid) return { ok: false, valid: false, staged: false, filename: input.filename, issues: [...chapterScope.issues, ...quality.issues], quality };
+  if (!chapterScope.valid || !dbConflicts.valid || !quality.valid) return { ok: false, valid: false, staged: false, filename: input.filename, issues: [...chapterScope.issues, ...dbConflicts.issues, ...quality.issues], warnings: dbConflicts.warnings, quality };
   if (input.replaceImportId) {
     const target = await getIdeaBundleImport(input.replaceImportId);
     if (!target) throw new Error("IDEA_BUNDLE_NOT_FOUND");
@@ -501,13 +704,13 @@ async function stageIdeaArtifact(input: {
       entityCount: ideaStageItems(validation.data).length,
       sourceCount: validation.data.entities.sourceMaterials.length,
       relationCount: validation.data.entities.relations.length,
-      warnings: [],
+      warnings: dbConflicts.warnings,
       quality: quality as unknown as Record<string, unknown>,
     },
     filename: input.filename,
     replaceImportId: input.replaceImportId,
   });
-  return { ok: true, valid: true, staged: true, result, quality, next: "admin_review" };
+  return { ok: true, valid: true, staged: true, result, warnings: dbConflicts.warnings, quality, next: "admin_review" };
 }
 
 async function stageProductArtifact(input: {
@@ -522,12 +725,16 @@ async function stageProductArtifact(input: {
   const bytes = decodeMcpArtifact(input.bundleBase64, AUTHORING_MCP_MAX_BUNDLE_BYTES);
   const validation = validateProductBundle(bytes);
   if (!validation.success) return { ok: false, valid: false, staged: false, filename: input.filename, issues: validation.issues };
+  if (isStructuredArticleReaderEnabled() && validation.data.manifest.schemaVersion !== "product-bundle.v3") {
+    return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_PRODUCT_V3_REQUIRED", message: "Submission baru wajib memakai Product Bundle V3 saat structured reader aktif.", path: "manifest.json.schemaVersion" }] };
+  }
   if (validation.data.manifest.courseId !== run.courseId) return { ok: false, valid: false, staged: false, filename: input.filename, issues: [{ code: "AUTHORING_MCP_COURSE_SCOPE_MISMATCH", message: "Product Bundle course does not match the locked run scope", path: "manifest.json.courseId" }] };
   const chapterScope = validateProductChapterScope(run, validation.data);
   const ideaScope = await validateProductIdeaScope(run, validation.data);
+  const dbReferences = await validateProductDbReferences(run, validation.data);
   const quality = evaluateProductBundleQuality(validation.data);
   const dependencyIssues = validation.data.publicationBlocked ? [{ code: "PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW", message: "Product Bundle has dependencies that are not up to date.", path: "entities/dependencies.json" }] : [];
-  const blockingIssues = [...chapterScope.issues, ...ideaScope.issues, ...dependencyIssues, ...quality.issues];
+  const blockingIssues = [...chapterScope.issues, ...ideaScope.issues, ...dbReferences.issues, ...dependencyIssues, ...quality.issues];
   if (blockingIssues.length > 0) return { ok: false, valid: false, staged: false, filename: input.filename, issues: blockingIssues, quality, publicationBlocked: validation.data.publicationBlocked };
   if (input.replaceImportId) {
     const target = await getProductBundleImport(input.replaceImportId);
@@ -620,7 +827,7 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
 
   (server as any).registerTool("source.ingest", {
     title: "Ingest Source Pack",
-    description: "Menerima Source Pack sebagai base64 melalui MCP, menjalankan compatibility checking, dan mengembalikan token sumber tervalidasi.",
+    description: "Menerima Source Pack sebagai base64 melalui MCP, menjalankan compatibility checking, menyimpan ke R2 dan database, dan mengembalikan token sumber tervalidasi.",
     inputSchema: {
       filename: z.string().min(1).max(255),
       contentBase64: z.string().min(1).max(96 * 1024 * 1024),
@@ -631,7 +838,165 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
   }, async ({ filename, contentBase64, originals, storedOriginals }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const resolved = await resolveSourceOriginals(originals, storedOriginals);
-    return ingestMcpSourcePack(filename, contentBase64, resolved.originals, resolved.boundScope);
+    const ingestResult = ingestMcpSourcePack(filename, contentBase64, resolved.originals, resolved.boundScope);
+    if (!ingestResult.ok) return ingestResult;
+
+    const bytes = decodeMcpArtifact(contentBase64, AUTHORING_MCP_MAX_SOURCE_PACK_BYTES);
+    const sourcePack = validateSourcePack(bytes);
+
+    if (resolved.boundScope?.chapterId) {
+      const docIds = sourcePack.documents.map((doc) => doc.id);
+      for (const chunk of chunkValues(docIds)) {
+        const existingDocs = await db
+          .select({ id: sumberMateri.id, babId: sumberMateri.babId })
+          .from(sumberMateri)
+          .where(inArray(sumberMateri.id, chunk));
+        for (const existing of existingDocs) {
+          if (existing.babId !== resolved.boundScope.chapterId) {
+            throw new Error(`SOURCE_PACK_DOCUMENT_ID_COLLISION: documentId '${existing.id}' is already registered under another chapter '${existing.babId}'. Use scoped documentId like 'source-doc-${resolved.boundScope.chapterId}-001'.`);
+          }
+        }
+      }
+    }
+
+    const staged = await stageSourcePack({
+      filename,
+      bytes,
+      sourcePack,
+      requestedBy: principal.actorId,
+      courseId: resolved.boundScope?.courseId,
+      chapterId: resolved.boundScope?.chapterId,
+      quality: ingestResult.quality,
+      summary: ingestResult.source,
+    });
+
+    return {
+      ...ingestResult,
+      persisted: {
+        importId: staged.importId,
+        packId: staged.packId,
+        checksum: staged.checksum,
+        sourceKey: staged.sourceKey,
+        created: staged.created,
+      },
+    };
+  }));
+
+  (server as any).registerTool("source.list_packs", {
+    title: "List stored Source Packs",
+    description: "Mengembalikan daftar Source Pack tervalidasi yang tersimpan di R2 dan database untuk mata kuliah dan bab terpilih, lengkap dengan token sumber siap pakai.",
+    inputSchema: {
+      courseKey: z.string().min(1),
+      chapterKey: z.string().min(1).optional(),
+      limit: z.number().int().min(1).max(100).default(50),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ courseKey, chapterKey, limit }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const scope = chapterKey
+      ? readMcpCatalogScope(courseKey, chapterKey)
+      : readMcpCourseChoice(courseKey);
+    const chapterId = "chapterId" in scope ? (scope as { chapterId: string }).chapterId : undefined;
+    const rows = await listSourcePackImports({
+      courseId: scope.courseId,
+      chapterId,
+      limit,
+    });
+    return {
+      ok: true,
+      packs: rows.map((row) => ({
+        importId: row.id,
+        packId: row.bundleId,
+        checksum: row.checksum,
+        sourcePackToken: issueSourcePackToken({
+          checksum: row.checksum,
+          packId: row.bundleId,
+          name: row.validationReport?.name ?? row.bundleId,
+          summary: (row.validationReport?.summary as any) ?? {
+            packId: row.bundleId,
+            name: row.validationReport?.name ?? row.bundleId,
+            archiveChecksum: row.checksum,
+            documentCount: row.validationReport?.documentCount ?? 0,
+            unitCount: 0,
+            sectionCount: 0,
+            questionCount: 0,
+            solutionCount: 0,
+            quality: row.validationReport?.quality as any,
+            documents: (row.validationReport?.documents as any) ?? [],
+          },
+          courseId: (row.validationReport?.courseId as string | undefined) ?? row.courseId ?? scope.courseId,
+          chapterId: (row.validationReport?.chapterId as string | undefined) ?? chapterId,
+        }),
+        summary: row.validationReport?.summary,
+        documentCount: row.validationReport?.documentCount,
+        createdAt: row.createdAt,
+      })),
+    };
+  }));
+
+  (server as any).registerTool("source.get_pack", {
+    title: "Get stored Source Pack detail",
+    description: "Mengambil metadata, ringkasan, atau isi teks transkripsi Markdown dokumen dari Source Pack yang tersimpan.",
+    inputSchema: {
+      packId: z.string().trim().min(1),
+      documentId: z.string().trim().optional(),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async ({ packId, documentId }: any) => safeTool(async () => {
+    requireMcpScope(principal, "authoring:read");
+    const stored = await getSourcePackImport(packId);
+    if (!stored) throw new Error("AUTHORING_MCP_SOURCE_PACK_NOT_FOUND");
+
+    const token = issueSourcePackToken({
+      checksum: stored.checksum,
+      packId: stored.bundleId,
+      name: stored.validationReport?.name ?? stored.bundleId,
+      summary: (stored.validationReport?.summary as any) ?? {
+        packId: stored.bundleId,
+        name: stored.validationReport?.name ?? stored.bundleId,
+        archiveChecksum: stored.checksum,
+        documentCount: stored.validationReport?.documentCount ?? 0,
+        unitCount: 0,
+        sectionCount: 0,
+        questionCount: 0,
+        solutionCount: 0,
+        quality: stored.validationReport?.quality as any,
+        documents: (stored.validationReport?.documents as any) ?? [],
+      },
+      courseId: stored.validationReport?.courseId ?? stored.courseId ?? undefined,
+      chapterId: stored.validationReport?.chapterId ?? undefined,
+    });
+
+    if (documentId) {
+      const { document } = await readStoredSourcePackDocument(stored.sourceUriOrKey, documentId);
+      return {
+        ok: true,
+        packId: stored.bundleId,
+        checksum: stored.checksum,
+        sourcePackToken: token,
+        document: {
+          id: document.id,
+          title: document.title,
+          role: document.role,
+          unitKind: document.unitKind,
+          expectedUnits: document.expectedUnits,
+          markdown: document.markdown,
+          sections: document.sections,
+          counts: document.counts,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      packId: stored.bundleId,
+      checksum: stored.checksum,
+      sourcePackToken: token,
+      summary: stored.validationReport?.summary,
+      documents: stored.validationReport?.documents,
+      quality: stored.validationReport?.quality,
+      createdAt: stored.createdAt,
+    };
   }));
 
   (server as any).registerTool("workflow.start", {
@@ -640,15 +1005,40 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
     inputSchema: {
       workflow: authoringWorkflowSchema,
       sourcePackToken: z.string().min(1).optional(),
+      sourcePackId: z.string().min(1).optional(),
       courseKey: z.string().min(1),
       chapterKey: z.string().min(1),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ workflow, sourcePackToken, courseKey, chapterKey }: any) => safeTool(async () => {
+  }, async ({ workflow, sourcePackToken, sourcePackId, courseKey, chapterKey }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
+    let resolvedToken = sourcePackToken;
+    if (!resolvedToken && sourcePackId) {
+      const stored = await getSourcePackImport(sourcePackId);
+      if (!stored) throw new Error("AUTHORING_MCP_SOURCE_PACK_NOT_FOUND");
+      resolvedToken = issueSourcePackToken({
+        checksum: stored.checksum,
+        packId: stored.bundleId,
+        name: stored.validationReport?.name ?? stored.bundleId,
+        summary: (stored.validationReport?.summary as any) ?? {
+          packId: stored.bundleId,
+          name: stored.validationReport?.name ?? stored.bundleId,
+          archiveChecksum: stored.checksum,
+          documentCount: stored.validationReport?.documentCount ?? 0,
+          unitCount: 0,
+          sectionCount: 0,
+          questionCount: 0,
+          solutionCount: 0,
+          quality: stored.validationReport?.quality as any,
+          documents: (stored.validationReport?.documents as any) ?? [],
+        },
+        courseId: stored.validationReport?.courseId ?? stored.courseId ?? undefined,
+        chapterId: stored.validationReport?.chapterId ?? undefined,
+      });
+    }
     return {
       ok: true,
-      ...(await startAuthoringWorkflow({ workflow, sourcePackToken, courseKey, chapterKey })),
+      ...(await startAuthoringWorkflow({ workflow, sourcePackToken: resolvedToken, courseKey, chapterKey })),
     };
   }));
 
@@ -693,9 +1083,10 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       return { ok: false, valid: false, filename, issues: [{ code: "AUTHORING_MCP_COURSE_SCOPE_MISMATCH", message: "Idea Bundle course does not match the locked run scope", path: "manifest.json.courseId" }] };
     }
     const chapterScope = validateIdeaChapterScope(run, validation.data);
+    const dbConflicts = await validateIdeaDbConflicts(run, validation.data);
     const quality = evaluateIdeaBundleQuality(validation.data);
-    const scopeIssues = chapterScope.issues;
-    if (!chapterScope.valid || !quality.valid) return { ok: false, valid: false, filename, issues: [...scopeIssues, ...quality.issues], quality };
+    const scopeIssues = [...chapterScope.issues, ...dbConflicts.issues];
+    if (!chapterScope.valid || !dbConflicts.valid || !quality.valid) return { ok: false, valid: false, filename, issues: [...scopeIssues, ...quality.issues], warnings: dbConflicts.warnings, quality };
     return {
       ok: true,
       valid: true,
@@ -703,6 +1094,7 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
       bundleId: validation.data.manifest.bundleId,
       checksum: validation.data.manifest.bundleChecksum,
       preview: previewIdeaBundle(validation.data),
+      warnings: dbConflicts.warnings,
       quality,
       next: "admin_review",
     };
@@ -742,9 +1134,10 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
     }
     const chapterScope = validateProductChapterScope(run, validation.data);
     const ideaScope = await validateProductIdeaScope(run, validation.data);
+    const dbReferences = await validateProductDbReferences(run, validation.data);
     const quality = evaluateProductBundleQuality(validation.data);
     const dependencyIssues = validation.data.publicationBlocked ? [{ code: "PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW", message: "Product Bundle has dependencies that are not up to date.", path: "entities/dependencies.json" }] : [];
-    const blockingIssues = [...chapterScope.issues, ...ideaScope.issues, ...dependencyIssues, ...quality.issues];
+    const blockingIssues = [...chapterScope.issues, ...ideaScope.issues, ...dbReferences.issues, ...dependencyIssues, ...quality.issues];
     if (blockingIssues.length > 0) return { ok: false, valid: false, filename, issues: blockingIssues, quality, publicationBlocked: validation.data.publicationBlocked };
     return {
       ok: true,
@@ -953,15 +1346,19 @@ function registerValidationTools(server: McpServer, principal: McpPrincipal): vo
 function registerLifecycleTools(server: McpServer, principal: McpPrincipal): void {
   (server as any).registerTool("authoring.list_imports", {
     title: "List staged bundle imports",
-    description: "Mengembalikan inventory Idea atau Product Bundle untuk inspeksi lifecycle sebelum edit, review, atau withdrawal.",
+    description: "Mengembalikan inventory Source Pack, Idea, atau Product Bundle untuk inspeksi lifecycle sebelum edit, review, atau withdrawal.",
     inputSchema: {
-      bundleType: z.enum(["idea", "product"]),
+      bundleType: z.enum(["source", "idea", "product"]),
       limit: z.number().int().min(1).max(100).default(50),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async ({ bundleType, limit }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
-    const rows = bundleType === "idea" ? await listIdeaBundleImports(limit) : await listProductBundleImports(limit);
+    const rows = bundleType === "source"
+      ? await listSourcePackImports({ limit })
+      : bundleType === "idea"
+        ? await listIdeaBundleImports(limit)
+        : await listProductBundleImports(limit);
     return {
       ok: true,
       bundleType,
@@ -982,12 +1379,29 @@ function registerLifecycleTools(server: McpServer, principal: McpPrincipal): voi
     title: "Get staged bundle import",
     description: "Mengembalikan detail import, inventory entity, laporan validasi, dan keputusan review tanpa mengekspos storage key atau identity internal reviewer.",
     inputSchema: {
-      bundleType: z.enum(["idea", "product"]),
+      bundleType: z.enum(["source", "idea", "product"]),
       importId: z.string().trim().min(1),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async ({ bundleType, importId }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
+    if (bundleType === "source") {
+      const row = await getSourcePackImport(importId);
+      if (!row) throw new Error("SOURCE_PACK_NOT_FOUND");
+      return {
+        ok: true,
+        import: {
+          importId: row.id,
+          bundleId: row.bundleId,
+          checksum: row.checksum,
+          version: row.version,
+          status: row.status,
+          validationReport: row.validationReport,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        },
+      };
+    }
     const row = bundleType === "idea" ? await getIdeaBundleImport(importId) : await getProductBundleImport(importId);
     if (!row) throw new Error(bundleType === "idea" ? "IDEA_BUNDLE_NOT_FOUND" : "PRODUCT_BUNDLE_NOT_FOUND");
     return { ok: true, import: publicBundleImport(row) };

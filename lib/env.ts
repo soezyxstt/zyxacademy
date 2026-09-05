@@ -103,6 +103,8 @@ export const env = createEnv({
   FEATURE_DRIVE_EDITOR_SYNC: z.string().optional(),
   /** Optional AI-assisted Diktat audit suggestions. "1" enables. */
   FEATURE_DIKTAT_AI: z.string().optional(),
+  /** Temporary rollout gate for structured Article V3 authoring, review, and student reading. */
+  FEATURE_STRUCTURED_ARTICLE_READER_V1: z.string().optional(),
  // ── P8 Vectorize Migration ─────────────────────────────────────────────
  /** Base URL of the deployed zyx-vector-api Cloudflare Worker (no trailing slash) */
  VECTORIZE_WORKER_URL: z.string().url().optional(),
@@ -211,6 +213,7 @@ export const env = createEnv({
   STAGING_ZYRA_PEDAGOGY_USER_ID: process.env.STAGING_ZYRA_PEDAGOGY_USER_ID,
   FEATURE_DRIVE_EDITOR_SYNC: process.env.FEATURE_DRIVE_EDITOR_SYNC,
   FEATURE_DIKTAT_AI: process.env.FEATURE_DIKTAT_AI,
+  FEATURE_STRUCTURED_ARTICLE_READER_V1: process.env.FEATURE_STRUCTURED_ARTICLE_READER_V1,
  NEXT_PUBLIC_REALTIME_URL: process.env.NEXT_PUBLIC_REALTIME_URL,
  VECTORIZE_WORKER_URL: process.env.VECTORIZE_WORKER_URL,
  VECTORIZE_SHARED_SECRET: process.env.VECTORIZE_SHARED_SECRET,

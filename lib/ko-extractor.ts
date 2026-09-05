@@ -7,6 +7,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { preprocessMarkdown, safeParseJson, slugify } from "./ko-utils";
 import { generateStableKoKey, computeSemanticKoHash, reconcileKoExtractionRun } from "@/lib/knowledge/identity";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 // ─── UTILITIES FOR CONCEPT RESOLUTION & MATCHING ──────────────────────────────
 
@@ -1304,6 +1305,8 @@ export async function extractKnowledgeObjectsForChapter(
 
       await tx.insert(vectorSyncQueue).values(outboxPayloads);
     });
+
+    dispatchVectorSync(courseId);
   }
 
  // Return formatted array matching the Zod KnowledgeObjectSchema structure expected by callers

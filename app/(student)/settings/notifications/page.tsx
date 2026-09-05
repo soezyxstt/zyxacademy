@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { Bell } from "lucide-react";
 import { NotificationPreferencesForm } from "./notification-preferences-form";
 import { auth } from "@/lib/auth";
 import { getEmailNotificationPreferences } from "@/lib/email-preferences/repository";
 import { pageTitle } from "@/lib/site";
-import { ShellPage } from "@/components/shell-page";
+import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
+import { Reveal } from "@/components/ui/reveal";
 
 export const metadata: Metadata = {
-  title: pageTitle("Notification preferences"),
-  description: "Choose which optional email notifications you receive from Zyx Academy.",
+  title: pageTitle("Preferensi Notifikasi"),
+  description: "Atur jenis notifikasi surel opsional yang Anda terima dari Zyx Academy.",
 };
 
 export default async function NotificationPreferencesPage() {
@@ -20,11 +23,16 @@ export default async function NotificationPreferencesPage() {
 
   const preferences = await getEmailNotificationPreferences(session.user.id);
   return (
-    <ShellPage
-      title="Notification preferences"
-      description="Choose which optional email you receive. Essential account messages remain enabled."
-    >
-      <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} />
-    </ShellPage>
+    <ApplicationPage>
+      <PageHeader
+        title="Preferensi Notifikasi"
+        icon={Bell}
+        backHref="/settings"
+        backLabel="Pengaturan Akun"
+      />
+      <Reveal className="mt-6">
+        <NotificationPreferencesForm accountEmail={session.user.email} initialPreferences={preferences} />
+      </Reveal>
+    </ApplicationPage>
   );
 }

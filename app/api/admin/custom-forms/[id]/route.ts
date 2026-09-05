@@ -3,8 +3,8 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { hasPeran } from "@/lib/auth/authorization";
 import { db } from "@/db";
-import { customForms, customFormResponses } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { customForms, customFormResponses, googleMeetSessions } from "@/db/schema";
+import { eq, desc, and, isNull, ne } from "drizzle-orm";
 
 export async function GET(
   _req: Request,
@@ -62,10 +62,45 @@ export async function PATCH(
       updatedAt: new Date(),
     };
 
-    if (body.title !== undefined) updateData.title = String(body.title).trim();
+    if (body.title !== undefined) {
+      const title = String(body.title).trim();
+      if (!title) {
+        return NextResponse.json({ error: "Nama / Judul Formulir tidak boleh kosong." }, { status: 400 });
+      }
+      updateData.title = title;
+    }
     if (body.description !== undefined) updateData.description = String(body.description).trim() || null;
     if (body.category !== undefined) updateData.category = body.category;
-    if (body.questions !== undefined) updateData.questions = body.questions;
+    if (body.questions !== undefined) {
+      if (!Array.isArray(body.questions)) {
+        return NextResponse.json({ error: "Format pertanyaan tidak valid." }, { status: 400 });
+      }
+      updateData.questions = body.questions;
+    }
+    if (body.slug !== undefined) {
+      const slug = String(body.slug).trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+      if (slug) {
+        const [existingForm, existingMeet] = await Promise.all([
+          db
+            .select({ id: customForms.id })
+            .from(customForms)
+            .where(and(eq(customForms.slug, slug), ne(customForms.id, id), isNull(customForms.deletedAt)))
+            .limit(1),
+          db
+            .select({ id: googleMeetSessions.id })
+            .from(googleMeetSessions)
+            .where(and(eq(googleMeetSessions.slug, slug), isNull(googleMeetSessions.deletedAt)))
+            .limit(1),
+        ]);
+        if (existingForm.length > 0 || existingMeet.length > 0) {
+          return NextResponse.json(
+            { error: "Slug tautan pendek sudah digunakan oleh formulir atau sesi lain." },
+            { status: 400 }
+          );
+        }
+        updateData.slug = slug;
+      }
+    }
     if (body.settings !== undefined) {
       const settings = body.settings as Record<string, unknown>;
       const openAt = typeof settings.openAt === "string" && settings.openAt ? new Date(settings.openAt) : null;

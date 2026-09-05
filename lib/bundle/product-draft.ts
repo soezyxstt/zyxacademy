@@ -40,10 +40,64 @@ function mergeProduct(original: ProductEntity, submitted: ProductEntity): Produc
   const common = { ...original, ideaLinks: mergeIdeaLinks(original, submitted) };
   switch (original.productType) {
     case "article": {
-      if (submitted.productType !== "article" || original.blocks.length !== submitted.blocks.length) throw new Error("PRODUCT_DRAFT_BLOCK_CHANGED");
-      const blocks = new Map(submitted.blocks.map((block) => [block.id, block]));
-      if (blocks.size !== submitted.blocks.length || original.blocks.some((block) => !blocks.has(block.id))) throw new Error("PRODUCT_DRAFT_BLOCK_CHANGED");
-      return productEntitySchema.parse({ ...common, title: submitted.title.trim(), slug: submitted.slug.trim(), blocks: original.blocks.map((block) => ({ ...block, content: blocks.get(block.id)!.content.trim() })) });
+      if (submitted.productType !== "article") throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
+      const isV2 = original.blocks.length > 0 && original.sections.length === 0;
+      const isV3 = original.blocks.length === 0 && original.sections.length > 0;
+      if (isV2) {
+        if (submitted.blocks.length !== original.blocks.length) throw new Error("PRODUCT_DRAFT_BLOCK_CHANGED");
+        const blocks = new Map(submitted.blocks.map((block) => [block.id, block]));
+        if (blocks.size !== submitted.blocks.length || original.blocks.some((block) => !blocks.has(block.id))) {
+          throw new Error("PRODUCT_DRAFT_BLOCK_CHANGED");
+        }
+        return productEntitySchema.parse({
+          ...common,
+          title: submitted.title.trim(),
+          slug: submitted.slug.trim(),
+          blocks: original.blocks.map((block) => ({ ...block, content: blocks.get(block.id)!.content.trim() })),
+          sections: [],
+        });
+      }
+      if (isV3) {
+        if (submitted.sections.length !== original.sections.length) throw new Error("PRODUCT_DRAFT_SECTION_CHANGED");
+        const submittedSections = new Map(submitted.sections.map((s) => [s.id, s]));
+        if (submittedSections.size !== submitted.sections.length || original.sections.some((s) => !submittedSections.has(s.id))) {
+          throw new Error("PRODUCT_DRAFT_SECTION_CHANGED");
+        }
+        const mergedSections = original.sections.map((originalSection) => {
+          const submittedSection = submittedSections.get(originalSection.id)!;
+          if (submittedSection.blocks.length !== originalSection.blocks.length) throw new Error("PRODUCT_DRAFT_BLOCK_CHANGED");
+          const submittedBlocks = new Map(submittedSection.blocks.map((b) => [b.id, b]));
+          if (submittedBlocks.size !== submittedSection.blocks.length || originalSection.blocks.some((b) => !submittedBlocks.has(b.id))) {
+            throw new Error("PRODUCT_DRAFT_BLOCK_CHANGED");
+          }
+          const mergedBlocks = originalSection.blocks.map((originalBlock) => {
+            const submittedBlock = submittedBlocks.get(originalBlock.id)!;
+            return {
+              ...originalBlock,
+              title: submittedBlock.title?.trim() || undefined,
+              blockType: submittedBlock.blockType,
+              orderIndex: submittedBlock.orderIndex,
+              contentMarkdown: submittedBlock.contentMarkdown.trim(),
+            };
+          });
+          return {
+            ...originalSection,
+            title: submittedSection.title.trim(),
+            learningObjective: submittedSection.learningObjective.trim(),
+            parentSectionId: submittedSection.parentSectionId,
+            orderIndex: submittedSection.orderIndex,
+            blocks: mergedBlocks,
+          };
+        });
+        return productEntitySchema.parse({
+          ...common,
+          title: submitted.title.trim(),
+          slug: original.slug,
+          blocks: [],
+          sections: mergedSections,
+        });
+      }
+      throw new Error("PRODUCT_DRAFT_ARTICLE_INVALID");
     }
     case "diktat":
       if (submitted.productType !== "diktat") throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
@@ -85,12 +139,38 @@ export function createProductBundleDraft(bundle: ValidProductBundle): ProductBun
   return JSON.parse(JSON.stringify({ products: bundle.products })) as ProductBundleDraft;
 }
 
+export function refreshDraftDependencies(
+  dependencies: readonly ProductDependency[],
+  products: readonly ProductEntity[],
+  changedArticleIds: ReadonlySet<string>,
+): ProductDependency[] {
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  return dependencies.map((dependency) => {
+    const downstream = productsById.get(dependency.downstreamEntityId);
+    const articleEditMakesDiktatStale = dependency.upstreamEntityType === "product"
+      && changedArticleIds.has(dependency.upstreamEntityId)
+      && downstream?.productType === "diktat";
+    return {
+      ...dependency,
+      upstreamHash: dependency.upstreamEntityType === "product" ? productsById.get(dependency.upstreamEntityId)?.generationHash ?? dependency.upstreamHash : dependency.upstreamHash,
+      downstreamHash: downstream?.generationHash ?? dependency.downstreamHash,
+      freshness: articleEditMakesDiktatStale ? "STALE" : dependency.freshness,
+    };
+  });
+}
+
 export function finalizeProductBundleDraft(original: ValidProductBundle, draft: ProductBundleDraft): FinalizedProductBundleDraft {
   if (original.products.length !== draft.products.length) throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
   const submitted = new Map(draft.products.map((product) => [product.id, product]));
   if (submitted.size !== draft.products.length || original.products.some((product) => !submitted.has(product.id))) throw new Error("PRODUCT_DRAFT_IDENTITY_CHANGED");
 
   let products = original.products.map((product) => mergeProduct(product, submitted.get(product.id)!));
+  const changedArticleIds = new Set(
+    products
+      .filter((product) => product.productType === "article")
+      .filter((product) => productEntityHashForDraft(product) !== productEntityHashForDraft(original.products.find((candidate) => candidate.id === product.id)!))
+      .map((product) => product.id),
+  );
   products = products.map((product) => product.productType === "diktat" ? product : productEntitySchema.parse({ ...product, generationHash: generationHash(product) }));
   const articles = new Map(products.filter((product) => product.productType === "article").map((product) => [product.id, product]));
   products = products.map((product) => {
@@ -99,12 +179,7 @@ export function finalizeProductBundleDraft(original: ValidProductBundle, draft: 
     const withLineage = article ? { ...product, sourceArticleHash: article.generationHash } : product;
     return productEntitySchema.parse({ ...withLineage, generationHash: generationHash(withLineage) });
   });
-  const productsById = new Map(products.map((product) => [product.id, product]));
-  const dependencies: ProductDependency[] = original.dependencies.map((dependency) => ({
-    ...dependency,
-    upstreamHash: dependency.upstreamEntityType === "product" ? productsById.get(dependency.upstreamEntityId)?.generationHash ?? dependency.upstreamHash : dependency.upstreamHash,
-    downstreamHash: productsById.get(dependency.downstreamEntityId)?.generationHash ?? dependency.downstreamHash,
-  }));
+  const dependencies = refreshDraftDependencies(original.dependencies, products, changedArticleIds);
 
   const files = new Map(original.files);
   products = clean(products);
@@ -125,4 +200,8 @@ export function finalizeProductBundleDraft(original: ValidProductBundle, draft: 
   const validation = validateProductBundle(bytes);
   if (!validation.success) throw new Error(`${validation.issues[0]?.code ?? "PRODUCT_DRAFT_INVALID"}:${validation.issues[0]?.message ?? "Draft tidak valid"}`);
   return { bytes, bundle: validation.data };
+}
+
+function productEntityHashForDraft(product: ProductEntity): string {
+  return hash(product);
 }

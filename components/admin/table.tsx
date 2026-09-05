@@ -8,7 +8,7 @@ export type AdminTableProps = {
 
 export function AdminTable({ children, className }: AdminTableProps) {
   return (
-    <div className={cn("overflow-x-auto rounded-xl border border-border bg-card shadow-sm", className)}>
+    <div className={cn("admin-table overflow-x-auto rounded-xl border border-border/70 bg-card/75 backdrop-blur-md shadow-xs", className)}>
       {children}
     </div>
   );
@@ -21,5 +21,5 @@ export type AdminTableHeadProps = {
 };
 
 export function AdminTableHead({ children, className }: AdminTableHeadProps) {
-  return <thead className={cn("bg-muted/50 border-b border-border", className)}>{children}</thead>;
+  return <thead className={cn("bg-muted/40 border-b border-border/70", className)}>{children}</thead>;
 }

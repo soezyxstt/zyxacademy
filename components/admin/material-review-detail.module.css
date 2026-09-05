@@ -1,0 +1,25 @@
+.mobileInspector {
+  display: flex;
+}
+
+.blockLayout {
+  display: grid;
+}
+
+.desktopInspector {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .mobileInspector {
+    display: none;
+  }
+
+  .blockLayout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  .desktopInspector {
+    display: block;
+  }
+}

@@ -3,7 +3,7 @@
  * Replace with TanStack Query + fetch when ready.
  */
 
-export type MaterialKind = "article" | "pdf" | "image" | "video" | "link";
+export type MaterialKind = "article" | "pdf" | "image" | "video" | "link" | "quiz" | "tryout";
 export type DocCategory = "materi" | "soal" | "solusi" | "diktat";
 
 export type CourseMaterial = {
@@ -12,9 +12,12 @@ export type CourseMaterial = {
  title: string;
  kind: MaterialKind;
  docCategory?: DocCategory;
+ tabGroup?: "materi" | "diktat" | "pdf" | "bank_soal";
  subcategory?: string | null;
  year?: number | null;
  fileSize?: string;
+ /** Custom navigation link (e.g. for interactive quizzes/tryouts) */
+ href?: string;
  /** Article: plain text / markdown-ish paragraphs separated by \n\n */
  body?: string;
  /** pdf | image | video | link */

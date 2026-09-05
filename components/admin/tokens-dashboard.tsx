@@ -7,6 +7,7 @@ import { Copy, Trash2, KeyRound, Check, RefreshCw, User, Users, ShieldCheck, Che
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { generateEnrollmentToken, deleteEnrollmentToken } from "@/app/(admin)/admin/(academic)/tokens/actions";
 import {
   Dialog,
@@ -63,6 +64,7 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
   const [loading, setLoading] = useState(false);
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; token: string } | null>(null);
+  const [isDeletingToken, setIsDeletingToken] = useState(false);
 
   const stats = useMemo(() => {
     const total = initialTokens.length;
@@ -121,11 +123,12 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
   const handleDeleteConfirm = async () => {
     if (!pendingDelete) return;
 
+    setIsDeletingToken(true);
     try {
       const res = await deleteEnrollmentToken(pendingDelete.id);
-      setPendingDelete(null);
       if (res.success) {
         toast.success("Token berhasil dihapus");
+        setPendingDelete(null);
         router.refresh();
       } else {
         toast.error(res.error || "Gagal menghapus token");
@@ -133,6 +136,8 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
     } catch (err) {
       console.error(err);
       toast.error("Terjadi kesalahan koneksi");
+    } finally {
+      setIsDeletingToken(false);
     }
   };
 
@@ -463,24 +468,22 @@ export function TokensDashboard({ initialTokens, coursesList }: Props) {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Hapus Token Aktivasi</DialogTitle>
-            <DialogDescription>
-              Apakah Anda yakin ingin menghapus token <strong className="text-foreground">{pendingDelete?.token}</strong>? Kelompok dan akses yang terkait akan dicabut.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button variant="outline">Batal</Button>
-            </DialogClose>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
-              Hapus Token
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AdminConfirmDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title="Hapus Token Aktivasi"
+        description={
+          <>
+            Apakah Anda yakin ingin menghapus token{" "}
+            <strong className="text-foreground">{pendingDelete?.token}</strong>? Kelompok dan akses yang terkait akan dicabut.
+          </>
+        }
+        confirmLabel="Ya, Hapus Token"
+        loading={isDeletingToken}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

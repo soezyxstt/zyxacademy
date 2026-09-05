@@ -4,17 +4,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Trophy, ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import {
-  enrollments,
-  courses,
-} from "@/db/schema";
-import { and, eq, gt, inArray } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
 import { studentCardClass } from "@/components/course/course-surfaces";
 import { getCourseLeaderboard } from "@/lib/course-utils";
+import { listStudentCourses, listStudentEnrollments } from "@/lib/student/course-catalog";
 
 
 export const metadata: Metadata = {
@@ -26,49 +21,41 @@ export default async function LeaderboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/sign-in");
 
-  const now = new Date();
+  const allCourses = process.env.NODE_ENV === "development" && session.user.role === "admin"
+    ? await listStudentCourses()
+    : await listStudentEnrollments(session.user.id);
 
-  // Get all courses the student is enrolled in
-  let enrolled;
-  if (process.env.NODE_ENV === "development" && session.user.role === "admin") {
-    const all = await db.select({ courseId: courses.id }).from(courses);
-    enrolled = all;
-  } else {
-    enrolled = await db
-      .select({ courseId: enrollments.courseId })
-      .from(enrollments)
-      .where(and(eq(enrollments.userId, session.user.id), gt(enrollments.expiresAt, now)));
-  }
+  // Per-course leaderboard: top 10 per course, loaded in parallel with defensive error boundary
+  const leaderboardEntries = await Promise.all(
+    allCourses.map(async (course) => {
+      try {
+        const ranked = await getCourseLeaderboard(course.id);
+        return {
+          courseId: course.id,
+          rows: ranked.slice(0, 10).map((r) => ({
+            rank: r.rank,
+            name: r.studentName,
+            avgScore: r.avgScore,
+            attempts: r.attemptCount,
+          })),
+        };
+      } catch (err) {
+        console.error(`Gagal memuat papan peringkat kelas ${course.id}:`, err);
+        return {
+          courseId: course.id,
+          rows: [],
+        };
+      }
+    })
+  );
 
-  const courseIds = enrolled.map((e) => e.courseId);
-
-  // Get course titles
-  const allCourses =
-    courseIds.length > 0
-      ? await db
-          .select({ id: courses.id, title: courses.title })
-          .from(courses)
-          .where(inArray(courses.id, courseIds))
-      : [];
-
-  // Per-course leaderboard: top 10 per course
   const leaderboardByCourse: Record<
     string,
     { rank: number; name: string; avgScore: number; attempts: number }[]
-  > = {};
-
-  for (const course of allCourses) {
-    const ranked = await getCourseLeaderboard(course.id);
-    leaderboardByCourse[course.id] = ranked.slice(0, 10).map((r) => ({
-      rank: r.rank,
-      name: r.studentName,
-      avgScore: r.avgScore,
-      attempts: r.attemptCount,
-    }));
-  }
+  > = Object.fromEntries(leaderboardEntries.map((e) => [e.courseId, e.rows]));
 
   return (
-    <Reveal className="marketing-container mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
+    <Reveal className="w-full px-4 py-8 sm:px-6 lg:px-8 space-y-6">
       <PageHeader
         title="Papan Peringkat"
         icon={Trophy}
@@ -121,11 +108,11 @@ export default async function LeaderboardPage() {
                       <div className="flex flex-col items-center">
                         {p2 ? (
                           <div className="w-full flex flex-col items-center">
-                            <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border bg-card shadow-2xs w-full text-center min-h-[140px] hover:border-brand-primary/20 transition-all">
+                            <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border/70 bg-card/75 backdrop-blur-md shadow-2xs w-full text-center min-h-[140px] hover:border-brand-primary/40 transition-all">
                               <div className="absolute -top-5 flex size-9 items-center justify-center rounded-full bg-slate-200 border border-slate-300 dark:bg-slate-800 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-body-sm shadow-xs shrink-0">
                                 2
                               </div>
-                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
+                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-2 w-full px-1">
                                 {p2.name}
                               </div>
                               <div className="font-heading text-h6 font-bold text-slate-600 dark:text-slate-400 mt-1">
@@ -145,11 +132,11 @@ export default async function LeaderboardPage() {
                       <div className="flex flex-col items-center relative -top-3">
                         {p1 ? (
                           <div className="w-full flex flex-col items-center">
-                            <div className="relative flex flex-col items-center justify-end p-5 rounded-2xl border-2 border-brand-secondary/40 bg-card shadow-md w-full text-center min-h-[170px] hover:border-brand-secondary transition-all">
+                            <div className="relative flex flex-col items-center justify-end p-5 rounded-2xl border-2 border-brand-secondary/40 bg-card/75 backdrop-blur-md shadow-md w-full text-center min-h-[170px] hover:border-brand-secondary transition-all">
                               <div className="absolute -top-7 flex size-11 items-center justify-center rounded-full bg-brand-secondary border-2 border-amber-300 text-white font-bold text-body-base shadow-md shrink-0">
                                 🥇
                               </div>
-                              <div className="font-heading text-body-sm font-extrabold text-foreground line-clamp-1 w-full px-1">
+                              <div className="font-heading text-body-sm font-extrabold text-foreground line-clamp-2 w-full px-1">
                                 {p1.name}
                               </div>
                               <div className="text-h6 font-extrabold text-brand-secondary mt-1">
@@ -169,11 +156,11 @@ export default async function LeaderboardPage() {
                       <div className="flex flex-col items-center">
                         {p3 ? (
                           <div className="w-full flex flex-col items-center">
-                            <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border bg-card shadow-2xs w-full text-center min-h-[125px] hover:border-brand-primary/20 transition-all">
+                            <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border/70 bg-card/75 backdrop-blur-md shadow-2xs w-full text-center min-h-[125px] hover:border-brand-primary/40 transition-all">
                               <div className="absolute -top-5 flex size-9 items-center justify-center rounded-full bg-amber-700/10 border border-amber-700/20 text-amber-800 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400 font-bold text-body-sm shadow-xs shrink-0">
                                 3
                               </div>
-                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
+                              <div className="font-heading text-body-xs font-bold text-foreground line-clamp-2 w-full px-1">
                                 {p3.name}
                               </div>
                               <div className="font-heading text-h6 font-bold text-amber-700 dark:text-amber-500 mt-1">

@@ -39,6 +39,10 @@ import {
 import { slugify } from "@/lib/ko-utils";
 import { randomUUID, createHash } from "crypto";
 import { eq, and } from "drizzle-orm";
+import {
+  reconcileLegacyChapterToCanonical,
+  reconcileLegacyCourseToCanonical,
+} from "@/lib/academic/course-canonical-sync";
 
 export type ImportMode = "create" | "upsert" | "append";
 
@@ -204,6 +208,9 @@ export async function importChapterBundle(
         .set({ description: chapter.description || null, updatedAt: new Date() })
         .where(eq(chapters.id, chapterId));
     }
+
+    await reconcileLegacyCourseToCanonical(courseId, null, tx);
+    await reconcileLegacyChapterToCanonical(chapterId, null, tx);
 
     // ─── Concepts: match by canonicalSlug, update localizations in place ───
     const idMap = new Map<string, string>();

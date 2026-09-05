@@ -113,15 +113,12 @@ async function scanDocsRecursively(dir: string, baseDir: string = dir): Promise<
   return chunks;
 }
 
-/**
- * Loads and indexes all documentation files in memory
- */
-export async function getDocsKnowledgeBase(): Promise<DocChunk[]> {
-  const now = Date.now();
-  if (cachedChunks && now - lastLoadedTime < CACHE_TTL_MS) {
-    return cachedChunks;
-  }
+const PREBUILT_INDEX_PATH = path.join(process.cwd(), "lib", "admin-ops-ai", "ops-docs-index.json");
 
+/**
+ * Builds the documentation knowledge base by scanning the filesystem.
+ */
+export async function buildDocsKnowledgeBase(): Promise<DocChunk[]> {
   const chunks = await scanDocsRecursively(DOCS_DIR);
 
   // Also include AGENTS.md for durable repository rules
@@ -133,6 +130,33 @@ export async function getDocsKnowledgeBase(): Promise<DocChunk[]> {
     // Optional
   }
 
+  return chunks;
+}
+
+/**
+ * Loads and indexes all documentation files in memory, using prebuilt index if available.
+ */
+export async function getDocsKnowledgeBase(): Promise<DocChunk[]> {
+  const now = Date.now();
+  if (cachedChunks && now - lastLoadedTime < CACHE_TTL_MS) {
+    return cachedChunks;
+  }
+
+  // 1. Attempt to load precomputed static index
+  try {
+    const raw = await fs.readFile(PREBUILT_INDEX_PATH, "utf-8");
+    const parsed = JSON.parse(raw) as DocChunk[];
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      cachedChunks = parsed;
+      lastLoadedTime = now;
+      return parsed;
+    }
+  } catch {
+    // Fall back to scanning docs directory
+  }
+
+  // 2. Scan docs directory on demand
+  const chunks = await buildDocsKnowledgeBase();
   cachedChunks = chunks;
   lastLoadedTime = now;
   return chunks;

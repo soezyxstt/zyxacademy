@@ -21,6 +21,7 @@ import {
   FileText,
   Trash2,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { updatePreSessionData } from "@/app/(student)/dashboard/schedule/actions";
 
@@ -47,6 +48,7 @@ export function PreSessionModal({
 
   // Sync when booking changes
   const handleOpen = (isOpen: boolean) => {
+    if (loading) return;
     if (isOpen && booking) {
       setTopic(booking.topic || "");
       setNotes(booking.preSessionNotes || "");
@@ -181,9 +183,13 @@ export function PreSessionModal({
                 <label className="text-body-xs font-semibold text-foreground block">
                   Berkas Soal / Foto Latihan ({attachments.length})
                 </label>
-                <label className="cursor-pointer">
+                <label className={`cursor-pointer ${fileUploading ? "opacity-60 pointer-events-none" : ""}`}>
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-primary hover:underline">
-                    <Upload className="size-3" />
+                    {fileUploading ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Upload className="size-3" />
+                    )}
                     {fileUploading ? "Mengunggah..." : "+ Unggah Berkas (PDF/Gambar)"}
                   </span>
                   <input
@@ -247,16 +253,17 @@ export function PreSessionModal({
 
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
-                <Button variant="outline" type="button">
+                <Button variant="outline" type="button" disabled={loading || fileUploading}>
                   Batal
                 </Button>
               </DialogClose>
               <Button
                 type="submit"
-                disabled={loading || !topic.trim()}
+                isLoading={loading}
+                disabled={loading || fileUploading || !topic.trim()}
                 className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
               >
-                {loading ? "Menyimpan..." : "Simpan Persiapan Sesi"}
+                Simpan Persiapan Sesi
               </Button>
             </DialogFooter>
           </form>

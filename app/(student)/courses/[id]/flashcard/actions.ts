@@ -2,16 +2,20 @@
 
 import { submitReview as dbSubmitReview } from "@/lib/flashcard-actions";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 
 export async function submitReviewAction(
-  studentId: string,
+  _studentId: string,
   flashcardId: string,
   grade: number,
   manualAnswer?: string,
   isExamMode: boolean = false,
   courseId?: string
 ) {
-  const result = await dbSubmitReview(studentId, flashcardId, grade, manualAnswer, isExamMode);
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  const result = await dbSubmitReview(session.user.id, flashcardId, grade, manualAnswer, isExamMode);
   if (courseId) {
     revalidatePath(`/courses/${courseId}/flashcard`);
   }

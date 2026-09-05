@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Calendar, ChevronRight, Lock } from "lucide-react";
+import { ChevronRight, Lock, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -54,8 +54,24 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
 
   return (
     <div className="space-y-3 font-sans">
-      <ul className="overflow-hidden rounded-lg border border-border/70 bg-card/75 backdrop-blur-sm">
-        {tryouts.map((tryout) => {
+      {tryouts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 p-8 sm:p-12 text-center max-w-md mx-auto">
+          <GraduationCap className="size-10 text-muted-foreground/40 mb-3" aria-hidden />
+          <h3 className="font-heading text-body-base font-bold text-foreground">
+            Belum ada tryout terjadwal
+          </h3>
+          <p className="mt-1 text-body-xs text-muted-foreground leading-relaxed">
+            Simulasi ujian resmi UTS dan UAS akan dibuka menjelang pekan ujian semester.
+          </p>
+          <Button asChild size="sm" className="mt-5 rounded-md text-body-xs">
+            <Link href={`/courses/${courseId}/quiz`}>
+              Latihan dengan Kuis
+            </Link>
+          </Button>
+        </div>
+      ) : (
+        <ul className="overflow-hidden rounded-lg border border-border/70 bg-card/75 backdrop-blur-sm">
+          {tryouts.map((tryout) => {
           const attemptCount = attempts[tryout.id] || 0;
           const maxAttempts = tryout.settings?.maxAttempts ?? 2;
           const isBlocked = attemptCount >= maxAttempts;
@@ -211,13 +227,7 @@ export function TryoutListClient({ courseId, isEnrolled, tryouts }: TryoutListCl
           );
         })}
       </ul>
-
-      <div className="flex items-start gap-2 rounded-lg border border-brand-secondary/20 bg-brand-secondary/5 p-3 text-body-sm text-muted-foreground">
-        <Calendar className="mt-0.5 size-4 shrink-0 text-brand-secondary" />
-        <p>
-          Maksimal 2 kali pengumpulan per tryout agar jeda belajar tetap terukur.
-        </p>
-      </div>
+      )}
     </div>
   );
 }

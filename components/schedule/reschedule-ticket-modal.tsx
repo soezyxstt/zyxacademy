@@ -62,6 +62,9 @@ export function RescheduleTicketModal({
   const [newMessage, setNewMessage] = useState("");
   const [decisionNotes, setDecisionNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState<
+    "submit" | "message" | "approved" | "rejected" | null
+  >(null);
 
   const activeTicket = booking?.rescheduleTickets?.[0] || null;
   const isTutor = role === "teacher";
@@ -80,6 +83,7 @@ export function RescheduleTicketModal({
       return;
     }
 
+    setSubmittingAction("submit");
     setLoading(true);
     try {
       const res = await submitRescheduleTicket(
@@ -101,6 +105,7 @@ export function RescheduleTicketModal({
       toast.error("Terjadi kesalahan koneksi");
     } finally {
       setLoading(false);
+      setSubmittingAction(null);
     }
   };
 
@@ -108,6 +113,7 @@ export function RescheduleTicketModal({
     e.preventDefault();
     if (!activeTicket || !newMessage.trim()) return;
 
+    setSubmittingAction("message");
     setLoading(true);
     try {
       const res = await sendTicketMessage(activeTicket.id, newMessage);
@@ -121,12 +127,14 @@ export function RescheduleTicketModal({
       toast.error("Terjadi kesalahan koneksi");
     } finally {
       setLoading(false);
+      setSubmittingAction(null);
     }
   };
 
   const handleTutorDecision = async (decision: "approved" | "rejected") => {
     if (!activeTicket) return;
 
+    setSubmittingAction(decision);
     setLoading(true);
     try {
       const res = await tutorDecideTicket(activeTicket.id, decision, decisionNotes);
@@ -145,11 +153,17 @@ export function RescheduleTicketModal({
       toast.error("Terjadi kesalahan koneksi");
     } finally {
       setLoading(false);
+      setSubmittingAction(null);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!loading) onOpenChange(isOpen);
+      }}
+    >
       <DialogContent className="max-w-xl rounded-xl border border-border p-6 shadow-xl text-left max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-body-base font-bold flex items-center gap-2">
@@ -271,16 +285,17 @@ export function RescheduleTicketModal({
 
                 <DialogFooter className="gap-2 pt-2">
                   <DialogClose asChild>
-                    <Button variant="outline" type="button">
+                    <Button variant="outline" type="button" disabled={loading}>
                       Batal
                     </Button>
                   </DialogClose>
                   <Button
                     type="submit"
+                    isLoading={submittingAction === "submit"}
                     disabled={loading || !reason.trim()}
                     className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-lg"
                   >
-                    {loading ? "Mengajukan..." : "Ajukan Tiket"}
+                    Ajukan Tiket
                   </Button>
                 </DialogFooter>
               </form>
@@ -364,6 +379,7 @@ export function RescheduleTicketModal({
                       />
                       <Button
                         type="submit"
+                        isLoading={submittingAction === "message"}
                         disabled={loading || !newMessage.trim()}
                         size="xs"
                         className="h-9 px-3 rounded-lg bg-brand-primary text-white"
@@ -392,6 +408,7 @@ export function RescheduleTicketModal({
                       <Button
                         variant="destructive"
                         size="sm"
+                        isLoading={submittingAction === "rejected"}
                         disabled={loading}
                         onClick={() => handleTutorDecision("rejected")}
                         className="rounded-lg gap-1"
@@ -401,6 +418,7 @@ export function RescheduleTicketModal({
                       </Button>
                       <Button
                         size="sm"
+                        isLoading={submittingAction === "approved"}
                         disabled={loading}
                         onClick={() => handleTutorDecision("approved")}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg gap-1"

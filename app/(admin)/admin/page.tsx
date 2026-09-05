@@ -3,11 +3,9 @@ import Link from "next/link";
 import { db } from "@/db";
 import {
   courses,
+  mataKuliah,
   enrollmentTokens,
   groupMembers,
-  aiMaterialInstances,
-  aiMaterialInstanceChunks,
-  diktats,
   aiGenerationJobs,
   aiQuestionBank,
   quizTemplates,
@@ -26,7 +24,6 @@ import {
   Zap,
   ListChecks,
   ClipboardList,
-  Archive,
   Bell,
   Activity,
   GraduationCap,
@@ -60,8 +57,6 @@ export default async function AdminHomePage() {
   const [
     courseCountRes,
     tokenStatsRes,
-    materialStatsRes,
-    diktatCountRes,
     jobStatsRes,
     questionStatsRes,
     quizCountRes,
@@ -70,7 +65,11 @@ export default async function AdminHomePage() {
     blogCountRes,
     attemptCountRes,
   ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(courses),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active"))
+      .then((rows) => (rows[0]?.count > 0 ? rows : db.select({ count: sql<number>`count(*)` }).from(courses))),
 
     Promise.all([
       db.select({ count: sql<number>`count(*)` }).from(enrollmentTokens),
@@ -82,13 +81,6 @@ export default async function AdminHomePage() {
         })
         .from(groupMembers),
     ]),
-
-    Promise.all([
-      db.select({ count: sql<number>`count(*)` }).from(aiMaterialInstances),
-      db.select({ count: sql<number>`count(*)` }).from(aiMaterialInstanceChunks),
-    ]),
-
-    db.select({ count: sql<number>`count(*)` }).from(diktats),
 
     db.select({ status: aiGenerationJobs.status }).from(aiGenerationJobs),
 
@@ -135,13 +127,6 @@ export default async function AdminHomePage() {
   ).length;
   const tokenStat = `${totalTokens} issued, ${redeemedTodayCount} diklaim hari ini`;
 
-  const totalMaterials = materialStatsRes[0][0]?.count ?? 0;
-  const totalChunks = materialStatsRes[1][0]?.count ?? 0;
-  const materialStat = `${totalMaterials} dokumen (${totalChunks} segmen)`;
-
-  const totalDiktats = diktatCountRes[0]?.count ?? 0;
-  const diktatStat = `${totalDiktats} diktat terbit`;
-
   const runningJobs = jobStatsRes.filter(
     (j) => j.status === "pending" || j.status === "processing"
   ).length;
@@ -183,20 +168,12 @@ export default async function AdminHomePage() {
           stat: courseStat,
         },
         {
-          title: "Materi & Dokumen",
+          title: "Review Materi",
           icon: BookText,
           iconColor: "text-tertiary-1",
-          href: "/admin/materials",
-          label: "Kelola materi",
-          stat: materialStat,
-        },
-        {
-          title: "Kompilasi Diktat",
-          icon: Archive,
-          iconColor: "text-brand-primary",
-          href: "/admin/diktats",
-          label: "Buka kompilator diktat",
-          stat: diktatStat,
+          href: "/admin/materials/review",
+          label: "Review Idea dan Product Bundle",
+          stat: "Workflow canonical",
         },
         {
           title: "Kelola Blog",
@@ -395,7 +372,7 @@ export default async function AdminHomePage() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="group flex flex-col justify-between rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm transition-all duration-200 hover:border-brand-primary/40 hover:shadow-md hover:bg-card/90"
+                  className="group flex flex-col justify-between rounded-xl border border-border/70 bg-card/70 backdrop-blur-md p-4 sm:p-5 shadow-xs transition-all duration-200 hover:border-brand-primary/40 hover:shadow-md hover:bg-card/90 hover:-translate-y-0.5"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-3">

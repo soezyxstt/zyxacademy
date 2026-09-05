@@ -23,10 +23,11 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 
 ### Tutor
 - Accesses a dedicated tutor portal (`/tutor`) with a course switcher for all assigned teaching responsibilities
-- Sets weekly availability and manages schedules (`/tutor/schedule`) directly in the tutor shell without redirecting to student pages
+- Manages availability and sessions in a calendar-first workspace (`/tutor/schedule`) with week, day, and month views. Available, booked, expired, and locked slots have distinct states.
 - Creates, edits, previews, and publishes native quiz templates (`/tutor/[courseId]/quizzes`) with visible creator attribution
 - Hosts interactive live classroom quizzes directly from the tutor console (`/tutor/[courseId]/live`)
 - Grades assigned tryout essay submissions (`/tutor/[courseId]/grading`), provides feedback notes, and inputs final scores (0 to 100) with concurrency guards
+- Grades quiz essays and may override deterministic short-answer scores (`/tutor/[courseId]/quizzes/grading`). Final quiz totals remain hidden from students until every essay has been reviewed.
 - Inspects student attempt spreadsheets and exports CSV records (`/tutor/[courseId]/quizzes/[templateId]/attempts`)
 - Reviews enrolled students, active study groups, and group representatives (`/tutor/[courseId]/participants`)
 - Cannot author or upload course materials (materials authoring is disabled for tutors; `/tutor/[courseId]/materials` redirects to the course overview)
@@ -91,7 +92,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 2. The review page is a searchable, filterable inventory by course, author, and status. Artifact cards lead with course, creation time, author, and content summary; bundle IDs and checksums remain secondary technical details. `Buka review` navigates to `/admin/materials/review/idea/[slug]`, where the three-step workflow, Idea list, relations, source evidence, KaTeX preview, focused one-Idea editing, reviewer note, approval, rejection, and publication actions are presented together.
 3. The detail page reads the staged ZIP from R2 and reconstructs the validated preview before showing it. Stable identities and source spans stay locked. Identical upload retries are no-ops and a different checksum for the same bundle ID is blocked.
 4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically.
-5. The workflow is always-on; the legacy JSON importer remains visible for rollback.
+5. The workflow is always-on. The legacy Learning Bundle and Assessment Bundle importers are retired and reject new writes.
 
 ### Upload Manual and Authoring Context Pack V1
 
@@ -110,31 +111,40 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 2. `workflow.list` exposes exactly two choices: `idea_product` and `quiz_bank`. There is deliberately no combined workflow option. Both workflows lock one course and one chapter; `idea_product` requires a Source Pack while `quiz_bank` accepts an optional Source Pack so agents can author directly from the published Idea catalog.
 3. `source.list_files` resolves the selected canonical course and chapter to their legacy `course_materials` mappings, then returns every eligible PDF category with an encrypted short-lived `fileKey`. Multi-chapter PDFs are included when the selected chapter is present in `chapterIds`; external URLs, unsafe keys, unmapped scopes, and files from another course are rejected.
 4. `source.read_file` reads one current `fileKey`. Page mode returns extracted text plus PNG page images at 1280 px, up to four pages per call, so scanned pages and instructional visuals remain available to the agent. Blob mode embeds an `application/pdf` resource up to 32 MiB and is an explicit fallback after a page-read failure or timeout.
-5. `source.ingest` accepts a base64 Source Pack plus either ephemeral `originals`, server-resolved `storedOriginals`, or a unique mix of both. Stored PDFs may be up to 50 MiB and all originals together may be up to 96 MiB. The same checksum, content, and ZIP quality gates apply; stored references additionally bind the Source Pack token to their course and chapter.
-6. Course and chapter choices use short-lived signed keys, and stored file references use encrypted short-lived keys, so agents and operators do not exchange raw internal IDs or storage keys. `workflow.start` rejects a stored-source scope mismatch and returns a scoped run token and workflow contract.
+5. `source.ingest` accepts a base64 Source Pack plus either ephemeral `originals`, server-resolved `storedOriginals`, or a unique mix of both. Stored PDFs may be up to 50 MiB and all originals together may be up to 96 MiB. The same checksum, content, and ZIP quality gates apply; stored references additionally bind the Source Pack token to their course and chapter. Valid Source Packs are persisted automatically to Cloudflare R2 and recorded in `impor_bundle` with status `validated`, returning `persisted` metadata including `sourcePackId`, `storageKey`, and `checksumSha256`. Previously persisted packs can be discovered with `source.list_packs` and inspected or read with `source.get_pack`.
+6. Course and chapter choices use short-lived signed keys, and stored file references use encrypted short-lived keys, so agents and operators do not exchange raw internal IDs or storage keys. `workflow.start` accepts either an active `sourcePackToken` or a stored `sourcePackId`, automatically binding the pack and issuing a valid token. It rejects a stored-source scope mismatch and returns a scoped run token and workflow contract.
+   Admin course and chapter CRUD keeps these choices current by mirroring every exact legacy mutation to `mata_kuliah` and `bab` in the same database transaction. MCP catalog calls query those canonical rows at request time without an application cache.
 7. Idea Bundle and Product Bundle validation combines technical compatibility with repository content-quality gates. Idea checks include meaningful source coverage, provenance coverage, duplicate candidates, and formula trace warnings. Product checks include published Idea scope, dependency freshness, Article depth, Diktat coverage, examples, visuals, retrieval, traps, formulas, and ITB provenance.
 8. For `quiz_bank`, `assessment.list_ideas` returns the published Idea catalog of the locked course and chapter with free-text query, knowledge kind, instructional role, and difficulty level filters plus distribution facets and offset paging. `assessment.get_idea` returns one Idea with active relations in both directions and a provenance summary so agents can respect prerequisites before linking. The workflow contract exposes scope guidance enumerating difficulty, cognitive level, question type, idea role, tag rules, and weight rules.
 9. Draft V2 accepts optional Idea links per question; linked weights must sum to 100%. `assessment.validate_quiz_draft` aggregates every blocking issue and warning in one response instead of failing on the first error. It reports difficulty, cognitive level, question type, and tag distributions plus per-Idea coverage so agents can close gaps before submission. Warnings include coverage gaps for uncovered catalog Ideas and empty explanations; blocking issues include duplicate draft IDs, malformed questions, duplicate answer keys, duplicate or out-of-scope Idea links, invalid weights, and unpublished Ideas. Valid submission writes `soal`, optional `soal_ide`, `pembahasan_soal`, the `ai_question_bank` compatibility projection, and an audit row in one transaction with `reviewStatus=generated`. The staging actor is derived from the authenticated admin principal and no MCP tool can publish content.
 10. The MCP lifecycle tools support inspection, maintenance, and review across bundles and questions:
-   - `authoring.list_imports` and `authoring.get_import` inspect staged Idea and Product bundles, entity inventories, and review outcomes without exposing private storage keys or internal reviewer identity IDs (`authoring:read`).
+   - `authoring.list_imports` and `authoring.get_import` inspect staged Source, Idea, and Product bundles, entity inventories, and review outcomes without exposing private storage keys or internal reviewer identity IDs (`authoring:read`).
    - `authoring.restage_idea_bundle` and `authoring.restage_product_bundle` revalidate and replace staged bundles in place, resetting prior review decisions via existing lifecycle services (`authoring:stage`).
    - `authoring.discard_product_draft` permanently discards draft Product Bundles and their staging artifacts (`authoring:withdraw`). Published or withdrawn bundles cannot be discarded.
    - `authoring.review_idea_bundle` and `authoring.review_product_bundle` record immutable review decisions (`approved` or `rejected`) with notes without publishing content (`authoring:review`).
    - `authoring.withdraw_product_bundle` provides an audited, idempotent, destructive action that withdraws published Product Bundles and retires canonical projections (`authoring:withdraw`). Idea Bundle withdrawal is not implemented.
    - `assessment.update_question` updates draft Zyx-original questions in the locked run scope and resets them to `reviewStatus=generated` for admin review (`authoring:stage`). ITB examples (`itb_example`) are immutable and cannot be updated. Published or retired questions cannot be edited through this tool.
-11. The instruction skills are `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, `zyx-product-bundle-mcp`, and `zyx-question-authoring-mcp`. They guide agents but do not duplicate or bypass MCP validators. MCP HTTP authorization uses the existing Better Auth admin session through MCP OAuth discovery, PKCE authorization code exchange, and short-lived audience-bound bearer tokens. OAuth default scopes remain `authoring:read` and `authoring:stage`. Supported explicit scopes include `authoring:review` and `authoring:withdraw`. Authenticated same-origin session connections receive all supported scopes. A logged-in admin can also create a per-session connection token at `/api/mcp/authoring/connection` for clients without interactive OAuth, including ChatGPT connectors that accept a remote MCP endpoint. No static MCP token, manually configured actor ID, or feature flag is required. There is no `authoring:publish` scope and no publication tool; canonical publication continues strictly through the authenticated admin review boundary.
+11. The instruction skills are `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, `zyx-product-bundle-mcp`, and `zyx-question-authoring-mcp`. They guide agents but do not duplicate or bypass MCP validators. MCP HTTP authorization uses the existing Better Auth admin session through MCP OAuth discovery, PKCE authorization code exchange, and audience-bound bearer tokens with a 30-day hard lifetime. OAuth default scopes remain `authoring:read` and `authoring:stage`. Supported explicit scopes include `authoring:review` and `authoring:withdraw`. Authenticated same-origin session connections receive all supported scopes. A logged-in admin can also create a per-session connection token at `/api/mcp/authoring/connection` for clients without interactive OAuth, including ChatGPT connectors that accept a remote MCP endpoint. Tokens remain bound to the originating live Better Auth session and active-admin role, invalidating earlier if the session ends or permissions change, and are never permanent. No static MCP token, manually configured actor ID, or feature flag is required. There is no `authoring:publish` scope and no publication tool; canonical publication continues strictly through the authenticated admin review boundary.
 
 ### Product Bundle Workflow
 
 1. Admins open `/admin/materials/review`, choose `Product`, and use the compact `Upload ZIP` dialog. The dialog validates product schemas, checksums, Idea and source traceability, complete article quality coverage, assessment scope, atomic flashcards, deterministic question keys, one solution per question, draft status, consistent attribution, and holdout markers before staging.
-2. The review inventory supports search and filters for course, author, and status. `Buka review` navigates to `/admin/materials/review/product/[slug]`, where Artikel, Diktat, Soal, Pembahasan, Flashcard, and Blueprint use distinct type tabs, one selected product at a time, focused one-product editing, clear section dividers, locked ITB source identity, dependency context, reviewer notes, and the shared KaTeX preview.
+2. The review inventory supports search and filters for course, author, and status. `Buka review` navigates to `/admin/materials/review/product/[slug]`, where Artikel, Diktat, Soal, Pembahasan, Flashcard, and Blueprint use distinct type tabs and a searchable one-product navigator. Artikel provides a continuous student reading view and a block review view with a sticky provenance inspector. Diktat uses a compact reading canvas while preserving Article lineage, dependency freshness, formula, and table rendering.
 3. The detail page reads the staged ZIP from R2 and reconstructs the typed preview before showing it. Product identity, source references, and dependency integrity remain server-controlled; publication still revalidates the bundle before writing canonical rows.
 4. Product Idea-link weights must be positive and sum to one. An atomic flashcard has exactly one Idea. A multi-Idea question carries an explicit relation and rationale per linked Idea instead of attaching every relation to the first Idea.
 5. Product Bundle never creates Zyx-original questions. Every question declares `itbSource.referenceId` and `itbSource.eventName`; the source must be present in ITB curation, allowed for authoring, and label-matched against the database. Curation dimensions still cover difficulty, format, terminology, and reasoning pattern.
 6. Every Diktat declares its source Article ID, version, and generation hash. The bundle must include the matching Article dependency so the Diktat cannot silently drift from its Article.
-7. Product Bundle lifecycle is only `draft -> published -> withdrawn`. Explicit save stores a draft. A draft can be replaced with the same bundle ID, deleted, or published directly by an admin. Published bundles cannot be overwritten. Withdrawal keeps canonical and audit history while removing the products from active publication state.
+7. Product Bundle lifecycle is only `draft -> published -> withdrawn`. Explicit save stores a draft. Article block status and notes are stored immediately outside the ZIP for the active reviewer. They become immutable after that reviewer submits a bundle decision. Pending blocks and blocks marked `changes_requested` produce an approval warning but do not block approval or publication. Restaging or discarding a draft removes the old block review markers. A draft can be replaced with the same bundle ID, deleted, or published directly by an admin. Published bundles cannot be overwritten. Withdrawal keeps canonical and audit history while removing the products from active publication state.
 8. Publication verifies current published Ideas, active source excerpts, identities, dependency freshness, and ITB source identity before one transaction writes products, links, dependencies, the legacy bank compatibility projection, canonical vector outbox entries, publication state, and mutation audit records. Question answer-key fields are removed from runtime and Vectorize content. Only articles, questions, and solutions request runtime vectors; flashcards, Diktat, and assessment blueprints do not create generic product vectors.
-9. The workflow is always-on; legacy importers remain available as a rollback path. Assessment Bundle upsert also preserves prior source versions when content changes.
+9. The workflow is always-on. Legacy material, Diktat, and assessment-source CRUD is retired. Existing legacy rows remain available to compatibility readers, but new authoring must use Source Pack, Idea Bundle, Product Bundle, and the canonical Bank Soal flow.
+
+### Student canonical content
+
+1. `/dashboard`, `/courses`, course detail, search, material lists, mastery, Concept Explorer, study path, flashcards, leaderboard course selection, and profile enrollment read `mata_kuliah`, `bab`, `pendaftaran_murid`, and published Product Bundle tables first.
+2. Published Article and Diktat content is visible immediately after publication. Structured Article section progress uses `kemajuan_baca_artikel`; canonical flashcard scheduling uses `kemajuan_flashcard_murid` and append-only `review_flashcard` rows.
+3. Article, Diktat, flashcard, and canonical assessment activity records attributable Idea evidence and updates `pemahaman_ide`. Student mastery and study paths use published Ideas and active Idea relations first.
+4. Quiz and tryout templates, attempt snapshots, submissions, original PDFs, and historical generated materials remain compatibility readers. Their course identity is resolved through `legacyCourseId`, so they do not replace or duplicate a canonical course.
+5. The old `/murid` preview route redirects to `/dashboard`; there is one primary student experience.
 
 ### Question origin and citation
 
@@ -159,6 +169,8 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 5. Admin previews expose block-level Idea and source traceability plus stable quality-gate reason codes. The material quality gate is always applied during review and publication.
 
 ### Website Material Generation
+The standalone Admin material editor is retired. Existing website material remains readable for compatibility, while new material is published through Product Bundle.
+
 1. All KOs for a chapter are collected in order
 2. Gemini compiles them into canonical markdown with custom containers (`:::concept`, `:::formula`, `:::misconception`)
 3. Custom compiler parses markdown → AST → interactive web page
@@ -169,6 +181,16 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - SM-2 algorithm schedules reviews with recall grades 1;4
 - Ease factor adjusts card difficulty dynamically
 - Safety floor recovery prevents forgetting after long intervals
+- The student queue contains only new or due cards. Canonical cards are ranked by the weakest linked published Idea, unseen state, oldest due date, then stable card ID. Cards at Idea mastery 80 or higher are suppressed, while cards without a valid Idea remain at the end as a compatibility fallback.
+- `Lewati` rotates a card to the session tail without writing a review or mastery evidence. Recall grade `Ulangi` writes the normal review, then appends the card to the session tail. Every other grade advances directly to the next card or completion state.
+
+### Student course learning surfaces
+
+- The Documents page uses one reusable search control, one grouped multi-select filter, and one grid or list toggle. Filters use OR within a group and AND across groups. Grid items are minimal file tiles with a contained page thumbnail or structured fallback, never an embedded PDF viewer.
+- Manual PDF uploads and completed Diktat rendering rasterize page one through `PDFParse.getScreenshot()`, encode it as WebP through `sharp`, and store it with the course thumbnail key builder. Thumbnail failure does not block the document row or file access. Backfill is an explicit dry-run or guarded apply operation.
+- The study path is a deterministic, chapter-grouped roadmap. It exposes one recommended next step, short priority reasons, mastery progress, contextual material, flashcard, and quiz actions, collapsed mastered steps, locked steps after active work, and an optional daily accordion plan.
+- Quiz access filters live in the compact page header. Tryout attempt limits remain enforced without a separate explanatory banner.
+- Daily Trivia fails closed. A question must belong to the active course, be active, published, current, tagged `trivia`, structurally valid multiple choice, and anchored to a course Knowledge Object or published canonical Idea. When no eligible question exists, no automatic popup or manual trigger is rendered.
 
 ### AI Tutor (RAG)
 - Three-tier grounded pipeline: KV cache → vector search → Gemini
@@ -194,17 +216,13 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Generated questions persisted with `qualityScore: null` (unverified) until independent verification
 
 ### Diktat PDF Compilation
-- Teacher selects chapters
-- System fetches KOs, formats into JSON config
-- HTML rendered with KaTeX math
-- Puppeteer compiles to A4 PDF, uploaded to R2
+- The standalone Admin Diktat compiler is retired.
+- New Diktat is authored from an approved Article inside Product Bundle, reviewed at `/admin/materials/review`, and published through the canonical bundle lifecycle.
 
 ### Bundle Import Pipeline
-- Split JSON format: Learning Bundle (chapters, KOs, flashcards) + Assessment Bundle (exams)
-- Learning Bundle imported first to create course/chapter shell
-- Assessment Bundle references chapters by title (not $id)
-- Incremental re-import with upsert/append/create modes
-- Post-processing: concept mapping, vector sync, assessment profile recompute
+- Legacy Learning Bundle and Assessment Bundle Admin importers are retired.
+- Direct server-action calls fail closed with a retirement message.
+- Source Pack, Idea Bundle, and Product Bundle are the supported authoring pipeline.
 
 ### PKA Tutorial Campaign
 - Free multi-stage simulation for incoming freshmen
@@ -304,10 +322,11 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - The renderer uses semantic tokens and keyboard-operable native controls. Arbitrary model-generated JavaScript, HTML, SVG, or unrestricted Mermaid is rejected.
 - The harness renders exactly one interactive visual per answer: the validated `canvasSpec` emitted by the model through a structured channel. It never mines equations out of prose, so an answer without a structured spec has no canvas instead of a guessed plot. Tutor prompts no longer request `:::graph`, `:::chart`, or `:::flowchart` markdown blocks; legacy persisted answers with those blocks still render for backward compatibility.
 - Function and data plots use custom SVG surfaces with labeled adaptive axes, grid lines, hover crosshair tooltips, visible zero crossings, local expression editing, and coefficient controls. Plots are directly manipulable: drag pans the view, scroll wheel or pinch zooms around the pointer, double-click or Reset tampilan restores the fitted view, and axis labels keep precision at deep zoom levels. Common Gemini notation such as `y = 2x²` is normalized before semantic validation and rendering. Evaluator syntax is separately formatted as readable mathematical notation, so `a*x^2 + b*x + c` is presented as `ax² + bx + c`. Invalid expressions produce a visible recovery message.
-- The murid drawer can be resized by dragging its left handle (mouse or touch, width persisted, keyboard arrows supported) up to the viewport, or expanded with a dedicated button or double-click on the handle. Each current Zyra answer offers short follow-up actions that adapt to the answer: when Zyra ends with a comprehension-check question the chips become Socratic scaffolds (first-step hint, slower guidance, full worked discussion); otherwise they stay generic accelerators for an example, a comprehension check, or another representation. The drawer header shows the human-readable course title instead of the internal slug. The composer keeps a compact footprint and opens an on-demand tabbed math input palette (Populer, Trig & Log, Kalkulus, Relasi & Himpunan, Yunani) that inserts symbols at the caret, plus background scroll lock so only the drawer scrolls.
+- The murid panel is mounted only by the student layout. On desktop it is a flex sibling that reduces the content width, with a persisted width from 360 px to the lower of 720 px or 50 percent of the viewport. Mouse, touch, and keyboard resize share the same limits. On mobile it is a dismissible overlay with backdrop and body scroll lock. Closing with the button, backdrop, or Escape returns focus to the invoking control.
+- Each current Zyra answer offers short follow-up actions that adapt to the answer. When Zyra ends with a comprehension-check question the chips become Socratic scaffolds; otherwise they stay generic accelerators for an example, a comprehension check, or another representation. The compact header shows Zyra and the human-readable course title. AI messages use a flat conversation surface, while learner messages use a light bubble. The sticky composer retains attachments, math input, Learning Canvas, quota, Socratic mode, and assessment safety.
 - The `desmos` markdown block renders a local multi-expression graph editor at zero AI cost: each row accepts a bounded function of `x` or a named point such as `A = (1, 2)`, rows can be added or removed inline, points are drag-editable on the plot, the vertical domain auto-fits the content, and invalid rows are flagged without blocking valid ones.
-- Static Zyra entry points use one application-owned hexagonal `Z` mark across the sidebar, material selection, mistake feedback, and drawer fallback. The mark does not reuse the generic four-point sparkle associated with other AI products. Drawer sizing uses labeled `Perbesar` and `Kecilkan` controls on desktop.
-- When the pet capability is enabled, the course launcher becomes a draggable fox-like Zyra companion with ears, tail, paws, face, and state-specific expressions. Thinking, listening, uploading, explaining, checking, success, confusion, rest, and error are communicated through its eyes, mouth, status glyph, accessible label, and semantic color. A murid can place it within the viewport, click it to open chat, hide it, and restore it from a compact character control. Position and visibility persist in browser storage.
+- Static Zyra entry points use one application-owned hexagonal `Z` mark across material selection, mistake feedback, and panel fallback. The sidebar no longer duplicates the floating launcher.
+- When the pet capability is enabled, the course launcher becomes a draggable fox-like Zyra companion with ears, tail, paws, face, and state-specific expressions. Drag uses pointer capture and frame-based updates. On release it snaps to the nearest of four safe corners outside the sidebar, persists the anchor rather than raw coordinates, and recalculates after viewport changes. Click suppression prevents an accidental open after drag, and reduced motion disables the snap animation.
 - On a verified quiz-review route, Zyra receives a bounded page context containing the quiz title and question prompts. This supports requests such as summarizing the current quiz without exposing learner answers or caching attempt-specific context.
 
 ### Admin, Tutor, and Murid Workflows
@@ -443,6 +462,7 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
   - `/tutor/[courseId]`: Course-level dashboard summarizing teaching metrics, active groups, and recent quizzes, with quick-action links to quiz management, live console, grading, and participants.
   - `/tutor/[courseId]/participants`: Enrolled student roster and active study groups with member lists and deterministic representatives.
   - `/tutor/[courseId]/quizzes`: Full quiz template management (create, edit, delete, preview, toggle draft/published status) with creator attribution.
+  - `/tutor/[courseId]/quizzes/grading`: Pending quiz review queue. Tutors score essays from 0 to 100, add optional notes, and may override short-answer scores. Every question has equal weight in the final total.
   - `/tutor/[courseId]/quizzes/[templateId]/attempts`: Per-quiz attempt spreadsheet and answer inspection with CSV export.
   - `/tutor/[courseId]/live`: Real-time interactive quiz console for hosting live sessions.
   - `/tutor/[courseId]/grading`: Tryout essay grading queue for assigned courses. Essay attachments uploaded by students are stored under `exams/{examId}/attachments` in object storage and downloadable from the grading workspace; snapshots recorded before real uploads show the attachment as unavailable.
@@ -453,10 +473,12 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
   - Materials Authoring Disabled: Tutors cannot create, edit, or upload course materials. Accessing `/tutor/[courseId]/materials` redirects to `/tutor/[courseId]`, and server mutations throw `TUTOR_CAPABILITY_FORBIDDEN: MATERIALS_AUTHORING_DISABLED`.
   - Tryout Authoring Disabled: Tutors can only author quizzes (`daily`, `weekly`, `chapter`, `premium`). Attempting to author `simulation` or `tryout` categories throws `TUTOR_CAPABILITY_FORBIDDEN: SIMULATION_MUTATION_FORBIDDEN` or `TRYOUT_CATEGORY_FORBIDDEN`. Accessing `/tutor/[courseId]/tryouts` redirects to `/tutor/[courseId]`.
   - Tryout Essay Grading: Tutors can grade student essay submissions for tryouts in their assigned courses (`/tutor/[courseId]/grading`). Only reviewable statuses (`pending_review`, `late`, `graded`) can be graded. Submissions for non-assigned courses or non-tryout exams are forbidden. Grading updates score and teacher feedback notes with an optimistic concurrency check (`where(and(eq(id, submissionId), eq(status, currentStatus)))`).
+  - Quiz Essay Grading: Quiz submissions containing essays enter `pending` grading state and expose no final total or analytics to the student. Assigned tutors review canonical answer rows with revision-based optimistic concurrency. Completing every required essay changes the attempt to `graded`, recomputes the equal-weight total, and emits reviewed Idea evidence only where an exact published Idea mapping exists.
   - Creator Attribution: Quiz templates and questions track and display creator metadata (`creatorId`, `creatorName`, `creatorEmail`, `creatorRole`) joined from canonical `asesmen.creatorId` through `pengguna` to `user`.
 
 - Schedule Quotas, Refunds, and Notifications:
   - Exact 90-Minute Slots: Availability slots must span exactly 90 minutes. Start and end times are validated server-side.
+  - Calendar-First Availability: The tutor schedule opens in week view and also supports day and month views. Selecting a future calendar time creates a date-specific 90-minute slot; tutors may explicitly make it repeat weekly. Visual states distinguish available slots, booked sessions, and unavailable past or locked slots.
   - Group Eligibility & Representative Selection: Sessions are scheduled for active study groups enrolled in the course. Group representative is deterministically selected (leader first, earliest `joinedAt`, lexicographical `userId`, member record `id`).
   - Weekly Quota & Cancellation Refunds: Groups carry a weekly quota (`weekly_quota_sessions`, default 2). Usage is computed by counting booking rows in the target ISO week. Cancellations before the Saturday 23:59 WIB lock cut-off receive a durable `BOOKING_CANCELLED_QUOTA_REFUNDED` marker in `booking_audit_logs`, keeping the booking row for traceability while exempting it from weekly quota. Post-lock cancellations forfeit the quota without refund (hangus).
   - Notifications: Schedule bookings, cancellations, and status changes dispatch real-time multi-recipient notifications via `sendToMany`.
@@ -496,6 +518,14 @@ The tutor experience is housed in a dedicated, role-scoped shell (`app/(tutor)`)
 - `/admin/ops/feature-usage` is a tutor/admin read model that ranks student feature activity (materials, flashcards, self quizzes, assessments v2, live quizzes, Zyra chat) over a 7/30/90-day window selector.
 - It aggregates existing domain tables only (`student_material_progress`, `flashcard_reviews`, `student_quiz_attempts`, `percobaan_asesmen`, `live_quiz_results`, `tutor_chat_messages`/`chat_sessions`); it writes no new events. Unique active students are the union of distinct student ids across those sources.
 - The page lists measurement gaps explicitly: daily pop-up quiz stays in localStorage, Cmd+K search records no server events, and diktat download counts are cumulative only. Page traffic remains in Web Analytics; AI token usage remains in Analitik Zyra.
+
+## Structured Article authoring and reading
+
+`FEATURE_STRUCTURED_ARTICLE_READER_V1` enables coordinated Idea Bundle V3 and Product Bundle V3 authoring, submission, and review. Admin Idea review uses an Idea queue, safe editor, and source evidence. Product Article review uses a section queue, the same semantic renderer as students, provenance, dependency state, and per-section decisions. Published canonical content remains visible to students regardless of the authoring rollout flag.
+
+Students read one meaningful section at a time with stable slug links, chapter search, collapsible table of contents, reading estimates, semantic callouts, resume, completion progress, and titled previous or next navigation. Desktop limits prose to about 75 characters. Mobile controls use Sheets and occupy normal layout space. Search results show title and snippet, open the matching section, and apply a temporary visual highlight. The legacy reader remains a fallback only when no published canonical Article exists.
+
+A section completes at 90 percent read depth or when the reader proceeds from its end. Chapter progress is the count of completed sections divided by all sections. Student payloads never expose Idea IDs or internal provenance.
 
 ## Money & Quota Rules
 

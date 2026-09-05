@@ -1,44 +1,50 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { BookmarkCheck, ArrowRight, ArrowLeft } from "lucide-react";
 import { db } from "@/db";
 import { weeklyReflections } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { ShellPage } from "@/components/shell-page";
+import { PageHeader } from "@/components/page-header";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
+import { Button } from "@/components/ui/button";
+import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: pageTitle("Weekly Reflections"),
-  description: "Your weekly learning progress, completed activities, and mastery growth.",
+  title: pageTitle("Refleksi Mingguan"),
+  description: "Perkembangan belajar mingguan, aktivitas yang diselesaikan, dan pertumbuhan pemahaman materi Anda di Zyx Academy.",
 };
+
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+  "Jul", "Agu", "Sep", "Okt", "Nov", "Des"
+];
 
 function formatWeekLabel(weekStartStr: string): string {
   const parts = weekStartStr.split("-");
   if (parts.length !== 3) return weekStartStr;
-  
+
   const year = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10) - 1;
   const day = parseInt(parts[2], 10);
-  
-  // Use UTC to prevent local timezone offsets from shifting dates
+
   const monday = new Date(Date.UTC(year, month, day));
-  
   const sunday = new Date(monday);
   sunday.setUTCDate(monday.getUTCDate() + 6);
-  
-  const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", timeZone: "UTC" };
-  const monStr = monday.toLocaleDateString("en-US", options);
-  const sunStr = sunday.toLocaleDateString("en-US", options);
-  
-  return `${monStr} to ${sunStr}`;
+
+  const startStr = `${monday.getUTCDate()} ${MONTH_NAMES[monday.getUTCMonth()]}`;
+  const endStr = `${sunday.getUTCDate()} ${MONTH_NAMES[sunday.getUTCMonth()]} ${sunday.getUTCFullYear()}`;
+
+  return `${startStr} - ${endStr}`;
 }
 
 export default async function ReflectionsArchivePage() {
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
-  
+
   if (!session?.user) {
     redirect("/sign-in?next=/profile/reflections");
   }
@@ -52,40 +58,47 @@ export default async function ReflectionsArchivePage() {
   return (
     <div className="relative overflow-hidden min-h-screen">
       <PageOrnaments variant="about" />
-      <div className="relative z-10">
-        <ShellPage title="Weekly reflections">
-          <div className="max-w-3xl mx-auto pb-16">
+      <div className="relative z-10 w-full px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+        <PageHeader
+          title="Refleksi Mingguan"
+          icon={BookmarkCheck}
+          backHref="/profile"
+          backLabel="Profil"
+        />
+
+        <Reveal className="mt-6">
+          <div className="rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-xs">
             {reflections.length > 0 ? (
-              <div className="divide-y divide-border border-t border-border">
+              <div className="divide-y divide-border/60">
                 {reflections.map((ref) => {
                   const label = formatWeekLabel(ref.weekStart);
                   const { completed, masteryGrowth, streak } = ref.payload;
-                  
+
                   return (
-                    <div key={ref.id} className="py-4 flex items-center justify-between gap-4">
+                    <div key={ref.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
                       <div className="min-w-0 flex-1">
-                        <span className="text-body-sm font-medium text-foreground">
-                          {label}
+                        <span className="text-body-sm font-semibold text-foreground">
+                          Minggu {label}
                         </span>
-                        <div className="flex flex-wrap gap-x-6 gap-y-0.5 text-body-sm text-muted-foreground mt-1">
-                          <span>{completed.quizzes} quizzes</span>
-                          <span>{completed.flashcards} flashcards</span>
-                          <span>{completed.modules} modules</span>
-                          <span>{streak.currentStreak} day streak</span>
+                        <div className="flex flex-wrap gap-x-5 gap-y-1 text-body-xs text-muted-foreground mt-1.5">
+                          <span>{completed.quizzes} kuis</span>
+                          <span>{completed.flashcards} flashcard</span>
+                          <span>{completed.modules} materi</span>
+                          <span>Streak {streak.currentStreak} hari</span>
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
                         {masteryGrowth > 0 ? (
-                          <span className="font-heading text-h6 font-bold text-status-success">
+                          <span className="font-heading text-body-base font-bold text-status-success">
                             +{masteryGrowth}
                           </span>
                         ) : (
-                          <span className="font-heading text-h6 font-bold text-muted-foreground">
+                          <span className="font-heading text-body-base font-bold text-muted-foreground">
                             {masteryGrowth}
                           </span>
                         )}
                         <span className="block text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-0.5">
-                          Mastery
+                          Penguasaan
                         </span>
                       </div>
                     </div>
@@ -94,13 +107,27 @@ export default async function ReflectionsArchivePage() {
               </div>
             ) : (
               <div className="py-12 text-center">
-                <p className="text-body-sm text-muted-foreground">
-                  Reflections appear after your first active week.
+                <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+                  <BookmarkCheck className="size-6" />
+                </div>
+                <h3 className="font-heading text-body-base font-bold text-foreground">
+                  Belum ada catatan refleksi mingguan
+                </h3>
+                <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
+                  Ringkasan refleksi mingguan akan otomatis disusun setelah minggu belajar aktif pertama Anda selesai.
                 </p>
+                <div className="mt-5">
+                  <Button asChild size="sm" className="rounded-lg text-body-sm">
+                    <Link href="/dashboard">
+                      Mulai Belajar di Dashboard
+                      <ArrowRight className="ml-1.5 size-3.5" />
+                    </Link>
+                  </Button>
+                </div>
               </div>
             )}
           </div>
-        </ShellPage>
+        </Reveal>
       </div>
     </div>
   );

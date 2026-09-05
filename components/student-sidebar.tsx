@@ -27,11 +27,9 @@ import {
   Bell,
 } from "lucide-react";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
-import { useTutor } from "@/components/course/tutor-drawer";
 import { useSession } from "@/lib/auth-client";
 import { getStudentEnrollments, getCourseAction } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
-import { ZyraMark } from "@/components/course/zyra-mark";
 import { SidebarShell, NavItem } from "@/components/sidebar-shell";
 import { StreakCalendarStrip } from "@/components/dashboard/streak-calendar-strip";
 import { SidebarTooltip } from "@/components/sidebar-shell";
@@ -52,7 +50,6 @@ export function StudentSidebar({
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
-  const { openChat } = useTutor();
   const courseIdFromPath = pathname.startsWith("/courses/")
     ? pathname.split("/")[2]
     : undefined;
@@ -183,13 +180,13 @@ export function StudentSidebar({
                   ]
                 : [
                     { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
-                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar", badge: "Beta" }] : []),
+                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
                     { href: `${base}/material`, icon: FileText, label: "Dokumen" },
                     { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
                     { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
                     { href: `${base}/tryout`, icon: GraduationCap, label: "Tryout" },
                     ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung", badge: "Beta" }] : []),
-                    ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan", badge: "Beta" }] : []),
+                    ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan" }] : []),
                     { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
                     { href: `${base}/my-results`, icon: History, label: "Hasil Ujian" },
                   ];
@@ -207,23 +204,6 @@ export function StudentSidebar({
               ));
             })()}
           </div>
-
-          <div className="h-px bg-border/50 my-3 shrink-0 w-full" />
-
-          <SidebarTooltip label="Tanya Zyra" collapsed={c}>
-            <button
-              type="button"
-              onClick={openChat}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-semibold transition-colors cursor-pointer",
-                "bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20",
-                c && "justify-center size-10 px-0 mx-auto"
-              )}
-            >
-              <ZyraMark className="size-5" />
-              {!c && <span>Tanya Zyra</span>}
-            </button>
-          </SidebarTooltip>
 
           <div className="flex-1" />
         </nav>
@@ -294,20 +274,20 @@ export function StudentSidebar({
                 }
               }}
               className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-body-sm font-medium transition-colors cursor-pointer",
+                "group/item relative flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] font-medium transition-colors cursor-pointer",
                 pathname.startsWith("/courses")
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 c && "justify-center size-10 px-0 mx-auto"
               )}
             >
-              <BookOpen className="size-5 shrink-0" />
+              <BookOpen className="size-4 shrink-0" />
               {!c && (
                 <>
-                  <span className="flex-1 text-left">Courses</span>
+                  <span className="truncate whitespace-nowrap flex-1 text-left min-w-0">Courses</span>
                   {coursesOpen
-                    ? <ChevronDown className="size-4" />
-                    : <ChevronRight className="size-4" />}
+                    ? <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
+                    : <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform" />}
                 </>
               )}
             </button>
@@ -324,7 +304,7 @@ export function StudentSidebar({
                     key={course.id}
                     href={`/courses/${course.id}`}
                     className={cn(
-                      "block truncate rounded-lg px-3 py-1.5 text-body-xs font-medium transition-colors",
+                      "block truncate rounded-lg px-2.5 py-1.5 text-body-xs font-medium transition-colors",
                       active
                         ? "bg-brand-primary/8 text-brand-primary font-semibold"
                         : "text-muted-foreground hover:text-foreground"
@@ -337,12 +317,12 @@ export function StudentSidebar({
               <Link
                 href="/courses"
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-body-xs font-semibold text-brand-secondary hover:underline",
-                  pathname === "/courses" && "underline"
+                  "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-body-xs font-medium text-brand-secondary hover:underline transition-colors",
+                  pathname === "/courses" && "font-semibold underline"
                 )}
               >
-                <Search className="size-3 shrink-0" />
-                Jelajahi Course
+                <Search className="size-3.5 shrink-0" />
+                <span>Jelajahi Course</span>
               </Link>
             </div>
           )}

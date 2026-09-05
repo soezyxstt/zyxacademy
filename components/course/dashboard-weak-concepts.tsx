@@ -3,6 +3,7 @@
 import * as React from "react";
 import { TrendingUp, TrendingDown, Minus, Lock, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 
 interface MasteryConcept {
@@ -16,6 +17,8 @@ interface MasteryConcept {
 interface DashboardWeakConceptsProps {
   concepts: MasteryConcept[];
   courseTitle?: string;
+  className?: string;
+  showHeader?: boolean;
 }
 
 function barTone(score: number) {
@@ -25,24 +28,31 @@ function barTone(score: number) {
 }
 
 function TrendIcon({ trend }: { trend?: "improving" | "stable" | "declining" | null }) {
-  if (trend === "improving") return <TrendingUp className="size-3.5 text-status-success" />;
-  if (trend === "declining") return <TrendingDown className="size-3.5 text-status-error" />;
-  return <Minus className="size-3.5 text-muted-foreground" />;
+  if (trend === "improving") return <TrendingUp className="size-3.5 text-status-success shrink-0" />;
+  if (trend === "declining") return <TrendingDown className="size-3.5 text-status-error shrink-0" />;
+  return <Minus className="size-3.5 text-muted-foreground shrink-0" />;
 }
 
-export function DashboardWeakConcepts({ concepts, courseTitle = "Kuliah" }: DashboardWeakConceptsProps) {
+export function DashboardWeakConcepts({
+  concepts,
+  courseTitle = "Kuliah",
+  className,
+  showHeader = true,
+}: DashboardWeakConceptsProps) {
   // Show top 4 concepts sorted by learning order (or simply the slice of first 4 concepts)
   const displayConcepts = concepts.slice(0, 4);
 
   return (
-    <section className="border-b border-border/70 pb-6 text-left">
+    <div className={cn("text-left", className)}>
       {/* Clean Accessible Header */}
-      <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
-        <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
-          <Target className="size-5 text-brand-primary" />
-          Peta Penguasaan ({courseTitle})
-        </h2>
-      </div>
+      {showHeader && (
+        <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+          <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+            <Target className="size-4.5 text-brand-primary" />
+            Peta penguasaan ({courseTitle})
+          </h2>
+        </div>
+      )}
 
       {displayConcepts.length === 0 ? (
         <div className="space-y-4 py-2 text-left">
@@ -81,13 +91,13 @@ export function DashboardWeakConcepts({ concepts, courseTitle = "Kuliah" }: Dash
               style={{ animationDelay: `${index * 50}ms` }}
             >
               {/* Concept name + trend icon + score */}
-              <div className="flex items-center justify-between text-body-sm">
-                <span className="flex items-center gap-1.5 font-medium text-foreground truncate max-w-[80%]">
-                  {c.conceptName}
+              <div className="flex items-start justify-between gap-2 text-body-sm">
+                <span className="flex items-center gap-1.5 font-medium text-foreground line-clamp-2 max-w-[85%] leading-snug">
+                  <MathText as="span">{c.conceptName}</MathText>
                   <TrendIcon trend={c.trend} />
                 </span>
-                <span className="font-mono text-body-xs font-semibold text-muted-foreground">
-                  {c.masteryScore}
+                <span className="font-mono text-body-xs font-semibold text-muted-foreground shrink-0 mt-0.5">
+                  {c.masteryScore}%
                 </span>
               </div>
 
@@ -103,7 +113,7 @@ export function DashboardWeakConcepts({ concepts, courseTitle = "Kuliah" }: Dash
                 <div className="mt-0.5">
                   <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px] rounded-md py-0.5">
                     <Lock className="size-3" />
-                    butuh {c.blockedBy[0]}
+                    Prasyarat: <MathText as="span">{c.blockedBy[0]}</MathText>
                   </Badge>
                 </div>
               )}
@@ -115,6 +125,6 @@ export function DashboardWeakConcepts({ concepts, courseTitle = "Kuliah" }: Dash
           </p>
         </div>
       )}
-    </section>
+    </div>
   );
 }

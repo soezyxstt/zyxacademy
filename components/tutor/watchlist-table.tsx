@@ -24,9 +24,9 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
       <table className="w-full text-body-sm">
         <thead>
           <tr className="border-b border-border text-left text-muted-foreground text-body-xs font-semibold">
-            <th className="pb-2 pr-4 font-medium">Siswa</th>
-            <th className="pb-2 pr-4 font-medium">Konsep menurun</th>
-            <th className="pb-2 font-medium whitespace-nowrap">Terakhir aktif</th>
+            <th className="px-4 py-2.5 font-medium">Siswa</th>
+            <th className="px-4 py-2.5 font-medium">Konsep menurun</th>
+            <th className="px-4 py-2.5 font-medium whitespace-nowrap">Terakhir aktif</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -40,11 +40,11 @@ export function WatchlistTable({ students }: { students: WatchlistStudent[] }) {
 
             return (
               <tr key={s.studentId}>
-                <td className="py-2.5 pr-4 font-medium text-foreground">{s.name}</td>
-                <td className="py-2.5 pr-4 text-muted-foreground max-w-xs truncate">
+                <td className="px-4 py-2.5 font-medium text-foreground">{s.name}</td>
+                <td className="px-4 py-2.5 text-muted-foreground max-w-xs truncate">
                   {conceptLabel}
                 </td>
-                <td className="py-2.5 whitespace-nowrap text-muted-foreground">
+                <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground">
                   {relativeTime(s.lastActiveAt)}
                 </td>
               </tr>

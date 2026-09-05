@@ -24,7 +24,7 @@ function makeArticle(): ArticleDocument {
     reviewerState: "approved",
     applicability: { status: "applicable" },
   }));
-  return { id: "article-1", courseId: "course-1", title: "Article", version: 3, generationHash: checksum, ideaIds: ["idea-1"], blocks, reviewerState: "approved" };
+  return { id: "article-1", courseId: "course-1", title: "Article", version: 3, generationHash: checksum, ideaIds: ["idea-1"], blocks, sections: [], reviewerState: "approved" };
 }
 
 describe("Diktat compression contract", () => {

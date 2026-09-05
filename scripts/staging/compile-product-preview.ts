@@ -133,6 +133,7 @@ function buildCanonicalProduct(courseId: string, rows: CanonicalRow[]): Extract<
     slug: `preview-${courseId}`,
     title: `Canonical preview for ${courseId}`,
     blocks,
+    sections: [],
   };
 }
 

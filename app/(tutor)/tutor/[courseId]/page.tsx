@@ -12,6 +12,7 @@ import {
 import { AnalyticsClient } from "@/components/tutor/analytics-client";
 import { Reveal } from "@/components/ui/reveal";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { Button } from "@/components/ui/button";
 import { pageTitle } from "@/lib/site";
 import { ZyraProposalPanel } from "@/components/zyra/zyra-proposal-panel";
@@ -91,7 +92,7 @@ export default async function TutorCoursePage({ params }: Props) {
   const updatedAt = snapshotRow?.updatedAt.toISOString() ?? null;
 
   return (
-    <div className="px-6 py-8 max-w-3xl space-y-10">
+    <ApplicationPage spacing="space-y-10">
       {/* Section 1: headline stats */}
       <Reveal>
         <section aria-labelledby="course-title">
@@ -159,6 +160,6 @@ export default async function TutorCoursePage({ params }: Props) {
         updatedAt={updatedAt}
       />
       <ZyraProposalPanel courseId={legacyCourseId} role="tutor" />
-    </div>
+    </ApplicationPage>
   );
 }

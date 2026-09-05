@@ -18,7 +18,7 @@ export function StreakTag({ current }: StreakTagProps) {
         )}
       />
       <span className="text-body-sm font-semibold tabular-nums text-foreground">
-        {hasStreak ? `${current} days` : "Start today"}
+        {hasStreak ? `${current} hari` : "Mulai hari ini"}
       </span>
     </div>
   );

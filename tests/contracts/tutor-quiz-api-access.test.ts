@@ -246,6 +246,7 @@ async function setupTables() {
       template_id TEXT NOT NULL,
       student_id TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'completed',
+      grading_status TEXT NOT NULL DEFAULT 'not_required',
       score REAL,
       duration_seconds INTEGER,
       answers_snapshot TEXT,

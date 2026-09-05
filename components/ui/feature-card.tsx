@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 export const featureCardVariants = cva("interactive rounded-2xl border", {
   variants: {
     variant: {
-      default: "bg-card border-border text-card-foreground",
-      dark: "bg-foreground/30 border-border/40 text-background",
+      default: "bg-card/70 border-border/70 backdrop-blur-md text-card-foreground shadow-xs",
+      dark: "bg-foreground/30 border-border/40 backdrop-blur-md text-background shadow-xs",
     },
     size: {
       sm: "p-3",

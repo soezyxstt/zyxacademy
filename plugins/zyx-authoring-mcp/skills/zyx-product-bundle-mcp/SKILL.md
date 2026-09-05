@@ -1,6 +1,6 @@
 ---
 name: zyx-product-bundle-mcp
-description: Menghasilkan Product Bundle V2 draft dengan Artikel mini e-book yang lengkap, Diktat review 2 sampai 4 halaman, dan produk belajar lain yang siap dibaca mahasiswa tanpa kebocoran ID internal. Gunakan saat membuat Product Bundle dari Source Pack dan Idea published. Jangan gunakan untuk membuat Source Pack atau Idea Bundle.
+description: Menghasilkan Product Bundle V3 draft dengan Artikel terstruktur per subtopik, Diktat review, dan produk belajar lain yang siap dibaca mahasiswa tanpa kebocoran ID internal. Gunakan saat membuat Product Bundle dari Source Pack dan Idea published. Jangan gunakan untuk membuat Source Pack atau Idea Bundle.
 ---
 
 # Zyx Product Bundle MCP
@@ -9,7 +9,7 @@ Gunakan skill ini sebagai instruction layer untuk MCP. MCP adalah enforcement la
 
 ## Hasil yang wajib dicapai
 
-- **Artikel** adalah mini e-book mandiri dan sumber bacaan lengkap untuk memahami satu bab. Artikel menjelaskan seluruh konsep penting secara runtut, tetap fokus, dan memuat intuisi, definisi, formula, use case, analogi yang membantu, worked example, masalah penting, miskonsepsi, serta latihan retrieval.
+- **Artikel** adalah dokumen terstruktur per subtopik. Chapter memiliki overview, topic yang mengikuti learning section, summary, dan pemeriksaan akhir. Setiap topic dapat dibaca dalam satu layar reader tanpa kehilangan konteks bab.
 - **Diktat** adalah bahan review cepat, bukan Artikel kedua. Targetkan 2 sampai 4 halaman render, sekitar 1.200 sampai 1.600 kata Bahasa Indonesia yang padat, berisi intisari konsep, formula, prosedur, contoh kilat, jebakan, dan cek ingatan.
 - Semua teks yang dilihat mahasiswa memakai nama konsep manusiawi seperti `Kinematika Benda Tegar`. ID seperti `IDEA-001` hanya boleh berada pada field metadata, provenance, dependency, dan atribusi block yang tidak dirender.
 
@@ -24,15 +24,15 @@ Gunakan skill ini sebagai instruction layer untuk MCP. MCP adalah enforcement la
 
 1. Kunci course, chapter, Source Pack checksum, Idea version, semantic hash, source references, dan allowed ITB reference.
 2. Buat peta kerja `ideaId -> nama konsep mahasiswa`. Ambil nama dari canonical statement atau intisari Idea, ringkas menjadi frasa konseptual yang alami, dan jangan menyalin kode Idea ke teks siswa.
-3. Tulis Artikel terlebih dahulu sesuai struktur dan budget pada editorial guide. Artikel harus dapat dipahami tanpa membuka Source Pack, tetapi setiap klaim faktual tetap berasal dari source dan Idea yang terkunci.
-4. Audit Artikel per Idea. Pastikan setiap Idea mendapat penjelasan bermakna, seluruh block type wajib tersedia, dan block multi-Idea memiliki atribusi metadata eksplisit tanpa menampilkan ID pada prosa.
+3. Tulis Artikel V3 terlebih dahulu sesuai learning outline dan budget pada editorial guide. Gunakan `sections[]` dan `blocks[].contentMarkdown`; jangan menyisipkan metadata JSON ke Markdown.
+4. Audit Artikel per topic. Pastikan semua Idea tercakup, setiap topic memiliki tujuan, penjelasan inti, cek pemahaman, dan provenance. Tambahkan formula, contoh, analogi, visual, penerapan, atau miskonsepsi hanya ketika membantu konsep.
 5. Turunkan Diktat hanya setelah Artikel lengkap. Kompres, jangan menambah fakta baru. Pertahankan seluruh Idea, formula penting, kondisi penggunaan, source trace, minimal dua contoh kilat, dua jebakan, dua retrieval check, dan satu visual ringkas.
 6. Buat flashcard atomic. Front, back, dan explanation memakai istilah konseptual, bukan kode pipeline.
 7. Untuk question Product, salin hanya soal ITB yang benar-benar ada pada Source Pack. Gunakan `itbSource.referenceId` dan event label exact dari allowed context. Jangan membuat soal original Zyx, mengubah angka, atau mengganti benchmark ID dengan reference ID. Prompt, opsi, dan solusi tidak boleh menampilkan ID internal.
 8. Buat solusi terpisah untuk setiap question dan blueprint hanya untuk question dalam bundle.
 9. Jalankan preflight editorial pada editorial guide. Jika ada ID internal pada learner-facing text, Artikel dangkal, Diktat terasa seperti Artikel kedua, formula rusak, atau isi tidak didukung source, berhenti dan revisi sebelum memanggil MCP.
 10. Package hanya `manifest.json`, `entities/products.json`, dan `entities/dependencies.json`. Semua entry harus mode `0644`; jangan masukkan script, state, laporan, binary, symlink, archive bersarang, atau file tambahan.
-11. Panggil `authoring.validate_product_bundle`. Periksa technical issues, publication blocking dependency, published Idea scope, chapter scope, Article quality, Diktat quality, depth, examples, analogies, visuals, retrievals, traps, formulas, dan Idea coverage.
+11. Panggil `authoring.validate_product_bundle`. Periksa technical issues, publication blocking dependency, published Idea scope, chapter scope, quality per section, batas 1.500 kata per topic, Diktat quality, formula, dan Idea coverage.
 12. Revisi sampai `valid: true` tanpa issue blocking dan ulangi preflight editorial. Panggil `authoring.submit_product_bundle` hanya jika kedua gate hijau. MCP menyimpan draft untuk review dan tidak dapat publish.
 
 ## Siklus hidup dan pemeliharaan
@@ -46,7 +46,7 @@ Gunakan skill ini sebagai instruction layer untuk MCP. MCP adalah enforcement la
 
 ## Ambang konten
 
-Artikel harus memenuhi strict Article compiler dan budget terhitung pada editorial guide. Jangan memenuhi angka dengan filler, pengulangan definisi, contoh semu, atau visual label kosong. Diktat harus memiliki Idea set yang sama dengan Artikel dan target 1.200 sampai 1.600 kata. Jika minimum dari MCP lebih tinggi dari 1.600 kata karena jumlah Idea atau panjang Artikel, patuhi minimum MCP, tetap gunakan format padat, dan laporkan bahwa target 2 sampai 4 halaman berisiko terlampaui.
+Artikel harus memenuhi compiler semantik dan gate per topic pada editorial guide. Jangan memenuhi angka dengan filler, pengulangan definisi, contoh semu, atau visual label kosong. Topic yang singkat tetapi tuntas menghasilkan warning, bukan alasan memperpanjang teks. Diktat harus memiliki Idea set yang sama dengan Artikel dan tetap menjadi review ringkas.
 
 ## Aturan keamanan dan provenance
 

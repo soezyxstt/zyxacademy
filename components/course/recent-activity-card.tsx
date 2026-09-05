@@ -85,7 +85,7 @@ export function RecentActivityCard({
       </h3>
       
       {!isEmpty ? (
-        <div className="divide-y divide-border animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="divide-y divide-border zebra-no-rows animate-in fade-in slide-in-from-bottom-2 duration-300">
           {data.map((activity) => (
             <div key={activity.id} className="py-3.5 flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 min-w-0">

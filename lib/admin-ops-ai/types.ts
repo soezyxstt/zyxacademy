@@ -46,6 +46,7 @@ export interface OpsAiContextPayload {
     id?: string;
     title?: string;
   };
+  mode?: "ask" | "edit";
 }
 
 export interface OpsAiChatRequest {
@@ -56,3 +57,33 @@ export interface OpsAiChatRequest {
   context?: OpsAiContextPayload;
 }
 
+// ============================================================================
+// Ops AI v2 Contract and Type Exports
+// ============================================================================
+
+export type {
+  OpsAiProvenanceSource,
+  OpsAiCitationAvailability,
+  OpsAiCitation,
+  OpsAiStepStatus,
+  OpsAiStepType,
+  OpsAiWorkStep,
+  OpsAiActionProposalType as OpsAiActionProposalTypeV2,
+  OpsAiProposalStatus,
+  OpsAiPreconditionSnapshot,
+  OpsAiProposalPreview,
+  OpsAiActionProposalV2,
+  OpsAiErrorCode,
+  OpsAiErrorData,
+  OpsAiMessageMetadata,
+  OpsAiNotificationData,
+  OpsAiDataTypes,
+  OpsAiUITools,
+  OpsAiUIMessage,
+  OpsAiToolClass,
+  OpsAiToolSecurityClassification,
+  OpsAiThreatCategory,
+  OpsAiThreatDefense,
+  OpsAiCancellationReason,
+  OpsAiUserSearchProjection,
+} from "./contracts";

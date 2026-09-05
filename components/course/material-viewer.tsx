@@ -51,7 +51,7 @@ import { getYoutubeEmbedUrl } from "@/lib/youtube";
 import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { updateMaterialProgress } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
-import { MarkdownRenderer } from "@/components/course/markdown-renderer";
+import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
 import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { ZyraMark } from "@/components/course/zyra-mark";
@@ -1265,50 +1265,13 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
           data-theme={theme}
           className="flex-1 bg-background text-foreground transition-colors duration-300 w-full overflow-y-auto"
         >
-          <div className="max-w-2xl mx-auto px-6 py-8">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground mb-1 select-none font-medium">
-              <span>{course?.title ?? "Course"}</span>
-              <span>&rarr;</span>
-              <span>{chapterTitle || "Bab"}</span>
-              <span>&rarr;</span>
-              <span className="text-foreground font-semibold">{articleSections[activeSectionIdx]?.title || "Detail"}</span>
-            </div>
-
-            {/* Chapter Title */}
-            <h1 className="text-h5 font-bold text-primary font-heading tracking-tight mt-1 mb-2">
-              {chapterTitle}
-            </h1>
-
-            {/* Concept tags row */}
-            <div className="flex flex-wrap gap-1.5 mb-4 mt-2">
-              {conceptTags.map((tag) => (
-                <span key={tag} className="bg-primary/5 text-primary text-[10px] font-semibold px-2 py-0.5 rounded-md">
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            <hr className="border-border/80 my-4" />
-
-            {articleSections.length > 0 ? (
-              <>
-                {/* Section heading below divider */}
-                <h2 className="font-heading text-body-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  {articleSections[activeSectionIdx]?.title}
-                </h2>
-
-                {/* Section content */}
-                <div className="w-full">
-                  <MarkdownRenderer content={articleSections[activeSectionIdx]?.content || ""} />
-                </div>
-              </>
-            ) : (
-              <div className="w-full">
-                <MarkdownRenderer content={material.body} />
-              </div>
-            )}
-          </div>
+          <ArticleReadingCanvas
+            content={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.content || "") : (material.body || "")}
+            courseTitle={course?.title ?? "Course"}
+            chapterTitle={chapterTitle}
+            sectionTitle={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.title || "Detail") : undefined}
+            conceptTags={conceptTags}
+          />
         </div>
 
         {/* Pinned Bottom Navigation */}
@@ -1450,7 +1413,7 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    Integrated Viewer (Mock)
+                    Mode Interaktif
                   </button>
                 )}
                 <button
@@ -1463,17 +1426,30 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  Chrome Viewer
+                  Mode Dokumen
                 </button>
               </div>
 
-              {material.url && (
-                <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
-                  <a href={openUrl} target="_blank" rel="noopener noreferrer">
-                    Buka Berkas Asli
-                  </a>
-                </Button>
-              )}
+              <div className="flex items-center gap-1.5">
+                {material.url && (
+                  <>
+                    <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
+                      <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                        <Download className="mr-1 size-3" aria-hidden />
+                        <span className="hidden sm:inline">Unduh PDF</span>
+                        <span className="sm:hidden">Unduh</span>
+                      </a>
+                    </Button>
+                    <Button asChild variant="outline" size="xs" className="rounded-md text-[10px] font-semibold h-7">
+                      <a href={openUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-1 size-3" aria-hidden />
+                        <span className="hidden sm:inline">Buka Berkas Asli</span>
+                        <span className="sm:hidden">Buka</span>
+                      </a>
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             {viewerType === "custom" ? (
@@ -2039,25 +2015,17 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
 
               </div>
             ) : (
-              <div className="flex-1 min-h-0 w-full flex flex-col p-4 bg-background">
-                {/* Chrome Native Browser PDF Viewer (iframe fallback) */}
-                <p className="text-body-sm text-muted-foreground mb-3 shrink-0">
-                  Pratinjau PDF bawaan browser di bawah ini. Gunakan tombol unduh jika tidak termuat.
+              <div className="flex-1 min-h-0 w-full flex flex-col p-2 sm:p-4 bg-background">
+                {/* Native Browser PDF Viewer (iframe fallback) */}
+                <p className="hidden sm:block text-body-xs text-muted-foreground mb-2 shrink-0">
+                  Pratinjau PDF bawaan browser di bawah ini. Gunakan tombol unduh atau buka berkas jika pratinjau tidak termuat.
                 </p>
-                <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-2xl relative shadow-md">
+                <div className="flex-1 w-full overflow-hidden border border-border bg-[#333] dark:bg-black-3 rounded-xl sm:rounded-2xl relative shadow-md">
                   <iframe
                     title={material.title}
                     src={material.url}
                     className="w-full h-full border-0"
                   />
-                </div>
-                <div className="mt-4 shrink-0">
-                  <Button asChild variant="outline">
-                    <a href={material.url} download target="_blank" rel="noopener noreferrer">
-                      <Download className="mr-2 size-4" aria-hidden />
-                      Unduh Dokumen PDF
-                    </a>
-                  </Button>
                 </div>
               </div>
             )}

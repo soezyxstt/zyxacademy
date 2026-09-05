@@ -36,7 +36,7 @@ export default async function CourseTryoutListPage({ params }: Props) {
   const dbTryouts = await db
     .select()
     .from(exams)
-    .where(and(eq(exams.courseId, id), eq(exams.type, "tryout"), eq(exams.status, "published")));
+    .where(and(eq(exams.courseId, course.legacyId ?? id), eq(exams.type, "tryout"), eq(exams.status, "published")));
 
   const mappedDb = dbTryouts.map((t) => {
     const settings = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;

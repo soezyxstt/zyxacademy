@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
-import { studentQuizAttempts, quizTemplates, courses } from "@/db/schema";
+import { studentQuizAttempts, quizTemplates } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { QuizAnalyticsView } from "@/components/course/quiz-analytics-view";
 import { ArrowLeft, BookOpen, ChevronRight } from "lucide-react";
+import { getCourse } from "@/lib/course-utils";
 
 type Props = {
   params: Promise<{ id: string; quizId: string; attemptId: string }>;
@@ -37,11 +38,7 @@ export default async function QuizSummaryPage({ params }: Props) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) notFound();
 
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   if (!course) notFound();
 
@@ -80,12 +77,19 @@ export default async function QuizSummaryPage({ params }: Props) {
       <Reveal>
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-border/60">
-            <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground">
-              <Link href={`/courses/${id}/quiz/${quizId}?attemptId=${attemptId}`}>
-                <ArrowLeft className="mr-1.5 size-4" />
-                Lihat Pembahasan Jawaban
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline" size="sm" className="rounded-md border-border/80 text-muted-foreground hover:text-foreground">
+                <Link href={`/courses/${id}/quiz/${quizId}?attemptId=${attemptId}`}>
+                  <ArrowLeft className="mr-1.5 size-4" />
+                  Lihat Pembahasan Soal
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm" className="rounded-md text-body-xs text-muted-foreground hover:text-foreground">
+                <Link href={`/courses/${id}/my-results`}>
+                  Riwayat Ujian
+                </Link>
+              </Button>
+            </div>
 
             <div className="flex items-center gap-2">
               <Button asChild variant="secondary" size="sm" className="rounded-md">
@@ -97,7 +101,23 @@ export default async function QuizSummaryPage({ params }: Props) {
             </div>
           </div>
 
-          <QuizAnalyticsView attemptId={attemptId} courseId={id} />
+          {attempt.gradingStatus === "pending" ? (
+            <div className="rounded-xl border border-border bg-card p-6 text-center space-y-4">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <BookOpen className="size-6" />
+              </div>
+              <div className="space-y-1 max-w-md mx-auto">
+                <h3 className="font-heading text-body-base font-bold text-foreground">
+                  Menunggu penilaian
+                </h3>
+                <p className="text-body-sm text-muted-foreground">
+                  Jawaban esai Anda telah tersimpan dan sedang menunggu penilaian dari tutor. Nilai akhir dan diagnosis lengkap akan ditampilkan setelah proses koreksi selesai.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <QuizAnalyticsView attemptId={attemptId} courseId={course.legacyId ?? id} />
+          )}
         </div>
       </Reveal>
     </CoursePageShell>

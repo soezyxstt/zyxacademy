@@ -325,11 +325,13 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 * `id`, `code`, `title`, `status`
 * `legacyCourseId`: Optional compatibility reference to `courses.id`.
 * `createdAt`, `updatedAt`
+* Admin course create and update mirror `courses` and `mata_kuliah` transactionally. Admin delete removes the legacy projection and archives the canonical row.
 
 ### bab
 * `id`, `mataKuliahId`, `code`, `title`, `orderIndex`, `status`
 * `legacyChapterId`: Optional compatibility reference to `chapters.id`.
 * `(mataKuliahId, code)` and `(mataKuliahId, orderIndex)` are unique.
+* Admin chapter create, update, and reorder mirror `chapters` and `bab` transactionally. Admin delete removes the legacy projection, moves the canonical row out of the active order range, and archives it.
 
 ### pendaftaranMurid
 * `id`, `penggunaId`, `mataKuliahId`, `status`
@@ -339,6 +341,7 @@ Plan 003 adds these tables without changing legacy courses, chapters, enrollment
 ### penugasanTutor
 * `id`, `penggunaId`, `mataKuliahId`, `status`, `assignmentScope`
 * `legacyTutorCourseId`: Optional compatibility reference to `tutor_courses.id`.
+* Replacing tutor course certifications revokes the previous canonical course assignments, replaces `tutor_courses`, and reactivates the selected `penugasan_tutor` rows in one transaction.
 
 ### sumberMateri
 * `id`, `mataKuliahId`, optional `babId`, `sourceType`, `title`
@@ -395,18 +398,33 @@ Canonical published products share a common shape: versioned rows with `status` 
 
 ### artikel
 * `id`, `mataKuliahId`, optional `babId`
-* `slug`, `title`, `contentMarkdown`, `version`, `status`
+* `slug`, `title`, `contentMarkdown`, `structureStatus`, `version`, `status`
 * `sourceHash`, `generationHash`
 * `creatorId`, optional `curatorId`, `publishedAt`, `createdAt`, `updatedAt`
+* `structureStatus` is `legacy_unreviewed`, `structured`, or `needs_reauthoring`. Structured content keeps deterministic Markdown for compatibility and indexing.
 
 ### artikel_ide
 * `id`, `artikelId`, `ideId`, `weight` (default 1)
 * Article-to-Idea coverage links used by quality gates.
 
 ### blok_artikel
-* `id`, `artikelId`, `blockKey`, `blockType`, `orderIndex`, `content`
+* `id`, `artikelId`, optional `bagianArtikelId`, `blockKey`, `blockType`, optional `title`, `orderIndex`, `content`
 * `version`, `generationHash`, `status`, `createdAt`, `updatedAt`
 * Ordered typed blocks compiled through the article quality contract.
+
+### bagian_pembelajaran and bagian_pembelajaran_ide
+* Learning outline rows store stable hierarchy, title, slug, order, objective, course, chapter, version, and publication status.
+* Membership rows connect every Idea to one primary learning section and optional supporting sections.
+
+### bagian_artikel
+* Versioned Article section rows store kind, optional learning section, optional parent, title, slug, objective, order, reading estimate, and status.
+* Unique Article slug and order constraints preserve stable navigation.
+
+### blok_artikel_ide and blok_artikel_sumber
+* Junctions preserve block to Idea and block to exact source provenance without embedding metadata in Markdown.
+
+### kemajuan_baca_artikel
+* One row per user, Article, Article version, and section stores maximum read percent, elapsed seconds, last read time, and optional completion time.
 
 ### diktat_materi
 * `id`, `mataKuliahId`, optional `babId`
@@ -512,6 +530,7 @@ Per-item answer with grading state.
 * `id`, `percobaanAsesmenId`, `itemAsesmenId`
 * Snapshots: optional `renderedQuestionSnapshot`, required `optionOrderSnapshot`, optional `responseSnapshot` and `gradingPolicySnapshot`, `contentVersion`.
 * Optional `score`; `status` default `ungraded`; `answeredAt`.
+* Manual review fields: optional `reviewerId`, `reviewNotes`, and `reviewedAt`; `reviewRevision` defaults to zero and supports optimistic concurrency.
 
 Quiz and tryout cardinality is enforced by the assessment contract: a quiz has exactly one chapter and a tryout has at least one chapter. Foreign keys and unique indexes protect assessment item and answer membership.
 
@@ -619,6 +638,14 @@ Internal review evidence; one immutable decision per reviewer, never a separate 
 * `id`, `imporBundleId`, `reviewerId`
 * `status` (default `pending`), optional `notes`, optional `reviewedAt`, `createdAt`
 
+### review_item_bundle
+Persistent Product Bundle item review state for one reviewer. This metadata stays outside the Product Bundle ZIP.
+* `id`, `imporBundleId`, `reviewerId`, optional legacy `productId` and `blockId`, `targetType`, `targetId`
+* `status` is `pending`, `approved`, or `changes_requested`; optional `notes`, `createdAt`, `updatedAt`
+* Unique target is import, reviewer, target type, and target ID.
+* Import deletion cascades to item reviews. Reviewer deletion is restricted.
+* Admin draft edit preserves unchanged section rows and resets changed section rows. A bundle decision makes the same reviewer's rows immutable at the service boundary.
+
 ### publikasi_bundle
 Publication record created or refreshed at atomic publication.
 * `id`, `imporBundleId`, `approvedReviewId`, `version`
@@ -627,9 +654,13 @@ Publication record created or refreshed at atomic publication.
 
 Plan 006 uses these tables as a staged workflow. Uploads do not write canonical source or Idea rows. Publication updates staged item status and the approved bundle in one transaction with canonical source, chunk, Idea, provenance, relation, audit, and vector outbox writes.
 
-Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Draft replacement rewrites only the import inventory and R2 artifact before publication. Publication inserts canonical article, diktat, question, solution, flashcard, and assessment blueprint rows after traceability and dependency checks pass. Withdrawal marks canonical rows inactive or retired according to their existing table contract and adds vector delete jobs. Question products are exclusively ITB examples and require `itbSource`, ITB curation, typed option IDs with deterministic correct markers, exactly one paired solution, and a HOT cognitive level for multi-Idea questions. Correct markers remain inside the private `soal.options_snapshot` grading representation and are redacted from runtime and vector content. Versions greater than one use versioned product IDs so prior rows remain queryable.
+Plan 008 reuses the same import, item, review, publication, audit, dependency, and vector outbox tables for Product Bundle V2. Migration `0081_numerous_gwen_stacy.sql` adds `review_item_bundle` as advisory staged review metadata with no backfill. Existing drafts therefore begin with every Article block effectively pending. Draft replacement rewrites the import inventory and R2 artifact and clears block review rows before publication. Publication inserts canonical article, diktat, question, solution, flashcard, and assessment blueprint rows after traceability and dependency checks pass. Withdrawal marks canonical rows inactive or retired according to their existing table contract and adds vector delete jobs. Question products are exclusively ITB examples and require `itbSource`, ITB curation, typed option IDs with deterministic correct markers, exactly one paired solution, and a HOT cognitive level for multi-Idea questions. Correct markers remain inside the private `soal.options_snapshot` grading representation and are redacted from runtime and vector content. Versions greater than one use versioned product IDs so prior rows remain queryable.
+
+Migrations `0082_structured_article_expand.sql` and `0083_structured_article_review_targets.sql` add structured learning and Article tables, progress, generic review targets, and compatibility columns. V3 publication stores semantic rows and derived Markdown transactionally. V3 publication requires section approval from the same admin who approved the bundle.
 
 Migration `0068_typical_warbird.sql` adds `origin`, `source_event_name`, and `source_reference_id` to both `soal` and `ai_question_bank`, with `zyx_original` as the non-null default and an origin plus event index on each table. Existing rows therefore remain Zyx originals without a data rewrite. Product publication validates ITB completeness before writing and creates the `ai_question_bank` compatibility projection. Product Bundle source and curation data are retained in the publication audit snapshot, while `soal_itb_referensi.soal_id` links the single source reference to its published question. Article to Diktat lineage is validated through bundle dependency rows and generation hashes. Live legacy quiz submissions use the existing `item_asesmen`, `jawaban_murid`, and `bukti_ide_jawaban` tables to append canonical evidence only after exact published-question and published-Idea checks pass.
+
+Migration `0085_melodic_korvac.sql` adds `student_quiz_attempts.grading_status` with `not_required` as the compatibility-safe default and an index by template and grading state. It also adds reviewer identity, notes, timestamp, and revision fields to `jawaban_murid` for tutor quiz review.
 
 ### Plan 005 migration tables
 
@@ -662,6 +693,8 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 ## 6. Assessment & Ingestion Domain
 
 ### assessmentSources
+Existing rows remain available to compatibility readers. Admin create, re-ingest, archive, restore, and delete endpoints are retired; new source-backed questions enter through Product Bundle and canonical Bank Soal.
+
 * `id`
 * `courseId`
 * `title`
@@ -753,6 +786,8 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 ## 7. Published Assets & Materials
 
 ### websiteMaterials
+Existing rows remain available to student and compatibility readers. The standalone Admin material CRUD is retired; new Articles are published through Product Bundle.
+
 * `id`
 * `courseId`
 * `chapterId`
@@ -795,6 +830,8 @@ Plan 005 populated the additive targets where the mapping was exact and recorded
 * `updatedAt`
 
 ### diktats
+Existing rows remain available to compatibility readers. The standalone Admin compiler CRUD is retired; new Diktat records are published through Product Bundle.
+
 * `id`
 * `courseId`
 * `sourceMtdId`
@@ -1454,6 +1491,8 @@ Structured mutation-audit envelope written by every guarded canonical transition
 * Unique index: `idx_submissions_user_exam_attempt` on `(userId, examId, attemptNumber)`.
 
 ### aiMaterialInstances
+These tables are read-only compatibility data. The Admin `material-instances` CRUD and retry endpoint return HTTP 410 after authorization.
+
 * `id`
 * `courseId`
 * `status`

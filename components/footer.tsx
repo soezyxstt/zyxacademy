@@ -52,13 +52,13 @@ export function Footer() {
             <h3 className="font-heading text-body-sm font-semibold tracking-tight text-foreground">Legal</h3>
             <ul className="mt-4 space-y-3">
               <li>
-                <Link href="#" className="interactive text-body-sm text-muted-foreground transition-colors hover:text-foreground">
+                <Link href="/privacy" className="interactive text-body-sm text-muted-foreground transition-colors hover:text-foreground">
                   Kebijakan privasi
                 </Link>
               </li>
               <li>
-                <Link href="#" className="interactive text-body-sm text-muted-foreground transition-colors hover:text-foreground">
-                  Syarat layanan
+                <Link href="/terms" className="interactive text-body-sm text-muted-foreground transition-colors hover:text-foreground">
+                  Syarat dan ketentuan
                 </Link>
               </li>
             </ul>

@@ -6,6 +6,7 @@ import { verifyTutorAccess } from "@/app/actions/tutor-management";
 import { checkCourseMatch } from "@/lib/tutor/assessment-policy";
 import { QuizAttemptsSpreadsheet } from "@/app/(admin)/admin/(eval)/quiz-insights/[id]/_components/quiz-attempts-spreadsheet";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { FileSpreadsheet } from "lucide-react";
@@ -61,7 +62,7 @@ export default async function TutorQuizAttemptsPage({ params }: Props) {
   const courseTitle = mk?.title ?? legacyCourse?.title ?? courseId;
 
   return (
-    <div className="px-6 py-8 max-w-7xl mx-auto space-y-6 font-sans">
+    <ApplicationPage>
       <Reveal>
         <PageHeader
           icon={FileSpreadsheet}
@@ -74,6 +75,6 @@ export default async function TutorQuizAttemptsPage({ params }: Props) {
       <Reveal>
         <QuizAttemptsSpreadsheet templateId={templateId} quizTitle={template.title} />
       </Reveal>
-    </div>
+    </ApplicationPage>
   );
 }

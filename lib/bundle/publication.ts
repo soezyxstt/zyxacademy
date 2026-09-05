@@ -5,6 +5,8 @@ import {
   asalIde,
   auditMutasi,
   bab,
+  bagianPembelajaran,
+  bagianPembelajaranIde,
   concepts,
   courses,
   ide,
@@ -25,6 +27,7 @@ import { parseIdeaBundle, serializeDeterministically, type ValidatedIdeaBundle }
 import { sha256Text } from "@/lib/bundle/validator";
 import { readSecureZip } from "@/lib/bundle/zip-reader";
 import { resolveBundleIdentity } from "@/lib/bundle/attribution";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 export type IdeaBundlePublicationResult = {
   publicationId: string;
@@ -37,11 +40,12 @@ export type IdeaBundlePublicationResult = {
     ideas: number;
     provenance: number;
     relations: number;
+    learningSections: number;
   };
   vectorJobCount: number;
 };
 
-type FailureInjection = "source_materials" | "source_chunks" | "ideas" | "provenance" | "relations" | "outbox";
+type FailureInjection = "source_materials" | "source_chunks" | "ideas" | "provenance" | "relations" | "learning_sections" | "outbox";
 
 function ensureFeatureEnabled(): void {}
 
@@ -151,6 +155,7 @@ export async function publishIdeaBundle(input: {
         ideas: 0,
         provenance: 0,
         relations: 0,
+        learningSections: 0,
       },
       vectorJobCount: 0,
     };
@@ -167,7 +172,8 @@ export async function publishIdeaBundle(input: {
     if (course.length === 0 || course[0].legacyCourseId !== bundle.manifest.courseId) throw new Error("IDEA_BUNDLE_COURSE_MISMATCH");
   }
 
-  return db.transaction(async (tx) => {
+  let courseLegacyId: string | undefined;
+  const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
     if (!row || row.bundleType !== "idea") throw new Error("IDEA_BUNDLE_NOT_FOUND");
     if (row.status === "published") throw new Error("IDEA_BUNDLE_ALREADY_PUBLISHED");
@@ -190,6 +196,7 @@ export async function publishIdeaBundle(input: {
     if (!approvedReview) throw new Error("IDEA_BUNDLE_ADMIN_APPROVAL_REQUIRED");
 
     const course = await resolveCourse(tx, bundle.manifest.courseId);
+    courseLegacyId = course.legacyId;
     const now = new Date();
     const attribution = { uploaderId: row.requestedBy, approvingReviewerId: approvedReview.reviewerId };
     const publicationId = deterministicId("publikasi-idea", input.importId);
@@ -319,6 +326,56 @@ export async function publishIdeaBundle(input: {
     }
     maybeInjectFailure(input.testFailureAfter, "relations");
 
+    const pendingSections = new Map(bundle.entities.learningSections.map((section) => [section.id, section]));
+    const insertedSectionIds = new Set<string>();
+    while (pendingSections.size > 0) {
+      let insertedInPass = 0;
+      for (const section of pendingSections.values()) {
+        if (section.parentSectionId && !insertedSectionIds.has(section.parentSectionId)) continue;
+        const targetChapterId = await resolveChapter(tx, section.chapterId, course.targetId);
+        if (!targetChapterId) throw new Error(`IDEA_BUNDLE_LEARNING_SECTION_CHAPTER_REQUIRED:${section.id}`);
+        const sectionPayload = {
+          id: section.id,
+          mataKuliahId: course.targetId,
+          babId: targetChapterId,
+          stableKey: section.stableKey,
+          parentSectionId: section.parentSectionId ?? null,
+          title: section.title,
+          slug: section.slug,
+          orderIndex: section.orderIndex,
+          learningObjective: section.learningObjective,
+          sourceChunkIds: section.sourceChunkIds,
+          version: 1,
+          status: "published" as const,
+        };
+        const [existing] = await tx.select().from(bagianPembelajaran).where(eq(bagianPembelajaran.id, section.id)).limit(1);
+        if (!assertEqualFields(existing as Record<string, unknown> | undefined, sectionPayload, "IDEA_BUNDLE_LEARNING_SECTION_CONFLICT")) {
+          await tx.insert(bagianPembelajaran).values(sectionPayload);
+        }
+        for (const ideaId of section.primaryIdeaIds) {
+          await tx.insert(bagianPembelajaranIde).values({
+            id: deterministicId("bagian-ide", `${section.id}:${ideaId}`),
+            bagianPembelajaranId: section.id,
+            ideId: ideaId,
+            role: "primary",
+          }).onConflictDoNothing();
+        }
+        for (const ideaId of section.supportingIdeaIds) {
+          await tx.insert(bagianPembelajaranIde).values({
+            id: deterministicId("bagian-ide", `${section.id}:${ideaId}`),
+            bagianPembelajaranId: section.id,
+            ideId: ideaId,
+            role: "supporting",
+          }).onConflictDoNothing();
+        }
+        pendingSections.delete(section.id);
+        insertedSectionIds.add(section.id);
+        insertedInPass++;
+      }
+      if (insertedInPass === 0) throw new Error("IDEA_BUNDLE_LEARNING_SECTION_PARENT_UNRESOLVED");
+    }
+    maybeInjectFailure(input.testFailureAfter, "learning_sections");
+
     const sourceMaterialById = new Map(bundle.entities.sourceMaterials.map((source) => [source.id, source]));
     const vectorJobs = [
       ...bundle.entities.sourceChunks
@@ -409,10 +466,15 @@ export async function publishIdeaBundle(input: {
         ideas: bundle.entities.ideas.length,
         provenance: bundle.entities.provenance.length,
         relations: bundle.entities.relations.length,
+        learningSections: bundle.entities.learningSections.length,
       },
       vectorJobCount: vectorJobs.length,
     };
   });
+  if (courseLegacyId) {
+    dispatchVectorSync(courseLegacyId);
+  }
+  return result;
 }
 
 export async function reconcilePublishedIdeaBundle(importId: string) {

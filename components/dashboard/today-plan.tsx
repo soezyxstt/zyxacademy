@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Layers, ListChecks, BookOpen, Check, ArrowRight } from "lucide-react";
+import { Layers, ListChecks, BookOpen, Check, ArrowRight, CalendarCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StreakTag } from "@/components/dashboard/streak-tag";
 import { PageHeader } from "@/components/page-header";
+import { studentCardClass } from "@/components/course/course-surfaces";
 import { cn } from "@/lib/utils";
 
 interface PlanItem {
@@ -79,20 +80,21 @@ export function TodayPlan({ firstName }: { firstName: string }) {
 
       {/* Region 2: Today's plan */}
       {total > 0 && (
-        <section className="mt-8 border-y border-border bg-background/35 px-4 py-5 md:px-5">
+        <section className={studentCardClass("mt-6")}>
           <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
-            <h2 className="font-heading text-body-base font-bold text-foreground">
-              Rencana Belajar Hari Ini
+            <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+              <CalendarCheck className="size-4.5 text-brand-primary" />
+              Rencana belajar hari ini
             </h2>
             {!loading && (
-              <span className="text-body-xs font-semibold bg-muted px-2.5 py-1 rounded-md text-muted-foreground">
+              <span className="text-body-xs font-semibold bg-brand-primary/10 text-brand-primary px-2.5 py-1 rounded-md">
                 {doneCount} dari {total} selesai
               </span>
             )}
           </div>
 
           {loading ? (
-            <div className="divide-y divide-border/30">
+            <div className="divide-y divide-border/30 zebra-no-rows">
               {[1, 2].map((i) => (
                 <div key={i} className="py-3.5 flex items-center gap-4">
                   <div className="size-5 rounded-full bg-muted animate-pulse shrink-0" />
@@ -105,7 +107,7 @@ export function TodayPlan({ firstName }: { firstName: string }) {
               <p className="text-body-sm font-semibold">Semua target hari ini telah tercapai.</p>
             </div>
           ) : (
-            <ul className="divide-y divide-border/30">
+            <ul className="divide-y divide-border/30 zebra-no-rows">
               {data!.items.map((item, index) => {
                 const Icon = KIND_ICON[item.kind];
                 return (

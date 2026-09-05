@@ -17,6 +17,7 @@ import { randomUUID, createHash } from "crypto";
 import { dualWriteMaterialPublication } from "@/lib/migrasi/repository-kompatibilitas";
 import { articleDocumentSchema } from "@/lib/materials/article-contract";
 import { evaluateArticleQuality, QualityGateResult } from "@/lib/materials/quality-gates";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 // ─── UTILITY: CALCULATE GENERATION HASH ──────────────────────────────────────
 
@@ -528,6 +529,8 @@ export async function approveAndPublish(
       });
     }
   });
+
+  dispatchVectorSync(material.courseId);
 
   // E5: rebuild the concept-graph rollup for this course (deterministic, no AI).
   await buildConceptGraph(material.courseId).catch((err) => {

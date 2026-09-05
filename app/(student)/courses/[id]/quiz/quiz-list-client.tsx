@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Lock, CheckCircle2, AlertCircle } from "lucide-react";
+import { ChevronRight, Lock, CheckCircle2, AlertCircle, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FormattedDate } from "@/components/ui/formatted-date";
 import { cn } from "@/lib/utils";
 import type { quizTemplates, studentQuizAttempts } from "@/db/schema";
 
@@ -17,60 +17,11 @@ type QuizListClientProps = {
   attempts: AttemptType[];
 };
 
-const filterOptions = [
-  { value: "all", label: "Semua" },
-  { value: "free", label: "Gratis" },
-  { value: "premium", label: "Premium" },
-] as const;
-
 export function QuizListClient({ courseId, isEnrolled, templates, attempts }: QuizListClientProps) {
-  const [filter, setFilter] = useState<"all" | "free" | "premium">("all");
-  
-  const filteredTemplates = templates.filter((template) => {
-    const isFree = template.visibility === "free";
-    if (filter === "free") return isFree;
-    if (filter === "premium") return !isFree;
-    return true;
-  });
-
-  const counts = {
-    all: templates.length,
-    free: templates.filter((t) => t.visibility === "free").length,
-    premium: templates.filter((t) => t.visibility === "paid").length,
-  };
-
   return (
-    <div className="space-y-4 font-sans">
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-card/70 p-3 backdrop-blur-sm">
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
-          {filterOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setFilter(option.value)}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-body-sm font-semibold transition-colors cursor-pointer",
-                filter === option.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-border hover:text-foreground",
-              )}
-            >
-              <span>{option.label}</span>
-              <span
-                className={cn(
-                  "text-body-xs",
-                  filter === option.value ? "text-primary-foreground/80" : "text-muted-foreground",
-                )}
-              >
-                {counts[option.value]}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
+    <div className="font-sans">
       <ul className="overflow-hidden rounded-lg border border-border/70 bg-card/75 backdrop-blur-sm">
-        {filteredTemplates.map((template) => {
+        {templates.map((template) => {
           const isFree = template.visibility === "free";
           const accessible = isEnrolled || isFree;
 
@@ -239,16 +190,20 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
                       {isUpcoming && openDate && (
                         <span className="inline-flex items-center gap-1 text-status-warning font-medium">
                           <AlertCircle className="size-3.5" />
-                          Akan dibuka: {openDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                          Akan dibuka: <FormattedDate date={openDate} options={{ dateStyle: "medium", timeStyle: "short" }} />
                         </span>
                       )}
 
                       {isClosed && (
                         <span className="inline-flex items-center gap-1 text-status-error font-medium">
                           <AlertCircle className="size-3.5" />
-                          {closeDate
-                            ? `Telah ditutup: ${closeDate.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`
-                            : "Telah ditutup"}
+                          {closeDate ? (
+                            <>
+                              Telah ditutup: <FormattedDate date={closeDate} options={{ dateStyle: "medium", timeStyle: "short" }} />
+                            </>
+                          ) : (
+                            "Telah ditutup"
+                          )}
                         </span>
                       )}
                     </div>
@@ -274,9 +229,17 @@ export function QuizListClient({ courseId, isEnrolled, templates, attempts }: Qu
         })}
       </ul>
 
-      {filteredTemplates.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-muted/15 py-10 text-center">
-          <p className="text-body-sm text-muted-foreground">Tidak ada kuis yang cocok.</p>
+      {templates.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 sm:p-10 text-center">
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+            <ClipboardList className="size-6" />
+          </div>
+          <h3 className="font-heading text-body-base font-bold text-foreground">
+            Tidak ada kuis yang sesuai
+          </h3>
+          <p className="mx-auto mt-1 max-w-md text-body-sm text-muted-foreground">
+            Belum ada paket kuis yang cocok dengan kategori filter saat ini.
+          </p>
         </div>
       ) : null}
     </div>

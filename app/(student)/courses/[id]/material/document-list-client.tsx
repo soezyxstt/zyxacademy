@@ -1,43 +1,36 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Archive,
   BookOpen,
   CheckCircle2,
   ChevronRight,
+  ClipboardList,
+  ExternalLink,
   FileCode,
+  FileText,
+  Filter,
+  GraduationCap,
   LayoutGrid,
   List,
-  Search,
+  MoreVertical,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Dialog as DialogNs } from "radix-ui";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SearchBar } from "@/components/ui/search-bar";
+import { cn } from "@/lib/utils";
 import type { CourseMaterial, DocCategory } from "@/lib/student-course-fixtures";
-import {
-  getSubcategoryLabel,
-  MATERI_SUBCATEGORIES,
-  SOAL_SUBCATEGORIES,
-  type CourseMaterialSubcategory,
-} from "@/lib/course-materials";
+import { getSubcategoryLabel, type CourseMaterialSubcategory } from "@/lib/course-materials";
+import { materialMatchesDocumentFilters, type DocumentFilterState } from "@/lib/document-filters";
 
-type Chapter = {
-  id: string;
-  title: string;
-  orderIndex: number;
-};
+type Chapter = { id: string; title: string; orderIndex: number };
+type TabKey = "materi" | "diktat" | "pdf" | "bank_soal";
 
 type DocumentListClientProps = {
   courseId: string;
@@ -45,377 +38,562 @@ type DocumentListClientProps = {
   chapters: Chapter[];
 };
 
+const tabConfig: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
+  { key: "materi", label: "Materi", icon: FileText },
+  { key: "diktat", label: "Diktat", icon: BookOpen },
+  { key: "pdf", label: "PDF", icon: FileText },
+  { key: "bank_soal", label: "Bank Soal", icon: ClipboardList },
+];
+
 const categoryLabel: Record<string, string> = {
   materi: "Materi",
   soal: "Soal",
-  solusi: "Pembahasan Soal",
+  solusi: "Pembahasan",
   diktat: "Diktat",
 };
 
-const categories = ["all", "materi", "soal", "solusi", "diktat"] as const;
+const emptyFilters = (): DocumentFilterState => ({
+  categories: new Set(),
+  subcategories: new Set(),
+  chapters: new Set(),
+  years: new Set(),
+});
 
-const getCategoryStyle = (category?: DocCategory) => {
-  switch (category) {
-    case "soal":
-      return {
-        icon: FileCode,
-        badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20",
-        label: "Soal",
-        stamp: "SOAL",
-      };
-    case "solusi":
-      return {
-        icon: CheckCircle2,
-        badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20",
-        label: "Pembahasan Soal",
-        stamp: "SOLUSI",
-      };
-    case "diktat":
-      return {
-        icon: Archive,
-        badgeClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-1 ring-rose-500/20",
-        label: "Diktat",
-        stamp: "PDF DIKTAT",
-      };
-    default:
-      return {
-        icon: BookOpen,
-        badgeClass: "bg-sky-500/10 text-sky-600 dark:text-sky-400 ring-1 ring-sky-500/20",
-        label: "Materi",
-        stamp: "MATERI",
-      };
+function resolveTabGroup(material: CourseMaterial): TabKey {
+  if (material.tabGroup) return material.tabGroup;
+  if (material.docCategory === "diktat") return "diktat";
+  if (
+    material.docCategory === "soal" ||
+    material.docCategory === "solusi" ||
+    material.kind === "quiz" ||
+    material.kind === "tryout"
+  ) {
+    return "bank_soal";
   }
-};
+  if (material.kind === "pdf") return "pdf";
+  return "materi";
+}
 
-function DocumentThumbnailPreview({ material }: { material: CourseMaterial }) {
-  const [imageError, setImageError] = useState(false);
-  const [pdfFrameError, setPdfFrameError] = useState(false);
-  const config = getCategoryStyle(material.docCategory);
-  const cleanSnippet = material.body
-    ? material.body
-        .replace(/^#+\s+[^\n]+/gm, "")
-        .replace(/[*_`#~\[\]]/g, "")
-        .trim()
-    : null;
+function DocumentHeaderIcon({
+  kind,
+  docCategory,
+  subcategory,
+}: {
+  kind?: string;
+  docCategory?: DocCategory;
+  subcategory?: string | null;
+}) {
+  if (kind === "quiz" || subcategory === "kuis") {
+    return <ClipboardList className="size-4 shrink-0 text-amber-500" aria-hidden />;
+  }
+  if (kind === "tryout" || subcategory === "tryout") {
+    return <GraduationCap className="size-4 shrink-0 text-purple-500" aria-hidden />;
+  }
+  if (docCategory === "solusi") {
+    return <CheckCircle2 className="size-4 shrink-0 text-emerald-500" aria-hidden />;
+  }
+  if (docCategory === "soal") {
+    return <FileCode className="size-4 shrink-0 text-amber-500" aria-hidden />;
+  }
+  if (docCategory === "diktat") {
+    return <BookOpen className="size-4 shrink-0 text-indigo-500" aria-hidden />;
+  }
+  if (kind === "pdf") {
+    return <FileText className="size-4 shrink-0 text-[#ea4335]" aria-hidden />;
+  }
+  return <FileText className="size-4 shrink-0 text-blue-500" aria-hidden />;
+}
 
-  const showImage = Boolean(material.thumbnailUrl) && !imageError;
-  const showPdfFrame = !showImage && material.kind === "pdf" && Boolean(material.url) && !pdfFrameError;
+function DocumentPlaceholder({
+  kind,
+  docCategory,
+  subcategory,
+  isLoading,
+}: {
+  kind?: string;
+  docCategory?: DocCategory;
+  subcategory?: string | null;
+  isLoading?: boolean;
+}) {
+  let badgeText = "DOC";
+  let badgeColor = "bg-blue-500";
+
+  if (kind === "quiz" || subcategory === "kuis") {
+    badgeText = "KUIS";
+    badgeColor = "bg-amber-500";
+  } else if (kind === "tryout" || subcategory === "tryout") {
+    badgeText = "TRYOUT";
+    badgeColor = "bg-purple-600";
+  } else if (docCategory === "solusi") {
+    badgeText = "SOLUSI";
+    badgeColor = "bg-emerald-500";
+  } else if (docCategory === "soal") {
+    badgeText = "SOAL";
+    badgeColor = "bg-amber-500";
+  } else if (docCategory === "diktat") {
+    badgeText = "DIKTAT";
+    badgeColor = "bg-indigo-500";
+  } else if (kind === "pdf") {
+    badgeText = "PDF";
+    badgeColor = "bg-[#ea4335]";
+  }
 
   return (
-    <div className="relative h-36 w-full bg-muted/40 dark:bg-muted/20 flex items-center justify-center p-3 overflow-hidden border-y border-border/50 select-none group-hover:bg-muted/60 transition-colors">
-      <div className="w-full h-full max-w-[200px] bg-background dark:bg-card rounded-sm border border-border/70 shadow-2xs overflow-hidden group-hover:scale-[1.02] transition-transform duration-200 relative flex flex-col justify-between p-2.5">
-        {showImage ? (
-          <div className="relative w-full h-full">
-            <Image
-              src={material.thumbnailUrl!}
-              alt={material.title}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="object-cover object-top rounded-xs"
-              onError={() => setImageError(true)}
-            />
-          </div>
-        ) : showPdfFrame ? (
-          <div className="relative w-full h-full overflow-hidden bg-white dark:bg-zinc-950 rounded-xs pointer-events-none select-none">
-            <iframe
-              src={`${material.url}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-              title={material.title}
-              className="w-[300%] h-[300%] origin-top-left scale-[0.333] border-0 absolute top-0 left-0 pointer-events-none select-none"
-              tabIndex={-1}
-              loading="lazy"
-              onError={() => setPdfFrameError(true)}
-            />
-          </div>
-        ) : (
-          <>
-            {/* Top mini header on sheet */}
-            <div className="flex items-center justify-between gap-1 border-b border-border/40 pb-1">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider truncate">
-                {config.stamp}
-              </span>
-              <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
-                {material.kind === "pdf" ? "PDF" : "DOC"}
-              </span>
-            </div>
-
-            {/* Middle content preview */}
-            <div className="my-auto py-1 space-y-1.5 overflow-hidden">
-              {cleanSnippet ? (
-                <p className="text-[10px] leading-relaxed text-muted-foreground line-clamp-3 font-sans break-words">
-                  {cleanSnippet}
-                </p>
-              ) : material.docCategory === "soal" ? (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-1 py-0.5 rounded-md">Q1</span>
-                    <div className="h-1.5 bg-muted rounded-xs w-4/5" />
-                  </div>
-                  <div className="space-y-1 pl-2">
-                    <div className="h-1 bg-muted/70 rounded-xs w-3/4" />
-                    <div className="h-1 bg-muted/70 rounded-xs w-2/3" />
-                    <div className="h-1 bg-muted/70 rounded-xs w-4/5" />
-                  </div>
-                </div>
-              ) : material.docCategory === "solusi" ? (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 px-1 py-0.5 rounded-md">SOLUSI</span>
-                    <div className="h-1.5 bg-muted rounded-xs w-2/3" />
-                  </div>
-                  <div className="space-y-1 pl-2">
-                    <div className="h-1 bg-muted/70 rounded-xs w-4/5" />
-                    <div className="h-1 bg-muted/70 rounded-xs w-3/5" />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <div className="h-2 bg-muted rounded-xs w-3/4" />
-                  <div className="h-1 bg-muted/70 rounded-xs w-full" />
-                  <div className="h-1 bg-muted/70 rounded-xs w-5/6" />
-                  <div className="h-1 bg-muted/70 rounded-xs w-4/5" />
-                  <div className="h-1 bg-muted/70 rounded-xs w-2/3" />
-                </div>
-              )}
-            </div>
-
-            {/* Bottom footer bar of sheet */}
-            <div className="flex items-center justify-between pt-1 border-t border-border/30 text-[10px] text-muted-foreground/60 font-mono">
-              <span className="truncate max-w-[120px]">{material.title}</span>
-              <span>1</span>
-            </div>
-          </>
+    <div className="flex size-full items-center justify-center p-4">
+      <div
+        className={cn(
+          "flex h-11 min-w-14 items-center justify-center rounded-lg px-3 shadow-xs transition-opacity",
+          badgeColor,
+          isLoading && "animate-pulse opacity-80"
         )}
+      >
+        <span className="font-heading text-body-xs font-bold tracking-wider text-white">
+          {badgeText}
+        </span>
       </div>
     </div>
   );
 }
 
-export function DocumentListClient({ courseId, materials, chapters }: DocumentListClientProps) {
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [activeTab, setActiveTab] = useState<string>("all");
-  const [activeSubcategory, setActiveSubcategory] = useState<string>("all");
-  const [activeChapterId, setActiveChapterId] = useState<string>("all");
-  const [activeYear, setActiveYear] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+function DocumentPreview({ material }: { material: CourseMaterial }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
-  // Extract available years from materials
-  const availableYears = useMemo(() => {
-    const years = new Set<number>();
+  const hasThumbnail = Boolean(material.thumbnailUrl) && !imageError;
+
+  return (
+    <div className="relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden bg-muted/15 select-none sm:aspect-[4/3]">
+      {(!hasThumbnail || !imageLoaded) && (
+        <div
+          className={cn(
+            "absolute inset-0 z-0 flex items-center justify-center transition-opacity duration-200",
+            imageLoaded && "pointer-events-none opacity-0"
+          )}
+        >
+          <DocumentPlaceholder
+            kind={material.kind}
+            docCategory={material.docCategory}
+            subcategory={material.subcategory}
+            isLoading={hasThumbnail && !imageLoaded}
+          />
+        </div>
+      )}
+
+      {hasThumbnail && (
+        <div className="relative z-10 size-full p-2.5">
+          <div className="relative size-full overflow-hidden rounded-xs bg-white shadow-xs ring-1 ring-black/5 dark:ring-white/10">
+            <Image
+              src={material.thumbnailUrl!}
+              alt={`Pratinjau ${material.title}`}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              className={cn(
+                "object-contain object-center transition-all duration-200 group-hover:scale-[1.015]",
+                imageLoaded ? "opacity-100" : "opacity-0"
+              )}
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageError(true)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterGroup({
+  label,
+  options,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  options: Array<{ value: string; label: string; count?: number }>;
+  selected: Set<string>;
+  onToggle: (value: string) => void;
+}) {
+  if (options.length === 0) return null;
+  return (
+    <fieldset className="space-y-2">
+      <legend className="mb-2 text-body-xs font-semibold text-muted-foreground">{label}</legend>
+      <div className="grid max-h-36 gap-1 overflow-y-auto pr-1">
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-body-sm hover:bg-muted/60"
+          >
+            <Checkbox
+              checked={selected.has(option.value)}
+              onCheckedChange={() => onToggle(option.value)}
+            />
+            <span className="min-w-0 flex-1 truncate">{option.label}</span>
+            {typeof option.count === "number" ? (
+              <span className="text-body-xs text-muted-foreground">{option.count}</span>
+            ) : null}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function isPageNavigationMaterial(material: CourseMaterial): boolean {
+  // Articles and Diktats keep navigating to the dedicated material reader page
+  if (material.kind === "article") return true;
+  if (material.docCategory === "diktat" || material.tabGroup === "diktat") return true;
+  // Interactive quizzes and tryouts have their own interactive test pages
+  if (material.kind === "quiz" || material.kind === "tryout") return true;
+  return false;
+}
+
+function DocumentItemWrapper({
+  material,
+  itemHref,
+  isPageNav,
+  onSelectPdf,
+  children,
+  className,
+}: {
+  material: CourseMaterial;
+  itemHref: string;
+  isPageNav: boolean;
+  onSelectPdf: (m: CourseMaterial) => void;
+  children: React.ReactNode;
+  className: string;
+}) {
+  if (isPageNav) {
+    return (
+      <Link href={itemHref} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onSelectPdf(material)}
+      className={cn(className, "text-left cursor-pointer w-full")}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PdfViewerModal({
+  material,
+  onClose,
+}: {
+  material: CourseMaterial | null;
+  onClose: () => void;
+}) {
+  const [loaded, setLoaded] = useState(false);
+
+  if (!material) return null;
+
+  const pdfUrl = material.url;
+
+  return (
+    <DialogNs.Root open={Boolean(material)} onOpenChange={(open) => !open && onClose()}>
+      <DialogNs.Portal>
+        {/* Backdrop overlay */}
+        <DialogNs.Overlay className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+
+        {/* Ultra-thin bezel modal container: 0 padding on mobile, 4-6px on desktop */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-1 md:p-1.5 pointer-events-none">
+          <DialogNs.Content
+            className="pointer-events-auto relative flex size-full flex-col overflow-hidden rounded-none sm:rounded-lg border-0 sm:border border-border/80 bg-background shadow-2xl outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 duration-150"
+            aria-label={`Pratinjau dokumen ${material.title}`}
+          >
+            <DialogNs.Title className="sr-only">{material.title}</DialogNs.Title>
+            <DialogNs.Description className="sr-only">
+              Pratinjau PDF {material.title}
+            </DialogNs.Description>
+
+            {/* Ultra-slim header: 34px height (h-8.5), edge-to-edge */}
+            <div className="flex h-8.5 shrink-0 items-center justify-between border-b border-border/80 bg-card px-2.5 sm:px-3">
+              {/* Left: Icon, Title, Year */}
+              <div className="flex min-w-0 items-center gap-2">
+                <FileText className="size-3.5 shrink-0 text-[#ea4335]" aria-hidden />
+                <span
+                  className="truncate text-body-xs font-semibold text-foreground max-w-[240px] sm:max-w-md md:max-w-xl"
+                  title={material.title}
+                >
+                  {material.title}
+                </span>
+                {material.year ? (
+                  <span className="hidden text-body-2xs text-muted-foreground sm:inline">
+                    · {material.year}
+                  </span>
+                ) : null}
+              </div>
+
+              {/* Right: Actions */}
+              <div className="flex items-center gap-1 shrink-0">
+                {pdfUrl ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                    asChild
+                  >
+                    <a
+                      href={pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Buka di tab baru"
+                      aria-label="Buka di tab baru"
+                    >
+                      <ExternalLink className="size-3.5" />
+                    </a>
+                  </Button>
+                ) : null}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                  onClick={onClose}
+                  title="Tutup (Esc)"
+                  aria-label="Tutup pratinjau"
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Viewer body: 100% remaining space, 0 padding */}
+            <div className="relative flex-1 w-full min-h-0 bg-muted/30">
+              {pdfUrl ? (
+                <>
+                  {!loaded && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground pointer-events-none">
+                      <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      <span className="text-body-xs">Memuat PDF...</span>
+                    </div>
+                  )}
+                  <iframe
+                    key={material.id}
+                    src={pdfUrl}
+                    title={material.title}
+                    className="size-full border-0"
+                    onLoad={() => setLoaded(true)}
+                  />
+                </>
+              ) : (
+                <div className="flex size-full flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
+                  <FileText className="size-8 opacity-50" />
+                  <p className="text-body-sm font-medium">Tautan berkas PDF belum tersedia.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 rounded-md text-body-xs"
+                    onClick={onClose}
+                  >
+                    Tutup
+                  </Button>
+                </div>
+              )}
+            </div>
+          </DialogNs.Content>
+        </div>
+      </DialogNs.Portal>
+    </DialogNs.Root>
+  );
+}
+
+export function DocumentListClient({ courseId, materials, chapters }: DocumentListClientProps) {
+  const [activeTab, setActiveTab] = useState<TabKey>("materi");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState<DocumentFilterState>(emptyFilters);
+  const [selectedPdf, setSelectedPdf] = useState<CourseMaterial | null>(null);
+
+  // Dynamic counts for each tab
+  const tabCounts = useMemo(() => {
+    const counts: Record<TabKey, number> = {
+      materi: 0,
+      diktat: 0,
+      pdf: 0,
+      bank_soal: 0,
+    };
     for (const m of materials) {
-      if (typeof m.year === "number") {
-        years.add(m.year);
-      }
+      const tab = resolveTabGroup(m);
+      counts[tab] = (counts[tab] || 0) + 1;
     }
-    return Array.from(years).sort((a, b) => b - a);
+    return counts;
   }, [materials]);
 
-  // Compute available subcategories based on activeTab
-  const availableSubcategories = useMemo(() => {
-    if (activeTab === "materi") {
-      return MATERI_SUBCATEGORIES;
-    }
-    if (activeTab === "soal" || activeTab === "solusi") {
-      return SOAL_SUBCATEGORIES;
-    }
-    // "all" or "diktat": list unique subcategories present in materials
-    const seen = new Set<string>();
-    const list: Array<{ value: CourseMaterialSubcategory; label: string }> = [];
-    for (const m of materials) {
-      if (m.subcategory && !seen.has(m.subcategory)) {
-        seen.add(m.subcategory);
-        const label = getSubcategoryLabel(m.subcategory);
-        if (label) {
-          list.push({ value: m.subcategory as CourseMaterialSubcategory, label });
-        }
-      }
-    }
-    return list;
-  }, [activeTab, materials]);
+  // Filter materials for current active tab
+  const tabMaterials = useMemo(() => {
+    return materials.filter((m) => resolveTabGroup(m) === activeTab);
+  }, [materials, activeTab]);
 
-  const handleTabChange = (val: string) => {
-    setActiveTab(val);
-    setActiveSubcategory("all");
+  // Contextual options for active tab
+  const years = useMemo(() => {
+    const ySet = new Set<number>();
+    for (const m of tabMaterials) {
+      if (typeof m.year === "number") ySet.add(m.year);
+    }
+    return Array.from(ySet).sort((a, b) => b - a);
+  }, [tabMaterials]);
+
+  const subcategories = useMemo(() => {
+    const values = new Set<string>();
+    for (const m of tabMaterials) {
+      if (m.subcategory) values.add(m.subcategory);
+    }
+    return Array.from(values).sort((a, b) =>
+      (getSubcategoryLabel(a) ?? a).localeCompare(getSubcategoryLabel(b) ?? b, "id")
+    );
+  }, [tabMaterials]);
+
+  const filteredMaterials = useMemo(() => {
+    return tabMaterials.filter((material) =>
+      materialMatchesDocumentFilters(material, filters, searchQuery)
+    );
+  }, [tabMaterials, filters, searchQuery]);
+
+  const activeFilterCount =
+    filters.categories.size +
+    filters.subcategories.size +
+    filters.chapters.size +
+    filters.years.size;
+
+  const toggleFilter = (group: keyof DocumentFilterState, value: string) => {
+    setFilters((current) => {
+      const next = new Set(current[group]);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return { ...current, [group]: next };
+    });
   };
 
-  const filteredMaterials = materials.filter((material) => {
-    // 1. Filter by category
-    if (activeTab !== "all" && material.docCategory !== activeTab) {
-      return false;
-    }
-
-    // 2. Filter by subcategory
-    if (activeSubcategory !== "all" && material.subcategory !== activeSubcategory) {
-      return false;
-    }
-
-    // 3. Filter by year
-    if (activeYear !== "all") {
-      if (String(material.year) !== activeYear) {
-        return false;
-      }
-    }
-
-    // 4. Filter by chapter
-    if (activeChapterId !== "all") {
-      const materialChapterIds: string[] = Array.isArray(material.chapterIds)
-        ? material.chapterIds
-        : typeof material.chapterIds === "string"
-        ? JSON.parse(material.chapterIds)
-        : material.chapterId
-        ? [material.chapterId]
-        : [];
-      
-      if (!materialChapterIds.includes(activeChapterId)) {
-        return false;
-      }
-    }
-
-    // 5. Search query filter
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const matchTitle = material.title.toLowerCase().includes(q);
-      const subLabel = getSubcategoryLabel(material.subcategory)?.toLowerCase() || "";
-      const matchSub = subLabel.includes(q);
-      const matchYear = material.year ? String(material.year).includes(q) : false;
-      if (!matchTitle && !matchSub && !matchYear) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  const categoryCounts = materials.reduce<Record<string, number>>(
-    (acc, material) => {
-      const key = material.docCategory || "materi";
-      acc.all += 1;
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    },
-    { all: 0, materi: 0, soal: 0, solusi: 0, diktat: 0 }
-  );
-
-  const hasActiveFilters =
-    activeTab !== "all" ||
-    activeSubcategory !== "all" ||
-    activeChapterId !== "all" ||
-    activeYear !== "all" ||
-    Boolean(searchQuery.trim());
-
-  const resetFilters = () => {
-    setActiveTab("all");
-    setActiveSubcategory("all");
-    setActiveChapterId("all");
-    setActiveYear("all");
+  const handleTabChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    setFilters(emptyFilters());
     setSearchQuery("");
   };
 
   return (
-    <div className="space-y-4 font-sans">
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-          {/* Level 1: Category Filter */}
-          <Select value={activeTab} onValueChange={handleTabChange}>
-            <SelectTrigger className="h-9 w-auto min-w-[130px] rounded-lg text-body-sm bg-background">
-              <SelectValue placeholder="Semua tipe" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category === "all" ? "Semua tipe" : categoryLabel[category]} ({categoryCounts[category] || 0})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Level 2: Subcategory Filter */}
-          {availableSubcategories.length > 0 && (
-            <Select value={activeSubcategory} onValueChange={setActiveSubcategory}>
-              <SelectTrigger className="h-9 w-auto min-w-[130px] rounded-lg text-body-sm bg-background">
-                <SelectValue placeholder="Sub-kategori" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua sub-kategori</SelectItem>
-                {availableSubcategories.map((sub) => (
-                  <SelectItem key={sub.value} value={sub.value}>
-                    {sub.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Chapter Filter */}
-          {chapters.length > 0 && (
-            <Select value={activeChapterId} onValueChange={setActiveChapterId}>
-              <SelectTrigger className="h-9 w-auto min-w-[130px] max-w-[200px] sm:max-w-[240px] rounded-lg text-body-sm bg-background truncate">
-                <SelectValue placeholder="Semua bab" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua bab</SelectItem>
-                {chapters.map((chapter) => (
-                  <SelectItem key={chapter.id} value={chapter.id}>
-                    Bab {chapter.orderIndex}: {chapter.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Year Filter */}
-          {availableYears.length > 0 && (
-            <Select value={activeYear} onValueChange={setActiveYear}>
-              <SelectTrigger className="h-9 w-auto min-w-[100px] rounded-lg text-body-sm bg-background">
-                <SelectValue placeholder="Semua tahun" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua tahun</SelectItem>
-                {availableYears.map((yr) => (
-                  <SelectItem key={yr} value={String(yr)}>
-                    {yr}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          {/* Inline Search Input */}
-          <div className="relative min-w-[140px] flex-1 max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari dokumen..."
-              className="h-9 pl-8 pr-7 text-body-sm rounded-lg bg-background"
-            />
-            {searchQuery && (
+    <div className="space-y-3 font-sans">
+      {/* Unified Toolbar: Tab Strip, SearchBar, Filter Popover, Grid/List Toggle */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Navigation Tabs Pill (Matching admin/schedules) */}
+        <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border flex-wrap">
+          {tabConfig.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            const count = tabCounts[tab.key];
+            return (
               <button
+                key={tab.key}
                 type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => handleTabChange(tab.key)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+                  isActive
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
-                <X className="size-3.5" />
+                <Icon className="size-3.5 shrink-0" />
+                <span>{tab.label}</span>
+                <Badge
+                  variant={isActive ? "secondary" : "outline"}
+                  className="text-[10px] px-1.5 py-0 h-4 rounded-md"
+                >
+                  {count}
+                </Badge>
               </button>
-            )}
-          </div>
-
-          {/* Reset Filters */}
-          {hasActiveFilters && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={resetFilters}
-              className="h-9 text-body-xs text-muted-foreground hover:text-foreground px-2"
-            >
-              Reset
-            </Button>
-          )}
+            );
+          })}
         </div>
 
-        {/* View Mode Switcher */}
-        <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/60 bg-muted/40 p-0.5 self-end sm:self-auto">
+        {/* Search Bar */}
+        <SearchBar
+          size="sm"
+          variant="bordered"
+          value={searchQuery}
+          onSearch={setSearchQuery}
+          onClear={() => setSearchQuery("")}
+          placeholder={`Cari ${tabConfig.find((t) => t.key === activeTab)?.label.toLowerCase()}...`}
+          containerClassName="min-w-[140px] flex-1 sm:max-w-xs"
+        />
+
+        {/* Filter Popover */}
+        {(subcategories.length > 0 || chapters.length > 0 || years.length > 0) && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 shrink-0 gap-1.5 rounded-md text-body-sm"
+              >
+                <Filter className="size-3.5" aria-hidden />
+                Filter
+                {activeFilterCount > 0 ? (
+                  <Badge className="ml-0.5 rounded-md px-1.5 py-0 text-body-xs">
+                    {activeFilterCount}
+                  </Badge>
+                ) : null}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] space-y-4 p-3">
+              <div className="flex items-center justify-between">
+                <p className="font-heading text-body-sm font-bold">Filter dokumen</p>
+                {activeFilterCount > 0 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFilters(emptyFilters())}
+                    className="h-7 px-2 text-body-xs"
+                  >
+                    Reset
+                  </Button>
+                ) : null}
+              </div>
+              {subcategories.length > 0 && (
+                <FilterGroup
+                  label="Subkategori"
+                  selected={filters.subcategories}
+                  onToggle={(value) => toggleFilter("subcategories", value)}
+                  options={subcategories.map((value) => ({
+                    value,
+                    label: getSubcategoryLabel(value as CourseMaterialSubcategory) ?? value,
+                    count: tabMaterials.filter((m) => m.subcategory === value).length,
+                  }))}
+                />
+              )}
+              {chapters.length > 0 && (
+                <FilterGroup
+                  label="Bab"
+                  selected={filters.chapters}
+                  onToggle={(value) => toggleFilter("chapters", value)}
+                  options={chapters.map((chapter) => ({
+                    value: chapter.id,
+                    label: `Bab ${chapter.orderIndex}: ${chapter.title}`,
+                  }))}
+                />
+              )}
+              {years.length > 0 && (
+                <FilterGroup
+                  label="Tahun"
+                  selected={filters.years}
+                  onToggle={(value) => toggleFilter("years", value)}
+                  options={years.map((year) => ({
+                    value: String(year),
+                    label: String(year),
+                    count: tabMaterials.filter((m) => m.year === year).length,
+                  }))}
+                />
+              )}
+            </PopoverContent>
+          </Popover>
+        )}
+
+        {/* View Mode Toggle */}
+        <div className="ml-auto flex shrink-0 items-center rounded-md border border-border bg-muted/30 p-0.5">
           <Button
             type="button"
             size="icon"
@@ -423,7 +601,6 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
             className="size-8 rounded-md"
             onClick={() => setViewMode("grid")}
             aria-label="Tampilan grid"
-            title="Tampilan grid"
           >
             <LayoutGrid className="size-4" />
           </Button>
@@ -434,161 +611,184 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
             className="size-8 rounded-md"
             onClick={() => setViewMode("list")}
             aria-label="Tampilan daftar"
-            title="Tampilan daftar"
           >
             <List className="size-4" />
           </Button>
         </div>
       </div>
 
-      {/* Grid View */}
+      {/* Active Filter Indicator */}
+      {activeFilterCount > 0 && (
+        <div className="flex items-center gap-2 text-body-xs text-muted-foreground">
+          <span>{activeFilterCount} filter aktif</span>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            onClick={() => setFilters(emptyFilters())}
+            className="h-auto p-0 text-body-xs"
+          >
+            Reset
+          </Button>
+        </div>
+      )}
+
+      {/* Grid View Mode */}
       {viewMode === "grid" ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {filteredMaterials.map((material) => {
-            const config = getCategoryStyle(material.docCategory);
-            const Icon = config.icon;
-            const subLabel = getSubcategoryLabel(material.subcategory);
+            const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
+            const isPageNav = isPageNavigationMaterial(material);
+            const subLabel =
+              material.subcategory
+                ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
+                : categoryLabel[material.docCategory ?? "materi"];
 
             return (
-              <Link
+              <DocumentItemWrapper
                 key={material.id}
-                href={`/courses/${courseId}/material/${material.id}`}
-                className="group flex flex-col justify-between rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:shadow-xs transition-all overflow-hidden"
+                material={material}
+                itemHref={itemHref}
+                isPageNav={isPageNav}
+                onSelectPdf={setSelectedPdf}
+                className="group flex flex-col min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card transition-all duration-150 hover:border-border/90 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-left"
               >
                 {/* Header */}
-                <div className="flex items-center gap-2.5 p-3 pb-2 bg-card min-w-0">
-                  <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", config.badgeClass)}>
-                    <Icon className="size-3.5" />
-                  </span>
+                <div className="flex items-center gap-2.5 px-3 py-2.5">
+                  <DocumentHeaderIcon
+                    kind={material.kind}
+                    docCategory={material.docCategory}
+                    subcategory={material.subcategory}
+                  />
                   <div className="min-w-0 flex-1">
-                    <span
-                      className="truncate block text-body-sm font-semibold text-foreground group-hover:text-primary transition-colors"
+                    <p
+                      className="truncate text-body-sm font-medium text-foreground group-hover:text-primary leading-tight"
                       title={material.title}
                     >
                       {material.title}
-                    </span>
+                    </p>
+                    <p className="mt-0.5 truncate text-body-xs text-muted-foreground leading-none">
+                      {subLabel}
+                      {material.year ? ` · ${material.year}` : ""}
+                      {material.fileSize ? ` · ${material.fileSize}` : ""}
+                    </p>
                   </div>
-                  {material.completed && (
-                    <span title="Selesai dipelajari" className="shrink-0 text-emerald-500">
-                      <CheckCircle2 className="size-4" />
-                    </span>
+                  {material.completed ? (
+                    <CheckCircle2
+                      className="size-4 shrink-0 text-status-success"
+                      aria-label="Selesai dipelajari"
+                    />
+                  ) : (
+                    <MoreVertical
+                      className="size-3.5 shrink-0 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground/70"
+                      aria-hidden
+                    />
                   )}
                 </div>
 
-                {/* Thumbnail Preview Area */}
-                <DocumentThumbnailPreview material={material} />
-
-                {/* Footer with Category, Subcategory, and Year */}
-                <div className="flex items-center justify-between gap-1.5 p-2.5 px-3 bg-card text-body-xs text-muted-foreground border-t border-border/40">
-                  <div className="flex items-center gap-1.5 min-w-0 truncate">
-                    <span className="font-medium text-foreground truncate">
-                      {material.docCategory ? categoryLabel[material.docCategory] : "Materi"}
-                    </span>
-                    {subLabel && (
-                      <span className="text-muted-foreground text-[10px] bg-muted/60 px-1.5 py-0.5 rounded-md truncate">
-                        {subLabel}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0 font-mono text-[10px]">
-                    {material.year && (
-                      <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 rounded-md">
-                        {material.year}
-                      </Badge>
-                    )}
-                    <span className="text-muted-foreground/80">
-                      {material.fileSize || (material.kind === "pdf" ? "PDF" : "Artikel")}
-                    </span>
-                  </div>
+                {/* Body (Preview or Placeholder) */}
+                <div className="border-t border-border/40">
+                  <DocumentPreview material={material} />
                 </div>
-              </Link>
+              </DocumentItemWrapper>
             );
           })}
         </div>
       ) : (
-        /* List View */
-        <div className="space-y-2">
-          <ul className="divide-y divide-border/70 rounded-lg border border-border/70 bg-card/75 backdrop-blur-sm">
-            {filteredMaterials.map((material) => {
-              const config = getCategoryStyle(material.docCategory);
-              const Icon = config.icon;
-              const subLabel = getSubcategoryLabel(material.subcategory);
+        /* List View Mode */
+        <ul className="divide-y divide-border/50 rounded-xl border border-border/50 bg-card overflow-hidden">
+          {filteredMaterials.map((material) => {
+            const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
+            const isPageNav = isPageNavigationMaterial(material);
+            const subLabel =
+              material.subcategory
+                ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
+                : categoryLabel[material.docCategory ?? "materi"];
 
-              return (
-                <li key={material.id}>
-                  <Link
-                    href={`/courses/${courseId}/material/${material.id}`}
-                    className="group grid grid-cols-[1fr_auto] items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/35 md:grid-cols-[1fr_140px_80px_70px_auto]"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", config.badgeClass)}>
-                        <Icon className="size-3.5" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="block truncate text-body-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                            {material.title}
-                          </span>
-                          {material.completed && (
-                            <span title="Selesai dipelajari" className="shrink-0 text-emerald-500">
-                              <CheckCircle2 className="size-3.5" />
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-body-xs text-muted-foreground md:hidden">
-                          <span>{material.docCategory ? categoryLabel[material.docCategory] : "Materi"}</span>
-                          {subLabel && <span>· {subLabel}</span>}
-                          {material.year && <span>· {material.year}</span>}
-                          <span>· {material.fileSize || (material.kind === "pdf" ? "PDF" : "Artikel")}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Category and Subcategory (Desktop) */}
-                    <div className="hidden min-w-0 md:flex flex-col text-body-xs">
-                      <span className="font-medium text-foreground truncate">
-                        {material.docCategory ? categoryLabel[material.docCategory] : "Materi"}
-                      </span>
-                      {subLabel && (
-                        <span className="text-[10px] text-muted-foreground truncate">{subLabel}</span>
-                      )}
-                    </div>
-
-                    {/* Year (Desktop) */}
-                    <span className="hidden text-body-xs font-mono text-muted-foreground md:block">
-                      {material.year ? material.year : "-"}
+            return (
+              <li key={material.id}>
+                <DocumentItemWrapper
+                  material={material}
+                  itemHref={itemHref}
+                  isPageNav={isPageNav}
+                  onSelectPdf={setSelectedPdf}
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-muted/30 md:grid-cols-[minmax(0,1fr)_160px_100px_auto]"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <DocumentHeaderIcon
+                      kind={material.kind}
+                      docCategory={material.docCategory}
+                      subcategory={material.subcategory}
+                    />
+                    <span
+                      className="truncate text-body-sm font-medium leading-snug"
+                      title={material.title}
+                    >
+                      {material.title}
                     </span>
-
-                    {/* Format (Desktop) */}
-                    <span className="hidden text-body-xs text-muted-foreground md:block font-mono text-right">
-                      {material.fileSize || (material.kind === "pdf" ? "PDF" : "Artikel")}
-                    </span>
-
-                    <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-70 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                    {material.completed ? (
+                      <CheckCircle2 className="size-3.5 shrink-0 text-status-success" />
+                    ) : null}
+                  </div>
+                  <span className="hidden truncate text-body-xs text-muted-foreground md:block">
+                    {subLabel}
+                  </span>
+                  <span className="hidden text-body-xs text-muted-foreground md:block">
+                    {material.fileSize ?? (material.year ? String(material.year) : "-")}
+                  </span>
+                  <ChevronRight className="size-4 text-muted-foreground/60" />
+                </DocumentItemWrapper>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
-      {filteredMaterials.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-muted/15 py-12 text-center">
-          <p className="text-body-sm text-muted-foreground">Tidak ada dokumen yang cocok dengan filter yang dipilih.</p>
-          {hasActiveFilters && (
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              onClick={resetFilters}
-              className="mt-2 text-body-xs text-brand-primary"
-            >
-              Reset semua filter
-            </Button>
-          )}
+      {/* Empty State when tab has no items */}
+      {tabMaterials.length === 0 ? (
+        <div className="flex flex-col items-center rounded-xl border border-dashed border-border/60 bg-muted/15 px-4 py-10 text-center">
+          {(() => {
+            const ActiveIcon = tabConfig.find((t) => t.key === activeTab)?.icon ?? FileText;
+            return <ActiveIcon className="size-6 text-muted-foreground" aria-hidden />;
+          })()}
+          <h2 className="mt-3 font-heading text-body-sm font-bold">
+            Belum ada berkas {tabConfig.find((t) => t.key === activeTab)?.label.toLowerCase()}
+          </h2>
+          <p className="mt-1 text-body-xs text-muted-foreground">
+            {activeTab === "materi" && "Artikel materi belajar untuk kelas ini belum tersedia."}
+            {activeTab === "diktat" && "Diktat resmi untuk kelas ini belum tersedia."}
+            {activeTab === "pdf" && "Belum ada materi kuliah PDF yang diunggah untuk kelas ini."}
+            {activeTab === "bank_soal" &&
+              "Belum ada bank soal, kuis, atau tryout untuk kelas ini."}
+          </p>
+        </div>
+      ) : filteredMaterials.length === 0 ? (
+        /* Empty State when search or filter returns no results */
+        <div className="flex flex-col items-center rounded-xl border border-dashed border-border/60 bg-muted/15 px-4 py-10 text-center">
+          <FileText className="size-6 text-muted-foreground" aria-hidden />
+          <h2 className="mt-3 font-heading text-body-sm font-bold">Dokumen tidak ditemukan</h2>
+          <p className="mt-1 text-body-xs text-muted-foreground">
+            Ubah kata kunci pencarian atau reset filter yang sedang aktif.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-4 rounded-md text-body-sm"
+            onClick={() => {
+              setFilters(emptyFilters());
+              setSearchQuery("");
+            }}
+          >
+            Reset pencarian
+          </Button>
         </div>
       ) : null}
+
+      <PdfViewerModal
+        material={selectedPdf}
+        onClose={() => setSelectedPdf(null)}
+      />
     </div>
   );
 }

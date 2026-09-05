@@ -197,6 +197,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
   const [editReasoningPattern, setEditReasoningPattern] = useState("manual_authoring");
   const [editTagsStr, setEditTagsStr] = useState("");
   const [submittingEdit, setSubmittingEdit] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filtered = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -557,6 +558,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
 
   const handleDeleteConfirm = async () => {
     if (!deletingQuestion) return;
+    setIsDeleting(true);
     try {
       const res = await fetch(`/api/admin/questions/${deletingQuestion.id}`, {
         method: "DELETE",
@@ -570,6 +572,8 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
       }
     } catch {
       toast.error("Terjadi kesalahan.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -997,7 +1001,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
             </div>
 
             <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
-              <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCreateOpen(false)}>Batal</Button>
+              <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setCreateOpen(false)} disabled={submittingCreate}>Batal</Button>
               <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={submittingCreate} className="rounded-lg cursor-pointer font-bold">
                 Simpan draft
               </Button>
@@ -1185,7 +1189,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
               </div>
 
               <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
-                <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setEditOpen(false)}>Batal</Button>
+                <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setEditOpen(false)} disabled={submittingEdit}>Batal</Button>
                 <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={submittingEdit} className="rounded-lg cursor-pointer font-bold">
                   Simpan draft
                 </Button>
@@ -1201,10 +1205,14 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
       {/* DELETE DIALOG */}
       <AdminConfirmDialog
         open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) setDeletingQuestion(null);
+        }}
         title="Hapus Soal"
         description="Tindakan ini tidak dapat dibatalkan. Apakah Anda yakin ingin menghapus soal ini dari Bank Soal?"
         confirmLabel="Ya, Hapus"
+        loading={isDeleting}
         onConfirm={handleDeleteConfirm}
       />
 
@@ -1273,7 +1281,7 @@ export function QuestionBankClient({ questions, courses, courseMap, authoringCou
             </div>
 
             <DialogFooter className="p-6 pt-4 border-t border-border/40 bg-muted/5 flex items-center justify-end gap-2.5 shrink-0">
-              <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkOpen(false)}>Batal</Button>
+              <Button type="button" variant="outline" className="rounded-lg cursor-pointer font-bold" onClick={() => setBulkOpen(false)} disabled={bulkSubmitting}>Batal</Button>
               <Button type="submit" name="reviewStatus" value="generated" variant="outline" isLoading={bulkSubmitting} className="rounded-lg cursor-pointer font-bold">
                 Simpan draft
               </Button>

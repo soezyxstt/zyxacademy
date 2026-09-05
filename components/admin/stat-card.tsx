@@ -41,7 +41,7 @@ export function AdminStatCard({
   return (
     <div
       className={cn(
-        "bg-card border border-border rounded-xl shadow-sm space-y-1",
+        "bg-card/70 border border-border/70 rounded-xl shadow-xs backdrop-blur-md space-y-1",
         size === "sm" ? "p-4" : "p-5",
         className
       )}
@@ -81,7 +81,7 @@ export function AdminStatStrip({ children, className }: AdminStatStripProps) {
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-px border border-border rounded-xl bg-border overflow-hidden",
+        "grid grid-cols-2 gap-px border border-border/70 rounded-xl bg-border/60 backdrop-blur-md overflow-hidden",
         className
       )}
     >
@@ -101,7 +101,7 @@ export function AdminStatStripItem({
 }: AdminStatStripItemProps) {
   if (compact) {
     return (
-      <div className="flex items-center justify-between gap-2 p-2.5 px-3.5 bg-card min-w-0">
+      <div className="flex items-center justify-between gap-2 p-2.5 px-3.5 bg-card/75 backdrop-blur-md min-w-0">
         <div className="flex items-center gap-2 text-muted-foreground min-w-0">
           {Icon && <Icon className={cn("size-4 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
           <span className="font-medium text-body-sm text-foreground truncate">{label}</span>
@@ -114,7 +114,7 @@ export function AdminStatStripItem({
   }
 
   return (
-    <div className="flex flex-col gap-0.5 p-3.5 bg-card min-w-0">
+    <div className="flex flex-col gap-0.5 p-3.5 bg-card/75 backdrop-blur-md min-w-0">
       <div className="flex items-center justify-between gap-1.5 text-muted-foreground">
         <span className="font-medium text-body-sm truncate">{label}</span>
         {Icon && <Icon className={cn("size-3.5 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}

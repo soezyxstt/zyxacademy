@@ -526,9 +526,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 type="submit"
                 size="sm"
                 disabled={createLoading || !newId.trim() || !newTitle.trim() || !newCategory}
+                isLoading={createLoading}
                 className="rounded-lg"
               >
-                {createLoading ? "Menyimpan..." : "Tambah Mata Kuliah"}
+                Tambah Mata Kuliah
               </Button>
             </DialogFooter>
           </form>
@@ -593,9 +594,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
                 type="submit"
                 size="sm"
                 disabled={editLoading || !editTitle.trim() || !editCategory}
+                isLoading={editLoading}
                 className="rounded-lg"
               >
-                {editLoading ? "Menyimpan..." : "Simpan Perubahan"}
+                Simpan Perubahan
               </Button>
             </DialogFooter>
           </form>
@@ -603,7 +605,12 @@ export function CoursesDashboard({ initialCourses }: Props) {
       </Dialog>
 
       {/* Delete Course Dialog */}
-      <Dialog open={!!deletingCourse} onOpenChange={(open) => !open && setDeletingCourse(null)}>
+      <Dialog
+        open={!!deletingCourse}
+        onOpenChange={(open) => {
+          if (!deleteLoading && !open) setDeletingCourse(null);
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Hapus Mata Kuliah</DialogTitle>
@@ -622,9 +629,10 @@ export function CoursesDashboard({ initialCourses }: Props) {
               size="sm"
               onClick={handleDeleteConfirm}
               disabled={deleteLoading}
+              isLoading={deleteLoading}
               className="rounded-lg"
             >
-              {deleteLoading ? "Menghapus..." : "Hapus Mata Kuliah"}
+              Hapus Mata Kuliah
             </Button>
           </DialogFooter>
         </DialogContent>

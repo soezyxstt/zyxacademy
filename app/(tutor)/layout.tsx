@@ -4,11 +4,13 @@ import { headers } from "next/headers";
 import { hasAnyPeran } from "@/lib/auth/authorization";
 import type { ReactNode } from "react";
 import { TutorSidebar, type AssignedTutorCourse } from "@/components/tutor/tutor-sidebar";
-import { PageOrnaments } from "@/components/ui/page-ornaments";
+import { ApplicationShell } from "@/components/application-shell";
+import { MobileNavbar } from "@/components/mobile-navbar";
 import { listTutorAccessibleCourses } from "@/lib/auth/tutor-access";
 import { db } from "@/db";
 import { mataKuliah, courses } from "@/db/schema";
 import { inArray } from "drizzle-orm";
+import { CommandMenuProvider } from "@/components/command-menu";
 
 export default async function TutorLayout({ children }: { children: ReactNode }) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -65,16 +67,13 @@ export default async function TutorLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <div className="relative flex min-h-screen flex-row bg-background overflow-x-clip">
-      <PageOrnaments variant="about" />
-      <TutorSidebar assignedCourses={assignedCourses} />
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="relative z-10 min-w-0 flex-1 focus:outline-none"
+    <CommandMenuProvider>
+      <ApplicationShell
+        sidebar={<TutorSidebar assignedCourses={assignedCourses} />}
+        mobileNavigation={<MobileNavbar surface="tutor" />}
       >
         {children}
-      </main>
-    </div>
+      </ApplicationShell>
+    </CommandMenuProvider>
   );
 }

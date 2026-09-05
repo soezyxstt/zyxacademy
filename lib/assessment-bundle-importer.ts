@@ -40,6 +40,7 @@ import {
 import { updateAssessmentProfile } from "@/lib/assessment-extractor";
 import { randomUUID, createHash } from "crypto";
 import { eq, and, inArray } from "drizzle-orm";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 
 /** Drizzle transaction handle (lacks db.transaction()/.batch(), unlike `typeof db`). */
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -374,6 +375,10 @@ export async function importAssessmentBundle(
       const result: AssessmentBundleResult = { courseId, sourceDiffs, asCount, aoCount };
 
       if (dryRun) throw new DryRunAbort(result);
+
+      if (postProcess && touchedAoIds.length > 0) {
+        dispatchVectorSync(courseId);
+      }
 
       return result;
     });

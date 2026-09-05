@@ -80,7 +80,13 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
   const session = await auth.api.getSession({ headers: await headers() });
   const userId = session?.user?.id;
 
-  const rankedRows = await getCourseLeaderboard(id, activeType);
+  let rankedRows: Awaited<ReturnType<typeof getCourseLeaderboard>> = [];
+  try {
+    rankedRows = await getCourseLeaderboard(id, activeType);
+  } catch (err) {
+    console.error("Error fetching course leaderboard:", err);
+    rankedRows = [];
+  }
   const totalStudents = rankedRows.length;
   const myEntry = rankedRows.find((r) => r.studentId === userId);
 
@@ -125,13 +131,13 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
         </div>
 
         {/* User's own ranking status card */}
-        <div className="mb-8 p-6 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="mb-8 p-6 rounded-2xl border border-border/70 bg-card/75 backdrop-blur-md shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="font-heading text-body-base font-bold text-foreground">
               Status Peringkat Anda
             </h3>
             <p className="text-body-sm text-muted-foreground mt-1">
-              Peringkat dihitung berdasarkan rata-rata skor kuis dan tie-breaker.
+              Peringkat dihitung berdasarkan rata-rata skor {activeType === "simulation" ? "tryout" : "kuis"} dan kriteria tie-breaker.
             </p>
           </div>
           <div className="flex items-center gap-3 bg-muted/50 px-5 py-3 rounded-xl border border-border/50 shrink-0">
@@ -143,7 +149,7 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
                 </>
               ) : (
                 <>
-                  Peringkat Anda: <span className="text-muted-foreground font-bold">-</span> dari <span className="font-bold">{totalStudents}</span> <span className="text-body-xs text-muted-foreground block">(Belum ada skor kuis)</span>
+                  Peringkat Anda: <span className="text-muted-foreground font-bold">-</span> dari <span className="font-bold">{totalStudents}</span> <span className="text-body-xs text-muted-foreground block">(Belum ada skor {activeType === "simulation" ? "tryout" : "kuis"})</span>
                 </>
               )}
             </div>
@@ -153,12 +159,17 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
         {rankedRows.length === 0 ? (
           <div className="py-16 text-center max-w-md mx-auto bg-card/50 p-8 shadow-xs border border-border rounded-xl">
             <Trophy className="size-10 text-muted-foreground/30 mx-auto mb-4" />
-            <p className="text-body-base text-muted-foreground">
-              Belum ada skor kuis untuk kelas ini. Selesaikan kuis untuk muncul di papan peringkat.
+            <h3 className="font-heading text-body-base font-bold text-foreground mb-1">
+              Belum ada peringkat {activeType === "simulation" ? "try out" : "kuis"}
+            </h3>
+            <p className="text-body-sm text-muted-foreground">
+              {activeType === "simulation"
+                ? "Simulasi ujian UTS dan UAS belum selesai dikerjakan. Selesaikan try out pertama untuk memuncaki peringkat."
+                : "Belum ada skor kuis untuk kelas ini. Selesaikan kuis untuk muncul di papan peringkat."}
             </p>
           </div>
         ) : (
-          <div className={studentCardClass("bg-card/45 p-6 sm:p-8")}>
+          <div className={studentCardClass("p-6 sm:p-8")}>
             <div className="text-center mb-8">
               <h2 className="font-heading text-body-base font-bold text-foreground">
                 Podium Juara Kelas
@@ -174,21 +185,21 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
               <div className="flex flex-col items-center">
                 {p2 ? (
                   <div className="w-full flex flex-col items-center">
-                    <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border bg-card shadow-2xs w-full text-center min-h-[190px] hover:border-brand-primary/20 transition-all">
+                    <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border/70 bg-card/75 backdrop-blur-md shadow-2xs w-full text-center min-h-[190px] hover:border-brand-primary/40 transition-all">
                       <div className="absolute -top-5 flex size-9 items-center justify-center rounded-full bg-slate-200 border border-slate-300 dark:bg-slate-800 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-body-sm shadow-xs shrink-0">
                         2
                       </div>
-                      <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
+                      <div className="font-heading text-body-xs font-bold text-foreground line-clamp-2 w-full px-1">
                         {p2.studentName}
                       </div>
                       <div className="text-h6 font-bold text-slate-600 dark:text-slate-400 mt-1">
                         {p2.avgScore}%
                       </div>
                       <div className="text-body-xs text-muted-foreground mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
-                        <div>{p2.attemptCount} kuis</div>
+                        <div>{p2.attemptCount} {activeType === "simulation" ? "tryout" : "kuis"}</div>
                         <div className="text-[10px]">⏱️ {formatDuration(p2.avgDuration)}</div>
-                        <div className="text-[10px]">🔥 {p2.correctHardCount} Hard</div>
-                        <div className="text-[10px]">📚 {p2.attemptedMediumCount} Med</div>
+                        <div className="text-[10px]">🔥 {p2.correctHardCount} Soal Sulit</div>
+                        <div className="text-[10px]">📚 {p2.attemptedMediumCount} Soal Sedang</div>
                       </div>
                     </div>
                   </div>
@@ -201,21 +212,21 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
               <div className="flex flex-col items-center relative -top-3">
                 {p1 ? (
                   <div className="w-full flex flex-col items-center">
-                    <div className="relative flex flex-col items-center justify-end p-5 rounded-2xl border-2 border-brand-secondary/40 bg-card shadow-md w-full text-center min-h-[220px] hover:border-brand-secondary transition-all">
+                    <div className="relative flex flex-col items-center justify-end p-5 rounded-2xl border-2 border-brand-secondary/40 bg-card/75 backdrop-blur-md shadow-md w-full text-center min-h-[220px] hover:border-brand-secondary transition-all">
                       <div className="absolute -top-7 flex size-11 items-center justify-center rounded-full bg-brand-secondary border-2 border-amber-300 text-white font-bold text-body-base shadow-md shrink-0">
                         🥇
                       </div>
-                      <div className="font-heading text-body-sm font-extrabold text-foreground line-clamp-1 w-full px-1">
+                      <div className="font-heading text-body-sm font-extrabold text-foreground line-clamp-2 w-full px-1">
                         {p1.studentName}
                       </div>
                       <div className="text-h6 font-extrabold text-brand-secondary mt-1">
                         {p1.avgScore}%
                       </div>
-                      <div className="text-body-xs text-muted-foreground mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
-                        <div className="font-semibold text-foreground/80">{p1.attemptCount} kuis</div>
+                      <div className="text-body-xs text-muted-foreground font-medium mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
+                        <div className="font-semibold text-foreground/80">{p1.attemptCount} {activeType === "simulation" ? "tryout" : "kuis"}</div>
                         <div className="text-[10px]">⏱️ {formatDuration(p1.avgDuration)}</div>
-                        <div className="text-[10px]">🔥 {p1.correctHardCount} Hard</div>
-                        <div className="text-[10px]">📚 {p1.attemptedMediumCount} Med</div>
+                        <div className="text-[10px]">🔥 {p1.correctHardCount} Soal Sulit</div>
+                        <div className="text-[10px]">📚 {p1.attemptedMediumCount} Soal Sedang</div>
                       </div>
                     </div>
                   </div>
@@ -228,21 +239,21 @@ export default async function CourseLeaderboardPage({ params, searchParams }: Pr
               <div className="flex flex-col items-center">
                 {p3 ? (
                   <div className="w-full flex flex-col items-center">
-                    <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border bg-card shadow-2xs w-full text-center min-h-[175px] hover:border-brand-primary/20 transition-all">
+                    <div className="relative flex flex-col items-center justify-end p-4 rounded-xl border border-border/70 bg-card/75 backdrop-blur-md shadow-2xs w-full text-center min-h-[175px] hover:border-brand-primary/40 transition-all">
                       <div className="absolute -top-5 flex size-9 items-center justify-center rounded-full bg-amber-700/10 border border-amber-700/20 text-amber-800 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400 font-bold text-body-sm shadow-xs shrink-0">
                         3
                       </div>
-                      <div className="font-heading text-body-xs font-bold text-foreground line-clamp-1 w-full px-1">
+                      <div className="font-heading text-body-xs font-bold text-foreground line-clamp-2 w-full px-1">
                         {p3.studentName}
                       </div>
                       <div className="text-h6 font-bold text-amber-700 dark:text-amber-500 mt-1">
                         {p3.avgScore}%
                       </div>
                       <div className="text-body-xs text-muted-foreground mt-2 space-y-0.5 border-t border-border/50 pt-2 w-full">
-                        <div>{p3.attemptCount} kuis</div>
+                        <div>{p3.attemptCount} {activeType === "simulation" ? "tryout" : "kuis"}</div>
                         <div className="text-[10px]">⏱️ {formatDuration(p3.avgDuration)}</div>
-                        <div className="text-[10px]">🔥 {p3.correctHardCount} Hard</div>
-                        <div className="text-[10px]">📚 {p3.attemptedMediumCount} Med</div>
+                        <div className="text-[10px]">🔥 {p3.correctHardCount} Soal Sulit</div>
+                        <div className="text-[10px]">📚 {p3.attemptedMediumCount} Soal Sedang</div>
                       </div>
                     </div>
                   </div>

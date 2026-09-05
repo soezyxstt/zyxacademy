@@ -5,6 +5,7 @@ import Link from "next/link";
 import { TrendingUp, TrendingDown, Minus, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Reveal } from "@/components/ui/reveal";
+import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 
 interface ConceptInfo {
@@ -64,19 +65,19 @@ export function ConceptMap({ courseId, groups }: ConceptMapProps) {
                     {c.conceptSlug ? (
                       <Link
                         href={`/courses/${courseId}/concept/${c.conceptSlug}`}
-                        className="text-body-base font-medium text-foreground block truncate hover:underline hover:text-primary transition-colors"
+                        className="text-body-sm font-semibold text-foreground block line-clamp-2 hover:underline hover:text-primary transition-colors"
                       >
-                        {c.conceptName}
+                        <MathText as="span">{c.conceptName}</MathText>
                       </Link>
                     ) : (
-                      <span className="text-body-base font-medium text-foreground block truncate">
-                        {c.conceptName}
+                      <span className="text-body-sm font-semibold text-foreground block line-clamp-2">
+                        <MathText as="span">{c.conceptName}</MathText>
                       </span>
                     )}
                     {c.blockedBy.length > 0 && (
                       <Badge variant="outline" className="text-muted-foreground mt-1 gap-1 text-body-xs rounded-md">
                         <Lock className="size-3" />
-                        needs {c.blockedBy[0]}
+                        Prasyarat: <MathText as="span">{c.blockedBy[0]}</MathText>
                       </Badge>
                     )}
                   </div>
@@ -99,7 +100,9 @@ export function ConceptMap({ courseId, groups }: ConceptMapProps) {
                         </span>
                       </>
                     ) : (
-                      <span className="text-body-sm text-muted-foreground">no data</span>
+                      <span className="text-body-xs text-muted-foreground rounded bg-muted/60 px-2 py-0.5">
+                        Belum dinilai
+                      </span>
                     )}
                   </div>
 

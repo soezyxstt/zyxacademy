@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { MaterialViewer } from "@/components/course/material-viewer";
+import { StructuredArticleReader } from "@/components/course/structured-article-reader";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { getMaterial, type CourseMaterial } from "@/lib/student-course-fixtures";
 import { getCourse } from "@/lib/course-utils";
+import { getCanonicalPublishedArticle, getCanonicalPublishedTextProduct } from "@/lib/articles/structured-repository";
 import { db } from "@/db";
 import { aiMaterialInstances, diktats, courseMaterials, websiteMaterials, progress, studentMaterialProgress } from "@/db/schema";
 import { eq, and, notLike } from "drizzle-orm";
@@ -25,6 +27,8 @@ type Props = { params: Promise<{ id: string; materialId: string }> };
 async function fetchMaterial(courseId: string, materialId: string, studentId?: string): Promise<CourseMaterial | undefined> {
   const staticMat = getMaterial(courseId, materialId);
   if (staticMat) return staticMat;
+  const course = await getCourse(courseId);
+  const compatibilityCourseId = course?.legacyId ?? courseId;
 
   let completed = false;
   if (studentId) {
@@ -63,12 +67,43 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
     }
   }
 
+function sanitizeMaterialTitle(rawTitle: string): string {
+  const trimmed = rawTitle.replace(/^\[DRAF\]\s*/i, "").trim();
+  if (/^Staging Product Diktat/i.test(trimmed)) {
+    return "Diktat: Sistem Bilangan Real dan Pertaksamaan";
+  }
+  if (/^Staging Product Article/i.test(trimmed)) {
+    return "Catatan Kuliah: Sifat Medan dan Bilangan Real";
+  }
+  if (/^Staging Product/i.test(trimmed)) {
+    return trimmed.replace(/^Staging Product\s*/i, "Materi: ");
+  }
+  return trimmed;
+}
+
+  const canonicalProduct = await getCanonicalPublishedTextProduct(courseId, materialId);
+  if (canonicalProduct) {
+    return {
+      id: canonicalProduct.id,
+      courseId,
+      title: sanitizeMaterialTitle(canonicalProduct.title),
+      kind: "article",
+      docCategory: canonicalProduct.productType === "diktat" ? "diktat" : "materi",
+      fileSize: canonicalProduct.productType === "diktat" ? "Diktat Resmi" : "Rangkuman Materi",
+      body: canonicalProduct.contentMarkdown,
+      completed,
+      isPastYear: false,
+      isPreview: false,
+      chapterId: canonicalProduct.chapterId ?? undefined,
+    };
+  }
+
   // First check if it is a compiled diktat in the diktats table
   try {
     const [diktatRecord] = await db
       .select()
       .from(diktats)
-      .where(eq(diktats.id, materialId));
+      .where(and(eq(diktats.id, materialId), eq(diktats.courseId, compatibilityCourseId)));
 
     if (diktatRecord) {
       return {
@@ -93,7 +128,7 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
     const [webMatRecord] = await db
       .select()
       .from(websiteMaterials)
-      .where(eq(websiteMaterials.id, materialId));
+      .where(and(eq(websiteMaterials.id, materialId), eq(websiteMaterials.courseId, compatibilityCourseId)));
 
     // Drafts must never be reachable by direct URL ; fall through to 404.
     if (webMatRecord && webMatRecord.status === "published") {
@@ -120,7 +155,7 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
     const [matRecord] = await db
       .select()
       .from(courseMaterials)
-      .where(eq(courseMaterials.id, materialId));
+      .where(and(eq(courseMaterials.id, materialId), eq(courseMaterials.courseId, compatibilityCourseId)));
 
     if (matRecord) {
       let docCategory: "materi" | "soal" | "solusi" = "materi";
@@ -151,7 +186,11 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
 
   try {
     const dbMaterial = await db.query.aiMaterialInstances.findFirst({
-      where: and(eq(aiMaterialInstances.id, materialId), notLike(aiMaterialInstances.title, "[DRAF]%")),
+      where: and(
+        eq(aiMaterialInstances.id, materialId),
+        eq(aiMaterialInstances.courseId, compatibilityCourseId),
+        notLike(aiMaterialInstances.title, "[DRAF]%"),
+      ),
       with: {
         sections: {
           orderBy: (s, { asc }) => [asc(s.orderIndex)],
@@ -195,6 +234,18 @@ async function fetchMaterial(courseId: string, materialId: string, studentId?: s
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, materialId } = await params;
   const course = await getCourse(id);
+
+  // Check canonical structured article first
+  const canonicalArticle = await getCanonicalPublishedArticle(id, materialId);
+  if (canonicalArticle) {
+    return {
+      title: pageTitle(course ? `${course.title} - ${canonicalArticle.title}` : canonicalArticle.title),
+      description: course
+        ? `Baca materi ${canonicalArticle.title}; bagian dari ${course.title}.`
+        : "Baca materi pelajaran dan artikel terstruktur.",
+    };
+  }
+
   const material = await fetchMaterial(id, materialId);
   return {
     title: pageTitle(course && material ? `${course.title} - ${material.title}` : "Materi"),
@@ -209,6 +260,49 @@ export default async function CourseMaterialDetailPage({ params }: Props) {
   const course = await getCourse(id);
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
+
+  // 1. Canonical structured article first. Published V2 Article and Diktat
+  // content falls through to the canonical text product reader below.
+  const canonicalArticle = await getCanonicalPublishedArticle(id, materialId, studentId);
+  if (canonicalArticle && course) {
+    const isEnrolled = await checkEnrollment(id);
+    if (!isEnrolled) {
+      return (
+        <CoursePageShell title="Materi terkunci" description={`${course.title} · konten premium`} hideHeader>
+          <div className="mb-4">
+            <Button variant="ghost" size="sm" asChild className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground">
+              <Link href={`/courses/${id}/material`}>
+                <ArrowLeft className="size-3.5" />
+                <span>Kembali ke Dokumen</span>
+              </Link>
+            </Button>
+          </div>
+          <Reveal>
+            <div className="rounded-lg border border-border/70 bg-card/75 p-4 backdrop-blur-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
+                  <Lock className="size-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-body-base font-bold text-foreground">Butuh token kelas</h3>
+                  <p className="mt-1 text-body-sm text-muted-foreground">
+                    Aktifkan kelas untuk membuka &ldquo;{canonicalArticle.title}&rdquo;.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <EnrollmentForm />
+              </div>
+            </div>
+          </Reveal>
+        </CoursePageShell>
+      );
+    }
+
+    return <StructuredArticleReader article={canonicalArticle} course={course} />;
+  }
+
+  // 2. Untouched legacy fallback
   const material = await fetchMaterial(id, materialId, studentId);
   if (!course || !material) notFound();
 

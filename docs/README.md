@@ -24,18 +24,22 @@ docs/
 ├── bundle/                                   # Bundle Specifications and Authoring Contracts
 │   ├── authoring-context-pack-v1.md          # Authoring Context Pack V1 Contract
 │   ├── authoring-job-pack-v1.md              # Authoring Job Pack V1 Contract
-│   ├── idea-bundle-v2.md                     # Idea Bundle V2 Schema and Ingestion Spec
-│   └── product-bundle-v2.md                  # Product Bundle V2 Schema and Ingestion Spec
+│   ├── idea-bundle-v2.md                     # Transitional Idea Bundle V2 Contract
+│   ├── idea-bundle-v3.md                     # Structured Idea Bundle V3 Contract
+│   ├── product-bundle-v2.md                  # Transitional Product Bundle V2 Contract
+│   └── product-bundle-v3.md                  # Structured Product Bundle V3 Contract
 │
 ├── operations/                               # Operational Runbooks, Checklists, and Allowances
 │   ├── legacy-vector-contract-allowlist.md   # Allowed Legacy Vector References during Cutover
 │   ├── manual-test-plan-bundles-v2.md       # Human-driven Verification for Bundle Ingestion
 │   ├── production-readiness-checklist.md     # Pre-deployment Gates and Plan Checkpoints
+│   ├── structured-article-v3-rollout.md       # Structured Article V3 Migration and Rollout
 │   ├── visual-audit-capture.md               # Procedure for Staging Visual Capture Audits
 │   └── zyra-ops-runbooks.md                  # Zyra AI Alert Runbooks and Incident Handling
 │
 ├── audit/                                    # Quality, Security, and Visual Audits
-│   └── admin-visual-quality-audit.md         # Admin Visual Quality and Responsive Audit
+│   ├── admin-visual-quality-audit.md         # Admin Visual Quality and Responsive Audit
+│   └── student-deep-ui-ux-audit.md           # Student Deep UI/UX Quality and Design Audit
 │
 └── handoffs/                                 # Milestone Handoff Records and Checkpoints
     └── zyra-ai-plans-001-007.md              # Zyra AI Plans 001-007 Staging Checkpoint
@@ -61,24 +65,28 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
-| [README.md](README.md) | Index | `ACTIVE` | 2026-08-27 | Master documentation index, hierarchy map, and lifecycle status ledger. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | Current | Core platform architecture, data boundaries, domain layers, MCP stored-PDF retrieval, and system interfaces. |
+| [README.md](README.md) | Index | `ACTIVE` | 2026-09-04 | Master documentation index, hierarchy map, and lifecycle status ledger. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-04 | Core platform architecture, canonical-first student reads, compatibility boundaries, tutor grading, scheduling, retired legacy authoring CRUD, MCP stored-PDF retrieval and Source Pack persistence, and system interfaces. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
-| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | Current | Comprehensive catalog of database tables, relationships, indexes, and constraints. |
+| [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-04 | Comprehensive catalog of database tables, relationships, indexes, constraints, and tutor grading persistence. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | Current | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, secrets, and environments. |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | Current | Local development guide, scripts, environment variables, and `FEATURE_*` flags catalog. |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-09-04 | Local development guide, scripts, environment variables, and V3 authoring rollout flag boundaries. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |
-| [features.md](features.md) | Product | `ACTIVE` | Current | Authoritative catalog of student, tutor, admin, and prompt-only MCP authoring workflows. |
+| [features.md](features.md) | Product | `ACTIVE` | 2026-09-04 | Authoritative catalog of canonical-first student, tutor, admin, and prompt-only MCP authoring workflows. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring context pack export format and security boundaries. |
-| [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring job packs and local or stored-original Source Pack ingestion. |
-| [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `ACTIVE` | Current | Specification for Idea Bundle V2 ZIP format, manifest, validation, and publication. |
-| [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `ACTIVE` | Current | Specification for Product Bundle V2 ZIP format, manifest, validation, and publication. |
+| [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | 2026-09-04 | Specification for authoring job packs and local or stored-original Source Pack ingestion and persistence. |
+| [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read and rollback submission contract for Idea Bundle V2. |
+| [bundle/idea-bundle-v3.md](bundle/idea-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-08-31 | Learning section hierarchy, Idea membership, validation, editing, and MCP transition contract. |
+| [bundle/product-bundle-v2.md](bundle/product-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read compatibility and Article block review adapter for Product Bundle V2. |
+| [bundle/product-bundle-v3.md](bundle/product-bundle-v3.md) | Bundle Contract | `ACTIVE` | 2026-09-01 | Structured Article sections, semantic blocks, quality gates, review, publication, and canonical student read models. |
 | [operations/production-readiness-checklist.md](operations/production-readiness-checklist.md) | Operations | `ACTIVE` | Current | Pre-deployment gates, quality criteria, and staging validation checklist. |
-| [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | Current | Operational runbooks, health metrics, and alert responses for the Zyra AI system. |
+| [operations/zyra-ops-runbooks.md](operations/zyra-ops-runbooks.md) | Operations | `ACTIVE` | 2026-09-02 | Operational runbooks, health metrics, alert responses, and Admin Ops AI v2 operational procedures (Vectorize sync, rollback without flag, provider mitigation, proposal retention). |
 | [operations/visual-audit-capture.md](operations/visual-audit-capture.md) | Operations | `ACTIVE` | Current | Safe procedure for capturing staging visual audits and screenshots. |
-| [operations/manual-test-plan-bundles-v2.md](operations/manual-test-plan-bundles-v2.md) | Operations | `ACTIVE` | Current | Manual test procedure for Idea Bundle V2 and Product Bundle V2 ingestion flows. |
+| [operations/structured-article-v3-rollout.md](operations/structured-article-v3-rollout.md) | Operations | `ACTIVE` | 2026-09-01 | Additive migration, authoring rollout gates, rollback, and published student visibility for structured Articles. |
+| [operations/manual-test-plan-bundles-v2.md](operations/manual-test-plan-bundles-v2.md) | Operations | `ACTIVE` | Current | Manual test procedure for Idea Bundle V2 and Product Bundle V2 ingestion, block review, and destructive confirmation flows. |
 | [operations/legacy-vector-contract-allowlist.md](operations/legacy-vector-contract-allowlist.md) | Operations | `TRANSITIONAL / LEGACY` | Current | Non-runtime vector matches permitted during the Vectorize 768d migration cutover. |
 | [audit/admin-visual-quality-audit.md](audit/admin-visual-quality-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-08-24 | Visual and responsive quality audit for admin pages. All 14 findings (F1-F14) resolved and verified. |
+| [audit/student-deep-ui-ux-audit.md](audit/student-deep-ui-ux-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-09-03 | Comprehensive UI/UX and system audit for student pages. All 8 findings (AUD-STU-01 through 08) resolved and verified. |
 | [handoffs/zyra-ai-plans-001-007.md](handoffs/zyra-ai-plans-001-007.md) | Milestone Handoff | `HISTORICAL CHECKPOINT` | 2026-08-11 | Staging checkpoint and test evidence summary for Zyra AI system Plans 001 through 007. |
 
 ---
@@ -91,7 +99,14 @@ Implementation plans reside in `plans/` with detailed specifications:
 |---|---|---|---|
 | Overhaul Plans 001-016 | `plans/README.md` | `COMPLETED / RESOLVED` | Core overhaul covering identity, schemas, bundles V2, Vectorize 768d cutover, and Zyra foundation. |
 | Plan 017 | `plans/017-audit-rework.md` | `OPEN / IN PROGRESS` | Minimal audit rework for Idea-centered authoring and learning workflows. |
+| Student course learning UX remediation | `plans/student-course-learning-ux-remediation.md` | `OPEN / IN PROGRESS` | Checkpoint plan for Documents, Flashcards, Quiz, Tryout, Study Path, Daily Trivia, and student Zyra UX. |
 | Zyra AI System Plans 001-014 | `plans/zyra-ai-system/README.md` | `ACTIVE / IN PROGRESS` | AI control plane, quota coordinator, multi-model routing, semantic cache, canvas, and tutoring harness. |
+| Zyx Ops AI rebuild orchestration | `plans/orkestrasi-rebuild-zyx-ops-ai-agy-high.md` | `COMPLETED / RESOLVED` | Checkpoint-based orchestration plan for rebuilding Zyx Ops AI with AGY High (Checkpoints 1 through 7 completed and verified). |
+| Ops AI CP3 Runtime Handoff | `plans/handoff-cp3-runtime.md` | `COMPLETED / RESOLVED` | Checkpoint 3 runtime, streaming, and tool execution milestone handoff. |
+| Ops AI CP4 Citations Handoff | `plans/handoff-cp4-citations.md` | `COMPLETED / RESOLVED` | Checkpoint 4 citation contracts, provenance binding, and disclaimer handoff. |
+| Ops AI CP5 Mutations Handoff | `plans/handoff-cp5-mutations.md` | `COMPLETED / RESOLVED` | Checkpoint 5 two-phase mutation proposals and server-side execution store handoff. |
+| Ops AI CP6 UI Handoff | `plans/handoff-cp6-ui.md` | `COMPLETED / RESOLVED` | Checkpoint 6 desktop participant, mobile sheet, and proposal cards UI handoff. |
+| Ops AI CP7 Integration Handoff | `plans/handoff-cp7-integration.md` | `COMPLETED / RESOLVED` | Checkpoint 7 end-to-end integration tests, runbooks, and staging smoke workflow. |
 
 ---
 
@@ -122,8 +137,9 @@ To prevent confusion when navigating code or documentation, the active vs legacy
 | **Object Storage** | Cloudflare R2 via `lib/storage/keys.ts` | UploadThing | All new storage writes use Cloudflare R2 keys. UploadThing remains for legacy compatibility paths only. |
 | **Database** | Turso (Production/Staging), SQLite (Local `dev.db`) | PostgreSQL / `neon-client` | Turso and local SQLite are the only supported engines. PostgreSQL is not used. |
 | **Roles & Permissions** | Canonical `pengguna_peran` table with role assignments | Flat string role column on user | All new authorization checks use canonical `pengguna_peran`. |
-| **Course Ingestion** | Bundle V2 (`idea-bundle-v2`, `product-bundle-v2`) | Legacy V1 direct JSON importers | Bundle V2 ZIP imports are always-on and verified through typed manifests. |
+| **Course Ingestion** | Bundle V3 behind `FEATURE_STRUCTURED_ARTICLE_READER_V1` | Bundle V2 submission and legacy readers | Published V2 and V3 remain readable. New submissions require V3 only while the flag is enabled. |
 | **AI Harness & Quota** | Zyra Control Plane with Durable Object Quota Coordinator | Uncoordinated direct provider calls | Tutoring and generation route through Zyra quota coordinator and allowance ledger. |
+| **Admin Ops AI** | Admin Ops AI v2 (isolated `admin_ops_knowledge` Vectorize namespace, two-phase mutation proposals, in-flow desktop panel) | Legacy ungrounded Ops AI v1 chat | Admin assistant uses isolated Vectorize 768d RAG and server-validated proposals only. |
 
 ---
 

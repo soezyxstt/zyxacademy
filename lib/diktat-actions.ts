@@ -12,6 +12,7 @@ import { storage } from "@/lib/storage";
 import { env } from "@/lib/env";
 import { canPublishDiktat } from "@/lib/diktat/audit-contracts";
 import { joinKey, slugifySegment } from "@/lib/storage/keys";
+import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
 
 /**
  * Extracts the unique file key from an UploadThing CDN URL.
@@ -283,6 +284,11 @@ export async function executeDiktatPDFGeneration(
     const objectKey = joinKey("courses", slugifySegment(diktat.courseId), "diktats", leaf);
     const uploadedData = await storage.upload(pdfBuffer, leaf, "application/pdf", { key: objectKey });
     const fileUrl = uploadedData.url; // Storing only key/reference URL
+    const thumbnailUrl = await generateAndSavePdfThumbnail({
+      courseSlug: diktat.courseId,
+      materialId: diktat.id,
+      pdfBuffer,
+    }).catch(() => null);
 
     // Trigger cleanup of the old file
     if (oldUrl) {
@@ -302,6 +308,7 @@ export async function executeDiktatPDFGeneration(
       .update(diktats)
       .set({
         fileUrl,
+        thumbnailUrl,
         status: "ready",
         updatedAt: new Date(),
       })

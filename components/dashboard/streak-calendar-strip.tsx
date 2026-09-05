@@ -25,7 +25,7 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
   const currentDayIndex = (new Date().getDay() + 6) % 7; // Monday = 0, Sunday = 6
 
   return (
-    <div className="rounded-xl border border-border bg-card/65 p-3.5 backdrop-blur-md shadow-xs select-none">
+    <div className="rounded-xl border border-border/70 bg-card/70 p-3.5 backdrop-blur-md shadow-xs select-none">
       <div className="flex items-center justify-between mb-2">
         <span className="font-heading text-body-xs font-semibold text-foreground">Streak Mingguan</span>
         <div className="flex items-center gap-1">

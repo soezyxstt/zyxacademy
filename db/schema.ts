@@ -1281,6 +1281,7 @@ export const studentQuizAttempts = sqliteTable(
  score: integer("score"),
  durationSeconds: integer("duration_seconds"),
  status: text("status").$type<"in_progress" | "completed" | "abandoned">().default("in_progress").notNull(),
+ gradingStatus: text("grading_status").$type<"not_required" | "pending" | "graded">().default("not_required").notNull(),
  questionsSnapshot: text("questions_snapshot", { mode: "json" }).notNull(),
  answersSnapshot: text("answers_snapshot", { mode: "json" }),
  startedAt: integer("started_at", { mode: "timestamp" }).defaultNow().notNull(),
@@ -1294,6 +1295,7 @@ export const studentQuizAttempts = sqliteTable(
  (table) => [
  index("idx_attempts_student").on(table.studentId, table.status),
  index("idx_attempts_completed").on(table.templateId, table.score).where(sql`"status" = 'completed'`),
+ index("idx_attempts_grading_status").on(table.templateId, table.gradingStatus),
  ]
 );
 
@@ -1817,6 +1819,51 @@ export const relasiIde = sqliteTable(
  ],
 );
 
+export const bagianPembelajaran = sqliteTable(
+ "bagian_pembelajaran",
+ {
+  id: text("id").primaryKey(),
+  mataKuliahId: text("mata_kuliah_id").notNull().references(() => mataKuliah.id, { onDelete: "restrict" }),
+  babId: text("bab_id").notNull().references(() => bab.id, { onDelete: "restrict" }),
+  stableKey: text("stable_key").notNull(),
+  parentSectionId: text("parent_section_id").references((): any => bagianPembelajaran.id, { onDelete: "restrict" }),
+  title: text("title").notNull(),
+  slug: text("slug").notNull(),
+  orderIndex: integer("order_index").notNull(),
+  learningObjective: text("learning_objective").notNull(),
+  sourceChunkIds: text("source_chunk_ids", { mode: "json" }).$type<string[]>().$defaultFn(() => []).notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"published" | "superseded" | "withdrawn">().default("published").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("bagian_pembelajaran_stable_key_idx").on(table.stableKey),
+  uniqueIndex("bagian_pembelajaran_slug_idx").on(table.mataKuliahId, table.babId, table.slug),
+  uniqueIndex("bagian_pembelajaran_order_idx").on(table.babId, table.parentSectionId, table.orderIndex),
+  index("bagian_pembelajaran_parent_idx").on(table.parentSectionId),
+  check("bagian_pembelajaran_order_check", sql`${table.orderIndex} >= 0`),
+  check("bagian_pembelajaran_version_check", sql`${table.version} > 0`),
+  check("bagian_pembelajaran_status_check", sql`${table.status} IN ('published', 'superseded', 'withdrawn')`),
+ ],
+);
+
+export const bagianPembelajaranIde = sqliteTable(
+ "bagian_pembelajaran_ide",
+ {
+  id: text("id").primaryKey(),
+  bagianPembelajaranId: text("bagian_pembelajaran_id").notNull().references(() => bagianPembelajaran.id, { onDelete: "cascade" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  role: text("role").$type<"primary" | "supporting">().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("bagian_pembelajaran_ide_unique_idx").on(table.bagianPembelajaranId, table.ideId),
+  index("bagian_pembelajaran_ide_ide_idx").on(table.ideId),
+  check("bagian_pembelajaran_ide_role_check", sql`${table.role} IN ('primary', 'supporting')`),
+ ],
+);
+
 export const ketergantunganProduk = sqliteTable(
  "ketergantungan_produk",
  {
@@ -1892,6 +1939,10 @@ export const artikel = sqliteTable(
   slug: text("slug").notNull(),
   title: text("title").notNull(),
   contentMarkdown: text("content_markdown").notNull(),
+  structureStatus: text("structure_status")
+   .$type<"legacy_unreviewed" | "structured" | "needs_reauthoring">()
+   .default("legacy_unreviewed")
+   .notNull(),
   version: integer("version").default(1).notNull(),
   status: text("status").$type<"draft" | "in_review" | "published" | "withdrawn">().default("draft").notNull(),
   sourceHash: text("source_hash").notNull(),
@@ -1907,8 +1958,10 @@ export const artikel = sqliteTable(
   index("artikel_course_idx").on(table.mataKuliahId),
   index("artikel_chapter_idx").on(table.babId),
   index("artikel_status_version_idx").on(table.status, table.version),
+  index("artikel_structure_status_idx").on(table.structureStatus),
   check("artikel_version_check", sql`${table.version} > 0`),
   check("artikel_status_check", sql`${table.status} IN ('draft', 'in_review', 'published', 'withdrawn')`),
+  check("artikel_structure_status_check", sql`${table.structureStatus} IN ('legacy_unreviewed', 'structured', 'needs_reauthoring')`),
  ],
 );
 
@@ -1928,13 +1981,46 @@ export const artikelIde = sqliteTable(
  ],
 );
 
+export const bagianArtikel = sqliteTable(
+ "bagian_artikel",
+ {
+  id: text("id").primaryKey(),
+  artikelId: text("artikel_id").notNull().references(() => artikel.id, { onDelete: "cascade" }),
+  bagianPembelajaranId: text("bagian_pembelajaran_id").references(() => bagianPembelajaran.id, { onDelete: "restrict" }),
+  parentSectionId: text("parent_section_id").references((): any => bagianArtikel.id, { onDelete: "restrict" }),
+  sectionKey: text("section_key").notNull(),
+  sectionKind: text("section_kind").$type<"overview" | "topic" | "summary">().notNull(),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  learningObjective: text("learning_objective").notNull(),
+  orderIndex: integer("order_index").notNull(),
+  estimatedReadingMinutes: integer("estimated_reading_minutes").notNull(),
+  version: integer("version").default(1).notNull(),
+  status: text("status").$type<"published" | "withdrawn">().default("published").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("bagian_artikel_key_idx").on(table.artikelId, table.version, table.sectionKey),
+  uniqueIndex("bagian_artikel_slug_idx").on(table.artikelId, table.version, table.slug),
+  uniqueIndex("bagian_artikel_order_idx").on(table.artikelId, table.version, table.parentSectionId, table.orderIndex),
+  index("bagian_artikel_learning_section_idx").on(table.bagianPembelajaranId),
+  check("bagian_artikel_kind_check", sql`${table.sectionKind} IN ('overview', 'topic', 'summary')`),
+  check("bagian_artikel_order_check", sql`${table.orderIndex} >= 0`),
+  check("bagian_artikel_minutes_check", sql`${table.estimatedReadingMinutes} > 0`),
+  check("bagian_artikel_version_check", sql`${table.version} > 0`),
+ ],
+);
+
 export const blokArtikel = sqliteTable(
  "blok_artikel",
  {
   id: text("id").primaryKey(),
   artikelId: text("artikel_id").notNull().references(() => artikel.id, { onDelete: "cascade" }),
+  bagianArtikelId: text("bagian_artikel_id").references(() => bagianArtikel.id, { onDelete: "cascade" }),
   blockKey: text("block_key").notNull(),
   blockType: text("block_type").notNull(),
+  title: text("title"),
   orderIndex: integer("order_index").notNull(),
   content: text("content").notNull(),
   version: integer("version").default(1).notNull(),
@@ -1944,10 +2030,44 @@ export const blokArtikel = sqliteTable(
   updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
  },
  (table) => [
-  uniqueIndex("blok_artikel_order_idx").on(table.artikelId, table.version, table.orderIndex),
+  uniqueIndex("blok_artikel_key_idx").on(table.artikelId, table.version, table.blockKey),
+  index("blok_artikel_order_idx").on(table.artikelId, table.version, table.bagianArtikelId, table.orderIndex),
+  index("blok_artikel_section_idx").on(table.bagianArtikelId),
   index("blok_artikel_status_idx").on(table.status),
   check("blok_artikel_order_check", sql`${table.orderIndex} >= 0`),
   check("blok_artikel_version_check", sql`${table.version} > 0`),
+ ],
+);
+
+export const blokArtikelIde = sqliteTable(
+ "blok_artikel_ide",
+ {
+  id: text("id").primaryKey(),
+  blokArtikelId: text("blok_artikel_id").notNull().references(() => blokArtikel.id, { onDelete: "cascade" }),
+  ideId: text("ide_id").notNull().references(() => ide.id, { onDelete: "restrict" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("blok_artikel_ide_unique_idx").on(table.blokArtikelId, table.ideId),
+  index("blok_artikel_ide_ide_idx").on(table.ideId),
+ ],
+);
+
+export const blokArtikelSumber = sqliteTable(
+ "blok_artikel_sumber",
+ {
+  id: text("id").primaryKey(),
+  blokArtikelId: text("blok_artikel_id").notNull().references(() => blokArtikel.id, { onDelete: "cascade" }),
+  sumberMateriId: text("sumber_materi_id").notNull().references(() => sumberMateri.id, { onDelete: "restrict" }),
+  sourceVersion: integer("source_version").notNull(),
+  sourceChecksum: text("source_checksum").notNull(),
+  excerptIds: text("excerpt_ids", { mode: "json" }).$type<string[]>().$defaultFn(() => []).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+ },
+ (table) => [
+  uniqueIndex("blok_artikel_sumber_unique_idx").on(table.blokArtikelId, table.sumberMateriId, table.sourceVersion),
+  index("blok_artikel_sumber_source_idx").on(table.sumberMateriId),
+  check("blok_artikel_sumber_version_check", sql`${table.sourceVersion} > 0`),
  ],
 );
 
@@ -2394,6 +2514,10 @@ export const jawabanMurid = sqliteTable(
   contentVersion: integer("content_version").notNull(),
   score: real("score"),
   status: text("status").$type<"ungraded" | "correct" | "incorrect" | "partial" | "needs_review">().default("ungraded").notNull(),
+  reviewerId: text("reviewer_id").references(() => pengguna.id, { onDelete: "set null" }),
+  reviewNotes: text("review_notes"),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+  reviewRevision: integer("review_revision").default(0).notNull(),
   answeredAt: integer("answered_at", { mode: "timestamp" }).defaultNow().notNull(),
  },
  (table) => [
@@ -2526,7 +2650,7 @@ export const imporBundle = sqliteTable(
  id: text("id").primaryKey(),
  bundleId: text("bundle_id").notNull(),
  checksum: text("checksum").notNull(),
- bundleType: text("bundle_type").$type<"idea" | "product" | "assessment" | "mixed">().notNull(),
+ bundleType: text("bundle_type").$type<"source" | "idea" | "product" | "assessment" | "mixed">().notNull(),
  courseId: text("course_id").references(() => courses.id, { onDelete: "restrict" }),
  sourceUriOrKey: text("source_uri_or_key").notNull(),
  version: integer("version").default(1).notNull(),
@@ -2577,6 +2701,29 @@ export const reviewBundle = sqliteTable(
  (table) => [
   uniqueIndex("review_bundle_reviewer_idx").on(table.imporBundleId, table.reviewerId),
   index("review_bundle_status_idx").on(table.status),
+ ],
+);
+
+export const reviewItemBundle = sqliteTable(
+ "review_item_bundle",
+ {
+  id: text("id").primaryKey(),
+  imporBundleId: text("impor_bundle_id").notNull().references(() => imporBundle.id, { onDelete: "cascade" }),
+  reviewerId: text("reviewer_id").notNull().references(() => pengguna.id, { onDelete: "restrict" }),
+  productId: text("product_id"),
+  blockId: text("block_id"),
+  targetType: text("target_type").$type<"idea" | "article_section" | "article_block">().default("article_block").notNull(),
+  targetId: text("target_id"),
+  status: text("status").$type<"pending" | "approved" | "changes_requested">().default("pending").notNull(),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("review_item_bundle_target_idx").on(table.imporBundleId, table.reviewerId, table.targetType, table.targetId),
+  index("review_item_bundle_import_idx").on(table.imporBundleId),
+  index("review_item_bundle_status_idx").on(table.status),
+  check("review_item_bundle_target_type_check", sql`${table.targetType} IN ('idea', 'article_section', 'article_block')`),
  ],
 );
 
@@ -2875,6 +3022,8 @@ export const vectorSyncQueue = sqliteTable(
  status: text("status").$type<"pending" | "processing" | "completed" | "failed">().default("pending").notNull(),
  attempts: integer("attempts").default(0).notNull(),
  lastError: text("last_error"),
+ leaseId: text("lease_id"),
+ leaseExpiresAt: integer("lease_expires_at", { mode: "timestamp" }),
  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
  updatedAt: integer("updated_at", { mode: "timestamp" })
  .defaultNow()
@@ -2883,6 +3032,7 @@ export const vectorSyncQueue = sqliteTable(
  },
  (table) => [
  index("idx_vector_sync_status").on(table.status),
+ index("idx_vector_sync_lease").on(table.leaseExpiresAt),
  ]
 );
 
@@ -3012,6 +3162,30 @@ export const studentMaterialProgress = sqliteTable(
  unique("uq_student_material").on(table.studentId, table.materialId),
  index("idx_student_mat_prog").on(table.studentId, table.materialId),
  ]
+);
+
+export const kemajuanBacaArtikel = sqliteTable(
+ "kemajuan_baca_artikel",
+ {
+  id: text("id").primaryKey(),
+  penggunaId: text("pengguna_id").notNull().references(() => pengguna.id, { onDelete: "cascade" }),
+  artikelId: text("artikel_id").notNull().references(() => artikel.id, { onDelete: "cascade" }),
+  artikelVersion: integer("artikel_version").notNull(),
+  bagianArtikelId: text("bagian_artikel_id").notNull().references(() => bagianArtikel.id, { onDelete: "cascade" }),
+  maxReadPercent: integer("max_read_percent").default(0).notNull(),
+  timeSpentSeconds: integer("time_spent_seconds").default(0).notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
+  lastReadAt: integer("last_read_at", { mode: "timestamp" }).defaultNow().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).defaultNow().$onUpdate(() => new Date()).notNull(),
+ },
+ (table) => [
+  uniqueIndex("kemajuan_baca_artikel_unique_idx").on(table.penggunaId, table.artikelId, table.artikelVersion, table.bagianArtikelId),
+  index("kemajuan_baca_artikel_resume_idx").on(table.penggunaId, table.artikelId, table.lastReadAt),
+  check("kemajuan_baca_artikel_version_check", sql`${table.artikelVersion} > 0`),
+  check("kemajuan_baca_artikel_percent_check", sql`${table.maxReadPercent} >= 0 AND ${table.maxReadPercent} <= 100`),
+  check("kemajuan_baca_artikel_time_check", sql`${table.timeSpentSeconds} >= 0`),
+ ],
 );
 
 // 10. diktats
@@ -5407,6 +5581,9 @@ export const searchDocuments = sqliteTable(
     path: text("path").notNull(),
     minRole: integer("min_role").default(0).notNull(),
     isSynced: integer("is_synced", { mode: "boolean" }).default(false).notNull(),
+    syncStatus: text("sync_status").$type<"pending" | "processing" | "completed" | "failed">().default("pending").notNull(),
+    leaseId: text("lease_id"),
+    leaseExpiresAt: integer("lease_expires_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" })
       .defaultNow()
@@ -5416,7 +5593,135 @@ export const searchDocuments = sqliteTable(
   (table) => [
     index("idx_search_documents_entity").on(table.entityType, table.entityId),
     index("idx_search_documents_synced").on(table.isSynced),
+    index("idx_search_documents_sync_status").on(table.syncStatus),
     index("idx_search_documents_min_role").on(table.minRole),
     index("idx_search_documents_course").on(table.courseId),
   ]
+);
+
+// ─── Admin Ops Knowledge ───────────────────────────────────────────────────
+
+export const adminOpsKnowledgeSources = sqliteTable(
+  "admin_ops_knowledge_sources",
+  {
+    id: text("id").primaryKey(),
+    sourcePath: text("source_path").notNull(),
+    sourceType: text("source_type")
+      .$type<"doc" | "schema_projection" | "catalog" | "bundle_contract" | "runbook">()
+      .notNull(),
+    title: text("title").notNull(),
+    version: integer("version").default(1).notNull(),
+    contentHash: text("content_hash").notNull(),
+    manifestHash: text("manifest_hash").notNull(),
+    chunkCount: integer("chunk_count").default(0).notNull(),
+    status: text("status").$type<"active" | "stale" | "archived">().default("active").notNull(),
+    metadata: text("metadata", { mode: "json" }),
+    lastSyncedAt: integer("last_synced_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_admin_ops_sources_path").on(table.sourcePath),
+    index("idx_admin_ops_sources_status").on(table.status),
+    index("idx_admin_ops_sources_hash").on(table.contentHash),
+  ]
+);
+
+export const adminOpsKnowledgeChunks = sqliteTable(
+  "admin_ops_knowledge_chunks",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => adminOpsKnowledgeSources.id, { onDelete: "cascade" }),
+    chunkIndex: integer("chunk_index").notNull(),
+    locator: text("locator").notNull(),
+    headingHierarchy: text("heading_hierarchy", { mode: "json" })
+      .$type<string[]>()
+      .default([])
+      .notNull(),
+    startOffset: integer("start_offset").notNull(),
+    endOffset: integer("end_offset").notNull(),
+    content: text("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    version: integer("version").default(1).notNull(),
+    status: text("status").$type<"active" | "stale">().default("active").notNull(),
+    vectorId: text("vector_id").notNull(),
+    metadata: text("metadata", { mode: "json" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_admin_ops_chunks_source").on(table.sourceId),
+    index("idx_admin_ops_chunks_status").on(table.status),
+    index("idx_admin_ops_chunks_vector_id").on(table.vectorId),
+    index("idx_admin_ops_chunks_content_hash").on(table.contentHash),
+    uniqueIndex("idx_admin_ops_chunks_source_index_ver").on(
+      table.sourceId,
+      table.chunkIndex,
+      table.version
+    ),
+  ]
+);
+
+export const adminOpsKnowledgeSyncQueue = sqliteTable(
+  "admin_ops_knowledge_sync_queue",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id").references(() => adminOpsKnowledgeSources.id, {
+      onDelete: "set null",
+    }),
+    action: text("action")
+      .$type<"sync_source" | "sync_all" | "delete_source">()
+      .notNull(),
+    status: text("status")
+      .$type<"pending" | "processing" | "completed" | "failed">()
+      .default("pending")
+      .notNull(),
+    payload: text("payload", { mode: "json" }).notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    lastError: text("last_error"),
+    createdAt: integer("created_at", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("idx_admin_ops_sync_queue_status").on(table.status),
+  ]
+);
+
+export const adminOpsKnowledgeSourcesRelations = relations(
+  adminOpsKnowledgeSources,
+  ({ many }) => ({
+    chunks: many(adminOpsKnowledgeChunks),
+    syncActions: many(adminOpsKnowledgeSyncQueue),
+  })
+);
+
+export const adminOpsKnowledgeChunksRelations = relations(
+  adminOpsKnowledgeChunks,
+  ({ one }) => ({
+    source: one(adminOpsKnowledgeSources, {
+      fields: [adminOpsKnowledgeChunks.sourceId],
+      references: [adminOpsKnowledgeSources.id],
+    }),
+  })
+);
+
+export const adminOpsKnowledgeSyncQueueRelations = relations(
+  adminOpsKnowledgeSyncQueue,
+  ({ one }) => ({
+    source: one(adminOpsKnowledgeSources, {
+      fields: [adminOpsKnowledgeSyncQueue.sourceId],
+      references: [adminOpsKnowledgeSources.id],
+    }),
+  })
 );

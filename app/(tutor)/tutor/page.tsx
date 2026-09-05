@@ -10,6 +10,8 @@ import { db } from "@/db";
 import { courses, enrollments, mataKuliah } from "@/db/schema";
 import { and, count, gt, inArray } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { pageTitle } from "@/lib/site";
 
@@ -84,100 +86,128 @@ export default async function TutorPage() {
   const totalStudents = courseList.reduce((sum, course) => sum + course.enrolledCount, 0);
 
   return (
-    <div className="max-w-5xl px-6 py-8 space-y-6">
+    <ApplicationPage>
       <PageHeader
         title="Pengajaran"
         icon={GraduationCap}
         divider={false}
       />
 
-      {/* Schedule Banner linking to /tutor/schedule */}
+      <AdminStatStrip>
+        <AdminStatStripItem
+          label="Kelas ditugaskan"
+          value={courseList.length}
+          icon={BookOpen}
+          tone="brand"
+        />
+        <AdminStatStripItem
+          label="Siswa aktif"
+          value={totalStudents}
+          icon={Users}
+          tone="brand-secondary"
+        />
+      </AdminStatStrip>
+
       <Link
         href="/tutor/schedule"
-        className="flex items-center justify-between p-4 rounded-2xl border border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 transition-colors shadow-xs"
+        className="group flex min-w-0 items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-brand-primary text-white flex items-center justify-center shrink-0">
-            <CalendarDays className="size-5" />
-          </div>
-          <div>
-            <p className="font-heading text-body-sm font-bold text-foreground">
-              Kalender & Jadwal Tutorial
-            </p>
-            <p className="text-body-xs text-muted-foreground">
-              Kelola slot ketersediaan 90 menit, sertifikasi mata kuliah, dan tutorial kelompok.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 text-body-xs font-semibold text-brand-primary shrink-0">
-          <span>Buka Jadwal</span>
-          <ArrowRight className="size-4" />
-        </div>
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+          <CalendarDays className="size-4" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-body-sm font-semibold text-foreground">
+            Jadwal tutorial
+          </span>
+          <span className="block truncate text-body-xs text-muted-foreground">
+            Kelola jadwal dan sesi kelompok
+          </span>
+        </span>
+        <ArrowRight className="size-4 shrink-0 text-brand-primary transition-transform group-hover:translate-x-0.5" aria-hidden />
       </Link>
 
-      <div className="border-b border-border pb-6">
-        <p className="text-body-sm text-muted-foreground">
-          Pilih kelas untuk melihat analitik cohort.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-6 text-body-sm">
-          <div className="flex items-center gap-2">
-            <BookOpen className="size-4 text-brand-primary" />
-            <span className="font-semibold text-foreground">{courseList.length}</span>
-            <span className="text-muted-foreground">kelas</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Users className="size-4 text-tertiary-1" />
-            <span className="font-semibold text-foreground">{totalStudents}</span>
-            <span className="text-muted-foreground">siswa</span>
-          </div>
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-heading text-body-base font-bold text-foreground">Kelas Anda</h2>
+          <span className="text-body-xs text-muted-foreground">{courseList.length} kelas</span>
         </div>
-      </div>
 
-      {courseList.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card">
-          <AdminEmptyState
-            icon={GraduationCap}
-            title="Belum ada kelas yang ditugaskan"
-            description="Kelas yang ditugaskan oleh admin kepada Anda akan muncul di sini."
-          />
-        </div>
-      ) : (
-        <div className="divide-y divide-border border-b border-border">
-          {courseList.map((course) => (
-            <div
-              key={course.courseId}
-              className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-3 rounded-lg"
-            >
-              <Link
-                href={`/tutor/${course.courseId}`}
-                className="min-w-0 transition-colors duration-150 hover:bg-muted/35"
-              >
-                <p className="truncate text-body-base font-medium text-foreground">
-                  {course.title}
-                </p>
-                <p className="text-body-sm text-muted-foreground">
-                  {course.enrolledCount} terdaftar
-                </p>
-              </Link>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-body-sm font-semibold text-brand-primary">
-                <Link href={`/tutor/${course.courseId}/quizzes`} className="hover:underline">
-                  Kuis
-                </Link>
-                <Link href={`/tutor/${course.courseId}/live`} className="hover:underline">
-                  Kuis Langsung
-                </Link>
-                <Link href={`/tutor/${course.courseId}/grading`} className="hover:underline">
-                  Penilaian
-                </Link>
-                <Link href={`/tutor/${course.courseId}`} className="inline-flex items-center gap-1.5 hover:underline">
-                  Analitik
-                  <ArrowRight className="size-4 shrink-0" />
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+        {courseList.length === 0 ? (
+          <div className="border-y border-dashed border-border">
+            <AdminEmptyState
+              icon={GraduationCap}
+              title="Belum ada kelas yang ditugaskan"
+              description="Kelas dari admin akan muncul di sini."
+            />
+          </div>
+        ) : (
+          <div className="divide-y divide-border border-y border-border">
+            {courseList.map((course) => {
+              const courseHref = `/tutor/${course.courseId}`;
+
+              return (
+                <article key={course.courseId} className="space-y-3 py-4">
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                    <Link
+                      href={courseHref}
+                      className="min-w-0 flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <p className="truncate text-body-base font-semibold text-foreground">
+                        {course.title}
+                      </p>
+                      <p className="text-body-xs text-muted-foreground">
+                        {course.enrolledCount} siswa aktif
+                      </p>
+                    </Link>
+                    <Link
+                      href={courseHref}
+                      className="inline-flex shrink-0 items-center gap-1 text-body-xs font-semibold text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Ringkasan / Analitik
+                      <ArrowRight className="size-3.5" aria-hidden />
+                    </Link>
+                  </div>
+                  <nav
+                    aria-label={`Navigasi ${course.title}`}
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 text-body-xs font-semibold"
+                  >
+                    <Link
+                      href={`${courseHref}/participants`}
+                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Peserta & Kelompok
+                    </Link>
+                    <Link
+                      href={`${courseHref}/quizzes`}
+                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Kuis
+                    </Link>
+                    <Link
+                      href={`${courseHref}/live`}
+                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Kuis Langsung
+                    </Link>
+                    <Link
+                      href={`${courseHref}/quizzes/grading`}
+                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Penilaian Kuis
+                    </Link>
+                    <Link
+                      href={`${courseHref}/grading`}
+                      className="text-muted-foreground transition-colors hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Penilaian Tryout
+                    </Link>
+                  </nav>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </ApplicationPage>
   );
 }

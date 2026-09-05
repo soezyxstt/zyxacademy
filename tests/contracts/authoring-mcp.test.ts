@@ -1,7 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createAuthoringMcpServer } from "@/lib/authoring/mcp-server";
-import { ingestMcpSourcePack, listAuthoringWorkflows } from "@/lib/authoring/mcp-workflows";
+import { previousIdeaBundleSourceKey } from "@/lib/bundle/staging";
+import {
+  MCP_AUTHORING_DEFAULT_SCOPES,
+  MCP_CONNECTION_TOKEN_TTL_SECONDS,
+  ingestMcpSourcePack,
+  issueMcpConnectionToken,
+  listAuthoringWorkflows,
+  readMcpConnectionToken,
+} from "@/lib/authoring/mcp-workflows";
 import { normalizeQuestionBankDraft, parseQuestionBankDraftJson } from "@/lib/authoring/question-bank-draft";
 import {
   computeIdeaFacets,
@@ -12,7 +20,6 @@ import {
 } from "@/lib/authoring/question-catalog";
 import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
 import { MCP_OAUTH_SCOPES, requestedScopes } from "@/lib/authoring/mcp-oauth";
-import { MCP_AUTHORING_DEFAULT_SCOPES } from "@/lib/authoring/mcp-workflows";
 
 const testPrincipal = {
   userId: "test-admin",
@@ -91,6 +98,21 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       "authoring:withdraw",
     ]);
     expect(() => requestedScopes("authoring:publish")).toThrow("invalid_scope");
+  });
+
+  it("issues MCP connection tokens with a 30-day hard lifetime", () => {
+    process.env.BETTER_AUTH_SECRET = "test-better-auth-secret-for-mcp-contracts";
+    const token = issueMcpConnectionToken({
+      userId: "test-admin",
+      sessionId: "test-session",
+      clientId: "test-client",
+      resource: "https://example.test/api/mcp/authoring",
+      scopes: ["authoring:read"],
+    });
+    const payload = readMcpConnectionToken(token);
+
+    expect(MCP_CONNECTION_TOKEN_TTL_SECONDS).toBe(30 * 24 * 60 * 60);
+    expect(payload.expiresAt - payload.issuedAt).toBe(MCP_CONNECTION_TOKEN_TTL_SECONDS * 1000);
   });
 
   it("returns a structured compatibility failure for an invalid Source Pack", () => {
@@ -206,11 +228,15 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     expect(names).toContain("assessment.update_question");
     expect(names).toContain("source.list_files");
     expect(names).toContain("source.read_file");
+    expect(names).toContain("source.list_packs");
+    expect(names).toContain("source.get_pack");
     expect(names.some((name) => name.includes("publish"))).toBe(false);
     expect(names.some((name) => name.includes("both"))).toBe(false);
     expect(tools.find((tool) => tool.name === "authoring.list_imports")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "source.list_files")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "source.read_file")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "source.list_packs")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(tools.find((tool) => tool.name === "source.get_pack")?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
     expect(tools.find((tool) => tool.name === "authoring.review_idea_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
     expect(tools.find((tool) => tool.name === "authoring.withdraw_product_bundle")?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true });
   });
@@ -235,6 +261,14 @@ describe("provider-neutral authoring MCP workflow registry", () => {
       error: "AUTHORING_MCP_SCOPE_REQUIRED",
       detail: "authoring:withdraw",
     });
+  });
+
+  it("does not dereference a missing conflict when staging a new Idea Bundle", () => {
+    expect(previousIdeaBundleSourceKey(undefined, undefined)).toBeNull();
+    expect(previousIdeaBundleSourceKey({ id: "existing", sourceUriOrKey: "overhaul/existing.zip" }, undefined)).toBeNull();
+    expect(previousIdeaBundleSourceKey(undefined, "existing")).toBeNull();
+    expect(previousIdeaBundleSourceKey({ id: "existing", sourceUriOrKey: "overhaul/existing.zip" }, "other")).toBeNull();
+    expect(previousIdeaBundleSourceKey({ id: "existing", sourceUriOrKey: "overhaul/existing.zip" }, "existing")).toBe("overhaul/existing.zip");
   });
 });
 

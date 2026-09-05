@@ -5,6 +5,7 @@ import { CheckCircle2, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DueFlashcardsData } from "@/types/course-learning";
 import { studentCardClass } from "@/components/course/course-surfaces";
+import { MathText } from "@/components/course/math-text";
 import { cn } from "@/lib/utils";
 
 export function DueFlashcardsSkeleton() {
@@ -58,7 +59,7 @@ export function DueFlashcardsCard({
               </p>
             </div>
             <p className="text-body-xs text-muted-foreground leading-relaxed" title={data.nextReviewRecommendation}>
-              {data.nextReviewRecommendation}
+              <MathText as="span">{data.nextReviewRecommendation}</MathText>
             </p>
           </div>
         ) : (

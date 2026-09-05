@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { PageHeader } from "@/components/page-header";
+import { ApplicationPage } from "@/components/application-page";
 import { pageTitle } from "@/lib/site";
 import { getTutorCourseParticipants } from "@/lib/tutor/participant-read-model";
 import { ParticipantsClient } from "./participants-client";
@@ -36,7 +37,7 @@ export default async function TutorParticipantsPage({ params }: Props) {
   }
 
   return (
-    <div className="px-6 py-8 max-w-5xl space-y-6">
+    <ApplicationPage>
       <PageHeader
         title={payload.course.title ? `Peserta & Kelompok: ${payload.course.title}` : "Peserta & Kelompok"}
         backHref={`/tutor/${courseId}`}
@@ -44,6 +45,6 @@ export default async function TutorParticipantsPage({ params }: Props) {
       />
 
       <ParticipantsClient data={payload} />
-    </div>
+    </ApplicationPage>
   );
 }

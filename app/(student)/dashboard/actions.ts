@@ -3,13 +3,27 @@
 import { headers } from "next/headers";
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
-import { enrollments, enrollmentTokens, progress, courses, submissions, groupMembers, websiteMaterials } from "@/db/schema";
+import {
+  artikel,
+  artikelIde,
+  diktatIde,
+  diktatMateri,
+  enrollments,
+  enrollmentTokens,
+  groupMembers,
+  mataKuliah,
+  progress,
+  submissions,
+  websiteMaterials,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { recordLearningEvent } from "@/lib/learning-events";
 import { inngest } from "@/lib/inngest";
 import { getSemesterEndDate } from "@/lib/utils";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";
+import { isStudentEnrolled, listStudentCourses, listStudentEnrollments, resolveStudentCourse } from "@/lib/student/course-catalog";
+import { recordLearningEvidence } from "@/lib/pemahaman/evidence";
 
 async function requireUser() {
   const h = await headers();
@@ -30,7 +44,7 @@ export async function getStudentEnrollments() {
   const now = new Date();
 
   if (process.env.NODE_ENV === "development" && user.role === "admin") {
-    const allCourses = await db.select().from(courses);
+    const allCourses = await listStudentCourses();
     return allCourses.map((c) => ({
       id: c.id,
       title: c.title,
@@ -41,23 +55,7 @@ export async function getStudentEnrollments() {
     }));
   }
 
-  return db
-    .select({
-      id: courses.id,
-      title: courses.title,
-      category: courses.category,
-      description: courses.description,
-      enrolledAt: enrollments.enrolledAt,
-      expiresAt: enrollments.expiresAt,
-    })
-    .from(enrollments)
-    .innerJoin(courses, eq(enrollments.courseId, courses.id))
-    .where(
-      and(
-        eq(enrollments.userId, user.id),
-        gt(enrollments.expiresAt, now)
-      )
-    );
+  return listStudentEnrollments(user.id);
 }
 
 /**
@@ -115,14 +113,8 @@ export async function enrollWithToken(tokenStr: string) {
   }
 
   // 6. Check if student is already enrolled in any of these courses active
-  const activeEnrollments = await db.query.enrollments.findMany({
-    where: and(
-      eq(enrollments.userId, user.id),
-      gt(enrollments.expiresAt, now)
-    ),
-  });
-
-  const enrolledCourseIds = new Set(activeEnrollments.map((e) => e.courseId));
+  const activeEnrollments = await listStudentEnrollments(user.id);
+  const enrolledCourseIds = new Set(activeEnrollments.map((enrollment) => enrollment.id));
   const coursesToEnroll = courseIds.filter((cid) => !enrolledCourseIds.has(cid));
 
   if (coursesToEnroll.length === 0) {
@@ -220,17 +212,38 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
 
   // Fire learning event on completion
   if (status === "completed") {
-    const [mat] = await db
+    const [legacyMaterial] = await db
       .select({ courseId: websiteMaterials.courseId })
       .from(websiteMaterials)
       .where(eq(websiteMaterials.id, materialId))
       .limit(1);
+    const [canonicalArticle] = legacyMaterial
+      ? []
+      : await db
+          .select({ courseId: artikel.mataKuliahId, legacyCourseId: mataKuliah.legacyCourseId })
+          .from(artikel)
+          .innerJoin(mataKuliah, eq(artikel.mataKuliahId, mataKuliah.id))
+          .where(and(eq(artikel.id, materialId), eq(artikel.status, "published")))
+          .limit(1);
+    const [canonicalDiktat] = legacyMaterial || canonicalArticle
+      ? []
+      : await db
+          .select({ courseId: diktatMateri.mataKuliahId, legacyCourseId: mataKuliah.legacyCourseId })
+          .from(diktatMateri)
+          .innerJoin(mataKuliah, eq(diktatMateri.mataKuliahId, mataKuliah.id))
+          .where(and(eq(diktatMateri.id, materialId), eq(diktatMateri.status, "published")))
+          .limit(1);
+    const courseId = legacyMaterial?.courseId
+      ?? canonicalArticle?.legacyCourseId
+      ?? canonicalArticle?.courseId
+      ?? canonicalDiktat?.legacyCourseId
+      ?? canonicalDiktat?.courseId;
 
-    if (mat) {
+    if (courseId) {
       const recomputePromise = inngest
         .send({
           name: "mastery/recompute.requested",
-          data: { studentId: user.id, courseId: mat.courseId },
+          data: { studentId: user.id, courseId },
         })
         .catch((err) => {
           console.error("Failed to trigger mastery recompute:", err);
@@ -239,12 +252,29 @@ export async function updateMaterialProgress(materialId: string, status: "in_pro
       await Promise.all([
         recordLearningEvent({
           studentId: user.id,
-          courseId: mat.courseId,
+          courseId,
           eventType: "material_completed",
         }),
         recomputePromise,
       ]);
     }
+
+    const ideaLinks = canonicalArticle
+      ? await db.select({ ideId: artikelIde.ideId, weight: artikelIde.weight }).from(artikelIde).where(eq(artikelIde.artikelId, materialId))
+      : canonicalDiktat
+        ? await db.select({ ideId: diktatIde.ideId, weight: diktatIde.weight }).from(diktatIde).where(eq(diktatIde.diktatMateriId, materialId))
+        : [];
+    await Promise.all(ideaLinks.map((link) => recordLearningEvidence({
+      penggunaId: user.id,
+      ideId: link.ideId,
+      evidenceSource: "material_completed",
+      sourceId: materialId,
+      scoreContribution: 0.65 * link.weight,
+      confidence: 60,
+      derivationStatus: "deterministic",
+      affectsMastery: true,
+      occurredAt: now,
+    })));
   }
 
   // Update user last activity
@@ -285,15 +315,7 @@ export async function checkEnrollment(courseId: string): Promise<boolean> {
     return true;
   }
 
-  const now = new Date();
-  const activeEnrollment = await db.query.enrollments.findFirst({
-    where: and(
-      eq(enrollments.userId, user.id),
-      eq(enrollments.courseId, courseId),
-      gt(enrollments.expiresAt, now)
-    ),
-  });
-  return !!activeEnrollment;
+  return isStudentEnrolled(user.id, courseId);
 }
 
 /**
@@ -301,58 +323,55 @@ export async function checkEnrollment(courseId: string): Promise<boolean> {
  */
 export async function getDailyTrivia(courseId: string) {
   try {
-    const { aiQuestionBank } = await import("@/db/schema");
+    const { aiQuestionBank, soal, soalIde, ide, petaIdLegacy, knowledgeObjects } = await import("@/db/schema");
+    const { validateDailyTriviaCandidate, selectDailyTrivia } = await import("@/lib/daily-trivia");
+    const course = await resolveStudentCourse(courseId);
+    const questionCourseId = course?.legacyId ?? courseId;
     const activeQuestions = await db
       .select()
       .from(aiQuestionBank)
       .where(
         and(
-          eq(aiQuestionBank.courseId, courseId),
+          eq(aiQuestionBank.courseId, questionCourseId),
           eq(aiQuestionBank.status, "active"),
           eq(aiQuestionBank.reviewStatus, "published")
         )
       );
 
-    if (activeQuestions.length === 0) {
-      return null;
-    }
-
-    // Deterministic selection based on today's date
-    const today = new Date();
-    const dayOfYear = Math.floor(
-      (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000
-    );
-    const index = dayOfYear % activeQuestions.length;
-    const q = activeQuestions[index];
-
-    let options: string[] = [];
-    if (typeof q.options === "string") {
-      try {
-        options = JSON.parse(q.options);
-      } catch {
-        options = [];
-      }
-    } else if (Array.isArray(q.options)) {
-      options = q.options as string[];
-    }
-
-    let correctIndex = 0;
-    if (typeof q.correctIndices === "string") {
-      try {
-        const arr = JSON.parse(q.correctIndices);
-        correctIndex = arr[0] ?? 0;
-      } catch {}
-    } else if (Array.isArray(q.correctIndices)) {
-      correctIndex = (q.correctIndices as number[])[0] ?? 0;
-    }
-
-    return {
-      id: q.id,
-      question: q.prompt,
-      options,
-      correctIndex,
-      explanation: q.explanation,
-    };
+    if (activeQuestions.length === 0) return null;
+    const canonicalAnchors = course?.canonicalId
+      ? await db.select({ questionId: petaIdLegacy.legacyId }).from(soal)
+          .innerJoin(soalIde, eq(soalIde.soalId, soal.id))
+          .innerJoin(ide, and(eq(ide.id, soalIde.ideId), eq(ide.status, "published")))
+          .innerJoin(
+            petaIdLegacy,
+            and(
+              eq(petaIdLegacy.targetId, soal.id),
+              eq(petaIdLegacy.legacyTable, "ai_question_bank"),
+              eq(petaIdLegacy.targetTable, "soal"),
+            ),
+          )
+          .where(and(eq(soal.mataKuliahId, course.canonicalId), eq(soal.status, "published")))
+      : [];
+    const anchoredIds = new Set(canonicalAnchors.map((row) => row.questionId));
+    const validKnowledgeObjects = await db
+      .select({ id: knowledgeObjects.id })
+      .from(knowledgeObjects)
+      .where(eq(knowledgeObjects.courseId, questionCourseId));
+    const validKnowledgeObjectIds = new Set(validKnowledgeObjects.map((row) => row.id));
+    const eligible = activeQuestions.flatMap((question) => {
+      const validated = validateDailyTriviaCandidate(
+        {
+          ...question,
+          knowledgeObjectId: question.knowledgeObjectId && validKnowledgeObjectIds.has(question.knowledgeObjectId)
+            ? question.knowledgeObjectId
+            : null,
+        },
+        anchoredIds.has(question.id),
+      );
+      return validated ? [validated] : [];
+    });
+    return selectDailyTrivia(eligible, course?.canonicalId ?? questionCourseId);
   } catch (error) {
     console.error("Failed to get daily trivia:", error);
     return null;
@@ -367,5 +386,3 @@ export async function getCourseAction(courseId: string) {
   const { getCourse } = await import("@/lib/course-utils");
   return getCourse(courseId);
 }
-
-

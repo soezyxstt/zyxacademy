@@ -1,6 +1,6 @@
 ---
 name: zyx-idea-bundle-mcp
-description: Menghasilkan Idea Bundle V2 dari Source Pack yang telah divalidasi MCP, dengan Idea atomic, source-grounded, provenance lengkap, relasi bebas siklus, dan quality report. Gunakan saat mengubah Source Pack menjadi Idea Bundle. Jangan gunakan untuk menerjemahkan sumber atau membuat Product Bundle.
+description: Menghasilkan Idea Bundle V3 dari Source Pack tervalidasi, dengan learningSections pedagogis, Idea atomic, provenance lengkap, relasi bebas siklus, dan quality report. Gunakan saat mengubah Source Pack menjadi Idea Bundle. Jangan gunakan untuk menerjemahkan sumber atau membuat Product Bundle.
 ---
 
 # Zyx Idea Bundle MCP
@@ -9,21 +9,22 @@ Gunakan skill ini sebagai instruction layer untuk MCP. Validator repository dan 
 
 ## Prasyarat
 
-1. Dapatkan Source Pack `valid: true` melalui `$zyx-source-pack-mcp`. Jika prompt hanya menyebut mata kuliah dan bab, gunakan PDF course tersimpan melalui `source.list_files` dan `source.read_file`; jangan meminta upload sebelum katalog tersimpan diperiksa. File lokal tetap merupakan compatibility path.
-2. Panggil `workflow.start` dengan workflow `idea_product`, `sourcePackToken`, dan course serta chapter opaque yang sama dengan stored originals. Jangan meminta operator mengetik ID teknis.
+1. Periksa ketersediaan Source Pack tersimpan untuk mata kuliah dan bab terkait menggunakan `source.list_packs`. Jika sudah tersedia Source Pack valid, gunakan `sourcePackToken` yang dikembalikan atau `packId`, lalu baca dokumen transkripsinya via `source.get_pack` tanpa perlu membuat ulang dari PDF. Jika belum ada, dapatkan Source Pack `valid: true` melalui `$zyx-source-pack-mcp`.
+2. Panggil `workflow.start` dengan workflow `idea_product`, `sourcePackToken` (atau `sourcePackId`), dan course serta chapter opaque yang sama dengan stored originals. Jangan meminta operator mengetik ID teknis.
 3. Panggil `workflow.get_contract` dan pertahankan `runToken` sampai submission selesai.
 
 ## Workflow authoring
 
 1. Inventarisasikan seluruh source unit, formula, definisi, prinsip, prosedur, contoh, penerapan, constraint, miskonsepsi, visual explanation, soal, dan solusi.
-2. Pecah kandidat menjadi Idea atomic. Satu Idea hanya boleh memuat satu klaim atau kemampuan yang dapat diajarkan dan dilacak.
-3. Gunakan `sourcePolicy: source_grounded` untuk setiap Idea. Tulis canonical statement, concise explanation, knowledge kind, instructional role, formula, dan metadata tanpa menambahkan pengetahuan yang tidak memiliki bukti.
-4. Buat source material dan source chunk dari teks Source Pack tanpa mengubah content. Offset harus exact dan checksum harus cocok.
-5. Beri setiap Idea provenance primer. Gunakan relasi `prerequisite`, `related`, `extends`, `example_of`, atau `misconception_of` hanya jika hubungan dapat dijelaskan. Jangan membuat self relation, endpoint hilang, duplikat, atau siklus prerequisite.
-6. Buat ZIP hanya dengan `manifest.json`, `sources/*.md`, dan lima file `entities/*.json` sesuai kontrak Idea Bundle. Semua entry harus mode `0644`; jangan masukkan script, state, laporan, binary, symlink, archive bersarang, atau file tambahan.
-7. Panggil `authoring.validate_idea_bundle`. Periksa `issues`, `quality.issues`, `quality.metrics`, coverage sumber, duplicate candidate, dan formula trace warning.
-8. Jika gagal, revisi isi dan package ulang. Jangan mengubah ID, course, chapter, source checksum, semantic hash, atau bundle checksum secara manual.
-9. Panggil `authoring.submit_idea_bundle` hanya saat valid. MCP akan memvalidasi ulang dan memasukkan bundle ke review inventory. MCP tidak mempublikasikan Idea.
+2. Susun `learningSections` dalam urutan pedagogis. Hierarki maksimal tiga tingkat; setiap section memiliki tujuan belajar, Idea utama dan pendukung, serta source chunk. Nomor tampilan dihitung aplikasi, bukan disimpan.
+3. Pecah kandidat menjadi Idea atomic. Satu Idea hanya boleh memuat satu klaim atau kemampuan yang dapat diajarkan dan dilacak, dan wajib memiliki tepat satu section utama.
+4. Gunakan `sourcePolicy: source_grounded` untuk setiap Idea. Tulis canonical statement, concise explanation, knowledge kind, instructional role, formula, dan metadata tanpa menambahkan pengetahuan yang tidak memiliki bukti.
+5. Buat source material dan source chunk dari teks Source Pack tanpa mengubah content. Offset harus exact dan checksum harus cocok.
+6. Beri setiap Idea provenance primer. Gunakan relasi `prerequisite`, `related`, `extends`, `example_of`, atau `misconception_of` hanya jika hubungan dapat dijelaskan. Jangan membuat self relation, endpoint hilang, duplikat, atau siklus prerequisite.
+7. Buat ZIP Idea Bundle V3 sesuai daftar file pada reference. Semua entry harus mode `0644`; jangan masukkan script, state, laporan, binary, symlink, archive bersarang, atau file tambahan.
+8. Panggil `authoring.validate_idea_bundle`. Periksa hierarchy, primary section coverage, `issues`, `quality.issues`, `quality.metrics`, coverage sumber, duplicate candidate, dan formula trace warning.
+9. Jika gagal, revisi isi dan package ulang. Jangan mengubah ID, course, chapter, source checksum, semantic hash, atau bundle checksum secara manual.
+10. Panggil `authoring.submit_idea_bundle` hanya saat valid. MCP akan memvalidasi ulang dan memasukkan bundle ke review inventory. MCP tidak mempublikasikan Idea.
 
 ## Siklus hidup dan pemeliharaan
 

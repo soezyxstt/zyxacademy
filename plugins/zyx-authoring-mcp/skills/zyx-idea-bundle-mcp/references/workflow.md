@@ -2,7 +2,7 @@
 
 ## Canonical ZIP
 
-Use exactly the repository Idea Bundle V2 contract:
+Use exactly the repository Idea Bundle V3 contract:
 
 ```text
 manifest.json
@@ -12,13 +12,14 @@ entities/source-chunks.json
 entities/ideas.json
 entities/provenance.json
 entities/relations.json
+entities/learning-sections.json
 ```
 
-The manifest and every entity file use deterministic SHA-256 checksums. Stable IDs are opaque. Do not derive IDs from labels, slugs, filenames, or chapter titles.
+The manifest and every entity file use deterministic SHA-256 checksums. Stable IDs are opaque. Do not derive IDs from labels, slugs, filenames, or chapter titles. Each Idea appears exactly once in `primaryIdeaIds`; supporting membership may repeat. Section slugs are stable and unique, sibling order is unique, parent links are acyclic, and hierarchy depth is at most three.
 
 ## Quality gates
 
-MCP checks schema, canonical checksum, source checksums, exact chunk offsets, course and chapter scope, published-ready status, source-grounded provenance, stable keys, relation endpoints, duplicate relations, and prerequisite cycles. The content gate also checks meaningful source chunk coverage, Idea provenance coverage, duplicate or near-duplicate canonical statements, and formula trace warnings.
+MCP checks schema, canonical checksum, source checksums, exact chunk offsets, course and chapter scope, published-ready status, source-grounded provenance, stable keys, learning section hierarchy and coverage, relation endpoints, duplicate relations, and prerequisite cycles. The content gate also checks meaningful source chunk coverage, Idea provenance coverage, duplicate or near-duplicate canonical statements, and formula trace warnings.
 
 `quality.valid` must be true before submission. A warning remains visible to the admin and must be reviewed, even if it is not blocking.
 

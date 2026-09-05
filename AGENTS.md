@@ -84,11 +84,11 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 | Primary sidebar items, inputs, selects, and buttons | 14 px | `text-body-sm`; use the semantic token instead of raw `text-sm` |
 | Field labels | 14 px | `text-body-sm font-semibold` |
 | Tabs, supportive text, descriptions, and helper text | 12 px | `text-body-xs` |
-| Micro UI | 10 px | Only for compact status, badge, kbd, uppercase metadata, and similar non-prose elements. Add a named token before introducing another shared micro size. |
+| Micro UI | 10 px | `text-body-2xs`; only for compact status, badge, kbd, uppercase metadata, and similar non-prose elements. |
 
 - Marketing headings must follow the 48/56 px responsive scale. Do not use raw `text-5xl`, `text-6xl`, or arbitrary heading sizes for a standard marketing heading.
 - New page-level headings, tabs, controls, and descriptions must use the roles above. Do not introduce page-specific font sizes or arbitrary values without an explicit exception.
-- Existing `text-body-2xs` usages are legacy debt because that token is not defined in `app/globals.css`. Do not copy them into new work; normalize them to the approved role when the surrounding surface is changed.
+- Use `text-body-2xs` (10 px) only for compact status, badge, kbd, uppercase metadata, and similar non-prose elements. Do not use it for readable prose or form controls.
 - Use a smaller size only when the information is genuinely metadata or a compact status. Do not make primary navigation, form controls, or readable prose smaller for visual density.
 
 - Body and UI text use `font-sans`; headings use `font-heading`. Use `text-body-*` and `text-h*` when an explicit scale is needed.

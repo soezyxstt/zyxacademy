@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 
-import { FileText } from "lucide-react";
+import { FileText, RefreshCw } from "lucide-react";
 
 import { pageTitle } from "@/lib/site";
 import { AdminPageHeader } from "@/components/admin/page-header";
@@ -24,7 +25,15 @@ export default async function AdminFormsPage() {
         title="Form Studio & Visualizer"
         description="Mendukung 12 jenis soal lengkap, short links (/f/[slug]), unggah berkas, dan custom UI."
       />
-      <AdminFormsBuilder presetsEnabled={presetsEnabled} />
+      <Suspense
+        fallback={
+          <div className="flex h-60 items-center justify-center rounded-2xl border border-border bg-card">
+            <RefreshCw className="size-6 animate-spin text-muted-foreground" />
+          </div>
+        }
+      >
+        <AdminFormsBuilder presetsEnabled={presetsEnabled} />
+      </Suspense>
     </div>
   );
 }

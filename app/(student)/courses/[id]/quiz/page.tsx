@@ -1,28 +1,31 @@
 import type { Metadata } from "next";
 
-import { ClipboardList, Target } from "lucide-react";
+import { ClipboardList } from "lucide-react";
+import Link from "next/link";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { pageTitle } from "@/lib/site";
 import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { QuizListClient } from "./quiz-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
-import { courses, quizTemplates, studentQuizAttempts } from "@/db/schema";
+import { quizTemplates, studentQuizAttempts } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { eq, desc, and, ne } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getWeakestConcepts } from "@/lib/learning-analytics";
+import { getCourse } from "@/lib/course-utils";
+import { cn } from "@/lib/utils";
 
-type Props = { params: Promise<{ id: string }> };
+type QuizAccessFilter = "all" | "free" | "premium";
+
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ access?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const [course] = await db
-    .select({ title: courses.title })
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   return {
     title: pageTitle(course ? `${course.title} - Kuis` : "Kuis"),
@@ -32,14 +35,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function CourseQuizListPage({ params }: Props) {
+export default async function CourseQuizListPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const rawAccess = (await searchParams)?.access;
+  const requestedAccess = Array.isArray(rawAccess) ? rawAccess[0] : rawAccess;
+  const access: QuizAccessFilter = requestedAccess === "free" || requestedAccess === "premium"
+    ? requestedAccess
+    : "all";
   
-  const [course] = await db
-    .select()
-    .from(courses)
-    .where(eq(courses.id, id))
-    .limit(1);
+  const course = await getCourse(id);
 
   if (!course) notFound();
 
@@ -51,7 +55,7 @@ export default async function CourseQuizListPage({ params }: Props) {
     .from(quizTemplates)
     .where(
       and(
-        eq(quizTemplates.courseId, id),
+        eq(quizTemplates.courseId, course.legacyId ?? id),
         eq(quizTemplates.status, 'published'),
         ne(quizTemplates.category, 'simulation')
       )
@@ -68,35 +72,53 @@ export default async function CourseQuizListPage({ params }: Props) {
         .where(eq(studentQuizAttempts.studentId, studentId))
     : [];
 
-  // Weakest concepts steer targeted practice, mirroring the landing "latihan terarah" promise.
-  const weakConcepts = studentId && isEnrolled
-    ? (await getWeakestConcepts(studentId, id, 3)).map((c) => c.conceptName)
-    : [];
+  const filteredTemplates = templates.filter((template) => {
+    if (access === "free") return template.visibility === "free";
+    if (access === "premium") return template.visibility === "paid";
+    return true;
+  });
+  const counts = {
+    all: templates.length,
+    free: templates.filter((template) => template.visibility === "free").length,
+    premium: templates.filter((template) => template.visibility === "paid").length,
+  };
+  const filters: Array<{ value: QuizAccessFilter; label: string }> = [
+    { value: "all", label: "Semua" },
+    { value: "free", label: "Gratis" },
+    { value: "premium", label: "Premium" },
+  ];
 
   return (
     <CoursePageShell
       title={`Kuis Latihan: ${course.title}`}
       description="Uji pemahaman materi Anda dengan kuis interaktif."
       icon={ClipboardList}
+      actions={(
+        <nav className="flex max-w-full items-center gap-1 overflow-x-auto" aria-label="Filter akses kuis">
+          {filters.map((filter) => (
+            <Link
+              key={filter.value}
+              href={filter.value === "all" ? `/courses/${id}/quiz` : `/courses/${id}/quiz?access=${filter.value}`}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-body-sm font-semibold transition-colors",
+                access === filter.value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+              aria-current={access === filter.value ? "page" : undefined}
+            >
+              {filter.label}
+              <span className={cn("text-body-xs", access === filter.value && "text-primary-foreground/80")}>{counts[filter.value]}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
     >
       <Reveal>
-        {weakConcepts.length > 0 && (
-          <div className="mb-6 flex items-start gap-3 rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-4">
-            <Target className="mt-0.5 size-5 shrink-0 text-brand-primary" aria-hidden />
-            <div>
-              <p className="text-body-sm font-semibold text-foreground">
-                Fokuskan latihan di konsep terlemahmu
-              </p>
-              <p className="mt-1 text-body-sm text-muted-foreground">
-                {weakConcepts.join(", ")}
-              </p>
-            </div>
-          </div>
-        )}
         <QuizListClient
           courseId={id}
           isEnrolled={isEnrolled}
-          templates={templates}
+          templates={filteredTemplates}
           attempts={attempts}
         />
       </Reveal>

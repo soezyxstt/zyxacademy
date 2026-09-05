@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "noEmit": true
+  },
+  "include": [
+    "lib/articles/legacy-structure.ts",
+    "lib/articles/structured-read-model.ts",
+    "lib/authoring/job-pack.ts",
+    "lib/authoring/mcp-workflows.ts",
+    "lib/authoring/policy.ts",
+    "lib/authoring/quality/product-bundle.ts",
+    "lib/bundle/idea-bundle-v2.ts",
+    "lib/bundle/idea-draft.ts",
+    "lib/bundle/idea-preview.ts",
+    "lib/bundle/product-draft.ts",
+    "lib/bundle/product-preview.ts",
+    "lib/bundle/product-review-gate.ts",
+    "lib/bundle/product-review-preservation.ts",
+    "lib/bundle/product-validator.ts",
+    "lib/materials/article-contract.ts",
+    "lib/materials/compiler.ts",
+    "lib/materials/quality-gates.ts"
+  ],
+  "exclude": ["node_modules", "artifacts"]
+}

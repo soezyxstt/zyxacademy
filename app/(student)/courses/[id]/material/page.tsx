@@ -1,19 +1,17 @@
 import type { Metadata } from "next";
 import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
-import { studentCardClass } from "@/components/course/course-surfaces";
 import { pageTitle } from "@/lib/site";
-import { getCourse } from "@/lib/course-utils";
+import { getCourse, getCourseChapterOutline } from "@/lib/course-utils";
 import { DocumentListClient } from "./document-list-client";
 import { Reveal } from "@/components/ui/reveal";
 import { db } from "@/db";
-import { aiMaterialInstances, websiteMaterials, diktats, courseMaterials, chapters, progress, studentMaterialProgress } from "@/db/schema";
-import { eq, and, notLike } from "drizzle-orm";
-import { Button } from "@/components/ui/button";
+import { aiMaterialInstances, websiteMaterials, diktats, diktatMateri, bab, courseMaterials, progress, studentMaterialProgress, quizTemplates, studentQuizAttempts, exams } from "@/db/schema";
+import { eq, and, notLike, ne, desc } from "drizzle-orm";
 import { storage } from "@/lib/storage";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { FormattedDate } from "@/components/ui/formatted-date";
+import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -33,6 +31,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
   const { id } = await params;
   const course = await getCourse(id);
   if (!course) return null;
+  const compatibilityCourseId = course.legacyId ?? id;
 
   const session = await auth.api.getSession({ headers: await headers() });
   const studentId = session?.user?.id;
@@ -67,16 +66,22 @@ export default async function CourseMaterialListPage({ params }: Props) {
     }
   }
 
-  // Fetch chapters
-  const courseChapters = await db
-    .select({
-      id: chapters.id,
-      title: chapters.title,
-      orderIndex: chapters.orderIndex,
-    })
-    .from(chapters)
-    .where(eq(chapters.courseId, id))
-    .orderBy(chapters.orderIndex);
+  // Published canonical content is student-visible independently of the V3 authoring flag.
+  const canonicalArticles = await getCanonicalPublishedArticlesForCourse(id, studentId);
+
+  // Set of chapters mapped to canonical articles (for legacy suppression)
+  const canonicalMappedChapterIds = new Set<string>();
+  for (const art of canonicalArticles) {
+    if (art.chapterId) canonicalMappedChapterIds.add(art.chapterId);
+    if (art.legacyChapterId) canonicalMappedChapterIds.add(art.legacyChapterId);
+    if (art.babId) canonicalMappedChapterIds.add(art.babId);
+  }
+
+  const courseChapters = (await getCourseChapterOutline(id, studentId)).map((chapter) => ({
+    id: chapter.id,
+    title: chapter.title,
+    orderIndex: chapter.orderIndex,
+  }));
 
   // Fetch db-backed materials (active only ; drafts and archived instances stay hidden)
   const dbMaterials = await db
@@ -87,7 +92,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       thumbnailUrl: aiMaterialInstances.thumbnailUrl,
     })
     .from(aiMaterialInstances)
-    .where(and(eq(aiMaterialInstances.courseId, id), notLike(aiMaterialInstances.title, "[DRAF]%")));
+    .where(and(eq(aiMaterialInstances.courseId, compatibilityCourseId), notLike(aiMaterialInstances.title, "[DRAF]%")));
 
   // Fetch compiled diktats
   const courseDiktats = await db
@@ -100,7 +105,20 @@ export default async function CourseMaterialListPage({ params }: Props) {
       thumbnailUrl: diktats.thumbnailUrl,
     })
     .from(diktats)
-    .where(and(eq(diktats.courseId, id), eq(diktats.status, "ready")));
+    .where(and(eq(diktats.courseId, compatibilityCourseId), eq(diktats.status, "ready")));
+
+  const canonicalDiktats = course.canonicalId
+    ? await db
+        .select({
+          id: diktatMateri.id,
+          title: diktatMateri.title,
+          babId: diktatMateri.babId,
+          legacyChapterId: bab.legacyChapterId,
+        })
+        .from(diktatMateri)
+        .leftJoin(bab, eq(diktatMateri.babId, bab.id))
+        .where(and(eq(diktatMateri.mataKuliahId, course.canonicalId), eq(diktatMateri.status, "published")))
+    : [];
 
   // Fetch website materials (AST articles, 1:1 with chapters) ; published only
   const webMaterials = await db
@@ -112,7 +130,7 @@ export default async function CourseMaterialListPage({ params }: Props) {
       thumbnailUrl: websiteMaterials.thumbnailUrl,
     })
     .from(websiteMaterials)
-    .where(and(eq(websiteMaterials.courseId, id), eq(websiteMaterials.status, "published")));
+    .where(and(eq(websiteMaterials.courseId, compatibilityCourseId), eq(websiteMaterials.status, "published")));
 
   // Fetch manual PDF materials
   const manualMaterials = await db
@@ -128,79 +146,280 @@ export default async function CourseMaterialListPage({ params }: Props) {
       thumbnailUrl: courseMaterials.thumbnailUrl,
     })
     .from(courseMaterials)
-    .where(eq(courseMaterials.courseId, id));
+    .where(eq(courseMaterials.courseId, compatibilityCourseId));
 
-  const mappedDiktats = courseDiktats.map((d) => ({
+  // Fetch interactive quizzes for this course
+  const courseQuizzes = await db
+    .select({
+      id: quizTemplates.id,
+      title: quizTemplates.title,
+      visibility: quizTemplates.visibility,
+      selectionRules: quizTemplates.selectionRules,
+    })
+    .from(quizTemplates)
+    .where(
+      and(
+        eq(quizTemplates.courseId, compatibilityCourseId),
+        eq(quizTemplates.status, "published"),
+        ne(quizTemplates.category, "simulation")
+      )
+    )
+    .orderBy(desc(quizTemplates.createdAt));
+
+  // Fetch interactive tryouts for this course
+  const courseTryouts = await db
+    .select({
+      id: exams.id,
+      title: exams.title,
+      settings: exams.settings,
+    })
+    .from(exams)
+    .where(
+      and(
+        eq(exams.courseId, compatibilityCourseId),
+        eq(exams.type, "tryout"),
+        eq(exams.status, "published")
+      )
+    );
+
+  const completedQuizIds = new Set<string>();
+  if (studentId) {
+    try {
+      const userAttempts = await db
+        .select({
+          templateId: studentQuizAttempts.templateId,
+          status: studentQuizAttempts.status,
+        })
+        .from(studentQuizAttempts)
+        .where(eq(studentQuizAttempts.studentId, studentId));
+      for (const a of userAttempts) {
+        if (a.status === "completed") {
+          completedQuizIds.add(a.templateId);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading student quiz attempts:", err);
+    }
+  }
+
+function sanitizeMaterialTitle(rawTitle: string): string {
+  const trimmed = rawTitle.replace(/^\[DRAF\]\s*/i, "").trim();
+  if (/^Staging Product Diktat/i.test(trimmed)) {
+    return "Diktat: Sistem Bilangan Real dan Pertaksamaan";
+  }
+  if (/^Staging Product Article/i.test(trimmed)) {
+    return "Catatan Kuliah: Sifat Medan dan Bilangan Real";
+  }
+  if (/^Staging Product/i.test(trimmed)) {
+    return trimmed.replace(/^Staging Product\s*/i, "Materi: ");
+  }
+  return trimmed;
+}
+
+  const mappedCanonical = canonicalArticles.map((a) => ({
+    id: a.id,
+    courseId: id,
+    title: sanitizeMaterialTitle(a.title),
+    kind: "article" as const,
+    docCategory: "materi" as const,
+    tabGroup: "materi" as const,
+    fileSize: `${a.totalEstimatedReadingMinutes} menit baca`,
+    completed: a.completed,
+    isPastYear: false,
+    isPreview: false,
+    chapterId: a.chapterId ?? undefined,
+    chapterIds: a.chapterId ? [a.chapterId] : [],
+    href: `/courses/${id}/material/${a.id}`,
+  }));
+
+  const mappedCanonicalDiktats = canonicalDiktats.map((diktat) => ({
+    id: diktat.id,
+    courseId: id,
+    title: sanitizeMaterialTitle(diktat.title),
+    kind: "article" as const,
+    docCategory: "diktat" as const,
+    tabGroup: "diktat" as const,
+    fileSize: "Diktat Resmi",
+    completed: completedMaterialIds.has(diktat.id),
+    isPastYear: false,
+    isPreview: false,
+    chapterId: diktat.legacyChapterId ?? diktat.babId ?? undefined,
+    chapterIds: [diktat.legacyChapterId ?? diktat.babId].filter((chapterId): chapterId is string => Boolean(chapterId)),
+    href: `/courses/${id}/material/${diktat.id}`,
+  }));
+  const canonicalDiktatChapterIds = new Set(mappedCanonicalDiktats.flatMap((diktat) => diktat.chapterIds));
+  const visibleCourseDiktats = courseDiktats.filter((diktat) => {
+    const chapterIds = Array.isArray(diktat.chapterIds) ? diktat.chapterIds : [];
+    return !chapterIds.some((chapterId) => canonicalDiktatChapterIds.has(chapterId));
+  });
+
+  const mappedDiktats = visibleCourseDiktats.map((d) => ({
     id: d.id,
     courseId: id,
-    title: d.title,
+    title: sanitizeMaterialTitle(d.title),
     kind: "pdf" as const,
     docCategory: "diktat" as const,
-    fileSize: "PDF File",
+    tabGroup: "diktat" as const,
+    fileSize: "PDF Diktat",
     completed: completedMaterialIds.has(d.id),
     isPastYear: false,
     isPreview: true,
     url: d.fileUrl ? storage.getUrl(d.fileUrl) : undefined,
-    thumbnailUrl: d.thumbnailUrl ? storage.getUrl(d.thumbnailUrl) : undefined,
+    thumbnailUrl: d.thumbnailUrl
+      ? storage.getUrl(d.thumbnailUrl)
+      : d.fileUrl
+        ? `/api/courses/${id}/material/${d.id}/thumbnail`
+        : undefined,
     chapterIds: d.chapterIds as string[],
+    href: `/courses/${id}/material/${d.id}`,
   }));
 
-  const mappedDb = dbMaterials.map((m) => ({
+  const mappedDb = dbMaterials.filter((material) => {
+    const chapterIds = Array.isArray(material.chapterIds) ? material.chapterIds : [];
+    return !chapterIds.some((chapterId) => canonicalMappedChapterIds.has(chapterId));
+  }).map((m) => ({
     id: m.id,
     courseId: id,
-    title: m.title.replace(/^\[DRAF\]\s*/, ""),
+    title: sanitizeMaterialTitle(m.title),
     kind: "article" as const,
     docCategory: "materi" as const,
-    fileSize: "Materi Zyx",
+    tabGroup: "materi" as const,
+    fileSize: "Rangkuman Materi",
     completed: completedMaterialIds.has(m.id),
     isPastYear: false,
     isPreview: true,
     thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
     chapterIds: m.chapterIds as string[],
+    href: `/courses/${id}/material/${m.id}`,
   }));
 
+  const isAssessmentMaterial = (type: string, subcategory?: string | null) => {
+    if (type === "soal" || type === "contoh_soal" || type === "pembahasan_soal") return true;
+    if (subcategory && ["kuis", "kbf", "uts", "uas", "tutorial"].includes(subcategory)) return true;
+    return false;
+  };
+
   const mappedManual = manualMaterials.map((m) => {
+    const isAssessment = isAssessmentMaterial(m.type, m.subcategory);
     let docCategory: "materi" | "soal" | "solusi" = "materi";
     if (m.type === "contoh_soal" || m.type === "soal") {
       docCategory = "soal";
     } else if (m.type === "pembahasan_soal") {
       docCategory = "solusi";
+    } else if (isAssessment) {
+      docCategory = "soal";
     }
+
+    const tabGroup = isAssessment ? ("bank_soal" as const) : ("pdf" as const);
+    const fileSizeLabel = isAssessment
+      ? m.type === "pembahasan_soal" ? "Pembahasan Soal" : "Lembar Soal"
+      : "Berkas PDF ITB";
 
     return {
       id: m.id,
       courseId: id,
-      title: m.title,
+      title: sanitizeMaterialTitle(m.title),
       kind: "pdf" as const,
       docCategory,
+      tabGroup,
       subcategory: m.subcategory,
       year: m.year,
-      fileSize: "PDF",
+      fileSize: fileSizeLabel,
       completed: completedMaterialIds.has(m.id),
       isPastYear: Boolean(m.year),
       isPreview: true,
       url: storage.getUrl(m.fileUrl),
-      thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
+      thumbnailUrl: m.thumbnailUrl
+        ? storage.getUrl(m.thumbnailUrl)
+        : m.fileUrl
+          ? `/api/courses/${id}/material/${m.id}/thumbnail`
+          : undefined,
       chapterIds: m.chapterIds as string[],
+      href: `/courses/${id}/material/${m.id}`,
     };
   });
 
-  const mappedWeb = webMaterials.map((m) => ({
-    id: m.id,
-    courseId: id,
-    title: m.title,
-    kind: "article" as const,
-    docCategory: "materi" as const,
-    fileSize: "Disusun otomatis",
-    body: m.canonicalMarkdown ? m.canonicalMarkdown.slice(0, 600) : undefined,
-    completed: completedMaterialIds.has(m.id),
-    isPastYear: false,
-    isPreview: true,
-    thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
-    chapterIds: [m.chapterId],
-  }));
+  // Suppress legacy website material only for the same mapped chapter as canonical articles
+  const mappedWeb = webMaterials
+    .filter((m) => !canonicalMappedChapterIds.has(m.chapterId))
+    .map((m) => ({
+      id: m.id,
+      courseId: id,
+      title: sanitizeMaterialTitle(m.title),
+      kind: "article" as const,
+      docCategory: "materi" as const,
+      tabGroup: "materi" as const,
+      fileSize: "Artikel Web",
+      body: m.canonicalMarkdown,
+      completed: completedMaterialIds.has(m.id),
+      isPastYear: false,
+      isPreview: true,
+      thumbnailUrl: m.thumbnailUrl ? storage.getUrl(m.thumbnailUrl) : undefined,
+      chapterId: m.chapterId,
+      chapterIds: m.chapterId ? [m.chapterId] : [],
+      href: `/courses/${id}/material/${m.id}`,
+    }));
 
-  const allMaterials = [...mappedDiktats, ...mappedDb, ...mappedWeb, ...mappedManual];
+  const mappedQuizzes = courseQuizzes.map((q) => {
+    let qCount = 10;
+    let quizChapterIds: string[] = [];
+    try {
+      const rules = typeof q.selectionRules === "string" ? JSON.parse(q.selectionRules) : q.selectionRules;
+      if (rules?.count) qCount = Number(rules.count);
+      if (rules?.chapterId) quizChapterIds = [rules.chapterId];
+      else if (Array.isArray(rules?.chapterIds)) quizChapterIds = rules.chapterIds;
+    } catch {}
+
+    return {
+      id: q.id,
+      courseId: id,
+      title: q.title,
+      kind: "quiz" as const,
+      docCategory: "soal" as const,
+      tabGroup: "bank_soal" as const,
+      subcategory: "kuis",
+      fileSize: `${qCount} Soal · Kuis Interaktif`,
+      completed: completedQuizIds.has(q.id),
+      isPastYear: false,
+      isPreview: false,
+      chapterIds: quizChapterIds,
+      href: `/courses/${id}/quiz/${q.id}`,
+    };
+  });
+
+  const mappedTryouts = courseTryouts.map((t) => {
+    let duration = 90;
+    try {
+      const parsed = typeof t.settings === "string" ? JSON.parse(t.settings) : t.settings;
+      if (parsed?.timeLimitMinutes) duration = parsed.timeLimitMinutes;
+    } catch {}
+    return {
+      id: t.id,
+      courseId: id,
+      title: t.title,
+      kind: "tryout" as const,
+      docCategory: "soal" as const,
+      tabGroup: "bank_soal" as const,
+      subcategory: "tryout",
+      fileSize: `${duration} Menit · Tryout Ujian`,
+      completed: false,
+      isPastYear: false,
+      isPreview: false,
+      chapterIds: [],
+      href: `/courses/${id}/tryout/${t.id}`,
+    };
+  });
+
+  const allMaterials = [
+    ...mappedCanonical,
+    ...mappedCanonicalDiktats,
+    ...mappedDiktats,
+    ...mappedDb,
+    ...mappedWeb,
+    ...mappedManual,
+    ...mappedQuizzes,
+    ...mappedTryouts,
+  ];
 
   return (
     <CoursePageShell
@@ -209,36 +428,6 @@ export default async function CourseMaterialListPage({ params }: Props) {
       icon={FileText}
     >
       <Reveal>
-        {courseDiktats.length > 0 && (
-          <div className="mb-8 space-y-3 text-left">
-            <h2 className="font-heading text-body-base font-bold text-foreground">Diktat Kuliah (PDF)</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {courseDiktats.map((d) => (
-                <div key={d.id} className={studentCardClass("justify-between")}>
-                  <div className="flex items-start gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-status-error/15 text-status-error">
-                      <FileText className="size-5" />
-                    </span>
-                    <div>
-                      <h3 className="font-heading text-body-sm font-bold text-foreground line-clamp-1">{d.title}</h3>
-                      <p className="text-body-xs text-muted-foreground mt-0.5">Dikompilasi otomatis dari materi terbaru</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-body-xs text-muted-foreground select-none">
-                      Diperbarui: <FormattedDate date={d.updatedAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
-                    </span>
-                    {d.fileUrl && (
-                      <Button asChild size="xs" className="rounded-lg bg-gradient-to-r from-brand-secondary to-brand-secondary/90 hover:opacity-95 text-white font-semibold shadow-xs">
-                        <a href={storage.getUrl(d.fileUrl)} target="_blank" rel="noopener noreferrer">Unduh PDF</a>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         <DocumentListClient courseId={id} materials={allMaterials} chapters={courseChapters} />
       </Reveal>
     </CoursePageShell>

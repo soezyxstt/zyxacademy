@@ -14,38 +14,62 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getYoutubeEmbedUrl } from "@/lib/youtube";
+import dynamic from "next/dynamic";
 import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTBlock } from "@/lib/ast-validator";
-import { getLayoutedGraph, LayoutDiagnostics } from "@/lib/visual-layout-service";
 import { compileSafeExpression, normalizeLegacyGraphExpression } from "@/lib/zyra/canvas";
 import { MathText } from "@/components/course/math-text";
-import { InteractiveGraphWidget } from "@/components/course/interactive-graph-widget";
-import ReactFlow, { Edge, Node } from "reactflow";
-import "reactflow/dist/style.css";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-  AreaChart,
-  Area
-} from "recharts";
+
+const ChartRenderer = dynamic(
+  () => import("@/components/course/markdown/chart-renderer").then((m) => m.ChartRenderer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[300px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
+        Memuat grafik...
+      </div>
+    ),
+  }
+);
+
+const FlowchartDiagramRenderer = dynamic(
+  () => import("@/components/course/markdown/flowchart-diagram-renderer").then((m) => m.FlowchartDiagramRenderer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[350px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
+        Memuat diagram...
+      </div>
+    ),
+  }
+);
+
+const InteractiveGraphWidget = dynamic(
+  () => import("@/components/course/interactive-graph-widget").then((m) => m.InteractiveGraphWidget),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[380px] flex items-center justify-center text-muted-foreground text-body-sm font-sans">
+        Memuat grafik interaktif...
+      </div>
+    ),
+  }
+);
 
 // --- Types ---
 
-interface MarkdownRendererProps {
+export type MarkdownDensity = "default" | "compact";
+
+const MarkdownDensityContext = React.createContext<MarkdownDensity>("default");
+
+export function useMarkdownDensity(): MarkdownDensity {
+  return React.useContext(MarkdownDensityContext);
+}
+
+export interface MarkdownRendererProps {
   content: string | ASTBlock[];
   className?: string;
+  density?: MarkdownDensity;
 }
 
 // --- KaTeX Setup ---
@@ -279,7 +303,8 @@ export function renderRichText(content: any): React.ReactNode {
 
 // --- Inner Components ---
 
-function CodeBlock({ language, code }: { language: string; code: string }) {
+function CodeBlock({ language, code, density }: { language: string; code: string; density?: MarkdownDensity }) {
+  const isCompact = density === "compact";
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -293,7 +318,10 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
   };
 
   return (
-    <div className="my-6 overflow-hidden rounded-2xl border border-border/80 bg-zinc-950 dark:bg-zinc-900/60 shadow-md">
+    <div className={cn(
+      "overflow-hidden border border-border/80 bg-zinc-950 dark:bg-zinc-900/60 shadow-md",
+      isCompact ? "my-3 rounded-xl" : "my-6 rounded-2xl"
+    )}>
       <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 dark:bg-zinc-950/40 border-b border-zinc-800 text-zinc-400 text-body-xs font-mono select-none">
         <span className="font-semibold tracking-wider uppercase text-zinc-400/80">{language}</span>
         <button
@@ -314,7 +342,10 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
           )}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-zinc-200 font-mono text-body-sm leading-relaxed text-left">
+      <pre className={cn(
+        "overflow-x-auto text-zinc-200 font-mono text-body-sm leading-relaxed text-left",
+        isCompact ? "p-3" : "p-4"
+      )}>
         <code>{code}</code>
       </pre>
     </div>
@@ -324,10 +355,13 @@ function CodeBlock({ language, code }: { language: string; code: string }) {
 function AlertCallout({
   type,
   content,
+  density,
 }: {
   type: "note" | "tip" | "important" | "warning" | "caution";
   content: string;
+  density?: MarkdownDensity;
 }) {
+  const isCompact = density === "compact";
   const config = {
     note: {
       border: "border-blue-500/25 bg-blue-500/5 text-blue-900 dark:text-blue-100",
@@ -362,7 +396,11 @@ function AlertCallout({
   }[type];
 
   return (
-    <div className={cn("my-6 p-4 md:p-5 rounded-2xl border flex gap-3.5 leading-relaxed shadow-xs", config.border)}>
+    <div className={cn(
+      "border flex leading-relaxed shadow-xs",
+      isCompact ? "my-3 p-3 md:p-3.5 rounded-xl gap-3" : "my-6 p-4 md:p-5 rounded-2xl gap-3.5",
+      config.border
+    )}>
       {config.icon}
       <div className="flex-1 text-left">
         <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider mb-1", config.labelColor)}>
@@ -376,261 +414,9 @@ function AlertCallout({
   );
 }
 
-function BoxPlotChart({ data, xLabel, yLabel }: { data: any[]; xLabel?: string; yLabel?: string }) {
-  const padding = { top: 20, right: 30, bottom: 50, left: 55 };
-  const width = 500;
-  const height = 300;
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
 
-  const allValues = data.flatMap(d => [d.min, d.q1, d.median, d.q3, d.max].filter(v => typeof v === "number"));
-  if (allValues.length === 0) {
-    return <div className="text-body-sm text-muted-foreground py-10">Tidak ada data untuk Box Plot</div>;
-  }
-  const minVal = Math.min(...allValues);
-  const maxVal = Math.max(...allValues);
-  const valRange = maxVal - minVal || 1;
-  const yMin = minVal - valRange * 0.15;
-  const yMax = maxVal + valRange * 0.15;
-
-  const mapY = (val: number) => {
-    return padding.top + plotHeight - ((val - yMin) / (yMax - yMin)) * plotHeight;
-  };
-
-  const mapX = (index: number) => {
-    return padding.left + (index + 0.5) * (plotWidth / data.length);
-  };
-
-  const ticksCount = 5;
-  const ticks = Array.from({ length: ticksCount }).map((_, idx) => {
-    return yMin + (idx * (yMax - yMin)) / (ticksCount - 1);
-  });
-
-  return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-w-[500px] mx-auto select-none">
-        {ticks.map((tick, idx) => (
-          <g key={idx}>
-            <line
-              x1={padding.left}
-              y1={mapY(tick)}
-              x2={width - padding.right}
-              y2={mapY(tick)}
-              className="stroke-border/45"
-              strokeWidth={0.65}
-            />
-            <text
-              x={padding.left - 10}
-              y={mapY(tick)}
-              textAnchor="end"
-              dominantBaseline="middle"
-              className="fill-muted-foreground text-[10px] font-sans"
-            >
-              {tick.toFixed(1)}
-            </text>
-          </g>
-        ))}
-
-        {yLabel && (
-          <text
-            transform={`rotate(-90 15 ${height / 2})`}
-            x={15}
-            y={height / 2}
-            textAnchor="middle"
-            className="fill-foreground text-body-xs font-heading font-bold"
-          >
-            {yLabel}
-          </text>
-        )}
-
-        {data.map((d, idx) => {
-          const cx = mapX(idx);
-          const yMinPos = mapY(d.min ?? 0);
-          const yQ1Pos = mapY(d.q1 ?? 0);
-          const yMedPos = mapY(d.median ?? 0);
-          const yQ3Pos = mapY(d.q3 ?? 0);
-          const yMaxPos = mapY(d.max ?? 0);
-          
-          const boxWidth = Math.min(50, (plotWidth / data.length) * 0.5);
-          const halfWidth = boxWidth / 2;
-
-          return (
-            <g key={idx}>
-              <line x1={cx} y1={yMinPos} x2={cx} y2={yQ1Pos} className="stroke-brand-primary" strokeWidth={1.5} />
-              <line x1={cx} y1={yQ3Pos} x2={cx} y2={yMaxPos} className="stroke-brand-primary" strokeWidth={1.5} />
-              
-              <line x1={cx - 6} y1={yMinPos} x2={cx + 6} y2={yMinPos} className="stroke-brand-primary" strokeWidth={1.5} />
-              <line x1={cx - 6} y1={yMaxPos} x2={cx + 6} y2={yMaxPos} className="stroke-brand-primary" strokeWidth={1.5} />
-
-              <rect
-                x={cx - halfWidth}
-                y={yQ3Pos}
-                width={boxWidth}
-                height={Math.max(2, yQ1Pos - yQ3Pos)}
-                fill="var(--color-brand-primary)"
-                fillOpacity={0.15}
-                className="stroke-brand-primary hover:fill-opacity-25 transition-all"
-                strokeWidth={1.5}
-                rx={4}
-              />
-
-              <line
-                x1={cx - halfWidth}
-                y1={yMedPos}
-                x2={cx + halfWidth}
-                y2={yMedPos}
-                className="stroke-brand-secondary"
-                strokeWidth={2}
-              />
-
-              <text
-                x={cx}
-                y={height - padding.bottom + 20}
-                textAnchor="middle"
-                className="fill-muted-foreground text-[10px] font-sans"
-              >
-                {d.x}
-              </text>
-            </g>
-          );
-        })}
-
-        {xLabel && (
-          <text
-            x={padding.left + plotWidth / 2}
-            y={height - 10}
-            textAnchor="middle"
-            className="fill-foreground text-body-xs font-heading font-bold"
-          >
-            {xLabel}
-          </text>
-        )}
-      </svg>
-    </div>
-  );
-}
-
-function ChartRenderer({ data, title, caption }: { data: any; title?: string; caption?: string }) {
-  const chartType = data.chartType;
-  const xLabel = data.xLabel;
-  const yLabel = data.yLabel;
-  
-  const formattedData = (data.data || []).map((point: any) => {
-    if (chartType === "box") {
-      if (point.length >= 6) {
-        return {
-          x: point[0],
-          min: Number(point[1]),
-          q1: Number(point[2]),
-          median: Number(point[3]),
-          q3: Number(point[4]),
-          max: Number(point[5]),
-        };
-      }
-      const val = Number(point[1]) || 0;
-      return {
-        x: point[0],
-        min: val * 0.8,
-        q1: val * 0.9,
-        median: val,
-        q3: val * 1.1,
-        max: val * 1.2,
-      };
-    }
-    return {
-      x: point[0],
-      y: Number(point[1]) || 0,
-    };
-  });
-
-  const renderChart = () => {
-    switch (chartType) {
-      case "bar":
-        return (
-          <BarChart data={formattedData}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-            <XAxis dataKey="x" label={xLabel ? { value: xLabel, position: "insideBottom", offset: -5 } : undefined} />
-            <YAxis label={yLabel ? { value: yLabel, angle: -90, position: "insideLeft" } : undefined} />
-            <Tooltip contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", borderRadius: "12px" }} />
-            <Bar dataKey="y" fill="var(--color-brand-primary)" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        );
-      case "scatter":
-        return (
-          <ScatterChart>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-            <XAxis type="number" dataKey="x" name={xLabel || "X"} />
-            <YAxis type="number" dataKey="y" name={yLabel || "Y"} />
-            <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", borderRadius: "12px" }} />
-            <Scatter name="Data" data={formattedData} fill="var(--color-brand-primary)" />
-          </ScatterChart>
-        );
-      case "pie":
-        const COLORS = ["var(--color-brand-primary)", "var(--color-brand-secondary)", "var(--color-tertiary-1)", "var(--color-tertiary-2)", "var(--color-tertiary-3)"];
-        return (
-          <PieChart>
-            <Pie data={formattedData} dataKey="y" nameKey="x" cx="50%" cy="50%" outerRadius={80} fill="var(--color-brand-primary)" label>
-              {formattedData.map((entry: any, index: number) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", borderRadius: "12px" }} />
-          </PieChart>
-        );
-      case "area":
-        return (
-          <AreaChart data={formattedData}>
-            <defs>
-              <linearGradient id="colorArea" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-brand-primary)" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="var(--color-brand-primary)" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-            <XAxis dataKey="x" label={xLabel ? { value: xLabel, position: "insideBottom", offset: -5 } : undefined} />
-            <YAxis label={yLabel ? { value: yLabel, angle: -90, position: "insideLeft" } : undefined} />
-            <Tooltip contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", borderRadius: "12px" }} />
-            <Area type="monotone" dataKey="y" stroke="var(--color-brand-primary)" fillOpacity={1} fill="url(#colorArea)" strokeWidth={2} />
-          </AreaChart>
-        );
-      case "line":
-      default:
-        return (
-          <LineChart data={formattedData}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-            <XAxis dataKey="x" label={xLabel ? { value: xLabel, position: "insideBottom", offset: -5 } : undefined} />
-            <YAxis label={yLabel ? { value: yLabel, angle: -90, position: "insideLeft" } : undefined} />
-            <Tooltip contentStyle={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", borderRadius: "12px" }} />
-            <Line type="monotone" dataKey="y" stroke="var(--color-brand-primary)" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-          </LineChart>
-        );
-    }
-  };
-
-  if (chartType === "box") {
-    return (
-      <div className="my-6 p-5 border border-border bg-card shadow-xs rounded-xl text-center">
-        {title && <h4 className="font-heading text-body-base font-bold text-foreground mb-4">{renderRichText(title)}</h4>}
-        <BoxPlotChart data={formattedData} xLabel={xLabel} yLabel={yLabel} />
-        {caption && <p className="mt-3 text-body-sm text-muted-foreground italic">{renderRichText(caption)}</p>}
-      </div>
-    );
-  }
-
-  return (
-    <div className="my-6 p-5 border border-border bg-card shadow-xs rounded-xl text-center">
-      {title && <h4 className="font-heading text-body-base font-bold text-foreground mb-4">{renderRichText(title)}</h4>}
-      <div className="w-full h-[300px] flex items-center justify-center">
-        <ResponsiveContainer width="100%" height="100%">
-          {renderChart()}
-        </ResponsiveContainer>
-      </div>
-      {caption && <p className="mt-3 text-body-sm text-muted-foreground italic">{renderRichText(caption)}</p>}
-    </div>
-  );
-}
-
-function GraphRenderer({ data, title, caption }: { data: any; title?: string; caption?: string }) {
+function GraphRenderer({ data, title, caption, density }: { data: any; title?: string; caption?: string; density?: MarkdownDensity }) {
+  const isCompact = density === "compact";
   const rawFunctions = data.functions ?? data.function ?? data.equations ?? data.equation ?? data.formula ?? [];
   const functions = (Array.isArray(rawFunctions) ? rawFunctions : [rawFunctions])
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
@@ -751,10 +537,10 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
     : null;
 
   return (
-    <div className="my-6 p-5 border border-border bg-card shadow-xs rounded-xl text-center relative select-none">
-      {title && <h4 className="font-heading text-body-base font-bold text-foreground mb-4">{titlePrefix}{titleExpression && <><span aria-hidden> </span><MathText>{`$y = ${titleExpression}$`}</MathText></>}</h4>}
+    <div className={cn("border border-border bg-card shadow-xs text-center relative select-none", isCompact ? "my-3 p-3.5 rounded-lg" : "my-6 p-5 rounded-xl")}>
+      {title && <h4 className={cn("font-heading text-body-base font-bold text-foreground", isCompact ? "mb-2" : "mb-4")}>{titlePrefix}{titleExpression && <><span aria-hidden> </span><MathText>{`$y = ${titleExpression}$`}</MathText></>}</h4>}
       {functions.length > 0 && (
-        <div className="mb-3 flex flex-wrap justify-center gap-3 text-body-sm text-muted-foreground">
+        <div className={cn("flex flex-wrap justify-center gap-3 text-body-sm text-muted-foreground", isCompact ? "mb-2" : "mb-3")}>
           {functions.map((expression: string, index: number) => (
             <span key={`${expression}-${index}`} className="inline-flex items-center gap-2">
               <span className="size-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
@@ -842,150 +628,35 @@ function GraphRenderer({ data, title, caption }: { data: any; title?: string; ca
           </div>
         )}
       </div>
-      {caption && <p className="mt-3 text-body-sm text-muted-foreground italic">{renderRichText(caption)}</p>}
+      {caption && <p className={cn("text-body-sm text-muted-foreground italic", isCompact ? "mt-2" : "mt-3")}>{renderRichText(caption)}</p>}
     </div>
   );
 }
 
-function FlowchartDiagramRenderer({ data, title, caption }: { data: any; title?: string; caption?: string }) {
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [layoutDiag, setLayoutDiag] = useState<LayoutDiagnostics | null>(null);
-
-  const astNodes = data.nodes || [];
-  const astEdges = data.edges || [];
-
-  useEffect(() => {
-    if (astNodes.length === 0) {
-      setError("VisualRenderError: No nodes generated. Confirm edge descriptions use valid 'A --> B' syntax.");
-      setLoading(false);
-      return;
-    }
-    if (astEdges.length === 0) {
-      setError("VisualRenderError: No edges generated. Confirm edge descriptions use valid 'A --> B' syntax.");
-      setLoading(false);
-      return;
-    }
-
-    const computeLayout = async () => {
-      try {
-        setError(null);
-        setLoading(true);
-
-        const reactFlowNodes = astNodes.map((n: any) => ({
-          id: n.id,
-          data: { label: n.label },
-          position: { x: 0, y: 0 },
-          style: {
-            background: "var(--color-card)",
-            color: "var(--color-foreground)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "8px",
-            padding: "8px 12px",
-            fontSize: "13px",
-            fontWeight: "600",
-            textAlign: "center",
-            boxShadow: "0 1px 3px 0 rgba(0,0,0,0.05)",
-          },
-        }));
-
-        const reactFlowEdges = astEdges.map((e: any, idx: number) => ({
-          id: `e-${idx}`,
-          source: e.source,
-          target: e.target,
-          label: e.label,
-          animated: true,
-          style: { stroke: "var(--color-border)" },
-        }));
-
-        const dir = (data.direction === "DOWN" || data.diagramType === "TD" || data.diagramType === "TB" || data.diagramType === "vertical") ? "DOWN" : "RIGHT";
-        const layoutResult = await getLayoutedGraph(reactFlowNodes, reactFlowEdges, dir);
-
-        console.log("ReactFlow Pipeline:", {
-          nodes: reactFlowNodes,
-          edges: reactFlowEdges,
-          layoutedNodes: layoutResult.nodes,
-          layoutedEdges: layoutResult.edges,
-          diagnostics: layoutResult.diagnostics,
-        });
-
-        setNodes(layoutResult.nodes);
-        setEdges(layoutResult.edges);
-        setLayoutDiag(layoutResult.diagnostics);
-      } catch (err: any) {
-        console.error("ReactFlow layout parsing failed:", err);
-        setError(`VisualRenderError: ELK layout failed: ${err.message || err}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    computeLayout();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
-
-  return (
-    <div className="my-6 p-5 border border-border bg-card shadow-xs rounded-xl text-center">
-      {title && <h4 className="font-heading text-body-base font-bold text-foreground mb-4">{renderRichText(title)}</h4>}
-      <div className="w-full h-[350px] border border-border/60 rounded-lg bg-zinc-50/50 dark:bg-zinc-950/20 overflow-hidden relative">
-        {error ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-destructive/5 text-destructive border border-destructive/20 rounded-lg">
-            <AlertTriangle className="size-8 mb-2 text-destructive" />
-            <span className="font-semibold text-body-sm">Diagram Parsing Failed</span>
-            <span className="text-body-xs text-muted-foreground mt-1 text-center max-w-[80%]">
-              {error}
-            </span>
-          </div>
-        ) : loading ? (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-body-sm font-sans">
-            Menghitung tata letak...
-          </div>
-        ) : (
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={false}
-            panOnDrag={false}
-            zoomOnScroll={false}
-            fitView
-          />
-        )}
-      </div>
-      {layoutDiag && (
-        <div className="mt-2 text-left text-[10px] text-muted-foreground font-mono">
-          Layout duration: {layoutDiag.layoutTimeMs}ms | Cache hit: {layoutDiag.cacheHit ? "YES" : "NO"} | Nodes: {layoutDiag.nodeCount} | Edges: {layoutDiag.edgeCount}
-        </div>
-      )}
-      {caption && <p className="mt-3 text-body-sm text-muted-foreground italic">{renderRichText(caption)}</p>}
-    </div>
-  );
-}
 
 export function VisualRenderer({
   id: _id,
   visualType,
   title,
   caption,
-  data
+  data,
+  density,
 }: {
   id: string;
   visualType: "chart" | "graph" | "flowchart" | "diagram";
   title?: string;
   caption?: string;
   data: any;
+  density?: MarkdownDensity;
 }) {
   switch (visualType) {
     case "chart":
-      return <ChartRenderer data={data} title={title} caption={caption} />;
+      return <ChartRenderer data={data} title={title} caption={caption} density={density} />;
     case "graph":
-      return <GraphRenderer data={data} title={title} caption={caption} />;
+      return <GraphRenderer data={data} title={title} caption={caption} density={density} />;
     case "flowchart":
     case "diagram":
-      return <FlowchartDiagramRenderer data={data} title={title} caption={caption} />;
+      return <FlowchartDiagramRenderer data={data} title={title} caption={caption} density={density} />;
     default:
       return null;
   }
@@ -1072,7 +743,9 @@ function parseMermaidToDiagramData(content: string) {
   };
 }
 
-function ASTBlockRenderer({ block }: { block: ASTBlock }) {
+function ASTBlockRenderer({ block, density }: { block: ASTBlock; density?: MarkdownDensity }) {
+  const isCompact = density === "compact";
+
   switch (block.type) {
     case "p":
       return (
@@ -1083,14 +756,23 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
 
     case "h": {
       const hLvl = block.level || 2;
-      const headingClasses = {
-        1: "text-h5 font-heading font-bold mt-14 mb-4 border-b border-border/60 pb-2.5 tracking-tight",
-        2: "text-body-base font-heading font-bold mt-12 mb-4 tracking-tight",
-        3: "text-body-sm font-heading font-bold mt-10 mb-3 tracking-tight",
-        4: "text-body-sm font-heading font-semibold mt-8 mb-3 tracking-tight",
-        5: "text-body-sm font-heading font-semibold mt-6 mb-2.5 tracking-tight",
-        6: "text-body-sm md:text-body-base font-heading font-semibold text-muted-foreground mt-6 mb-2 tracking-tight",
-      };
+      const headingClasses = isCompact
+        ? {
+            1: "text-h5 font-heading font-bold mt-6 mb-2 border-b border-border/60 pb-1.5 tracking-tight",
+            2: "text-body-base font-heading font-bold mt-5 mb-2 tracking-tight",
+            3: "text-body-sm font-heading font-bold mt-4 mb-1.5 tracking-tight",
+            4: "text-body-sm font-heading font-semibold mt-3 mb-1.5 tracking-tight",
+            5: "text-body-sm font-heading font-semibold mt-2.5 mb-1 tracking-tight",
+            6: "text-body-sm md:text-body-base font-heading font-semibold text-muted-foreground mt-2.5 mb-1 tracking-tight",
+          }
+        : {
+            1: "text-h5 font-heading font-bold mt-14 mb-4 border-b border-border/60 pb-2.5 tracking-tight",
+            2: "text-body-base font-heading font-bold mt-12 mb-4 tracking-tight",
+            3: "text-body-sm font-heading font-bold mt-10 mb-3 tracking-tight",
+            4: "text-body-sm font-heading font-semibold mt-8 mb-3 tracking-tight",
+            5: "text-body-sm font-heading font-semibold mt-6 mb-2.5 tracking-tight",
+            6: "text-body-sm md:text-body-base font-heading font-semibold text-muted-foreground mt-6 mb-2 tracking-tight",
+          };
       const cls = headingClasses[hLvl as 1 | 2 | 3 | 4 | 5 | 6] || headingClasses[2];
       const HeadingTag = `h${hLvl}` as any;
       return (
@@ -1106,7 +788,8 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
       return (
         <ListTag
           className={cn(
-            "my-4 pl-6 space-y-1.5 leading-relaxed text-body-base",
+            isCompact ? "my-2.5 pl-5 space-y-1" : "my-4 pl-6 space-y-1.5",
+            "leading-relaxed text-body-base",
             isOrdered ? "list-decimal" : "list-disc"
           )}
         >
@@ -1122,7 +805,10 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "blockquote":
       return (
         <blockquote
-          className="my-5 pl-5 border-l-4 border-primary/50 text-muted-foreground italic bg-muted/20 py-2.5 pr-4 rounded-r-xl leading-relaxed text-body-base"
+          className={cn(
+            "border-l-4 border-primary/50 text-muted-foreground italic bg-muted/20 leading-relaxed text-body-base",
+            isCompact ? "my-3 pl-3.5 py-1.5 pr-3 rounded-r-lg" : "my-5 pl-5 py-2.5 pr-4 rounded-r-xl"
+          )}
         >
           {renderRichText(block.content)}
         </blockquote>
@@ -1173,7 +859,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
       }
 
       return (
-        <div className="my-6 text-center space-y-2 select-none">
+        <div className={cn(isCompact ? "my-3 space-y-1.5" : "my-6 space-y-2", "text-center select-none")}>
           {mediaElement}
           {(caption || sourceLabel) && (
             <div className="text-body-sm text-muted-foreground font-sans">
@@ -1205,7 +891,10 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "table": {
       const alignments = block.alignments || [];
       return (
-        <div className="my-6 overflow-x-auto rounded-2xl border border-border shadow-2xs">
+        <div className={cn(
+          "overflow-x-auto border border-border shadow-2xs",
+          isCompact ? "my-3 rounded-xl" : "my-6 rounded-2xl"
+        )}>
           <table className="w-full text-left border-collapse text-body-sm">
             <thead>
               <tr className="bg-muted/80 text-foreground font-semibold border-b border-border/80">
@@ -1215,7 +904,8 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
                     <th
                       key={headIdx}
                       className={cn(
-                        "px-4 py-3 font-heading font-bold select-none text-foreground/95",
+                        "font-heading font-bold select-none text-foreground/95",
+                        isCompact ? "px-3 py-2" : "px-4 py-3",
                         align === "center" && "text-center",
                         align === "right" && "text-right"
                       )}
@@ -1238,7 +928,8 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
                       <td
                         key={cellIdx}
                         className={cn(
-                          "px-4 py-3 text-foreground/80 font-normal leading-relaxed",
+                          "text-foreground/80 font-normal leading-relaxed",
+                          isCompact ? "px-3 py-2" : "px-4 py-3",
                           align === "center" && "text-center",
                           align === "right" && "text-right"
                         )}
@@ -1272,6 +963,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
             title={undefined}
             caption={undefined}
             data={parsedData}
+            density={density}
           />
         );
       }
@@ -1279,47 +971,54 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
         <CodeBlock
           language={block.language || "plaintext"}
           code={block.content}
+          density={density}
         />
       );
 
     case "hr":
-      return <hr className="my-8 border-t border-border/80" />;
+      return <hr className={cn("border-t border-border/80", isCompact ? "my-4" : "my-8")} />;
 
     case "concept":
       return (
-        <div id={block.id} className="p-5 border border-border bg-card shadow-xs rounded-xl text-left my-6">
-          <h3 className="text-body-base font-heading font-bold text-foreground mb-3">{renderRichText(block.content.title)}</h3>
-          <MarkdownRenderer content={block.content.bodyMarkdown} />
+        <div id={block.id} className={cn(
+          "border border-border bg-card shadow-xs text-left",
+          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+        )}>
+          <h3 className={cn("text-body-base font-heading font-bold text-foreground", isCompact ? "mb-2" : "mb-3")}>{renderRichText(block.content.title)}</h3>
+          <MarkdownRenderer content={block.content.bodyMarkdown} density={density} />
         </div>
       );
 
     case "formula":
       const formulaHtml = katex.renderToString(block.content.latex, { throwOnError: false, displayMode: true });
       return (
-        <div id={block.id} className="p-5 border border-border bg-card shadow-xs rounded-xl text-left my-6">
-          <h4 className="text-body-base font-heading font-bold text-foreground mb-3">{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
-          <div className="my-4 overflow-x-auto text-center w-full max-w-full" dangerouslySetInnerHTML={{ __html: formulaHtml }} />
+        <div id={block.id} className={cn(
+          "border border-border bg-card shadow-xs text-left",
+          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+        )}>
+          <h4 className={cn("text-body-base font-heading font-bold text-foreground", isCompact ? "mb-2" : "mb-3")}>{block.content.title ? renderRichText(block.content.title) : "Formula"}</h4>
+          <div className={cn("overflow-x-auto text-center w-full max-w-full", isCompact ? "my-2.5" : "my-4")} dangerouslySetInnerHTML={{ __html: formulaHtml }} />
           {block.content.interpretation && (
-            <div className="mt-3 text-body-sm text-muted-foreground leading-relaxed">
-              <MarkdownRenderer content={block.content.interpretation} />
+            <div className={cn("text-body-sm text-muted-foreground leading-relaxed", isCompact ? "mt-2" : "mt-3")}>
+              <MarkdownRenderer content={block.content.interpretation} density={density} />
             </div>
           )}
           {block.content.symbols && block.content.symbols.length > 0 && (
-            <div className="mt-4 overflow-x-auto">
+            <div className={cn("overflow-x-auto", isCompact ? "mt-2.5" : "mt-4")}>
               <table className="w-full text-left text-body-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border/85 text-muted-foreground font-semibold">
-                    <th className="py-2 pr-4">Simbol</th>
-                    <th className="py-2 pr-4">Satuan</th>
-                    <th className="py-2 pr-4">Keterangan</th>
+                    <th className={cn(isCompact ? "py-1.5 pr-3" : "py-2 pr-4")}>Simbol</th>
+                    <th className={cn(isCompact ? "py-1.5 pr-3" : "py-2 pr-4")}>Satuan</th>
+                    <th className={cn(isCompact ? "py-1.5 pr-3" : "py-2 pr-4")}>Keterangan</th>
                   </tr>
                 </thead>
                 <tbody>
                   {block.content.symbols.map((param, idx) => (
                     <tr key={idx} className="border-b border-border/40 last:border-0">
-                      <td className="py-2 pr-4 font-mono font-bold text-brand-secondary">{renderRichText(param.symbol)}</td>
-                      <td className="py-2 pr-4 text-muted-foreground">{renderRichText(param.unit || "-")}</td>
-                      <td className="py-2 pr-4 text-foreground/80">{renderRichText(param.definition)}</td>
+                      <td className={cn("font-mono font-bold text-brand-secondary", isCompact ? "py-1.5 pr-3" : "py-2 pr-4")}>{renderRichText(param.symbol)}</td>
+                      <td className={cn("text-muted-foreground", isCompact ? "py-1.5 pr-3" : "py-2 pr-4")}>{renderRichText(param.unit || "-")}</td>
+                      <td className={cn("text-foreground/80", isCompact ? "py-1.5 pr-3" : "py-2 pr-4")}>{renderRichText(param.definition)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1332,7 +1031,10 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
     case "formula_reference":
       const refHtml = katex.renderToString(block.content.latex, { throwOnError: false, displayMode: false });
       return (
-        <div className="my-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/30 font-medium">
+        <div className={cn(
+          "inline-flex items-center border border-border bg-muted/30 font-medium",
+          isCompact ? "my-2 gap-1.5 px-2.5 py-1 rounded-md" : "my-4 gap-2 px-3 py-1.5 rounded-lg"
+        )}>
           <span className="text-body-sm text-muted-foreground">{block.content.label ? renderRichText(block.content.label) : "Formula Reference"}:</span>
           <span dangerouslySetInnerHTML={{ __html: refHtml }} />
         </div>
@@ -1340,24 +1042,36 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
 
     case "engineering_insight":
       return (
-        <div className="my-6 p-5 border border-brand-primary/20 bg-brand-primary/[0.04] text-foreground rounded-xl">
-          <div className="flex items-center gap-2 text-brand-primary font-heading font-bold uppercase tracking-wider text-body-xs mb-2">
+        <div className={cn(
+          "border border-brand-primary/20 bg-brand-primary/[0.04] text-foreground",
+          isCompact ? "my-3 p-3.5 rounded-lg" : "my-6 p-5 rounded-xl"
+        )}>
+          <div className={cn(
+            "flex items-center gap-2 text-brand-primary font-heading font-bold uppercase tracking-wider text-body-xs",
+            isCompact ? "mb-1.5" : "mb-2"
+          )}>
             <Compass className="size-4 shrink-0" />
             <span>Wawasan Teknik ({block.metadata.discipline})</span>
           </div>
-          <h4 className="text-body-base font-bold mb-2 text-foreground">{renderRichText(block.content.title)}</h4>
-          <MarkdownRenderer content={block.content.applicationMarkdown} />
+          <h4 className={cn("text-body-base font-bold text-foreground", isCompact ? "mb-1.5" : "mb-2")}>{renderRichText(block.content.title)}</h4>
+          <MarkdownRenderer content={block.content.applicationMarkdown} density={density} />
         </div>
       );
 
     case "example":
       return (
-        <div id={block.id} className="p-5 border border-border bg-card shadow-xs rounded-xl text-left my-6 border-l-4 border-l-brand-primary">
-          <div className="text-body-xs font-bold font-heading uppercase tracking-wider text-brand-primary mb-2">Contoh Soal ({block.metadata.difficulty})</div>
-          <div className="text-body-base text-foreground mb-4">
-            <MarkdownRenderer content={block.content.problemStatement} />
+        <div id={block.id} className={cn(
+          "border border-border bg-card shadow-xs text-left border-l-4 border-l-brand-primary",
+          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+        )}>
+          <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider text-brand-primary", isCompact ? "mb-1.5" : "mb-2")}>Contoh Soal ({block.metadata.difficulty})</div>
+          <div className={cn("text-body-base text-foreground", isCompact ? "mb-2.5" : "mb-4")}>
+            <MarkdownRenderer content={block.content.problemStatement} density={density} />
           </div>
-          <div className="mt-4 pt-4 border-t border-border/45 space-y-4">
+          <div className={cn(
+            "border-t border-border/45",
+            isCompact ? "mt-3 pt-3 space-y-2.5" : "mt-4 pt-4 space-y-4"
+          )}>
             <div className="font-heading font-bold text-body-sm text-muted-foreground uppercase tracking-wide">Solusi:</div>
             {block.content.solutionSteps.map((step, idx) => (
               <div key={idx} className="flex gap-3">
@@ -1365,7 +1079,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
                 <div className="flex-1">
                   <div className="font-semibold text-body-sm mb-1">{renderRichText(step.label)}</div>
                   <div className="text-body-sm text-foreground/80">
-                    <MarkdownRenderer content={step.explanationMarkdown} />
+                    <MarkdownRenderer content={step.explanationMarkdown} density={density} />
                   </div>
                 </div>
               </div>
@@ -1376,27 +1090,33 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
 
     case "misconception":
       return (
-        <div id={block.id} className="my-6 border border-border rounded-xl overflow-hidden shadow-xs">
-          <div className="p-4 bg-zinc-50 dark:bg-zinc-900/40 border-b border-border font-heading font-bold text-body-sm text-foreground">
+        <div id={block.id} className={cn(
+          "border border-border overflow-hidden shadow-xs",
+          isCompact ? "my-3 rounded-lg" : "my-6 rounded-xl"
+        )}>
+          <div className={cn(
+            "bg-zinc-50 dark:bg-zinc-900/40 border-b border-border font-heading font-bold text-body-sm text-foreground",
+            isCompact ? "p-3" : "p-4"
+          )}>
             Membongkar Mitos & Kesalahpahaman
           </div>
           <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
-            <div className="p-5 bg-rose-500/5 text-left">
+            <div className={cn("bg-rose-500/5 text-left", isCompact ? "p-3.5" : "p-5")}>
               <strong className="text-rose-600 dark:text-rose-400 font-heading text-body-xs uppercase tracking-wider block mb-2">Salah paham umum:</strong>
               <div className="text-body-sm text-foreground/90 font-medium italic">&ldquo;{renderRichText(block.content.myth)}&rdquo;</div>
             </div>
-            <div className="p-5 bg-emerald-500/5 text-left">
+            <div className={cn("bg-emerald-500/5 text-left", isCompact ? "p-3.5" : "p-5")}>
               <strong className="text-emerald-600 dark:text-emerald-400 font-heading text-body-xs uppercase tracking-wider block mb-2">Koreksi ilmiah:</strong>
               <div className="text-body-sm text-foreground/90 font-medium leading-relaxed">
-                <MarkdownRenderer content={block.content.correctionMarkdown} />
+                <MarkdownRenderer content={block.content.correctionMarkdown} density={density} />
               </div>
             </div>
           </div>
           {block.content.physicalRationaleMarkdown && (
-            <div className="p-5 bg-muted/10 text-left border-t border-border">
+            <div className={cn("bg-muted/10 text-left border-t border-border", isCompact ? "p-3.5" : "p-5")}>
               <strong className="text-muted-foreground font-heading text-body-xs uppercase tracking-wider block mb-2">Rasionalisasi Fisika:</strong>
               <div className="text-body-sm text-muted-foreground leading-relaxed">
-                <MarkdownRenderer content={block.content.physicalRationaleMarkdown} />
+                <MarkdownRenderer content={block.content.physicalRationaleMarkdown} density={density} />
               </div>
             </div>
           )}
@@ -1405,22 +1125,28 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
 
     case "exercise":
       return (
-        <div id={block.id} className="p-5 border border-border bg-card shadow-xs rounded-xl text-left my-6 border-l-4 border-l-brand-secondary">
-          <div className="text-body-xs font-bold font-heading uppercase tracking-wider text-brand-secondary mb-2">Latihan Mandiri</div>
-          <div className="text-body-base text-foreground leading-relaxed mb-4">
-            <MarkdownRenderer content={block.content.questionMarkdown} />
+        <div id={block.id} className={cn(
+          "border border-border bg-card shadow-xs text-left border-l-4 border-l-brand-secondary",
+          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+        )}>
+          <div className={cn("text-body-xs font-bold font-heading uppercase tracking-wider text-brand-secondary", isCompact ? "mb-1.5" : "mb-2")}>Latihan Mandiri</div>
+          <div className={cn("text-body-base text-foreground leading-relaxed", isCompact ? "mb-2.5" : "mb-4")}>
+            <MarkdownRenderer content={block.content.questionMarkdown} density={density} />
           </div>
         </div>
       );
 
     case "summary":
       return (
-        <div className="p-5 border border-border bg-card shadow-xs rounded-xl text-left my-6">
-          <div className="font-heading font-bold text-body-sm text-muted-foreground uppercase tracking-wide mb-3">Ringkasan Bab:</div>
-          <ul className="list-disc pl-5 space-y-2 text-body-sm text-foreground/80 leading-relaxed">
+        <div className={cn(
+          "border border-border bg-card shadow-xs text-left",
+          isCompact ? "p-3.5 rounded-lg my-3" : "p-5 rounded-xl my-6"
+        )}>
+          <div className={cn("font-heading font-bold text-body-sm text-muted-foreground uppercase tracking-wide", isCompact ? "mb-2" : "mb-3")}>Ringkasan Bab:</div>
+          <ul className={cn("list-disc pl-5 text-body-sm text-foreground/80 leading-relaxed", isCompact ? "space-y-1.5" : "space-y-2")}>
             {block.content.bullets.map((bullet, idx) => (
               <li key={idx} className="pl-1">
-                <MarkdownRenderer content={bullet} />
+                <MarkdownRenderer content={bullet} density={density} />
               </li>
             ))}
           </ul>
@@ -1433,12 +1159,16 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
         <AlertCallout
           type={block.type}
           content={block.content.messageMarkdown}
+          density={density}
         />
       );
 
     case "glossary_term":
       return (
-        <div className="p-4 border border-border bg-card/60 shadow-2xs rounded-xl my-4 flex gap-3.5 leading-relaxed text-left">
+        <div className={cn(
+          "border border-border bg-card/60 shadow-2xs flex leading-relaxed text-left",
+          isCompact ? "p-3 rounded-lg my-2.5 gap-2.5" : "p-4 rounded-xl my-4 gap-3.5"
+        )}>
           <Info className="size-5 text-brand-primary shrink-0 mt-0.5" />
           <div className="flex-1">
             <div className="text-body-sm font-bold text-foreground mb-1">Glosarium: {renderRichText(block.content.term)}</div>
@@ -1455,6 +1185,7 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
           title={block.title}
           caption={block.caption}
           data={block.data}
+          density={density}
         />
       );
 
@@ -1463,27 +1194,41 @@ function ASTBlockRenderer({ block }: { block: ASTBlock }) {
   }
 }
 
-export function ASTRenderer({ blocks, className }: { blocks: ASTBlock[]; className?: string }) {
+export interface ASTRendererProps {
+  blocks: ASTBlock[];
+  className?: string;
+  density?: MarkdownDensity;
+}
+
+export function ASTRenderer({ blocks, className, density }: ASTRendererProps) {
+  const contextDensity = useMarkdownDensity();
+  const activeDensity = density ?? contextDensity;
   const hasTextColor = className && /\btext-\w+/.test(className);
   if (!blocks || !Array.isArray(blocks)) return null;
   const sortedBlocks = [...blocks].sort((a, b) => a.globalOrderIndex - b.globalOrderIndex);
 
   return (
-    <div
-      className={cn(
-        "markdown-article text-left space-y-6 font-sans select-text",
-        !hasTextColor && "text-foreground/90",
-        className
-      )}
-    >
-      {sortedBlocks.map((block, idx) => (
-        <ASTBlockRenderer key={block.id || idx} block={block} />
-      ))}
-    </div>
+    <MarkdownDensityContext.Provider value={activeDensity}>
+      <div
+        className={cn(
+          "markdown-article text-left font-sans select-text",
+          activeDensity === "compact" ? "space-y-3" : "space-y-6",
+          !hasTextColor && "text-foreground/90",
+          className
+        )}
+      >
+        {sortedBlocks.map((block, idx) => (
+          <ASTBlockRenderer key={block.id || idx} block={block} density={activeDensity} />
+        ))}
+      </div>
+    </MarkdownDensityContext.Provider>
   );
 }
 
-export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className, density }: MarkdownRendererProps) {
+  const contextDensity = useMarkdownDensity();
+  const activeDensity = density ?? contextDensity;
+
   // The compile step (parse + validate + diagnostics + stats) is expensive and
   // depends only on the source string, so memoize it. Without this it re-runs on
   // every parent re-render (e.g. every selection/progress tick in the reader).
@@ -1500,7 +1245,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
   if (!content) return null;
   if (typeof content !== "string") {
     if (!Array.isArray(content)) return null;
-    return <ASTRenderer blocks={content} className={className} />;
+    return <ASTRenderer blocks={content} className={className} density={activeDensity} />;
   }
 
   if (!compiled) return null;
@@ -1524,6 +1269,6 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
   }
 
   return (
-    <ASTRenderer blocks={compiled.result.ast.blocks} className={className} />
+    <ASTRenderer blocks={compiled.result.ast.blocks} className={className} density={activeDensity} />
   );
 }

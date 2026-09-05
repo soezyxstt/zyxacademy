@@ -8,9 +8,11 @@ import {
   Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { planTiers } from "@/lib/plan-tiers";
+import { calculatePlanPrice } from "@/lib/pricing-constants";
 import { PKA_COURSE_ID } from "@/lib/pka-config";
 import { cn } from "@/lib/utils";
 
@@ -29,9 +31,23 @@ interface StudentOnboardingViewProps {
   catalogCourses: CatalogCourse[];
 }
 
-const previewTiers = planTiers.filter((tier) =>
-  ["minimal", "essential", "premium"].includes(tier.key)
-);
+const ONBOARDING_PERSONS = 5;
+const ONBOARDING_COURSES = 1;
+
+const formatPrice = (amount: number): string => {
+  return "Rp " + amount.toLocaleString("id-ID");
+};
+
+const previewTiers = planTiers
+  .filter((tier) => ["minimal", "essential", "premium"].includes(tier.key))
+  .map((tier) => {
+    const total = calculatePlanPrice(tier.key, ONBOARDING_PERSONS, ONBOARDING_COURSES);
+    const perPerson = Math.round(total / ONBOARDING_PERSONS);
+    return {
+      ...tier,
+      pricePerPerson: formatPrice(perPerson),
+    };
+  });
 
 const featureHighlights = [
   {
@@ -168,9 +184,9 @@ export function StudentOnboardingView({
               {featureHighlights.map((feat) => {
                 const Icon = feat.icon;
                 return (
-                  <div
+                  <Card
                     key={feat.title}
-                    className="rounded-xl border border-border bg-background/50 p-3.5"
+                    className="p-3.5"
                   >
                     <div className="flex size-7 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
                       <Icon className="size-4" />
@@ -181,7 +197,7 @@ export function StudentOnboardingView({
                     <p className="text-body-xs text-muted-foreground mt-1 leading-snug">
                       {feat.desc}
                     </p>
-                  </div>
+                  </Card>
                 );
               })}
             </div>
@@ -191,7 +207,7 @@ export function StudentOnboardingView({
         {/* Right Column (5 cols): Activation Form & Subscription Plans */}
         <div className="space-y-6 lg:col-span-5">
           {/* Section 1: Activation Box */}
-          <section className="rounded-xl border border-border bg-background/50 p-4 sm:p-5">
+          <Card className="p-4 sm:p-5">
             <h2 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
               <span className="flex size-5 items-center justify-center rounded-full bg-brand-primary text-[10px] font-bold text-white">
                 1
@@ -203,10 +219,10 @@ export function StudentOnboardingView({
             </p>
 
             <EnrollmentForm />
-          </section>
+          </Card>
 
           {/* Section 2: Subscription Plans Preview */}
-          <section className="rounded-xl border border-border bg-background/50 p-4 sm:p-5">
+          <Card className="p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3.5">
               <div>
                 <h2 className="font-heading text-body-sm font-bold text-foreground flex items-center gap-2">
@@ -226,8 +242,8 @@ export function StudentOnboardingView({
                 <div
                   key={tier.key}
                   className={cn(
-                    "rounded-lg border border-border bg-background p-3 transition-colors",
-                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/5"
+                    "rounded-lg border border-border/60 bg-card/50 backdrop-blur-xs p-3 transition-colors",
+                    tier.highlighted && "border-brand-primary/40 bg-brand-primary/10"
                   )}
                 >
                   <div className="flex items-baseline justify-between gap-2">
@@ -241,9 +257,14 @@ export function StudentOnboardingView({
                         </span>
                       )}
                     </div>
-                    <span className="font-heading text-body-xs font-bold text-foreground">
-                      {tier.price}
-                    </span>
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-heading text-body-xs font-bold text-foreground">
+                        {tier.pricePerPerson}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        / orang
+                      </span>
+                    </div>
                   </div>
                   <p className="text-body-xs text-muted-foreground mt-1 line-clamp-1">
                     {tier.note}
@@ -258,7 +279,7 @@ export function StudentOnboardingView({
                 <ArrowRight className="size-3.5" />
               </Link>
             </Button>
-          </section>
+          </Card>
         </div>
       </div>
     </div>

@@ -244,7 +244,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
             <p className="text-body-sm text-muted-foreground">Belum ada notifikasi.</p>
           </div>
         ) : (
-          <ul className="max-h-[24rem] divide-y divide-border/60 overflow-y-auto">
+          <ul className="max-h-[24rem] divide-y divide-border/60 zebra-no-rows overflow-y-auto">
             {rows.map((row) => {
               const TypeIcon = TYPE_ICONS[row.type] ?? Bell;
               const iconColor = TYPE_COLORS[row.type] ?? "text-muted-foreground";

@@ -1,9 +1,10 @@
 import { MetadataRoute } from "next";
 import { db } from "@/db";
-import { courses, aiMaterialInstances, diktats, quizTemplates, exams, blogArticles } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { courses, mataKuliah, blogArticles } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
-export const dynamic = "force-dynamic";
+// Cache sitemap for 24 hours to prevent heavy database queries on every crawler hit (P1-11)
+export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl =
@@ -12,113 +13,51 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
       : "https://www.zyxacademy.com");
 
+  // Public indexable static pages
   const staticPaths = ["", "/about", "/plans", "/testimonial", "/courses"];
 
-  const staticEntries = staticPaths.map((path) => ({
+  const staticEntries: MetadataRoute.Sitemap = staticPaths.map((path) => ({
     url: `${baseUrl}${path}`,
-    lastModified: new Date(),
-    changeFrequency: "daily" as const,
+    changeFrequency: (path === "" ? "daily" : "weekly") as "daily" | "weekly",
     priority: path === "" ? 1.0 : 0.8,
   }));
 
-  const allCourses = await db
-    .select({ id: courses.id })
-    .from(courses);
-
-  const courseEntries = allCourses.flatMap((c) => [
-    {
-      url: `${baseUrl}/courses/${c.id}`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/courses/${c.id}/leaderboard`,
-      lastModified: new Date(),
-      changeFrequency: "daily" as const,
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/courses/${c.id}/mastery`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.4,
-    },
-    {
-      url: `${baseUrl}/courses/${c.id}/path`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.5,
-    },
-    {
-      url: `${baseUrl}/courses/${c.id}/flashcard`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.4,
-    },
+  // Public course catalog overviews
+  const [canonicalCourses, legacyCourses] = await Promise.all([
+    db
+      .select({ id: mataKuliah.id })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active")),
+    db
+      .select({ id: courses.id })
+      .from(courses),
   ]);
 
-  const allMaterials = await db
-    .select({ id: aiMaterialInstances.id, courseId: aiMaterialInstances.courseId })
-    .from(aiMaterialInstances);
+  const courseIds = Array.from(
+    new Set([...canonicalCourses.map((c) => c.id), ...legacyCourses.map((c) => c.id)])
+  );
 
-  const materialEntries = allMaterials.map((m) => ({
-    url: `${baseUrl}/courses/${m.courseId}/material/${m.id}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.6,
+  const courseEntries: MetadataRoute.Sitemap = courseIds.map((id) => ({
+    url: `${baseUrl}/courses/${id}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
   }));
 
-  const allDiktats = await db
-    .select({ id: diktats.id, courseId: diktats.courseId })
-    .from(diktats)
-    .where(eq(diktats.status, "ready"));
-
-  const diktatEntries = allDiktats.map((d) => ({
-    url: `${baseUrl}/courses/${d.courseId}/material/${d.id}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.5,
-  }));
-
-  const allQuizzes = await db
-    .select({ id: quizTemplates.id, courseId: quizTemplates.courseId })
-    .from(quizTemplates);
-
-  const quizEntries = allQuizzes.map((q) => ({
-    url: `${baseUrl}/courses/${q.courseId}/quiz/${q.id}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.5,
-  }));
-
-  const allTryouts = await db
-    .select({ id: exams.id, courseId: exams.courseId })
-    .from(exams)
-    .where(and(eq(exams.type, "tryout"), eq(exams.status, "published")));
-
-  const tryoutEntries = allTryouts.map((t) => ({
-    url: `${baseUrl}/courses/${t.courseId}/tryout/${t.id}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.5,
-  }));
-
+  // Published blog articles
   const allBlogArticles = await db
     .select({ slug: blogArticles.slug, publishedAt: blogArticles.publishedAt })
     .from(blogArticles)
     .where(eq(blogArticles.status, "published"));
 
-  const blogEntries = allBlogArticles.map((b) => ({
+  const blogEntries: MetadataRoute.Sitemap = allBlogArticles.map((b) => ({
     url: `${baseUrl}/blog/${b.slug}`,
-    lastModified: b.publishedAt ? new Date(b.publishedAt) : new Date(),
+    lastModified: b.publishedAt ? new Date(b.publishedAt) : undefined,
     changeFrequency: "monthly" as const,
     priority: 0.8,
   }));
 
-  const blogIndexEntry = {
+  const blogIndexEntry: MetadataRoute.Sitemap[number] = {
     url: `${baseUrl}/blog`,
-    lastModified: new Date(),
     changeFrequency: "daily" as const,
     priority: 0.9,
   };
@@ -128,9 +67,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     blogIndexEntry,
     ...blogEntries,
     ...courseEntries,
-    ...materialEntries,
-    ...diktatEntries,
-    ...quizEntries,
-    ...tryoutEntries,
   ];
 }

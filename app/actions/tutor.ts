@@ -429,15 +429,16 @@ export async function saveTutorMessagesAction(
     .where(
       and(
         eq(tutorChatMessages.studentId, user.id),
-        eq(tutorChatMessages.courseId, courseId)
+        eq(tutorChatMessages.courseId, courseId),
+        eq(tutorChatMessages.sessionId, sid)
       )
     )
     .orderBy(desc(tutorChatMessages.createdAt));
 
   if (rows.length > CHAT_HISTORY_LIMIT) {
     const toDelete = rows.slice(CHAT_HISTORY_LIMIT).map((r) => r.id);
-    for (const id of toDelete) {
-      await db.delete(tutorChatMessages).where(eq(tutorChatMessages.id, id));
+    if (toDelete.length > 0) {
+      await db.delete(tutorChatMessages).where(inArray(tutorChatMessages.id, toDelete));
     }
   }
 

@@ -24,6 +24,7 @@ import { compileMarkdown } from "@/lib/markdown-compiler";
 import { verifyKOCoverage } from "@/lib/ko-coverage-auditor";
 import { buildTermIndex } from "@/lib/term-index";
 import { buildConceptGraph } from "@/lib/graph-trace";
+import { LEGACY_AUTHORING_RETIRED_MESSAGE } from "@/lib/admin/legacy-authoring-retirement";
 
 export interface ImportResult {
   success: boolean;
@@ -419,6 +420,13 @@ export async function importCourseBundleAction(
   try {
     // 1. Authorization
     await assertAdmin();
+    return {
+      success: false,
+      error: LEGACY_AUTHORING_RETIRED_MESSAGE,
+      friendlyExplanation: "Buat Source Pack dari Upload Manual, lalu review Idea Bundle dan Product Bundle di Review Materi.",
+      logs: ["Legacy Learning Bundle importer retired."],
+    };
+
     log("=== BUNDLE IMPORTER STARTED ===");
     log(`Options: Mode=${options.mode}, PostProcess=${options.postProcess}, DryRun=${options.dryRun}`);
 
@@ -805,6 +813,13 @@ export async function importAssessmentBundleAction(
 
   try {
     await assertAdmin();
+    return {
+      success: false,
+      error: LEGACY_AUTHORING_RETIRED_MESSAGE,
+      friendlyExplanation: "Gunakan Product Bundle untuk soal berbasis sumber, lalu kelola hasil terbit di Bank Soal.",
+      logs: ["Legacy Assessment Bundle importer retired."],
+    };
+
     log("=== ASSESSMENT BUNDLE IMPORTER STARTED ===");
     log(`Options: Mode=${options.mode}, PostProcess=${options.postProcess}, DryRun=${options.dryRun}`);
 

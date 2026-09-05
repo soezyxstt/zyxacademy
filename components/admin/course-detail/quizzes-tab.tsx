@@ -105,6 +105,7 @@ export function QuizzesTab({
   // Delete Dialog State
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingQuiz, setDeletingQuiz] = useState<CourseQuiz | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handlePreviewQuiz = async (quiz: CourseQuiz) => {
     setPreviewQuiz(quiz);
@@ -133,6 +134,7 @@ export function QuizzesTab({
 
   const handleDeleteConfirm = async () => {
     if (!deletingQuiz) return;
+    setIsDeleting(true);
     try {
       const res = await deleteQuizTemplateAction(courseId, deletingQuiz.id);
       if (res.success) {
@@ -146,6 +148,8 @@ export function QuizzesTab({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Gagal menghapus kuis.";
       toast.error(message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -363,10 +367,14 @@ export function QuizzesTab({
       {/* Delete Quiz Confirmation Dialog */}
       <AdminConfirmDialog
         open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) setDeletingQuiz(null);
+        }}
         title="Hapus Kuis"
         description={`Tindakan ini akan menghapus kuis "${deletingQuiz?.title}" secara permanen dari kelas ini. Data hasil pengerjaan terkait kuis ini mungkin ikut terpengaruh.`}
         confirmLabel="Ya, Hapus Permanen"
+        loading={isDeleting}
         onConfirm={handleDeleteConfirm}
       />
 

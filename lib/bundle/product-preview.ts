@@ -36,9 +36,20 @@ function unwrapText(raw: string): string {
 function sectionsOf(product: ProductEntity): ProductPreview["sections"] {
   switch (product.productType) {
     case "article":
+      if (product.sections.length > 0) {
+        return [...product.sections]
+          .sort((left, right) => left.orderIndex - right.orderIndex)
+          .map((section) => ({
+            label: section.title,
+            content: [...section.blocks]
+              .sort((left, right) => left.orderIndex - right.orderIndex)
+              .map((block) => block.contentMarkdown)
+              .join("\n\n"),
+          }));
+      }
       return [...product.blocks]
-        .sort((left, right) => left.orderIndex - right.orderIndex)
-        .map((block) => ({ label: block.blockType, content: unwrapText(block.content) }));
+          .sort((left, right) => left.orderIndex - right.orderIndex)
+          .map((block) => ({ label: block.blockType, content: unwrapText(block.content) }));
     case "diktat":
       return [{ label: "content", content: unwrapText(product.contentMarkdown) }];
     case "question":

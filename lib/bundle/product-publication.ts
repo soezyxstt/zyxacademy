@@ -7,8 +7,12 @@ import {
   artikelIde,
   auditMutasi,
   bab,
+  bagianArtikel,
+  bagianPembelajaran,
   blueprintAsesmen,
   blokArtikel,
+  blokArtikelIde,
+  blokArtikelSumber,
   courses,
   diktatIde,
   diktatMateri,
@@ -22,6 +26,7 @@ import {
   pembahasanSoal,
   publikasiBundle,
   reviewBundle,
+  reviewItemBundle,
   setFlashcard,
   soal,
   soalIde,
@@ -38,8 +43,11 @@ import { redactQuestionAnswerKeys } from "@/lib/asesmen/question-options";
 import { canonicalNamespaceForProductType } from "@/lib/vectorize/outbox";
 import type { CanonicalEntityType, CanonicalNamespace } from "@/lib/vectorize/contracts";
 import { resolveBundleIdentity } from "./attribution";
+import { dispatchVectorSync } from "@/lib/vector-sync-dispatch";
 import { parseStagedProductBundle, getProductBundleImport, productBundleLifecycleStatus } from "./product-staging";
 import type { ProductDependency, ProductEntity } from "./product-validator";
+import { compileArticleProduct } from "@/lib/materials/compiler";
+import { assertProductSectionReviews } from "./product-review-gate";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type FailureStage = ProductEntity["productType"] | "outbox";
@@ -60,6 +68,11 @@ function id(prefix: string, value: string): string {
 
 function targetId(product: ProductEntity): string {
   return product.version === 1 ? product.id : `${product.id}:v${product.version}`;
+}
+
+function articleMarkdown(product: Extract<ProductEntity, { productType: "article" }>): string {
+  if (product.sections.length > 0) return compileArticleProduct(product, { strict: false }).markdown;
+  return [...product.blocks].sort((left, right) => left.orderIndex - right.orderIndex).map((block) => block.content).join("\n\n");
 }
 
 function maybeFail(stage: FailureStage | undefined, expected: FailureStage): void {
@@ -158,7 +171,7 @@ function canonicalProductVectorSpec(product: ProductEntity): CanonicalProductVec
         entityId: targetId(product),
         version: product.version,
         title: product.title,
-        text: [...product.blocks].sort((left, right) => left.orderIndex - right.orderIndex).map((block) => block.content).join("\n\n"),
+        text: articleMarkdown(product),
       };
     case "question":
       return {
@@ -187,13 +200,80 @@ async function insertArticle(tx: Tx, product: Extract<ProductEntity, { productTy
   const articleId = targetId(product);
   const chapterId = await resolveChapter(tx, product.chapterId, course.targetId);
   const [existing] = await tx.select({ id: artikel.id, title: artikel.title, version: artikel.version, sourceHash: artikel.sourceHash, generationHash: artikel.generationHash }).from(artikel).where(eq(artikel.id, articleId)).limit(1);
-  const content = [...product.blocks].sort((left, right) => left.orderIndex - right.orderIndex).map((block) => block.content).join("\n\n");
-  const values = { id: articleId, mataKuliahId: course.targetId, babId: chapterId, slug: product.version === 1 ? product.slug : `${product.slug}-v${product.version}`, title: product.title, contentMarkdown: content, version: product.version, status: "published" as const, sourceHash: product.sourceHash, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
+  const content = articleMarkdown(product);
+  const values = { id: articleId, mataKuliahId: course.targetId, babId: chapterId, slug: product.version === 1 ? product.slug : `${product.slug}-v${product.version}`, title: product.title, contentMarkdown: content, structureStatus: product.sections.length > 0 ? "structured" as const : "legacy_unreviewed" as const, version: product.version, status: "published" as const, sourceHash: product.sourceHash, generationHash: product.generationHash, creatorId: product.creatorId, curatorId: product.curatorId ?? null, publishedAt: now, createdAt: now, updatedAt: now };
   if (existing) {
     if (!equal(existing.title, values.title) || existing.version !== values.version || existing.sourceHash !== values.sourceHash || existing.generationHash !== values.generationHash) throw new Error(`PRODUCT_BUNDLE_VERSION_CONFLICT:${product.id}`);
   } else await tx.insert(artikel).values(values);
   for (const link of product.ideaLinks) await tx.insert(artikelIde).values({ id: id("artikel-ide", `${articleId}:${link.id}`), artikelId: articleId, ideId: link.id, weight: link.weight }).onConflictDoNothing();
-  for (const block of product.blocks) await tx.insert(blokArtikel).values({ id: id("artikel-block", `${articleId}:${block.id}`), artikelId: articleId, blockKey: block.id, blockType: block.blockType, orderIndex: block.orderIndex, content: block.content, version: product.version, generationHash: product.generationHash, status: "published", createdAt: now, updatedAt: now }).onConflictDoNothing();
+  for (const block of product.blocks) await tx.insert(blokArtikel).values({ id: id("artikel-block", `${articleId}:${block.id}`), artikelId: articleId, bagianArtikelId: null, blockKey: block.id, blockType: block.blockType, title: null, orderIndex: block.orderIndex, content: block.content, version: product.version, generationHash: product.generationHash, status: "published", createdAt: now, updatedAt: now }).onConflictDoNothing();
+
+  const sectionRowId = (sectionId: string) => id("artikel-section", `${articleId}:${sectionId}`);
+  const pendingSections = new Map(product.sections.map((section) => [section.id, section]));
+  const insertedSections = new Set<string>();
+  while (pendingSections.size > 0) {
+    let insertedInPass = 0;
+    for (const section of pendingSections.values()) {
+      if (section.parentSectionId && !insertedSections.has(section.parentSectionId)) continue;
+      if (section.kind === "topic" && section.learningSectionId) {
+        const [learningSection] = await tx.select({ id: bagianPembelajaran.id }).from(bagianPembelajaran).where(eq(bagianPembelajaran.id, section.learningSectionId)).limit(1);
+        if (!learningSection) throw new Error(`PRODUCT_ARTICLE_LEARNING_SECTION_NOT_FOUND:${section.learningSectionId}`);
+      }
+      const wordCount = section.blocks.reduce((total, block) => total + block.contentMarkdown.trim().split(/\s+/).filter(Boolean).length, 0);
+      await tx.insert(bagianArtikel).values({
+        id: sectionRowId(section.id),
+        artikelId: articleId,
+        bagianPembelajaranId: section.learningSectionId ?? null,
+        parentSectionId: section.parentSectionId ? sectionRowId(section.parentSectionId) : null,
+        sectionKey: section.id,
+        sectionKind: section.kind,
+        slug: section.slug,
+        title: section.title,
+        learningObjective: section.learningObjective,
+        orderIndex: section.orderIndex,
+        estimatedReadingMinutes: Math.max(1, Math.ceil(wordCount / 180)),
+        version: product.version,
+        status: "published",
+        createdAt: now,
+        updatedAt: now,
+      }).onConflictDoNothing();
+      for (const block of section.blocks) {
+        const blockId = id("artikel-block", `${articleId}:${block.id}`);
+        await tx.insert(blokArtikel).values({
+          id: blockId,
+          artikelId: articleId,
+          bagianArtikelId: sectionRowId(section.id),
+          blockKey: block.id,
+          blockType: block.blockType,
+          title: block.title ?? null,
+          orderIndex: block.orderIndex,
+          content: block.contentMarkdown,
+          version: product.version,
+          generationHash: product.generationHash,
+          status: "published",
+          createdAt: now,
+          updatedAt: now,
+        }).onConflictDoNothing();
+        for (const ideaId of block.ideaIds) {
+          await tx.insert(blokArtikelIde).values({ id: id("artikel-block-ide", `${blockId}:${ideaId}`), blokArtikelId: blockId, ideId: ideaId }).onConflictDoNothing();
+        }
+        for (const sourceRef of block.sourceRefs) {
+          await tx.insert(blokArtikelSumber).values({
+            id: id("artikel-block-source", `${blockId}:${sourceRef.sourceId}:${sourceRef.version}`),
+            blokArtikelId: blockId,
+            sumberMateriId: sourceRef.sourceId,
+            sourceVersion: sourceRef.version,
+            sourceChecksum: sourceRef.checksum,
+            excerptIds: sourceRef.excerptIds,
+          }).onConflictDoNothing();
+        }
+      }
+      pendingSections.delete(section.id);
+      insertedSections.add(section.id);
+      insertedInPass++;
+    }
+    if (insertedInPass === 0) throw new Error("PRODUCT_ARTICLE_SECTION_PARENT_UNRESOLVED");
+  }
 }
 
 async function insertDiktat(tx: Tx, product: Extract<ProductEntity, { productType: "diktat" }>, course: { targetId: string }, now: Date): Promise<void> {
@@ -319,20 +399,29 @@ export async function publishProductBundle(input: { importId: string; publishedB
   if (productBundleLifecycleStatus(snapshot.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
   if (bundle.publicationBlocked) throw new Error("PRODUCT_BUNDLE_DEPENDENCY_NEEDS_REVIEW");
-  return db.transaction(async (tx) => {
+  let courseLegacyId: string | undefined;
+  const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
     if (!row || row.bundleType !== "product" || productBundleLifecycleStatus(row.status) !== "draft") throw new Error("PRODUCT_BUNDLE_DRAFT_REQUIRED");
     const [publisher] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.publishedBy)).limit(1);
     if (!publisher || publisher.role !== "admin") throw new Error("PRODUCT_BUNDLE_PUBLISH_FORBIDDEN");
     await requireIdentity(tx, input.publishedBy, "PRODUCT_BUNDLE_PUBLISHER_NOT_FOUND");
-    const [existingReview] = await tx.select({ id: reviewBundle.id, reviewerId: reviewBundle.reviewerId }).from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.publishedBy))).limit(1);
-    const review = existingReview ?? { id: id("review-product", `${input.importId}:${input.publishedBy}`), reviewerId: input.publishedBy };
-    if (existingReview) {
-      await tx.update(reviewBundle).set({ status: "approved", reviewedAt: new Date() }).where(eq(reviewBundle.id, existingReview.id));
-    } else {
-      await tx.insert(reviewBundle).values({ id: review.id, imporBundleId: input.importId, reviewerId: input.publishedBy, status: "approved", notes: "Published by admin", reviewedAt: new Date() });
+    const [review] = await tx.select({ id: reviewBundle.id, reviewerId: reviewBundle.reviewerId, status: reviewBundle.status }).from(reviewBundle).where(and(eq(reviewBundle.imporBundleId, input.importId), eq(reviewBundle.reviewerId, input.publishedBy), eq(reviewBundle.status, "approved"))).limit(1);
+    if (!review) throw new Error("PRODUCT_BUNDLE_ADMIN_APPROVAL_REQUIRED");
+
+    if (bundle.manifest.schemaVersion === "product-bundle.v3") {
+      const requiredSectionIds = bundle.products.flatMap((product) => product.productType === "article" ? product.sections.map((section) => section.id) : []);
+      if (requiredSectionIds.length > 0) {
+        const sectionReviews = await tx.select({ reviewerId: reviewItemBundle.reviewerId, targetType: reviewItemBundle.targetType, targetId: reviewItemBundle.targetId, status: reviewItemBundle.status }).from(reviewItemBundle).where(and(
+          eq(reviewItemBundle.imporBundleId, input.importId),
+          eq(reviewItemBundle.reviewerId, input.publishedBy),
+          eq(reviewItemBundle.targetType, "article_section"),
+        ));
+        assertProductSectionReviews({ requiredSectionIds, reviewerId: input.publishedBy, reviews: sectionReviews });
+      }
     }
     const course = await resolveCourse(tx, bundle.manifest.courseId);
+    courseLegacyId = course.legacyId;
     const now = new Date();
     const attribution = { uploaderId: row.requestedBy, approvingReviewerId: review.reviewerId };
     const products = bundle.products.map((product) => ({
@@ -421,6 +510,10 @@ export async function publishProductBundle(input: { importId: string; publishedB
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:published`), actorId: input.publishedBy, entityType: "product_bundle", entityId: input.importId, action: "published", beforeSnapshot: { status: "draft" }, afterSnapshot: { status: "published", productCount: bundle.products.length, vectorJobCount: vectorJobs.length, publicationHash, itbSources, itbCuration }, correlationId: input.importId });
     return { publicationId, importId: input.importId, published: true, productCount: bundle.products.length, vectorJobCount: vectorJobs.length };
   });
+  if (courseLegacyId) {
+    dispatchVectorSync(courseLegacyId);
+  }
+  return result;
 }
 
 export async function withdrawProductBundle(input: { importId: string; withdrawnBy: string }): Promise<{ importId: string; withdrawn: boolean; productCount: number; vectorJobCount: number }> {
@@ -431,13 +524,15 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
   if (productBundleLifecycleStatus(snapshot.status) !== "published") throw new Error("PRODUCT_BUNDLE_PUBLISHED_REQUIRED");
   const bundle = await parseStagedProductBundle(input.importId);
 
-  return db.transaction(async (tx) => {
+  let courseLegacyId: string | undefined;
+  const result = await db.transaction(async (tx) => {
     const [row] = await tx.select().from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
     if (!row || row.bundleType !== "product" || productBundleLifecycleStatus(row.status) !== "published") throw new Error("PRODUCT_BUNDLE_PUBLISHED_REQUIRED");
     const [actor] = await tx.select({ role: user.role }).from(user).where(eq(user.id, input.withdrawnBy)).limit(1);
     if (!actor || actor.role !== "admin") throw new Error("PRODUCT_BUNDLE_WITHDRAW_FORBIDDEN");
     await requireIdentity(tx, input.withdrawnBy, "PRODUCT_BUNDLE_WITHDRAWER_NOT_FOUND");
     const course = await resolveCourse(tx, bundle.manifest.courseId);
+    courseLegacyId = course.legacyId;
     const now = new Date();
     const productIds = bundle.products.map(targetId);
     const byType = <T extends ProductEntity["productType"]>(type: T) => bundle.products.filter((product): product is Extract<ProductEntity, { productType: T }> => product.productType === type).map(targetId);
@@ -483,6 +578,10 @@ export async function withdrawProductBundle(input: { importId: string; withdrawn
     await tx.insert(auditMutasi).values({ id: id("audit-product", `${input.importId}:withdrawn`), actorId: input.withdrawnBy, entityType: "product_bundle", entityId: input.importId, action: "withdrawn", beforeSnapshot: { status: "published" }, afterSnapshot: { status: "withdrawn", productCount: productIds.length, vectorJobCount: vectorJobs.length }, correlationId: input.importId });
     return { importId: input.importId, withdrawn: true, productCount: productIds.length, vectorJobCount: vectorJobs.length };
   });
+  if (courseLegacyId) {
+    dispatchVectorSync(courseLegacyId);
+  }
+  return result;
 }
 
 export async function reconcileProductBundle(importId: string) {
