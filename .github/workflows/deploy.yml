@@ -33,11 +33,14 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
+      - name: Initialize Local SQLite Database
+        run: bun run db:migrate
+
       - name: Build Next.js Standalone
         env:
           SKIP_ENV_VALIDATION: "true"
           NEXT_TELEMETRY_DISABLED: "1"
-          DATABASE_URL: "https://local-sqlite-placeholder.internal"
+          DATABASE_URL: "file:dev.db"
           BETTER_AUTH_SECRET: "build-time-placeholder-auth-secret-32-chars-long"
           GOOGLE_CLIENT_ID: "build-time-placeholder-google-client-id"
           GOOGLE_CLIENT_SECRET: "build-time-placeholder-google-client-secret"
