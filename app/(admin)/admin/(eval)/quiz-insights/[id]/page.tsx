@@ -23,7 +23,8 @@ import { QuizAttemptsSpreadsheet } from "./_components/quiz-attempts-spreadsheet
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { StatusBadge } from "@/components/admin/status-badges";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 
 
 interface QuizDetailResponse {
@@ -117,7 +118,7 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
   const [data, setData] = useState<QuizDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzingAi, setAnalyzingAi] = useState(false);
-  const [activeTab, setActiveTab] = useState("ai-insights");
+  const [activeTab, setActiveTab] = useUrlTab("tab", "ai-insights");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchDetail = useCallback(async () => {
@@ -303,40 +304,40 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
       </AdminStatStrip>
 
       {/* Tabs Component */}
-      <AdminTabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="overflow-x-auto pb-1 max-w-full">
-          <AdminTabsList>
-            <AdminTabsTrigger value="attempts-sheet">
+          <TabsList>
+            <TabsTrigger value="attempts-sheet">
               <FileSpreadsheet className="size-4 text-emerald-500" />
               <span>Sheet Jawaban</span>
-            </AdminTabsTrigger>
-            <AdminTabsTrigger value="ai-insights">
+            </TabsTrigger>
+            <TabsTrigger value="ai-insights">
               <BrainCircuit className="size-4 text-brand-primary" />
               <span>Analisis Performa</span>
-            </AdminTabsTrigger>
-            <AdminTabsTrigger value="questions">
+            </TabsTrigger>
+            <TabsTrigger value="questions">
               <FileSpreadsheet className="size-4 text-brand-primary" />
               <span>Butir Soal &amp; Distraktor</span>
-            </AdminTabsTrigger>
-            <AdminTabsTrigger value="concepts" className="gap-1.5">
+            </TabsTrigger>
+            <TabsTrigger value="concepts">
               <Target className="size-4 text-brand-secondary" />
               <span>Konsep &amp; Topik</span>
               <BetaBadge />
-            </AdminTabsTrigger>
-            <AdminTabsTrigger value="distribution">
+            </TabsTrigger>
+            <TabsTrigger value="distribution">
               <BarChart3 className="size-4 text-status-info" />
               <span>Distribusi Nilai</span>
-            </AdminTabsTrigger>
-          </AdminTabsList>
+            </TabsTrigger>
+          </TabsList>
         </div>
 
         {/* TAB 0: SPREADSHEET ATTEMPT SISWA */}
-        <AdminTabsContent value="attempts-sheet" className="space-y-6">
+        <TabsContent value="attempts-sheet" className="space-y-6">
           <QuizAttemptsSpreadsheet templateId={id} quizTitle={template.title} />
-        </AdminTabsContent>
+        </TabsContent>
 
         {/* TAB 1: ANALISIS PERFORMA & REKOMENDASI */}
-        <AdminTabsContent value="ai-insights" className="space-y-6">
+        <TabsContent value="ai-insights" className="space-y-6">
           {!latestAiInsight ? (
             <div className="bg-card border border-border rounded-xl p-10 text-center space-y-4">
               <div className="size-12 rounded-full bg-brand-primary/10 flex items-center justify-center mx-auto text-brand-primary">
@@ -511,10 +512,10 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               )}
             </div>
           )}
-        </AdminTabsContent>
+        </TabsContent>
 
         {/* TAB 2: ANALISIS BUTIR SOAL & DISTRAKTOR */}
-        <AdminTabsContent value="questions" className="space-y-6">
+        <TabsContent value="questions" className="space-y-6">
           <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
@@ -640,10 +641,10 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               </div>
             )}
           </div>
-        </AdminTabsContent>
+        </TabsContent>
 
         {/* TAB 3: ANALISIS KONSEP & TOPIK */}
-        <AdminTabsContent value="concepts" className="space-y-6">
+        <TabsContent value="concepts" className="space-y-6">
           <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
             <div className="border-b border-border pb-3">
               <h3 className="font-heading text-body-base font-bold text-foreground">Analisis Tingkat Penguasaan Konsep</h3>
@@ -707,10 +708,10 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               </div>
             )}
           </div>
-        </AdminTabsContent>
+        </TabsContent>
 
         {/* TAB 4: DISTRIBUSI & STATISTIK NILAI */}
-        <AdminTabsContent value="distribution" className="space-y-6">
+        <TabsContent value="distribution" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Rentang Nilai */}
             <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
@@ -772,8 +773,8 @@ export default function AdminQuizInsightDetailPage(props: { params: Params }) {
               </div>
             </div>
           </div>
-        </AdminTabsContent>
-      </AdminTabs>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

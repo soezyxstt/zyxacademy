@@ -335,33 +335,19 @@ export function AssessmentDetailClient({
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="questions" className="space-y-6">
-        <TabsList className="w-full justify-start border-b border-border bg-transparent p-0 rounded-none h-auto">
-          <TabsTrigger
-            value="questions"
-            className="border-b-2 border-transparent px-4 py-2 text-body-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none bg-transparent"
-          >
-            Daftar Soal ({questions.length})
-          </TabsTrigger>
-          <TabsTrigger
-            value="markdown"
-            className="border-b-2 border-transparent px-4 py-2 text-body-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none bg-transparent"
-          >
+      <Tabs defaultValue="questions">
+        <TabsList>
+          <TabsTrigger value="questions">Daftar soal</TabsTrigger>
+          <TabsTrigger value="markdown">
             Canonical Markdown
           </TabsTrigger>
-          <TabsTrigger
-            value="chapters"
-            className="border-b-2 border-transparent px-4 py-2 text-body-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none bg-transparent"
-          >
-            Bab Terkait ({resolvedChapters.length})
+          <TabsTrigger value="chapters">
+            Bab terkait
           </TabsTrigger>
-          <TabsTrigger
-            value="diagnostics"
-            className="border-b-2 border-transparent px-4 py-2 text-body-sm font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none bg-transparent"
-          >
+          <TabsTrigger value="diagnostics">
             Diagnostik
             {diagnostics.length > 0 && (
-              <Badge variant="outline" className="border-status-error/30 text-status-error bg-status-error/5 ml-1.5 h-4 w-4 p-0 flex items-center justify-center rounded-full text-[10px]">
+              <Badge variant="outline" className="ml-1 h-4 min-w-4 rounded-md border-status-error/30 bg-status-error/5 px-1 text-body-2xs text-status-error">
                 {diagnostics.length}
               </Badge>
             )}

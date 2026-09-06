@@ -5,6 +5,7 @@ import { Search, Users, UserCheck, Layers, Shield } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { formatIsoDate } from "@/lib/date-utils";
 import type {
   TutorCourseParticipantsPayload,
@@ -19,7 +20,7 @@ interface ParticipantsClientProps {
 export function ParticipantsClient({ data }: ParticipantsClientProps) {
   const [search, setSearch] = useState("");
   const [enrollmentFilter, setEnrollmentFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<string>("participants");
+  const [activeTab, setActiveTab] = useUrlTab("tab", "participants");
 
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -102,12 +103,12 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
       {/* ── Tabs & Search Toolbar ── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-          <TabsList className="h-9 rounded-lg bg-muted p-1">
-            <TabsTrigger value="participants" className="rounded-md text-body-sm">
-              Peserta ({data.participants.length})
+          <TabsList>
+            <TabsTrigger value="participants">
+              Peserta
             </TabsTrigger>
-            <TabsTrigger value="groups" className="rounded-md text-body-sm">
-              Kelompok Belajar ({data.groups.length})
+            <TabsTrigger value="groups">
+              Kelompok Belajar
             </TabsTrigger>
           </TabsList>
 

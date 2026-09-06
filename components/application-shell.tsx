@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { PageOrnaments } from "@/components/ui/page-ornaments";
+import { PageTransition } from "@/components/ui/page-transition";
 
 export interface ApplicationShellProps {
   sidebar?: ReactNode;
@@ -39,7 +40,7 @@ export function ApplicationShell({
           tabIndex={-1}
           className={cn("relative min-w-0 flex-1 focus:outline-none", mainClassName)}
         >
-          {children}
+          <PageTransition>{children}</PageTransition>
         </main>
       </div>
       {overlays}

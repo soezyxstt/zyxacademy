@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchBar } from "@/components/ui/search-bar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { cn } from "@/lib/utils";
 import type { CourseMaterial, DocCategory } from "@/lib/student-course-fixtures";
@@ -433,21 +434,6 @@ export function DocumentListClient({
     }
   }, [activeTab]);
 
-  // Dynamic counts for each tab
-  const tabCounts = useMemo(() => {
-    const counts: Record<TabKey, number> = {
-      materi: 0,
-      diktat: 0,
-      pdf: 0,
-      bank_soal: 0,
-    };
-    for (const m of materials) {
-      const tab = resolveTabGroup(m);
-      counts[tab] = (counts[tab] || 0) + 1;
-    }
-    return counts;
-  }, [materials]);
-
   // Filter materials for current active tab
   const tabMaterials = useMemo(() => {
     return materials.filter((m) => resolveTabGroup(m) === activeTab);
@@ -503,42 +489,19 @@ export function DocumentListClient({
     <div className="space-y-3 font-sans">
       {/* Unified Toolbar: Tab Strip, SearchBar, Filter Popover, Grid/List Toggle */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Navigation Tabs Pill (Matching admin/schedules) */}
-        <div
-          role="tablist"
-          aria-label="Kategori materi belajar"
-          className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border flex-wrap"
-        >
-          {tabConfig.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.key;
-            const count = tabCounts[tab.key];
-            return (
-              <button
-                key={tab.key}
-                role="tab"
-                aria-selected={isActive}
-                type="button"
-                onClick={() => handleTabChange(tab.key)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
-                  isActive
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Icon className="size-3.5 shrink-0" />
-                <span>{tab.label}</span>
-                <Badge
-                  variant={isActive ? "secondary" : "outline"}
-                  className="text-[10px] px-1.5 py-0 h-4 rounded-md"
-                >
-                  {count}
-                </Badge>
-              </button>
-            );
-          })}
-        </div>
+        <Tabs value={activeTab} onValueChange={(value) => handleTabChange(normalizeTabKey(value))}>
+          <TabsList aria-label="Kategori materi belajar">
+            {tabConfig.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger key={tab.key} value={tab.key}>
+                  <Icon className="size-3.5 shrink-0" />
+                  <span>{tab.label}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
 
         {/* Search Bar */}
         <SearchBar

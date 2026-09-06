@@ -101,7 +101,7 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
   | Need | Component |
   |---|---|
   | Header | `PageHeader` or `AdminPageHeader` |
-  | Tabs | `AdminTabs`, `AdminTabsList`, `AdminTabsTrigger`, `AdminTabsContent` |
+  | Tabs | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` from `components/ui/tabs.tsx` |
   | KPI cards | `AdminStatCard` or `AdminStatStrip`/`AdminStatStripItem` |
   | Section headings | `AdminSectionTitle` |
   | Destructive confirmation | `AdminConfirmDialog` |
@@ -115,6 +115,15 @@ The following visual sizes are the approved cross-surface baseline. Keep semanti
 - Interactive controls (selects, inputs, buttons, combobox triggers) must use `text-body-sm` at all states. Never change font size or font weight between selected/unselected, checked/unchecked, active/inactive, or open/closed states. State changes may only affect color, background, border, or icon.
 - Checkbox and combobox list-item labels must keep the same font size and weight across checked and unchecked states. Changing `font-medium` on selection is a bug.
 - Badges, prose, relationship rows, and descriptive metadata retain `text-body-xs` even when nearby controls use `text-body-sm`. Do not widen badge or prose typography as a side effect of fixing control typography.
+
+### Tabs and route transitions
+
+- `components/ui/tabs.tsx` is the only reusable content-tab primitive. Do not create surface-specific wrappers such as Admin or Tutor tabs, and do not hand-roll a button group that behaves as tabs.
+- Page-level tabs use the compact content-width strip: `bg-muted/40`, a border, `rounded-xl`, wrapping items, and active triggers with `bg-card` plus `shadow-xs`. Do not make tab lists or triggers fill the available width with `w-full`, `flex-1`, grids, or equal-width columns.
+- Page-level tab state must be URL-addressable. Use `useUrlTab` for controlled tabs, or the built-in `defaultValue` URL synchronization in `Tabs`. Give nested tab sets distinct `paramKey` values so they cannot overwrite each other.
+- Small transient widgets such as popovers and editor palettes may keep local state, but must use the same `Tabs` primitive with `syncUrl={false}` so they do not pollute the page URL.
+- Numeric tab badges are reserved for actionable state such as pending review work, validation issues, or a live selection count. Do not add totals merely to decorate content categories, history, catalog, or roster tabs.
+- `PageTransition` is applied by `ApplicationShell` and `SiteMain`, so Admin, Tutor, Student, and Marketing page content share the same route entrance and reduced-motion behavior. Do not add another page-level transition wrapper. Use `Reveal` only for deliberate section-level scroll entrance.
 
 ### Inline responsive filter toolbars
 

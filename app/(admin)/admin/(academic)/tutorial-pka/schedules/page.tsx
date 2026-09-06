@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import { getPkaSchedulesAction } from "../actions";
 import { SchedulesTab } from "../_components/schedules-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { AdminTabNav } from "@/components/admin/tab-nav";
+import { TabNav } from "@/components/ui/tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ export default async function TutorialPkaSchedulesPage() {
         title="Jadwal Live Tutorial PKA"
         description="Atur jadwal sesi live Tutorial PKA. Jadwal akan dikirim otomatis ke email peserta."
       />
-      <AdminTabNav
+      <TabNav
         tabs={[
           { href: "/admin/tutorial-pka/registrations", label: "Pendaftar" },
           { href: "/admin/tutorial-pka/announcements", label: "Pengumuman" },

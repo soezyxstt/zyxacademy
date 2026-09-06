@@ -31,12 +31,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  AdminTabs,
-  AdminTabsContent,
-  AdminTabsList,
-  AdminTabsTrigger,
-} from "@/components/admin/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -76,7 +72,7 @@ export function ProductCatalogPanel({ courseLabels = {} }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Filters
-  const [activeType, setActiveType] = useState("all");
+  const [activeType, setActiveType] = useUrlTab("productType", "all");
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -108,16 +104,6 @@ export function ProductCatalogPanel({ courseLabels = {} }: Props) {
   useEffect(() => {
     void fetchProducts();
   }, [fetchProducts]);
-
-  const stats = useMemo(() => {
-    const counts = { total: items.length, diktat: 0, article: 0, flashcard: 0, question: 0, blueprint: 0 };
-    for (const item of items) {
-      if (item.productType in counts) {
-        counts[item.productType as keyof typeof counts]++;
-      }
-    }
-    return counts;
-  }, [items]);
 
   const uniqueCourseIds = useMemo(() => {
     const ids = new Set<string>();
@@ -177,33 +163,33 @@ export function ProductCatalogPanel({ courseLabels = {} }: Props) {
       </div>
 
       {/* Type Filter Tabs */}
-      <AdminTabs value={activeType} onValueChange={setActiveType}>
-        <AdminTabsList className="max-w-full overflow-x-auto">
-          <AdminTabsTrigger value="all">
-            Semua ({loading ? "..." : items.length})
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="diktat">
+      <Tabs value={activeType} onValueChange={setActiveType}>
+        <TabsList>
+          <TabsTrigger value="all">
+            Semua
+          </TabsTrigger>
+          <TabsTrigger value="diktat">
             <FileText className="size-3.5" />
-            Diktat ({stats.diktat})
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="article">
+            Diktat
+          </TabsTrigger>
+          <TabsTrigger value="article">
             <BookOpen className="size-3.5" />
-            Artikel ({stats.article})
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="flashcard">
+            Artikel
+          </TabsTrigger>
+          <TabsTrigger value="flashcard">
             <Layers className="size-3.5" />
-            Flashcard ({stats.flashcard})
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="question">
+            Flashcard
+          </TabsTrigger>
+          <TabsTrigger value="question">
             <HelpCircle className="size-3.5" />
-            Soal ({stats.question})
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="blueprint">
+            Soal
+          </TabsTrigger>
+          <TabsTrigger value="blueprint">
             <FileCheck2 className="size-3.5" />
-            Blueprint ({stats.blueprint})
-          </AdminTabsTrigger>
-        </AdminTabsList>
-      </AdminTabs>
+            Blueprint
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Product List Content */}
       {loading ? (

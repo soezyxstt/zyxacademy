@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { BookOpenCheck, FileArchive, LayoutGrid, Upload } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminEmptyState } from "@/components/admin/state-panels";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import type { BundleRow as IdeaBundleRow } from "@/components/admin/idea-bundle-v2-panel";
 import type { MaterialBundleRow as ProductBundleRow } from "@/components/admin/material-workflow-ui";
 import { AuthoringJobBuilder } from "@/components/admin/authoring-job-builder";
@@ -47,7 +48,7 @@ export function MaterialWorkspace({
 }: Props) {
   const router = useRouter();
   const firstReviewTab = initialReviewTab ?? (ideaEnabled ? "idea" : "product");
-  const [activeReviewTab, setActiveReviewTab] = useState<"idea" | "product" | "catalog">(firstReviewTab);
+  const [activeReviewTab, setActiveReviewTab] = useUrlTab("tab", firstReviewTab);
   const [uploadKind, setUploadKind] = useState<"idea" | "product" | null>(null);
   const detailMode = mode === "idea-detail" || mode === "product-detail";
 
@@ -69,30 +70,30 @@ export function MaterialWorkspace({
         mode === "idea-detail" ? <IdeaBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} /> : <ProductBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} />
       ) : mode === "review" ? (
         <div className="space-y-6">
-          <AdminTabs value={activeReviewTab} onValueChange={(value) => setActiveReviewTab(value as "idea" | "product" | "catalog")}>
-            <AdminTabsList>
-              {ideaEnabled && <AdminTabsTrigger value="idea"><FileArchive className="size-4" />Source Pack + Idea</AdminTabsTrigger>}
-              {productEnabled && <AdminTabsTrigger value="product"><FileArchive className="size-4" />Product Bundle</AdminTabsTrigger>}
-              <AdminTabsTrigger value="catalog"><LayoutGrid className="size-4" />Katalog Produk</AdminTabsTrigger>
-            </AdminTabsList>
-            {ideaEnabled && <AdminTabsContent value="idea"><MaterialArtifactList rows={initialIdeaImports} kind="idea" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("idea", id)} onUpload={() => setUploadKind("idea")} /><MaterialBundleUploadDialog kind="idea" open={uploadKind === "idea"} onOpenChange={(open) => setUploadKind(open ? "idea" : null)} onStaged={(id) => openDetail("idea", id)} /></AdminTabsContent>}
-            {productEnabled && <AdminTabsContent value="product"><MaterialArtifactList rows={initialProductImports} kind="product" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("product", id)} onUpload={() => setUploadKind("product")} /><MaterialBundleUploadDialog kind="product" open={uploadKind === "product"} onOpenChange={(open) => setUploadKind(open ? "product" : null)} onStaged={(id) => openDetail("product", id)} /></AdminTabsContent>}
-            <AdminTabsContent value="catalog">
+          <Tabs value={activeReviewTab} onValueChange={(value) => setActiveReviewTab(value as "idea" | "product" | "catalog")}>
+            <TabsList>
+              {ideaEnabled && <TabsTrigger value="idea"><FileArchive className="size-4" />Source Pack + Idea</TabsTrigger>}
+              {productEnabled && <TabsTrigger value="product"><FileArchive className="size-4" />Product Bundle</TabsTrigger>}
+              <TabsTrigger value="catalog"><LayoutGrid className="size-4" />Katalog Produk</TabsTrigger>
+            </TabsList>
+            {ideaEnabled && <TabsContent value="idea"><MaterialArtifactList rows={initialIdeaImports} kind="idea" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("idea", id)} onUpload={() => setUploadKind("idea")} /><MaterialBundleUploadDialog kind="idea" open={uploadKind === "idea"} onOpenChange={(open) => setUploadKind(open ? "idea" : null)} onStaged={(id) => openDetail("idea", id)} /></TabsContent>}
+            {productEnabled && <TabsContent value="product"><MaterialArtifactList rows={initialProductImports} kind="product" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("product", id)} onUpload={() => setUploadKind("product")} /><MaterialBundleUploadDialog kind="product" open={uploadKind === "product"} onOpenChange={(open) => setUploadKind(open ? "product" : null)} onStaged={(id) => openDetail("product", id)} /></TabsContent>}
+            <TabsContent value="catalog">
               <ProductCatalogPanel courseLabels={courseLabels} />
-            </AdminTabsContent>
-          </AdminTabs>
+            </TabsContent>
+          </Tabs>
         </div>
       ) : (
         <div className="space-y-6">
           {authoringEnabled ? (
-            <AdminTabs defaultValue="source-pack">
-              <AdminTabsList>
-                <AdminTabsTrigger value="source-pack"><FileArchive className="size-4" />Buat paket kerja</AdminTabsTrigger>
-                <AdminTabsTrigger value="context-pack"><BookOpenCheck className="size-4" />Lanjutkan dari Idea terbit</AdminTabsTrigger>
-              </AdminTabsList>
-              <AdminTabsContent value="source-pack"><AuthoringJobBuilder courses={authoringCourses} /></AdminTabsContent>
-              <AdminTabsContent value="context-pack"><AuthoringContextExport initialExports={initialContextExports} courses={authoringCourses} /></AdminTabsContent>
-            </AdminTabs>
+            <Tabs defaultValue="source-pack">
+              <TabsList>
+                <TabsTrigger value="source-pack"><FileArchive className="size-4" />Buat paket kerja</TabsTrigger>
+                <TabsTrigger value="context-pack"><BookOpenCheck className="size-4" />Lanjutkan dari Idea terbit</TabsTrigger>
+              </TabsList>
+              <TabsContent value="source-pack"><AuthoringJobBuilder courses={authoringCourses} /></TabsContent>
+              <TabsContent value="context-pack"><AuthoringContextExport initialExports={initialContextExports} courses={authoringCourses} /></TabsContent>
+            </Tabs>
           ) : (
             <AdminEmptyState title="Upload manual belum tersedia" description="Workflow Source Pack manual belum diaktifkan di lingkungan ini." icon={Upload} />
           )}

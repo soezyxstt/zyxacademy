@@ -283,18 +283,21 @@ export function GradingClient({ courseId, initialSubmissions }: Props) {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid grid-cols-3 max-w-lg bg-muted rounded-xl p-1 mb-6">
-          <TabsTrigger value="pending" className="rounded-lg font-semibold py-2">
+        <TabsList>
+          <TabsTrigger value="pending">
             <AlertCircle className="size-4 mr-2 text-status-warning" />
-            Perlu Dinilai ({pendingList.length})
+            Perlu Dinilai
+            <Badge variant="secondary" className="px-1.5 py-0 text-body-2xs">
+              {pendingList.length}
+            </Badge>
           </TabsTrigger>
-          <TabsTrigger value="graded" className="rounded-lg font-semibold py-2">
+          <TabsTrigger value="graded">
             <CheckCircle2 className="size-4 mr-2 text-status-success" />
-            Sudah Dinilai ({gradedList.length})
+            Sudah Dinilai
           </TabsTrigger>
-          <TabsTrigger value="all" className="rounded-lg font-semibold py-2">
+          <TabsTrigger value="all">
             <CheckSquare className="size-4 mr-2 text-muted-foreground" />
-            Semua ({initialSubmissions.length})
+            Semua
           </TabsTrigger>
         </TabsList>
 

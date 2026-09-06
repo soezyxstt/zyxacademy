@@ -34,7 +34,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -2065,7 +2066,7 @@ function PedagogicReviewPanel({
 export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: DetailProps) {
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
   const [draftProducts, setDraftProducts] = useState<ProductEntity[]>([]);
-  const [activeType, setActiveType] = useState("all");
+  const [activeType, setActiveType] = useUrlTab("productType", "all");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -2288,16 +2289,16 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
       </div>
 
       {/* Tabs & Compact Navigator Header (No Select dropdown, Stepper + Searchable Sheet naming active product) */}
-      <AdminTabs value={activeType} onValueChange={handleTypeTabChange}>
+      <Tabs value={activeType} onValueChange={handleTypeTabChange}>
         <div className="space-y-2.5">
-          <AdminTabsList className="max-w-full overflow-x-auto">
-            <AdminTabsTrigger value="all">Semua ({payload.previews.length})</AdminTabsTrigger>
-            {Object.entries(typeCounts).map(([type, count]) => (
-              <AdminTabsTrigger key={type} value={type}>
-                {productLabels[type] ?? type} ({count})
-              </AdminTabsTrigger>
+          <TabsList>
+            <TabsTrigger value="all">Semua</TabsTrigger>
+            {Object.entries(typeCounts).map(([type]) => (
+              <TabsTrigger key={type} value={type}>
+                {productLabels[type] ?? type}
+              </TabsTrigger>
             ))}
-          </AdminTabsList>
+          </TabsList>
 
           {/* Stepper + Active Product Searchable Sheet Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-2 shadow-xs">
@@ -2379,7 +2380,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
           </div>
         </div>
 
-        <AdminTabsContent value={activeType} className="mt-4">
+        <TabsContent value={activeType} className="mt-4">
           {/* 100% Canvas Width for Content Review */}
           {activePreview ? (
             <article key={activePreview.id} className="rounded-xl border border-border bg-card p-5 sm:p-7 shadow-xs space-y-5">
@@ -2475,8 +2476,8 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
           ) : (
             <AdminEmptyState title="Bagian belum tersedia" description="Tidak ada bagian yang cocok dengan filter." />
           )}
-        </AdminTabsContent>
-      </AdminTabs>
+        </TabsContent>
+      </Tabs>
 
       {payload.bundle.status === "draft" && (
         <PedagogicReviewPanel payload={payload} saving={saving} onSubmit={(submission) => void decide(submission)} onRefresh={load} />

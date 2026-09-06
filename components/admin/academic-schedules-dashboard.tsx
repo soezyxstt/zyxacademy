@@ -56,6 +56,8 @@ import {
 import { updateTutorCourses } from "@/app/(student)/dashboard/schedule/actions";
 import { formatIsoDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 
 type Props = {
   initialData: any;
@@ -67,7 +69,7 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Tabs / Active View
-  const [activeTab, setActiveTab] = useState("calendar");
+  const [activeTab, setActiveTab] = useUrlTab("tab", "calendar");
 
   // Dialog States for Academic Schedules CRUD
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -101,7 +103,6 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
   const totalBookings = data.bookings.length;
   const completedBookings = data.bookings.filter((b: any) => b.status === "completed").length;
   const pendingTickets = data.tickets.filter((t: any) => t.status === "pending").length;
-  const totalAcademic = data.academicSchedules.length;
 
   const handleOpenCreate = () => {
     setFormType("official_exam");
@@ -289,87 +290,31 @@ export function AcademicSchedulesDashboard({ initialData }: Props) {
         {/* Unified Admin Schedule Header Navigation Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-0.5">
           {/* View Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border flex-wrap">
-            <button
-              type="button"
-              onClick={() => setActiveTab("calendar")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
-                activeTab === "calendar"
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <CalendarDays className="size-3.5" />
-              <span>Master Kalender</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("academic")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
-                activeTab === "academic"
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <span>Jadwal Resmi</span>
-              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                {totalAcademic}
-              </Badge>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("tutors")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
-                activeTab === "tutors"
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <span>Tutor</span>
-              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                {data.tutors.length}
-              </Badge>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("tickets")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
-                activeTab === "tickets"
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <span>Tiket Reschedule</span>
-              {pendingTickets > 0 ? (
-                <Badge className="text-[10px] px-1 py-0 h-4 bg-amber-500 text-white font-bold">
-                  {pendingTickets}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                  {data.tickets.length}
-                </Badge>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("audit")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
-                activeTab === "audit"
-                  ? "bg-card text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <span>Jejak Audit</span>
-              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                {data.auditLogs.length}
-              </Badge>
-            </button>
-          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="calendar">
+                <CalendarDays className="size-3.5" />
+                <span>Master Kalender</span>
+              </TabsTrigger>
+              <TabsTrigger value="academic">
+                <span>Jadwal Resmi</span>
+              </TabsTrigger>
+              <TabsTrigger value="tutors">
+                <span>Tutor</span>
+              </TabsTrigger>
+              <TabsTrigger value="tickets">
+                <span>Tiket Reschedule</span>
+                {pendingTickets > 0 ? (
+                  <Badge className="h-4 min-w-4 bg-amber-500 px-1 py-0 text-body-2xs font-bold text-white">
+                    {pendingTickets}
+                  </Badge>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="audit">
+                <span>Jejak Audit</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {/* Quick Action Buttons (Bot & + Buat Jadwal) */}
           <div className="flex items-center gap-1.5 ml-auto">

@@ -68,10 +68,11 @@ import {
 } from "@/components/ui/select";
 import {
   Popover,
-  PopoverTrigger,
   PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { FormPresetsPanel, PresetSettingsLoader } from "@/components/forms/form-presets";
 
 interface ExtendedQuestionInput extends CreateCustomQuestionInput {
@@ -124,7 +125,7 @@ export default function AdminFormsBuilder({
   const searchParams = useSearchParams();
   const editIdParam = searchParams.get("edit");
 
-  const [activeTab, setActiveTab] = useState<"builder" | "settings" | "forms">("builder");
+  const [activeTab, setActiveTab] = useUrlTab("tab", "builder");
   const [editingFormId, setEditingFormId] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -682,23 +683,23 @@ export default function AdminFormsBuilder({
         </div>
       )}
 
-      <AdminTabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-        <AdminTabsList>
-          <AdminTabsTrigger value="builder">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+        <TabsList>
+          <TabsTrigger value="builder">
             <FileText className="size-3.5" />
-            {editingFormId ? `Editor Pertanyaan (Edit)` : `Editor Pertanyaan (${questions.length})`}
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="settings">
+            {editingFormId ? "Editor Pertanyaan (Edit)" : "Editor Pertanyaan"}
+          </TabsTrigger>
+          <TabsTrigger value="settings">
             <Sliders className="size-3.5" />
             Pengaturan
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="forms">
+          </TabsTrigger>
+          <TabsTrigger value="forms">
             <BarChart3 className="size-3.5" />
-            Daftar Terbit ({forms.length})
-          </AdminTabsTrigger>
-        </AdminTabsList>
+            Daftar Terbit
+          </TabsTrigger>
+        </TabsList>
 
-        <AdminTabsContent value="builder">
+        <TabsContent value="builder">
         <div className="grid gap-4 md:grid-cols-12 items-start">
           {/* Main Question Cards Column */}
           <div className="md:col-span-9 space-y-4" ref={builderListRef}>
@@ -1469,9 +1470,9 @@ export default function AdminFormsBuilder({
             )}
           </div>
         </div>
-        </AdminTabsContent>
+        </TabsContent>
 
-        <AdminTabsContent value="settings">
+        <TabsContent value="settings">
         <div className="space-y-4 w-full">
           {presetsEnabled && (
             <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm">
@@ -1745,9 +1746,9 @@ export default function AdminFormsBuilder({
             </div>
           </div>
         </div>
-        </AdminTabsContent>
+        </TabsContent>
 
-        <AdminTabsContent value="forms">
+        <TabsContent value="forms">
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
@@ -1914,8 +1915,8 @@ export default function AdminFormsBuilder({
             </div>
           )}
         </div>
-        </AdminTabsContent>
-      </AdminTabs>
+        </TabsContent>
+      </Tabs>
 
       {/* SHADCN DIALOG: DELETE CONFIRMATION */}
       <Dialog

@@ -128,7 +128,7 @@ export function ZyraMathPalette({
         className="w-72 p-2.5"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
-        <Tabs defaultValue="populer">
+        <Tabs defaultValue="populer" syncUrl={false}>
           <TabsList className="w-full flex-wrap h-auto gap-0.5">
             {TAB_ITEMS.map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value} className="text-body-xs px-2 py-1">

@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { CoursesDashboard, type CourseWithStats } from "@/components/admin/courses-dashboard";
 import { PDFMaterialsTab } from "@/components/admin/pdf-materials-tab";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Chapter = {
   id: string;
@@ -44,29 +44,29 @@ export function CoursesPageTabs({
   const [activeTab, handleTabChange] = useUrlTab("tab", defaultTab);
 
   return (
-    <AdminTabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-      <AdminTabsList className="w-full flex flex-wrap justify-start gap-1 p-1 bg-muted/60 border border-border rounded-xl">
-        <AdminTabsTrigger value="courses" className="gap-1.5 px-3 py-1.5 font-semibold rounded-lg">
+    <Tabs value={activeTab} onValueChange={handleTabChange}>
+      <TabsList>
+        <TabsTrigger value="courses">
           <GraduationCap className="size-3.5" />
-          <span>Direktori Mata Kuliah ({coursesList.length})</span>
-        </AdminTabsTrigger>
-        <AdminTabsTrigger value="pdf-materials" className="gap-1.5 px-3 py-1.5 font-semibold rounded-lg">
+          <span>Direktori mata kuliah</span>
+        </TabsTrigger>
+        <TabsTrigger value="pdf-materials">
           <FileText className="size-3.5" />
-          <span>Unggah PDF Cepat ({materialsList.length})</span>
-        </AdminTabsTrigger>
-      </AdminTabsList>
+          <span>Unggah PDF cepat</span>
+        </TabsTrigger>
+      </TabsList>
 
-      <AdminTabsContent value="courses">
+      <TabsContent value="courses">
         <CoursesDashboard initialCourses={coursesList} />
-      </AdminTabsContent>
+      </TabsContent>
 
-      <AdminTabsContent value="pdf-materials">
+      <TabsContent value="pdf-materials">
         <PDFMaterialsTab
           courses={coursesList}
           chapters={chaptersList}
           initialMaterials={materialsList}
         />
-      </AdminTabsContent>
-    </AdminTabs>
+      </TabsContent>
+    </Tabs>
   );
 }

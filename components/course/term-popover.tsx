@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, BookOpen, Lightbulb, FlaskConical, TriangleAlert, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MathText } from "@/components/course/math-text";
 import { ZyraMark } from "@/components/course/zyra-mark";
 import { getConceptPopover, type ConceptPopoverData } from "@/lib/learning-context-actions";
@@ -92,27 +93,23 @@ export function TermPopover({
 
       {/* Action tabs */}
       {tabs.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <Tabs value={activeTab} onValueChange={(value) => setTab(value as Tab)} syncUrl={false}>
+          <TabsList>
           {tabs.map((t) => {
             const Icon = t.icon;
             return (
-              <button
+              <TabsTrigger
                 key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={
-                  "flex items-center gap-1 rounded-md px-2 py-1 text-body-sm transition-colors " +
-                  (activeTab === t.id
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground")
-                }
+                value={t.id}
+                className="px-2 py-1"
               >
                 <Icon className="size-3.5" />
                 {t.label}
-              </button>
+              </TabsTrigger>
             );
           })}
-        </div>
+          </TabsList>
+        </Tabs>
       )}
 
       {/* Active content (deterministic, from KO data) */}

@@ -28,7 +28,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/components/ui/toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -219,7 +220,7 @@ export default function DetailedFormAnalyticsPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [responseTab, setResponseTab] = useState<"summary" | "question" | "individual" | "settings">("summary");
+  const [responseTab, setResponseTab] = useUrlTab("tab", "summary");
   const [selectedQIndex, setSelectedQIndex] = useState<number>(0);
   const [individualIndex, setIndividualIndex] = useState<number>(0);
 
@@ -435,7 +436,7 @@ export default function DetailedFormAnalyticsPage({
           <CardTitle className="mt-3 text-body-base font-heading">Data Formulir Tidak Ditemukan</CardTitle>
         </Card>
       ) : (
-        <AdminTabs
+        <Tabs
           value={responseTab}
           onValueChange={(val) => setResponseTab(val as any)}
           className="w-full"
@@ -488,29 +489,29 @@ export default function DetailedFormAnalyticsPage({
             </CardHeader>
 
             <CardContent className="border-t border-border pt-4">
-              <AdminTabsList className="w-full justify-center">
-                <AdminTabsTrigger value="summary" className="flex-1 py-2">
+              <TabsList>
+                <TabsTrigger value="summary">
                   <PieIcon className="size-4 text-primary" />
                   Ringkasan
-                </AdminTabsTrigger>
-                <AdminTabsTrigger value="question" className="flex-1 py-2">
+                </TabsTrigger>
+                <TabsTrigger value="question">
                   <QuestionIcon className="size-4 text-brand-secondary" />
                   Per pertanyaan
-                </AdminTabsTrigger>
-                <AdminTabsTrigger value="individual" className="flex-1 py-2">
+                </TabsTrigger>
+                <TabsTrigger value="individual">
                   <User className="size-4 text-tertiary-1" />
                   Per responden
-                </AdminTabsTrigger>
-                <AdminTabsTrigger value="settings" className="flex-1 py-2">
+                </TabsTrigger>
+                <TabsTrigger value="settings">
                   <SettingsIcon className="size-4 text-status-warning" />
                   Pengaturan
-                </AdminTabsTrigger>
-              </AdminTabsList>
+                </TabsTrigger>
+              </TabsList>
             </CardContent>
           </Card>
 
           {/* TAB 1: SUMMARY */}
-          <AdminTabsContent value="summary" className="space-y-6">
+          <TabsContent value="summary" className="space-y-6">
             {(form.questions || []).map((q: any, qIdx: number) => {
               if (q.type === "SECTION") return null;
               const num = questionNumberMap.get(qIdx) || qIdx + 1;
@@ -667,10 +668,10 @@ export default function DetailedFormAnalyticsPage({
                 </Card>
               );
             })}
-          </AdminTabsContent>
+          </TabsContent>
 
           {/* TAB 2: QUESTION */}
-          <AdminTabsContent value="question" className="space-y-6">
+          <TabsContent value="question" className="space-y-6">
             <Card className="shadow-sm">
               <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex-1 space-y-1.5">
@@ -755,10 +756,10 @@ export default function DetailedFormAnalyticsPage({
                 </Card>
               );
             })()}
-          </AdminTabsContent>
+          </TabsContent>
 
           {/* TAB 3: INDIVIDUAL */}
-          <AdminTabsContent value="individual" className="space-y-6">
+          <TabsContent value="individual" className="space-y-6">
             {responses.length === 0 ? (
               <Card className="p-12 text-center text-muted-foreground text-body-sm">
                 Belum ada respon yang masuk.
@@ -830,10 +831,10 @@ export default function DetailedFormAnalyticsPage({
                 })()}
               </>
             )}
-          </AdminTabsContent>
+          </TabsContent>
 
           {/* TAB 4: SETTINGS */}
-          <AdminTabsContent value="settings" className="w-full space-y-6">
+          <TabsContent value="settings" className="w-full space-y-6">
             {/* Header / Save Action Bar */}
             <Card className="shadow-sm">
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1054,8 +1055,8 @@ export default function DetailedFormAnalyticsPage({
                 </div>
               </CardContent>
             </Card>
-          </AdminTabsContent>
-        </AdminTabs>
+          </TabsContent>
+        </Tabs>
       )}
 
       {confirmDialog}

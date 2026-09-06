@@ -617,24 +617,18 @@ export function QuizForm({
 
       {/* 2-Tab Navigation */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full space-y-4">
-        <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted p-1 sm:w-80">
-          <TabsTrigger
-            value="pengaturan"
-            className="flex items-center gap-2 rounded-lg text-body-xs sm:text-body-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-2xs"
-          >
+        <TabsList>
+          <TabsTrigger value="pengaturan">
             <Settings2 className="size-4" />
             Pengaturan Kuis
           </TabsTrigger>
-          <TabsTrigger
-            value="soal"
-            className="flex items-center gap-2 rounded-lg text-body-xs sm:text-body-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-2xs"
-          >
+          <TabsTrigger value="soal">
             <BookOpen className="size-4" />
             Pilihan Soal
             {selectedQIds.length > 0 && (
-              <span className="ml-1 rounded-md bg-brand-primary/15 px-1.5 py-0.5 text-body-xs font-bold text-brand-primary">
+              <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-body-2xs">
                 {selectedQIds.length}
-              </span>
+              </Badge>
             )}
           </TabsTrigger>
         </TabsList>
