@@ -41,6 +41,7 @@ jobs:
           BETTER_AUTH_SECRET: "build-time-placeholder-auth-secret-32-chars-long"
           GOOGLE_CLIENT_ID: "build-time-placeholder-google-client-id"
           GOOGLE_CLIENT_SECRET: "build-time-placeholder-google-client-secret"
+          GEMINI_API_KEY: "build-placeholder-gemini-key"
         run: bun run build
 
       - name: Prepare Standalone Bundle

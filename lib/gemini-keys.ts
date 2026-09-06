@@ -92,7 +92,11 @@ export class GeminiKeyPool {
     });
 
     if (keyConfigs.length === 0) {
-      throw new Error('At least GEMINI_API_KEY must be set');
+      if (process.env.SKIP_ENV_VALIDATION || process.env.npm_lifecycle_event === 'build') {
+        keyConfigs.push({ id: 'key1', alias: 'build-placeholder', key: 'build-placeholder-gemini-key' });
+      } else {
+        throw new Error('At least GEMINI_API_KEY must be set');
+      }
     }
 
     this.keys = keyConfigs.map(({ id, alias, key }) => {
