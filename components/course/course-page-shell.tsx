@@ -19,6 +19,7 @@ export type CoursePageShellProps = {
   className?: string;
   hideHeader?: boolean;
   fullWidth?: boolean;
+  maxWidth?: "7xl" | "full";
 };
 
 export function CoursePageShell({
@@ -31,6 +32,7 @@ export function CoursePageShell({
   children,
   className,
   fullWidth = false,
+  maxWidth = "7xl",
 }: CoursePageShellProps) {
   if (fullWidth) {
     return (
@@ -41,7 +43,7 @@ export function CoursePageShell({
   }
 
   return (
-    <ApplicationPage className={cn("relative pb-8", className)}>
+    <ApplicationPage maxWidth={maxWidth} className={cn("relative pb-8", className)}>
       {!hideHeader && title && (
         <PageHeader
           title={title}

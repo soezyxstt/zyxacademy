@@ -13,7 +13,7 @@ import { auth } from "@/lib/auth";
 import { eq, desc, and, ne } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getCourse } from "@/lib/course-utils";
+import { getCourse, getStudentVisibleCourseQuizzes } from "@/lib/course-utils";
 import { cn } from "@/lib/utils";
 
 type QuizAccessFilter = "all" | "free" | "premium";
@@ -50,17 +50,7 @@ export default async function CourseQuizListPage({ params, searchParams }: Props
   const isEnrolled = await checkEnrollment(id);
 
   // Retrieve templates
-  const templates = await db
-    .select()
-    .from(quizTemplates)
-    .where(
-      and(
-        eq(quizTemplates.courseId, course.legacyId ?? id),
-        eq(quizTemplates.status, 'published'),
-        ne(quizTemplates.category, 'simulation')
-      )
-    )
-    .orderBy(desc(quizTemplates.createdAt));
+  const templates = await getStudentVisibleCourseQuizzes(id);
 
   // Retrieve previous attempts
   const session = await auth.api.getSession({ headers: await headers() });

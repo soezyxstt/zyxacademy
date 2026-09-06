@@ -13,6 +13,7 @@ export interface MasteryRow {
   masteryScore: number;
   confidence: number;
   evidenceCount: number;
+  isMeasured: boolean;
   trend: "improving" | "stable" | "declining" | null;
   blockedBy: string[];
   lastEvidenceAt: Date;
@@ -160,16 +161,25 @@ export async function getMastery(studentId: string, courseId: string): Promise<M
         blockedBy.set(relation.targetIdeaId, current);
       }
       return ideaRows
-        .map((idea) => ({
-          conceptName: idea.title,
-          masteryScore: idea.score ?? 0,
-          confidence: idea.confidence ?? 0,
-          evidenceCount: idea.evidenceCount ?? 0,
-          trend: null,
-          blockedBy: blockedBy.get(idea.id) ?? [],
-          lastEvidenceAt: idea.masteryUpdatedAt ?? idea.updatedAt,
-        }))
-        .sort((left, right) => left.masteryScore - right.masteryScore || left.conceptName.localeCompare(right.conceptName, "id"));
+        .map((idea) => {
+          const isMeasured = idea.score !== null && (idea.evidenceCount ?? 0) > 0;
+          return {
+            conceptName: idea.title,
+            masteryScore: idea.score ?? 0,
+            confidence: idea.confidence ?? 0,
+            evidenceCount: idea.evidenceCount ?? 0,
+            isMeasured,
+            trend: null,
+            blockedBy: blockedBy.get(idea.id) ?? [],
+            lastEvidenceAt: idea.masteryUpdatedAt ?? idea.updatedAt,
+          };
+        })
+        .sort((left, right) => {
+          if (left.isMeasured !== right.isMeasured) {
+            return left.isMeasured ? -1 : 1;
+          }
+          return left.masteryScore - right.masteryScore || left.conceptName.localeCompare(right.conceptName, "id");
+        });
     }
   }
 
@@ -195,15 +205,23 @@ export async function getMastery(studentId: string, courseId: string): Promise<M
     );
 
   if (activeKOs.length === 0) {
-    return rows.map((r) => ({
-      conceptName: r.conceptName,
-      masteryScore: r.masteryScore,
-      confidence: r.confidence,
-      evidenceCount: r.evidenceCount,
-      trend: r.trend ?? null,
-      blockedBy: [],
-      lastEvidenceAt: r.lastEvidenceAt,
-    }));
+    return rows
+      .map((r) => ({
+        conceptName: r.conceptName,
+        masteryScore: r.masteryScore,
+        confidence: r.confidence,
+        evidenceCount: r.evidenceCount,
+        isMeasured: (r.evidenceCount ?? 0) > 0,
+        trend: r.trend ?? null,
+        blockedBy: [],
+        lastEvidenceAt: r.lastEvidenceAt,
+      }))
+      .sort((left, right) => {
+        if (left.isMeasured !== right.isMeasured) {
+          return left.isMeasured ? -1 : 1;
+        }
+        return left.masteryScore - right.masteryScore || left.conceptName.localeCompare(right.conceptName, "id");
+      });
   }
 
   const koIds = activeKOs.map((k) => k.id);
@@ -232,29 +250,37 @@ export async function getMastery(studentId: string, courseId: string): Promise<M
     masteryMap.set(r.conceptName.trim(), r.masteryScore);
   }
 
-  return rows.map((r) => {
-    const trimmedName = r.conceptName.trim();
-    const prereqs = prereqMap.get(trimmedName);
-    const blockedBy: string[] = [];
-    if (prereqs) {
-      for (const prereq of prereqs) {
-        const score = masteryMap.get(prereq) ?? 0;
-        if (score < 40) {
-          blockedBy.push(prereq);
+  return rows
+    .map((r) => {
+      const trimmedName = r.conceptName.trim();
+      const prereqs = prereqMap.get(trimmedName);
+      const blockedBy: string[] = [];
+      if (prereqs) {
+        for (const prereq of prereqs) {
+          const score = masteryMap.get(prereq) ?? 0;
+          if (score < 40) {
+            blockedBy.push(prereq);
+          }
         }
       }
-    }
 
-    return {
-      conceptName: r.conceptName,
-      masteryScore: r.masteryScore,
-      confidence: r.confidence,
-      evidenceCount: r.evidenceCount,
-      trend: r.trend ?? null,
-      blockedBy,
-      lastEvidenceAt: r.lastEvidenceAt,
-    };
-  });
+      return {
+        conceptName: r.conceptName,
+        masteryScore: r.masteryScore,
+        confidence: r.confidence,
+        evidenceCount: r.evidenceCount,
+        isMeasured: (r.evidenceCount ?? 0) > 0,
+        trend: r.trend ?? null,
+        blockedBy,
+        lastEvidenceAt: r.lastEvidenceAt,
+      };
+    })
+    .sort((left, right) => {
+      if (left.isMeasured !== right.isMeasured) {
+        return left.isMeasured ? -1 : 1;
+      }
+      return left.masteryScore - right.masteryScore || left.conceptName.localeCompare(right.conceptName, "id");
+    });
 }
 
 /**

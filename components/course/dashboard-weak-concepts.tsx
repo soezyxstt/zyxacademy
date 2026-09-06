@@ -10,6 +10,7 @@ interface MasteryConcept {
   conceptName: string;
   masteryScore: number;
   evidenceCount: number;
+  isMeasured?: boolean;
   trend?: "improving" | "stable" | "declining" | null;
   blockedBy?: string[];
 }
@@ -39,8 +40,9 @@ export function DashboardWeakConcepts({
   className,
   showHeader = true,
 }: DashboardWeakConceptsProps) {
-  // Show top 4 concepts sorted by learning order (or simply the slice of first 4 concepts)
+  const measuredConcepts = concepts.filter((c) => c.isMeasured ?? (c.evidenceCount > 0));
   const displayConcepts = concepts.slice(0, 4);
+  const hasAnyMeasured = measuredConcepts.length > 0;
 
   return (
     <div className={cn("text-left", className)}>
@@ -54,7 +56,7 @@ export function DashboardWeakConcepts({
         </div>
       )}
 
-      {displayConcepts.length === 0 ? (
+      {!hasAnyMeasured ? (
         <div className="space-y-4 py-2 text-left">
           <p className="text-body-xs text-muted-foreground leading-relaxed">
             Belum ada data penguasaan. Ambil kuis pertama Anda untuk mulai memetakan tingkat pemahaman konsep secara otomatis di sini.
@@ -84,41 +86,47 @@ export function DashboardWeakConcepts({
         </div>
       ) : (
         <div className="space-y-4">
-          {displayConcepts.map((c, index) => (
-            <div
-              key={c.conceptName}
-              className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              {/* Concept name + trend icon + score */}
-              <div className="flex items-start justify-between gap-2 text-body-sm">
-                <span className="flex items-center gap-1.5 font-medium text-foreground line-clamp-2 max-w-[85%] leading-snug">
-                  <MathText as="span">{c.conceptName}</MathText>
-                  <TrendIcon trend={c.trend} />
-                </span>
-                <span className="font-mono text-body-xs font-semibold text-muted-foreground shrink-0 mt-0.5">
-                  {c.masteryScore}%
-                </span>
-              </div>
-
-              {/* Progress bar */}
-              <div className="h-2 overflow-hidden rounded-md bg-muted w-full">
-                <div
-                  className={cn("h-full rounded-md transition-all duration-500 ease-out", barTone(c.masteryScore))}
-                  style={{ width: `${c.masteryScore}%` }}
-                />
-              </div>
-
-              {c.blockedBy && c.blockedBy.length > 0 && (
-                <div className="mt-0.5">
-                  <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px] rounded-md py-0.5">
-                    <Lock className="size-3" />
-                    Prasyarat: <MathText as="span">{c.blockedBy[0]}</MathText>
-                  </Badge>
+          {displayConcepts.map((c, index) => {
+            const isMeasured = c.isMeasured ?? (c.evidenceCount > 0);
+            return (
+              <div
+                key={c.conceptName}
+                className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                {/* Concept name + trend icon + score */}
+                <div className="flex items-start justify-between gap-2 text-body-sm">
+                  <span className="flex items-center gap-1.5 font-medium text-foreground line-clamp-2 max-w-[85%] leading-snug">
+                    <MathText as="span">{c.conceptName}</MathText>
+                    {isMeasured && <TrendIcon trend={c.trend} />}
+                  </span>
+                  <span className="font-mono text-body-xs font-semibold text-muted-foreground shrink-0 mt-0.5">
+                    {isMeasured ? `${c.masteryScore}%` : "Belum diukur"}
+                  </span>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Progress bar */}
+                <div className="h-2 overflow-hidden rounded-md bg-muted w-full">
+                  <div
+                    className={cn(
+                      "h-full rounded-md transition-all duration-500 ease-out",
+                      isMeasured ? barTone(c.masteryScore) : "bg-transparent",
+                    )}
+                    style={{ width: isMeasured ? `${c.masteryScore}%` : "0%" }}
+                  />
+                </div>
+
+                {c.blockedBy && c.blockedBy.length > 0 && (
+                  <div className="mt-0.5">
+                    <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px] rounded-md py-0.5">
+                      <Lock className="size-3" />
+                      Prasyarat: <MathText as="span">{c.blockedBy[0]}</MathText>
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           
           <p className="mt-4 pt-2 border-t border-border/30 text-[10px] text-muted-foreground select-none">
             Diperbarui otomatis dari kuis dan sesi flashcard terakhir.

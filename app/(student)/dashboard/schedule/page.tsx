@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { PageHeader } from "@/components/page-header";
@@ -14,7 +15,7 @@ import { RescheduleTicketModal } from "@/components/schedule/reschedule-ticket-m
 import { AuditLogDrawer } from "@/components/schedule/audit-log-drawer";
 import { TutorAvailabilityPanel } from "@/components/schedule/tutor-availability-panel";
 
-export default function SchedulePage() {
+function SchedulePageContent() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -67,11 +68,19 @@ export default function SchedulePage() {
   const role = data?.role || "student";
   const userObj = data?.user || {};
 
+  const searchParams = useSearchParams();
+  const requestedCourseId = searchParams?.get("course") ?? undefined;
+
   // Extract lists for filters
   const coursesList =
     role === "teacher"
       ? data.allCourses || []
       : (data.enrollments || []).map((e: any) => e.course).filter(Boolean);
+
+  const initialCourseFilter =
+    requestedCourseId && coursesList.some((c: any) => c.id === requestedCourseId)
+      ? requestedCourseId
+      : "all";
 
   const tutorsList =
     role === "student"
@@ -139,6 +148,7 @@ export default function SchedulePage() {
           coursesList={coursesList}
           tutorsList={tutorsList}
           groupsList={groupsList}
+          initialCourseFilter={initialCourseFilter}
           slots={role === "teacher" ? data.mySlots || [] : data.availableSlots || []}
           bookings={role === "teacher" ? data.tutorBookings || [] : data.groupBookings || []}
           academicSchedules={data.academicSchedules || []}
@@ -204,5 +214,25 @@ export default function SchedulePage() {
         booking={activeAuditLogBooking}
       />
     </ApplicationPage>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense
+      fallback={
+        <ApplicationPage>
+          <PageHeader
+            icon={CalendarDays}
+            title="Kalender & Jadwal Tutorial"
+          />
+          <div className="p-16 text-center text-muted-foreground text-body-sm">
+            Memuat data kalender dan slot tutorial...
+          </div>
+        </ApplicationPage>
+      }
+    >
+      <SchedulePageContent />
+    </Suspense>
   );
 }

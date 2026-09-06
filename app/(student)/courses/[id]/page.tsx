@@ -1,24 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, ArrowRight } from "lucide-react";
-import { checkEnrollment, getDailyTrivia } from "@/app/(student)/dashboard/actions";
-import { DailyQuizSection } from "@/components/course/daily-quiz-section";
+import { checkEnrollment } from "@/app/(student)/dashboard/actions";
 import { CoursePageShell } from "@/components/course/course-page-shell";
 import { ChapterOutline } from "@/components/course/chapter-outline";
-import { CourseTodayPlan } from "@/components/course/course-today-plan";
-import { DashboardWeakConcepts } from "@/components/course/dashboard-weak-concepts";
-import { studentCardClass } from "@/components/course/course-surfaces";
+import { CoursePrimaryActions } from "@/components/course/course-primary-actions";
+import { CourseAttentionStrip } from "@/components/course/course-attention-strip";
 import { EnrollmentForm } from "@/components/enrollment-form";
 import { Reveal } from "@/components/ui/reveal";
 import { pageTitle } from "@/lib/site";
 import { getCourse, getCourseChapterOutline } from "@/lib/course-utils";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { StudyStatisticsCard } from "@/components/course/study-statistics-card";
-import { RecentActivityCard } from "@/components/course/recent-activity-card";
-import { getCourseLearningSummary, getCourseDailyPlan } from "@/lib/learning-analytics";
-import { getMastery } from "@/lib/mastery-store";
-import { cn } from "@/lib/utils";
+import { getCourseOverviewData } from "@/lib/learning-analytics";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -40,23 +34,15 @@ export default async function CourseOverviewPage({ params }: Props) {
   const studentId = session?.user?.id;
 
   // Independent reads run together to keep TTFB low.
-  const [isEnrolled, dailyTrivia, chapterOutline] = await Promise.all([
+  const [isEnrolled, chapterOutline] = await Promise.all([
     checkEnrollment(id),
-    getDailyTrivia(id),
     getCourseChapterOutline(id, studentId),
   ]);
 
-  const showDailyPlan = true;
-  const showMastery = true;
-
-  const [learningSummary, dailyPlan, masteryConcepts] =
+  const overviewData =
     studentId && isEnrolled
-      ? await Promise.all([
-          getCourseLearningSummary(id, studentId),
-          showDailyPlan ? getCourseDailyPlan(studentId, id) : Promise.resolve(null),
-          showMastery ? getMastery(studentId, id) : Promise.resolve([]),
-        ])
-      : [null, null, [] as Awaited<ReturnType<typeof getMastery>>];
+      ? await getCourseOverviewData(studentId, id, chapterOutline)
+      : null;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -91,7 +77,7 @@ export default async function CourseOverviewPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <CoursePageShell title={course.title} description={shortDescription} icon={BookOpen}>
+      <CoursePageShell title={course.title} description={shortDescription} icon={BookOpen} maxWidth="7xl">
         <Reveal>
           {/* Enrollment banner (unenrolled only) */}
           {!isEnrolled && (
@@ -110,39 +96,22 @@ export default async function CourseOverviewPage({ params }: Props) {
             </div>
           )}
 
-          {/* Learning loop (enrolled only): diagnose -> plan -> practice, mirrors the landing */}
-          {isEnrolled && learningSummary && (
-            <>
-              <div
-                className={cn(
-                  "mb-6 grid gap-4",
-                  showDailyPlan && dailyPlan && showMastery && "md:grid-cols-2",
-                )}
-              >
-                {showDailyPlan && dailyPlan && <CourseTodayPlan plan={dailyPlan} />}
-                {showMastery && (
-                  <div className={studentCardClass("flex flex-col text-left")}>
-                    <DashboardWeakConcepts
-                      concepts={masteryConcepts}
-                      courseTitle={course.title}
-                    />
-                    <Link
-                      href={`/courses/${id}/mastery`}
-                      className="mt-4 inline-flex items-center gap-1.5 text-body-sm font-semibold text-brand-primary hover:underline"
-                    >
-                      Lihat peta lengkap
-                      <ArrowRight className="size-4" />
-                    </Link>
-                  </div>
-                )}
-              </div>
-              <div className="mb-6">
-                <StudyStatisticsCard data={learningSummary.studyStatistics} />
-              </div>
-              <div className="mb-6">
-                <RecentActivityCard data={learningSummary.recentActivities} />
-              </div>
-            </>
+          {/* Primary learning actions: Dokumen, Kuis, Jadwal */}
+          {isEnrolled && overviewData && (
+            <CoursePrimaryActions
+              reading={overviewData.reading}
+              quiz={overviewData.quiz}
+              schedule={overviewData.schedule}
+              className="mb-6"
+            />
+          )}
+
+          {/* Attention strip: flashcards due or weak concepts needing practice */}
+          {isEnrolled && overviewData?.attention && (
+            <CourseAttentionStrip
+              attention={overviewData.attention}
+              className="mb-6"
+            />
           )}
 
           {/* Syllabus: the chapters and their materials, with progress */}
@@ -150,8 +119,18 @@ export default async function CourseOverviewPage({ params }: Props) {
             <ChapterOutline courseId={id} chapters={chapterOutline} isEnrolled={isEnrolled} />
           </div>
 
-          {/* Daily trivia (below the fold) */}
-          <DailyQuizSection courseId={id} courseTitle={course.title} dailyTrivia={dailyTrivia} />
+          {/* Link to detailed learning progress */}
+          {isEnrolled && (
+            <div className="mt-6 flex items-center justify-between border-t border-border/40 pt-4">
+              <Link
+                href={`/courses/${id}/progress`}
+                className="inline-flex items-center gap-1.5 text-body-sm font-semibold text-brand-primary hover:underline"
+              >
+                <span>Lihat progres belajar</span>
+                <ArrowRight className="size-4" />
+              </Link>
+            </div>
+          )}
         </Reveal>
       </CoursePageShell>
     </>
