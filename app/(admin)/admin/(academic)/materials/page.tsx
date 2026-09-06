@@ -3,5 +3,5 @@ import { assertAdmin } from "@/lib/auth/admin-guards";
 
 export default async function LegacyMaterialsPage() {
   await assertAdmin();
-  redirect("/admin/materials/review?section=product");
+  redirect("/admin/materials/review?section=catalog");
 }

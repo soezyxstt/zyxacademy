@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpenCheck, FileArchive, Upload } from "lucide-react";
+import { BookOpenCheck, FileArchive, LayoutGrid, Upload } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
@@ -13,6 +13,7 @@ import { AuthoringContextExport, type AuthoringContextExportRow } from "@/compon
 import { MaterialArtifactList } from "@/components/admin/material-artifact-list";
 import { MaterialBundleUploadDialog } from "@/components/admin/material-bundle-upload-dialog";
 import { IdeaBundleReviewDetail, ProductBundleReviewDetail } from "@/components/admin/material-review-detail";
+import { ProductCatalogPanel } from "@/components/admin/product-catalog-panel";
 import type { AuthoringCourseOption } from "@/lib/authoring/catalog";
 
 type Props = {
@@ -26,7 +27,7 @@ type Props = {
   productEnabled: boolean;
   authoringEnabled: boolean;
   mode: "review" | "manual" | "idea-detail" | "product-detail";
-  initialReviewTab?: "idea" | "product";
+  initialReviewTab?: "idea" | "product" | "catalog";
   detailId?: string;
 };
 
@@ -45,8 +46,8 @@ export function MaterialWorkspace({
   detailId,
 }: Props) {
   const router = useRouter();
-  const firstReviewTab = ideaEnabled ? "idea" : "product";
-  const [activeReviewTab, setActiveReviewTab] = useState<"idea" | "product">(initialReviewTab === "idea" && ideaEnabled ? "idea" : initialReviewTab === "product" && productEnabled ? "product" : firstReviewTab);
+  const firstReviewTab = initialReviewTab ?? (ideaEnabled ? "idea" : "product");
+  const [activeReviewTab, setActiveReviewTab] = useState<"idea" | "product" | "catalog">(firstReviewTab);
   const [uploadKind, setUploadKind] = useState<"idea" | "product" | null>(null);
   const detailMode = mode === "idea-detail" || mode === "product-detail";
 
@@ -68,18 +69,18 @@ export function MaterialWorkspace({
         mode === "idea-detail" ? <IdeaBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} /> : <ProductBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} />
       ) : mode === "review" ? (
         <div className="space-y-6">
-          {!ideaEnabled && !productEnabled ? (
-            <AdminEmptyState title="Review MCP belum tersedia" description="Aktifkan workflow bundle terlebih dahulu sebelum mengirim hasil generasi MCP ke Zyx." icon={FileArchive} />
-          ) : (
-            <AdminTabs value={activeReviewTab} onValueChange={(value) => setActiveReviewTab(value as "idea" | "product")}>
-              <AdminTabsList>
-                {ideaEnabled && <AdminTabsTrigger value="idea"><FileArchive className="size-4" />Source Pack + Idea</AdminTabsTrigger>}
-                {productEnabled && <AdminTabsTrigger value="product"><FileArchive className="size-4" />Product</AdminTabsTrigger>}
-              </AdminTabsList>
-              {ideaEnabled && <AdminTabsContent value="idea"><MaterialArtifactList rows={initialIdeaImports} kind="idea" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("idea", id)} onUpload={() => setUploadKind("idea")} /><MaterialBundleUploadDialog kind="idea" open={uploadKind === "idea"} onOpenChange={(open) => setUploadKind(open ? "idea" : null)} onStaged={(id) => openDetail("idea", id)} /></AdminTabsContent>}
-              {productEnabled && <AdminTabsContent value="product"><MaterialArtifactList rows={initialProductImports} kind="product" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("product", id)} onUpload={() => setUploadKind("product")} /><MaterialBundleUploadDialog kind="product" open={uploadKind === "product"} onOpenChange={(open) => setUploadKind(open ? "product" : null)} onStaged={(id) => openDetail("product", id)} /></AdminTabsContent>}
-            </AdminTabs>
-          )}
+          <AdminTabs value={activeReviewTab} onValueChange={(value) => setActiveReviewTab(value as "idea" | "product" | "catalog")}>
+            <AdminTabsList>
+              {ideaEnabled && <AdminTabsTrigger value="idea"><FileArchive className="size-4" />Source Pack + Idea</AdminTabsTrigger>}
+              {productEnabled && <AdminTabsTrigger value="product"><FileArchive className="size-4" />Product Bundle</AdminTabsTrigger>}
+              <AdminTabsTrigger value="catalog"><LayoutGrid className="size-4" />Katalog Produk</AdminTabsTrigger>
+            </AdminTabsList>
+            {ideaEnabled && <AdminTabsContent value="idea"><MaterialArtifactList rows={initialIdeaImports} kind="idea" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("idea", id)} onUpload={() => setUploadKind("idea")} /><MaterialBundleUploadDialog kind="idea" open={uploadKind === "idea"} onOpenChange={(open) => setUploadKind(open ? "idea" : null)} onStaged={(id) => openDetail("idea", id)} /></AdminTabsContent>}
+            {productEnabled && <AdminTabsContent value="product"><MaterialArtifactList rows={initialProductImports} kind="product" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("product", id)} onUpload={() => setUploadKind("product")} /><MaterialBundleUploadDialog kind="product" open={uploadKind === "product"} onOpenChange={(open) => setUploadKind(open ? "product" : null)} onStaged={(id) => openDetail("product", id)} /></AdminTabsContent>}
+            <AdminTabsContent value="catalog">
+              <ProductCatalogPanel courseLabels={courseLabels} />
+            </AdminTabsContent>
+          </AdminTabs>
         </div>
       ) : (
         <div className="space-y-6">
