@@ -41,19 +41,17 @@ export function AdminStatCard({
   return (
     <div
       className={cn(
-        "bg-card/70 border border-border/70 rounded-xl shadow-xs backdrop-blur-md space-y-1",
-        size === "sm" ? "p-4" : "p-5",
+        "flex min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-card/70 px-3 backdrop-blur-md",
+        size === "sm" ? "min-h-9 py-1.5" : "min-h-11 py-2",
         className
       )}
     >
-      <div className="flex items-center justify-between gap-2 text-muted-foreground">
-        <span className={cn("font-medium", size === "sm" ? "text-body-xs" : "text-body-sm")}>{label}</span>
-        {Icon && <Icon className={cn("size-4 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
-      </div>
-      <div className={cn("font-heading font-bold", size === "sm" ? "text-h5" : "text-h4", toneClasses[tone])}>
+      {Icon && <Icon className={cn("size-3.5 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
+      <span className="min-w-0 truncate text-body-xs font-medium text-muted-foreground">{label}</span>
+      <div className={cn("ml-auto shrink-0 font-heading text-body-base font-bold", toneClasses[tone])}>
         {value}
       </div>
-      {caption && <p className="text-body-xs text-muted-foreground">{caption}</p>}
+      {caption && <span className="sr-only">{caption}</span>}
     </div>
   );
 }
@@ -81,7 +79,7 @@ export function AdminStatStrip({ children, className }: AdminStatStripProps) {
   return (
     <div
       className={cn(
-        "grid grid-cols-2 gap-px border border-border/70 rounded-xl bg-border/60 backdrop-blur-md overflow-hidden",
+        "grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border/70 bg-border/60 backdrop-blur-md sm:grid-cols-2",
         className
       )}
     >
@@ -99,30 +97,19 @@ export function AdminStatStripItem({
   tone = "default",
   compact,
 }: AdminStatStripItemProps) {
-  if (compact) {
-    return (
-      <div className="flex items-center justify-between gap-2 p-2.5 px-3.5 bg-card/75 backdrop-blur-md min-w-0">
-        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-          {Icon && <Icon className={cn("size-4 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
-          <span className="font-medium text-body-sm text-foreground truncate">{label}</span>
-        </div>
-        <div className={cn("font-heading font-bold text-body-base shrink-0", toneClasses[tone])}>
-          {value}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-0.5 p-3.5 bg-card/75 backdrop-blur-md min-w-0">
-      <div className="flex items-center justify-between gap-1.5 text-muted-foreground">
-        <span className="font-medium text-body-sm truncate">{label}</span>
-        {Icon && <Icon className={cn("size-3.5 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
-      </div>
-      <div className={cn("font-heading font-bold text-h5 leading-tight", toneClasses[tone])}>
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-2 bg-card/75 px-3 backdrop-blur-md",
+        compact ? "min-h-9 py-1.5" : "min-h-11 py-2"
+      )}
+    >
+      {Icon && <Icon className={cn("size-3.5 shrink-0", toneClasses[tone], iconClassName)} aria-hidden />}
+      <span className="min-w-0 truncate text-body-xs font-medium text-muted-foreground">{label}</span>
+      <div className={cn("ml-auto shrink-0 font-heading text-body-base font-bold", toneClasses[tone])}>
         {value}
       </div>
-      {caption && <p className="text-body-xs text-muted-foreground truncate">{caption}</p>}
+      {caption && <span className="sr-only">{caption}</span>}
     </div>
   );
 }

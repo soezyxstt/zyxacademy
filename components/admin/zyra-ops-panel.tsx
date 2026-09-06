@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Activity, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import type { ZyraOpsMetrics } from "@/lib/zyra/ops/contracts";
 
 export function ZyraOpsPanel() {
@@ -44,12 +45,12 @@ export function ZyraOpsPanel() {
           <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} /> Refresh
         </Button>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Provider turns" value={metrics.ledger.committedProviderTurns} />
-        <Metric label="Active reservations" value={metrics.ledger.activeReservations} />
-        <Metric label="Cache saved" value={metrics.ledger.cacheSavedTurns} />
-        <Metric label="Image failures" value={metrics.image.failed} />
-      </div>
+      <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-4">
+        <AdminStatStripItem label="Provider turns" value={metrics.ledger.committedProviderTurns} />
+        <AdminStatStripItem label="Active reservations" value={metrics.ledger.activeReservations} />
+        <AdminStatStripItem label="Cache saved" value={metrics.ledger.cacheSavedTurns} />
+        <AdminStatStripItem label="Image failures" value={metrics.image.failed} tone={metrics.image.failed > 0 ? "error" : "default"} />
+      </AdminStatStrip>
       <div className="flex flex-wrap gap-4 text-body-sm text-muted-foreground">
         <span className="inline-flex items-center gap-1 text-status-success"><ShieldCheck className="size-4" /> external usage unknown, not estimated</span>
         <span>{metrics.projectSlotCount} project slots, aliases masked</span>
@@ -106,8 +107,4 @@ export function ZyraOpsPanel() {
       </div>
     </section>
   );
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return <div className="border-l-2 border-brand-primary/40 pl-3"><p className="font-heading text-h5 font-semibold tabular-nums">{value}</p><p className="text-body-sm text-muted-foreground">{label}</p></div>;
 }

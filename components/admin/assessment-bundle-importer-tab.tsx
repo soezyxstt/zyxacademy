@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Label } from "@/components/ui/label";
 import { importAssessmentBundleAction, type AssessmentImportResult } from "@/app/(admin)/admin/(academic)/courses/import-actions";
 import {
@@ -338,25 +339,15 @@ export function AssessmentBundleImporterTab() {
 
       {result && !loading && result.success && result.stats && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+          <AdminStatStrip className="grid-cols-2 md:grid-cols-3">
             {[
               { label: "Mata Kuliah ID", value: result.stats.courseId, icon: BookOpen },
               { label: "Sumber Ujian", value: result.stats.asCount, icon: HelpCircle },
               { label: "Butir Soal", value: result.stats.aoCount, icon: GitBranch },
             ].map((stat, idx) => (
-              <Card key={idx} className="border border-border shadow-sm rounded-xl bg-card">
-                <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
-                  <p className="text-body-sm font-semibold text-muted-foreground">{stat.label}</p>
-                  <stat.icon className="size-4 text-brand-primary" />
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  <div className="font-heading text-body-base font-bold text-foreground truncate max-w-full" title={String(stat.value)}>
-                    {stat.value}
-                  </div>
-                </CardContent>
-              </Card>
+              <AdminStatStripItem key={idx} icon={stat.icon} label={stat.label} value={stat.value} tone="brand" />
             ))}
-          </div>
+          </AdminStatStrip>
 
           {result.stats.sourceDiffs.length > 0 && (
             <Card className="border border-border shadow-sm rounded-xl overflow-hidden bg-card">

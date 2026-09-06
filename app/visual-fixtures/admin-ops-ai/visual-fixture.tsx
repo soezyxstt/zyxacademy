@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { OpsAiProvider, useOpsAiContext } from "@/components/admin/ops-ai/ops-ai-context";
 import { OpsAiPanel } from "@/components/admin/ops-ai/ops-ai-panel";
 import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import {
   saveOpsAiMessages,
   saveOpsAiOpenPreference,
@@ -206,28 +207,12 @@ function FixtureContent({ state }: { state: string }) {
         </div>
 
         {/* Mock KPI Stat Strip */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-border bg-card p-4 space-y-1">
-            <span className="text-body-sm text-muted-foreground">Total Pengguna</span>
-            <div className="font-heading text-h5 text-foreground">1.420</div>
-            <span className="text-body-xs text-status-success">+12% minggu ini</span>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4 space-y-1">
-            <span className="text-body-sm text-muted-foreground">Mata Kuliah Aktif</span>
-            <div className="font-heading text-h5 text-foreground">18</div>
-            <span className="text-body-xs text-muted-foreground">4 semester berjalan</span>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4 space-y-1">
-            <span className="text-body-sm text-muted-foreground">Token Digunakan</span>
-            <div className="font-heading text-h5 text-foreground">342 / 500</div>
-            <span className="text-body-xs text-status-success">68.4% rasio aktivasi</span>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4 space-y-1">
-            <span className="text-body-sm text-muted-foreground">Pencarian Knowledge</span>
-            <div className="font-heading text-h5 text-foreground">89</div>
-            <span className="text-body-xs text-muted-foreground">Vectorize terisolasi</span>
-          </div>
-        </div>
+        <AdminStatStrip className="sm:grid-cols-2 xl:grid-cols-4">
+          <AdminStatStripItem label="Total pengguna" value="1.420" caption="+12% minggu ini" />
+          <AdminStatStripItem label="Mata kuliah aktif" value="18" caption="4 semester berjalan" />
+          <AdminStatStripItem label="Token digunakan" value="342 / 500" caption="68.4% rasio aktivasi" />
+          <AdminStatStripItem label="Pencarian knowledge" value="89" caption="Vectorize terisolasi" />
+        </AdminStatStrip>
 
         {/* Mock Content Table */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -271,4 +256,3 @@ export function AdminOpsAiVisualFixture({ state, initialWidth }: FixtureProps) {
     </OpsAiProvider>
   );
 }
-

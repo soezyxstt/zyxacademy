@@ -6,6 +6,7 @@ import { WebAnalyticsCharts } from "@/components/admin/web-analytics-charts";
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
 import { Users, MousePointerClick, Eye, AlertCircle, Globe } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 
 export const dynamic = "force-dynamic";
 
@@ -37,53 +38,11 @@ export default async function WebAnalyticsPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-                  <Eye className="size-5" />
-                </div>
-                <div>
-                  <p className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Page Views
-                  </p>
-                  <p className="font-heading text-h3 font-bold text-foreground">
-                    {metrics.summary.views.toLocaleString("id-ID")}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-tertiary-1/10 text-tertiary-1">
-                  <Users className="size-5" />
-                </div>
-                <div>
-                  <p className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Active Users
-                  </p>
-                  <p className="font-heading text-h3 font-bold text-foreground">
-                    {metrics.summary.activeUsers.toLocaleString("id-ID")}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 items-center justify-center rounded-lg bg-brand-secondary/10 text-brand-secondary">
-                  <MousePointerClick className="size-5" />
-                </div>
-                <div>
-                  <p className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Total Sessions
-                  </p>
-                  <p className="font-heading text-h3 font-bold text-foreground">
-                    {metrics.summary.sessions.toLocaleString("id-ID")}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AdminStatStrip className="sm:grid-cols-3">
+            <AdminStatStripItem icon={Eye} label="Page views" value={metrics.summary.views.toLocaleString("id-ID")} tone="brand" />
+            <AdminStatStripItem icon={Users} label="Active users" value={metrics.summary.activeUsers.toLocaleString("id-ID")} tone="info" />
+            <AdminStatStripItem icon={MousePointerClick} label="Total sessions" value={metrics.summary.sessions.toLocaleString("id-ID")} tone="brand-secondary" />
+          </AdminStatStrip>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h2 className="mb-6 font-heading text-body-base font-bold text-foreground">

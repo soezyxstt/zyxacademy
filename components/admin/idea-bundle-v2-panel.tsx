@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { AdminTable } from "@/components/admin/table";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { MathText } from "@/components/course/math-text";
@@ -274,12 +275,12 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
         <section className="space-y-5">
           <AdminSectionTitle as="h2" size="h6" title="Review isi Idea" description="Pilih satu Idea dari daftar di kiri. Identitas, sumber, dan jejak bukti tetap dikunci." right={<Badge variant="outline">Belum disimpan</Badge>} />
 
-          <div className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div><p className="text-body-sm text-muted-foreground">Mata kuliah</p><p className="truncate font-semibold text-foreground">{courseLabels[analysis.manifest.courseId] ?? analysis.manifest.courseId}</p></div>
-            <div><p className="text-body-sm text-muted-foreground">Isi</p><p className="font-semibold text-foreground">{analysis.draft.ideas.length} Idea</p></div>
-            <div><p className="text-body-sm text-muted-foreground">Sumber</p><p className="font-semibold text-foreground">{analysis.preview.summary.sourceCount} sumber</p></div>
-            <div><p className="text-body-sm text-muted-foreground">Relasi</p><p className="font-semibold text-foreground">{analysis.draft.relations.length} relasi</p></div>
-          </div>
+          <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-4">
+            <AdminStatStripItem label="Mata kuliah" value={courseLabels[analysis.manifest.courseId] ?? analysis.manifest.courseId} />
+            <AdminStatStripItem label="Isi" value={`${analysis.draft.ideas.length} Idea`} />
+            <AdminStatStripItem label="Sumber" value={`${analysis.preview.summary.sourceCount} sumber`} />
+            <AdminStatStripItem label="Relasi" value={`${analysis.draft.relations.length} relasi`} />
+          </AdminStatStrip>
 
           <Tabs value={analysisTab} onValueChange={(value) => setAnalysisTab(value as "ideas" | "relations")}>
             <TabsList>
