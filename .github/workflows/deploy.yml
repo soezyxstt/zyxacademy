@@ -44,10 +44,10 @@ jobs:
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
             echo "APP_NAME=zyx-background" >> $GITHUB_ENV
-            echo "APP_URL=https://zyx-background.deno.dev" >> $GITHUB_ENV
+            echo "APP_URL=https://zyx-background.soezyxst.deno.net" >> $GITHUB_ENV
           else
             echo "APP_NAME=zyx-background-staging" >> $GITHUB_ENV
-            echo "APP_URL=https://zyx-background-staging.deno.dev" >> $GITHUB_ENV
+            echo "APP_URL=https://zyx-background-staging.soezyxst.deno.net" >> $GITHUB_ENV
           fi
 
       - name: Provision Deno Deploy App (if not exists)
