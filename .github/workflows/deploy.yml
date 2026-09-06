@@ -54,12 +54,13 @@ jobs:
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
-          deno deploy create --non-interactive \
+          deno run -A jsr:@deno/deploy create --non-interactive \
             --org soezyxst \
             --app $APP_NAME \
             --source local \
             --runtime-mode dynamic \
             --entrypoint workers/deno-background/main.ts \
+            --region us \
             || echo "App $APP_NAME already exists or initialized."
 
       - name: Sync Environment Variables to Deno Deploy
@@ -104,7 +105,7 @@ jobs:
           grep -v '=$' .env.deploy > .env.deploy.filtered || true
 
           if [ -s .env.deploy.filtered ]; then
-            deno deploy env load --replace .env.deploy.filtered --org soezyxst --app $APP_NAME --non-interactive
+            deno run -A jsr:@deno/deploy env load --replace .env.deploy.filtered --org soezyxst --app $APP_NAME --non-interactive
             echo "Environment variables successfully synced to $APP_NAME."
           else
             echo "No secrets found in repository/environment to sync."
@@ -115,7 +116,7 @@ jobs:
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
-          deno deploy --non-interactive --org soezyxst --app $APP_NAME --prod
+          deno run -A jsr:@deno/deploy --non-interactive --org soezyxst --app $APP_NAME --prod
 
       - name: Verify Worker Health Check
         run: |
