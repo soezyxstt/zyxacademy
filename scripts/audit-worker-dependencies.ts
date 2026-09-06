@@ -14,6 +14,7 @@ const FORBIDDEN_PATTERNS = [
   { pattern: /^@t3-oss\/env-nextjs$/, label: "@t3-oss/env-nextjs" },
   { pattern: /^react(-dom)?(\/.*)?$/, label: "React (react/react-dom)" },
   { pattern: /^puppeteer(-core)?$/, label: "Puppeteer" },
+  { pattern: /^@sentry\/nextjs$/, label: "@sentry/nextjs" },
 ];
 
 const visited = new Set<string>();

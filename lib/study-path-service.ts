@@ -20,7 +20,6 @@ import {
   conceptLocalizations,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import * as Sentry from "@sentry/nextjs";
 import { resolveStudentCourse } from "@/lib/student/course-catalog";
 import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
@@ -370,7 +369,9 @@ export async function computeStudyPath(
         remainingNodes
       ).join(", ")}`;
       console.warn(cycleDescription);
-      Sentry.captureMessage(cycleDescription, "warning");
+      if (typeof (globalThis as any).Sentry?.captureMessage === "function") {
+        (globalThis as any).Sentry.captureMessage(cycleDescription, "warning");
+      }
 
       // Find all remaining edges
       const remainingEdges: { source: string; target: string }[] = [];
