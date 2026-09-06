@@ -6,6 +6,7 @@ import { toast } from "@/components/ui/toast";
 import { enrollWithToken } from "@/app/(student)/dashboard/actions";
 import { Button } from "@/components/ui/button";
 import { KeyRound } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function EnrollmentForm({ className, onSuccess }: { className?: string; onSuccess?: () => void }) {
   const [token, setToken] = useState("");
@@ -40,9 +41,9 @@ export function EnrollmentForm({ className, onSuccess }: { className?: string; o
   };
 
   return (
-    <form onSubmit={handleEnroll} className={className}>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="flex flex-1 items-center h-11 rounded-lg border border-border bg-background px-3.5 gap-2 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition-shadow">
+    <form onSubmit={handleEnroll} className={cn("@container w-full", className)}>
+      <div className="flex flex-col gap-2.5 @[420px]:flex-row">
+        <div className="flex flex-1 items-center h-10 rounded-lg border border-border bg-background px-3.5 gap-2 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition-shadow">
           <KeyRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <input
             type="text"
@@ -56,7 +57,7 @@ export function EnrollmentForm({ className, onSuccess }: { className?: string; o
         <Button
           type="submit"
           disabled={loading}
-          className="h-11 shrink-0 rounded-lg px-6 bg-brand-primary text-white hover:bg-brand-primary/95 transition-all"
+          className="h-10 shrink-0 rounded-lg px-5 bg-brand-primary text-white hover:bg-brand-primary/95 transition-all text-body-sm font-medium w-full @[420px]:w-auto cursor-pointer"
         >
           {loading ? "Mendaftarkan..." : "Aktivasi Kelas"}
         </Button>

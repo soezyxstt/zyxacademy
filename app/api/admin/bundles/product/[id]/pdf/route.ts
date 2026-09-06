@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { inngest } from "@/lib/inngest";
-import { latestReadyProductDiktatEvidence } from "@/lib/bundle/product-diktat-pdf";
+import { latestReadyProductDiktatEvidence } from "@/lib/bundle/product-diktat-evidence";
 import { storage } from "@/lib/storage";
 
 export const runtime = "nodejs";

@@ -16,7 +16,7 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { QuestionBankClient } from "./questions-client";
 import { HistoricalQuestionsClient } from "./historical-questions-client";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Library } from "lucide-react";
 
@@ -110,17 +110,13 @@ export default async function AIQuestionsPage() {
         title="Bank Soal"
         description="Kelola soal yang siap ditinjau, diterbitkan, dan dipakai ulang dalam kuis."
       />
-      <AdminTabs defaultValue="ai-generated">
-        <AdminTabsList>
-          <AdminTabsTrigger value="ai-generated">
-            Bank soal aktif ({rawQuestions.length})
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="historical">
-            Referensi historis ({historicalQuestions.length})
-          </AdminTabsTrigger>
-        </AdminTabsList>
+      <Tabs defaultValue="ai-generated">
+        <TabsList>
+          <TabsTrigger value="ai-generated">Bank soal aktif</TabsTrigger>
+          <TabsTrigger value="historical">Referensi historis</TabsTrigger>
+        </TabsList>
 
-        <AdminTabsContent value="ai-generated">
+        <TabsContent value="ai-generated">
             <QuestionBankClient
               questions={questions}
               courses={allCourses}
@@ -129,16 +125,16 @@ export default async function AIQuestionsPage() {
               authoringChapters={authoringChapters}
               authoringIdeas={authoringIdeas}
             />
-        </AdminTabsContent>
+        </TabsContent>
 
-        <AdminTabsContent value="historical">
+        <TabsContent value="historical">
           <HistoricalQuestionsClient
             questions={historicalQuestions}
             courses={allCourses}
             courseMap={courseMap}
           />
-        </AdminTabsContent>
-      </AdminTabs>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

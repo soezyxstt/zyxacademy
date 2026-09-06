@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { MathText } from "@/components/course/math-text";
 import { ZyraMark } from "@/components/course/zyra-mark";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 
 interface QuizAnalyticsViewProps {
   attemptId: string;
@@ -180,12 +181,12 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
             {/* Score & Performance Badge */}
             {metrics && (
-              <div className="flex flex-col items-center justify-center shrink-0 rounded-xl border border-border/80 bg-card p-5 text-center shadow-xs min-w-[150px]">
-                <span className="text-body-xs uppercase font-semibold text-muted-foreground tracking-wider">Skor Total</span>
-                <div className="font-heading text-h2 font-bold text-brand-primary mt-1">
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-l border-border/70 pl-5">
+                <span className="text-body-xs font-semibold text-muted-foreground">Skor total</span>
+                <div className="font-heading text-h5 font-bold text-brand-primary">
                   {metrics.score}<span className="text-body-base text-muted-foreground font-normal">%</span>
                 </div>
-                <Badge className={`mt-2 rounded-md ${getPerformanceBadgeClass(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}`}>
+                <Badge className={`rounded-md ${getPerformanceBadgeClass(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}`}>
                   {getPerformanceLabel(diagnosis?.performance_level || (metrics.score >= 75 ? "good" : "developing"))}
                 </Badge>
               </div>
@@ -195,49 +196,17 @@ export function QuizAnalyticsView({ attemptId, courseId }: QuizAnalyticsViewProp
 
         {/* Quick Facts Strip */}
         {metrics && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card/60 p-3.5 backdrop-blur-xs">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-status-success/10 text-status-success">
-                <CheckCircle2 className="size-5" />
-              </div>
-              <div>
-                <span className="block text-body-xs text-muted-foreground font-medium">Jawaban Benar</span>
-                <span className="font-heading text-h6 font-bold text-foreground">{metrics.correctCount} / {metrics.totalQuestions}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card/60 p-3.5 backdrop-blur-xs">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-status-error/10 text-status-error">
-                <TriangleAlert className="size-5" />
-              </div>
-              <div>
-                <span className="block text-body-xs text-muted-foreground font-medium">Salah / Kosong</span>
-                <span className="font-heading text-h6 font-bold text-foreground">{metrics.incorrectCount + metrics.unansweredCount}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card/60 p-3.5 backdrop-blur-xs">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-tertiary-1/10 text-tertiary-1">
-                <Clock className="size-5" />
-              </div>
-              <div>
-                <span className="block text-body-xs text-muted-foreground font-medium">Waktu Pengerjaan</span>
-                <span className="font-heading text-h6 font-bold text-foreground">{formatDuration(metrics.durationSeconds)}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card/60 p-3.5 backdrop-blur-xs">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-brand-secondary/10 text-brand-secondary">
-                <TrendingUp className="size-5" />
-              </div>
-              <div>
-                <span className="block text-body-xs text-muted-foreground font-medium">Perkembangan</span>
-                <span className="font-heading text-h6 font-bold text-foreground">
-                  {metrics.historicalComparison.overallImprovementDelta >= 0 ? `+${metrics.historicalComparison.overallImprovementDelta}%` : `${metrics.historicalComparison.overallImprovementDelta}%`}
-                </span>
-              </div>
-            </div>
-          </div>
+          <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
+            <AdminStatStripItem icon={CheckCircle2} label="Jawaban benar" value={`${metrics.correctCount} / ${metrics.totalQuestions}`} tone="success" />
+            <AdminStatStripItem icon={TriangleAlert} label="Salah / kosong" value={metrics.incorrectCount + metrics.unansweredCount} tone="error" />
+            <AdminStatStripItem icon={Clock} label="Waktu pengerjaan" value={formatDuration(metrics.durationSeconds)} tone="info" />
+            <AdminStatStripItem
+              icon={TrendingUp}
+              label="Perkembangan"
+              value={metrics.historicalComparison.overallImprovementDelta >= 0 ? `+${metrics.historicalComparison.overallImprovementDelta}%` : `${metrics.historicalComparison.overallImprovementDelta}%`}
+              tone="brand-secondary"
+            />
+          </AdminStatStrip>
         )}
       </div>
 

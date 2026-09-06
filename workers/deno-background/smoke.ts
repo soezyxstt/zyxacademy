@@ -88,6 +88,28 @@ async function main() {
     })
   );
 
+  // 5. Native Image Processing (Sharp WebP)
+  results.push(
+    await runCheck("Native Sharp (WebP)", async () => {
+      const { default: sharp } = await import("sharp");
+      const buffer = await sharp({
+        create: {
+          width: 1,
+          height: 1,
+          channels: 4,
+          background: { r: 255, g: 0, b: 0, alpha: 1 },
+        },
+      })
+        .webp()
+        .toBuffer();
+      if (!buffer || buffer.byteLength === 0) {
+        throw new Error("Sharp returned empty WebP buffer");
+      }
+      return `Sharp native WebP pipeline functional (${buffer.byteLength} bytes generated)`;
+    })
+  );
+
+
   console.log("Results:");
   let hasFailure = false;
   for (const r of results) {

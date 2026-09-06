@@ -1,16 +1,8 @@
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { and, desc, eq } from "drizzle-orm";
 import katex from "katex";
-import { db } from "@/db";
-import { buktiPdfBundle, imporBundle, user } from "@/db/schema";
-import { storage, type StorageProvider } from "@/lib/storage";
-import { joinKey, slugifySegment } from "@/lib/storage/keys";
 import type { ProductEntity } from "./product-validator";
-import { parseStagedProductBundle } from "./product-staging";
-import type { SafeFailureCode } from "@/lib/materials/pdf-artifact-contract";
+
 
 export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v1";
 export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-2-page-v1";
@@ -231,6 +223,41 @@ li { margin-bottom: 2.2mm; }
 </main></body></html>`;
 }
 
+export function compileCanonicalDiktatHtml(title: string, markdown: string): string {
+  const safeTitle = escapeHtml(title);
+  const renderedContent = inlineMarkup(markdown)
+    .split(/\n\n+/)
+    .map((paragraph) => `<p>${paragraph.trim()}</p>`)
+    .join("\n");
+
+  return `<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><title>${safeTitle}</title>
+<style>${KATEX_CSS}
+@page { size: A4; margin: 15mm; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #172033; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.2pt; line-height: 1.5; }
+.page { break-after: page; min-height: 254mm; }
+.page:last-child { break-after: auto; }
+.eyebrow { color: #b94c16; font-size: 8.5pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2mm; }
+h1 { color: #111827; font-size: 20pt; line-height: 1.2; margin: 4mm 0 6mm; border-bottom: 2px solid #b94c16; padding-bottom: 3mm; }
+h2 { font-size: 13pt; margin: 6mm 0 3mm; color: #1f2937; }
+h3 { font-size: 11pt; margin: 4mm 0 2mm; color: #374151; }
+p { margin: 0 0 3.5mm; }
+ol, ul { margin: 0 0 4mm; padding-left: 6mm; }
+li { margin-bottom: 2mm; }
+.formula { background: #f5f7fa; border-left: 3px solid #e66b2c; margin: 3mm 0; padding: 3mm; text-align: center; break-inside: avoid; }
+.katex-display { margin: 2mm 0; overflow: visible; }
+.katex { font-family: "DejaVu Serif", serif; }
+.footer { color: #667085; font-size: 8.5pt; margin-top: 10mm; border-top: 1px solid #e5e7eb; padding-top: 3mm; }
+</style></head><body>
+<main class="page">
+  <p class="eyebrow">Zyx Academy · Diktat Belajar</p>
+  <h1>${safeTitle}</h1>
+  <div class="content">${renderedContent}</div>
+  <p class="footer">Diterbitkan oleh Zyx Academy.</p>
+</main></body></html>`;
+}
+
 export async function renderProductDiktatPdf(
   html: string,
   options: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
@@ -254,101 +281,7 @@ export async function renderProductDiktatPdf(
   return bytes;
 }
 
-export async function inspectProductDiktatPdf(bytes: Uint8Array): Promise<InspectedPdf> {
-  const { PDFParse } = await import("pdf-parse");
-  PDFParse.setWorker(pathToFileURL(path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs")).href);
-  const parser = new PDFParse({ data: bytes });
-  try {
-    const info = await parser.getInfo();
-    const textResult = await parser.getText();
-    const text = textResult.text;
-    if (!text.trim() || text.includes("[object Object]") || text.includes("\\undefined") || text.includes("�")) {
-      throw new Error("PRODUCT_DIKTAT_PDF_CONTENT_INVALID");
-    }
-    return { pageCount: info.total, text };
-  } finally {
-    await parser.destroy();
-  }
-}
-
-function evidenceId(importId: string, productId: string, hash: string): string {
-  return `pdf-evidence-${createHash("sha256").update(`${importId}:${productId}:${hash}:${PRODUCT_DIKTAT_PRINT_PROFILE}`).digest("hex").slice(0, 32)}`;
-}
-
-export function productDiktatFailureCode(error: unknown): SafeFailureCode {
-  const message = error instanceof Error ? error.message : "";
-  if (message.includes("FORMULA")) return "FORMULA_RENDER_ERROR";
-  if (message.includes("TIMEOUT") || (error instanceof Error && error.name === "TimeoutError")) return "RENDER_TIMEOUT";
-  if (message.includes("RENDERER")) return "RENDER_UNAVAILABLE";
-  if (message.includes("PAGE")) return "PAGE_BUDGET_EXCEEDED";
-  if (message.includes("STORAGE")) return "STORAGE_UNAVAILABLE";
-  return "INVALID_SOURCE_MARKDOWN";
-}
-
 export function canDownloadProductDiktat(input: { role?: string | null; enrolled: boolean }): boolean {
   return input.role === "admin" || (input.role === "student" && input.enrolled);
 }
-
-export async function generateProductDiktatPdfEvidence(input: {
-  importId: string;
-  requestedBy: string;
-  renderer?: (html: string) => Promise<Uint8Array>;
-  storageProvider?: StorageProvider;
-  throwOnFailure?: boolean;
-}): Promise<{ evidenceId: string; status: "ready" | "failed"; pageCount?: number; failureCode?: SafeFailureCode }> {
-  const [actor] = await db.select({ role: user.role }).from(user).where(eq(user.id, input.requestedBy)).limit(1);
-  if (!actor || actor.role !== "admin") throw new Error("PRODUCT_DIKTAT_RENDER_FORBIDDEN");
-  const [importRow] = await db.select({ id: imporBundle.id, status: imporBundle.status }).from(imporBundle).where(eq(imporBundle.id, input.importId)).limit(1);
-  if (!importRow) throw new Error("PRODUCT_BUNDLE_NOT_FOUND");
-  if (importRow.status === "published" || importRow.status === "withdrawn") throw new Error("PRODUCT_DIKTAT_RENDER_DRAFT_REQUIRED");
-
-  const bundle = await parseStagedProductBundle(input.importId);
-  const article = bundle.products.find((product): product is ArticleProduct => product.productType === "article");
-  const diktat = bundle.products.find((product): product is DiktatProduct => product.productType === "diktat");
-  if (!article || !diktat) throw new Error("PRODUCT_DIKTAT_SOURCE_MISSING");
-
-  const id = evidenceId(input.importId, diktat.id, diktat.generationHash);
-  const now = new Date();
-  const base = {
-    id,
-    imporBundleId: input.importId,
-    productId: diktat.id,
-    articleVersion: article.version,
-    articleHash: article.generationHash,
-    diktatHash: diktat.generationHash,
-    rendererVersion: PRODUCT_DIKTAT_RENDERER_VERSION,
-    printProfile: PRODUCT_DIKTAT_PRINT_PROFILE,
-  };
-  await db.insert(buktiPdfBundle).values({ ...base, status: "pending", createdAt: now, updatedAt: now }).onConflictDoUpdate({
-    target: [buktiPdfBundle.imporBundleId, buktiPdfBundle.productId, buktiPdfBundle.diktatHash, buktiPdfBundle.printProfile],
-    set: { status: "pending", storageKey: null, pageCount: null, failureCode: null, updatedAt: now },
-  });
-
-  try {
-    const html = compileProductDiktatHtml({ article, diktat });
-    const bytes = await (input.renderer ?? renderProductDiktatPdf)(html);
-    const inspection = await inspectProductDiktatPdf(bytes);
-    if (inspection.pageCount < 2 || inspection.pageCount > 4) throw new Error("PRODUCT_DIKTAT_PAGE_BUDGET_EXCEEDED");
-    const objectKey = joinKey("overhaul", input.importId, "diktat-pdf", `${slugifySegment(diktat.id)}-${diktat.generationHash.slice(0, 16)}.pdf`);
-    try {
-      await (input.storageProvider ?? storage).upload(bytes, `${slugifySegment(diktat.title)}.pdf`, "application/pdf", {
-        key: objectKey,
-        metadata: { importId: input.importId, productId: diktat.id, rendererVersion: PRODUCT_DIKTAT_RENDERER_VERSION },
-      });
-    } catch {
-      throw new Error("PRODUCT_DIKTAT_STORAGE_UNAVAILABLE");
-    }
-    await db.update(buktiPdfBundle).set({ status: "ready", storageKey: objectKey, pageCount: inspection.pageCount, failureCode: null, updatedAt: new Date() }).where(eq(buktiPdfBundle.id, id));
-    return { evidenceId: id, status: "ready", pageCount: inspection.pageCount };
-  } catch (error) {
-    const failureCode = productDiktatFailureCode(error);
-    await db.update(buktiPdfBundle).set({ status: "failed", storageKey: null, pageCount: null, failureCode, updatedAt: new Date() }).where(eq(buktiPdfBundle.id, id));
-    if (input.throwOnFailure) throw new Error("PRODUCT_DIKTAT_RENDER_RETRYABLE");
-    return { evidenceId: id, status: "failed", failureCode };
-  }
-}
-
-export async function latestReadyProductDiktatEvidence(importId: string) {
-  const [row] = await db.select().from(buktiPdfBundle).where(and(eq(buktiPdfBundle.imporBundleId, importId), eq(buktiPdfBundle.status, "ready"))).orderBy(desc(buktiPdfBundle.createdAt), desc(buktiPdfBundle.id)).limit(1);
-  return row ?? null;
-}
+export { latestReadyProductDiktatEvidence } from "./product-diktat-evidence";

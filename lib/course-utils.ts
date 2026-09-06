@@ -337,6 +337,22 @@ export async function getCourseChapterOutline(
   });
 }
 
+export async function getStudentVisibleCourseQuizzes(courseId: string) {
+  const course = await resolveStudentCourse(courseId);
+  const compatibilityCourseId = course?.legacyId ?? courseId;
+  return db
+    .select()
+    .from(quizTemplates)
+    .where(
+      and(
+        eq(quizTemplates.courseId, compatibilityCourseId),
+        eq(quizTemplates.status, "published"),
+        ne(quizTemplates.category, "simulation")
+      )
+    )
+    .orderBy(desc(quizTemplates.createdAt));
+}
+
 export async function getCourseQuizzes(courseId: string) {
   const course = await resolveStudentCourse(courseId);
   const compatibilityCourseId = course?.legacyId ?? courseId;

@@ -12,7 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { AdminTable } from "@/components/admin/table";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { MathText } from "@/components/course/math-text";
 import { explainBundleError } from "@/lib/bundle/admin-errors";
 import {
@@ -104,7 +106,7 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
   const [file, setFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<IdeaAnalysis | null>(null);
   const [query, setQuery] = useState("");
-  const [analysisTab, setAnalysisTab] = useState<"ideas" | "relations">("ideas");
+  const [analysisTab, setAnalysisTab] = useUrlTab("ideaView", "ideas");
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ id: string; status: string; preview: IdeaPreview } | null>(null);
   const [selectedPreviewIdeaId, setSelectedPreviewIdeaId] = useState<string | null>(null);
@@ -273,20 +275,20 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
         <section className="space-y-5">
           <AdminSectionTitle as="h2" size="h6" title="Review isi Idea" description="Pilih satu Idea dari daftar di kiri. Identitas, sumber, dan jejak bukti tetap dikunci." right={<Badge variant="outline">Belum disimpan</Badge>} />
 
-          <div className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div><p className="text-body-sm text-muted-foreground">Mata kuliah</p><p className="truncate font-semibold text-foreground">{courseLabels[analysis.manifest.courseId] ?? analysis.manifest.courseId}</p></div>
-            <div><p className="text-body-sm text-muted-foreground">Isi</p><p className="font-semibold text-foreground">{analysis.draft.ideas.length} Idea</p></div>
-            <div><p className="text-body-sm text-muted-foreground">Sumber</p><p className="font-semibold text-foreground">{analysis.preview.summary.sourceCount} sumber</p></div>
-            <div><p className="text-body-sm text-muted-foreground">Relasi</p><p className="font-semibold text-foreground">{analysis.draft.relations.length} relasi</p></div>
-          </div>
+          <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-4">
+            <AdminStatStripItem label="Mata kuliah" value={courseLabels[analysis.manifest.courseId] ?? analysis.manifest.courseId} />
+            <AdminStatStripItem label="Isi" value={`${analysis.draft.ideas.length} Idea`} />
+            <AdminStatStripItem label="Sumber" value={`${analysis.preview.summary.sourceCount} sumber`} />
+            <AdminStatStripItem label="Relasi" value={`${analysis.draft.relations.length} relasi`} />
+          </AdminStatStrip>
 
-          <AdminTabs value={analysisTab} onValueChange={(value) => setAnalysisTab(value as "ideas" | "relations")}>
-            <AdminTabsList>
-              <AdminTabsTrigger value="ideas">Idea ({analysis.draft.ideas.length})</AdminTabsTrigger>
-              <AdminTabsTrigger value="relations">Peta relasi ({analysis.draft.relations.length})</AdminTabsTrigger>
-            </AdminTabsList>
+          <Tabs value={analysisTab} onValueChange={(value) => setAnalysisTab(value as "ideas" | "relations")}>
+            <TabsList>
+              <TabsTrigger value="ideas">Idea</TabsTrigger>
+              <TabsTrigger value="relations">Peta relasi</TabsTrigger>
+            </TabsList>
 
-            <AdminTabsContent value="ideas" className="space-y-4">
+            <TabsContent value="ideas" className="space-y-4">
               <SearchBar value={query} onSearch={setQuery} onClear={() => setQuery("")} placeholder="Cari kode atau isi Idea" />
               <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
                 <div className="rounded-xl border border-border bg-card p-2 shadow-sm">
@@ -306,16 +308,16 @@ export function IdeaBundleV2Panel({ initialImports, courseLabels = {}, authorLab
                   <div className="space-y-3 border-t border-border pt-4"><p className="text-body-sm font-semibold text-foreground">Bukti sumber yang mendukung</p>{activeIdea.provenance.length === 0 && <p className="text-body-sm text-status-warning">Belum ada bukti sumber.</p>}{activeIdea.provenance.map((proof) => { const draftProof = analysis.draft.provenance.find((item) => item.id === proof.id); return <div key={proof.id} className="space-y-2 border-l-2 border-primary pl-3"><p className="text-body-sm font-medium text-foreground">{proof.sourceTitle}{proof.pageNumber ? ` · halaman ${proof.pageNumber}` : ""}</p><p className="text-body-sm text-muted-foreground">{proof.excerpt}</p>{draftProof && <Input value={draftProof.note ?? ""} onChange={(event) => setAnalysis((current) => current ? { ...current, draft: { ...current.draft, provenance: current.draft.provenance.map((item) => item.id === proof.id ? { ...item, note: event.target.value } : item) } } : current)} placeholder="Catatan reviewer, jika perlu" />}</div>; })}</div>
                 </article>}
               </div>
-            </AdminTabsContent>
+            </TabsContent>
 
-            <AdminTabsContent value="relations" className="space-y-4">
+            <TabsContent value="relations" className="space-y-4">
               <AdminSectionTitle as="h3" size="lg" title="Peta hubungan antar-Idea" description="Gunakan bagian ini untuk memeriksa urutan prasyarat dan hubungan konsep." />
               <AdminTable className="divide-y divide-border">
                 {analysis.draft.relations.length === 0 && <p className="px-4 py-6 text-body-sm text-muted-foreground">Tidak ada relasi eksplisit.</p>}
                 {analysis.draft.relations.map((relation) => <div key={relation.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_200px_minmax(0,1fr)_minmax(0,1.5fr)] lg:items-center"><p className="text-body-sm font-medium text-foreground">{analysis.draft.ideas.find((idea) => idea.id === relation.sourceIdeaId)?.code ?? relation.sourceIdeaId}</p><Select value={relation.relationType} onValueChange={(value) => setAnalysis((current) => current ? { ...current, draft: { ...current.draft, relations: current.draft.relations.map((item) => item.id === relation.id ? { ...item, relationType: value } : item) } } : current)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(relationLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select><p className="text-body-sm font-medium text-foreground">{analysis.draft.ideas.find((idea) => idea.id === relation.targetIdeaId)?.code ?? relation.targetIdeaId}</p><Input value={relation.explanation ?? ""} onChange={(event) => setAnalysis((current) => current ? { ...current, draft: { ...current.draft, relations: current.draft.relations.map((item) => item.id === relation.id ? { ...item, explanation: event.target.value } : item) } } : current)} placeholder="Penjelasan hubungan" /></div>)}
               </AdminTable>
-            </AdminTabsContent>
-          </AdminTabs>
+            </TabsContent>
+          </Tabs>
 
           {draftIssues.length > 0 && <div className="rounded-lg border border-status-warning bg-status-warning/10 p-4"><p className="text-body-sm font-semibold text-foreground">Lengkapi {draftIssues.length} bagian sebelum menyimpan</p><ul className="mt-2 list-disc space-y-1 pl-5 text-body-sm text-muted-foreground">{draftIssues.slice(0, 8).map((issue) => <li key={issue}>{issue}</li>)}</ul></div>}
           <WorkflowFooter onBack={resetAnalysis} onNext={() => void stageDraft()} backDisabled={loading} nextDisabled={loading || draftIssues.length > 0} nextLabel="Simpan hasil review" />

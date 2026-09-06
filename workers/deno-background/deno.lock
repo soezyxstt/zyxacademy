@@ -1661,7 +1661,6 @@
           "npm:@sentry/nextjs@^10.58.0",
           "npm:@t3-oss/env-nextjs@~0.13.11",
           "npm:@tanstack/react-query@^5.101.0",
-          "npm:@uploadthing/react@^7.3.3",
           "npm:@vercel/analytics@^2.0.1",
           "npm:@vercel/speed-insights@2",
           "npm:ai@^6.0.208",
@@ -1701,7 +1700,6 @@
           "npm:tailwind-merge@^3.6.0",
           "npm:three@0.184",
           "npm:tw-animate-css@^1.4.0",
-          "npm:uploadthing@^7.7.4",
           "npm:zod@^4.4.3"
         ]
       }

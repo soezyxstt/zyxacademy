@@ -31,9 +31,10 @@ import { compileArticleProduct } from "@/lib/materials/compiler";
 import {
   canDownloadProductDiktat,
   compileProductDiktatHtml,
-  inspectProductDiktatPdf,
 } from "@/lib/bundle/product-diktat-pdf";
+import { inspectProductDiktatPdf } from "@/lib/compute/product-diktat-inspector";
 import { chromium } from "playwright";
+
 
 const storageMap = new Map<string, Uint8Array>();
 const mockStorage = {

@@ -5,6 +5,8 @@ import { Search, Users, UserCheck, Layers, Shield } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { formatIsoDate } from "@/lib/date-utils";
 import type {
   TutorCourseParticipantsPayload,
@@ -19,7 +21,7 @@ interface ParticipantsClientProps {
 export function ParticipantsClient({ data }: ParticipantsClientProps) {
   const [search, setSearch] = useState("");
   const [enrollmentFilter, setEnrollmentFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<string>("participants");
+  const [activeTab, setActiveTab] = useUrlTab("tab", "participants");
 
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -53,61 +55,22 @@ export function ParticipantsClient({ data }: ParticipantsClientProps) {
   return (
     <div className="space-y-6">
       {/* ── KPI Strip ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Users className="size-4" />
-            <span className="text-body-sm">Total peserta</span>
-          </div>
-          <p className="mt-2 font-heading text-h4 font-bold tabular-nums text-foreground">
-            {data.summary.totalParticipants}
-          </p>
-          <p className="text-body-xs text-muted-foreground">Aktif terdaftar</p>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <UserCheck className="size-4" />
-            <span className="text-body-sm">Pendaftaran langsung</span>
-          </div>
-          <p className="mt-2 font-heading text-h4 font-bold tabular-nums text-foreground">
-            {data.summary.directEnrollmentsCount}
-          </p>
-          <p className="text-body-xs text-muted-foreground">Peserta individu</p>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Layers className="size-4" />
-            <span className="text-body-sm">Anggota kelompok</span>
-          </div>
-          <p className="mt-2 font-heading text-h4 font-bold tabular-nums text-foreground">
-            {data.summary.groupParticipantsCount}
-          </p>
-          <p className="text-body-xs text-muted-foreground">Peserta grup</p>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Shield className="size-4" />
-            <span className="text-body-sm">Kelompok aktif</span>
-          </div>
-          <p className="mt-2 font-heading text-h4 font-bold tabular-nums text-foreground">
-            {data.summary.activeGroupsCount}
-          </p>
-          <p className="text-body-xs text-muted-foreground">Grup belajar</p>
-        </div>
-      </div>
+      <AdminStatStrip className="grid-cols-2 sm:grid-cols-4">
+        <AdminStatStripItem icon={Users} label="Total peserta" value={data.summary.totalParticipants} caption="Aktif terdaftar" />
+        <AdminStatStripItem icon={UserCheck} label="Pendaftaran langsung" value={data.summary.directEnrollmentsCount} caption="Peserta individu" />
+        <AdminStatStripItem icon={Layers} label="Anggota kelompok" value={data.summary.groupParticipantsCount} caption="Peserta grup" />
+        <AdminStatStripItem icon={Shield} label="Kelompok aktif" value={data.summary.activeGroupsCount} caption="Grup belajar" />
+      </AdminStatStrip>
 
       {/* ── Tabs & Search Toolbar ── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-          <TabsList className="h-9 rounded-lg bg-muted p-1">
-            <TabsTrigger value="participants" className="rounded-md text-body-sm">
-              Peserta ({data.participants.length})
+          <TabsList>
+            <TabsTrigger value="participants">
+              Peserta
             </TabsTrigger>
-            <TabsTrigger value="groups" className="rounded-md text-body-sm">
-              Kelompok Belajar ({data.groups.length})
+            <TabsTrigger value="groups">
+              Kelompok Belajar
             </TabsTrigger>
           </TabsList>
 

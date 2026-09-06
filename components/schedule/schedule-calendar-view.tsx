@@ -164,6 +164,7 @@ export type ScheduleCalendarProps = {
   onMoveSession?: (booking: any) => void;
   onDeleteSlot?: (slotId: string) => void;
   onSelectSlotToSchedule?: (slot: any) => void;
+  initialCourseFilter?: string;
 };
 
 // Helper: parse "09:00" or "09:30" to minutes from midnight
@@ -339,6 +340,7 @@ export function ScheduleCalendarView({
   onMoveSession,
   onDeleteSlot,
   onSelectSlotToSchedule,
+  initialCourseFilter = "all",
 }: ScheduleCalendarProps) {
   // View Modes: "month" | "week" | "day"
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("week");
@@ -349,11 +351,17 @@ export function ScheduleCalendarView({
   });
 
   // Filters
-  const [selectedCourseFilter, setSelectedCourseFilter] = useState("all");
+  const [selectedCourseFilter, setSelectedCourseFilter] = useState(initialCourseFilter);
   const [selectedTutorFilter, setSelectedTutorFilter] = useState("all");
   const [selectedGroupFilter, setSelectedGroupFilter] = useState("all");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  useEffect(() => {
+    if (initialCourseFilter) {
+      setSelectedCourseFilter(initialCourseFilter);
+    }
+  }, [initialCourseFilter]);
 
   const activeFilterCount =
     (selectedCourseFilter !== "all" ? 1 : 0) +

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   BookOpen,
   ChevronDown,
@@ -50,9 +50,16 @@ export function StudentSidebar({
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const courseIdFromPath = pathname.startsWith("/courses/")
     ? pathname.split("/")[2]
     : undefined;
+  const courseIdFromSchedule =
+    pathname === "/dashboard/schedule"
+      ? searchParams?.get("course") ?? undefined
+      : undefined;
+
+  const activeCourseId = courseIdFromPath ?? courseIdFromSchedule;
 
   const [activeCourse, setActiveCourse] = useState<any>(undefined);
   const [coursesOpen, setCoursesOpen] = useState(true);
@@ -61,23 +68,23 @@ export function StudentSidebar({
   const [weeklyActivity, setWeeklyActivity] = useState<boolean[]>([]);
 
   useEffect(() => {
-    if (!courseIdFromPath) {
+    if (!activeCourseId) {
       setActiveCourse(undefined);
       return;
     }
-    const enrolled = enrolledCourses.find((c) => c.id === courseIdFromPath);
+    const enrolled = enrolledCourses.find((c) => c.id === activeCourseId);
     if (enrolled) {
       setActiveCourse(enrolled);
       return;
     }
-    getCourseAction(courseIdFromPath)
+    getCourseAction(activeCourseId)
       .then((course) => {
         if (course) {
           setActiveCourse(course);
         }
       })
       .catch(console.error);
-  }, [courseIdFromPath, enrolledCourses]);
+  }, [activeCourseId, enrolledCourses]);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -161,7 +168,33 @@ export function StudentSidebar({
             {(() => {
               const base = `/courses/${activeCourse.id}`;
               const isPka = activeCourse.id === PKA_COURSE_ID;
-              const items: Array<{
+
+              const primaryItems: Array<{
+                href: string;
+                icon: typeof LayoutDashboard;
+                label: string;
+                exact?: boolean;
+                customActive?: boolean;
+              }> = isPka
+                ? [
+                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
+                    { href: `${base}/jadwal`, icon: CalendarRange, label: "Jadwal" },
+                    { href: `${base}/simulasi`, icon: ClipboardList, label: "Simulasi" },
+                    { href: `${base}/laporan`, icon: BarChart3, label: "Laporan Diagnostik" },
+                  ]
+                : [
+                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
+                    { href: `${base}/material`, icon: FileText, label: "Dokumen" },
+                    { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
+                    {
+                      href: `/dashboard/schedule?course=${activeCourse.id}`,
+                      icon: CalendarRange,
+                      label: "Jadwal",
+                      customActive: pathname === "/dashboard/schedule" && searchParams?.get("course") === activeCourse.id,
+                    },
+                  ];
+
+              const secondaryItems: Array<{
                 href: string;
                 icon: typeof LayoutDashboard;
                 label: string;
@@ -169,39 +202,61 @@ export function StudentSidebar({
                 badge?: string;
               }> = isPka
                 ? [
-                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
-                    { href: `${base}/jadwal`, icon: CalendarRange, label: "Jadwal" },
-                    { href: `${base}/simulasi`, icon: ClipboardList, label: "Simulasi" },
                     { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
                     { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
                     { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
                     { href: `${base}/material`, icon: FileText, label: "Materi" },
-                    { href: `${base}/laporan`, icon: BarChart3, label: "Laporan Diagnostik" },
                   ]
                 : [
-                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
-                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
-                    { href: `${base}/material`, icon: FileText, label: "Dokumen" },
                     { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
-                    { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
                     { href: `${base}/tryout`, icon: GraduationCap, label: "Tryout" },
-                    ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung", badge: "Beta" }] : []),
+                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
                     ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan" }] : []),
+                    { href: `${base}/progress`, icon: BarChart3, label: "Progres" },
                     { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
                     { href: `${base}/my-results`, icon: History, label: "Hasil Ujian" },
+                    ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung", badge: "Beta" }] : []),
                   ];
 
-              return items.map((item) => (
-                <NavItem
-                  key={item.href}
-                  href={item.href}
-                  icon={item.icon}
-                  label={item.label}
-                  badge={item.badge}
-                  active={item.exact ? pathname === item.href : pathname.startsWith(item.href)}
-                  collapsed={c}
-                />
-              ));
+              return (
+                <>
+                  {primaryItems.map((item) => (
+                    <NavItem
+                      key={item.href}
+                      href={item.href}
+                      icon={item.icon}
+                      label={item.label}
+                      active={item.customActive ?? (item.exact ? pathname === item.href : pathname.startsWith(item.href))}
+                      collapsed={c}
+                    />
+                  ))}
+
+                  {secondaryItems.length > 0 && (
+                    <>
+                      {!c && (
+                        <div className="pt-2.5 pb-1 px-2.5 text-left">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                            Lainnya
+                          </span>
+                        </div>
+                      )}
+                      {c && <div className="my-1.5 w-5 border-t border-border/60" />}
+
+                      {secondaryItems.map((item) => (
+                        <NavItem
+                          key={item.href}
+                          href={item.href}
+                          icon={item.icon}
+                          label={item.label}
+                          badge={item.badge}
+                          active={item.exact ? pathname === item.href : pathname.startsWith(item.href)}
+                          collapsed={c}
+                        />
+                      ))}
+                    </>
+                  )}
+                </>
+              );
             })()}
           </div>
 

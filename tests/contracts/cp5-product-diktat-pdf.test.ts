@@ -8,12 +8,15 @@ import type { ArticleDocument } from "@/lib/materials/article-contract";
 import type { ProductEntity } from "@/lib/bundle/product-validator";
 import {
   compileProductDiktatHtml,
-  inspectProductDiktatPdf,
   PRODUCT_DIKTAT_PRINT_PROFILE,
   canDownloadProductDiktat,
-  productDiktatFailureCode,
 } from "@/lib/bundle/product-diktat-pdf";
+import {
+  inspectProductDiktatPdf,
+  productDiktatFailureCode,
+} from "@/lib/compute/product-diktat-inspector";
 import { LIMIT_ARTICLE_FIXTURE } from "../fixtures/product-learning/limit-epsilon-delta";
+
 import { EIGENVALUES_ARTICLE_FIXTURE } from "../fixtures/product-learning/eigenvalues";
 import { TCP_HANDSHAKE_ARTICLE_FIXTURE } from "../fixtures/product-learning/tcp-handshake";
 import { isProtectedProductDiktatPdfKey } from "@/lib/storage/keys";

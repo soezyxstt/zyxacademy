@@ -756,8 +756,9 @@ async function stageIdeaArtifact(input: {
     checksum: result.checksum,
     status: result.status,
     created: result.created,
-    replaced: result.replaced,
+    replaced: Boolean(input.replaceImportId),
     itemCount: result.itemCount,
+
   };
   return { ok: true, valid: true, staged: true, result: safeResult, warnings: dbConflicts.warnings, quality, next: "admin_review" };
 }
@@ -994,7 +995,43 @@ function registerWorkflowTools(server: McpServer, principal: McpPrincipal): void
   }, async ({ filename, contentBase64, originals, storedOriginals }: any) => safeTool(async () => {
     requireMcpScope(principal, "authoring:read");
     const resolved = await resolveSourceOriginals(originals, storedOriginals);
-    const ingestResult = ingestMcpSourcePack(filename, contentBase64, resolved.originals, resolved.boundScope);
+    let ingestResult: any;
+    const hasStoredRefs = resolved.originals && [...resolved.originals.values()].some(
+      (v: any) => typeof v === "object" && v !== null && "kind" in v && v.kind === "stored"
+    );
+
+    if (hasStoredRefs && process.env.COMPUTE_SERVICE_URL) {
+      const { resolveSourcePackOnCompute } = await import("@/lib/compute-client/source-pack");
+      const storedRefs: Array<{ documentId: string; storageKey: string; checksum: string }> = [];
+      const directRefs: Array<{ documentId: string; contentBase64: string }> = [];
+
+      for (const [docId, val] of resolved.originals!) {
+        if (typeof val === "object" && val !== null && "kind" in val && (val as any).kind === "stored") {
+          storedRefs.push({
+            documentId: docId,
+            storageKey: (val as any).storageKey,
+            checksum: (val as any).checksum,
+          });
+        } else {
+          const bytes = val instanceof Uint8Array ? val : (val as any).bytes;
+          directRefs.push({
+            documentId: docId,
+            contentBase64: Buffer.from(bytes).toString("base64"),
+          });
+        }
+      }
+
+      ingestResult = await resolveSourcePackOnCompute({
+        filename,
+        contentBase64,
+        directOriginals: directRefs.length > 0 ? directRefs : undefined,
+        storedOriginals: storedRefs.length > 0 ? storedRefs : undefined,
+        boundScope: resolved.boundScope,
+      });
+    } else {
+      const { toRawByteOriginals } = await import("@/lib/authoring/mcp-source-files");
+      ingestResult = ingestMcpSourcePack(filename, contentBase64, toRawByteOriginals(resolved.originals), resolved.boundScope);
+    }
     if (!ingestResult.ok) return ingestResult;
 
     const bytes = decodeMcpArtifact(contentBase64, AUTHORING_MCP_MAX_SOURCE_PACK_BYTES);

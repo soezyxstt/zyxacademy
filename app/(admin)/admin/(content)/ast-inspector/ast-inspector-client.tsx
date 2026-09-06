@@ -22,6 +22,8 @@ import { compileMarkdown } from "@/lib/markdown-compiler";
 import { ASTRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { CompilerResult, ASTBlock } from "@/lib/ast-validator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 
 // Demos
 const DEMO_TEMPLATES = {
@@ -86,7 +88,7 @@ Langkah 2: Latihan Soal -- Gagal --> Langkah 1: Baca MTD
 export function ASTInspectorClient() {
   const [markdown, setMarkdown] = useState(DEMO_TEMPLATES.standard);
   const [result, setResult] = useState<CompilerResult | null>(null);
-  const [activeTab, setActiveTab] = useState<"preview" | "block-explorer" | "diagnostics" | "json" | "pipeline" | "stats">("preview");
+  const [activeTab, setActiveTab] = useUrlTab("tab", "preview");
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
 
   const handleCompile = () => {
@@ -276,30 +278,23 @@ export function ASTInspectorClient() {
         {/* RIGHT PANE: VIEWER */}
         <div className="w-1/2 flex flex-col bg-background">
           {/* TABS */}
-          <div className="flex items-center border-b border-border bg-muted/20 px-2 overflow-x-auto select-none">
-            {[
-              { id: "preview", label: "Live Preview", icon: <Eye className="size-3.5" /> },
-              { id: "block-explorer", label: "Block Explorer", icon: <List className="size-3.5" /> },
-              { id: "diagnostics", label: "Diagnostics", icon: <AlertTriangle className="size-3.5" /> },
-              { id: "json", label: "AST JSON", icon: <FileCode className="size-3.5" /> },
-              { id: "pipeline", label: "Pipeline", icon: <Layers className="size-3.5" /> },
-              { id: "stats", label: "Stats & Kualitas", icon: <BookOpen className="size-3.5" /> },
-            ].map(t => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id as any)}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-3 text-body-xs font-semibold border-b-2 transition-all",
-                  activeTab === t.id
-                    ? "border-brand-primary text-brand-primary bg-background/50"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {t.icon}
-                <span>{t.label}</span>
-              </button>
-            ))}
-          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              {[
+                { id: "preview", label: "Live Preview", icon: <Eye className="size-3.5" /> },
+                { id: "block-explorer", label: "Block Explorer", icon: <List className="size-3.5" /> },
+                { id: "diagnostics", label: "Diagnostics", icon: <AlertTriangle className="size-3.5" /> },
+                { id: "json", label: "AST JSON", icon: <FileCode className="size-3.5" /> },
+                { id: "pipeline", label: "Pipeline", icon: <Layers className="size-3.5" /> },
+                { id: "stats", label: "Stats & Kualitas", icon: <BookOpen className="size-3.5" /> },
+              ].map((item) => (
+                <TabsTrigger key={item.id} value={item.id}>
+                  {item.icon}
+                  <span>{item.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
           {/* TAB CONTENTS */}
           <div className="flex-1 overflow-y-auto p-6">

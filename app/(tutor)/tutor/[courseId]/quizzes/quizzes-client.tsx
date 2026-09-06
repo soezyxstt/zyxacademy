@@ -256,14 +256,14 @@ export function QuizzesClient({ courseId, initialTemplates, initialQuestionBank 
   return (
     <div className="space-y-6">
       <Tabs defaultValue="templates" className="w-full">
-        <TabsList className="grid grid-cols-2 max-w-md bg-muted rounded-xl p-1 mb-6">
-          <TabsTrigger value="templates" className="rounded-lg font-semibold py-2 text-body-sm">
+        <TabsList>
+          <TabsTrigger value="templates">
             <ClipboardList className="size-4 mr-2" />
-            Kuis ({initialTemplates.length})
+            Kuis
           </TabsTrigger>
-          <TabsTrigger value="questionbank" className="rounded-lg font-semibold py-2 text-body-sm">
+          <TabsTrigger value="questionbank">
             <HelpCircle className="size-4 mr-2" />
-            Bank Soal ({initialQuestionBank.length})
+            Bank Soal
           </TabsTrigger>
         </TabsList>
 

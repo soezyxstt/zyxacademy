@@ -19,6 +19,7 @@ import type { ComprehensiveMeetingAnalytics } from "@/lib/google-meet";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { Button } from "@/components/ui/button";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 
 function sanitizeMeetError(rawError: string): string {
   if (rawError.includes("invalid_grant") || rawError.includes("OAuth") || rawError.includes("expired or revoked")) {
@@ -127,71 +128,19 @@ export default function DetailedMeetingLogPage({
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Overview Metric Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="size-4" />
-                <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Waktu & durasi
-                </span>
-              </div>
-              <p className="mt-2 font-heading text-h5 font-bold text-foreground">
-                {formatDurationSec(analytics.totalDurationSeconds)}
-              </p>
-              <p className="mt-1 text-body-xs text-muted-foreground">
-                {formatIsoDate(new Date(analytics.startTime))} ({formatTimeOnly(analytics.startTime)} - {formatTimeOnly(analytics.endTime)})
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <TrendingUp className="size-4 text-brand-primary" />
-                <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Peak peserta
-                </span>
-              </div>
-              <p className="mt-2 font-heading text-h5 font-bold text-brand-primary">
-                {analytics.peakConcurrentParticipants}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Users className="size-4" />
-                <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Total peserta
-                </span>
-              </div>
-              <p className="mt-2 font-heading text-h5 font-bold text-foreground">
-                {analytics.participantCount}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <PlayCircle className="size-4" />
-                <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Rekaman video
-                </span>
-              </div>
-              <p className="mt-2 font-heading text-h5 font-bold text-foreground">
-                {analytics.recordings.length}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MessageSquare className="size-4" />
-                <span className="text-body-xs font-semibold uppercase tracking-wider">
-                  Transkrip bicara
-                </span>
-              </div>
-              <p className="mt-2 font-heading text-h5 font-bold text-foreground">
-                {analytics.transcripts.reduce((acc, t) => acc + t.entries.length, 0)} baris
-              </p>
-            </div>
-          </div>
+          {/* Overview metric strip */}
+          <AdminStatStrip className="sm:grid-cols-2 lg:grid-cols-5">
+            <AdminStatStripItem
+              icon={Clock}
+              label="Waktu dan durasi"
+              value={formatDurationSec(analytics.totalDurationSeconds)}
+              caption={`${formatIsoDate(new Date(analytics.startTime))} (${formatTimeOnly(analytics.startTime)} - ${formatTimeOnly(analytics.endTime)})`}
+            />
+            <AdminStatStripItem icon={TrendingUp} label="Peak peserta" value={analytics.peakConcurrentParticipants} tone="brand" />
+            <AdminStatStripItem icon={Users} label="Total peserta" value={analytics.participantCount} />
+            <AdminStatStripItem icon={PlayCircle} label="Rekaman video" value={analytics.recordings.length} />
+            <AdminStatStripItem icon={MessageSquare} label="Transkrip bicara" value={`${analytics.transcripts.reduce((acc, t) => acc + t.entries.length, 0)} baris`} />
+          </AdminStatStrip>
 
           {/* Participant Log & Session Timeline Section */}
           <section className="space-y-4">

@@ -11435,6 +11435,8 @@
   },
   "workspace": {
     "dependencies": [
+      "npm:@aws-sdk/client-s3@^3.1071.0",
+      "npm:@aws-sdk/s3-request-presigner@^3.1071.0",
       "npm:@google/genai@^2.8.0",
       "npm:@libsql/client@~0.17.4",
       "npm:date-fns@^4.4.0",

@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import { getPkaRegistrationsAction } from "../actions";
 import { RegistrationsTab } from "../_components/registrations-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { AdminTabNav } from "@/components/admin/tab-nav";
+import { TabNav } from "@/components/ui/tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ export default async function TutorialPkaRegistrationsPage() {
         title="Pendaftar Tutorial PKA"
         description="Kelola pendaftar sesi review live Tutorial PKA."
       />
-      <AdminTabNav
+      <TabNav
         tabs={[
           { href: "/admin/tutorial-pka/registrations", label: "Pendaftar" },
           { href: "/admin/tutorial-pka/announcements", label: "Pengumuman" },

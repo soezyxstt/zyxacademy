@@ -1,6 +1,8 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { renderProductDiktatPdf, inspectProductDiktatPdf } from "@/lib/bundle/product-diktat-pdf";
+import { renderProductDiktatPdf } from "@/lib/bundle/product-diktat-pdf";
+import { inspectProductDiktatPdf } from "@/lib/compute/product-diktat-inspector";
+
 
 async function main() {
   console.log("=== Smoke Test: Zyx Diktat Renderer (Staging) ===");

@@ -10,7 +10,9 @@
     "worker:deno:dev": "deno run --allow-net --allow-env --allow-read workers/deno-background/main.ts",
     "worker:deno:check": "deno check workers/deno-background/main.ts",
     "worker:deno:audit": "bun scripts/audit-worker-dependencies.ts",
+    "audit:web-boundaries": "bun scripts/audit-web-boundaries.ts",
     "worker:deno:smoke": "deno run --env-file=.env --allow-net --allow-env --allow-read --allow-write --allow-ffi workers/deno-background/smoke.ts",
+
     "start": "next start",
     "preview": "NODE_OPTIONS=\"--max-old-space-size=4096\" next build --turbo && next start",
     "lint": "eslint",

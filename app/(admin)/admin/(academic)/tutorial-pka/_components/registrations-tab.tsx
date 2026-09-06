@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
 import { AdminTable } from "@/components/admin/table";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import {
   Dialog,
   DialogContent,
@@ -132,36 +133,6 @@ function toCsv(rows: PkaRegistrationRow[]): string {
   return [header.map(esc).join(","), ...lines].join("\n");
 }
 
-function Stat({
-  icon: Icon,
-  value,
-  label,
-  accent,
-}: {
-  icon: typeof Users;
-  value: number;
-  label: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <span
-        className={
-          accent
-            ? "flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary"
-            : "flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
-        }
-      >
-        <Icon className="size-4" />
-      </span>
-      <div>
-        <p className="font-heading text-h6 font-bold leading-none text-foreground">{value}</p>
-        <p className="mt-1 text-body-xs text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
-}
-
 export function RegistrationsTab({ registrations }: { registrations: PkaRegistrationRow[] }) {
   const [query, setQuery] = useState("");
   const [preview, setPreview] = useState<PkaRegistrationRow | null>(null);
@@ -245,13 +216,11 @@ export function RegistrationsTab({ registrations }: { registrations: PkaRegistra
   return (
     <div className="space-y-4">
       {/* Compact summary strip */}
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
-        <Stat icon={Users} value={registrations.length} label="Total pendaftar" />
-        <span className="hidden h-9 w-px bg-border sm:block" />
-        <Stat icon={BellRing} value={optedIn} label="Berlangganan pengumuman" accent />
-        <span className="hidden h-9 w-px bg-border sm:block" />
-        <Stat icon={GraduationCap} value={facultyCount} label="Fakultas berbeda" />
-      </div>
+      <AdminStatStrip className="sm:grid-cols-3">
+        <AdminStatStripItem icon={Users} value={registrations.length} label="Total pendaftar" />
+        <AdminStatStripItem icon={BellRing} value={optedIn} label="Berlangganan pengumuman" tone="brand" />
+        <AdminStatStripItem icon={GraduationCap} value={facultyCount} label="Fakultas berbeda" />
+      </AdminStatStrip>
 
       {/* Controls */}
       <div className="flex items-center gap-2">

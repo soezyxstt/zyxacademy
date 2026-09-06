@@ -27,12 +27,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { SearchBar } from "@/components/ui/search-bar";
 import {
-  AdminTabs,
-  AdminTabsList,
-  AdminTabsTrigger,
-  AdminTabsContent,
-} from "@/components/admin/tabs";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import {
@@ -107,7 +107,7 @@ export function TutorScheduleView({
 }: TutorScheduleViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [activeTab, setActiveTab] = useState("calendar");
+  const [activeTab, setActiveTab] = useUrlTab("tab", "calendar");
   const [weekOffset, setWeekOffset] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDayFilter, setSelectedDayFilter] = useState<string>("all");
@@ -415,7 +415,6 @@ export function TutorScheduleView({
   };
 
   const unbookedSlots = initialData.ownedSlots.filter((s) => !s.booking);
-  const pendingTickets = initialData.ownedTickets.filter((t) => t.status === "pending");
 
   return (
     <div className="space-y-6">
@@ -455,33 +454,6 @@ export function TutorScheduleView({
           </div>
         }
       />
-
-      {/* Grouped KPI Strip */}
-      <AdminStatStrip className="sm:grid-cols-4">
-        <AdminStatStripItem
-          label="Slot Tersedia"
-          value={unbookedSlots.length}
-          caption={`${initialData.ownedSlots.length} total`}
-          icon={CalendarDays}
-          tone="brand"
-        />
-        <AdminStatStripItem
-          label="Sesi Terjadwal"
-          value={initialData.ownedBookings.length}
-          icon={BookOpen}
-        />
-        <AdminStatStripItem
-          label="Tiket Pending"
-          value={pendingTickets.length}
-          icon={ShieldCheck}
-          tone={pendingTickets.length > 0 ? "warning" : "default"}
-        />
-        <AdminStatStripItem
-          label="Kelompok Aktif"
-          value={initialData.eligibleGroups.length}
-          icon={Users}
-        />
-      </AdminStatStrip>
 
       {/* Feedback Banner */}
       {feedback && (
@@ -571,27 +543,27 @@ export function TutorScheduleView({
       )}
 
       {/* Tabs */}
-      <AdminTabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <AdminTabsList>
-          <AdminTabsTrigger value="calendar">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="calendar">
             Kalender
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="tickets">
-            Tiket ({initialData.ownedTickets.length})
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="groups">
+          </TabsTrigger>
+          <TabsTrigger value="tickets">
+            Tiket
+          </TabsTrigger>
+          <TabsTrigger value="groups">
             Kelas & Kelompok
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="slots">
-            Daftar Slot ({initialData.ownedSlots.length})
-          </AdminTabsTrigger>
-          <AdminTabsTrigger value="sessions">
-            Daftar Sesi ({initialData.ownedBookings.length})
-          </AdminTabsTrigger>
-        </AdminTabsList>
+          </TabsTrigger>
+          <TabsTrigger value="slots">
+            Daftar Slot
+          </TabsTrigger>
+          <TabsTrigger value="sessions">
+            Daftar Sesi
+          </TabsTrigger>
+        </TabsList>
 
         {/* Tab 0: Kalender (Default) */}
-        <AdminTabsContent value="calendar" className="space-y-4">
+        <TabsContent value="calendar" className="space-y-4">
           <ScheduleCalendarView
             role="teacher"
             currentUserId={currentUserId}
@@ -616,10 +588,10 @@ export function TutorScheduleView({
             onOpenPostSession={setActivePostSessionBooking}
             onOpenAuditLog={setActiveAuditLogBooking}
           />
-        </AdminTabsContent>
+        </TabsContent>
 
         {/* Tab 1: Slots */}
-        <AdminTabsContent value="slots" className="space-y-3">
+        <TabsContent value="slots" className="space-y-3">
           {filteredSlots.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card">
               <AdminEmptyState
@@ -707,10 +679,10 @@ export function TutorScheduleView({
               })}
             </div>
           )}
-        </AdminTabsContent>
+        </TabsContent>
 
         {/* Tab 2: Sessions */}
-        <AdminTabsContent value="sessions" className="space-y-3">
+        <TabsContent value="sessions" className="space-y-3">
           {filteredBookings.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card">
               <AdminEmptyState
@@ -798,10 +770,10 @@ export function TutorScheduleView({
               ))}
             </div>
           )}
-        </AdminTabsContent>
+        </TabsContent>
 
         {/* Tab 3: Tickets */}
-        <AdminTabsContent value="tickets" className="space-y-3">
+        <TabsContent value="tickets" className="space-y-3">
           {filteredTickets.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-card">
               <AdminEmptyState
@@ -959,10 +931,10 @@ export function TutorScheduleView({
               })}
             </div>
           )}
-        </AdminTabsContent>
+        </TabsContent>
 
         {/* Tab 4: Groups & Courses */}
-        <AdminTabsContent value="groups" className="space-y-4">
+        <TabsContent value="groups" className="space-y-4">
           <div className="space-y-3">
             <h2 className="font-heading text-body-base font-bold text-foreground">
               Mata Kuliah Ditugaskan
@@ -1026,8 +998,8 @@ export function TutorScheduleView({
               )}
             </div>
           </div>
-        </AdminTabsContent>
-      </AdminTabs>
+        </TabsContent>
+      </Tabs>
 
       {/* Dialog 1: Add Slot */}
       <Dialog

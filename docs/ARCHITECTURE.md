@@ -1108,8 +1108,20 @@ Browser / Client
 
 ### Architectural Principles
 
-1. **Vercel Remains Primary Web Tier**: Deno Deploy is never a second general backend. Deno Deploy exposes only `/health` and `/api/inngest` via Hono. It does not serve SSR pages, handle user sessions, or duplicate Next.js routing.
-2. **Zero Framework Dependencies in Jobs**: All background functions under `jobs/*` and their transitively imported modules in `lib/*` must be strictly framework-neutral. They have zero imports of `next/*`, `@t3-oss/env-nextjs`, `react`, `puppeteer`, or Node native C++ binary addons.
-3. **Automated Dependency Guard**: Static verification via `bun run worker:deno:audit` audits the entire dependency graph of `jobs/index.ts` in CI and CD before any worker deployment.
-4. **Asynchronous Enqueue Pattern**: Endpoints with heavy compute or AI inference (such as `/api/quiz/attempts/[id]/analytics`) never execute synchronously on Vercel. They record initial state, emit an Inngest event, and return HTTP `202 Accepted`. Clients poll or receive updates through standard polling patterns.
-5. **Deno Deploy CLI**: Deployment uses the official `deno deploy --non-interactive --org soezyxst --app zyx-background` CLI, driven by GitHub Actions with `DENO_DEPLOY_TOKEN`.
+1. **Vercel Remains Primary Web Tier**: Deno Deploy is never a second general backend. Deno Deploy exposes `/health`, `/api/inngest`, and protected `/internal/*` RPC endpoints via Hono. It does not serve SSR pages, handle user sessions, or duplicate Next.js routing.
+2. **Physical Inngest Entrypoint Split**:
+   - Vercel Web Tier: `app/api/inngest/route.ts` registers `webFunctions` from `@/jobs/web` (empty array for web runtime).
+   - Deno Compute Tier: `workers/deno-background/main.ts` registers `computeFunctions` from `@/jobs/compute` (executes all heavy workers).
+   - `jobs/index.ts` is permanently removed to prevent accidental bundler leakage between tiers.
+3. **Dedicated Compute RPC Endpoints**:
+   - `POST /internal/pdf/pages`: Accepts `{ storageKey, pages }`, downloads PDF directly from R2 on Deno, parses text and page dimensions, and returns `{ totalPages, pages }`.
+   - `POST /internal/authoring/source-pack/resolve`: Accepts Source Pack metadata and stored originals, downloads PDFs directly from R2 on Deno, verifies checksums, and runs full Source Pack validation without buffering large binaries on Vercel.
+   - Endpoints require `Bearer` token matching `COMPUTE_SERVICE_SECRET`.
+4. **Asynchronous PDF Thumbnail Pipeline**:
+   - Course material and Diktat thumbnails use event `pdf/thumbnail.requested` with deterministic ID `thumbnail-${materialId}-${sourceVersion}`.
+   - The web tier route immediately returns an SVG placeholder or redirects to ready WebP assets, never executing `sharp` or `pdf-parse` synchronously.
+   - Deno worker downloads the PDF, extracts the cover, runs native `sharp` to produce WebP, uploads to R2, and updates the database.
+5. **Bidirectional Static Boundary Audits**:
+   - `bun run worker:deno:audit`: Scans the entire dependency graph of `jobs/compute.ts` to ensure zero Next.js, React, or framework leaks.
+   - `bun run audit:web-boundaries`: Scans `app/**` to guarantee zero imports of `sharp`, `pdf-parse`, `puppeteer`, or compute workers in the Vercel web tier.
+6. **Deno Deploy CLI**: Deployment uses the official `deno deploy --non-interactive --org soezyxst --app zyx-background` CLI, driven by GitHub Actions with `DENO_DEPLOY_TOKEN`.

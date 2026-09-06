@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -24,6 +24,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchBar } from "@/components/ui/search-bar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { cn } from "@/lib/utils";
 import type { CourseMaterial, DocCategory } from "@/lib/student-course-fixtures";
 import { getSubcategoryLabel, type CourseMaterialSubcategory } from "@/lib/course-materials";
@@ -36,6 +38,7 @@ type DocumentListClientProps = {
   courseId: string;
   materials: CourseMaterial[];
   chapters: Chapter[];
+  defaultTab?: string;
 };
 
 const tabConfig: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
@@ -58,6 +61,13 @@ const emptyFilters = (): DocumentFilterState => ({
   chapters: new Set(),
   years: new Set(),
 });
+
+function normalizeTabKey(tab?: string | null): TabKey {
+  if (tab === "diktat") return "diktat";
+  if (tab === "pdf") return "pdf";
+  if (tab === "bank_soal" || tab === "bank-soal") return "bank_soal";
+  return "materi";
+}
 
 function resolveTabGroup(material: CourseMaterial): TabKey {
   if (material.tabGroup) return material.tabGroup;
@@ -400,27 +410,29 @@ function PdfViewerModal({
   );
 }
 
-export function DocumentListClient({ courseId, materials, chapters }: DocumentListClientProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("materi");
+export function DocumentListClient({
+  courseId,
+  materials,
+  chapters,
+  defaultTab = "materi",
+}: DocumentListClientProps) {
+  const initialDefaultTab = normalizeTabKey(defaultTab);
+  const [urlTab, setUrlTab] = useUrlTab("tab", initialDefaultTab);
+  const activeTab: TabKey = normalizeTabKey(urlTab);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<DocumentFilterState>(emptyFilters);
   const [selectedPdf, setSelectedPdf] = useState<CourseMaterial | null>(null);
 
-  // Dynamic counts for each tab
-  const tabCounts = useMemo(() => {
-    const counts: Record<TabKey, number> = {
-      materi: 0,
-      diktat: 0,
-      pdf: 0,
-      bank_soal: 0,
-    };
-    for (const m of materials) {
-      const tab = resolveTabGroup(m);
-      counts[tab] = (counts[tab] || 0) + 1;
+  // Sync filter and search state when tab changes (including browser back/forward)
+  const prevTabRef = useRef(activeTab);
+  useEffect(() => {
+    if (prevTabRef.current !== activeTab) {
+      prevTabRef.current = activeTab;
+      setFilters(emptyFilters());
+      setSearchQuery("");
     }
-    return counts;
-  }, [materials]);
+  }, [activeTab]);
 
   // Filter materials for current active tab
   const tabMaterials = useMemo(() => {
@@ -468,7 +480,7 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
   };
 
   const handleTabChange = (tab: TabKey) => {
-    setActiveTab(tab);
+    setUrlTab(tab);
     setFilters(emptyFilters());
     setSearchQuery("");
   };
@@ -477,36 +489,19 @@ export function DocumentListClient({ courseId, materials, chapters }: DocumentLi
     <div className="space-y-3 font-sans">
       {/* Unified Toolbar: Tab Strip, SearchBar, Filter Popover, Grid/List Toggle */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Navigation Tabs Pill (Matching admin/schedules) */}
-        <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border flex-wrap">
-          {tabConfig.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.key;
-            const count = tabCounts[tab.key];
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => handleTabChange(tab.key)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-body-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
-                  isActive
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Icon className="size-3.5 shrink-0" />
-                <span>{tab.label}</span>
-                <Badge
-                  variant={isActive ? "secondary" : "outline"}
-                  className="text-[10px] px-1.5 py-0 h-4 rounded-md"
-                >
-                  {count}
-                </Badge>
-              </button>
-            );
-          })}
-        </div>
+        <Tabs value={activeTab} onValueChange={(value) => handleTabChange(normalizeTabKey(value))}>
+          <TabsList aria-label="Kategori materi belajar">
+            {tabConfig.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger key={tab.key} value={tab.key}>
+                  <Icon className="size-3.5 shrink-0" />
+                  <span>{tab.label}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
 
         {/* Search Bar */}
         <SearchBar

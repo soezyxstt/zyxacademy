@@ -24,7 +24,7 @@ export default async function MaterialReviewPage({ searchParams }: Props) {
     <MaterialWorkspace
       {...data}
       mode="review"
-      initialReviewTab={params.section === "product" ? "product" : "idea"}
+      initialReviewTab={params.section === "product" ? "product" : params.section === "catalog" ? "catalog" : "idea"}
     />
   );
 }

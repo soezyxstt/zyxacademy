@@ -16,11 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import {
-  AdminTabs,
-  AdminTabsContent,
-  AdminTabsList,
-  AdminTabsTrigger,
-} from "@/components/admin/tabs";
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 import { ChaptersTab } from "./chapters-tab";
 import { MaterialsTab } from "./materials-tab";
@@ -137,40 +137,40 @@ export function CourseDetailClient({
       )}
 
       {/* Tabs Navigation and Contents */}
-      <AdminTabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <AdminTabsList className="w-full flex flex-wrap justify-start gap-1 p-1 bg-muted/60 border border-border rounded-xl">
-          <AdminTabsTrigger value="chapters" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList>
+          <TabsTrigger value="chapters">
             <Layers className="size-3.5" />
-            <span>Bab ({chapters.length})</span>
-          </AdminTabsTrigger>
+            <span>Bab</span>
+          </TabsTrigger>
 
-          <AdminTabsTrigger value="materials" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
+          <TabsTrigger value="materials">
             <FileText className="size-3.5" />
-            <span>Dokumen ({materials.length})</span>
-          </AdminTabsTrigger>
+            <span>Dokumen</span>
+          </TabsTrigger>
 
-          <AdminTabsTrigger value="quizzes" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
+          <TabsTrigger value="quizzes">
             <NotebookPen className="size-3.5" />
-            <span>Kuis ({quizzes.length})</span>
-          </AdminTabsTrigger>
+            <span>Kuis</span>
+          </TabsTrigger>
 
-          <AdminTabsTrigger value="questions" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
+          <TabsTrigger value="questions">
             <Library className="size-3.5" />
-            <span>Soal ({questions.length})</span>
-          </AdminTabsTrigger>
+            <span>Soal</span>
+          </TabsTrigger>
 
-          <AdminTabsTrigger value="analytics" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
+          <TabsTrigger value="analytics">
             <BarChart3 className="size-3.5" />
             <span>Hasil</span>
-          </AdminTabsTrigger>
+          </TabsTrigger>
 
-          <AdminTabsTrigger value="settings" className="gap-1.5 px-2.5 py-1.5 font-semibold rounded-lg">
+          <TabsTrigger value="settings">
             <Settings className="size-3.5" />
             <span>Pengaturan</span>
-          </AdminTabsTrigger>
-        </AdminTabsList>
+          </TabsTrigger>
+        </TabsList>
 
-        <AdminTabsContent value="chapters">
+        <TabsContent value="chapters">
           <ChaptersTab
             courseId={course.id}
             courseTitle={course.title}
@@ -178,18 +178,18 @@ export function CourseDetailClient({
             materials={materials}
             questions={questions}
           />
-        </AdminTabsContent>
+        </TabsContent>
 
-        <AdminTabsContent value="materials">
+        <TabsContent value="materials">
           <MaterialsTab
             courseId={course.id}
             courseTitle={course.title}
             chapters={chapters}
             initialMaterials={materials}
           />
-        </AdminTabsContent>
+        </TabsContent>
 
-        <AdminTabsContent value="quizzes">
+        <TabsContent value="quizzes">
           <QuizzesTab
             courseId={course.id}
             courseSlug={course.id}
@@ -197,19 +197,19 @@ export function CourseDetailClient({
             chapters={chapters}
             initialQuizzes={quizzes}
           />
-        </AdminTabsContent>
+        </TabsContent>
 
 
-        <AdminTabsContent value="questions">
+        <TabsContent value="questions">
           <QuestionsTab
             courseId={course.id}
             courseTitle={course.title}
             chapters={chapters}
             initialQuestions={questions}
           />
-        </AdminTabsContent>
+        </TabsContent>
 
-        <AdminTabsContent value="analytics">
+        <TabsContent value="analytics">
           <AnalyticsTab
             courseId={course.id}
             courseTitle={course.title}
@@ -220,12 +220,12 @@ export function CourseDetailClient({
               passRate: stats.passRate,
             }}
           />
-        </AdminTabsContent>
+        </TabsContent>
 
-        <AdminTabsContent value="settings">
+        <TabsContent value="settings">
           <SettingsTab course={course} />
-        </AdminTabsContent>
-      </AdminTabs>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

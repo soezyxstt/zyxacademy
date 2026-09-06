@@ -34,15 +34,17 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       imporBundleId: id,
     });
 
-    const [pedagogicReviewRow] = await db
-      .select()
-      .from(reviewPedagogiBundle)
-      .where(eq(reviewPedagogiBundle.imporBundleId, id))
-      .orderBy(desc(reviewPedagogiBundle.createdAt))
-      .limit(1);
+    let pedagogicReview = null;
+    try {
+      const [pedagogicReviewRow] = await db
+        .select()
+        .from(reviewPedagogiBundle)
+        .where(eq(reviewPedagogiBundle.imporBundleId, id))
+        .orderBy(desc(reviewPedagogiBundle.createdAt))
+        .limit(1);
 
-    const pedagogicReview = pedagogicReviewRow
-      ? {
+      if (pedagogicReviewRow) {
+        pedagogicReview = {
           id: pedagogicReviewRow.id,
           status: pedagogicReviewRow.status,
           policyVersion: pedagogicReviewRow.policyVersion,
@@ -59,26 +61,37 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
               : [],
           notes: pedagogicReviewRow.notes,
           createdAt: pedagogicReviewRow.createdAt,
-        }
-      : null;
+        };
+      }
+    } catch {
+      // Table may not exist yet in unmigrated environment
+    }
 
-    const [pdfEvidenceRow] = await db
-      .select()
-      .from(buktiPdfBundle)
-      .where(eq(buktiPdfBundle.imporBundleId, id))
-      .orderBy(desc(buktiPdfBundle.createdAt))
-      .limit(1);
+    let pdfStatus: { id?: string; status: string; productId?: string; pageCount?: number | null; failureCode?: string | null; createdAt?: Date | null; message?: string } = {
+      status: "pending",
+      message: "Belum ada bukti PDF",
+    };
+    try {
+      const [pdfEvidenceRow] = await db
+        .select()
+        .from(buktiPdfBundle)
+        .where(eq(buktiPdfBundle.imporBundleId, id))
+        .orderBy(desc(buktiPdfBundle.createdAt))
+        .limit(1);
 
-    const pdfStatus = pdfEvidenceRow
-      ? {
+      if (pdfEvidenceRow) {
+        pdfStatus = {
           id: pdfEvidenceRow.id,
           status: pdfEvidenceRow.status,
           productId: pdfEvidenceRow.productId,
           pageCount: pdfEvidenceRow.pageCount,
           failureCode: pdfEvidenceRow.failureCode,
           createdAt: pdfEvidenceRow.createdAt,
-        }
-      : { status: "pending", message: "Belum ada bukti PDF" };
+        };
+      }
+    } catch {
+      // Table may not exist yet in unmigrated environment
+    }
 
     const article = bundle.products.find((p) => p.productType === "article");
     const diktat = bundle.products.find((p) => p.productType === "diktat");

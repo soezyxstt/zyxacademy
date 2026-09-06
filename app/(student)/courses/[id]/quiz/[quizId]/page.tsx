@@ -24,6 +24,7 @@ import { normalizeDate } from "@/lib/date-utils";
 import { ZyraMark } from "@/components/course/zyra-mark";
 import { QuestionSourceCitation } from "@/components/course/question-source-citation";
 import { getCourse } from "@/lib/course-utils";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 
 type Props = {
   params: Promise<{ id: string; quizId: string }>;
@@ -461,47 +462,21 @@ export default async function CourseQuizTakePage({ params, searchParams }: Props
             </div>
 
             {targetAttempt && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 rounded-xl border border-border/60 bg-card/40 p-5 backdrop-blur-md">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-                    <Award className="size-5" />
-                  </div>
-                  <div>
-                    <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Skor Akhir</span>
-                    <span className="font-heading text-h5 font-bold text-foreground">{targetAttempt.score}%</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-tertiary-1/10 text-tertiary-1">
-                    <Clock className="size-5" />
-                  </div>
-                  <div>
-                    <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Waktu Pengerjaan</span>
-                    <span className="font-heading text-h6 font-bold text-foreground">{formatDuration(targetAttempt.durationSeconds)}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-secondary/10 text-brand-secondary">
-                    <Calendar className="size-5" />
-                  </div>
-                  <div>
-                    <span className="block text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">Dikumpulkan Pada</span>
-                    <span className="font-heading text-body-sm font-semibold text-foreground">
-                      {targetAttempt.submittedAt ? (
-                        <FormattedDate
-                          date={targetAttempt.submittedAt}
-                          options={{
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          }}
-                        />
-                      ) : (
-                        "-"
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <AdminStatStrip className="sm:grid-cols-3">
+                <AdminStatStripItem icon={Award} label="Skor akhir" value={`${targetAttempt.score}%`} tone="brand" />
+                <AdminStatStripItem icon={Clock} label="Waktu pengerjaan" value={formatDuration(targetAttempt.durationSeconds)} tone="info" />
+                <AdminStatStripItem
+                  icon={Calendar}
+                  label="Dikumpulkan pada"
+                  value={targetAttempt.submittedAt ? (
+                    <FormattedDate
+                      date={targetAttempt.submittedAt}
+                      options={{ dateStyle: "medium", timeStyle: "short" }}
+                    />
+                  ) : "-"}
+                  tone="brand-secondary"
+                />
+              </AdminStatStrip>
             )}
 
             {!targetAttempt && (

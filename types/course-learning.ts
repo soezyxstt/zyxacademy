@@ -50,3 +50,29 @@ export interface CourseDailyPlan {
   streakDays: number;
   weakestConcept: string | null;
 }
+
+export interface CourseAttentionItem {
+  kind: "flashcard" | "weak-concept";
+  label: string;
+  actionLabel: string;
+  href: string;
+}
+
+export interface CourseAttentionData {
+  items: CourseAttentionItem[];
+}
+
+export interface CourseOverviewActionCard {
+  tag: string;
+  title: string;
+  meta: string;
+  actionLabel: string;
+  href: string;
+}
+
+export interface CourseOverviewData {
+  reading: CourseOverviewActionCard;
+  quiz: CourseOverviewActionCard;
+  schedule: CourseOverviewActionCard;
+  attention: CourseAttentionData | null;
+}

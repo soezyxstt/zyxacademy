@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { FileText } from "lucide-react";
 import { CoursePageShell } from "@/components/course/course-page-shell";
@@ -13,7 +14,10 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { getCanonicalPublishedArticlesForCourse } from "@/lib/articles/structured-repository";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ tab?: string }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -27,8 +31,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function CourseMaterialListPage({ params }: Props) {
+export default async function CourseMaterialListPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const initialTab = resolvedSearchParams?.tab;
   const course = await getCourse(id);
   if (!course) return null;
   const compatibilityCourseId = course.legacyId ?? id;
@@ -428,7 +434,14 @@ function sanitizeMaterialTitle(rawTitle: string): string {
       icon={FileText}
     >
       <Reveal>
-        <DocumentListClient courseId={id} materials={allMaterials} chapters={courseChapters} />
+        <Suspense fallback={null}>
+          <DocumentListClient
+            courseId={id}
+            materials={allMaterials}
+            chapters={courseChapters}
+            defaultTab={initialTab}
+          />
+        </Suspense>
       </Reveal>
     </CoursePageShell>
   );

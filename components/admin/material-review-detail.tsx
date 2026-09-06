@@ -10,10 +10,12 @@ import {
   ChevronLeft,
   ChevronRight,
   FileCheck2,
+  FileText,
   Info,
   Layers,
   Lightbulb,
   ListFilter,
+  Loader2,
   MessageSquareText,
   MoreHorizontal,
   RotateCcw,
@@ -21,6 +23,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
+import { toast } from "@/components/ui/toast";
 import { DropdownMenu } from "radix-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +34,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/state-panels";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUrlTab } from "@/hooks/use-url-tab";
 import { StatusBadge } from "@/components/admin/status-badges";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { FormattedDate } from "@/components/ui/formatted-date";
@@ -1466,24 +1470,40 @@ function LegacyArticleProductView({
   );
 }
 
-function ArticleProductView(props: Parameters<typeof LegacyArticleProductView>[0] & { structuredEnabled?: boolean }) {
+export function ArticleProductView(props: Parameters<typeof LegacyArticleProductView>[0] & { structuredEnabled?: boolean }) {
   if (props.structuredEnabled && props.product.sections.length > 0) {
     return <StructuredArticleProductView product={props.product} bundleId={props.bundleId} bundleStatus={props.bundleStatus} reviewLocked={props.reviewLocked ?? false} itemReviews={props.blockReviews ?? []} onReviewChange={props.onBlockReviewChange} dependencies={props.dependencies ?? []} />;
   }
   return <LegacyArticleProductView {...props} />;
 }
 
-function DiktatProductView({
+export function DiktatProductView({
   product,
   dependencies = [],
+  bundleId,
+  pdfStatus,
+  onPdfRendered,
 }: {
-  product: Extract<ProductEntity, { productType: "diktat" }>;
+  product: Extract<ProductEntity, { productType: "diktat" }> | {
+    id: string;
+    productType?: "diktat";
+    title: string;
+    contentMarkdown: string;
+    sourceArticleId?: string;
+    sourceArticleVersion?: number;
+    fileKey?: string | null;
+  };
   dependencies?: ProductDependency[];
+  bundleId?: string;
+  pdfStatus?: { status: string; pageCount?: number | null };
+  onPdfRendered?: () => void;
 }) {
+  const [rendering, setRendering] = useState(false);
+  const [renderedKey, setRenderedKey] = useState<string | null>(product.fileKey ?? null);
   const parsed = parseEmbeddedContent(product.contentMarkdown);
 
   const matchingDep = dependencies.find(
-    (dep) => dep.downstreamEntityId === product.id || dep.upstreamEntityId === product.sourceArticleId
+    (dep) => dep.downstreamEntityId === product.id || (product.sourceArticleId && dep.upstreamEntityId === product.sourceArticleId)
   );
 
   const freshnessLabels: Record<string, string> = {
@@ -1498,6 +1518,39 @@ function DiktatProductView({
     STALE: "error",
   };
 
+  const hasPdf = Boolean(renderedKey || product.fileKey || pdfStatus?.status === "ready");
+  const pdfViewUrl = bundleId
+    ? `/api/admin/bundles/product/${encodeURIComponent(bundleId)}/pdf`
+    : `/api/admin/diktats/${encodeURIComponent(product.id)}/pdf`;
+
+  const handleRenderPdf = async () => {
+    setRendering(true);
+    try {
+      if (bundleId) {
+        const res = await fetch(`/api/admin/bundles/product/${encodeURIComponent(bundleId)}/pdf`, { method: "POST" });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || "Gagal mengantrekan render PDF");
+        }
+        toast.success("Permintaan render PDF berhasil dikirim.");
+        onPdfRendered?.();
+      } else {
+        const res = await fetch(`/api/admin/diktats/${encodeURIComponent(product.id)}/pdf`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "Gagal merender PDF diktat");
+        }
+        setRenderedKey(data.fileKey);
+        toast.success("PDF diktat berhasil dirender.");
+        onPdfRendered?.();
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal memproses render PDF");
+    } finally {
+      setRendering(false);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       {/* Meta Header */}
@@ -1505,18 +1558,61 @@ function DiktatProductView({
         <div>
           <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Diktat PDF Ringkas</span>
           <h3 className="mt-0.5 font-heading text-body-base font-bold text-foreground">{product.title}</h3>
-          <p className="mt-1 text-body-xs text-muted-foreground">
-            Artikel sumber: <span className="font-mono font-semibold text-foreground">{product.sourceArticleId}</span> (v{product.sourceArticleVersion})
-          </p>
+          {product.sourceArticleId ? (
+            <p className="mt-1 text-body-xs text-muted-foreground">
+              Artikel sumber: <span className="font-mono font-semibold text-foreground">{product.sourceArticleId}</span> (v{product.sourceArticleVersion})
+            </p>
+          ) : (
+            <p className="mt-1 text-body-xs text-muted-foreground font-mono">
+              ID: {product.id}
+            </p>
+          )}
         </div>
-        {matchingDep && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-body-xs text-muted-foreground">Dependensi:</span>
-            <StatusBadge tone={freshnessTones[matchingDep.freshness] ?? "muted"}>
-              {freshnessLabels[matchingDep.freshness] ?? matchingDep.freshness}
-            </StatusBadge>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {matchingDep && (
+            <div className="flex items-center gap-1.5 mr-2">
+              <span className="text-body-xs text-muted-foreground">Dependensi:</span>
+              <StatusBadge tone={freshnessTones[matchingDep.freshness] ?? "muted"}>
+                {freshnessLabels[matchingDep.freshness] ?? matchingDep.freshness}
+              </StatusBadge>
+            </div>
+          )}
+
+          {hasPdf && (
+            <Button asChild type="button" size="sm" variant="outline" className="gap-1.5 h-8 text-body-xs">
+              <a href={pdfViewUrl} target="_blank" rel="noreferrer">
+                <FileText className="size-3.5" />
+                Pratinjau PDF
+              </a>
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            size="sm"
+            variant={hasPdf ? "outline" : "default"}
+            disabled={rendering}
+            onClick={() => void handleRenderPdf()}
+            className="gap-1.5 h-8 text-body-xs"
+          >
+            {rendering ? (
+              <>
+                <Loader2 className="size-3.5 animate-spin" />
+                Merender...
+              </>
+            ) : hasPdf ? (
+              <>
+                <RotateCcw className="size-3.5" />
+                Render ulang PDF
+              </>
+            ) : (
+              <>
+                <FileText className="size-3.5" />
+                Render PDF
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Diktat Content in Compact Mode */}
@@ -1529,7 +1625,7 @@ function DiktatProductView({
   );
 }
 
-function FlashcardProductView({ product }: { product: Extract<ProductEntity, { productType: "flashcard" }> }) {
+export function FlashcardProductView({ product }: { product: Extract<ProductEntity, { productType: "flashcard" }> | { id: string; front: string; back: string; explanation?: string | null } }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const parsedFront = parseEmbeddedContent(product.front);
   const parsedBack = parseEmbeddedContent(product.back);
@@ -1640,7 +1736,13 @@ function FlashcardSetProductView({ product, allProducts, onSelectCard }: { produ
   );
 }
 
-function QuestionProductView({ product }: { product: Extract<ProductEntity, { productType: "question" }> }) {
+export function QuestionProductView({ product }: { product: Extract<ProductEntity, { productType: "question" }> | {
+  prompt: string;
+  options: { id: string; text: string; isCorrect: boolean }[];
+  difficulty: "easy" | "medium" | "hard";
+  cognitiveLevel: "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create";
+  itbSource?: { eventName: string; referenceId: string };
+} }) {
   const promptParsed = parseEmbeddedContent(product.prompt);
   const difficultyLabels: Record<string, string> = { easy: "Mudah", medium: "Sedang", hard: "Sulit" };
   const difficultyTones: Record<string, "success" | "warning" | "error"> = { easy: "success", medium: "warning", hard: "error" };
@@ -1651,8 +1753,14 @@ function QuestionProductView({ product }: { product: Extract<ProductEntity, { pr
       {/* Compact ITB Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
-          <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{product.itbSource.eventName}</span>
-          <p className="text-body-xs text-muted-foreground">Ref: <span className="font-mono font-semibold text-foreground">{product.itbSource.referenceId}</span></p>
+          {product.itbSource ? (
+            <>
+              <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">{product.itbSource.eventName}</span>
+              <p className="text-body-xs text-muted-foreground">Ref: <span className="font-mono font-semibold text-foreground">{product.itbSource.referenceId}</span></p>
+            </>
+          ) : (
+            <span className="text-body-xs font-semibold uppercase tracking-wider text-brand-primary">Bank Soal</span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <StatusBadge tone={difficultyTones[product.difficulty] ?? "muted"}>
@@ -1731,7 +1839,12 @@ function SolutionProductView({ product }: { product: Extract<ProductEntity, { pr
   );
 }
 
-function AssessmentBlueprintProductView({ product }: { product: Extract<ProductEntity, { productType: "assessment_blueprint" }> }) {
+export function AssessmentBlueprintProductView({ product }: { product: Extract<ProductEntity, { productType: "assessment_blueprint" }> | {
+  title: string;
+  assessmentType: string;
+  chapterIds: string[];
+  questionIds: string[];
+} }) {
   return (
     <div className="space-y-4">
       <div className="border-b border-border pb-3">
@@ -1953,7 +2066,7 @@ function PedagogicReviewPanel({
 export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: DetailProps) {
   const [payload, setPayload] = useState<ProductDetailPayload | null>(null);
   const [draftProducts, setDraftProducts] = useState<ProductEntity[]>([]);
-  const [activeType, setActiveType] = useState("all");
+  const [activeType, setActiveType] = useUrlTab("productType", "all");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -2176,16 +2289,16 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
       </div>
 
       {/* Tabs & Compact Navigator Header (No Select dropdown, Stepper + Searchable Sheet naming active product) */}
-      <AdminTabs value={activeType} onValueChange={handleTypeTabChange}>
+      <Tabs value={activeType} onValueChange={handleTypeTabChange}>
         <div className="space-y-2.5">
-          <AdminTabsList className="max-w-full overflow-x-auto">
-            <AdminTabsTrigger value="all">Semua ({payload.previews.length})</AdminTabsTrigger>
-            {Object.entries(typeCounts).map(([type, count]) => (
-              <AdminTabsTrigger key={type} value={type}>
-                {productLabels[type] ?? type} ({count})
-              </AdminTabsTrigger>
+          <TabsList>
+            <TabsTrigger value="all">Semua</TabsTrigger>
+            {Object.entries(typeCounts).map(([type]) => (
+              <TabsTrigger key={type} value={type}>
+                {productLabels[type] ?? type}
+              </TabsTrigger>
             ))}
-          </AdminTabsList>
+          </TabsList>
 
           {/* Stepper + Active Product Searchable Sheet Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 p-2 shadow-xs">
@@ -2267,7 +2380,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
           </div>
         </div>
 
-        <AdminTabsContent value={activeType} className="mt-4">
+        <TabsContent value={activeType} className="mt-4">
           {/* 100% Canvas Width for Content Review */}
           {activePreview ? (
             <article key={activePreview.id} className="rounded-xl border border-border bg-card p-5 sm:p-7 shadow-xs space-y-5">
@@ -2315,6 +2428,9 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
                     <DiktatProductView
                       product={activeDraftProduct}
                       dependencies={payload.dependencies}
+                      bundleId={payload.bundle.id}
+                      pdfStatus={payload.pdfStatus}
+                      onPdfRendered={load}
                     />
                   )}
                   {activeDraftProduct.productType === "flashcard" && (
@@ -2360,8 +2476,8 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
           ) : (
             <AdminEmptyState title="Bagian belum tersedia" description="Tidak ada bagian yang cocok dengan filter." />
           )}
-        </AdminTabsContent>
-      </AdminTabs>
+        </TabsContent>
+      </Tabs>
 
       {payload.bundle.status === "draft" && (
         <PedagogicReviewPanel payload={payload} saving={saving} onSubmit={(submission) => void decide(submission)} onRefresh={load} />

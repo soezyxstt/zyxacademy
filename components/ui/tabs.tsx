@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { Tabs as TabsPrimitive } from "radix-ui";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useUrlTab } from "@/hooks/use-url-tab";
 
@@ -9,6 +11,12 @@ type TabsProps = React.ComponentProps<typeof TabsPrimitive.Root> & {
   paramKey?: string;
   syncUrl?: boolean;
 };
+
+const tabListClassName =
+  "inline-flex h-auto max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-muted/40 p-1 text-muted-foreground";
+const tabTriggerClassName =
+  "interactive inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-body-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const tabTriggerActiveClassName = "bg-card text-foreground shadow-xs";
 
 function TabsInner({
   value,
@@ -52,37 +60,32 @@ function TabsInner({
   );
 }
 
-function Tabs(props: TabsProps) {
-  if (!props.syncUrl && props.syncUrl !== undefined) {
-    return <TabsPrimitive.Root className={cn(props.className)} {...props} />;
+function Tabs({ paramKey, syncUrl, ...props }: TabsProps) {
+  if (syncUrl === false) {
+    return <TabsPrimitive.Root {...props} className={cn(props.className)} />;
   }
 
   if (props.value !== undefined && props.onValueChange !== undefined) {
-    return <TabsPrimitive.Root className={cn(props.className)} {...props} />;
+    return <TabsPrimitive.Root {...props} className={cn(props.className)} />;
   }
 
   return (
-    <React.Suspense fallback={<TabsPrimitive.Root className={cn(props.className)} {...props} />}>
-      <TabsInner {...props} />
+    <React.Suspense fallback={<TabsPrimitive.Root {...props} className={cn(props.className)} />}>
+      <TabsInner {...props} paramKey={paramKey} syncUrl={syncUrl} />
     </React.Suspense>
   );
 }
 
 function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
-  return (
-    <TabsPrimitive.List
-      className={cn("inline-flex h-10 items-center rounded-lg bg-muted p-1 text-muted-foreground", className)}
-      {...props}
-    />
-  );
+  return <TabsPrimitive.List className={cn(tabListClassName, className)} {...props} />;
 }
 
 function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "interactive inline-flex items-center justify-center rounded-md border-b-2 border-transparent px-3 py-1.5 text-body-xs font-medium whitespace-nowrap",
-        "data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border-primary",
+        tabTriggerClassName,
+        "data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs",
         className
       )}
       {...props}
@@ -91,7 +94,49 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
 }
 
 function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Content>) {
-  return <TabsPrimitive.Content className={cn("mt-4", className)} {...props} />;
+  return <TabsPrimitive.Content className={cn("mt-4 outline-hidden", className)} {...props} />;
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent };
+type TabNavItem = {
+  href: string;
+  label: string;
+};
+
+function TabNav({ tabs, label = "Navigasi bagian" }: { tabs: TabNavItem[]; label?: string }) {
+  const pathname = usePathname();
+
+  return (
+    <nav className="mb-6" aria-label={label}>
+      <div className={tabListClassName}>
+        {tabs.map((tab) => {
+          const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              aria-current={isActive ? "page" : undefined}
+              className={cn(
+                tabTriggerClassName,
+                isActive ? tabTriggerActiveClassName : "text-muted-foreground"
+              )}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  TabNav,
+  tabListClassName,
+  tabTriggerClassName,
+  tabTriggerActiveClassName,
+};

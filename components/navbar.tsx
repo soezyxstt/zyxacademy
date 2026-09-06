@@ -84,7 +84,7 @@ export function Navbar() {
  className="max-lg:hidden lg:pointer-events-none lg:absolute lg:inset-x-0 lg:top-0 lg:bottom-0 lg:flex lg:items-center lg:justify-center"
  aria-label="Main menu"
  >
- <ul className="flex items-center gap-5 text-body-sm font-medium leading-none tracking-tight lg:pointer-events-auto lg:leading-normal">
+ <ul className="flex items-center gap-4 text-body-sm font-medium leading-none tracking-tight lg:pointer-events-auto lg:leading-normal xl:gap-5">
  {navLinks.map((link) => (
  <li key={link.href} className="flex shrink-0 items-center">
  <Link
@@ -105,10 +105,10 @@ export function Navbar() {
   onClick={() => setSearchOpen(true)}
   title="Search"
   aria-label="Cari di situs (pintasan Ctrl+K atau ⌘K)"
-  className="max-lg:hidden flex items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-muted-foreground transition-all hover:bg-muted/70 hover:text-foreground cursor-pointer"
+  className="max-lg:hidden flex items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/40 p-2 text-muted-foreground transition-all hover:bg-muted/70 hover:text-foreground cursor-pointer xl:px-2.5 xl:py-1.5"
   >
   <Search className="size-4 shrink-0" aria-hidden />
-  <kbd className="bg-muted px-1.5 py-0.5 rounded border border-border text-[10px] font-mono leading-none font-semibold">
+  <kbd className="hidden xl:inline-block bg-muted px-1.5 py-0.5 rounded border border-border text-[10px] font-mono leading-none font-semibold">
   {modKeyHint}
   </kbd>
   </button>

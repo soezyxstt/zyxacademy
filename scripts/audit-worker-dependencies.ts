@@ -7,13 +7,14 @@ import * as path from "node:path";
  */
 
 const ROOT_DIR = process.cwd();
-const ENTRY_FILE = path.join(ROOT_DIR, "jobs", "index.ts");
+const ENTRY_FILE = path.join(ROOT_DIR, "jobs", "compute.ts");
 
 const FORBIDDEN_PATTERNS = [
   { pattern: /^next(\/.*)?$/, label: "Next.js (next/*)" },
   { pattern: /^@t3-oss\/env-nextjs$/, label: "@t3-oss/env-nextjs" },
   { pattern: /^react(-dom)?(\/.*)?$/, label: "React (react/react-dom)" },
   { pattern: /^puppeteer(-core)?$/, label: "Puppeteer" },
+  { pattern: /^@sentry\/nextjs$/, label: "@sentry/nextjs" },
 ];
 
 const visited = new Set<string>();
@@ -106,7 +107,7 @@ function traverse(filePath: string, callStack: string[] = []) {
   }
 }
 
-console.log("Starting static dependency audit for jobs/index.ts...");
+console.log("Starting static dependency audit for jobs/compute.ts...");
 traverse(ENTRY_FILE);
 
 console.log(`Audited ${visited.size} internal files in worker dependency graph.`);

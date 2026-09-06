@@ -15,8 +15,17 @@ import {
   studentQuizAttempts,
 } from "@/db/schema";
 import { eq, and, lte, or, isNull, inArray, gte, sql, desc, asc, notInArray } from "drizzle-orm";
+import {
+  CourseLearningSummary,
+  CourseDailyPlan,
+  CourseDailyPlanItem,
+  CourseOverviewData,
+  CourseOverviewActionCard,
+  CourseAttentionItem,
+} from "@/types/course-learning";
+import { getCourseChapterOutline, getStudentVisibleCourseQuizzes } from "@/lib/course-utils";
+import { getMastery } from "@/lib/mastery-store";
 import { getOrUpdateStreak } from "@/lib/streak-service";
-import { CourseLearningSummary, CourseDailyPlan, CourseDailyPlanItem } from "@/types/course-learning";
 
 /**
  * Gets the start of today in UTC.
@@ -559,3 +568,163 @@ export async function getChapterProgressSummary(studentId: string, courseId: str
     };
   });
 }
+
+/**
+ * Single server entry point for student Course Overview.
+ * Runs independent data queries in parallel to construct primary actions,
+ * conditional attention items, and reading recommendations.
+ */
+export async function getCourseOverviewData(
+  studentId: string,
+  courseId: string,
+  preloadedChapterOutline?: Awaited<ReturnType<typeof getCourseChapterOutline>>
+): Promise<CourseOverviewData> {
+  const [
+    lastProgress,
+    chapterOutline,
+    quizzes,
+    dueFlashcardsCount,
+    mastery,
+  ] = await Promise.all([
+    getContinueReading(studentId, courseId),
+    preloadedChapterOutline
+      ? Promise.resolve(preloadedChapterOutline)
+      : getCourseChapterOutline(courseId, studentId),
+    getStudentVisibleCourseQuizzes(courseId),
+    getCardsDueToday(studentId, courseId),
+    getMastery(studentId, courseId),
+  ]);
+
+  // 1. Resolve reading action card
+  const totalMaterials = chapterOutline.filter((c) => c.hasMaterial).length;
+  let readingCard: CourseOverviewActionCard;
+
+  if (lastProgress && lastProgress.completionPercent < 90) {
+    let query = "";
+    if (lastProgress.lastPosition) {
+      if (lastProgress.lastPosition.type === "pdf" && lastProgress.lastPosition.page) {
+        query = `?page=${lastProgress.lastPosition.page}`;
+      } else if (lastProgress.lastPosition.type === "article" && lastProgress.lastPosition.section) {
+        query = `?section=${lastProgress.lastPosition.section}`;
+      }
+    } else if (lastProgress.lastSectionId) {
+      query = `?section=${encodeURIComponent(lastProgress.lastSectionId)}`;
+    }
+
+    readingCard = {
+      tag: "DOKUMEN",
+      title: `Lanjutkan ${lastProgress.title}`,
+      meta: `${lastProgress.completionPercent}% selesai`,
+      actionLabel: "Lanjutkan →",
+      href: `/courses/${courseId}/material/${lastProgress.materialId}${query}`,
+    };
+  } else {
+    // Find first unfinished chapter with material, or first chapter with material
+    const firstUnfinished = chapterOutline.find((ch) => ch.hasMaterial && ch.materialId && !ch.completed);
+    const firstAvailable = firstUnfinished || chapterOutline.find((ch) => ch.hasMaterial && ch.materialId);
+
+    if (firstAvailable && firstAvailable.materialId) {
+      readingCard = {
+        tag: "DOKUMEN",
+        title: "Mulai belajar",
+        meta: totalMaterials > 0 ? `${totalMaterials} dokumen tersedia` : "Dokumen kelas",
+        actionLabel: "Mulai membaca →",
+        href: `/courses/${courseId}/material/${firstAvailable.materialId}`,
+      };
+    } else {
+      readingCard = {
+        tag: "DOKUMEN",
+        title: "Dokumen kelas",
+        meta: totalMaterials > 0 ? `${totalMaterials} dokumen tersedia` : "Belum ada materi",
+        actionLabel: "Buka dokumen →",
+        href: `/courses/${courseId}/material`,
+      };
+    }
+  }
+
+  // 2. Resolve quiz action card
+  const weakestMeasured = mastery.find((c) => c.isMeasured && c.masteryScore < 70);
+  let quizCard: CourseOverviewActionCard;
+
+  if (weakestMeasured) {
+    const taggedQuiz = quizzes.find((q) => {
+      const rules = q.selectionRules as Record<string, unknown> | null;
+      const tags = (rules?.tags as string[] | undefined) ?? [];
+      return tags.includes(weakestMeasured.conceptName);
+    });
+
+    if (taggedQuiz) {
+      quizCard = {
+        tag: "KUIS",
+        title: `Latihan ${weakestMeasured.conceptName}`,
+        meta: `${quizzes.length} kuis tersedia`,
+        actionLabel: "Mulai latihan →",
+        href: `/courses/${courseId}/quiz/${taggedQuiz.id}`,
+      };
+    } else {
+      quizCard = {
+        tag: "KUIS",
+        title: `Latihan ${weakestMeasured.conceptName}`,
+        meta: `${quizzes.length} kuis tersedia`,
+        actionLabel: "Mulai latihan →",
+        href: `/courses/${courseId}/quiz`,
+      };
+    }
+  } else if (quizzes.length > 0) {
+    quizCard = {
+      tag: "KUIS",
+      title: "Latihan tersedia",
+      meta: `${quizzes.length} kuis tersedia`,
+      actionLabel: "Pilih kuis →",
+      href: `/courses/${courseId}/quiz`,
+    };
+  } else {
+    quizCard = {
+      tag: "KUIS",
+      title: "Latihan kuis",
+      meta: "Belum ada kuis aktif",
+      actionLabel: "Buka kuis →",
+      href: `/courses/${courseId}/quiz`,
+    };
+  }
+
+  // 3. Resolve schedule action card
+  const scheduleCard: CourseOverviewActionCard = {
+    tag: "JADWAL",
+    title: "Pilih sesi tutorial",
+    meta: "Lihat jadwal dan slot yang tersedia",
+    actionLabel: "Pilih jadwal →",
+    href: `/dashboard/schedule?course=${courseId}`,
+  };
+
+  // 4. Resolve attention strip items
+  const attentionItems: CourseAttentionItem[] = [];
+
+  if (dueFlashcardsCount > 0) {
+    attentionItems.push({
+      kind: "flashcard",
+      label: `${dueFlashcardsCount} flashcard perlu diulas`,
+      actionLabel: "Ulas sekarang →",
+      href: `/courses/${courseId}/flashcard`,
+    });
+  }
+
+  if (weakestMeasured) {
+    attentionItems.push({
+      kind: "weak-concept",
+      label: `${weakestMeasured.conceptName} perlu latihan (${weakestMeasured.masteryScore}%)`,
+      actionLabel: "Latihan sekarang →",
+      href: quizCard.href,
+    });
+  }
+
+  const attention = attentionItems.length > 0 ? { items: attentionItems } : null;
+
+  return {
+    reading: readingCard,
+    quiz: quizCard,
+    schedule: scheduleCard,
+    attention,
+  };
+}
+

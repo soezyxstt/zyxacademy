@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AdminSectionTitle } from "@/components/admin/section-title";
 import { AdminTable } from "@/components/admin/table";
-import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AuthoringJobBuilder } from "@/components/admin/authoring-job-builder";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -70,17 +70,17 @@ export function AuthoringContextPanel({ initialExports, courses }: { initialExpo
         description="Siapkan pekerjaan dari Source Pack, lalu lanjutkan produk dari Ideas yang sudah terbit. Semua pilihan memakai nama yang mudah dikenali."
       />
 
-      <AdminTabs defaultValue="prepare">
-        <AdminTabsList>
-          <AdminTabsTrigger value="prepare"><FileArchive className="size-4" />Siapkan pekerjaan</AdminTabsTrigger>
-          <AdminTabsTrigger value="continue"><ShieldCheck className="size-4" />Lanjutkan setelah Idea</AdminTabsTrigger>
-        </AdminTabsList>
+      <Tabs defaultValue="prepare">
+        <TabsList>
+          <TabsTrigger value="prepare"><FileArchive className="size-4" />Siapkan pekerjaan</TabsTrigger>
+          <TabsTrigger value="continue"><ShieldCheck className="size-4" />Lanjutkan setelah Idea</TabsTrigger>
+        </TabsList>
 
-        <AdminTabsContent value="prepare">
+        <TabsContent value="prepare">
           <AuthoringJobBuilder courses={courses} />
-        </AdminTabsContent>
+        </TabsContent>
 
-        <AdminTabsContent value="continue" className="space-y-6">
+        <TabsContent value="continue" className="space-y-6">
           <section className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1 space-y-1.5 min-w-0">
@@ -127,8 +127,8 @@ export function AuthoringContextPanel({ initialExports, courses }: { initialExpo
               })}
             </AdminTable>
           </section>
-        </AdminTabsContent>
-      </AdminTabs>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

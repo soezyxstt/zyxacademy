@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import { getPkaAnnouncementsAction } from "../actions";
 import { AnnouncementsTab } from "../_components/announcements-tab";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { AdminTabNav } from "@/components/admin/tab-nav";
+import { TabNav } from "@/components/ui/tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ export default async function TutorialPkaAnnouncementsPage() {
         title="Pengumuman Tutorial PKA"
         description="Kirim pengumuman otomatis ke email dan push notification peserta yang berlangganan."
       />
-      <AdminTabNav
+      <TabNav
         tabs={[
           { href: "/admin/tutorial-pka/registrations", label: "Pendaftar" },
           { href: "/admin/tutorial-pka/announcements", label: "Pengumuman" },

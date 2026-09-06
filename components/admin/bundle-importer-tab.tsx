@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { Label } from "@/components/ui/label";
 import { importCourseBundleAction, type ImportResult } from "@/app/(admin)/admin/(academic)/courses/import-actions";
 import {
@@ -424,7 +425,7 @@ export function BundleImporterTab() {
 
       {/* Import Statistics & Summary */}
       {result && !loading && result.success && result.stats && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
+        <AdminStatStrip className="grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
           {[
             { label: "Mata Kuliah ID", value: result.stats.courseId, icon: BookOpen },
             { label: "Bab Belajar", value: result.stats.chapterCount, icon: Layers },
@@ -432,21 +433,9 @@ export function BundleImporterTab() {
             { label: "Ujian / Kuis", value: result.stats.asCount, icon: HelpCircle },
             { label: "Soal Terindex", value: result.stats.aoCount, icon: GitBranch },
           ].map((stat, idx) => (
-            <Card key={idx} className="border border-border shadow-sm rounded-xl bg-card">
-              <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
-                <p className="text-body-sm font-semibold text-muted-foreground">
-                  {stat.label}
-                </p>
-                <stat.icon className="size-4 text-brand-primary" />
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="font-heading text-body-base font-bold text-foreground truncate max-w-full" title={String(stat.value)}>
-                  {stat.value}
-                </div>
-              </CardContent>
-            </Card>
+            <AdminStatStripItem key={idx} icon={stat.icon} label={stat.label} value={stat.value} tone="brand" />
           ))}
-        </div>
+        </AdminStatStrip>
       )}
 
       {/* Impact Analysis: per-chapter diff, computed (and in dry-run mode, rolled back) before commit */}

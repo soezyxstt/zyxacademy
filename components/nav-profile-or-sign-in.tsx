@@ -36,7 +36,7 @@ export function NavProfileOrSignIn({
           !sheet &&
             cn(
               "bg-muted/60 shrink-0 animate-pulse rounded-lg",
-              "size-10 lg:h-10 lg:w-28"
+              "size-10 xl:h-10 xl:w-28"
             )
         )}
         aria-hidden
@@ -127,8 +127,8 @@ export function NavProfileOrSignIn({
               variant="ghost"
               className={cn(
                 "text-foreground gap-2 rounded-lg hover:bg-muted cursor-pointer",
-                "h-10 max-w-[11rem] shrink-0 lg:justify-start lg:gap-2 lg:px-2",
-                "max-lg:size-10 max-lg:justify-center max-lg:border max-lg:border-border/60 max-lg:p-0 max-lg:shadow-none max-lg:hover:border-border max-lg:hover:bg-muted/80"
+                "h-10 max-w-[11rem] shrink-0 xl:justify-start xl:gap-2 xl:px-2",
+                "max-xl:size-10 max-xl:justify-center max-xl:border max-xl:border-border/60 max-xl:p-0 max-xl:shadow-none max-xl:hover:border-border max-xl:hover:bg-muted/80"
               )}
             >
               {session.user.image ? (
@@ -138,15 +138,15 @@ export function NavProfileOrSignIn({
                   alt={label}
                   width={32}
                   height={32}
-                  className="border-border max-lg:size-9 max-lg:border-0 shrink-0 rounded-full border object-cover lg:size-8"
+                  className="border-border max-xl:size-9 max-xl:border-0 shrink-0 rounded-full border object-cover xl:size-8"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <span className="bg-muted border-border flex max-lg:size-9 shrink-0 items-center justify-center rounded-full border lg:size-8">
+                <span className="bg-muted border-border flex max-xl:size-9 shrink-0 items-center justify-center rounded-full border xl:size-8">
                   <User className="text-muted-foreground size-4" aria-hidden />
                 </span>
               )}
-              <span className="hidden text-body-sm font-medium lg:inline">
+              <span className="hidden text-body-sm font-medium xl:inline">
                 <span className="truncate">{label}</span>
               </span>
             </Button>
