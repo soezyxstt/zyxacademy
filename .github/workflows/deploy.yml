@@ -58,6 +58,7 @@ jobs:
             --org soezyxst \
             --app $APP_NAME \
             --source local \
+            --do-not-use-detected-build-config \
             --runtime-mode dynamic \
             --entrypoint workers/deno-background/main.ts \
             --region us \
