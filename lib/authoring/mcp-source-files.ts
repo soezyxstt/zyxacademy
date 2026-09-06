@@ -185,44 +185,10 @@ async function download(key: string): Promise<Uint8Array> {
   }
 }
 
-export async function parseStoredPdfPages(bytes: Uint8Array, pages: number[]): Promise<{ totalPages: number; pages: SourceFilePage[] }> {
-  const { PDFParse } = await import("pdf-parse");
-  const workerPath = path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
-  PDFParse.setWorker(pathToFileURL(workerPath).href);
-  const parser = new PDFParse({ data: bytes });
-  try {
-    const info = await parser.getInfo();
-    const totalPages = info.total;
-    if (pages.some((page) => page > totalPages)) throw new Error("AUTHORING_MCP_SOURCE_PAGE_INVALID");
-    const text = await parser.getText({ partial: pages });
-    const screenshots = await parser.getScreenshot({
-      partial: pages,
-      desiredWidth: AUTHORING_MCP_PDF_PAGE_WIDTH,
-      imageBuffer: true,
-    });
-    const textByPage = new Map(text.pages.map((page) => [page.num, page.text]));
-    const imageByPage = new Map(screenshots.pages.map((page) => [page.pageNumber, page]));
-    return {
-      totalPages,
-      pages: pages.map((pageNumber) => {
-        const image = imageByPage.get(pageNumber);
-        if (!image || image.data.byteLength === 0) throw new Error("AUTHORING_MCP_SOURCE_PAGE_RENDER_FAILED");
-        return {
-          pageNumber,
-          text: textByPage.get(pageNumber) ?? "",
-          png: image.data,
-          width: image.width,
-          height: image.height,
-        };
-      }),
-    };
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith("AUTHORING_MCP_")) throw error;
-    throw new Error(classifyStoredPdfError(error));
-  } finally {
-    await parser.destroy().catch(() => undefined);
-  }
+export async function parseStoredPdfPages(_bytes: Uint8Array, _pages: number[]): Promise<{ totalPages: number; pages: SourceFilePage[] }> {
+  throw new Error("PDF_PARSE_UNAVAILABLE_ON_WEB_TIER: PDF parsing must run on Deno compute tier via compute RPC or with injected mock dependencies.");
 }
+
 
 export function classifyStoredPdfError(error: unknown): "AUTHORING_MCP_SOURCE_PDF_PASSWORD_REQUIRED" | "AUTHORING_MCP_SOURCE_PDF_INVALID" {
   const message = error instanceof Error ? `${error.name}:${error.message}`.toLowerCase() : "";
@@ -300,12 +266,49 @@ async function loadFile(fileKey: string, dependencies: SourceFileDependencies) {
   return { token, row, bytes, checksum };
 }
 
+export type SourceOriginalRef =
+  | { kind: "inline"; bytes: Uint8Array }
+  | { kind: "stored"; storageKey: string; checksum: string };
+
 export async function readStoredSourceFile(
   input: { fileKey: string; mode?: "pages" | "blob"; pages?: number[] },
   dependencies: SourceFileDependencies = defaultDependencies,
 ) {
-  const loaded = await loadFile(input.fileKey, dependencies);
   const mode = input.mode ?? "pages";
+
+  // When mode is pages and COMPUTE_SERVICE_URL is set with default parsePages dependency, offload to Deno compute RPC
+  if (mode === "pages" && process.env.COMPUTE_SERVICE_URL && dependencies.parsePages === defaultDependencies.parsePages) {
+    const token = dependencies.readFileKey(input.fileKey);
+    const row = await dependencies.getRow(token.materialId);
+    if (!row) throw new Error("AUTHORING_MCP_SOURCE_FILE_NOT_FOUND");
+    assertStoredSourceFileInScope(row, token);
+
+    const pages = input.pages?.length ? input.pages : [1];
+    if (
+      pages.length > AUTHORING_MCP_MAX_PAGES_PER_READ ||
+      pages.some((page) => !Number.isInteger(page) || page < 1) ||
+      new Set(pages).size !== pages.length
+    ) {
+      throw new Error("AUTHORING_MCP_SOURCE_PAGE_INVALID");
+    }
+
+    const { requestPdfPagesFromCompute } = await import("@/lib/compute-client/pdf");
+    const computeResult = await requestPdfPagesFromCompute({
+      storageKey: row.fileUrl,
+      pages,
+    });
+
+    return {
+      mode,
+      title: row.title,
+      checksum: row.checksum,
+      size: 0,
+      totalPages: computeResult.totalPages,
+      pages: computeResult.pages,
+    };
+  }
+
+  const loaded = await loadFile(input.fileKey, dependencies);
   if (mode === "blob") {
     if (loaded.bytes.byteLength > AUTHORING_MCP_MAX_STORED_BLOB_BYTES) {
       throw new Error("AUTHORING_MCP_SOURCE_BLOB_SIZE_LIMIT");
@@ -345,20 +348,40 @@ export async function loadStoredOriginals(
   entries: readonly { documentId: string; fileKey: string }[],
   dependencies: SourceFileDependencies = defaultDependencies,
 ) {
-  const originals = new Map<string, Uint8Array>();
+  const originals = new Map<string, SourceOriginalRef | Uint8Array>();
   let boundScope: { courseId: string; chapterId: string } | null = null;
   let totalBytes = 0;
   for (const entry of entries) {
     if (originals.has(entry.documentId)) throw new Error(`SOURCE_PACK_ORIGINAL_DOCUMENT_DUPLICATE:${entry.documentId}`);
-    const loaded = await loadFile(entry.fileKey, dependencies);
-    const scope = { courseId: loaded.token.courseId, chapterId: loaded.token.chapterId };
-    if (boundScope && (boundScope.courseId !== scope.courseId || boundScope.chapterId !== scope.chapterId)) {
-      throw new Error("AUTHORING_MCP_SOURCE_FILE_SCOPE_MISMATCH");
+
+    // When dependencies.download is default and COMPUTE_SERVICE_URL is set, avoid downloading raw PDF bytes into Vercel memory
+    if (process.env.COMPUTE_SERVICE_URL && dependencies.download === defaultDependencies.download) {
+      const token = dependencies.readFileKey(entry.fileKey);
+      const row = await dependencies.getRow(token.materialId);
+      if (!row) throw new Error("AUTHORING_MCP_SOURCE_FILE_NOT_FOUND");
+      assertStoredSourceFileInScope(row, token);
+
+      const scope = { courseId: token.courseId, chapterId: token.chapterId };
+      if (boundScope && (boundScope.courseId !== scope.courseId || boundScope.chapterId !== scope.chapterId)) {
+        throw new Error("AUTHORING_MCP_SOURCE_FILE_SCOPE_MISMATCH");
+      }
+      boundScope = scope;
+      originals.set(entry.documentId, {
+        kind: "stored",
+        storageKey: row.fileUrl,
+        checksum: row.checksum || "",
+      });
+    } else {
+      const loaded = await loadFile(entry.fileKey, dependencies);
+      const scope = { courseId: loaded.token.courseId, chapterId: loaded.token.chapterId };
+      if (boundScope && (boundScope.courseId !== scope.courseId || boundScope.chapterId !== scope.chapterId)) {
+        throw new Error("AUTHORING_MCP_SOURCE_FILE_SCOPE_MISMATCH");
+      }
+      boundScope = scope;
+      totalBytes += loaded.bytes.byteLength;
+      if (totalBytes > AUTHORING_MCP_MAX_TOTAL_ORIGINAL_BYTES) throw new Error("AUTHORING_MCP_ORIGINALS_LIMIT");
+      originals.set(entry.documentId, loaded.bytes);
     }
-    boundScope = scope;
-    totalBytes += loaded.bytes.byteLength;
-    if (totalBytes > AUTHORING_MCP_MAX_TOTAL_ORIGINAL_BYTES) throw new Error("AUTHORING_MCP_ORIGINALS_LIMIT");
-    originals.set(entry.documentId, loaded.bytes);
   }
   return { originals, boundScope, totalBytes };
 }
@@ -367,7 +390,7 @@ export function mergeSourceOriginals(
   direct: ReadonlyMap<string, Uint8Array> | undefined,
   stored: Awaited<ReturnType<typeof loadStoredOriginals>>,
 ) {
-  const merged = new Map<string, Uint8Array>();
+  const merged = new Map<string, SourceOriginalRef | Uint8Array>();
   let totalBytes = stored.totalBytes;
   for (const [documentId, bytes] of direct ?? []) {
     if (stored.originals.has(documentId)) throw new Error(`SOURCE_PACK_ORIGINAL_DOCUMENT_DUPLICATE:${documentId}`);
@@ -375,9 +398,27 @@ export function mergeSourceOriginals(
     if (totalBytes > AUTHORING_MCP_MAX_TOTAL_ORIGINAL_BYTES) throw new Error("AUTHORING_MCP_ORIGINALS_LIMIT");
     merged.set(documentId, bytes);
   }
-  for (const [documentId, bytes] of stored.originals) merged.set(documentId, bytes);
+  for (const [documentId, ref] of stored.originals) {
+    if (merged.has(documentId)) throw new Error(`SOURCE_PACK_ORIGINAL_DOCUMENT_DUPLICATE:${documentId}`);
+    merged.set(documentId, ref);
+  }
   return {
     originals: merged.size > 0 ? merged : undefined,
     boundScope: stored.boundScope ?? undefined,
   };
+}
+
+export function toRawByteOriginals(
+  originals: ReadonlyMap<string, SourceOriginalRef | Uint8Array> | undefined
+): Map<string, Uint8Array> | undefined {
+  if (!originals) return undefined;
+  const map = new Map<string, Uint8Array>();
+  for (const [id, value] of originals) {
+    if (value instanceof Uint8Array) {
+      map.set(id, value);
+    } else if ("kind" in value && value.kind === "inline") {
+      map.set(id, value.bytes);
+    }
+  }
+  return map;
 }

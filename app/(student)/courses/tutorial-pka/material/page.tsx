@@ -13,7 +13,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return generateCourseMaterialMetadata(pkaParams);
 }
 
-export default async function PkaMaterialPage() {
+type PkaProps = {
+  searchParams?: Promise<{ tab?: string }>;
+};
+
+export default async function PkaMaterialPage(props?: PkaProps) {
   await requirePkaSession("/courses/tutorial-pka/material");
-  return CourseMaterialListPage(pkaParams);
+  return CourseMaterialListPage({ ...pkaParams, searchParams: props?.searchParams });
 }

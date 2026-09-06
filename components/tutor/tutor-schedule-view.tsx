@@ -32,7 +32,6 @@ import {
   AdminTabsTrigger,
   AdminTabsContent,
 } from "@/components/admin/tabs";
-import { AdminStatStrip, AdminStatStripItem } from "@/components/admin/stat-card";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import {
@@ -415,7 +414,6 @@ export function TutorScheduleView({
   };
 
   const unbookedSlots = initialData.ownedSlots.filter((s) => !s.booking);
-  const pendingTickets = initialData.ownedTickets.filter((t) => t.status === "pending");
 
   return (
     <div className="space-y-6">
@@ -455,33 +453,6 @@ export function TutorScheduleView({
           </div>
         }
       />
-
-      {/* Grouped KPI Strip */}
-      <AdminStatStrip className="sm:grid-cols-4">
-        <AdminStatStripItem
-          label="Slot Tersedia"
-          value={unbookedSlots.length}
-          caption={`${initialData.ownedSlots.length} total`}
-          icon={CalendarDays}
-          tone="brand"
-        />
-        <AdminStatStripItem
-          label="Sesi Terjadwal"
-          value={initialData.ownedBookings.length}
-          icon={BookOpen}
-        />
-        <AdminStatStripItem
-          label="Tiket Pending"
-          value={pendingTickets.length}
-          icon={ShieldCheck}
-          tone={pendingTickets.length > 0 ? "warning" : "default"}
-        />
-        <AdminStatStripItem
-          label="Kelompok Aktif"
-          value={initialData.eligibleGroups.length}
-          icon={Users}
-        />
-      </AdminStatStrip>
 
       {/* Feedback Banner */}
       {feedback && (

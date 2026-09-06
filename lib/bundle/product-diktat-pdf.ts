@@ -284,6 +284,4 @@ export async function renderProductDiktatPdf(
 export function canDownloadProductDiktat(input: { role?: string | null; enrolled: boolean }): boolean {
   return input.role === "admin" || (input.role === "student" && input.enrolled);
 }
-
 export { latestReadyProductDiktatEvidence } from "./product-diktat-evidence";
-export { inspectProductDiktatPdf } from "../compute/product-diktat-inspector";

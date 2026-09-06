@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { serve } from "inngest/hono";
 import { inngest } from "@/jobs/client";
-import { allFunctions } from "@/jobs";
+import { computeFunctions } from "@/jobs/compute";
 import { healthHandler } from "./health";
 import { validateWorkerEnv } from "./env";
+import { handlePdfPagesRpc, handleSourcePackResolveRpc } from "./pdf-rpc";
 
 const env = validateWorkerEnv();
 
@@ -11,12 +12,16 @@ const app = new Hono();
 
 app.get("/health", healthHandler);
 
+// Internal compute RPC endpoints for Vercel web tier
+app.post("/internal/pdf/pages", handlePdfPagesRpc);
+app.post("/internal/authoring/source-pack/resolve", handleSourcePackResolveRpc);
+
 app.on(
   ["GET", "POST", "PUT"],
   "/api/inngest",
   serve({
     client: inngest,
-    functions: allFunctions,
+    functions: computeFunctions,
     serveOrigin: env.INNGEST_SERVE_ORIGIN,
     servePath: env.INNGEST_SERVE_PATH,
   })

@@ -87,7 +87,8 @@ Every document in this repository has one of the following explicit statuses:
 | [operations/manual-test-plan-bundles-v2.md](operations/manual-test-plan-bundles-v2.md) | Operations | `ACTIVE` | Current | Manual test procedure for Idea Bundle V2 and Product Bundle V2 ingestion, block review, and destructive confirmation flows. |
 | [operations/legacy-vector-contract-allowlist.md](operations/legacy-vector-contract-allowlist.md) | Operations | `TRANSITIONAL / LEGACY` | Current | Non-runtime vector matches permitted during the Vectorize 768d migration cutover. |
 | [audit/admin-visual-quality-audit.md](audit/admin-visual-quality-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-08-24 | Visual and responsive quality audit for admin pages. All 14 findings (F1-F14) resolved and verified. |
-| [audit/heavy-api-routes-audit.md](audit/heavy-api-routes-audit.md) | Audit | `OPEN / IN PROGRESS` | 2026-09-06 | Heavy API routes audit, synchronous AI elimination, and async enqueue patterns catalog. |
+| [audit/heavy-api-routes-audit.md](audit/heavy-api-routes-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-09-07 | Heavy API routes audit, synchronous compute and native module elimination, asynchronous thumbnail pipeline, and zero-native web tier policy. |
+
 | [audit/student-deep-ui-ux-audit.md](audit/student-deep-ui-ux-audit.md) | Audit | `COMPLETED / RESOLVED` | 2026-09-03 | Comprehensive UI/UX and system audit for student pages. All 8 findings (AUD-STU-01 through 08) resolved and verified. |
 | [handoffs/zyra-ai-plans-001-007.md](handoffs/zyra-ai-plans-001-007.md) | Milestone Handoff | `HISTORICAL CHECKPOINT` | 2026-08-11 | Staging checkpoint and test evidence summary for Zyra AI system Plans 001 through 007. |
 
@@ -111,7 +112,9 @@ Audits are created to systematically identify architectural, quality, or securit
 
 | Audit | Date Logged | Resolution Status | Resolution Details |
 |---|---|---|---|
+| `heavy-api-routes-audit.md` | 2026-09-06 | `COMPLETED / RESOLVED` | Resolved by decoupling heavy compute into Deno background worker tier: Inngest physical entrypoint separation (jobs/web vs jobs/compute), asynchronous thumbnail generation via pdf/thumbnail.requested, async Diktat compilation via diktat/pdf.generate.requested, compute RPC endpoints (/internal/pdf/pages and /internal/authoring/source-pack/resolve), and static web tier boundary guards (audit:web-boundaries). |
 | `admin-visual-quality-audit.md` | 2026-08-24 | `COMPLETED / RESOLVED` | All 14 visual findings resolved: F1 (push notification dialog gated from admin surfaces), F2 (normalizeDate applied to prevent year 58604 bug), F3 (defensive image error fallbacks for PKA and blog thumbnails), F4 (error sanitization and explainBundleError mapping), F5 (instant top scroll on quiz form mount), F6 (persistent AdminPageHeader on all data states), F7 (standardized AdminEmptyState and Indonesian copy), F8 (sentence-case table headers without all-caps), F9 (DOM pagination for question bank), F10 (concise sidebar labels without truncation), F11 (semantic status tokens instead of raw Tailwind palettes), F12 (Lucide icons replacing emojis in notifications), F13 (styled file upload dropzone), F14 (--text-body-2xs declared for 10px micro UI). |
+
 | `00-master-summary.md` | 2026-08-01 | `COMPLETED / RESOLVED` | Master audit recommendations resolved by Overhaul Plans 001 through 016. |
 | `active-recall-and-exploration-audit.md` | 2026-08-02 | `COMPLETED / RESOLVED` | Resolved by Zyra Learning Canvas (Plan 009) and active recall engine (Plan 011). |
 | `admin-knowledge-infrastructure-audit.md` | 2026-08-02 | `COMPLETED / RESOLVED` | Resolved by Source, Idea, and Product database schema overhaul (Plans 003, 004, 006). |

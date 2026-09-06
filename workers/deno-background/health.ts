@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { allFunctions } from "@/jobs";
+import { computeFunctions } from "@/jobs/compute";
 
 /**
  * Health check handler.
@@ -13,7 +13,7 @@ export function healthHandler(c: Context) {
 
   return c.json({
     status: "ok",
-    functions: allFunctions.length,
+    functions: computeFunctions.length,
     version,
   });
 }

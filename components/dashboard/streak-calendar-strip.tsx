@@ -41,30 +41,30 @@ export function StreakCalendarStrip({ current, weeklyActivity = [] }: StreakCale
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-1">
         {days.map((day, idx) => {
           const isActive = weeklyActivity[idx] || false;
           const isToday = idx === currentDayIndex;
 
           return (
-            <div key={idx} className="flex flex-col items-center gap-1">
-              <span className="font-sans text-body-xs font-bold text-foreground/80">
+            <div key={idx} className="flex flex-col items-center gap-1.5 min-w-0">
+              <span className="font-sans text-[11px] font-bold text-foreground/80 leading-none">
                 {day.label}
               </span>
               <div
                 title={`${day.name}: ${isActive ? "Selesai" : "Belum selesai"}`}
                 className={cn(
-                  "flex size-8 items-center justify-center rounded-lg text-[10px] font-bold transition-all duration-300",
+                  "flex w-full aspect-square max-w-[24px] items-center justify-center rounded-md text-[10px] font-bold transition-colors",
                   isActive
-                    ? "bg-brand-secondary text-white shadow-xs scale-105"
-                    : "bg-muted text-muted-foreground/50 border border-border/40",
-                  isToday && "ring-2 ring-brand-primary ring-offset-2 ring-offset-background"
+                    ? "bg-brand-secondary text-white shadow-xs"
+                    : "bg-muted/60 text-muted-foreground/40 border border-border/50",
+                  isToday && "ring-1.5 ring-brand-primary ring-offset-1 ring-offset-background"
                 )}
               >
                 {isActive ? (
-                  <Check className="size-4 stroke-[3]" />
+                  <Check className="size-3.5 stroke-[2.5]" />
                 ) : (
-                  <span className="text-[10px] font-semibold opacity-80">{day.label}</span>
+                  <span className="size-1 rounded-full bg-muted-foreground/30" />
                 )}
               </div>
             </div>

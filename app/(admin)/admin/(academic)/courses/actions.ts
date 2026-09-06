@@ -19,7 +19,7 @@ import { eq, asc, desc, inArray, and, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
-import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
+import { inngest } from "@/lib/inngest";
 import {
   isValidSubcategory,
   type CourseMaterialCategory,
@@ -561,7 +561,8 @@ export async function saveCourseMaterial(
   chapterIds: string[],
   fileKey: string,
   subcategory?: CourseMaterialSubcategory | null,
-  year?: number | null
+  year?: number | null,
+  checksum?: string | null
 ) {
   const { user } = await assertAdmin();
 
@@ -604,13 +605,6 @@ export async function saveCourseMaterial(
 
   try {
     const materialId = randomUUID();
-    
-    // Generate page 1 thumbnail asynchronously
-    const thumbnailKey = await generateAndSavePdfThumbnail({
-      courseSlug: cleanCourseId,
-      materialId,
-      fileKey: cleanFileKey,
-    }).catch(() => null);
 
     await db.insert(courseMaterials).values({
       id: materialId,
@@ -620,8 +614,19 @@ export async function saveCourseMaterial(
       subcategory: cleanSubcategory,
       year: cleanYear,
       fileUrl: cleanFileKey,
-      thumbnailUrl: thumbnailKey,
+      thumbnailUrl: null,
       chapterIds,
+    });
+
+    await inngest.send({
+      id: `thumbnail-${materialId}-${checksum || "v1"}`,
+      name: "pdf/thumbnail.requested",
+      data: {
+        materialId,
+        sourceType: "course_material",
+      },
+    }).catch((inngestErr) => {
+      console.warn(`[saveCourseMaterial] Failed to enqueue thumbnail for ${materialId}:`, inngestErr);
     });
 
     // Dual-write projection to canonical sumberMateri

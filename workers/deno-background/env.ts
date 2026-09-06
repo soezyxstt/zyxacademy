@@ -42,6 +42,7 @@ export const WorkerEnvSchema = z.object({
   // Services
   RESEND_API_KEY: optionalString,
   NEXT_PUBLIC_BRAND_EMAIL: optionalString,
+  COMPUTE_SERVICE_SECRET: optionalString,
   DENO_DEPLOYMENT_ID: optionalString,
   NODE_ENV: z.string().default("production"),
 });

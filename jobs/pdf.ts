@@ -1,5 +1,5 @@
 import { inngest } from "./client";
-import { generateProductDiktatPdfEvidence } from "@/lib/bundle/product-diktat-pdf";
+import { generateProductDiktatPdfEvidence } from "@/lib/compute/product-diktat-inspector";
 
 export const productDiktatPdfWorker = inngest.createFunction(
   {
