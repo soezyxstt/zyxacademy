@@ -42,6 +42,7 @@
     "diktat-renderer:dev": "bun --cwd workers/diktat-renderer run dev",
     "prod:diktat-renderer:deploy": "bunx wrangler deploy --config workers/diktat-renderer/wrangler.jsonc",
     "staging:diktat-renderer:deploy": "bunx wrangler deploy --config workers/diktat-renderer/wrangler.jsonc --env staging",
+    "staging:diktat-renderer:smoke": "bun --env-file=.env --env-file=.env.staging run scripts/staging/smoke-diktat-renderer.ts",
     "staging:preflight": "bun scripts/staging/preflight.ts",
     "staging:manifest-ai-usage": "bun scripts/staging/manifest-ai-usage.ts",
     "staging:reconcile-ai-usage": "bun scripts/staging/reconcile-ai-usage.ts",
