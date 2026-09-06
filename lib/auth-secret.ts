@@ -15,6 +15,9 @@ const STRETCH_SALT = "zyx-edu:better-auth:secret-stretch:v1";
 export function resolveAuthSecret(): string {
   const raw = process.env.BETTER_AUTH_SECRET;
   if (raw == null || raw === "") {
+    if (process.env.SKIP_ENV_VALIDATION || process.env.npm_lifecycle_event === "build") {
+      return "build-time-placeholder-auth-secret-32-chars-long";
+    }
     throw new Error("Missing required environment variable: BETTER_AUTH_SECRET");
   }
 

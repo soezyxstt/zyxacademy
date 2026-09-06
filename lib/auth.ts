@@ -7,11 +7,14 @@ import { resolveAuthBaseUrl } from "@/lib/auth-site-url";
 import { provisionPenggunaForNewUser } from "@/lib/auth/authorization";
 
 function requiredEnv(name: string): string {
- const v = process.env[name];
- if (v == null || v === "") {
- throw new Error(`Missing required environment variable: ${name}`);
- }
- return v;
+  const v = process.env[name];
+  if (v == null || v === "") {
+    if (process.env.SKIP_ENV_VALIDATION || process.env.npm_lifecycle_event === "build") {
+      return "placeholder-build-value";
+    }
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return v;
 }
 
 export const auth = betterAuth({

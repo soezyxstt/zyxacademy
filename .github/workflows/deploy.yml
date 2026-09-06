@@ -1,4 +1,4 @@
-﻿name: Deploy to Deno Deploy
+name: Deploy to Deno Deploy
 
 on:
   push:
@@ -37,6 +37,10 @@ jobs:
         env:
           SKIP_ENV_VALIDATION: "true"
           NEXT_TELEMETRY_DISABLED: "1"
+          DATABASE_URL: "https://local-sqlite-placeholder.internal"
+          BETTER_AUTH_SECRET: "build-time-placeholder-auth-secret-32-chars-long"
+          GOOGLE_CLIENT_ID: "build-time-placeholder-google-client-id"
+          GOOGLE_CLIENT_SECRET: "build-time-placeholder-google-client-secret"
         run: bun run build
 
       - name: Prepare Standalone Bundle
