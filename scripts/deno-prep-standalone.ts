@@ -29,10 +29,28 @@ const pkgPath = path.join(standaloneDir, "package.json");
 if (fs.existsSync(pkgPath)) {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
   pkg.type = "commonjs";
+  pkg.main = "server.js";
+  pkg.scripts = {
+    start: "node server.js",
+  };
   delete pkg.devDependencies;
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2), "utf-8");
-  console.log("Updated .next/standalone/package.json with type: commonjs");
+  console.log("Updated .next/standalone/package.json with main: server.js and start: node server.js");
 }
+
+// 3b. Write .next/standalone/deno.json
+const standaloneDenoJson = path.join(standaloneDir, "deno.json");
+const standaloneDenoConfig = {
+  unstable: [
+    "detect-cjs",
+    "node-globals",
+    "unsafe-proto",
+    "sloppy-imports",
+  ],
+  nodeModulesDir: "none",
+};
+fs.writeFileSync(standaloneDenoJson, JSON.stringify(standaloneDenoConfig, null, 2), "utf-8");
+console.log("Created .next/standalone/deno.json");
 
 // 4. Fill in incomplete packages in .next/standalone/node_modules
 function inspectAndFixPackages(dir: string, relScope = "") {
