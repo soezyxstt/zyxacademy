@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "zyx-diktat-renderer",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-06",
+  "browser": {
+    "binding": "BROWSER"
+  },
+  "secrets": {
+    "required": ["SHARED_SECRET"]
+  },
+  "observability": {
+    "traces": {
+      "enabled": true
+    }
+  },
+  "env": {
+    "staging": {
+      "name": "zyx-diktat-renderer-staging",
+      "browser": {
+        "binding": "BROWSER"
+      },
+      "secrets": {
+        "required": ["SHARED_SECRET"]
+      }
+    }
+  }
+}

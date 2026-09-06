@@ -634,7 +634,7 @@ The standalone Admin Diktat compiler and its server actions are retired. New Dik
 Tutor compiles diktat in /admin/ai/diktats
   → diktat-generator.ts
       ├── Fetches MTD content + chapter selections
-      ├── Puppeteer renders markdown → PDF (via Railway service: DIKTAT_RENDERER_URL)
+      ├── Cloudflare Browser Run renders HTML → PDF (via Worker: DIKTAT_RENDERER_URL)
       ├── Uploads to R2 (via lib/storage)
       └── Creates diktats row with fileUrl, generationHash
 ```
@@ -714,11 +714,11 @@ Mastery System (background, Inngest cron):
 | **Cloudflare Vectorize** | Canonical vector store through `zyx-vector-api`, profile `canonical-content-v2`, 768 dimensions, cosine metric, versioned IDs, and allowlisted metadata |
 | **Cloudflare R2** | S3-compatible object storage for diktat PDFs, long-term assets, course materials (via `lib/storage/index.ts`) |
 | **Cloudflare KV** | AI response cache (used by AI tutor for repeated questions) |
-| **Cloudflare Workers** | Four Worker packages: `zyx-vector-api` (Vectorize proxy), `zyxrealtime` (live quiz WebSocket/SSE), `zyxacademydiktat` (Puppeteer PDF, hosted on Railway, local copy in `workers/diktat-renderer`), and the staging-only Zyra control plane (`workers/zyra-control-plane`) |
+| **Cloudflare Workers** | Four Worker packages: `zyx-vector-api` (Vectorize proxy), `zyxrealtime` (live quiz WebSocket/SSE), `zyx-diktat-renderer` (Cloudflare Browser Run Quick Action PDF, in `workers/diktat-renderer`), and the staging-only Zyra control plane (`workers/zyra-control-plane`) |
 | **UploadThing** | Browser file uploads (dev fallback); production prefers direct R2 via storage abstraction |
 | **Inngest** | Background job orchestration: vector sync (learning + assessment namespaces), generation pipelines, mastery recompute, assessment ingest, analytics snapshots, weekly reflections |
 | **Firebase Admin** | FCM push notifications |
-| **Puppeteer** | PDF generation for diktats (runs as separate Railway service at `DIKTAT_RENDERER_URL`) |
+| **Cloudflare Browser Run** | PDF generation for diktats via Quick Action (stateless HTML to PDF at `DIKTAT_RENDERER_URL`) |
 | **Resend** | Essential and preference-gated optional emails |
 | **Sentry** | Error tracking |
 
@@ -886,7 +886,7 @@ Media uses the application-owned `media/` R2 prefix with nested virtual folders 
 Cloudflare Workers (deployed via wrangler):
   ├── zyx-vector-api     ; Vectorize upsert/query/delete proxy
   ├── zyxrealtime         ; Live quiz WebSocket/SSE server
-  └── zyxacademydiktat    ; Puppeteer PDF renderer (hosted on Railway)
+  └── zyx-diktat-renderer ; Cloudflare Browser Run Quick Action PDF renderer
 ```
 
 ### Key Production Differences from Dev
@@ -898,7 +898,7 @@ Cloudflare Workers (deployed via wrangler):
 | **Vector Store** | Cloudflare Vectorize | canonical-content-v2, 768 dimensions |
 | **AI Gateway** | Direct Gemini API | Cloudflare AI Gateway (rate limit, caching, observability) |
 | **Auth URL** | `localhost:3000` | `BETTER_AUTH_URL` = production origin |
-| **Diktat Renderer** | Mock PDF | Railway Puppeteer service at `DIKTAT_RENDERER_URL` |
+| **Diktat Renderer** | Mock PDF | Cloudflare Browser Run Quick Action Worker at `DIKTAT_RENDERER_URL` |
 | **Analytics** | None | Vercel Analytics + Speed Insights + Sentry |
 
 ### Feature Flags

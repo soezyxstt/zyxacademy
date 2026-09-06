@@ -117,8 +117,11 @@ async function savePdfPages(name: string, bytes: Uint8Array): Promise<void> {
 }
 
 before(async () => {
+  const customPath = "/home/soezyxst/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome";
+  const { existsSync } = await import("node:fs");
+  const useExplicit = process.platform === "linux" && existsSync(customPath);
   browser = await chromium.launch({
-    executablePath: "/home/soezyxst/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome",
+    ...(useExplicit ? { executablePath: customPath } : {}),
     args: ["--no-sandbox"],
   });
 });

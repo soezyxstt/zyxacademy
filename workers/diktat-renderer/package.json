@@ -1,13 +1,17 @@
 {
   "name": "diktat-renderer",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "dev": "wrangler dev --remote",
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging"
   },
-  "dependencies": {
-    "express": "^4.21.0",
-    "puppeteer": "^24.0.0"
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250224.0",
+    "typescript": "^5.7.3",
+    "wrangler": "^3.111.0"
   }
 }

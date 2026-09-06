@@ -115,7 +115,7 @@ export const env = createEnv({
   /** Shared secret matching SHARED_SECRET set on the zyx-vector-api Worker */
   VECTORIZE_SHARED_SECRET: z.string().optional(),
   // ── Diktat PDF Renderer ──────────────────────────────────────────────
-  /** Base URL of the diktat-renderer Puppeteer service (Railway/Docker) */
+  /** Base URL of the diktat-renderer service (Cloudflare Worker with Browser Run Quick Actions) */
   DIKTAT_RENDERER_URL: z.string().url().optional(),
   /** Shared secret matching SHARED_SECRET set on the diktat-renderer service */
   DIKTAT_RENDERER_SECRET: z.string().optional(),

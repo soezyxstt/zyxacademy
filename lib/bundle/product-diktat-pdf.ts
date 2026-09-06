@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { and, desc, eq } from "drizzle-orm";
@@ -16,10 +16,22 @@ import type { SafeFailureCode } from "@/lib/materials/pdf-artifact-contract";
 export const PRODUCT_DIKTAT_RENDERER_VERSION = "zyx-diktat-worker-v1";
 export const PRODUCT_DIKTAT_PRINT_PROFILE = "a4-self-study-2-page-v1";
 
-const KATEX_CSS = readFileSync(
-  path.resolve(process.cwd(), "node_modules/katex/dist/katex.min.css"),
-  "utf8",
-);
+function buildSelfContainedKatexCss(): string {
+  const cssPath = path.resolve(process.cwd(), "node_modules/katex/dist/katex.min.css");
+  const fontsDir = path.resolve(process.cwd(), "node_modules/katex/dist/fonts");
+  if (!existsSync(cssPath)) return "";
+  const rawCss = readFileSync(cssPath, "utf8");
+  return rawCss.replace(/url\(fonts\/(KaTeX_[^)]+\.woff2)\)/g, (_match, filename) => {
+    const fontPath = path.join(fontsDir, filename);
+    if (existsSync(fontPath)) {
+      const base64 = readFileSync(fontPath).toString("base64");
+      return `url("data:font/woff2;base64,${base64}")`;
+    }
+    return _match;
+  });
+}
+
+const KATEX_CSS = buildSelfContainedKatexCss();
 
 type ArticleProduct = Extract<ProductEntity, { productType: "article" }>;
 type DiktatProduct = Extract<ProductEntity, { productType: "diktat" }>;
@@ -235,7 +247,7 @@ export async function renderProductDiktatPdf(
   });
   if (!response.ok) throw new Error("PRODUCT_DIKTAT_RENDERER_FAILED");
   const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength < 5 || new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") {
+  if (bytes.byteLength < 1000 || new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") {
     throw new Error("PRODUCT_DIKTAT_RENDERER_INVALID_PDF");
   }
   return bytes;

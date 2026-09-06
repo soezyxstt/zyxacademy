@@ -158,10 +158,17 @@ cd workers/realtime
 wrangler deploy
 ```
 
-### 3. zyxacademydiktat (PDF renderer)
-- Puppeteer service hosted on Railway
-- Receives HTML → renders A4 PDF → returns to app
-- Configured via `DIKTAT_RENDERER_URL` + `DIKTAT_RENDERER_SECRET`
+### 3. zyx-diktat-renderer (PDF renderer)
+Cloudflare Worker dengan binding Browser Run (`env.BROWSER.quickAction("pdf", ...)`):
+- Mengonversi HTML ke PDF A4 secara stateless tanpa manajemen session Puppeteer manual.
+- Konfigurasi secret:
+  - Production: `bunx wrangler secret put SHARED_SECRET --config workers/diktat-renderer/wrangler.jsonc`
+  - Staging: `bunx wrangler secret put SHARED_SECRET --config workers/diktat-renderer/wrangler.jsonc --env staging`
+- Deploy:
+  - Production: `bun run prod:diktat-renderer:deploy`
+  - Staging: `bun run staging:diktat-renderer:deploy`
+- Konfigurasi di Next.js: `DIKTAT_RENDERER_URL` diarahkan ke URL Worker (misal `https://zyx-diktat-renderer.<subdomain>.workers.dev`) dan `DIKTAT_RENDERER_SECRET` disamakan dengan `SHARED_SECRET`.
+- Implementasi Docker dan Express Railway lama telah dihapus sepenuhnya; renderer beroperasi penuh di Cloudflare Workers.
 
 ## External Services Reference
 
