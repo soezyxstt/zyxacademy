@@ -33,6 +33,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { signOut, useSession } from "@/lib/auth-client";
 import { useSwipe } from "@/hooks/use-swipe";
 import { useZyraPetVisibility } from "@/hooks/use-zyra-pet-visibility";
+import { isMaterialReaderPathname } from "@/lib/materials/reader-layout";
 import {
   Tooltip,
   TooltipProvider,
@@ -654,6 +655,8 @@ export function SidebarShell({
   const [mounted, setMounted] = useState(false);
   const [modKeyHint, setModKeyHint] = useState("Ctrl + K");
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
+  const isMaterialReaderRoute = isMaterialReaderPathname(pathname);
+  const [readerCollapsed, setReaderCollapsed] = useState(isMaterialReaderRoute);
 
   const sidebarRef = useRef<HTMLElement>(null);
 
@@ -690,7 +693,8 @@ export function SidebarShell({
   useEffect(() => {
     setMobileOpen(false);
     setActivePopoverId(null);
-  }, [pathname]);
+    setReaderCollapsed(isMaterialReaderRoute);
+  }, [isMaterialReaderRoute, pathname]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -714,7 +718,7 @@ export function SidebarShell({
     };
   }, [mobileOpen, mounted]);
 
-  const isCollapsed = isMobile ? false : collapsed;
+  const isCollapsed = isMobile ? false : readerCollapsed || collapsed;
 
   useEffect(() => {
     setActivePopoverId(null);
@@ -737,12 +741,16 @@ export function SidebarShell({
   }, []);
 
   const toggleCollapsed = useCallback(() => {
+    if (readerCollapsed) {
+      setReaderCollapsed(false);
+      return;
+    }
     setCollapsed((v) => {
       const next = !v;
       localStorage.setItem(collapsedKey, String(next));
       return next;
     });
-  }, [collapsedKey]);
+  }, [collapsedKey, readerCollapsed]);
 
   return (
     <SidebarContext.Provider

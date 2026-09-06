@@ -24,11 +24,15 @@ import {
   CheckCircle2, 
   PanelLeftClose, 
   PanelLeft, 
+  PanelRightClose,
+  PanelRight,
   Trash2,
   X,
   Check,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Menu,
+  Circle,
 } from "lucide-react";
 import { SearchBar } from "@/components/ui/search-bar";
 import { toast } from "@/components/ui/toast";
@@ -58,6 +62,7 @@ import { ZyraMark } from "@/components/course/zyra-mark";
 import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
+import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -567,7 +572,14 @@ const getConceptTags = (courseId: string, materialTitle: string) => {
   return ["Kalkulus", "Sains"];
 };
 
-export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, materialLiveEnabled, course }: MaterialViewerProps) {
+export function MaterialViewer({
+  material,
+  chapterId,
+  ragEnabled,
+  termIndex,
+  materialLiveEnabled,
+  course,
+}: MaterialViewerProps) {
   const [done, setDone] = useState(material.completed);
   const doneRef = useRef(material.completed);
   useEffect(() => {
@@ -603,6 +615,8 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
   const initialSection = parseInt(searchParams?.get("section") || "0", 10);
   const [activeSectionIdx, setActiveSectionIdx] = useState(isNaN(initialSection) ? 0 : initialSection);
   const [showOutlineSheet, setShowOutlineSheet] = useState(false);
+  const [isArticleTocOpen, setIsArticleTocOpen] = useState(true);
+  const [articleTocSearchQuery, setArticleTocSearchQuery] = useState("");
 
   // Sync URL -> State (e.g. back/forward navigation)
   useEffect(() => {
@@ -633,6 +647,14 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
   const { chapterTitle, sections: articleSections } = useMemo(() => {
     return parseArticleSections(material.body || "", material.title);
   }, [material.body, material.title]);
+
+  const visibleArticleSections = useMemo(() => {
+    const query = articleTocSearchQuery.trim().toLocaleLowerCase("id");
+    if (query.length < 2) return articleSections.map((section, index) => ({ section, index }));
+    return articleSections
+      .map((section, index) => ({ section, index }))
+      .filter(({ section }) => `${section.title}\n${section.content}`.toLocaleLowerCase("id").includes(query));
+  }, [articleSections, articleTocSearchQuery]);
   
   // Custom PDF states
   const initialPage = parseInt(searchParams?.get("page") || "1", 10);
@@ -1208,39 +1230,118 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
 
   if (material.kind === "article" && material.body) {
     const conceptTags = getConceptTags(material.courseId, material.title);
+    const renderArticleTocContent = () => (
+      <div className="flex h-full flex-col">
+        <div className="border-b border-border/70 p-3">
+          <SearchBar
+            type="search"
+            value={articleTocSearchQuery}
+            onSearch={setArticleTocSearchQuery}
+            onClear={() => setArticleTocSearchQuery("")}
+            aria-label={material.docCategory === "diktat" ? "Cari dalam diktat" : "Cari dalam artikel"}
+            placeholder={material.docCategory === "diktat" ? "Cari dalam diktat" : "Cari dalam artikel"}
+            variant="bordered"
+            size="sm"
+          />
+        </div>
+        <div className="flex-1 space-y-1 overflow-y-auto p-3">
+          <div className="mb-1 flex items-center justify-between px-2 py-1">
+            <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Daftar Isi
+            </span>
+            <span className="text-body-xs font-semibold text-muted-foreground">
+              {activeSectionIdx + 1}/{articleSections.length}
+            </span>
+          </div>
+          {visibleArticleSections.length === 0 ? (
+            <p className="px-2 py-3 text-center text-body-xs text-muted-foreground">
+              Tidak ada bagian yang cocok.
+            </p>
+          ) : (
+            visibleArticleSections.map(({ section, index }) => {
+              const isActive = index === activeSectionIdx;
+              return (
+                <button
+                  key={`${section.title}-${index}`}
+                  type="button"
+                  onClick={() => {
+                    setActiveSectionIdx(index);
+                    setShowOutlineSheet(false);
+                    articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className={cn(
+                    "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-body-xs transition-colors",
+                    isActive
+                      ? "border-l-2 border-primary bg-primary/10 font-medium text-primary"
+                      : "text-foreground hover:bg-muted/60",
+                  )}
+                >
+                  {isActive ? (
+                    <Circle className="mt-0.5 size-4 shrink-0 fill-primary/20 text-primary" />
+                  ) : (
+                    <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
+                  )}
+                  <span className="line-clamp-2 min-w-0 py-0.5 font-semibold leading-snug">
+                    {formatReaderTocTitle(section.title)}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+
     return (
       <div className="flex flex-col h-full w-full overflow-hidden bg-background">
-        {/* Topbar */}
-        <div className="h-10 w-full border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between px-4 shrink-0">
-          <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
-          
-          <div className="flex items-center gap-2">
+        <header className="relative flex w-full shrink-0 items-center justify-between gap-3 border-b border-border/80 bg-background/95 px-4 py-2.5 backdrop-blur-sm">
+          <div className="flex min-w-0 items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
               asChild
-              className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
+              className="shrink-0 gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground"
             >
               <Link href={`/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
-                <ArrowLeft className="size-3.5 mr-1" />
-                <span>Kembali</span>
+                <ArrowLeft className="size-4" />
+                <span className="hidden sm:inline">Kembali ke Materi</span>
               </Link>
             </Button>
-            <span className="text-border">|</span>
-            <span className="text-body-xs text-muted-foreground font-mono font-semibold">
-              {progressPercent}%
-            </span>
+            <div className="hidden h-4 w-px shrink-0 bg-border sm:block" />
+            <div className="min-w-0">
+              <p className="truncate text-body-xs font-medium text-muted-foreground">
+                {course?.title ?? "Materi Kuliah"}
+              </p>
+              <h1 className="truncate font-heading text-body-sm font-bold text-foreground">
+                {material.title}
+              </h1>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden items-center gap-2 text-body-xs text-muted-foreground md:flex">
+              <div className="h-2 w-24 overflow-hidden rounded-md bg-muted">
+                <div className="h-full rounded-md bg-primary transition-all duration-300" style={{ width: `${progressPercent}%` }} />
+              </div>
+              <span className="font-semibold text-foreground">{progressPercent}%</span>
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowOutlineSheet(true)}
-              className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md"
+              className="gap-1.5 text-body-xs md:hidden"
             >
-              <BookOpen className="size-3.5" />
+              <Menu className="size-4" />
               <span>Daftar Isi</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsArticleTocOpen((open) => !open)}
+              className="hidden gap-1.5 text-body-xs md:flex"
+            >
+              {isArticleTocOpen ? <PanelRightClose className="size-4" /> : <PanelRight className="size-4" />}
+              <span>{isArticleTocOpen ? "Sembunyikan Menu" : "Buka Menu"}</span>
             </Button>
             {ragEnabled && chapterId && (
               <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
@@ -1250,103 +1351,86 @@ export function MaterialViewer({ material, chapterId, ragEnabled, termIndex, mat
               size="sm"
               onClick={markDone}
               disabled={done}
-              className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
+              className="interactive gap-1.5 text-body-xs font-semibold"
             >
               <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
-              <span>{done ? "Selesai" : "Tandai Selesai"}</span>
+              <span className="hidden lg:inline">{done ? "Selesai" : "Tandai Selesai"}</span>
             </Button>
           </div>
-        </div>
-
-        {/* Reading Canvas Container */}
-        <div 
-          id="article-paper-content"
-          ref={articleScrollRef}
-          data-theme={theme}
-          className="flex-1 bg-background text-foreground transition-colors duration-300 w-full overflow-y-auto"
-        >
-          <ArticleReadingCanvas
-            content={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.content || "") : (material.body || "")}
-            courseTitle={course?.title ?? "Course"}
-            chapterTitle={chapterTitle}
-            sectionTitle={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.title || "Detail") : undefined}
-            conceptTags={conceptTags}
-          />
-        </div>
-
-        {/* Pinned Bottom Navigation */}
-        {articleSections.length > 0 && (
-          <div className="shrink-0 border-t border-border bg-card/60 backdrop-blur-xs px-6 py-3 flex items-center justify-between z-10">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={activeSectionIdx === 0}
-              onClick={() => {
-                setActiveSectionIdx(prev => Math.max(0, prev - 1));
-                articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              className="rounded-md text-body-sm font-semibold interactive h-8"
-            >
-              <ChevronLeft className="mr-1 size-3.5" /> Sebelum
-            </Button>
-            <button
-              onClick={() => setShowOutlineSheet(true)}
-              className="text-body-sm font-mono text-muted-foreground font-semibold hover:text-foreground flex items-center gap-1.5 h-8 px-2.5 rounded-md hover:bg-muted/60 transition-colors"
-              title="Buka Daftar Subbab"
-            >
-              <span>Subbab {activeSectionIdx + 1} dari {articleSections.length}</span>
-            </button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={activeSectionIdx === articleSections.length - 1}
-              onClick={() => {
-                setActiveSectionIdx(prev => Math.min(articleSections.length - 1, prev + 1));
-                articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              className="rounded-md text-body-sm font-semibold interactive h-8"
-            >
-              Selanjutnya <ChevronRight className="ml-1 size-3.5" />
-            </Button>
-          </div>
-        )}
+          <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
+        </header>
 
         <Sheet open={showOutlineSheet} onOpenChange={setShowOutlineSheet}>
-          <SheetContent side="right" className="w-full sm:max-w-xs overflow-y-auto p-0 flex flex-col h-full bg-card">
-            <SheetHeader className="p-4 border-b border-border">
-              <SheetTitle className="text-body-base font-heading font-bold flex items-center gap-2">
-                <BookOpen className="size-4 text-brand-primary" />
-                Daftar Subbab & Konsep
+          <SheetContent side="right" className="flex h-full w-[300px] flex-col p-0 sm:w-[360px]">
+            <SheetHeader className="border-b border-border/80 p-4">
+              <SheetTitle className="font-heading text-body-sm font-bold">
+                {material.title}
               </SheetTitle>
             </SheetHeader>
-            <div className="flex-1 overflow-y-auto p-3 space-y-1">
-              {articleSections.map((sec, idx) => {
-                const isActive = idx === activeSectionIdx;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setActiveSectionIdx(idx);
-                      setShowOutlineSheet(false);
-                      articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    className={cn(
-                      "w-full text-left p-3 rounded-lg text-body-xs font-sans transition-all border border-transparent flex flex-col gap-1",
-                      isActive
-                        ? "bg-brand-primary/10 text-brand-primary font-semibold border-l-2 border-l-brand-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/60">
-                      Konsep {idx + 1}
-                    </span>
-                    <span className="line-clamp-2">{sec.title}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <div className="flex-1 overflow-hidden">{renderArticleTocContent()}</div>
           </SheetContent>
         </Sheet>
+
+        <div className="flex min-h-0 flex-1 w-full">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div
+              id="article-paper-content"
+              ref={articleScrollRef}
+              data-theme={theme}
+              className="w-full flex-1 overflow-y-auto bg-background text-foreground transition-colors duration-300"
+            >
+              <ArticleReadingCanvas
+                content={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.content || "") : (material.body || "")}
+                courseTitle={course?.title ?? "Course"}
+                chapterTitle={chapterTitle}
+                sectionTitle={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.title || "Detail") : undefined}
+                conceptTags={conceptTags}
+              />
+            </div>
+
+            {articleSections.length > 0 && (
+              <div className="z-10 flex shrink-0 items-center justify-between border-t border-border bg-card/60 px-4 py-3 backdrop-blur-xs sm:px-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={activeSectionIdx === 0}
+                  onClick={() => {
+                    setActiveSectionIdx(prev => Math.max(0, prev - 1));
+                    articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="interactive h-8 rounded-md text-body-sm font-semibold"
+                >
+                  <ChevronLeft className="mr-1 size-3.5" /> Sebelum
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setShowOutlineSheet(true)}
+                  className="flex h-8 items-center gap-1.5 rounded-md px-2.5 font-mono text-body-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground md:pointer-events-none"
+                  title="Buka Daftar Isi"
+                >
+                  <span>{activeSectionIdx + 1} dari {articleSections.length}</span>
+                </button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={activeSectionIdx === articleSections.length - 1}
+                  onClick={() => {
+                    setActiveSectionIdx(prev => Math.min(articleSections.length - 1, prev + 1));
+                    articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="interactive h-8 rounded-md text-body-sm font-semibold"
+                >
+                  Selanjutnya <ChevronRight className="ml-1 size-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+          {isArticleTocOpen && (
+            <aside className="hidden w-72 shrink-0 overflow-hidden border-l border-border/80 bg-card/40 md:block lg:w-80">
+              {renderArticleTocContent()}
+            </aside>
+          )}
+        </div>
         {tutorPopover}
       </div>
     );

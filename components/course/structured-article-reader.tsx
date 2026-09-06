@@ -12,8 +12,8 @@ import {
   Compass,
   ChevronLeft,
   ChevronRight,
-  PanelLeftClose,
-  PanelLeft,
+  PanelRightClose,
+  PanelRight,
   Search,
   X,
   Lightbulb,
@@ -56,6 +56,7 @@ import {
   ProductFormativeCheck,
   ProductLearningTimeBadge,
 } from "@/components/course/product-learning-blocks";
+import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
 
 export interface StructuredArticleReaderProps {
   article: PublicArticleReadModel;
@@ -669,12 +670,9 @@ export function StructuredArticleReader({
                           : "border-border/60 hover:bg-muted/60 text-foreground",
                       )}
                     >
-                      <div className="mb-1 flex items-center gap-1.5 text-body-xs font-semibold text-muted-foreground">
-                        <span>Bagian {res.sectionNumber}</span>
-                        <span>·</span>
-                        <span className="capitalize">{res.matchType}</span>
-                      </div>
-                      <p className="font-semibold line-clamp-1">{res.sectionTitle}</p>
+                      <p className="font-semibold line-clamp-1">
+                        {formatReaderTocTitle(res.sectionTitle)}
+                      </p>
                       <p className="mt-0.5 line-clamp-2 text-body-xs font-normal text-muted-foreground">
                         {res.snippet}
                       </p>
@@ -722,13 +720,9 @@ export function StructuredArticleReader({
                         <Circle className="size-4 text-muted-foreground/50" />
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-0.5 flex items-center justify-between gap-1 text-body-xs text-muted-foreground">
-                        <span className="font-semibold">Bagian {section.sectionNumber}</span>
-                        <span>{section.estimatedReadingMinutes} mnt</span>
-                      </div>
+                    <div className="min-w-0 flex-1 py-0.5">
                       <p className="text-body-xs font-semibold line-clamp-2 leading-snug">
-                        {section.title}
+                        {formatReaderTocTitle(section.title)}
                       </p>
                     </div>
                   </button>
@@ -842,12 +836,12 @@ export function StructuredArticleReader({
               >
                 {isTocOpen ? (
                   <>
-                    <PanelLeftClose className="size-4" />
+                    <PanelRightClose className="size-4" />
                     <span>Sembunyikan Menu</span>
                   </>
                 ) : (
                   <>
-                    <PanelLeft className="size-4" />
+                    <PanelRight className="size-4" />
                     <span>Buka Menu</span>
                   </>
                 )}
@@ -867,7 +861,7 @@ export function StructuredArticleReader({
 
       {/* Mobile Sheet for TOC & Search */}
       <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
-        <SheetContent side="left" className="w-[300px] sm:w-[360px] p-0 flex flex-col">
+        <SheetContent side="right" className="w-[300px] sm:w-[360px] p-0 flex flex-col">
           <SheetHeader className="p-4 border-b border-border/80">
             <SheetTitle className="text-body-sm font-bold font-heading">
               {article.title}
@@ -878,14 +872,7 @@ export function StructuredArticleReader({
       </Sheet>
 
       {/* Main Layout Body */}
-      <div className={cn("flex-1 flex w-full", isFocusMode ? "max-w-4xl mx-auto" : "max-w-7xl mx-auto")}>
-        {/* Desktop Collapsible Sidebar */}
-        {!isFocusMode && isTocOpen && (
-          <aside className="hidden md:block w-72 lg:w-80 shrink-0 border-r border-border/80 h-[calc(100vh-53px)] sticky top-[53px] overflow-hidden bg-card/40">
-            {renderTocContent()}
-          </aside>
-        )}
-
+      <div className={cn("flex-1 flex w-full", isFocusMode && "max-w-4xl mx-auto")}>
         {/* Main Content Area (75 character measure) */}
         <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-8 pb-32">
           {activeSection ? (
@@ -975,6 +962,13 @@ export function StructuredArticleReader({
             </div>
           )}
         </main>
+
+        {/* Desktop Collapsible Table of Contents */}
+        {!isFocusMode && isTocOpen && (
+          <aside className="hidden md:block w-72 lg:w-80 shrink-0 border-l border-border/80 h-[calc(100vh-53px)] sticky top-[53px] overflow-hidden bg-card/40">
+            {renderTocContent()}
+          </aside>
+        )}
       </div>
 
       {/* Floating Selection-to-Zyra popover */}
