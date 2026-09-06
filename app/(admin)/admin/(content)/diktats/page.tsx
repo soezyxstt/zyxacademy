@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 
 export default async function LegacyDiktatPage() {
   await assertTutorOrAdmin();

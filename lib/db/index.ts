@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/libsql/web";
 import { createClient as createWebClient } from "@libsql/client/web";
+import { createRequire } from "node:module";
 import * as schema from "@/db/schema";
 
 const url =
@@ -23,16 +24,7 @@ let client;
 if (isRemoteTurso) {
   client = createWebClient({ url: url!, authToken });
 } else {
-  // Local development / build SQLite
-  const isWeb =
-    typeof window !== "undefined" ||
-    !globalThis.process ||
-    !globalThis.process.versions ||
-    !globalThis.process.versions.node;
-
-  const localUrl = isWeb
-    ? "https://local-sqlite-placeholder.internal"
-    : (url || "file:dev.db");
+  const localUrl = url || "file:dev.db";
 
   if (localUrl.startsWith("libsql://") || localUrl.startsWith("https://") || localUrl.startsWith("http://")) {
     client = createWebClient({ url: localUrl, authToken });
@@ -40,15 +32,23 @@ if (isRemoteTurso) {
     // For local file: SQLite (e.g. dev.db), load node client via dynamic require so Turbopack does not trace native addons into production
     const getNodeClient = () => {
       try {
-        const req = typeof __non_webpack_require__ !== "undefined" ? __non_webpack_require__ : eval("require");
-        const pkg = ["@", "libsql", "/", "client"].join("");
-        return req(pkg).createClient;
+        const nonWebpackReq = (globalThis as any).__non_webpack_require__;
+        if (typeof nonWebpackReq !== "undefined") {
+          return nonWebpackReq(["@", "libsql", "/", "client"].join("")).createClient;
+        }
+        const req = createRequire(import.meta.url);
+        return req(["@", "libsql", "/", "client"].join("")).createClient;
       } catch {
         return createWebClient;
       }
     };
-    const createNodeClient = getNodeClient();
-    client = createNodeClient({ url: localUrl });
+
+    try {
+      const createNodeClient = getNodeClient();
+      client = createNodeClient({ url: localUrl });
+    } catch {
+      client = createWebClient({ url: "https://local-sqlite-placeholder.internal", authToken });
+    }
   }
 }
 

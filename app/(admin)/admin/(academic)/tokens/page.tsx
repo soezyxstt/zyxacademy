@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { db } from "@/db";
 import { courses } from "@/db/schema";
 import { getEnrollmentTokens } from "./actions";

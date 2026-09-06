@@ -14,7 +14,7 @@ import {
   quizAiInsights,
   aiQuestionBank,
 } from "@/db/schema";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { eq, asc, desc, inArray, and, or } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";

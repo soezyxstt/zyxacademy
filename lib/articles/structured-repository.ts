@@ -133,7 +133,7 @@ export async function getCanonicalPublishedArticle(
       .orderBy(asc(blokArtikel.orderIndex));
 
     // Fetch user progress if userId provided
-    let progressRecords = null;
+    let progressRecords: any = null;
     if (userId) {
       progressRecords = await db
         .select()

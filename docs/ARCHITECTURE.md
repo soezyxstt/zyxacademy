@@ -1,6 +1,6 @@
 # Zyx Academy Architecture (vNext)
 
-**Stack:** Next.js 16 (App Router), Drizzle ORM + SQLite (dev) / Turso (prod), Better-Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), Cloudflare R2 with UploadThing as a compatibility fallback (storage abstraction), Inngest (background jobs), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
+**Stack:** Next.js 16 (App Router), Deno Deploy (background worker), Drizzle ORM + SQLite (dev) / Turso (prod), Better Auth, Gemini AI via Cloudflare AI Gateway, canonical Cloudflare Vectorize (vector search), Cloudflare R2 with UploadThing as a compatibility fallback (storage abstraction), Inngest (background orchestration), Firebase Cloud Messaging (push notifs), Cloudflare Workers (vector API, realtime, diktat renderer)
 
 ---
 
@@ -1066,3 +1066,50 @@ Plan 013 stores fixed-column operational events and derives admin metrics from t
 ### Release verification boundary
 
 Plan 014 is a masked verifier that inventories predecessor artifacts, approved optional flags, staging fingerprints, worktree state, and the approved request cap. Synthetic-only execution writes a blocked result when any release gate is absent. It does not deploy, migrate, change rollout settings, call a provider, or authorize production.
+
+---
+
+## 16. Background Compute and Deno Worker Architecture
+
+To eliminate heavy compute and long-running execution limits on Vercel Fluid Compute, background execution is decoupled into a dedicated lightweight Deno Deploy service (`workers/deno-background`), orchestrated by Inngest.
+
+```
+Browser / Client
+       │
+       ▼
+┌─────────────────────────────────┐
+│ Vercel (Next.js 16)             │
+│ • UI / SSR / Server Components  │
+│ • Better Auth session management│
+│ • Fast CRUD and validation      │
+│ • Enqueue jobs via Inngest      │
+│ • HTTP 202 Accepted responses   │
+└────────────────┬────────────────┘
+                 │ event
+                 ▼
+          ┌─────────────┐
+          │   Inngest   │
+          │ Orchestrator│
+          └──────┬──────┘
+                 │ webhook dispatch
+                 ▼
+┌─────────────────────────────────┐
+│ Deno Deploy Worker              │
+│ (`workers/deno-background`)     │
+│ • Vector sync and embeddings    │
+│ • Gemini question generation    │
+│ • Mastery recomputation         │
+│ • Cohort analytics snapshots    │
+│ • Student quiz AI diagnosis     │
+│ • Search document sync          │
+│ • Diktat PDF compilation        │
+└─────────────────────────────────┘
+```
+
+### Architectural Principles
+
+1. **Vercel Remains Primary Web Tier**: Deno Deploy is never a second general backend. Deno Deploy exposes only `/health` and `/api/inngest` via Hono. It does not serve SSR pages, handle user sessions, or duplicate Next.js routing.
+2. **Zero Framework Dependencies in Jobs**: All background functions under `jobs/*` and their transitively imported modules in `lib/*` must be strictly framework-neutral. They have zero imports of `next/*`, `@t3-oss/env-nextjs`, `react`, `puppeteer`, or Node native C++ binary addons.
+3. **Automated Dependency Guard**: Static verification via `bun run worker:deno:audit` audits the entire dependency graph of `jobs/index.ts` in CI and CD before any worker deployment.
+4. **Asynchronous Enqueue Pattern**: Endpoints with heavy compute or AI inference (such as `/api/quiz/attempts/[id]/analytics`) never execute synchronously on Vercel. They record initial state, emit an Inngest event, and return HTTP `202 Accepted`. Clients poll or receive updates through standard polling patterns.
+5. **Deno Deploy CLI**: Deployment uses the official `deno deploy --non-interactive --org soezyxst --app zyx-background` CLI, driven by GitHub Actions with `DENO_DEPLOY_TOKEN`.

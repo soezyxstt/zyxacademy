@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AiAnalyticsClient } from "./analytics-client";
 import { LineChart } from "lucide-react";

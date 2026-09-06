@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { db } from "@/db";
 import { aiUsageEvents, user } from "@/db/schema";
 import { eq, sql, desc } from "drizzle-orm";

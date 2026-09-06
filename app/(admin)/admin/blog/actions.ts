@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { blogArticles } from "@/db/schema";
 import { eq, and, ne } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
 import { generateContentWithFallback } from "@/lib/gemini";

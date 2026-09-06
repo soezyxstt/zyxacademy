@@ -6,7 +6,6 @@ import { and, desc, eq } from "drizzle-orm";
 import katex from "katex";
 import { db } from "@/db";
 import { buktiPdfBundle, imporBundle, user } from "@/db/schema";
-import { env } from "@/lib/env";
 import { storage, type StorageProvider } from "@/lib/storage";
 import { joinKey, slugifySegment } from "@/lib/storage/keys";
 import type { ProductEntity } from "./product-validator";
@@ -236,12 +235,14 @@ export async function renderProductDiktatPdf(
   html: string,
   options: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
 ): Promise<Uint8Array> {
-  if (!env.DIKTAT_RENDERER_URL || !env.DIKTAT_RENDERER_SECRET) {
+  const rendererUrl = process.env.DIKTAT_RENDERER_URL;
+  const rendererSecret = process.env.DIKTAT_RENDERER_SECRET;
+  if (!rendererUrl || !rendererSecret) {
     throw new Error("PRODUCT_DIKTAT_RENDERER_UNAVAILABLE");
   }
-  const response = await (options.fetchImpl ?? fetch)(`${env.DIKTAT_RENDERER_URL}/render`, {
+  const response = await (options.fetchImpl ?? fetch)(`${rendererUrl}/render`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${env.DIKTAT_RENDERER_SECRET}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${rendererSecret}`, "Content-Type": "application/json" },
     body: JSON.stringify({ html, printProfile: PRODUCT_DIKTAT_PRINT_PROFILE }),
     signal: AbortSignal.timeout(options.timeoutMs ?? 45_000),
   });

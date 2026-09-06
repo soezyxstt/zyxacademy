@@ -67,7 +67,7 @@ type MaterialViewerProps = {
   ragEnabled?: boolean;
   /** EIF E3: course concept term index for the interactive material popover. */
   termIndex?: TermIndexEntry[];
-  /** EIF E3 feature flag (FEATURE_MATERIAL_LIVE), resolved on the server. */
+  /** EIF E3: interactive material popover selection gate, defaults to true. */
   materialLiveEnabled?: boolean;
   course?: { title: string } | null;
 };

@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { user } from "@/db/schema";
-import { env } from "@/lib/env";
 import { resend } from "@/lib/resend";
 import { isEmailCategoryEnabled, type EmailNotificationCategory } from "./contracts";
 import { appendEmailUnsubscribeFooter, buildEmailUnsubscribeUrls, optionalEmailHeaders } from "./delivery-contract";
@@ -38,7 +37,7 @@ export async function sendOptionalEmail(input: SendOptionalEmailInput): Promise<
   const headers = optionalEmailHeaders(urls.oneClickUrl);
 
   const { data, error } = await resend.emails.send({
-    from: input.from ?? `Zyx Academy <${env.NEXT_PUBLIC_BRAND_EMAIL || "contact@zyxacademy.com"}>`,
+    from: input.from ?? `Zyx Academy <${process.env.NEXT_PUBLIC_BRAND_EMAIL || "contact@zyxacademy.com"}>`,
     to: recipient.email,
     subject: input.subject,
     html,

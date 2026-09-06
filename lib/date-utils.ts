@@ -285,7 +285,14 @@ export function getWeekScheduleDays(anchorDate?: Date | string): {
   const now = getJakartaNow();
   const todayIso = formatIsoDateUtc(now);
 
-  const days = [];
+  const days: Array<{
+    dateIso: string;
+    dayName: IndonesianDay;
+    dayOfMonth: number;
+    monthName: string;
+    isToday: boolean;
+    isPast: boolean;
+  }> = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);

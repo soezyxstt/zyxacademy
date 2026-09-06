@@ -10,7 +10,7 @@ import {
   user,
   enrollments,
 } from "@/db/schema";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { eq, desc, and, like, or } from "drizzle-orm";
 import { getSemesterEndDate } from "@/lib/utils";
 import { dualWriteEnrollment } from "@/lib/migrasi/repository-kompatibilitas";

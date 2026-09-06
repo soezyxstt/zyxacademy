@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { storage } from "@/lib/storage";
 import { joinKey, userFileLeaf } from "@/lib/storage/keys";
 

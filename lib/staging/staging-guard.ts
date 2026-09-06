@@ -76,7 +76,7 @@ const PRODUCTION_ALIASES: Record<StagingResourceKey, string[]> = {
 
 const STAGING_ALLOWLIST: Partial<Record<StagingResourceKey, string[]>> = {
   database: ["libsql://zyx-staging-soezyxstt.aws-ap-south-1.turso.io"],
-  authUrl: ["https://staging.zyxacademy.com"],
+  authUrl: ["https://staging.zyxacademy.com", "http://localhost:3000"],
   r2Bucket: ["zyx-staging"],
   vectorizeWorker: ["https://zyx-vector-api-staging.16922204.workers.dev"],
 };

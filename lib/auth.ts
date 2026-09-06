@@ -22,6 +22,14 @@ export const auth = betterAuth({
  // Do not import `@/lib/env` here ; that runs full env validation on every API route load.
  baseURL: resolveAuthBaseUrl(),
  secret: resolveAuthSecret(),
+ trustedOrigins: [
+   "http://localhost:3000",
+   "http://127.0.0.1:3000",
+   "https://staging.zyxacademy.com",
+   "https://zyx.academy",
+   "https://zyxacademy.com",
+   "https://www.zyxacademy.com",
+ ],
  database: drizzleAdapter(db, {
  provider: "sqlite", // Using SQLite/libSQL
  schema: schema,

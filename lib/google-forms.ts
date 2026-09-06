@@ -2,7 +2,7 @@
  * Google Forms REST API v1 Client Library
  *
  * Provides typed helpers for:
- * 1. OAuth2 token refresh (using GOOGLE_FORMS_REFRESH_TOKEN or fallback to GOOGLE_MEET_REFRESH_TOKEN)
+ * 1. OAuth2 token refresh (using GOOGLE_REFRESH_TOKEN)
  * 2. Form creation & batch update (adding questions: multiple choice, text, checkboxes, rating scale)
  * 3. Form details and public responder URI generation
  * 4. Response list retrieval & analytics calculation for Recharts visualizations
@@ -155,16 +155,13 @@ export interface CreateCustomQuestionInput {
  * Exchanges the Google Forms Refresh Token (or fallback Meet token) for an access token.
  */
 export async function getGoogleFormsAccessToken(): Promise<string> {
-  const refreshToken =
-    process.env.GOOGLE_REFRESH_TOKEN?.trim() ||
-    process.env.GOOGLE_FORMS_REFRESH_TOKEN?.trim() ||
-    process.env.GOOGLE_MEET_REFRESH_TOKEN?.trim();
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN?.trim();
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 
   if (!refreshToken) {
     throw new Error(
-      "Missing GOOGLE_REFRESH_TOKEN (or GOOGLE_FORMS_REFRESH_TOKEN / GOOGLE_MEET_REFRESH_TOKEN) in environment variables."
+      "Missing GOOGLE_REFRESH_TOKEN in environment variables."
     );
   }
   if (!clientId || !clientSecret) {

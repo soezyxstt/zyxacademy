@@ -6,8 +6,6 @@ import { hasAnyPeran } from "@/lib/auth/authorization";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { inngest } from "@/lib/inngest";
-import { computeQuizAnalyticsFacts } from "@/lib/student-quiz-analytics/calculator";
-import { generateStudentQuizDiagnosis } from "@/lib/student-quiz-analytics/ai-pipeline";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -70,7 +68,6 @@ export async function GET(_req: NextRequest, { params }: Context) {
   const courseId = template?.courseId || "calc-1";
 
   try {
-    const facts = await computeQuizAnalyticsFacts(attemptId);
     const recordId = `sqa_${attemptId}`;
 
     await db.insert(studentQuizAnalytics).values({
@@ -80,37 +77,10 @@ export async function GET(_req: NextRequest, { params }: Context) {
       templateId: attempt.templateId,
       courseId,
       status: "processing",
-      computedMetrics: facts as any,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).onConflictDoNothing();
 
-    // Synchronously generate AI diagnosis first to avoid duplicate background invocations
-    const aiDiagnosis = await generateStudentQuizDiagnosis(attemptId, facts).catch(() => null);
-
-    if (aiDiagnosis) {
-      await db
-        .update(studentQuizAnalytics)
-        .set({
-          status: "completed",
-          aiDiagnosis: aiDiagnosis as any,
-          updatedAt: new Date(),
-        })
-        .where(eq(studentQuizAnalytics.attemptId, attemptId));
-
-      return NextResponse.json({
-        id: recordId,
-        attemptId,
-        studentId: attempt.studentId,
-        templateId: attempt.templateId,
-        courseId,
-        status: "completed",
-        computedMetrics: facts,
-        aiDiagnosis,
-      });
-    }
-
-    // Trigger background job ONLY if synchronous generation is deferred or failed
     await inngest.send({
       name: "quiz/analytics.requested",
       data: { attemptId, studentId: attempt.studentId, courseId },
@@ -123,11 +93,11 @@ export async function GET(_req: NextRequest, { params }: Context) {
       templateId: attempt.templateId,
       courseId,
       status: "processing",
-      computedMetrics: facts,
+      computedMetrics: null,
       aiDiagnosis: null,
-    });
+    }, { status: 202 });
   } catch (err: any) {
-    console.error("Failed to compute sync analytics:", err);
+    console.error("Failed to enqueue quiz analytics:", err);
     return NextResponse.json({ error: "Failed to generate analytics" }, { status: 500 });
   }
 }
@@ -207,5 +177,8 @@ export async function POST(_req: NextRequest, { params }: Context) {
     data: { attemptId, studentId: attempt.studentId, courseId },
   });
 
-  return NextResponse.json({ message: "Analytics generation re-queued", attemptId, status: "processing" });
+  return NextResponse.json(
+    { message: "Analytics generation re-queued", attemptId, status: "processing" },
+    { status: 202 }
+  );
 }

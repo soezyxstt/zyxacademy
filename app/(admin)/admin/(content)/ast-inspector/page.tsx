@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { ASTInspectorClient } from "./ast-inspector-client";
 import { pageTitle } from "@/lib/site";
 import { AdminPageHeader } from "@/components/admin/page-header";

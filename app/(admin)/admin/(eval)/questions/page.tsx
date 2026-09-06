@@ -13,7 +13,7 @@ import {
   soalIde,
 } from "@/db/schema";
 import { asc, desc, eq, inArray } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { QuestionBankClient } from "./questions-client";
 import { HistoricalQuestionsClient } from "./historical-questions-client";
 import { AdminTabs, AdminTabsContent, AdminTabsList, AdminTabsTrigger } from "@/components/admin/tabs";

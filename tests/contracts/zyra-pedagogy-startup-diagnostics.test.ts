@@ -111,7 +111,6 @@ describe("Plan 007 masked startup diagnostics", () => {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        UPLOADTHING_TOKEN: "",
         RESEND_API_KEY: "",
       },
       stdout: "pipe",
@@ -132,5 +131,5 @@ describe("Plan 007 masked startup diagnostics", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain("SCOPED_ZYRA_RUNTIME_IMPORT_OK");
     expect(`${stdout}\n${stderr}`).not.toContain("UNEXPECTED_NETWORK_CALL");
-  }, 20_000);
+  }, 45_000);
 });

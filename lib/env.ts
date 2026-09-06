@@ -6,7 +6,6 @@ import { publicAppUrlSchema } from '@/lib/public-app-url';
 export const env = createEnv({
   skipValidation:
     Boolean(process.env.SKIP_ENV_VALIDATION) ||
-    Boolean(process.env.DENO_DEPLOYMENT_ID) ||
     process.env.npm_lifecycle_event === 'lint',
  server: {
  DATABASE_URL: z.string().min(1),
@@ -26,12 +25,6 @@ export const env = createEnv({
  GOOGLE_CLIENT_SECRET: z.string(),
  /** Primary Google OAuth Refresh Token for Google Workspace REST APIs (Meet, Forms, Sheets, Drive) */
  GOOGLE_REFRESH_TOKEN: z.string().optional(),
- /** Google OAuth Refresh Token for Master Pro Account (Meet REST API) */
- GOOGLE_MEET_REFRESH_TOKEN: z.string().optional(),
- /** Dedicated Google OAuth Refresh Token for Google Forms REST API (optional fallback to GOOGLE_REFRESH_TOKEN / GOOGLE_MEET_REFRESH_TOKEN) */
- GOOGLE_FORMS_REFRESH_TOKEN: z.string().optional(),
- /** Legacy UploadThing compatibility token; Cloudflare R2 is the default storage provider. */
- UPLOADTHING_TOKEN: z.string().min(1),
  /** Resend API Key for sending transactional emails. */
  RESEND_API_KEY: z.string().min(1),
  /** Nomor WhatsApp admin (digits; `+`/spaces allowed). Contoh: `6281234567890`. */
@@ -68,7 +61,7 @@ export const env = createEnv({
  /** Cloudflare R2 secret access key */
  R2_SECRET_ACCESS_KEY: z.string().optional(),
  /** Storage provider mode: 'r2' | 'uploadthing' (default: r2) */
- STORAGE_PROVIDER_MODE: z.enum(['r2', 'uploadthing']).optional(),
+ STORAGE_PROVIDER_MODE: z.string().optional(),
  // ── Cloudflare AI Gateway ──────────────────────────────────────────────
  /**
  * Cloudflare AI Gateway base URL for Gemini requests.
@@ -178,9 +171,6 @@ export const env = createEnv({
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
   GOOGLE_REFRESH_TOKEN: process.env.GOOGLE_REFRESH_TOKEN,
-  GOOGLE_MEET_REFRESH_TOKEN: process.env.GOOGLE_MEET_REFRESH_TOKEN,
-  GOOGLE_FORMS_REFRESH_TOKEN: process.env.GOOGLE_FORMS_REFRESH_TOKEN,
-  UPLOADTHING_TOKEN: process.env.UPLOADTHING_TOKEN,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   WHATSAPP_ADMIN_NUMBER: process.env.WHATSAPP_ADMIN_NUMBER,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,

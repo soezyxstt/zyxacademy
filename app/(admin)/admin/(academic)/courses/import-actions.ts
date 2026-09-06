@@ -7,7 +7,7 @@ import {
   websiteMaterials,
   vectorSyncQueue,
 } from "@/db/schema";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { importChapterBundle, type ImportMode, type BundleChapterDiff } from "@/lib/bundle-importer";
 import {
   importAssessmentBundle,

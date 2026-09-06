@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 
 export const LEGACY_AUTHORING_RETIRED_CODE = "LEGACY_AUTHORING_CRUD_RETIRED";
 export const LEGACY_AUTHORING_RETIRED_MESSAGE =

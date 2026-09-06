@@ -2,17 +2,41 @@
 
 ## Architecture
 
-Production runs on Vercel (Next.js) + Turso (DB) with supporting Cloudflare services.
+Production runs on Vercel (Next.js) + Turso (DB) with Deno Deploy (background compute) and supporting Cloudflare services.
 
 ```
 Vercel (Next.js App Router)
  ├── Turso (libsql database)
+ ├── Inngest Cloud (background orchestration)
+ │    └── Deno Deploy (background worker: zyx-background / zyx-background-staging)
  ├── Cloudflare R2 (object storage)
- ├── Inngest Cloud (background jobs)
  ├── Cloudflare AI Gateway (Gemini proxy)
  ├── Cloudflare Vectorize (canonical 768-dimensional vector store)
  └── Cloudflare Workers (3 production services plus the staging-only Zyra control plane)
 ```
+
+## Deno Deploy Background Worker Deployment
+
+Background execution is handled by Deno Deploy, orchestrated via Inngest. Deployment is 100% automated through GitHub Actions (`.github/workflows/deploy.yml`):
+
+- **Staging (`staging` branch)**:
+  - App Name: `zyx-background-staging`
+  - URL: `https://zyx-background-staging.deno.dev`
+  - GitHub Environment: `staging`
+- **Production (`main` branch)**:
+  - App Name: `zyx-background`
+  - URL: `https://zyx-background.deno.dev`
+  - GitHub Environment: `production`
+
+### Automated Pipeline Capabilities
+
+The deployment workflow performs the following actions automatically on push:
+1. **Pre-deploy Verification**: Runs `worker:deno:audit` (dependency tree guard) and `worker:deno:check` (typecheck).
+2. **Dynamic Provisioning**: Automatically provisions the Deno Deploy app via `deno deploy create` if it does not already exist.
+3. **Environment Sync**: Synchronizes all repository and environment secrets to Deno Deploy via `deno deploy env load --replace`.
+4. **Zero-downtime Deploy**: Runs `deno deploy --non-interactive --org soezyxst --app $APP_NAME --prod`.
+5. **Automated Healthcheck**: Polls `https://${APP_NAME}.deno.dev/health` to confirm database connectivity and runtime health.
+6. **Automated Inngest Sync**: Calls the Inngest Cloud API via `PUT https://api.inngest.com/v1/apps` with `INNGEST_SIGNING_KEY` to register all 16 background functions without manual dashboard steps.
 
 ## Staging overhaul execution
 

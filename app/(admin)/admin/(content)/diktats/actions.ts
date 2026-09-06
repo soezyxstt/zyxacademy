@@ -1,7 +1,7 @@
 "use server";
 
 import { LEGACY_AUTHORING_RETIRED_MESSAGE } from "@/lib/admin/legacy-authoring-retirement";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 
 export interface CreateDiktatDraftActionResult {
   success: boolean;

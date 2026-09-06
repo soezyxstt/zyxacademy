@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { zyraMessageAttachments } from "@/db/schema";
 import { daysFrom } from "@/lib/date-utils";
 import { buildZyraAttachmentKey } from "@/lib/storage/keys";
-import { storage, STORAGE_PROVIDER_MODE } from "@/lib/storage";
+import { storage } from "@/lib/storage";
 import {
   assertZyraImageCount,
   assertZyraImageRequestBytes,
@@ -44,9 +44,6 @@ export async function createZyraImageAttachment(input: {
   bytes: Uint8Array;
   declaredMimeType: string;
 }): Promise<ZyraImageAttachmentRecord> {
-  if (STORAGE_PROVIDER_MODE === "uploadthing") {
-    throw new Error("ZYRA_PRIVATE_STORAGE_REQUIRED");
-  }
   const sanitized = await sanitizeZyraImage(input.bytes, input.declaredMimeType);
   const id = randomUUID();
   const createdAt = new Date();

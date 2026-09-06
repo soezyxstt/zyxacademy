@@ -28,6 +28,11 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
@@ -39,6 +44,12 @@ jobs:
 
       - name: Lint
         run: bun run lint
+
+      - name: Worker Dependency Audit
+        run: bun run worker:deno:audit
+
+      - name: Worker Typecheck
+        run: bun run worker:deno:check
 
       - name: Run AI Contract Tests
         run: bun run test:ai-contracts

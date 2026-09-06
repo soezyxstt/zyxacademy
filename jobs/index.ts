@@ -1,0 +1,73 @@
+export { inngest } from "./client";
+
+export {
+  vectorSyncWorker,
+  vectorSyncCronWorker,
+  mapConcurrent,
+  processBatch,
+} from "./vector-sync";
+
+export {
+  bulkChapterGenerator,
+  questionGenerationWorker,
+} from "./generation";
+
+export {
+  masteryRecomputeWorker,
+  ideaMasteryRecomputeWorker,
+  masterySnapshotCron,
+} from "./mastery";
+
+export {
+  courseAnalyticsSnapshotCron,
+  studentQuizAnalyticsWorker,
+} from "./analytics";
+
+export { feedbackWorker } from "./feedback";
+export { weeklyReflectionCron } from "./reflection";
+export { assessmentIngestWorker } from "./assessment";
+export { contentQualityAuditCron } from "./audit";
+export { syncSearchDocuments } from "./search-sync";
+export { productDiktatPdfWorker } from "./pdf";
+export { adminOpsKnowledgeSyncWorker } from "./admin-knowledge";
+
+import { vectorSyncWorker, vectorSyncCronWorker } from "./vector-sync";
+import { bulkChapterGenerator, questionGenerationWorker } from "./generation";
+import {
+  masteryRecomputeWorker,
+  ideaMasteryRecomputeWorker,
+  masterySnapshotCron,
+} from "./mastery";
+import {
+  courseAnalyticsSnapshotCron,
+  studentQuizAnalyticsWorker,
+} from "./analytics";
+import { feedbackWorker } from "./feedback";
+import { weeklyReflectionCron } from "./reflection";
+import { assessmentIngestWorker } from "./assessment";
+import { contentQualityAuditCron } from "./audit";
+import { syncSearchDocuments } from "./search-sync";
+import { productDiktatPdfWorker } from "./pdf";
+import { adminOpsKnowledgeSyncWorker } from "./admin-knowledge";
+
+/**
+ * All 16 registered background functions for Inngest execution.
+ */
+export const allFunctions = [
+  vectorSyncWorker,
+  vectorSyncCronWorker,
+  bulkChapterGenerator,
+  masteryRecomputeWorker,
+  ideaMasteryRecomputeWorker,
+  feedbackWorker,
+  courseAnalyticsSnapshotCron,
+  weeklyReflectionCron,
+  masterySnapshotCron,
+  assessmentIngestWorker,
+  contentQualityAuditCron,
+  questionGenerationWorker,
+  studentQuizAnalyticsWorker,
+  syncSearchDocuments,
+  productDiktatPdfWorker,
+  adminOpsKnowledgeSyncWorker,
+];

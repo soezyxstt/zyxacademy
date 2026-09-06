@@ -1,18 +1,34 @@
 {
   "deploy": {
     "org": "soezyxst",
-    "app": "zyx-standalone",
-    "entrypoint": "server.js"
+    "app": "zyx-background",
+    "entrypoint": "workers/deno-background/main.ts"
   },
   "unstable": [
-    "detect-cjs",
-    "node-globals",
-    "unsafe-proto",
     "sloppy-imports"
   ],
-  "nodeModulesDir": "none",
+  "nodeModulesDir": "auto",
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "jsx": "react-jsx"
+    "lib": ["deno.ns", "dom", "dom.iterable", "esnext"],
+    "types": ["node"],
+    "noImplicitAny": false
+  },
+  "imports": {
+    "@/": "./",
+    "hono": "npm:hono@^4.7.2",
+    "inngest": "npm:inngest@^4.6.0",
+    "inngest/hono": "npm:inngest@^4.6.0/hono",
+    "fflate": "npm:fflate@^0.8.2",
+    "drizzle-orm": "npm:drizzle-orm@^0.45.2",
+    "drizzle-orm/": "npm:/drizzle-orm@^0.45.2/",
+    "@google/genai": "npm:@google/genai@^2.8.0",
+    "zod": "npm:zod@^4.4.3",
+    "@libsql/client": "npm:@libsql/client@^0.17.4",
+    "@libsql/client/": "npm:/@libsql/client@^0.17.4/",
+    "date-fns": "npm:date-fns@^4.4.0",
+    "katex": "npm:katex@^0.17.0",
+    "pdf-parse": "npm:pdf-parse@^2.4.5",
+    "resend": "npm:resend@^6.14.0",
+    "fuse.js": "npm:fuse.js@^7.4.2"
   }
 }

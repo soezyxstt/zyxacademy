@@ -3,7 +3,7 @@ import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { aiQuestionBank, courses, questionOptionStats } from "@/db/schema";
 import { inArray } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { MathText } from "@/components/course/math-text";
 import { Target } from "lucide-react";

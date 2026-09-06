@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { getAdminUsersData } from "./actions";
 import { UsersDashboard } from "@/components/admin/users-dashboard";
 import { PageHeader } from "@/components/page-header";

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { MaterialWorkspace } from "@/components/admin/material-workspace";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { pageTitle } from "@/lib/site";
 import { loadMaterialWorkspaceData } from "../data";
 

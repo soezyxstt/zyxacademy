@@ -13,7 +13,7 @@ import {
   penggunaPeran,
   peran,
 } from "@/db/schema";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { eq, and, desc, isNull, inArray } from "drizzle-orm";
 import {
   getJakartaNow,

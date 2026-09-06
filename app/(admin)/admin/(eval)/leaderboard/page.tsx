@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { pageTitle } from "@/lib/site";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { AdminLeaderboardClient } from "@/components/admin/leaderboard/admin-leaderboard-client";
 
 export const metadata: Metadata = {

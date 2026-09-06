@@ -26,12 +26,9 @@ async function main() {
   console.log("  GOOGLE WORKSPACE REST APIS INTEGRATION TEST     ");
   console.log("==================================================\n");
 
-  const refreshToken =
-    process.env.GOOGLE_REFRESH_TOKEN ||
-    process.env.GOOGLE_FORMS_REFRESH_TOKEN ||
-    process.env.GOOGLE_MEET_REFRESH_TOKEN;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
-  console.log("Using Refresh Token source:", process.env.GOOGLE_REFRESH_TOKEN ? "GOOGLE_REFRESH_TOKEN" : "Fallback");
+  console.log("Using Refresh Token source: GOOGLE_REFRESH_TOKEN");
   console.log("Client ID:", process.env.GOOGLE_CLIENT_ID || "NONE");
   console.log("Token prefix:", refreshToken ? refreshToken.slice(0, 15) + "..." : "NONE");
   console.log("");

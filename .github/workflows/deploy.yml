@@ -1,4 +1,4 @@
-name: Deploy to Deno Deploy
+name: Deploy Deno Background Worker
 
 on:
   push:
@@ -13,8 +13,9 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build & Deploy
+    name: Deploy Background Worker (${{ github.ref_name }})
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 
     steps:
       - name: Checkout Code
@@ -33,33 +34,113 @@ jobs:
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
-      - name: Initialize Local SQLite Database
-        run: bun run db:migrate
+      - name: Worker Dependency Audit
+        run: bun run worker:deno:audit
 
-      - name: Build Next.js Standalone
-        env:
-          SKIP_ENV_VALIDATION: "true"
-          NEXT_TELEMETRY_DISABLED: "1"
-          DATABASE_URL: "file:dev.db"
-          BETTER_AUTH_SECRET: "build-time-placeholder-auth-secret-32-chars-long"
-          GOOGLE_CLIENT_ID: "build-time-placeholder-google-client-id"
-          GOOGLE_CLIENT_SECRET: "build-time-placeholder-google-client-secret"
-          GEMINI_API_KEY: "build-placeholder-gemini-key"
-          RESEND_API_KEY: "re_dummy_placeholder_for_build"
-          INNGEST_EVENT_KEY: "dummy-inngest-event-key"
-          UPLOADTHING_TOKEN: "dummy-uploadthing-token"
-        run: bun run build
+      - name: Worker Typecheck
+        run: bun run worker:deno:check
 
-      - name: Prepare Standalone Bundle
-        run: bun run deno:prep
+      - name: Configure Target Environment
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "APP_NAME=zyx-background" >> $GITHUB_ENV
+            echo "APP_URL=https://zyx-background.deno.dev" >> $GITHUB_ENV
+          else
+            echo "APP_NAME=zyx-background-staging" >> $GITHUB_ENV
+            echo "APP_URL=https://zyx-background-staging.deno.dev" >> $GITHUB_ENV
+          fi
 
-      - name: Deploy to Deno Deploy
+      - name: Provision Deno Deploy App (if not exists)
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
-          PROD_FLAG=""
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            PROD_FLAG="--prod"
+          deno deploy create --non-interactive \
+            --org soezyxst \
+            --app $APP_NAME \
+            --source local \
+            --runtime-mode dynamic \
+            --entrypoint workers/deno-background/main.ts \
+            || echo "App $APP_NAME already exists or initialized."
+
+      - name: Sync Environment Variables to Deno Deploy
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          SECRET_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          SECRET_INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
+          SECRET_INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
+          SECRET_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SECRET_GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+          SECRET_GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
+          SECRET_GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
+          SECRET_CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          SECRET_CF_R2_ACCESS_KEY_ID: ${{ secrets.CF_R2_ACCESS_KEY_ID }}
+          SECRET_CF_R2_SECRET_ACCESS_KEY: ${{ secrets.CF_R2_SECRET_ACCESS_KEY }}
+          SECRET_CF_R2_BUCKET: ${{ secrets.CF_R2_BUCKET }}
+          SECRET_VECTORIZE_WORKER_URL: ${{ secrets.VECTORIZE_WORKER_URL }}
+          SECRET_VECTORIZE_WORKER_SECRET: ${{ secrets.VECTORIZE_WORKER_SECRET }}
+          SECRET_RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          cat << EOF > .env.deploy
+          DATABASE_URL=${SECRET_DATABASE_URL}
+          TURSO_AUTH_TOKEN=${SECRET_TURSO_AUTH_TOKEN}
+          INNGEST_EVENT_KEY=${SECRET_INNGEST_EVENT_KEY}
+          INNGEST_SIGNING_KEY=${SECRET_INNGEST_SIGNING_KEY}
+          INNGEST_SERVE_ORIGIN=${APP_URL}
+          INNGEST_SERVE_PATH=/api/inngest
+          GEMINI_API_KEY=${SECRET_GEMINI_API_KEY}
+          GEMINI_API_KEY_2=${SECRET_GEMINI_API_KEY_2}
+          GEMINI_API_KEY_3=${SECRET_GEMINI_API_KEY_3}
+          GEMINI_API_KEY_4=${SECRET_GEMINI_API_KEY_4}
+          CF_ACCOUNT_ID=${SECRET_CF_ACCOUNT_ID}
+          CF_R2_ACCESS_KEY_ID=${SECRET_CF_R2_ACCESS_KEY_ID}
+          CF_R2_SECRET_ACCESS_KEY=${SECRET_CF_R2_SECRET_ACCESS_KEY}
+          CF_R2_BUCKET=${SECRET_CF_R2_BUCKET}
+          VECTORIZE_WORKER_URL=${SECRET_VECTORIZE_WORKER_URL}
+          VECTORIZE_WORKER_SECRET=${SECRET_VECTORIZE_WORKER_SECRET}
+          RESEND_API_KEY=${SECRET_RESEND_API_KEY}
+          EOF
+
+          grep -v '=$' .env.deploy > .env.deploy.filtered || true
+
+          if [ -s .env.deploy.filtered ]; then
+            deno deploy env load --replace .env.deploy.filtered --org soezyxst --app $APP_NAME --non-interactive
+            echo "Environment variables successfully synced to $APP_NAME."
+          else
+            echo "No secrets found in repository/environment to sync."
           fi
-          cd .next/standalone
-          deno run -A jsr:@deno/deploy . $PROD_FLAG --allow-node-modules --non-interactive --org=soezyxst --app=zyx-standalone
+          rm -f .env.deploy .env.deploy.filtered
+
+      - name: Deploy Worker to Deno Deploy
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          deno deploy --non-interactive --org soezyxst --app $APP_NAME --prod
+
+      - name: Verify Worker Health Check
+        run: |
+          echo "Verifying healthcheck at $APP_URL/health..."
+          for i in {1..12}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/health" || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Healthcheck passed: $APP_URL is live and healthy."
+              exit 0
+            fi
+            echo "Attempt $i: Status is $STATUS, waiting 5 seconds..."
+            sleep 5
+          done
+          echo "Worker healthcheck failed with status $STATUS"
+          exit 1
+
+      - name: Automated Inngest App Sync
+        env:
+          INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
+        run: |
+          if [ -n "$INNGEST_SIGNING_KEY" ]; then
+            echo "Triggering automated Inngest App Sync for $APP_URL/api/inngest..."
+            RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X PUT "https://api.inngest.com/v1/apps?url=${APP_URL}/api/inngest" \
+              -H "Authorization: Bearer ${INNGEST_SIGNING_KEY}")
+            echo "$RESPONSE"
+          else
+            echo "INNGEST_SIGNING_KEY not provided, skipping automated sync."
+          fi

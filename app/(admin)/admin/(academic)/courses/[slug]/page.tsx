@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { getCourseDetailData } from "../actions";
 import { CourseDetailClient } from "@/components/admin/course-detail/course-detail-client";
 

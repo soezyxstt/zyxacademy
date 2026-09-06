@@ -4,6 +4,10 @@ import { hasAnyPeran, hasPeran } from "@/lib/auth/authorization";
 
 type UserWithRole = { id: string; role?: string | null };
 
+/**
+ * Asserts that the current session user has the admin role via canonical
+ * `pengguna_peran` or legacy `user.role` projection.
+ */
 export async function assertAdmin() {
   const h = await headers();
   const session = await auth.api.getSession({
@@ -23,6 +27,10 @@ export async function assertAdmin() {
   return { session, user };
 }
 
+/**
+ * Asserts that the current session user has either tutor or admin role via canonical
+ * `pengguna_peran` or legacy `user.role` projection.
+ */
 export async function assertTutorOrAdmin() {
   const h = await headers();
   const session = await auth.api.getSession({

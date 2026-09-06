@@ -3,7 +3,7 @@ import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { aiGenerationJobs, courses, chapters, mataKuliah, bab, knowledgeObjects } from "@/db/schema";
 import { desc, eq, asc } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { GenerationJobsClient } from "./jobs-client";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Zap } from "lucide-react";

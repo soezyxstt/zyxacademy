@@ -8,7 +8,7 @@ import {
   penggunaPeran,
   peran,
 } from "@/db/schema";
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { eq, inArray, desc } from "drizzle-orm";
 import {
   PERAN_CODES,

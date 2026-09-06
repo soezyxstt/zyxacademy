@@ -1,4 +1,3 @@
-import { env } from "@/lib/env";
 
 export type FeatureCategory =
   | "academic_student"
@@ -65,7 +64,7 @@ export function isFeatureFlagActive(value: string | undefined): boolean {
 
 /** Returns statuses only for the approved optional capability catalog. */
 export function getAllFeatureFlagsStatus(): FeatureFlagStatus[] {
-  const envObj = env as unknown as Record<string, string | undefined>;
+  const envObj = (typeof process !== "undefined" ? process.env : {}) as Record<string, string | undefined>;
   return KNOWN_FEATURE_FLAGS.map((meta) => {
     const rawValue = envObj[meta.key];
     return {

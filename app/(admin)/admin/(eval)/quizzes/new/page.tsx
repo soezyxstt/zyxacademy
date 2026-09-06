@@ -3,7 +3,7 @@ import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { courses, mataKuliah } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/uploadthing-admin";
+import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
 import { QuizForm } from "../_components/quiz-form";
 
 export const metadata: Metadata = {

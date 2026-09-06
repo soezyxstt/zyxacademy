@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { assertAdmin } from "@/lib/uploadthing-admin";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { storage } from "@/lib/storage";
 import {
   assertSafeKey,

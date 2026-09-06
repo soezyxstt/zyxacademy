@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   serverExternalPackages: ["puppeteer"],
   typescript: {
     ignoreBuildErrors: true,
@@ -53,8 +52,7 @@ const nextConfig: NextConfig = {
 
 const isProduction = process.env.NODE_ENV === "production";
 const enableSentryInDev = process.env.ENABLE_SENTRY_DEV === "true";
-const isDeno = Boolean(process.env.DENO_DEPLOYMENT_ID || (globalThis as unknown as { Deno?: unknown }).Deno);
-const shouldEnableSentry = (isProduction || enableSentryInDev) && Boolean(process.env.SENTRY_AUTH_TOKEN) && !isDeno;
+const shouldEnableSentry = (isProduction || enableSentryInDev) && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
 export default async function config(): Promise<NextConfig> {
   if (shouldEnableSentry) {
