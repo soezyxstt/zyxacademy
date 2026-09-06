@@ -42,6 +42,9 @@ jobs:
           GOOGLE_CLIENT_ID: "build-time-placeholder-google-client-id"
           GOOGLE_CLIENT_SECRET: "build-time-placeholder-google-client-secret"
           GEMINI_API_KEY: "build-placeholder-gemini-key"
+          RESEND_API_KEY: "re_dummy_placeholder_for_build"
+          INNGEST_EVENT_KEY: "dummy-inngest-event-key"
+          UPLOADTHING_TOKEN: "dummy-uploadthing-token"
         run: bun run build
 
       - name: Prepare Standalone Bundle
