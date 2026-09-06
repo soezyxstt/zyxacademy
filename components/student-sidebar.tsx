@@ -151,54 +151,134 @@ export function StudentSidebar({
               title={c ? "Kembali ke Dashboard" : undefined}
               className={cn(
                 "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-brand-secondary hover:bg-muted/40 transition-colors mb-2",
-                c && "justify-center px-0 size-10"
+                c && "justify-center size-10 px-0 mx-auto"
               )}
             >
               <ArrowLeft className="size-4 shrink-0" />
-              {!c && <span>Kembali ke Dashboard</span>}
+              {!c && <span>Dashboard</span>}
             </Link>
           </SidebarTooltip>
 
           {!c && (
-            <div className="mb-3 px-3">
-              <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground/70 mb-1">Mata Kuliah</p>
-              <p className="text-body-xs font-bold text-foreground truncate">{activeCourse.title}</p>
+            <div className="rounded-xl border border-border/60 bg-muted/30 p-3 mb-4 text-left">
+              <div className="flex items-center gap-2">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+                  <BookOpen className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body-xs font-bold text-foreground font-heading leading-tight">
+                    {activeCourse.title}
+                  </p>
+                  <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
+                    {activeCourse.category || "Kelas"}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
-          <SidebarTooltip label="Ringkasan" collapsed={c}>
-            <NavItem href={`/courses/${activeCourse.id}`} icon={LayoutDashboard} label="Ringkasan" collapsed={c} />
-          </SidebarTooltip>
-          <SidebarTooltip label="Dokumen" collapsed={c}>
-            <NavItem href={`/courses/${activeCourse.id}/material`} icon={FileText} label="Dokumen" collapsed={c} />
-          </SidebarTooltip>
-          <SidebarTooltip label="Kuis" collapsed={c}>
-            <NavItem href={`/courses/${activeCourse.id}/quiz`} icon={ClipboardList} label="Kuis" collapsed={c} />
-          </SidebarTooltip>
-          <SidebarTooltip label="Jadwal" collapsed={c}>
-            <NavItem href={`/dashboard/schedule?course=${activeCourse.id}`} icon={CalendarRange} label="Jadwal" collapsed={c} />
-          </SidebarTooltip>
-          {showStudyPath && (
-            <SidebarTooltip label="Jalur Belajar" collapsed={c}>
-              <NavItem href={`/courses/${activeCourse.id}/study-path`} icon={Compass} label="Jalur Belajar" collapsed={c} />
-            </SidebarTooltip>
-          )}
-          {showMastery && (
-            <SidebarTooltip label="Penguasaan" collapsed={c}>
-              <NavItem href={`/courses/${activeCourse.id}/mastery`} icon={Target} label="Penguasaan" collapsed={c} />
-            </SidebarTooltip>
-          )}
-          {showLive && (
-            <SidebarTooltip label="Live" collapsed={c}>
-              <NavItem href={`/courses/${activeCourse.id}/live`} icon={Play} label="Live" collapsed={c} />
-            </SidebarTooltip>
-          )}
-          <SidebarTooltip label="Progres Belajar" collapsed={c}>
-            <NavItem href={`/courses/${activeCourse.id}/progress`} icon={BarChart3} label="Progres Belajar" collapsed={c} />
-          </SidebarTooltip>
+          <div className={cn("space-y-1", c && "w-full flex flex-col items-center")}>
+            {(() => {
+              const base = `/courses/${activeCourse.id}`;
+              const isPka = activeCourse.id === PKA_COURSE_ID;
+
+              const primaryItems: Array<{
+                href: string;
+                icon: typeof LayoutDashboard;
+                label: string;
+                exact?: boolean;
+                customActive?: boolean;
+              }> = isPka
+                ? [
+                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
+                    { href: `${base}/jadwal`, icon: CalendarRange, label: "Jadwal" },
+                    { href: `${base}/simulasi`, icon: ClipboardList, label: "Simulasi" },
+                    { href: `${base}/laporan`, icon: BarChart3, label: "Laporan Diagnostik" },
+                  ]
+                : [
+                    { href: base, icon: LayoutDashboard, label: "Ringkasan", exact: true },
+                    { href: `${base}/material`, icon: FileText, label: "Dokumen" },
+                    { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
+                    {
+                      href: `/dashboard/schedule?course=${activeCourse.id}`,
+                      icon: CalendarRange,
+                      label: "Jadwal",
+                      customActive: pathname === "/dashboard/schedule" && courseIdFromSchedule === activeCourse.id,
+                    },
+                  ];
+
+              const secondaryItems: Array<{
+                href: string;
+                icon: typeof LayoutDashboard;
+                label: string;
+                exact?: boolean;
+                badge?: string;
+              }> = isPka
+                ? [
+                    { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
+                    { href: `${base}/quiz`, icon: ClipboardList, label: "Kuis" },
+                    { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
+                    { href: `${base}/material`, icon: FileText, label: "Materi" },
+                  ]
+                : [
+                    { href: `${base}/flashcard`, icon: Brain, label: "Flashcard" },
+                    { href: `${base}/tryout`, icon: GraduationCap, label: "Tryout" },
+                    ...(showStudyPath ? [{ href: `${base}/path`, icon: Compass, label: "Alur Belajar" }] : []),
+                    ...(showMastery ? [{ href: `${base}/mastery`, icon: Target, label: "Penguasaan" }] : []),
+                    { href: `${base}/progress`, icon: BarChart3, label: "Progres" },
+                    { href: `${base}/leaderboard`, icon: Trophy, label: "Peringkat" },
+                    { href: `${base}/my-results`, icon: History, label: "Hasil Ujian" },
+                    ...(showLive ? [{ href: `${base}/live`, icon: Play, label: "Kuis Langsung", badge: "Beta" }] : []),
+                  ];
+
+              return (
+                <>
+                  {primaryItems.map((item) => (
+                    <NavItem
+                      key={item.href}
+                      href={item.href}
+                      icon={item.icon}
+                      label={item.label}
+                      active={item.customActive ?? (item.exact ? pathname === item.href : pathname.startsWith(item.href))}
+                      collapsed={c}
+                    />
+                  ))}
+
+                  {secondaryItems.length > 0 && (
+                    <>
+                      {!c && (
+                        <div className="pt-2.5 pb-1 px-2.5 text-left">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                            Lainnya
+                          </span>
+                        </div>
+                      )}
+                      {c && <div className="my-1.5 w-5 border-t border-border/60" />}
+
+                      {secondaryItems.map((item) => (
+                        <NavItem
+                          key={item.href}
+                          href={item.href}
+                          icon={item.icon}
+                          label={item.label}
+                          badge={item.badge}
+                          active={item.exact ? pathname === item.href : pathname.startsWith(item.href)}
+                          collapsed={c}
+                        />
+                      ))}
+                    </>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
+          <div className="flex-1" />
         </nav>
       );
     }
+
+    const userRole = (session?.user as { role?: string | null } | undefined)?.role;
 
     return (
       <nav className={cn(
@@ -207,39 +287,143 @@ export function StudentSidebar({
           ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
           : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
       )}>
-        <SidebarTooltip label="Dashboard" collapsed={c}>
-          <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" collapsed={c} />
-        </SidebarTooltip>
-        <SidebarTooltip label="Mata Kuliah" collapsed={c}>
-          <NavItem href="/dashboard/courses" icon={BookOpen} label="Mata Kuliah" collapsed={c} />
-        </SidebarTooltip>
-        <SidebarTooltip label="Jadwal" collapsed={c}>
-          <NavItem href="/dashboard/schedule" icon={CalendarRange} label="Jadwal" collapsed={c} />
-        </SidebarTooltip>
-        <SidebarTooltip label="Kelompok" collapsed={c}>
-          <NavItem href="/dashboard/groups" icon={Users} label="Kelompok" collapsed={c} />
-        </SidebarTooltip>
-        <SidebarTooltip label="Leaderboard" collapsed={c}>
-          <NavItem href="/leaderboard" icon={Trophy} label="Leaderboard" collapsed={c} />
-        </SidebarTooltip>
-        <SidebarTooltip label="Riwayat" collapsed={c}>
-          <NavItem href="/dashboard/history" icon={History} label="Riwayat" collapsed={c} />
-        </SidebarTooltip>
-        <SidebarTooltip label="Notifikasi" collapsed={c}>
-          <NavItem href="/dashboard/notifications" icon={Bell} label="Notifikasi" collapsed={c} />
-        </SidebarTooltip>
-        <SidebarTooltip label="Profil" collapsed={c}>
-          <NavItem href="/profile" icon={User} label="Profil" collapsed={c} />
-        </SidebarTooltip>
+        <NavItem
+          href="/dashboard"
+          icon={LayoutDashboard}
+          label="Dashboard"
+          active={pathname === "/dashboard"}
+          collapsed={c}
+        />
+
+        <NavItem
+          href="/dashboard/schedule"
+          icon={CalendarRange}
+          label={userRole === "teacher" || userRole === "tutor" ? "Jadwal Tutorial" : "Jadwal"}
+          active={pathname === "/dashboard/schedule"}
+          collapsed={c}
+        />
+
+        {(userRole === "teacher" || userRole === "tutor" || userRole === "admin") && (
+          <NavItem
+            href="/tutor"
+            icon={GraduationCap}
+            label="Teaching"
+            active={pathname === "/tutor" || pathname.startsWith("/tutor/")}
+            collapsed={c}
+          />
+        )}
+
+        <NavItem
+          href="/dashboard/groups"
+          icon={Users}
+          label="Kelompok Belajar"
+          active={pathname === "/dashboard/groups" || pathname.startsWith("/dashboard/groups")}
+          collapsed={c}
+        />
+
+        <NavItem
+          href="/leaderboard"
+          icon={Trophy}
+          label="Peringkat"
+          active={pathname === "/leaderboard" || pathname.startsWith("/leaderboard")}
+          collapsed={c}
+        />
+
+        <div className={cn(c && "w-full flex flex-col items-center")}>
+          <SidebarTooltip label="Courses" collapsed={c}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (c) {
+                  router.push("/courses");
+                } else {
+                  setCoursesOpen((v) => !v);
+                }
+              }}
+              className={cn(
+                "group/item relative flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] font-medium transition-colors cursor-pointer",
+                pathname.startsWith("/courses")
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                c && "justify-center size-10 px-0 mx-auto"
+              )}
+            >
+              <BookOpen className="size-4 shrink-0" />
+              {!c && (
+                <>
+                  <span className="truncate whitespace-nowrap flex-1 text-left min-w-0">Courses</span>
+                  {coursesOpen
+                    ? <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform" />
+                    : <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform" />}
+                </>
+              )}
+            </button>
+          </SidebarTooltip>
+
+          {coursesOpen && !c && (
+            <div className="ml-4 mt-1 space-y-0.5 border-l border-border pl-3">
+              {enrolledCourses.map((course) => {
+                const active =
+                  pathname === `/courses/${course.id}` ||
+                  pathname.startsWith(`/courses/${course.id}/`);
+                return (
+                  <Link
+                    key={course.id}
+                    href={`/courses/${course.id}`}
+                    className={cn(
+                      "block truncate rounded-lg px-2.5 py-1.5 text-body-xs font-medium transition-colors",
+                      active
+                        ? "bg-brand-primary/8 text-brand-primary font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {course.title}
+                  </Link>
+                );
+              })}
+              <Link
+                href="/courses"
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-body-xs font-medium text-brand-secondary hover:underline transition-colors",
+                  pathname === "/courses" && "font-semibold underline"
+                )}
+              >
+                <Search className="size-3.5 shrink-0" />
+                <span>Jelajahi Course</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <NavItem
+          href="/profile"
+          icon={User}
+          label="Profile"
+          active={pathname === "/profile"}
+          collapsed={c}
+        />
+
+        <NavItem
+          href="/settings/notifications"
+          icon={Bell}
+          label="Notification preferences"
+          active={pathname === "/settings/notifications"}
+          collapsed={c}
+        />
+
+        <div className="flex-1" />
       </nav>
     );
   };
 
   return (
     <SidebarShell
-      ariaLabel="Navigasi siswa"
-      top={topSection}
-      content={navContent}
+      collapsedKey="sidebar-collapsed"
+      logoHref="/dashboard"
+      logoLabel="Dashboard Zyx Academy"
+      nav={navContent}
+      topSection={topSection}
     />
   );
 }
