@@ -63,6 +63,16 @@ function inspectAndFixPackages(dir: string, relScope = "") {
 console.log("Scanning and fixing incomplete packages in .next/standalone/node_modules...");
 inspectAndFixPackages(standaloneNodeModules);
 
+const criticalPackages = ["@swc/helpers", "semver", "@libsql/client", "@libsql/core", "@libsql/hrana-client", "@libsql/isomorphic-ws"];
+for (const pkg of criticalPackages) {
+  const src = path.join(rootNodeModules, pkg);
+  const dest = path.join(standaloneNodeModules, pkg);
+  if (fs.existsSync(src)) {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.cpSync(src, dest, { recursive: true, force: true });
+  }
+}
+
 // Clean up native libsql if present to avoid runtime load errors on non-Windows/serverless environments
 const standaloneLibsql = path.join(standaloneNodeModules, "libsql");
 if (fs.existsSync(standaloneLibsql)) {

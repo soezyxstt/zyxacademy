@@ -1,0 +1,53 @@
+﻿name: Deploy to Deno Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Next.js Standalone
+        env:
+          SKIP_ENV_VALIDATION: "true"
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: bun run build
+
+      - name: Prepare Standalone Bundle
+        run: bun run deno:prep
+
+      - name: Deploy to Deno Deploy
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          PROD_FLAG=""
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            PROD_FLAG="--prod"
+          fi
+          deno run -A jsr:@deno/deploy .next/standalone $PROD_FLAG --allow-node-modules --non-interactive --org=soezyxst --app=zyx-standalone
