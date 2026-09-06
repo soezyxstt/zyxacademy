@@ -41,6 +41,11 @@ if (fs.existsSync(pkgPath)) {
 // 3b. Write .next/standalone/deno.json
 const standaloneDenoJson = path.join(standaloneDir, "deno.json");
 const standaloneDenoConfig = {
+  deploy: {
+    org: "soezyxst",
+    app: "zyx-standalone",
+    entrypoint: "server.js",
+  },
   unstable: [
     "detect-cjs",
     "node-globals",
@@ -50,7 +55,7 @@ const standaloneDenoConfig = {
   nodeModulesDir: "none",
 };
 fs.writeFileSync(standaloneDenoJson, JSON.stringify(standaloneDenoConfig, null, 2), "utf-8");
-console.log("Created .next/standalone/deno.json");
+console.log("Created .next/standalone/deno.json with entrypoint: server.js");
 
 // 4. Fill in incomplete packages in .next/standalone/node_modules
 function inspectAndFixPackages(dir: string, relScope = "") {

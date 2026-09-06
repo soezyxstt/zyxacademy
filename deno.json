@@ -1,7 +1,8 @@
 {
   "deploy": {
     "org": "soezyxst",
-    "app": "zyx-standalone"
+    "app": "zyx-standalone",
+    "entrypoint": "server.js"
   },
   "unstable": [
     "detect-cjs",

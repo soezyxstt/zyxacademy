@@ -61,4 +61,5 @@ jobs:
           if [ "${{ github.ref_name }}" = "main" ]; then
             PROD_FLAG="--prod"
           fi
-          deno run -A jsr:@deno/deploy .next/standalone $PROD_FLAG --allow-node-modules --non-interactive --org=soezyxst --app=zyx-standalone
+          cd .next/standalone
+          deno run -A jsr:@deno/deploy . $PROD_FLAG --allow-node-modules --non-interactive --org=soezyxst --app=zyx-standalone
