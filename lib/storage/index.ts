@@ -32,6 +32,9 @@ export interface StorageProvider {
   list?(prefix: string): Promise<{ key: string; size: number; lastModified: Date }[]>;
 }
 
+import { R2Provider } from "./r2";
+import { WranglerR2Provider } from "./wrangler-r2";
+
 // Cloudflare R2 is the default storage provider
 const providerMode = "r2";
 const useWranglerStagingStorage = process.env.STAGING_BUNDLE_WRANGLER_STORAGE === "1";
@@ -39,10 +42,8 @@ const useWranglerStagingStorage = process.env.STAGING_BUNDLE_WRANGLER_STORAGE ==
 let activeProvider: StorageProvider;
 
 if (useWranglerStagingStorage) {
-  const { WranglerR2Provider } = require("./wrangler-r2");
   activeProvider = new WranglerR2Provider();
 } else {
-  const { R2Provider } = require("./r2");
   activeProvider = new R2Provider();
 }
 
