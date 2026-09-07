@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
@@ -56,6 +56,7 @@ import type { CourseMaterial } from "@/lib/student-course-fixtures";
 import { updateMaterialProgress } from "@/app/(student)/dashboard/actions";
 import { cn } from "@/lib/utils";
 import { ArticleReadingCanvas } from "@/components/course/article-reading-canvas";
+import { MarkdownRenderer } from "@/components/course/markdown-renderer";
 import { MathText } from "@/components/course/math-text";
 import { useTutor } from "@/components/course/tutor-drawer";
 import { ZyraMark } from "@/components/course/zyra-mark";
@@ -655,6 +656,66 @@ export function MaterialViewer({
   const { chapterTitle, sections: articleSections } = useMemo(() => {
     return parseArticleSections(material.body || "", material.title);
   }, [material.body, material.title]);
+
+  // Scroll-spy observer for continuous diktat / article sections
+  useEffect(() => {
+    if (material.kind !== "article" || articleSections.length === 0) return;
+    const scrollContainer = articleScrollRef.current;
+    if (!scrollContainer) return;
+
+    const sectionElements = articleSections
+      .map((_, idx) => document.getElementById(`diktat-section-${idx}`))
+      .filter(Boolean) as HTMLElement[];
+
+    if (!sectionElements.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const intersecting = entries.filter((e) => e.isIntersecting);
+        if (intersecting.length > 0) {
+          const sorted = intersecting.sort(
+            (a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top)
+          );
+          const idxAttr = sorted[0].target.getAttribute("data-section-idx");
+          if (idxAttr != null) {
+            const newIdx = parseInt(idxAttr, 10);
+            if (!isNaN(newIdx) && newIdx !== activeSectionIdx) {
+              setActiveSectionIdx(newIdx);
+            }
+          }
+        }
+      },
+      {
+        root: scrollContainer,
+        rootMargin: "-10% 0px -60% 0px",
+        threshold: [0, 0.2, 0.5],
+      },
+    );
+
+    for (const el of sectionElements) {
+      observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, [articleSections, material.kind, activeSectionIdx]);
+
+  // Scroll to target section on initial load if query param present
+  useEffect(() => {
+    if (material.kind !== "article" || articleSections.length === 0) return;
+    const sectionParam = searchParams?.get("section");
+    if (sectionParam != null) {
+      const targetIdx = parseInt(sectionParam, 10);
+      if (!isNaN(targetIdx) && targetIdx >= 0 && targetIdx < articleSections.length) {
+        const timer = setTimeout(() => {
+          const el = document.getElementById(`diktat-section-${targetIdx}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 250);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [articleSections.length, material.kind, searchParams]);
 
   const visibleArticleSections = useMemo(() => {
     const query = articleTocSearchQuery.trim().toLocaleLowerCase("id");
@@ -1277,6 +1338,7 @@ export function MaterialViewer({
           ) : (
             visibleArticleSections.map(({ section, index }) => {
               const isActive = index === activeSectionIdx;
+              const isPassed = index < activeSectionIdx;
               return (
                 <button
                   key={`${section.title}-${index}`}
@@ -1284,7 +1346,10 @@ export function MaterialViewer({
                   onClick={() => {
                     setActiveSectionIdx(index);
                     setShowOutlineSheet(false);
-                    articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                    const el = document.getElementById(`diktat-section-${index}`);
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
                   }}
                   className={cn(
                     "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left text-body-xs transition-colors",
@@ -1293,7 +1358,9 @@ export function MaterialViewer({
                       : "text-foreground hover:bg-muted/60",
                   )}
                 >
-                  {isActive ? (
+                  {isPassed ? (
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-status-success" />
+                  ) : isActive ? (
                     <Circle className="mt-0.5 size-4 shrink-0 fill-primary/20 text-primary" />
                   ) : (
                     <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" />
@@ -1343,6 +1410,20 @@ export function MaterialViewer({
                 </div>
                 <span className="font-semibold text-foreground">{progressPercent}%</span>
               </div>
+              {material.url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="interactive gap-1.5 text-body-xs font-semibold"
+                >
+                  <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                    <Download className="size-3.5" aria-hidden />
+                    <span className="hidden sm:inline">Unduh PDF</span>
+                    <span className="sm:hidden">Unduh</span>
+                  </a>
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -1400,51 +1481,132 @@ export function MaterialViewer({
               data-theme={theme}
               className="w-full flex-1 overflow-y-auto bg-background text-foreground transition-colors duration-300"
             >
-              <ArticleReadingCanvas
-                content={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.content || "") : (material.body || "")}
-                courseTitle={course?.title ?? "Course"}
-                chapterTitle={chapterTitle}
-                sectionTitle={articleSections.length > 0 ? (articleSections[activeSectionIdx]?.title || "Detail") : undefined}
-                conceptTags={conceptTags}
-              />
-            </div>
+              <div className="max-w-[75ch] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+                {/* Document / Diktat Header */}
+                <header className="space-y-3 border-b border-border/80 pb-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 text-body-xs font-semibold text-muted-foreground">
+                      <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-primary">
+                        {material.docCategory === "diktat" ? "Diktat Materi" : "Catatan Materi"}
+                      </span>
+                      {course?.title && <span>· {course.title}</span>}
+                    </div>
+                    {material.url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-1.5 text-body-xs font-semibold"
+                      >
+                        <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                          <Download className="size-3.5" aria-hidden />
+                          <span>Unduh PDF</span>
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                  <h1 className="font-heading text-h3 font-bold tracking-tight text-foreground sm:text-h2">
+                    {chapterTitle || material.title}
+                  </h1>
+                  {conceptTags && conceptTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {conceptTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="bg-primary/5 text-primary text-body-xs font-semibold px-2 py-0.5 rounded-md"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </header>
 
-            {articleSections.length > 0 && (
-              <div className="z-10 flex shrink-0 items-center justify-between border-t border-border bg-card/60 px-4 py-3 backdrop-blur-xs sm:px-6">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={activeSectionIdx === 0}
-                  onClick={() => {
-                    setActiveSectionIdx(prev => Math.max(0, prev - 1));
-                    articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="interactive h-8 rounded-md text-body-sm font-semibold"
-                >
-                  <ChevronLeft className="mr-1 size-3.5" /> Sebelum
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => setShowOutlineSheet(true)}
-                  className="flex h-8 items-center gap-1.5 rounded-md px-2.5 font-mono text-body-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground md:pointer-events-none"
-                  title="Buka Daftar Isi"
-                >
-                  <span>{activeSectionIdx + 1} dari {articleSections.length}</span>
-                </button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={activeSectionIdx === articleSections.length - 1}
-                  onClick={() => {
-                    setActiveSectionIdx(prev => Math.min(articleSections.length - 1, prev + 1));
-                    articleScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="interactive h-8 rounded-md text-body-sm font-semibold"
-                >
-                  Selanjutnya <ChevronRight className="ml-1 size-3.5" />
-                </Button>
+                {/* Continuous Sections */}
+                {articleSections.length > 0 ? (
+                  articleSections.map((section, idx) => {
+                    const isLast = idx === articleSections.length - 1;
+                    return (
+                      <React.Fragment key={idx}>
+                        <section
+                          id={`diktat-section-${idx}`}
+                          data-section-idx={idx}
+                          className="scroll-mt-16 space-y-4"
+                        >
+                          <div className="border-b border-border/60 pb-3">
+                            <span className="text-body-xs font-semibold text-primary/80">
+                              Bagian {idx + 1} dari {articleSections.length}
+                            </span>
+                            <h2 className="font-heading text-h4 font-bold tracking-tight text-foreground sm:text-h3 mt-1">
+                              {section.title}
+                            </h2>
+                          </div>
+
+                          <div className="w-full">
+                            <MarkdownRenderer content={section.content} density="default" />
+                          </div>
+                        </section>
+
+                        {!isLast ? (
+                          <div className="py-8 flex items-center gap-4 text-muted-foreground/50">
+                            <div className="h-px flex-1 bg-border/60" />
+                            <div className="flex items-center gap-1.5 text-body-xs font-semibold px-3 py-1 rounded-md bg-muted/40 border border-border/40 text-muted-foreground">
+                              <CheckCircle2 className="size-3.5 text-status-success" />
+                              <span>Selesai Bagian {idx + 1}</span>
+                            </div>
+                            <div className="h-px flex-1 bg-border/60" />
+                          </div>
+                        ) : null}
+                      </React.Fragment>
+                    );
+                  })
+                ) : (
+                  <div className="w-full">
+                    <MarkdownRenderer content={material.body || ""} density="default" />
+                  </div>
+                )}
+
+                {/* End of Diktat milestone */}
+                <div className="mt-16 rounded-xl border border-border bg-card p-6 sm:p-8 text-center space-y-4 shadow-sm">
+                  <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
+                    <CheckCircle2 className="size-6 text-status-success" />
+                  </div>
+                  <div className="space-y-1">
+                    <h2 className="font-heading text-h5 font-bold text-foreground">
+                      {material.docCategory === "diktat" ? "Diktat Selesai" : "Materi Selesai"}
+                    </h2>
+                    <p className="text-body-sm text-muted-foreground max-w-md mx-auto">
+                      Anda telah membaca seluruh isi {material.docCategory === "diktat" ? "diktat" : "materi"} {chapterTitle || material.title}.
+                    </p>
+                  </div>
+                  {learnerMode && (
+                    <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                      <Button
+                        variant="default"
+                        onClick={markDone}
+                        disabled={done}
+                        className="gap-2 bg-status-success hover:bg-status-success/95 text-white font-bold"
+                      >
+                        <CheckCircle2 className="size-4" />
+                        <span>{done ? "Sudah Selesai" : "Tandai Selesai & Simpan"}</span>
+                      </Button>
+                      {material.url && (
+                        <Button
+                          variant="outline"
+                          asChild
+                          className="gap-2 font-semibold"
+                        >
+                          <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                            <Download className="size-4" />
+                            <span>Unduh Salinan PDF</span>
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
           {isArticleTocOpen && (
             <aside className="hidden w-72 shrink-0 overflow-hidden border-l border-border/80 bg-card/40 md:block lg:w-80">

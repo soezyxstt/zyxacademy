@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardList,
+  Download,
   ExternalLink,
   Eye,
   FileCode,
@@ -361,22 +362,41 @@ function PdfViewerModal({
               {/* Right: Actions */}
               <div className="flex items-center gap-1 shrink-0">
                 {pdfUrl ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 rounded-md text-muted-foreground hover:text-foreground"
-                    asChild
-                  >
-                    <a
-                      href={pdfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Buka di tab baru"
-                      aria-label="Buka di tab baru"
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                      asChild
                     >
-                      <ExternalLink className="size-3.5" />
-                    </a>
-                  </Button>
+                      <a
+                        href={pdfUrl}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Unduh PDF"
+                        aria-label="Unduh PDF"
+                      >
+                        <Download className="size-3.5" />
+                      </a>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                      asChild
+                    >
+                      <a
+                        href={pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Buka di tab baru"
+                        aria-label="Buka di tab baru"
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </a>
+                    </Button>
+                  </>
                 ) : null}
                 <Button
                   variant="ghost"
@@ -805,16 +825,37 @@ export function DocumentListClient({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                  ) : material.completed ? (
-                    <CheckCircle2
-                      className="size-4 shrink-0 text-status-success"
-                      aria-label="Selesai dipelajari"
-                    />
                   ) : (
-                    <MoreVertical
-                      className="size-3.5 shrink-0 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground/70"
-                      aria-hidden
-                    />
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {material.completed ? (
+                        <CheckCircle2
+                          className="size-4 shrink-0 text-status-success"
+                          aria-label="Selesai dipelajari"
+                        />
+                      ) : null}
+                      {material.url ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+                          asChild
+                          title="Unduh PDF"
+                          aria-label={`Unduh PDF ${material.title}`}
+                        >
+                          <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                            <Download className="size-3.5" />
+                          </a>
+                        </Button>
+                      ) : (
+                        !material.completed && (
+                          <MoreVertical
+                            className="size-3.5 shrink-0 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground/70"
+                            aria-hidden
+                          />
+                        )
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -943,7 +984,24 @@ export function DocumentListClient({
                       </DropdownMenu>
                     </div>
                   ) : (
-                    <ChevronRight className="size-4 text-muted-foreground/60" />
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {material.url ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+                          asChild
+                          title="Unduh PDF"
+                          aria-label={`Unduh PDF ${material.title}`}
+                        >
+                          <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                            <Download className="size-3.5" />
+                          </a>
+                        </Button>
+                      ) : null}
+                      <ChevronRight className="size-4 text-muted-foreground/60" />
+                    </div>
                   )}
                 </DocumentItemWrapper>
               </li>

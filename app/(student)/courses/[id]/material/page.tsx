@@ -118,6 +118,7 @@ export default async function CourseMaterialListPage({ params, searchParams }: P
         .select({
           id: diktatMateri.id,
           title: diktatMateri.title,
+          fileKey: diktatMateri.fileKey,
           babId: diktatMateri.babId,
           legacyChapterId: bab.legacyChapterId,
         })
@@ -251,7 +252,9 @@ function sanitizeMaterialTitle(rawTitle: string): string {
     isPreview: false,
     chapterId: diktat.legacyChapterId ?? diktat.babId ?? undefined,
     chapterIds: [diktat.legacyChapterId ?? diktat.babId].filter((chapterId): chapterId is string => Boolean(chapterId)),
+    url: diktat.fileKey ? `/api/courses/${id}/diktats/${diktat.id}/pdf?download=1` : undefined,
     href: `/courses/${id}/material/${diktat.id}`,
+    source: "canonical-diktat" as const,
   }));
   const canonicalDiktatChapterIds = new Set(mappedCanonicalDiktats.flatMap((diktat) => diktat.chapterIds));
   const visibleCourseDiktats = courseDiktats.filter((diktat) => {
@@ -270,7 +273,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
     completed: completedMaterialIds.has(d.id),
     isPastYear: false,
     isPreview: true,
-    url: d.fileUrl ? storage.getUrl(d.fileUrl) : undefined,
+    url: d.fileUrl ? `/api/courses/${id}/diktats/${d.id}/pdf?download=1` : undefined,
     thumbnailUrl: d.thumbnailUrl
       ? storage.getUrl(d.thumbnailUrl)
       : d.fileUrl
@@ -278,6 +281,7 @@ function sanitizeMaterialTitle(rawTitle: string): string {
         : undefined,
     chapterIds: d.chapterIds as string[],
     href: `/courses/${id}/material/${d.id}`,
+    source: "legacy-diktat" as const,
   }));
 
   const mappedDb = dbMaterials.filter((material) => {

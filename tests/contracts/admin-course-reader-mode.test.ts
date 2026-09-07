@@ -37,23 +37,24 @@ describe("admin course reader mode contract", () => {
 
   test("admin preview authenticates and resolves ownership before rendering", () => {
     const page = source("app/(admin)/admin/(academic)/courses/[slug]/documents/[materialId]/page.tsx");
+    const workspace = source("components/admin/course-detail/admin-document-workspace.tsx");
     const loader = source("lib/admin/course-material-preview.ts");
     expect(page).toContain("await assertAdmin()");
     expect(page).toContain("resolveCourseIdentity(slug)");
     expect(page).toContain("getAdminCourseMaterialPreview(identity, materialId)");
     expect(page).toContain("if (!preview) notFound()");
-    expect(page).toContain('mode="admin-preview"');
+    expect(workspace).toContain('mode="admin-preview"');
     expect(loader).toContain("inArray(courseMaterials.courseId, compatibleIds)");
     expect(loader).toContain("getCanonicalPublishedArticle(canonicalCourseId, materialId)");
   });
 
   test("admin list reuses the Student presentation and keeps controls outside readers", () => {
     const page = source("app/(admin)/admin/(academic)/courses/[slug]/documents/page.tsx");
-    const preview = source("app/(admin)/admin/(academic)/courses/[slug]/documents/[materialId]/page.tsx");
+    const workspace = source("components/admin/course-detail/admin-document-workspace.tsx");
     const student = source("app/(student)/courses/[id]/material/[materialId]/page.tsx");
     expect(page).toContain("DocumentListClient");
     expect(page).toContain("listAdminCourseMaterials(identity)");
-    expect(preview.indexOf("AdminMaterialPreviewBar")).toBeLessThan(preview.indexOf("StructuredArticleReader"));
+    expect(workspace.indexOf("AdminMaterialPreviewBar")).toBeLessThan(workspace.indexOf("StructuredArticleReader"));
     expect(student).not.toContain("AdminMaterialPreviewBar");
   });
 });

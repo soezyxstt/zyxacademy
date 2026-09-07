@@ -299,7 +299,7 @@ export function AdminDocumentWorkspace({
   const displayTitle = isPdf ? pdfTitle : articleTitle;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background font-sans">
+    <div className="-mt-8 -mb-8 -mx-4 sm:-mx-6 lg:-mx-8 flex flex-col min-h-[calc(100vh+4rem)] bg-background font-sans">
       {/* Top Workspace Bar */}
       <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card/95 backdrop-blur-xs px-4 py-2.5">
         <div className="flex items-center gap-3 min-w-0">

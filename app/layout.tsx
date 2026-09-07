@@ -12,7 +12,7 @@ import Script from "next/script";
 import NextTopLoader from "nextjs-toploader";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.zyxacademy.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://www.zyxacademy.com"),
   title: pageTitle(),
   description: siteDescription,
   openGraph: {
@@ -22,7 +22,20 @@ export const metadata: Metadata = {
     siteName: "Zyx Academy",
     locale: "id_ID",
     type: "website",
-    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Zyx Academy",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: pageTitle(),
+    description: siteDescription,
+    images: ["/og-image.png"],
   },
 };
 

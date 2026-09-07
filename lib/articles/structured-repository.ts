@@ -34,6 +34,7 @@ export interface CanonicalTextProduct {
   id: string;
   title: string;
   contentMarkdown: string;
+  fileKey?: string | null;
   productType: "article" | "diktat";
   chapterId: string | null;
   babId?: string | null;
@@ -273,6 +274,7 @@ export async function getCanonicalPublishedTextProduct(
         id: diktatMateri.id,
         title: diktatMateri.title,
         contentMarkdown: diktatMateri.contentMarkdown,
+        fileKey: diktatMateri.fileKey,
         babId: diktatMateri.babId,
         legacyChapterId: bab.legacyChapterId,
       })
@@ -291,6 +293,7 @@ export async function getCanonicalPublishedTextProduct(
           id: diktatRecord.id,
           title: diktatRecord.title,
           contentMarkdown: diktatRecord.contentMarkdown,
+          fileKey: diktatRecord.fileKey ?? null,
           productType: "diktat",
           chapterId: diktatRecord.legacyChapterId ?? diktatRecord.babId,
           babId: diktatRecord.babId ?? null,
