@@ -18,57 +18,87 @@ import { notifications } from "@/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
- // 1. Authenticate
- const session = await auth.api.getSession({ headers: await headers() });
- if (!session?.user) {
- return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
- }
+  const reqHeaders = await headers();
+  const cookie = reqHeaders.get("cookie");
+  const authorization = reqHeaders.get("authorization");
+  if (!cookie && !authorization) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
- const { searchParams } = req.nextUrl;
- const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
- const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
- const offset = (page - 1) * limit;
+  // 1. Authenticate
+  const session = await auth.api.getSession({ headers: reqHeaders });
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
- // Admin can query any user's notifications; non-admin can only see their own
- const requestedUserId = searchParams.get("userId");
- let targetUserId: string;
+  const { searchParams } = req.nextUrl;
+  const countOnly = searchParams.get("countOnly") === "true";
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
+  const offset = (page - 1) * limit;
 
- if (requestedUserId && requestedUserId !== session.user.id) {
- if (session.user.role !== "admin") {
- return NextResponse.json({ error: "Forbidden" }, { status: 403 });
- }
- targetUserId = requestedUserId;
- } else {
- targetUserId = session.user.id;
- }
+  // Admin can query any user's notifications; non-admin can only see their own
+  const requestedUserId = searchParams.get("userId");
+  let targetUserId: string;
 
- try {
- const rows = await db
- .select()
- .from(notifications)
- .where(eq(notifications.userId, targetUserId))
- .orderBy(desc(notifications.createdAt))
- .limit(limit)
- .offset(offset);
+  if (requestedUserId && requestedUserId !== session.user.id) {
+    if (session.user.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    targetUserId = requestedUserId;
+  } else {
+    targetUserId = session.user.id;
+  }
 
- const unreadCount = await db
- .select({ count: sql<number>`count(*)` })
- .from(notifications)
- .where(
-  and(
-   eq(notifications.userId, targetUserId),
-   eq(notifications.read, false)
-  )
- );
+  const cacheHeaders = {
+    "Cache-Control": "private, no-cache, stale-while-revalidate=15",
+  };
 
- return NextResponse.json({
-  notifications: rows,
-  unreadCount: Number(unreadCount[0]?.count ?? 0),
-  page,
-  limit,
- });
- } catch (err) {
- console.error("[notifications/history] Error:", err);
- return NextResponse.json({ error: "Internal server error" }, { status: 500 });
- }
+  try {
+    const unreadQuery = db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, targetUserId),
+          eq(notifications.read, false)
+        )
+      );
+
+    if (countOnly) {
+      const [unreadResult] = await unreadQuery;
+      return NextResponse.json(
+        {
+          notifications: [],
+          unreadCount: Number(unreadResult?.count ?? 0),
+          page: 1,
+          limit: 0,
+        },
+        { headers: cacheHeaders }
+      );
+    }
+
+    const rowsQuery = db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, targetUserId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [rows, unreadResult] = await Promise.all([rowsQuery, unreadQuery]);
+
+    return NextResponse.json(
+      {
+        notifications: rows,
+        unreadCount: Number(unreadResult[0]?.count ?? 0),
+        page,
+        limit,
+      },
+      { headers: cacheHeaders }
+    );
+  } catch (err) {
+    console.error("[notifications/history] Error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

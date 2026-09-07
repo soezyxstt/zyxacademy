@@ -83,14 +83,20 @@ function sanitizeMaterialTitle(rawTitle: string): string {
 
   const canonicalProduct = await getCanonicalPublishedTextProduct(courseId, materialId);
   if (canonicalProduct) {
+    const isDiktat = canonicalProduct.productType === "diktat";
+    const downloadUrl = (isDiktat && canonicalProduct.fileKey)
+      ? `/api/courses/${courseId}/diktats/${canonicalProduct.id}/pdf?download=1`
+      : undefined;
+
     return {
       id: canonicalProduct.id,
       courseId,
       title: sanitizeMaterialTitle(canonicalProduct.title),
       kind: "article",
-      docCategory: canonicalProduct.productType === "diktat" ? "diktat" : "materi",
-      fileSize: canonicalProduct.productType === "diktat" ? "Diktat Resmi" : "Rangkuman Materi",
+      docCategory: isDiktat ? "diktat" : "materi",
+      fileSize: isDiktat ? "Diktat Resmi" : "Rangkuman Materi",
       body: canonicalProduct.contentMarkdown,
+      url: downloadUrl,
       completed,
       isPastYear: false,
       isPreview: false,
@@ -113,7 +119,9 @@ function sanitizeMaterialTitle(rawTitle: string): string {
         kind: "pdf",
         docCategory: "diktat",
         fileSize: "PDF File",
-        url: diktatRecord.fileUrl ? storage.getUrl(diktatRecord.fileUrl) : undefined,
+        url: diktatRecord.fileUrl
+          ? `/api/courses/${courseId}/diktats/${diktatRecord.id}/pdf?download=1`
+          : undefined,
         completed,
         isPastYear: false,
         isPreview: true,

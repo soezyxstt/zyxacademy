@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { courseMaterials, diktats } from "@/db/schema";
 import { storage } from "@/lib/storage";
 import { buildCourseThumbnailKey } from "@/lib/storage/keys";
-import { inngest } from "@/lib/inngest";
+import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
 
 function extractStorageKey(value?: string | null): string | null {
   if (!value) return null;
@@ -80,42 +80,28 @@ export async function GET(
       return Response.redirect(storage.getUrl(expectedKey), 307);
     }
 
-    // 5. If not generated yet, enqueue thumbnail generation in background
+    // 5. If not generated yet, generate thumbnail on-demand
     const fileKey = extractStorageKey(target.fileUrl);
     if (!fileKey) {
       return new Response("Source file not found", { status: 404 });
     }
 
-    const sourceVersion = manual
-      ? (manual.checksum || "v1")
-      : (compiled?.generationHash || "v1");
-
-    await inngest.send({
-      id: `thumbnail-${target.id}-${sourceVersion}`,
-      name: "pdf/thumbnail.requested",
-      data: {
-        materialId: target.id,
-        sourceType: manual ? "course_material" : "diktat",
-      },
-    }).catch((err) => {
-      console.warn(`[ThumbnailAPI] Failed to enqueue thumbnail for ${materialId}:`, err);
+    const generatedKey = await generateAndSavePdfThumbnail({
+      courseSlug: target.courseId,
+      materialId: target.id,
+      fileKey,
     });
 
-    // Return a lightweight SVG placeholder while thumbnail generates in background
-    const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="100%" height="100%">
-  <rect width="100%" height="100%" fill="#18181b"/>
-  <rect x="20" y="20" width="260" height="160" rx="8" fill="#27272a" stroke="#3f3f46" stroke-width="1.5"/>
-  <path d="M120 75v50l45-25z" fill="#71717a"/>
-  <text x="150" y="150" fill="#a1a1aa" font-size="12" font-family="sans-serif" text-anchor="middle">Memuat pratinjau...</text>
-</svg>`;
+    if (generatedKey) {
+      if (manual) {
+        await db.update(courseMaterials).set({ thumbnailUrl: generatedKey }).where(eq(courseMaterials.id, target.id));
+      } else {
+        await db.update(diktats).set({ thumbnailUrl: generatedKey, updatedAt: new Date() }).where(eq(diktats.id, target.id));
+      }
+      return Response.redirect(storage.getUrl(generatedKey), 307);
+    }
 
-    return new Response(placeholderSvg, {
-      status: 200,
-      headers: {
-        "Content-Type": "image/svg+xml",
-        "Cache-Control": "public, max-age=10, stale-while-revalidate=30",
-      },
-    });
+    return new Response("Failed to generate thumbnail", { status: 500 });
   } catch (error) {
     console.error(`[ThumbnailAPI] Error serving thumbnail for ${materialId}:`, error);
     return new Response("Internal error", { status: 500 });

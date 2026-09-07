@@ -139,7 +139,6 @@ export async function GET(request: Request) {
         .select({
           id: setFlashcard.id,
           title: setFlashcard.title,
-          description: setFlashcard.description,
           status: setFlashcard.status,
           courseId: setFlashcard.mataKuliahId,
           chapterId: setFlashcard.babId,
@@ -181,7 +180,7 @@ export async function GET(request: Request) {
           courseTitle: row.courseTitle,
           chapterId: row.chapterId,
           status: row.status,
-          contentMarkdown: row.description,
+          contentMarkdown: "",
           extra: { cards },
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
@@ -196,8 +195,7 @@ export async function GET(request: Request) {
           id: blueprintAsesmen.id,
           title: blueprintAsesmen.title,
           assessmentType: blueprintAsesmen.assessmentType,
-          questionTargetCount: blueprintAsesmen.questionTargetCount,
-          targetChapterIds: blueprintAsesmen.targetChapterIds,
+          blueprint: blueprintAsesmen.blueprint,
           status: blueprintAsesmen.status,
           courseId: blueprintAsesmen.mataKuliahId,
           createdAt: blueprintAsesmen.createdAt,
@@ -217,6 +215,7 @@ export async function GET(request: Request) {
         .limit(50);
 
       for (const row of blueprintRows) {
+        const bp = (row.blueprint ?? {}) as Record<string, any>;
         items.push({
           id: row.id,
           productType: "blueprint",
@@ -227,8 +226,8 @@ export async function GET(request: Request) {
           status: row.status,
           extra: {
             assessmentType: row.assessmentType,
-            questionTargetCount: row.questionTargetCount,
-            targetChapterIds: row.targetChapterIds,
+            questionTargetCount: bp.questionTargetCount ?? bp.targetCount ?? null,
+            targetChapterIds: bp.targetChapterIds ?? bp.chapterIds ?? null,
           },
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),

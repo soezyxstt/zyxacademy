@@ -18,7 +18,9 @@ import { QuestionBankClient } from "./questions-client";
 import { HistoricalQuestionsClient } from "./historical-questions-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { Library } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Library, Target, Zap } from "lucide-react";
 
 export const metadata: Metadata = {
   title: pageTitle("Bank Soal"),
@@ -109,6 +111,16 @@ export default async function AIQuestionsPage() {
         icon={Library}
         title="Bank Soal"
         description="Kelola soal yang siap ditinjau, diterbitkan, dan dipakai ulang dalam kuis."
+        actions={
+          <>
+            <Button asChild variant="outline" size="sm" className="text-body-sm">
+              <Link href="/admin/jobs"><Zap className="size-4" />Generasi Soal</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="text-body-sm">
+              <Link href="/admin/distractors"><Target className="size-4" />Distraktor</Link>
+            </Button>
+          </>
+        }
       />
       <Tabs defaultValue="ai-generated">
         <TabsList>

@@ -13,6 +13,9 @@ import {
   studentQuizAttempts,
   quizAiInsights,
   aiQuestionBank,
+  artikel,
+  diktatMateri,
+  websiteMaterials,
 } from "@/db/schema";
 import { assertAdmin } from "@/lib/auth/admin-guards";
 import { eq, asc, desc, inArray, and, or } from "drizzle-orm";
@@ -20,6 +23,7 @@ import { randomUUID } from "crypto";
 import { storage } from "@/lib/storage";
 import { isSafeKey, joinKey, slugifySegment } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
+import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
 import {
   isValidSubcategory,
   type CourseMaterialCategory,
@@ -274,6 +278,7 @@ export async function getCourseDetailData(courseId: string) {
     status: string;
     createdAt?: Date;
     updatedAt?: Date;
+    legacyChapterId?: string | null;
   }>;
 
   if (babList.length > 0) {
@@ -289,6 +294,7 @@ export async function getCourseDetailData(courseId: string) {
         status: b.status,
         createdAt: b.createdAt,
         updatedAt: b.updatedAt,
+        legacyChapterId: b.legacyChapterId ?? null,
       };
     });
   } else {
@@ -301,6 +307,7 @@ export async function getCourseDetailData(courseId: string) {
       status: ch.status,
       createdAt: ch.createdAt,
       updatedAt: ch.updatedAt,
+      legacyChapterId: ch.id,
     }));
   }
 
@@ -606,6 +613,15 @@ export async function saveCourseMaterial(
   try {
     const materialId = randomUUID();
 
+    const thumbnailKey = await generateAndSavePdfThumbnail({
+      courseSlug: cleanCourseId,
+      materialId,
+      fileKey: cleanFileKey,
+    }).catch((err) => {
+      console.warn(`[saveCourseMaterial] Failed to generate thumbnail for ${materialId}:`, err);
+      return null;
+    });
+
     await db.insert(courseMaterials).values({
       id: materialId,
       courseId: cleanCourseId,
@@ -614,19 +630,8 @@ export async function saveCourseMaterial(
       subcategory: cleanSubcategory,
       year: cleanYear,
       fileUrl: cleanFileKey,
-      thumbnailUrl: null,
+      thumbnailUrl: thumbnailKey,
       chapterIds,
-    });
-
-    await inngest.send({
-      id: `thumbnail-${materialId}-${checksum || "v1"}`,
-      name: "pdf/thumbnail.requested",
-      data: {
-        materialId,
-        sourceType: "course_material",
-      },
-    }).catch((inngestErr) => {
-      console.warn(`[saveCourseMaterial] Failed to enqueue thumbnail for ${materialId}:`, inngestErr);
     });
 
     // Dual-write projection to canonical sumberMateri
@@ -690,7 +695,7 @@ export async function saveCourseMaterial(
 }
 
 export async function deleteCourseMaterial(id: string) {
-  const { user: admin } = await assertAdmin();
+  await assertAdmin();
 
   try {
     const [existing] = await db
@@ -726,4 +731,244 @@ export async function deleteCourseMaterial(id: string) {
     console.error("Failed to delete course material:", err);
     return { success: false, error: err.message || "Gagal menghapus materi" };
   }
+}
+
+export async function updateCourseMaterial(
+  id: string,
+  data: {
+    title: string;
+    type: CourseMaterialCategory;
+    subcategory?: CourseMaterialSubcategory | null;
+    year?: number | null;
+    chapterIds: string[];
+  }
+) {
+  await assertAdmin();
+
+  const cleanTitle = typeof data.title === "string" ? data.title.trim() : "";
+  const cleanType = data.type;
+  const cleanSubcategory = typeof data.subcategory === "string" && data.subcategory.trim() ? data.subcategory.trim() as CourseMaterialSubcategory : null;
+  const cleanYear = typeof data.year === "number" && !isNaN(data.year) && data.year >= 1900 && data.year <= 2100 ? Math.floor(data.year) : null;
+  const chapterIds = Array.isArray(data.chapterIds) ? data.chapterIds : [];
+
+  if (!cleanTitle) {
+    return { success: false, error: "Judul materi wajib diisi" };
+  }
+  if (!chapterIds.length) {
+    return { success: false, error: "Pilih minimal satu bab terkait" };
+  }
+
+  try {
+    const [existing] = await db
+      .select()
+      .from(courseMaterials)
+      .where(eq(courseMaterials.id, id))
+      .limit(1);
+
+    if (!existing) {
+      return { success: false, error: "Materi tidak ditemukan" };
+    }
+
+    await db
+      .update(courseMaterials)
+      .set({
+        title: cleanTitle,
+        type: cleanType,
+        subcategory: cleanSubcategory,
+        year: cleanYear,
+        chapterIds,
+        updatedAt: new Date(),
+      })
+      .where(eq(courseMaterials.id, id));
+
+    await db
+      .update(sumberMateri)
+      .set({
+        title: cleanTitle,
+        updatedAt: new Date(),
+      })
+      .where(eq(sumberMateri.id, `sm-legacy-${id}`))
+      .catch(() => null);
+
+    revalidatePath("/admin/courses");
+    revalidatePath(`/admin/courses/${existing.courseId}`);
+    revalidatePath(`/admin/courses/${existing.courseId}/documents`);
+    revalidatePath(`/courses/${existing.courseId}/material`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("Failed to update course material:", err);
+    return { success: false, error: err.message || "Gagal memperbarui materi" };
+  }
+}
+
+export async function updateDocumentStatusAction(input: {
+  materialId: string;
+  source: string;
+  status: "draft" | "published";
+}) {
+  await assertAdmin();
+  const { materialId, source, status } = input;
+  const now = new Date();
+
+  try {
+    if (source === "canonical-article") {
+      await db
+        .update(artikel)
+        .set({
+          status,
+          publishedAt: status === "published" ? now : null,
+          updatedAt: now,
+        })
+        .where(or(eq(artikel.id, materialId), eq(artikel.slug, materialId)));
+    } else if (source === "canonical-diktat") {
+      await db
+        .update(diktatMateri)
+        .set({
+          status,
+          publishedAt: status === "published" ? now : null,
+          updatedAt: now,
+        })
+        .where(eq(diktatMateri.id, materialId));
+    } else if (source === "legacy-article") {
+      await db
+        .update(websiteMaterials)
+        .set({
+          status: status === "published" ? "published" : "draft",
+        })
+        .where(eq(websiteMaterials.id, materialId));
+    }
+
+    revalidatePath("/admin/courses");
+    return { success: true };
+  } catch (err: any) {
+    console.error("Failed to update document status:", err);
+    return { success: false, error: err.message || "Gagal mengubah status dokumen" };
+  }
+}
+
+export async function updateArticleContentAction(input: {
+  id: string;
+  source: string;
+  title: string;
+  contentMarkdown: string;
+  babId?: string | null;
+}) {
+  await assertAdmin();
+  const { id, source, title, contentMarkdown, babId } = input;
+  const cleanTitle = title.trim();
+  if (!cleanTitle) {
+    return { success: false, error: "Judul artikel wajib diisi" };
+  }
+
+  const now = new Date();
+
+  try {
+    if (source === "canonical-article") {
+      await db
+        .update(artikel)
+        .set({
+          title: cleanTitle,
+          contentMarkdown,
+          babId: babId || null,
+          updatedAt: now,
+        })
+        .where(or(eq(artikel.id, id), eq(artikel.slug, id)));
+    } else if (source === "canonical-diktat") {
+      await db
+        .update(diktatMateri)
+        .set({
+          title: cleanTitle,
+          contentMarkdown,
+          babId: babId || null,
+          updatedAt: now,
+        })
+        .where(eq(diktatMateri.id, id));
+    } else if (source === "legacy-article") {
+      await db
+        .update(websiteMaterials)
+        .set({
+          title: cleanTitle,
+          canonicalMarkdown: contentMarkdown,
+          chapterId: babId || "",
+        })
+        .where(eq(websiteMaterials.id, id));
+    }
+
+    revalidatePath("/admin/courses");
+    return { success: true };
+  } catch (err: any) {
+    console.error("Failed to update article content:", err);
+    return { success: false, error: err.message || "Gagal menyimpan konten dokumen" };
+  }
+}
+
+// Lightweight Navigation Hub Server Action
+
+export type CourseNavContext = {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+};
+
+export async function getCourseNavContext(slugOrId: string): Promise<CourseNavContext | null> {
+  await assertAdmin();
+
+  const cleanId = typeof slugOrId === "string" ? slugOrId.trim().toLowerCase() : "";
+  if (!cleanId) {
+    return null;
+  }
+
+  const [canonicalCourse, legacyCourse] = await Promise.all([
+    db
+      .select({
+        id: mataKuliah.id,
+        title: mataKuliah.title,
+        legacyCourseId: mataKuliah.legacyCourseId,
+        status: mataKuliah.status,
+      })
+      .from(mataKuliah)
+      .where(
+        and(
+          eq(mataKuliah.status, "active"),
+          or(eq(mataKuliah.id, cleanId), eq(mataKuliah.legacyCourseId, cleanId))
+        )
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    db
+      .select({
+        id: courses.id,
+        title: courses.title,
+        category: courses.category,
+      })
+      .from(courses)
+      .where(eq(courses.id, cleanId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+  ]);
+
+  if (!canonicalCourse && !legacyCourse) {
+    return null;
+  }
+
+  let category = legacyCourse?.category ?? "Umum";
+  if (canonicalCourse && !legacyCourse) {
+    const legacyTargetId = canonicalCourse.legacyCourseId ?? canonicalCourse.id;
+    const [foundLegacy] = await db
+      .select({ category: courses.category })
+      .from(courses)
+      .where(eq(courses.id, legacyTargetId))
+      .limit(1);
+    if (foundLegacy?.category) {
+      category = foundLegacy.category;
+    }
+  }
+
+  return {
+    id: canonicalCourse?.id ?? legacyCourse!.id,
+    slug: cleanId,
+    title: canonicalCourse?.title ?? legacyCourse!.title,
+    category,
+  };
 }

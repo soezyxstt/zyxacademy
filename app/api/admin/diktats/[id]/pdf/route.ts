@@ -44,7 +44,7 @@ export async function GET(
     const disposition = new URL(request.url).searchParams.get("download") === "1" ? "attachment" : "inline";
     const filename = `${slugifySegment(row.title)}.pdf`;
 
-    return new Response(bytes, {
+    return new Response(bytes as unknown as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `${disposition}; filename="${filename}"`,

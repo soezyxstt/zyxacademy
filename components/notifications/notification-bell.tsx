@@ -12,7 +12,7 @@
  * - Foreground FCM messages refresh the list and surface a toast.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -101,10 +101,10 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
-  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const refresh = useCallback(async () => {
+  const fetchHistory = useCallback(async () => {
     try {
+      setLoading(true);
       const res = await fetch("/api/notifications/history?limit=20", {
         credentials: "include",
       });
@@ -113,25 +113,32 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
       setRows(data.notifications);
       setUnread(data.unreadCount);
     } catch {
-      // Silent ; the bell is an enhancement.
+      // Silent; the bell is an enhancement.
+    } finally {
+      setLoading(false);
     }
   }, []);
 
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications/history?countOnly=true", {
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as HistoryResponse;
+      setUnread(data.unreadCount);
+    } catch {
+      // Silent; the bell is an enhancement.
+    }
+  }, []);
+
+  // Fetch only unread count once on initial mount
   useEffect(() => {
     if (!session?.user) return;
-    void refresh();
-    refreshTimer.current = setInterval(() => {
-      void refresh();
-    }, 60000);
-    const onFocus = () => void refresh();
-    window.addEventListener("focus", onFocus);
-    return () => {
-      if (refreshTimer.current) clearInterval(refreshTimer.current);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [session?.user, refresh]);
+    void fetchUnreadCount();
+  }, [session?.user, fetchUnreadCount]);
 
-  // Foreground FCM messages refresh the inbox and show a toast.
+  // Foreground FCM messages refresh the inbox if open, or refresh unread count and show a toast.
   useEffect(() => {
     if (!session?.user) return;
     let unsubscribe: (() => void) | undefined;
@@ -144,14 +151,18 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
         if (notification?.title) {
           toast(notification.title, { description: notification.body ?? undefined });
         }
-        void refresh();
+        if (open) {
+          void fetchHistory();
+        } else {
+          void fetchUnreadCount();
+        }
       });
     })();
     return () => {
       disposed = true;
       unsubscribe?.();
     };
-  }, [session?.user, refresh]);
+  }, [session?.user, open, fetchHistory, fetchUnreadCount]);
 
   if (isPending || !session?.user) return null;
 
@@ -172,10 +183,8 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
 
   const handleOpen = async (next: boolean) => {
     setOpen(next);
-    if (next && rows.length === 0) {
-      setLoading(true);
-      await refresh();
-      setLoading(false);
+    if (next) {
+      await fetchHistory();
     }
   };
 
@@ -183,6 +192,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
     if (!row.read) {
       void markRead([row.id]);
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, read: true } : r)));
+      setUnread((prev) => Math.max(0, prev - 1));
     }
     const url = resolveLink(row);
     if (url && url.startsWith("/")) {
@@ -196,6 +206,7 @@ export function NotificationBell({ variant = "sidebar" }: NotificationBellProps)
     if (unreadIds.length === 0) return;
     void markRead(unreadIds);
     setRows((prev) => prev.map((r) => ({ ...r, read: true })));
+    setUnread(0);
   };
 
   const triggerClass =

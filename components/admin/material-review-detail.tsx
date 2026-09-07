@@ -1484,7 +1484,7 @@ export function DiktatProductView({
   pdfStatus,
   onPdfRendered,
 }: {
-  product: Extract<ProductEntity, { productType: "diktat" }> | {
+  product: (Extract<ProductEntity, { productType: "diktat" }> & { fileKey?: string | null }) | {
     id: string;
     productType?: "diktat";
     title: string;
@@ -1677,7 +1677,9 @@ export function FlashcardProductView({ product }: { product: Extract<ProductEnti
         </div>
 
         <div className="text-center text-body-xs text-muted-foreground">
-          {product.ideaLinks.length > 0 ? `Idea: ${product.ideaLinks.map((l) => l.id).join(", ")}` : "Flashcard"}
+          {"ideaLinks" in product && Array.isArray(product.ideaLinks) && product.ideaLinks.length > 0
+            ? `Idea: ${(product.ideaLinks as Array<{ id: string }>).map((l) => l.id).join(", ")}`
+            : "Flashcard"}
         </div>
       </div>
 
@@ -2072,7 +2074,7 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [reviewNoteOpen, setReviewNoteOpen] = useState(false);
   const [reviewNote, setReviewNote] = useState("");
-  const [reviewDecision, setReviewDecision] = useState<"approved" | "rejected" | null>(null);
+  const [reviewDecision, setReviewDecision] = useState<"approved" | "rejected" | "changes_requested" | null>(null);
   const [editing, setEditing] = useState(false);
   const [articleViewMode, setArticleViewMode] = useState<"student" | "blocks">("student");
   const [loading, setLoading] = useState(true);
@@ -2092,7 +2094,13 @@ export function ProductBundleReviewDetail({ detailId, courseLabels = {} }: Detai
       setEditing(false);
       setSelectedProductId((current) => nextPayload.previews.some((preview) => preview.id === current) ? current : nextPayload.previews[0]?.id ?? null);
       const existingReview = nextPayload.pedagogicReview;
-      setReviewDecision(existingReview?.status === "approved" || existingReview?.status === "rejected" ? existingReview.status : null);
+      setReviewDecision(
+        existingReview?.status === "approved" ||
+        existingReview?.status === "rejected" ||
+        existingReview?.status === "changes_requested"
+          ? existingReview.status
+          : null
+      );
       setReviewNote(existingReview?.notes ?? "");
     } catch (loadError) {
       setError(explainBundleError(loadError instanceof Error ? loadError.message : "PRODUCT_BUNDLE_DETAIL_FAILED"));

@@ -45,11 +45,12 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Manages career path templates
 - Monitors content quality flags (auto-detected issues)
 - Views coaching analytics dashboards
-- Accesses the Quiz & Exam Analytics & Insight portal (`/admin/quiz-insights`) for real-time item/distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV / Google Spreadsheet, and on-demand Gemini AI deep pedagogical insights
+- Accesses course-scoped Quiz & Exam Analytics & Insight portals (`/admin/courses/[slug]/analytics`) for real-time item and distractor analysis, student attempt spreadsheets, item-response answer matrices, export to CSV, and on-demand Gemini AI deep pedagogical insights
 - Accesses Tutor Quiz Attempt Spreadsheet portal (`/tutor/[courseId]/quizzes/[templateId]/attempts`) for detailed student answer inspection and CSV exports
 - Monitors real-time tutor mutations, rejections, and failures with cursor pagination, stats aggregation, and sanitized snapshot inspection (`/admin/ops/tutor-activity`)
 - Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
-- Manages admin leaderboard (`/admin/leaderboard`) with overview mode showing per-course aggregate metrics (all courses including zero-activity, sorted alphabetically, unique student count across visible set) and course-selected mode for per-student ranking within a single course
+- Manages course-scoped leaderboard (`/admin/courses/[slug]/leaderboard`) for per-student ranking within a single course, with backward compatibility redirects from `/admin/leaderboard`
+- Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Flashcard, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan
 
 ## Core Pipelines
 
@@ -86,24 +87,70 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 7. Bundle imports, entity inventories, reviews, atomic publication records, and mutation audits are normalized for later workflow plans.
 8. Product, assessment, and per-Idea learning callers are always-on; current legacy records remain unchanged and readable for compatibility.
 
+### Admin Course Workspace Hierarchy & Contextual Navigation
+
+1. Admin course management is organized as a nested hierarchy under `/admin/courses/[slug]`, replacing former tab-based client state with direct, addressable routes.
+2. The contextual sidebar automatically switches when navigating inside `/admin/courses/[slug]`, rendering exactly nine course-scoped destinations in order:
+   - Bab (`/admin/courses/[slug]`): chapter management, reordering, and canonical projection.
+   - Dokumen (`/admin/courses/[slug]/documents`): unified document catalog with responsive search, upload dialog, and full document management workspace for previews, PDF metadata, and article or diktat lifecycle.
+   - Kuis (`/admin/courses/[slug]/quizzes`): course quizzes list with inline metrics and nested quiz authoring routes.
+   - Soal (`/admin/courses/[slug]/questions`): course-filtered question bank.
+   - Flashcard (`/admin/courses/[slug]/flashcards`): course-locked flashcard set and card CRUD management.
+   - Hasil (`/admin/courses/[slug]/results`): student attempt metrics and completion rates.
+   - Papan Peringkat (`/admin/courses/[slug]/leaderboard`): course-locked leaderboard ranking with hidden overview selector.
+   - Analitik (`/admin/courses/[slug]/analytics`): course-locked quiz analytics and AI diagnostic insights.
+   - Review Materi (`/admin/courses/[slug]/review`): course-locked staging review for Idea and Product bundles.
+   - Pengaturan (`/admin/courses/[slug]/settings`): course metadata, category, and archiving controls.
+3. Mobile navbar displays matching Indonesian route titles dynamically without falling back to generic panel titles.
+4. Legacy course IDs and canonical slugs both resolve transparently through server-side `resolveCourseIdentity`.
+
+### Unified Reader Modes (Learner vs Admin Preview)
+
+1. The reading experience across `MaterialViewer` and `StructuredArticleReader` supports two explicit modes: `learner` and `admin-preview`.
+2. In `admin-preview` mode:
+   - All learner-specific mutations are strictly gated: reading progress is never written, completion checkmarks are suppressed, and learner feedback modals are omitted.
+   - Zyra tutor integration and interactive Socratic sidecars are disabled.
+   - The preview bar displays authoritative source provenance: `canonical-article`, `canonical-diktat`, `legacy-article`, `legacy-diktat`, or `legacy-pdf`.
+   - Navigation links safely return to the course documents list (`/admin/courses/[slug]/documents`).
+3. In `learner` mode:
+   - Interactive progress tracking, section completion checkmarks, and contextual Zyra assistance are fully active.
+   - Document listing uses minimal file tiles with thumbnail previews rather than heavy embedded iframes.
+
+### Compatibility Redirects & Contextual Sidebar Isolation
+
+1. Old global course-related routes are converted into server-side compatibility redirects, preventing duplicate global course workspaces:
+   - `/admin/quizzes`: with `courseId`, resolves canonical or legacy identity and redirects to `/admin/courses/[slug]/quizzes`; without it redirects to `/admin/courses`.
+   - `/admin/quizzes/new`: validates the owning course server-side and redirects to `/admin/courses/[slug]/quizzes/new`; redirects to `/admin/courses` if unverified.
+   - `/admin/quizzes/[id]/edit`: resolves the owning course from database template records (`resolveQuizCourseIdentity`) and redirects to `/admin/courses/[slug]/quizzes/[id]/edit`; unverified or missing records trigger `notFound()`.
+   - `/admin/leaderboard`: with `courseId`, redirects to `/admin/courses/[slug]/leaderboard`; otherwise redirects to `/admin/courses`.
+   - `/admin/quiz-insights`: with `courseId`, redirects to `/admin/courses/[slug]/analytics`; otherwise redirects to `/admin/courses`.
+   - `/admin/quiz-insights/[id]`: resolves quiz ownership server-side and redirects to `/admin/courses/[slug]/analytics/[quizId]`.
+   - `/admin/materials/review`: with `courseId`, redirects to `/admin/courses/[slug]/review`; otherwise redirects to `/admin/courses`.
+   - `/admin/materials/review/idea/[slug]`: resolves bundle ownership server-side (`resolveBundleCourseIdentity`) and redirects to `/admin/courses/[slug]/review/idea/[bundleId]`.
+   - `/admin/materials/review/product/[slug]`: resolves bundle ownership server-side (`resolveBundleCourseIdentity`) and redirects to `/admin/courses/[slug]/review/product/[bundleId]`.
+2. Browser Upload Manual retirement:
+   - `/admin/materials/manual` redirects permanently to `/admin/courses`.
+   - Retired browser-only manual authoring APIs return HTTP 410 Gone.
+3. Sidebar isolation guarantee: no old route can render an active global course workspace or reset the contextual sidebar back to global while viewing a course-owned resource.
+
 ### Idea Bundle Workflow
 
-1. Admins open `/admin/materials/review`, choose `Source Pack + Idea`, and use the compact `Upload ZIP` action. The dialog first analyzes the strict ZIP without persistence, then stages the validated artifact after confirmation. Validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, non-publishable Ideas or sources, inconsistent creator attribution, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
-2. The review page is a searchable, filterable inventory by course, author, and status. Artifact cards lead with course, creation time, author, and content summary; bundle IDs and checksums remain secondary technical details. `Buka review` navigates to `/admin/materials/review/idea/[slug]`, where the three-step workflow, Idea list, relations, source evidence, KaTeX preview, focused one-Idea editing, reviewer note, approval, rejection, and publication actions are presented together.
+1. Admins open `/admin/courses/[slug]/review`, choose `Source Pack + Idea`, and use the compact `Upload ZIP` action (or access via `/admin/materials/review?courseId=...` compatibility redirect). The dialog first analyzes the strict ZIP without persistence, then stages the validated artifact after confirmation. Validation rejects unsafe archive entries, unknown manifest fields, checksum drift, missing source spans, non-publishable Ideas or sources, inconsistent creator attribution, duplicate stable keys, unresolved conflicts, and prerequisite cycles.
+2. The review page is a searchable, filterable inventory by course, author, and status. Artifact cards lead with course, creation time, author, and content summary; bundle IDs and checksums remain secondary technical details. `Buka review` navigates to `/admin/courses/[slug]/review/idea/[bundleId]`, where the three-step workflow, Idea list, relations, source evidence, KaTeX preview, focused one-Idea editing, reviewer note, approval, rejection, and publication actions are presented together.
 3. The detail page reads the staged ZIP from R2 and reconstructs the validated preview before showing it. Stable identities and source spans stay locked. Identical upload retries are no-ops and a different checksum for the same bundle ID is blocked.
 4. Only an admin can publish an approved bundle. Source materials, chunks, Ideas, provenance, relations, publication state, audits, and deterministic vector outbox jobs are written atomically.
 5. The workflow is always-on. The legacy Learning Bundle and Assessment Bundle importers are retired and reject new writes.
 
-### Upload Manual and Authoring Context Pack V1
+### Authoring Context Pack and Manual Browser Retirement
 
-1. Admins open `/admin/materials/manual` for the paginated manual workflow. It accepts one Source Pack, validates it without persistence, shows an informative inventory, and lets an admin select a course and one or more chapters by human labels. Every detected source section is mapped to a chapter before download; one selected chapter maps all sections automatically.
-2. The admin selects product families with dependency-safe controls. Article is mandatory, question includes solution, and assessment blueprint requires questions. Zyx produces one checksum-protected Authoring Job Pack containing the embedded Source Pack, locked target mapping, product request, attribution sentinels, website schemas, and workflow instructions.
-3. The `Lanjutkan dari Idea terbit` process inside `/admin/materials/manual` exports a deterministic Context Pack rooted in the selected course after official Idea publication. Snapshot and run identities are generated by the server, so the admin never copies technical IDs.
-4. The allowlist includes only published current reviewed Ideas, active source excerpts, provenance, relations, objectives, safe requirements, and allowed benchmark summaries. An allowed benchmark summary exposes a distinct ITB `referenceId` and exact `sourceLabel`; its benchmark `id` remains separate. The pack also includes machine-readable Idea Bundle and Product Bundle JSON Schemas plus an external-agent workflow contract.
-5. Holdout content, murid data, credentials, signed URLs, embeddings, and unpublished or stale content are excluded and counted or scanned before storage.
-6. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata. An authenticated admin can download the artifact until retention expires; internal R2 keys are not returned by the listing API.
-7. External agents use `$UPLOADER` and `$APPROVING_REVIEWER` for attribution without receiving private Zyx identity IDs. Publication resolves those sentinels to the accountable uploader and approving admin.
-8. Both manual processes and their APIs are admin-only and always-on.
+1. Browser-based manual authoring pages (`/admin/materials/manual`) are completely retired and redirect to `/admin/courses`.
+2. In-memory validation, job packaging, and authoring context extraction are preserved for external agent authoring via Authoring Context Pack V1 and the provider-neutral Authoring MCP server.
+3. After official Idea publication, the Context Pack export creates a deterministic bundle rooted in the selected course without exposing raw technical IDs or credentials.
+4. The allowlist includes only published current reviewed Ideas, active source excerpts, provenance, relations, objectives, safe requirements, and allowed benchmark summaries.
+5. Holdout content, murid data, credentials, signed URLs, embeddings, and unpublished or stale content are excluded.
+6. The private artifact is stored under a run-specific staging R2 prefix and every export is recorded in `audit_mutasi` with checksum and retention metadata.
+7. External agents use `$UPLOADER` and `$APPROVING_REVIEWER` for attribution without receiving private Zyx identity IDs.
+8. The provider-neutral Authoring MCP server at `/api/mcp/authoring` remains the authoritative pipeline for authoring and staging Source, Idea, and Product bundles.
 
 ### Provider-neutral Authoring MCP V1
 

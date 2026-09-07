@@ -1,15 +1,27 @@
-import type { Metadata } from "next";
-import { pageTitle } from "@/lib/site";
+import { redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { AdminLeaderboardClient } from "@/components/admin/leaderboard/admin-leaderboard-client";
+import { resolveCourseIdentity, getCanonicalCourseSlug } from "@/lib/admin/course-identity";
 
-export const metadata: Metadata = {
-  title: pageTitle("Papan Peringkat"),
-  description: "Peringkat kuis dan simulasi seluruh siswa per mata kuliah di Zyx Academy.",
+type Props = {
+  searchParams: Promise<{ courseId?: string }>;
 };
 
-export default async function AdminLeaderboardPage() {
-  await assertAdmin();
+export default async function AdminLeaderboardPage({ searchParams }: Props) {
+  try {
+    await assertAdmin();
+  } catch {
+    redirect("/admin");
+  }
 
-  return <AdminLeaderboardClient />;
+  const { courseId } = await searchParams;
+
+  if (courseId) {
+    const identity = await resolveCourseIdentity(courseId);
+    if (identity) {
+      const courseSlug = getCanonicalCourseSlug(identity);
+      redirect(`/admin/courses/${encodeURIComponent(courseSlug)}/leaderboard`);
+    }
+  }
+
+  redirect("/admin/courses");
 }

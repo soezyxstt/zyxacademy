@@ -26,12 +26,22 @@ export interface TutorContextType {
 
 const TutorContext = React.createContext<TutorContextType | undefined>(undefined);
 
+const noopTutorContext: TutorContextType = {
+  openExplain: () => {},
+  openMistake: () => {},
+  openStudyPlan: () => {},
+  openChat: () => {},
+  openChatWithQuestion: () => {},
+  close: () => {},
+  isOpen: false,
+  activeMode: null,
+  suppressPet: true,
+  setSuppressPet: () => {},
+};
+
 export function useTutor() {
   const context = React.useContext(TutorContext);
-  if (!context) {
-    throw new Error("useTutor must be used within a TutorProvider");
-  }
-  return context;
+  return context ?? noopTutorContext;
 }
 
 const TutorDrawerView = dynamic(

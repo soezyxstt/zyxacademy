@@ -3,33 +3,23 @@ import { redirect } from "next/navigation";
 import { GraduationCap } from "lucide-react";
 import { pageTitle } from "@/lib/site";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { getCoursesWithStats, getAllChapters, getUploadedMaterials } from "./actions";
+import { getCoursesWithStats } from "./actions";
 import { AdminPageHeader } from "@/components/admin/page-header";
-import { CoursesPageTabs } from "@/components/admin/courses-page-tabs";
+import { CoursesDashboard } from "@/components/admin/courses-dashboard";
 
 export const metadata: Metadata = {
   title: pageTitle("Manajemen Mata Kuliah"),
   description: "Daftar dan kelola mata kuliah kurikulum Zyx Academy.",
 };
 
-type Props = {
-  searchParams: Promise<{ tab?: string }>;
-};
-
-export default async function AdminCoursesPage({ searchParams }: Props) {
+export default async function AdminCoursesPage() {
   try {
     await assertAdmin();
   } catch {
     redirect("/");
   }
 
-  const { tab } = await searchParams;
-
-  const [coursesList, chaptersList, materialsList] = await Promise.all([
-    getCoursesWithStats(),
-    getAllChapters(),
-    getUploadedMaterials(),
-  ]);
+  const coursesList = await getCoursesWithStats();
   return (
     <div className="space-y-6 font-sans">
       <AdminPageHeader
@@ -37,12 +27,7 @@ export default async function AdminCoursesPage({ searchParams }: Props) {
         title="Manajemen Mata Kuliah"
       />
 
-      <CoursesPageTabs
-        coursesList={coursesList}
-        chaptersList={chaptersList}
-        materialsList={materialsList}
-        defaultTab={tab || "courses"}
-      />
+      <CoursesDashboard initialCourses={coursesList} />
     </div>
   );
 }

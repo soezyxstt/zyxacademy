@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { quizTemplates, studentQuizAttempts, courses, quizAiInsights } from "@/db/schema";
+import { quizTemplates, studentQuizAttempts, courses, mataKuliah, quizAiInsights } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { eq, desc } from "drizzle-orm";
@@ -23,21 +23,25 @@ export async function GET(_req: NextRequest, { params }: Context) {
       title: quizTemplates.title,
       category: quizTemplates.category,
       courseId: quizTemplates.courseId,
-      courseName: courses.title,
+      legacyCourseName: courses.title,
+      canonicalCourseName: mataKuliah.title,
       status: quizTemplates.status,
-
       timeLimitSeconds: quizTemplates.timeLimitSeconds,
       selectionRules: quizTemplates.selectionRules,
       createdAt: quizTemplates.createdAt,
     })
     .from(quizTemplates)
     .leftJoin(courses, eq(quizTemplates.courseId, courses.id))
+    .leftJoin(mataKuliah, eq(quizTemplates.courseId, mataKuliah.id))
     .where(eq(quizTemplates.id, templateId))
     .limit(1);
 
   if (!template) {
     return NextResponse.json({ error: "Quiz template not found" }, { status: 404 });
   }
+
+  const resolvedCourseName =
+    template.canonicalCourseName || template.legacyCourseName || template.courseId;
 
   // 2. Fetch all student attempts for this template
   const attempts = await db
@@ -203,7 +207,10 @@ export async function GET(_req: NextRequest, { params }: Context) {
     .limit(1);
 
   return NextResponse.json({
-    template,
+    template: {
+      ...template,
+      courseName: resolvedCourseName,
+    },
     summary: {
       totalStarted,
       totalCompleted,

@@ -10,10 +10,7 @@ import {
   LayoutGrid,
   Loader2,
   RefreshCw,
-  Search,
-  Sparkles,
   Eye,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +41,7 @@ import {
   AssessmentBlueprintProductView,
 } from "@/components/admin/material-review-detail";
 import type { AdminProductItem } from "@/app/api/admin/products/route";
+import type { LockedCourseInfo } from "@/lib/admin/course-identity";
 
 const TYPE_LABELS: Record<string, string> = {
   all: "Semua",
@@ -64,16 +62,17 @@ const TYPE_ICONS: Record<string, typeof FileText> = {
 
 type Props = {
   courseLabels?: Record<string, string>;
+  lockedCourse?: LockedCourseInfo;
 };
 
-export function ProductCatalogPanel({ courseLabels = {} }: Props) {
+export function ProductCatalogPanel({ courseLabels = {}, lockedCourse }: Props) {
   const [items, setItems] = useState<AdminProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [activeType, setActiveType] = useUrlTab("productType", "all");
-  const [selectedCourse, setSelectedCourse] = useState("all");
+  const [selectedCourse, setSelectedCourse] = useState(lockedCourse ? lockedCourse.id : "all");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Preview Drawer
@@ -85,7 +84,8 @@ export function ProductCatalogPanel({ courseLabels = {} }: Props) {
     try {
       const params = new URLSearchParams();
       if (activeType !== "all") params.set("type", activeType);
-      if (selectedCourse !== "all") params.set("courseId", selectedCourse);
+      const effectiveCourse = lockedCourse ? lockedCourse.id : selectedCourse;
+      if (effectiveCourse !== "all") params.set("courseId", effectiveCourse);
       if (searchQuery.trim()) params.set("q", searchQuery.trim());
 
       const res = await fetch(`/api/admin/products?${params.toString()}`);
@@ -99,7 +99,7 @@ export function ProductCatalogPanel({ courseLabels = {} }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [activeType, selectedCourse, searchQuery]);
+  }, [activeType, selectedCourse, searchQuery, lockedCourse]);
 
   useEffect(() => {
     void fetchProducts();
@@ -130,21 +130,23 @@ export function ProductCatalogPanel({ courseLabels = {} }: Props) {
           </div>
 
           {/* Course Select */}
-          <div className="min-w-[180px]">
-            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-              <SelectTrigger className="h-8 text-body-sm">
-                <SelectValue placeholder="Semua mata kuliah" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua mata kuliah</SelectItem>
-                {uniqueCourseIds.map((cid) => (
-                  <SelectItem key={cid} value={cid}>
-                    {courseLabels[cid] || cid}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!lockedCourse && (
+            <div className="min-w-[180px]">
+              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                <SelectTrigger className="h-8 text-body-sm">
+                  <SelectValue placeholder="Semua mata kuliah" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua mata kuliah</SelectItem>
+                  {uniqueCourseIds.map((cid) => (
+                    <SelectItem key={cid} value={cid}>
+                      {courseLabels[cid] || cid}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -329,6 +331,11 @@ export function ProductCatalogPanel({ courseLabels = {} }: Props) {
                     sections: [],
                     ideaLinks: [],
                   } as any}
+                  viewMode="student"
+                  onViewModeChange={() => undefined}
+                  bundleId={previewItem.id}
+                  bundleStatus={previewItem.status}
+                  dependencies={[]}
                 />
               )}
 

@@ -166,8 +166,19 @@ export async function getProductBundleImport(importId: string) {
   return { ...row, items, reviews };
 }
 
-export async function listProductBundleImports(limit = 50) {
-  return db.select().from(imporBundle).where(eq(imporBundle.bundleType, "product")).orderBy(desc(imporBundle.createdAt)).limit(Math.min(Math.max(limit, 1), 100));
+export async function listProductBundleImports(options?: number | { limit?: number; courseIds?: string[] }) {
+  const limit = typeof options === "number" ? options : options?.limit ?? 50;
+  const courseIds = typeof options === "object" ? options?.courseIds?.filter(Boolean) : undefined;
+  const conditions = [eq(imporBundle.bundleType, "product")];
+  if (courseIds && courseIds.length > 0) {
+    conditions.push(inArray(imporBundle.courseId, courseIds));
+  }
+  return db
+    .select()
+    .from(imporBundle)
+    .where(and(...conditions))
+    .orderBy(desc(imporBundle.createdAt))
+    .limit(Math.min(Math.max(limit, 1), 100));
 }
 
 export async function downloadProductBundleArtifact(importId: string): Promise<Uint8Array> {

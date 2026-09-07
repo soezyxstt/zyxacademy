@@ -35,7 +35,8 @@ describe("student canonical read path", () => {
   });
 
   test("quiz and tryout readers retain explicit compatibility resolution", () => {
-    expect(source("app/(student)/courses/[id]/quiz/page.tsx")).toContain("course.legacyId ?? id");
+    expect(source("lib/course-utils.ts")).toContain("course?.legacyId ?? courseId");
+    expect(source("app/(student)/courses/[id]/quiz/page.tsx")).toContain("getStudentVisibleCourseQuizzes(id)");
     expect(source("app/(student)/courses/[id]/tryout/page.tsx")).toContain("course.legacyId ?? id");
   });
 });

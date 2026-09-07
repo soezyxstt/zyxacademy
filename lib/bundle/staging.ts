@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   auditMutasi,
@@ -9,7 +9,6 @@ import {
   mataKuliah,
   reviewBundle,
   reviewItemBundle,
-  tutorCourses,
   user,
 } from "@/db/schema";
 import { storage } from "@/lib/storage";
@@ -249,11 +248,17 @@ export async function getIdeaBundleImport(importId: string) {
   return { ...row, items, reviews };
 }
 
-export async function listIdeaBundleImports(limit = 50) {
+export async function listIdeaBundleImports(options?: number | { limit?: number; courseIds?: string[] }) {
+  const limit = typeof options === "number" ? options : options?.limit ?? 50;
+  const courseIds = typeof options === "object" ? options?.courseIds?.filter(Boolean) : undefined;
+  const conditions = [eq(imporBundle.bundleType, "idea")];
+  if (courseIds && courseIds.length > 0) {
+    conditions.push(inArray(imporBundle.courseId, courseIds));
+  }
   return db
     .select()
     .from(imporBundle)
-    .where(eq(imporBundle.bundleType, "idea"))
+    .where(and(...conditions))
     .orderBy(desc(imporBundle.createdAt))
     .limit(Math.min(Math.max(limit, 1), 100));
 }

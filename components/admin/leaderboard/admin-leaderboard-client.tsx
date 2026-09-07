@@ -38,6 +38,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import type { LockedCourseInfo } from "@/lib/admin/course-identity";
 
 interface StudentAttemptItem {
   id: string;
@@ -100,7 +101,19 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase() || "SZ";
 }
 
-export function AdminLeaderboardClient() {
+export interface AdminLeaderboardClientProps {
+  lockedCourse?: LockedCourseInfo;
+  backHref?: string;
+  backLabel?: string;
+  hideHeader?: boolean;
+}
+
+export function AdminLeaderboardClient({
+  lockedCourse,
+  backHref,
+  backLabel,
+  hideHeader = Boolean(lockedCourse),
+}: AdminLeaderboardClientProps = {}) {
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [courseInsights, setCourseInsights] = useState<CourseInsight[]>([]);
   const [students, setStudents] = useState<RankedStudent[]>([]);
@@ -112,10 +125,12 @@ export function AdminLeaderboardClient() {
   });
   const [loading, setLoading] = useState(true);
   const [responseMode, setResponseMode] = useState<"overview" | "course">(
-    "overview"
+    lockedCourse ? "course" : "overview"
   );
 
-  const [selectedCourse, setSelectedCourse] = useState("all");
+  const [selectedCourse, setSelectedCourse] = useState(
+    lockedCourse ? lockedCourse.id : "all"
+  );
   const [selectedType, setSelectedType] = useState("all");
   const [search, setSearch] = useState("");
 
@@ -124,9 +139,10 @@ export function AdminLeaderboardClient() {
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     try {
+      const effectiveCourseId = lockedCourse ? lockedCourse.id : selectedCourse;
       const params = new URLSearchParams();
-      if (selectedCourse && selectedCourse !== "all") {
-        params.set("courseId", selectedCourse);
+      if (effectiveCourseId && effectiveCourseId !== "all") {
+        params.set("courseId", effectiveCourseId);
       }
       if (selectedType && selectedType !== "all") {
         params.set("type", selectedType);
@@ -139,7 +155,7 @@ export function AdminLeaderboardClient() {
       if (res.ok) {
         const data = await res.json();
         setCourses(data.courses || []);
-        setResponseMode(data.mode || "overview");
+        setResponseMode(lockedCourse ? "course" : (data.mode || "overview"));
         setCourseInsights(data.courseInsights || []);
         setStudents(data.students || []);
         setSummary(
@@ -156,33 +172,46 @@ export function AdminLeaderboardClient() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCourse, selectedType, search]);
+  }, [lockedCourse, selectedCourse, selectedType, search]);
 
   useEffect(() => {
     fetchLeaderboard();
   }, [fetchLeaderboard]);
 
-  const isOverview = responseMode === "overview";
+  const isOverview = !lockedCourse && responseMode === "overview";
 
   const hasActiveFilters =
-    selectedCourse !== "all" || selectedType !== "all" || search.trim() !== "";
+    (!lockedCourse && selectedCourse !== "all") ||
+    selectedType !== "all" ||
+    search.trim() !== "";
 
   const resetFilters = () => {
-    setSelectedCourse("all");
+    if (!lockedCourse) {
+      setSelectedCourse("all");
+    }
     setSelectedType("all");
     setSearch("");
   };
 
-  const scopeLabel = isOverview
+  const scopeLabel = lockedCourse
+    ? lockedCourse.title
+    : isOverview
     ? "Semua mata kuliah"
     : courses.find((c) => c.id === selectedCourse)?.title || "Mata Kuliah";
 
   return (
     <div className="space-y-4">
-      <AdminPageHeader
-        icon={Trophy}
-        title="Papan Peringkat"
-        actions={
+      {hideHeader ? null : lockedCourse ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
+              <Trophy className="size-4 text-brand-primary" />
+              <span>Papan Peringkat Siswa</span>
+            </h2>
+            <p className="text-body-xs text-muted-foreground">
+              Menampilkan peringkat siswa untuk {lockedCourse.title}.
+            </p>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -195,8 +224,29 @@ export function AdminLeaderboardClient() {
             />
             <span>Perbarui Data</span>
           </Button>
-        }
-      />
+        </div>
+      ) : (
+        <AdminPageHeader
+          icon={Trophy}
+          title="Papan Peringkat"
+          backHref={backHref}
+          backLabel={backLabel}
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchLeaderboard}
+              disabled={loading}
+              className="gap-2 rounded-lg text-body-sm"
+            >
+              <RefreshCw
+                className={cn("size-3.5", loading && "animate-spin")}
+              />
+              <span>Perbarui Data</span>
+            </Button>
+          }
+        />
+      )}
 
       {/* KPI Stats Bar */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-border bg-card/60 px-3.5 py-2 text-body-xs shadow-2xs">
@@ -230,7 +280,9 @@ export function AdminLeaderboardClient() {
       </div>
 
       <p className="text-body-xs text-muted-foreground">
-        {isOverview
+        {lockedCourse
+          ? `Menampilkan peringkat siswa untuk ${lockedCourse.title}.`
+          : isOverview
           ? "Perbandingan antar mata kuliah. Pilih satu mata kuliah untuk melihat peringkat siswa."
           : `Menampilkan peringkat siswa untuk ${scopeLabel}. Pilih "Semua Mata Kuliah" untuk kembali ke ringkasan.`}
       </p>
@@ -251,13 +303,15 @@ export function AdminLeaderboardClient() {
         />
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
-          <CourseCombobox
-            courses={courses}
-            value={selectedCourse}
-            onValueChange={setSelectedCourse}
-            allLabel="Semua Mata Kuliah"
-            className="text-body-sm"
-          />
+          {!lockedCourse && (
+            <CourseCombobox
+              courses={courses}
+              value={selectedCourse}
+              onValueChange={setSelectedCourse}
+              allLabel="Semua Mata Kuliah"
+              className="text-body-sm"
+            />
+          )}
 
           <Select value={selectedType} onValueChange={setSelectedType}>
             <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0">
@@ -280,6 +334,21 @@ export function AdminLeaderboardClient() {
             >
               <X className="size-3.5 mr-1" />
               <span>Reset</span>
+            </Button>
+          )}
+
+          {hideHeader && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchLeaderboard}
+              disabled={loading}
+              className="h-9 gap-1.5 rounded-lg text-body-sm shrink-0"
+            >
+              <RefreshCw
+                className={cn("size-3.5", loading && "animate-spin")}
+              />
+              <span>Perbarui Data</span>
             </Button>
           )}
         </div>

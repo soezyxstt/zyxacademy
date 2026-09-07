@@ -31,6 +31,8 @@ export type CourseMaterial = {
  chapterIds?: string[] | null;
  /** Thumbnail image URL / R2 path for page-1 document preview */
  thumbnailUrl?: string;
+ status?: "draft" | "published" | "in_review";
+ source?: string;
 };
 
 export type ExamType = "quiz" | "tryout";

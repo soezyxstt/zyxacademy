@@ -66,14 +66,14 @@ Every document in this repository has one of the following explicit statuses:
 
 | Document | Category | Status | Updated / Date | Purpose and Scope |
 |---|---|---|---|---|
-| [README.md](README.md) | Index | `ACTIVE` | 2026-09-06 | Master documentation index, hierarchy map, and lifecycle status ledger. |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-06 | Core platform architecture, canonical-first student reads, Product Bundle pedagogic and PDF evidence, compatibility boundaries, and system interfaces. |
+| [README.md](README.md) | Index | `ACTIVE` | 2026-09-07 | Master documentation index, hierarchy map, course workspace compatibility status, and lifecycle status ledger. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Core Architecture | `ACTIVE` | 2026-09-07 | Core platform architecture, canonical-first student reads, Product Bundle evidence, course workspace hierarchy, reader modes, compatibility redirects, and manual browser authoring retirement. |
 | [DATABASE.md](DATABASE.md) | Core Database | `ACTIVE` | Current | Database topology (Turso remote, SQLite local), Drizzle workflows, and driver adapters. |
 | [DB_SCHEMA.md](DB_SCHEMA.md) | Core Database | `ACTIVE` | 2026-09-06 | Comprehensive catalog including revision-bound Product Bundle pedagogic review and PDF evidence. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Core Infrastructure | `ACTIVE` | 2026-09-06 | Vercel, Cloudflare Workers/R2/Vectorize deployment processes, secrets, and environments. |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Core Development | `ACTIVE` | 2026-09-04 | Local development guide, scripts, environment variables, and V3 authoring rollout flag boundaries. |
 | [FILE_NAMING_CONVENTIONS.md](FILE_NAMING_CONVENTIONS.md) | Standards | `ACTIVE` | Current | Standard file naming formula, taxonomy, and directory hierarchy for academic assets. |
-| [features.md](features.md) | Product | `ACTIVE` | 2026-09-06 | Authoritative catalog of canonical-first student, tutor, admin, and MCP authoring workflows, including unified Artikel and Diktat reading. |
+| [features.md](features.md) | Product | `ACTIVE` | 2026-09-07 | Authoritative catalog of student, tutor, admin, and MCP authoring workflows, including course workspace hierarchy, reader modes, and compatibility redirects. |
 | [bundle/authoring-context-pack-v1.md](bundle/authoring-context-pack-v1.md) | Bundle Contract | `ACTIVE` | Current | Specification for authoring context pack export format and security boundaries. |
 | [bundle/authoring-job-pack-v1.md](bundle/authoring-job-pack-v1.md) | Bundle Contract | `ACTIVE` | 2026-09-04 | Specification for authoring job packs and local or stored-original Source Pack ingestion and persistence. |
 | [bundle/idea-bundle-v2.md](bundle/idea-bundle-v2.md) | Bundle Contract | `TRANSITIONAL / LEGACY` | Current | Read and rollback submission contract for Idea Bundle V2. |

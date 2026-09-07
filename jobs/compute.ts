@@ -30,7 +30,6 @@ export { contentQualityAuditCron } from "./audit";
 export { syncSearchDocuments } from "./search-sync";
 export { productDiktatPdfWorker } from "./pdf";
 export { adminOpsKnowledgeSyncWorker } from "./admin-knowledge";
-export { pdfThumbnailWorker } from "./pdf-thumbnail";
 export { diktatPdfWorker } from "./diktat-pdf";
 
 import { vectorSyncWorker, vectorSyncCronWorker } from "./vector-sync";
@@ -51,7 +50,6 @@ import { contentQualityAuditCron } from "./audit";
 import { syncSearchDocuments } from "./search-sync";
 import { productDiktatPdfWorker } from "./pdf";
 import { adminOpsKnowledgeSyncWorker } from "./admin-knowledge";
-import { pdfThumbnailWorker } from "./pdf-thumbnail";
 import { diktatPdfWorker } from "./diktat-pdf";
 
 /**
@@ -74,6 +72,5 @@ export const computeFunctions = [
   syncSearchDocuments,
   productDiktatPdfWorker,
   adminOpsKnowledgeSyncWorker,
-  pdfThumbnailWorker,
   diktatPdfWorker,
 ];

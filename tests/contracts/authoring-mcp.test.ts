@@ -20,6 +20,7 @@ import {
 } from "@/lib/authoring/question-catalog";
 import { reviewQuestionBankDraft } from "@/lib/authoring/question-draft-review";
 import { MCP_OAUTH_SCOPES, requestedScopes } from "@/lib/authoring/mcp-oauth";
+import { GET as mcpGet, DELETE as mcpDelete } from "@/app/api/mcp/authoring/route";
 
 const testPrincipal = {
   userId: "test-admin",
@@ -197,6 +198,18 @@ describe("provider-neutral authoring MCP workflow registry", () => {
     }));
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ result: { serverInfo: { name: "zyx-authoring" } } });
+  });
+
+  it("rejects GET and DELETE with 405 Method Not Allowed to prevent persistent SSE compute drain", async () => {
+    const getResponse = await mcpGet();
+    expect(getResponse.status).toBe(405);
+    expect(getResponse.headers.get("Allow")).toBe("POST");
+    const getJson = await getResponse.json() as { error?: string };
+    expect(getJson.error).toBe("METHOD_NOT_ALLOWED");
+
+    const deleteResponse = await mcpDelete();
+    expect(deleteResponse.status).toBe(405);
+    expect(deleteResponse.headers.get("Allow")).toBe("POST");
   });
 
   it("advertises submission tools without a combined workflow tool", async () => {

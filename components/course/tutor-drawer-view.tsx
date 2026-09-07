@@ -25,6 +25,7 @@ import {
   Plus,
   Square,
   ArrowUp,
+  ChevronDown,
 } from "lucide-react";
 import {
   Tooltip,
@@ -187,7 +188,7 @@ export function TutorDrawerView({
 
   const attachmentComposerRef = React.useRef<ZyraAttachmentComposerHandle>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const savedDataRef = React.useRef<any>(null);
   const focusReturnRef = React.useRef<HTMLElement | null>(null);
 
@@ -205,8 +206,24 @@ export function TutorDrawerView({
     latestWidth: DEFAULT_TUTOR_PANEL_WIDTH,
   });
 
+  // Header state & menu dropdown
+  const [showMenu, setShowMenu] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
   // Course label for the drawer header
   const [courseLabel, setCourseLabel] = React.useState<string | null>(null);
+
+  // Click outside to close dropdown menu
+  React.useEffect(() => {
+    if (!showMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
 
   // Micro-apps inside drawer
   const [activeAction, setActiveAction] = React.useState<ActiveAction>("none");
@@ -246,6 +263,24 @@ export function TutorDrawerView({
     return () => { cancelled = true; };
   }, [courseIdFromPath]);
 
+  // Dynamic header title matching Zyx Ops AI style
+  const currentTitle = React.useMemo(() => {
+    if (activeMode === "explain") {
+      return data?.title ? `Konsep: ${data.title}` : "Penjelasan Konsep";
+    }
+    if (activeMode === "mistake") {
+      return "Bedah Jawaban Kuis";
+    }
+    if (activeMode === "study-plan") {
+      return "Rencana Belajar Mandiri";
+    }
+    const firstStudent = messages.find((m) => m.role === "student");
+    if (firstStudent?.content) {
+      return firstStudent.content;
+    }
+    return courseLabel || "Tanya Zyra";
+  }, [activeMode, data, messages, courseLabel]);
+
   // Mobile body scroll lock
   React.useEffect(() => {
     if (!isOpen || !window.matchMedia("(max-width: 767px)").matches) return;
@@ -256,15 +291,12 @@ export function TutorDrawerView({
     };
   }, [isOpen]);
 
-  const scrollToBottom = React.useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
+  // Internal container auto-scroll: strictly scrolls drawer container without moving main page
   React.useEffect(() => {
-    if (activeMode === "chat") {
-      scrollToBottom();
+    if (isOpen && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  }, [messages, activeMode, scrollToBottom]);
+  }, [messages, isOpen, chatLoading]);
 
   // Load chat history when in chat mode
   React.useEffect(() => {
@@ -311,7 +343,7 @@ export function TutorDrawerView({
       setInputVal(initialQuestion);
       onClearInitialQuestion?.();
       setTimeout(() => {
-        textareaRef.current?.focus();
+        textareaRef.current?.focus({ preventScroll: true });
       }, 100);
     }
   }, [initialQuestion, onClearInitialQuestion]);
@@ -653,21 +685,27 @@ export function TutorDrawerView({
     ]);
 
     try {
-      const response = await fetch("/api/tutor/chat/stream", {
+      const response = await fetch("/api/zyra/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          courseId,
-          activeConceptId: koId || undefined,
+          courseId: courseId ?? "unknown",
+          conceptId: koId || undefined,
           sessionId: activeSid || undefined,
           attachmentIds: requestedAttachmentIds,
+          pathname,
         }),
         signal: abortController.signal,
       });
 
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+        let errText = `Server returned ${response.status}`;
+        try {
+          const errJson = await response.json();
+          if (errJson.error) errText = errJson.error;
+        } catch {}
+        throw new Error(errText);
       }
 
       const reader = response.body?.getReader();
@@ -680,19 +718,19 @@ export function TutorDrawerView({
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n\n");
+          const lines = buffer.split("\n");
           buffer = lines.pop() || "";
 
           for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed.startsWith("data: ")) continue;
-            const dataStr = trimmed.slice(6);
+            const dataStr = trimmed.slice(6).trim();
             if (dataStr === "[DONE]") break;
 
             try {
               const parsed = JSON.parse(dataStr);
-              if (parsed.type === "chunk" && parsed.text) {
-                accumulatedContent += parsed.text;
+              if ((parsed.type === "text-delta" && parsed.textDelta) || (parsed.type === "chunk" && parsed.text)) {
+                accumulatedContent += (parsed.textDelta || parsed.text);
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
@@ -768,6 +806,34 @@ export function TutorDrawerView({
     }, 2000);
   };
 
+  const handleNewChat = React.useCallback(() => {
+    setSessionId(null);
+    setMessages([
+      {
+        id: "chat-welcome",
+        role: "ai",
+        content:
+          "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
+      },
+    ]);
+    toast.success("Sesi obrolan baru dimulai.");
+  }, []);
+
+  const handleClearHistory = React.useCallback(async () => {
+    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
+    if (courseId) {
+      await clearTutorHistoryAction(courseId).catch(() => {});
+    }
+    setMessages([
+      {
+        id: "chat-welcome",
+        role: "ai",
+        content: "Riwayat percakapan dibersihkan. Apa yang ingin kamu diskusikan berikutnya?",
+      },
+    ]);
+    toast.success("Riwayat obrolan dibersihkan.");
+  }, [pathname]);
+
   const handleInsertSnippet = (snippet: string) => {
     const el = textareaRef.current;
     if (!el) {
@@ -803,7 +869,8 @@ export function TutorDrawerView({
           "--zyra-panel-width": `${isExpanded ? Math.min(MAX_SIDEBAR_WIDTH, typeof window === "undefined" ? MAX_SIDEBAR_WIDTH : window.innerWidth * 0.7) : sidebarWidth}px`,
         } as React.CSSProperties}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-card shadow-2xl md:sticky md:top-0 md:bottom-auto md:right-auto md:self-start md:z-20 md:h-screen md:h-[100svh] md:w-[var(--zyra-panel-width)] md:shrink-0 md:shadow-none",
+          "fixed inset-y-0 right-0 z-50 flex w-[min(var(--zyra-panel-width),100vw)] flex-col overflow-hidden border-l border-border bg-background shadow-2xl md:sticky md:top-0 md:bottom-auto md:right-auto md:self-start md:z-20 md:h-screen md:h-[100svh] md:w-[var(--zyra-panel-width)] md:shrink-0 md:shadow-none select-text",
+          "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]",
           "animate-in slide-in-from-right duration-300 ease-out md:animate-none",
           isDragging ? "transition-none select-none" : "transition-[width] duration-150 ease-out"
         )}
@@ -834,153 +901,170 @@ export function TutorDrawerView({
           />
         </div>
 
-        {/* Top Header & Ergonomic Activity Rail */}
-        <div className="flex flex-col border-b border-border/80 bg-muted/30 shrink-0">
-          <div className="flex items-center justify-between px-3.5 py-2.5 gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
-                <ZyraMark className="size-4.5" />
-              </div>
-              <div className="min-w-0 flex flex-col">
-                <span className="truncate font-heading text-body-sm font-bold text-foreground">
-                  Zyra
-                </span>
-                <span className="text-body-xs text-muted-foreground truncate">
-                  {courseIdFromPath
-                    ? (courseLabel ?? courseIdFromPath)
-                    : "Pedagogi Socratic ITB"}
-                </span>
-              </div>
-            </div>
+        {/* Header: Ops AI Style (Title Dropdown + Minimal Action Icons) */}
+        <header className="shrink-0 border-b border-border/80 px-3.5 py-2.5 bg-background/80 backdrop-blur-md flex items-center justify-between z-20 gap-2">
+          {/* Left: Mode / Topic Dropdown Selector */}
+          <div ref={menuRef} className="relative min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => setShowMenu((prev) => !prev)}
+              aria-expanded={showMenu}
+              aria-label="Menu topik dan mode Zyra"
+              className="flex items-center gap-1.5 text-left text-body-sm font-semibold text-foreground hover:text-brand-primary transition-colors cursor-pointer truncate max-w-full group"
+            >
+              <span className="truncate max-w-[220px] sm:max-w-[300px]">
+                {currentTitle}
+              </span>
+              <ChevronDown className="size-3.5 text-muted-foreground group-hover:text-brand-primary transition-transform shrink-0" />
+            </button>
 
-            {/* Window Controls */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => {
-                  setSessionId(null);
-                  setMessages([{
-                    id: "chat-welcome",
-                    role: "ai",
-                    content: "Halo! Aku Zyra, asisten belajarmu. Tanyakan konsep, rumus matematika, atau soal latihan!",
-                  }]);
-                  toast.success("Sesi obrolan baru dimulai.");
-                }}
-                aria-label="Obrolan baru"
-                title="Mulai obrolan baru (+)"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Plus className="size-4" />
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={toggleExpand}
-                aria-label={isExpanded ? "Kecilkan sidebar" : "Perbesar layar penuh"}
-                title={isExpanded ? "Kecilkan tampilan" : "Buka layar penuh"}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                {isExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-              </Button>
-
-              {activeMode === "chat" && messages.length > 1 && (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={async () => {
-                    const courseId = pathname?.startsWith("/courses/") ? pathname.split("/")[2] : null;
-                    if (courseId) {
-                      await clearTutorHistoryAction(courseId);
-                    }
-                    setMessages([{
-                      id: "chat-welcome",
-                      role: "ai",
-                      content: "Riwayat percakapan dibersihkan. Apa yang ingin kamu diskusikan berikutnya?",
-                    }]);
-                    toast.success("Riwayat obrolan dibersihkan.");
+            {/* Dropdown Menu */}
+            {showMenu && (
+              <div className="absolute top-full left-0 mt-1.5 w-[280px] rounded-xl border border-border bg-background shadow-xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Mode Belajar
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMode("chat");
+                    setShowMenu(false);
                   }}
-                  aria-label="Bersihkan obrolan"
-                  title="Bersihkan riwayat percakapan"
-                  className="text-muted-foreground hover:text-destructive"
+                  className={cn(
+                    "w-full flex items-center justify-between px-2.5 py-1.5 text-body-sm rounded-lg transition-colors text-left cursor-pointer",
+                    activeMode === "chat"
+                      ? "bg-brand-primary/10 text-brand-primary font-medium"
+                      : "hover:bg-muted text-foreground"
+                  )}
                 >
-                  <Trash2 className="size-4" />
-                </Button>
-              )}
+                  <span>Diskusi</span>
+                  {activeMode === "chat" && <Check className="size-3.5" />}
+                </button>
+                {caps.explain && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMode("explain");
+                      setShowMenu(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center justify-between px-2.5 py-1.5 text-body-sm rounded-lg transition-colors text-left cursor-pointer",
+                      activeMode === "explain"
+                        ? "bg-brand-primary/10 text-brand-primary font-medium"
+                        : "hover:bg-muted text-foreground"
+                    )}
+                  >
+                    <span>Konsep</span>
+                    {activeMode === "explain" && <Check className="size-3.5" />}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveMode("mistake");
+                    setShowMenu(false);
+                  }}
+                  className={cn(
+                    "w-full flex items-center justify-between px-2.5 py-1.5 text-body-sm rounded-lg transition-colors text-left cursor-pointer",
+                    activeMode === "mistake"
+                      ? "bg-brand-primary/10 text-brand-primary font-medium"
+                      : "hover:bg-muted text-foreground"
+                  )}
+                >
+                  <span>Bedah Jawaban</span>
+                  {activeMode === "mistake" && <Check className="size-3.5" />}
+                </button>
+                {caps.studyPlan && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMode("study-plan");
+                      setShowMenu(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center justify-between px-2.5 py-1.5 text-body-sm rounded-lg transition-colors text-left cursor-pointer",
+                      activeMode === "study-plan"
+                        ? "bg-brand-primary/10 text-brand-primary font-medium"
+                        : "hover:bg-muted text-foreground"
+                    )}
+                  >
+                    <span>Rencana Belajar</span>
+                    {activeMode === "study-plan" && <Check className="size-3.5" />}
+                  </button>
+                )}
 
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={onClose}
-                aria-label="Tutup panel asisten"
-                title="Tutup asisten (Esc)"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
+                <div className="border-t border-border/60 my-1 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleNewChat();
+                      setShowMenu(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-body-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-left cursor-pointer"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Percakapan Baru</span>
+                  </button>
+                  {activeMode === "chat" && messages.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleClearHistory();
+                        setShowMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-body-sm rounded-lg text-destructive hover:bg-destructive/10 transition-colors text-left cursor-pointer"
+                    >
+                      <Trash2 className="size-3.5" />
+                      <span>Bersihkan Riwayat</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Activity Modes Switcher */}
-          <div className="flex items-center gap-1 overflow-x-auto px-3 py-1.5 border-t border-border/40 no-scrollbar bg-background/50">
+          {/* Window Controls */}
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
-              onClick={() => setActiveMode("chat")}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-body-xs font-medium transition-colors shrink-0",
-                activeMode === "chat"
-                  ? "bg-brand-primary text-white font-semibold"
-                  : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-              )}
+              onClick={handleNewChat}
+              aria-label="Obrolan baru"
+              title="Mulai obrolan baru (+)"
+              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              <span>Diskusi</span>
+              <Plus className="size-4" />
             </button>
-            {caps.explain && (
-              <button
-                type="button"
-                onClick={() => setActiveMode("explain")}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-body-xs font-medium transition-colors shrink-0",
-                  activeMode === "explain"
-                    ? "bg-brand-primary text-white font-semibold"
-                    : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                )}
-              >
-                <span>Konsep</span>
-              </button>
-            )}
+
             <button
               type="button"
-              onClick={() => setActiveMode("mistake")}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-body-xs font-medium transition-colors shrink-0",
-                activeMode === "mistake"
-                  ? "bg-brand-primary text-white font-semibold"
-                  : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-              )}
+              onClick={toggleExpand}
+              aria-label={isExpanded ? "Kecilkan sidebar" : "Perbesar layar penuh"}
+              title={isExpanded ? "Kecilkan tampilan" : "Buka layar penuh"}
+              className="hidden md:inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             >
-              <span>Bedah Jawaban</span>
+              {isExpanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
             </button>
-            {caps.studyPlan && (
-              <button
-                type="button"
-                onClick={() => setActiveMode("study-plan")}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-body-xs font-medium transition-colors shrink-0",
-                  activeMode === "study-plan"
-                    ? "bg-brand-primary text-white font-semibold"
-                    : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                )}
-              >
-                <span>Rencana Belajar</span>
-              </button>
-            )}
+
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Tutup panel asisten"
+              title="Tutup asisten (Esc)"
+              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+            >
+              <X className="size-4" />
+            </button>
           </div>
-        </div>
+        </header>
 
         {/* Dynamic Main Workspace / Conversation Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 font-sans text-body-sm bg-background/50">
+        <div
+          ref={scrollContainerRef}
+          role="region"
+          aria-label="Riwayat percakapan"
+          tabIndex={0}
+          className="flex-1 overflow-y-auto overscroll-contain min-h-0 p-4 space-y-5 font-sans text-body-sm focus-visible:outline-none"
+        >
           {errors.length > 0 && (
             <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-destructive text-body-xs">
               {errors.map((err, i) => (
@@ -1004,101 +1088,101 @@ export function TutorDrawerView({
                 const isLastAiTurn = !isStudent && index === messages.length - 1;
                 const showComprehensionCheck = isLastAiTurn && !chatLoading && isComprehensionCheck(msg.content);
 
-                return (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "flex flex-col gap-1.5",
-                      isStudent ? "items-end" : "items-start"
-                    )}
-                  >
-                    <div className="flex items-center gap-1.5 text-body-xs text-muted-foreground px-1">
-                      <span>{isStudent ? "Kamu" : "Zyra"}</span>
-                    </div>
-
-                    <div
-                      className={cn(
-                        "group relative rounded-2xl px-4 py-3 leading-relaxed",
-                        isStudent
-                          ? "bg-brand-primary text-white rounded-tr-xs max-w-[85%]"
-                          : "bg-muted/40 border border-border/80 text-foreground rounded-tl-xs w-full"
-                      )}
-                    >
-                      {msg.attachments && msg.attachments.length > 0 && courseIdFromPath && sessionId && (
-                        <div className="mb-2">
-                          <ZyraMessageAttachments
-                            attachments={msg.attachments}
-                            courseId={courseIdFromPath}
-                            sessionId={sessionId}
-                          />
-                        </div>
-                      )}
-
-                      {isStudent ? (
-                        <div className="whitespace-pre-wrap font-sans text-body-sm text-white">
-                          {msg.content}
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <MarkdownRenderer content={msg.content} density="compact" />
-
-                          {msg.canvasSpec && (
-                            <div className="mt-3">
-                              <LearningCanvasRenderer spec={msg.canvasSpec} />
-                            </div>
-                          )}
-
-                          {msg.sources && msg.sources.length > 0 && (
-                            <div className="mt-3 pt-2 border-t border-border/40 flex flex-wrap gap-1.5 items-center">
-                              <span className="text-[10px] uppercase font-semibold text-muted-foreground">Sumber:</span>
-                              {msg.sources.map((s, idx) => (
-                                <a
-                                  key={idx}
-                                  href={s.href}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-body-xs text-brand-primary hover:underline bg-brand-primary/10 px-2 py-0.5 rounded-md"
-                                >
-                                  {s.label}
-                                </a>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Quick Accelerators / Socratic follow-up chips */}
-                          {isLastAiTurn && !chatLoading && (
-                            <FollowUpChips
-                              comprehensionCheck={showComprehensionCheck}
-                              onSend={handleSend}
+                if (isStudent) {
+                  return (
+                    <div key={msg.id || index} className="flex justify-end">
+                      <div className="max-w-[85%] rounded-2xl bg-muted/90 text-foreground px-4 py-2.5 text-body-sm leading-relaxed shadow-2xs">
+                        {msg.attachments && msg.attachments.length > 0 && courseIdFromPath && sessionId && (
+                          <div className="mb-2">
+                            <ZyraMessageAttachments
+                              attachments={msg.attachments}
+                              courseId={courseIdFromPath}
+                              sessionId={sessionId}
                             />
-                          )}
-
-                          {/* Copy message button */}
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2">
-                            <button
-                              type="button"
-                              onClick={() => handleCopyText(msg.id, msg.content)}
-                              className="p-1 rounded-md bg-background/80 hover:bg-background border border-border text-muted-foreground hover:text-foreground"
-                              title="Salin pesan"
-                              aria-label="Salin pesan"
-                            >
-                              {copiedMessageId === msg.id ? (
-                                <Check className="size-3 text-status-success" />
-                              ) : (
-                                <Copy className="size-3" />
-                              )}
-                            </button>
                           </div>
-                        </div>
-                      )}
+                        )}
+                        <p className="whitespace-pre-wrap break-words font-sans text-body-sm">{msg.content}</p>
+                      </div>
                     </div>
+                  );
+                }
+
+                return (
+                  <div key={msg.id || index} className="space-y-2 select-text">
+                    {/* Zyra Header Label */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-heading text-body-xs font-bold text-brand-primary">
+                        Zyra
+                      </span>
+                    </div>
+
+                    {/* Message Content Flow (Natural typography, no heavy card wrapper) */}
+                    <div className="prose prose-sm dark:prose-invert max-w-none break-words text-body-sm leading-relaxed text-foreground">
+                      <MarkdownRenderer content={msg.content} density="compact" />
+                    </div>
+
+                    {msg.canvasSpec && (
+                      <div className="mt-3">
+                        <LearningCanvasRenderer spec={msg.canvasSpec} />
+                      </div>
+                    )}
+
+                    {msg.sources && msg.sources.length > 0 && (
+                      <div className="mt-2.5 pt-2 border-t border-border/40 flex flex-wrap gap-1.5 items-center">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">Sumber:</span>
+                        {msg.sources.map((s, idx) => (
+                          <a
+                            key={idx}
+                            href={s.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-body-xs text-brand-primary hover:underline bg-brand-primary/10 px-2 py-0.5 rounded-md"
+                          >
+                            {s.label}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Quick Accelerators / Socratic follow-up chips */}
+                    {isLastAiTurn && !chatLoading && (
+                      <FollowUpChips
+                        comprehensionCheck={showComprehensionCheck}
+                        onSend={handleSend}
+                      />
+                    )}
+
+                    {/* Copy message button */}
+                    {msg.content && (
+                      <div className="flex items-center gap-2 pt-1 text-muted-foreground">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(msg.id, msg.content)}
+                          aria-label="Salin pesan"
+                          title="Salin pesan"
+                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded-md hover:bg-muted"
+                        >
+                          {copiedMessageId === msg.id ? (
+                            <>
+                              <Check className="size-3 text-status-success" />
+                              <span>Tersalin</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3" />
+                              <span>Salin</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
 
               {chatLoading && (
                 <div className="flex items-center gap-2 text-muted-foreground text-body-xs p-2">
-                  <Loader2 className="size-4 animate-spin text-brand-primary" />
+                  <Loader2 className="size-3.5 animate-spin text-brand-primary" />
                   <span>Zyra sedang berpikir...</span>
                   <Button
                     variant="ghost"
@@ -1110,26 +1194,26 @@ export function TutorDrawerView({
                   </Button>
                 </div>
               )}
-
-              <div ref={messagesEndRef} />
             </>
           )}
         </div>
 
         {/* Input Composer & Toolbar */}
-        <div className="border-t border-border bg-card p-3 shrink-0 flex flex-col gap-2">
-          {imageInputEnabled && courseIdFromPath && sessionId && (
-            <ZyraAttachmentComposer
-              ref={attachmentComposerRef}
-              courseId={courseIdFromPath}
-              sessionId={sessionId}
-              onAttachmentIdsChange={setAttachmentIds}
-              onAttachmentsChange={setReadyAttachments}
-              onAttachmentsReadyChange={setAttachmentsReady}
-            />
-          )}
+        <footer className="shrink-0 border-t border-border/40 p-3 pt-2 bg-background/80 backdrop-blur-md">
+          <div className="relative rounded-2xl border border-border bg-background/95 backdrop-blur-md shadow-md focus-within:border-brand-primary/60 focus-within:ring-1 focus-within:ring-brand-primary/20 transition-all p-2.5">
+            {imageInputEnabled && courseIdFromPath && sessionId && (
+              <div className="mb-2">
+                <ZyraAttachmentComposer
+                  ref={attachmentComposerRef}
+                  courseId={courseIdFromPath}
+                  sessionId={sessionId}
+                  onAttachmentIdsChange={setAttachmentIds}
+                  onAttachmentsChange={setReadyAttachments}
+                  onAttachmentsReadyChange={setAttachmentsReady}
+                />
+              </div>
+            )}
 
-          <div className="relative flex flex-col rounded-xl border border-border bg-background focus-within:ring-2 focus-within:ring-brand-primary/20 focus-within:border-brand-primary">
             <textarea
               ref={textareaRef}
               value={inputVal}
@@ -1142,10 +1226,10 @@ export function TutorDrawerView({
               }}
               placeholder="Tanyakan materi atau rumus..."
               rows={2}
-              className="w-full resize-none border-none bg-transparent p-2.5 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="w-full resize-none border-none bg-transparent p-1 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
 
-            <div className="flex items-center justify-between px-2.5 pb-2 pt-1 border-t border-border/30">
+            <div className="flex items-center justify-between pt-2 border-t border-border/30">
               <div className="flex items-center gap-1">
                 <ZyraMathPalette onInsert={handleInsertSnippet} />
                 <ZyraFormulaPreview input={inputVal} />
@@ -1157,15 +1241,15 @@ export function TutorDrawerView({
                   size="icon-xs"
                   onClick={() => handleSend()}
                   disabled={chatLoading || !inputVal.trim()}
-                  className="rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90"
+                  className="size-7 rounded-full bg-brand-primary text-white hover:bg-brand-primary/90 transition-transform active:scale-95 disabled:opacity-40"
                   aria-label="Kirim pesan"
                 >
-                  <Send className="size-3.5" />
+                  <ArrowUp className="size-3.5" />
                 </Button>
               </div>
             </div>
           </div>
-        </div>
+        </footer>
 
         {/* Micro-apps Modal View (Flashcards / Practice Quiz) */}
         {activeAction !== "none" && actionData.length > 0 && (

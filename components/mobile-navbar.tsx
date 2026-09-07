@@ -14,10 +14,26 @@ export function getRouteTitle(
   // 1. Admin routes
   if (pathname === "/admin") return "Panel Admin";
   if (pathname.startsWith("/admin/blog")) return "Kelola Blog";
+  if (pathname.startsWith("/admin/courses/")) {
+    const match = pathname.match(/^\/admin\/courses\/([^/]+)(.*)$/);
+    if (match && match[1]) {
+      const subpath = match[2] || "";
+      if (subpath.startsWith("/documents")) return "Dokumen";
+      if (subpath.startsWith("/quizzes")) return "Kuis";
+      if (subpath.startsWith("/questions")) return "Soal";
+      if (subpath.startsWith("/flashcards")) return "Flashcard";
+      if (subpath.startsWith("/results")) return "Hasil";
+      if (subpath.startsWith("/leaderboard")) return "Papan Peringkat";
+      if (subpath.startsWith("/analytics")) return "Analitik";
+      if (subpath.startsWith("/review")) return "Review Materi";
+      if (subpath.startsWith("/settings")) return "Pengaturan";
+      if (subpath === "" || subpath === "/") return "Bab";
+      return "Mata Kuliah";
+    }
+  }
   if (pathname.startsWith("/admin/courses")) return "Mata Kuliah";
   if (pathname.startsWith("/admin/schedules")) return "Jadwal";
   if (pathname.startsWith("/admin/materials/review")) return "Review Materi";
-  if (pathname.startsWith("/admin/materials/manual")) return "Upload Manual";
   if (pathname.startsWith("/admin/materials")) return "Materi Kuliah";
   if (pathname.startsWith("/admin/questions")) return "Bank Soal";
   if (pathname.startsWith("/admin/quizzes")) return "Kuis";
@@ -47,7 +63,6 @@ export function getRouteTitle(
   if (pathname.startsWith("/admin/tutorial-pka")) return "Tutorial PKA";
   if (pathname.startsWith("/admin/bundles/idea")) return "Idea Bundles";
   if (pathname.startsWith("/admin/bundles/product")) return "Product Bundles";
-  if (pathname.startsWith("/admin/authoring-context")) return "Authoring Context";
 
   // 2. Tutor routes
   if (pathname === "/tutor") return "Panel Pengajar";

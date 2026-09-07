@@ -2,13 +2,12 @@
 
 import { useState, useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import {
   LayoutDashboard,
   ClipboardCheck,
   KeyRound,
-  Zap,
   ListChecks,
   GraduationCap,
   Bell,
@@ -18,13 +17,11 @@ import {
   Link as LinkIcon,
   Newspaper,
   Flag,
-  Upload,
   Video,
   FileText,
   BookOpen,
   NotebookPen,
   Library,
-  Target,
   UserCheck,
   UserCog,
   Users,
@@ -40,17 +37,58 @@ import {
   Trophy,
   MousePointerClick,
   Activity,
+  ArrowLeft,
+  Layers,
 } from "lucide-react";
 import {
   SidebarShell,
   NavItem,
   NavGroup,
   NavCollapsible,
+  SidebarTooltip,
 } from "@/components/sidebar-shell";
 import { useSession } from "@/lib/auth-client";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { OpsAiTrigger } from "@/components/admin/ops-ai/ops-ai-trigger";
+import { getCourseNavContext } from "@/app/(admin)/admin/(academic)/courses/actions";
+
+export function parseAdminCourseSlug(pathname: string): string | null {
+  if (!pathname.startsWith("/admin/courses/")) return null;
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length >= 3 && parts[0] === "admin" && parts[1] === "courses" && parts[2]) {
+    try {
+      return decodeURIComponent(parts[2]);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export type CourseSidebarItem = {
+  id: string;
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  exact?: boolean;
+};
+
+export function getAdminCourseNavItems(slug: string): CourseSidebarItem[] {
+  const base = `/admin/courses/${slug}`;
+  return [
+    { id: "bab", label: "Bab", href: base, icon: BookOpen, exact: true },
+    { id: "documents", label: "Dokumen", href: `${base}/documents`, icon: FileText },
+    { id: "quizzes", label: "Kuis", href: `${base}/quizzes`, icon: NotebookPen },
+    { id: "questions", label: "Soal", href: `${base}/questions`, icon: Library },
+    { id: "flashcards", label: "Flashcard", href: `${base}/flashcards`, icon: Layers },
+    { id: "results", label: "Hasil", href: `${base}/results`, icon: ListChecks },
+    { id: "leaderboard", label: "Papan Peringkat", href: `${base}/leaderboard`, icon: Trophy },
+    { id: "analytics", label: "Analitik", href: `${base}/analytics`, icon: BarChart3 },
+    { id: "review", label: "Review Materi", href: `${base}/review`, icon: ClipboardCheck },
+    { id: "settings", label: "Pengaturan", href: `${base}/settings`, icon: Settings },
+  ];
+}
 
 const ARCHIVED_STORAGE_KEY = "zyx_admin_sidebar_archived_tabs";
 const PINNED_STORAGE_KEY = "zyx_admin_sidebar_pinned_tabs";
@@ -75,7 +113,7 @@ export type AdminTabDef = {
   label: string;
   href: string;
   icon: React.ElementType;
-  group: "utama" | "akademik" | "evaluasi" | "alat" | "pengguna" | "ops" | "tutorial-pka";
+  group: "utama" | "akademik" | "alat" | "pengguna" | "ops" | "tutorial-pka";
   exact?: boolean;
   badge?: React.ReactNode | string;
 };
@@ -87,17 +125,8 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
 
   // Akademik & Konten
   { id: "courses", label: "Mata Kuliah", href: "/admin/courses", icon: GraduationCap, group: "akademik" },
-  { id: "schedules", label: "Jadwal", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
-  { id: "materials-review", label: "Review Materi", href: "/admin/materials/review", icon: ClipboardCheck, group: "akademik" },
-  { id: "materials-manual", label: "Upload Manual", href: "/admin/materials/manual", icon: Upload, group: "akademik" },
-
-  // Bank Soal & Asesmen
-  { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "evaluasi" },
-  { id: "quizzes", label: "Kuis", href: "/admin/quizzes", icon: NotebookPen, group: "evaluasi" },
-  { id: "leaderboard", label: "Papan Peringkat", href: "/admin/leaderboard", icon: Trophy, group: "evaluasi" },
-  { id: "quiz-insights", label: "Analisis Kuis", href: "/admin/quiz-insights", icon: BarChart3, group: "evaluasi", badge: "Beta" },
-  { id: "question-jobs", label: "Generasi Soal", href: "/admin/jobs", icon: Zap, group: "evaluasi" },
-  { id: "distractors", label: "Distraktor", href: "/admin/distractors", icon: Target, group: "evaluasi", badge: "Beta" },
+  { id: "schedules", label: "Jadwal Umum", href: "/admin/schedules", icon: CalendarDays, group: "akademik" },
+  { id: "bank-soal", label: "Bank Soal", href: "/admin/questions", icon: Library, group: "akademik" },
 
   // Alat & Komunikasi
   { id: "forms", label: "Form Studio", href: "/admin/forms", icon: FilePen, group: "alat" },
@@ -125,19 +154,75 @@ const ALL_ADMIN_TABS: AdminTabDef[] = [
   { id: "pka-registrations", label: "Pendaftar PKA", href: "/admin/tutorial-pka/registrations", icon: UserCheck, group: "tutorial-pka" },
   { id: "pka-announcements", label: "Pengumuman PKA", href: "/admin/tutorial-pka/announcements", icon: Megaphone, group: "tutorial-pka" },
   { id: "pka-schedules", label: "Jadwal Live PKA", href: "/admin/tutorial-pka/schedules", icon: CalendarDays, group: "tutorial-pka" },
-  { id: "pka-quizzes", label: "Kuis PKA", href: "/admin/quizzes?courseId=tutorial-pka", icon: ListChecks, group: "tutorial-pka" },
-  { id: "pka-materials", label: "Materi PKA", href: "/admin/materials?courseId=tutorial-pka", icon: FileText, group: "tutorial-pka" },
+  { id: "pka-quizzes", label: "Kuis PKA", href: "/admin/courses/tutorial-pka/quizzes", icon: ListChecks, group: "tutorial-pka" },
+  { id: "pka-materials", label: "Materi PKA", href: "/admin/courses/tutorial-pka/documents", icon: FileText, group: "tutorial-pka" },
 ];
 
 function AdminSidebarInner() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const userId = session?.user?.id;
+
+  const courseSlug = useMemo(() => parseAdminCourseSlug(pathname), [pathname]);
+  const [courseNav, setCourseNav] = useState<{
+    slug: string;
+    data: { slug: string; title: string; category: string } | null;
+    isLoading: boolean;
+    isNotFound: boolean;
+  } | null>(null);
 
   const [archivedTabs, setArchivedTabs] = useState<string[]>(DEFAULT_ARCHIVED);
   const [pinnedTabs, setPinnedTabs] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (!courseSlug) {
+      setCourseNav(null);
+      return;
+    }
+    let cancelled = false;
+    setCourseNav({
+      slug: courseSlug,
+      data: null,
+      isLoading: true,
+      isNotFound: false,
+    });
+    getCourseNavContext(courseSlug)
+      .then((res) => {
+        if (cancelled) return;
+        if (res) {
+          setCourseNav({
+            slug: courseSlug,
+            data: {
+              slug: res.slug || courseSlug,
+              title: res.title,
+              category: res.category,
+            },
+            isLoading: false,
+            isNotFound: false,
+          });
+        } else {
+          setCourseNav({
+            slug: courseSlug,
+            data: null,
+            isLoading: false,
+            isNotFound: true,
+          });
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCourseNav({
+          slug: courseSlug,
+          data: null,
+          isLoading: false,
+          isNotFound: true,
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [courseSlug]);
 
   useEffect(() => {
     setMounted(true);
@@ -229,23 +314,12 @@ function AdminSidebarInner() {
 
   const isTabActive = useMemo(() => {
     return (tab: AdminTabDef) => {
-      if (tab.id === "pka-quizzes") {
-        return pathname === "/admin/quizzes" && searchParams?.get("courseId") === "tutorial-pka";
-      }
-      if (tab.id === "pka-materials") {
-        return pathname === "/admin/materials" && searchParams?.get("courseId") === "tutorial-pka";
-      }
-      if (tab.id === "quizzes") {
-        return (
-          (pathname === "/admin/quizzes" || pathname.startsWith("/admin/quizzes/")) && searchParams?.get("courseId") !== "tutorial-pka"
-        );
-      }
       if (tab.exact) {
         return pathname === tab.href;
       }
       return pathname === tab.href || pathname.startsWith(tab.href + "/");
     };
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   const isArchived = (id: string) => mounted && archivedTabs.includes(id);
   const isPinned = (id: string) => mounted && pinnedTabs.includes(id);
@@ -272,6 +346,94 @@ function AdminSidebarInner() {
   };
 
   const navContent = (c: boolean) => {
+    if (courseSlug) {
+      const courseItems = getAdminCourseNavItems(courseSlug);
+      return (
+        <nav
+          className={cn(
+            "flex flex-1 flex-col gap-1 py-3 font-sans text-left",
+            c
+              ? "px-1 items-center overflow-y-hidden sidebar-scroll-hidden"
+              : "px-3 overflow-y-auto overflow-x-hidden sidebar-scroll"
+          )}
+        >
+          {/* Back link to /admin/courses */}
+          <SidebarTooltip label="Semua Mata Kuliah" collapsed={c}>
+            <Link
+              href="/admin/courses"
+              title={c ? "Semua Mata Kuliah" : undefined}
+              className={cn(
+                "flex items-center gap-2.5 rounded-xl px-3 py-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors mb-2",
+                c && "justify-center size-10 px-0 mx-auto"
+              )}
+            >
+              <ArrowLeft className="size-4 shrink-0" />
+              {!c && <span>Semua Mata Kuliah</span>}
+            </Link>
+          </SidebarTooltip>
+
+          {/* Course title & category card */}
+          {!c && (
+            <div className="rounded-xl border border-border/60 bg-muted/30 p-3 mb-3 text-left">
+              <div className="flex items-center gap-2">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary">
+                  <GraduationCap className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  {courseNav?.isLoading ? (
+                    <div className="space-y-1 py-0.5">
+                      <div className="h-3.5 w-28 animate-pulse rounded bg-muted-foreground/20" />
+                      <div className="h-2.5 w-16 animate-pulse rounded bg-muted-foreground/20" />
+                    </div>
+                  ) : courseNav?.isNotFound ? (
+                    <>
+                      <p className="truncate text-body-xs font-bold text-destructive font-heading leading-tight">
+                        Mata Kuliah Tidak Ditemukan
+                      </p>
+                      <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
+                        {courseSlug}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="truncate text-body-xs font-bold text-foreground font-heading leading-tight">
+                        {courseNav?.data?.title || courseSlug}
+                      </p>
+                      <p className="truncate text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">
+                        {courseNav?.data?.category || "Mata Kuliah"}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 9 Course navigation items */}
+          <div className={cn("space-y-0.5", c && "w-full flex flex-col items-center")}>
+            {courseItems.map((item) => {
+              const active = item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(item.href + "/");
+
+              return (
+                <NavItem
+                  key={item.id}
+                  href={item.href}
+                  icon={item.icon}
+                  label={item.label}
+                  active={active}
+                  collapsed={c}
+                />
+              );
+            })}
+          </div>
+
+          <div className="flex-1" />
+        </nav>
+      );
+    }
+
     // 1. Pinned tabs at the top
     const pinnedTabItems = ALL_ADMIN_TABS.filter((t) => isPinned(t.id));
 
@@ -283,7 +445,6 @@ function AdminSidebarInner() {
     };
 
     const akademikTabs = getVisibleGroupTabs("akademik");
-    const evaluasiTabs = getVisibleGroupTabs("evaluasi");
     const alatTabs = getVisibleGroupTabs("alat");
     const penggunaTabs = getVisibleGroupTabs("pengguna");
     const opsTabs = getVisibleGroupTabs("ops");
@@ -352,21 +513,6 @@ function AdminSidebarInner() {
             previewItems={akademikTabs.map((t) => t.label)}
           >
             {akademikTabs.map((tab) => renderTabItem(tab, c, true))}
-          </NavCollapsible>
-        )}
-
-        {/* Bank Soal & Asesmen */}
-        {evaluasiTabs.length > 0 && (
-          <NavCollapsible
-            id="evaluasi"
-            key="evaluasi"
-            icon={Library}
-            label="Bank Soal & Asesmen"
-            collapsed={c}
-            active={evaluasiTabs.some((t) => isTabActive(t))}
-            previewItems={evaluasiTabs.map((t) => t.label)}
-          >
-            {evaluasiTabs.map((tab) => renderTabItem(tab, c, true))}
           </NavCollapsible>
         )}
 

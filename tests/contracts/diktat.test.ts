@@ -82,4 +82,30 @@ describe("Diktat Contract Tests (Plan 014)", () => {
     expect(retrieved?.symbols.length).toBe(3);
     expect(retrieved?.sourceKoIds).toEqual(["ko-101"]);
   });
+
+  describe("Student Diktat PDF Download Contract", () => {
+    it("allows enrolled students and admins to download rendered diktat PDF", async () => {
+      const { canDownloadProductDiktat } = await import("@/lib/bundle/product-diktat-pdf");
+      expect(canDownloadProductDiktat({ role: "admin", enrolled: false })).toBe(true);
+      expect(canDownloadProductDiktat({ role: "student", enrolled: true })).toBe(true);
+      expect(canDownloadProductDiktat({ role: "student", enrolled: false })).toBe(false);
+      expect(canDownloadProductDiktat({ role: "tutor", enrolled: true })).toBe(false);
+      expect(canDownloadProductDiktat({ role: null, enrolled: true })).toBe(false);
+    });
+
+    it("generates sanitized, URL-safe filenames for PDF downloads using slugifySegment", async () => {
+      const { slugifySegment } = await import("@/lib/storage/keys");
+      const title = "Diktat: Sistem Bilangan Real & Pertaksamaan (Revisi 2)";
+      const filename = `${slugifySegment(title) || "diktat"}.pdf`;
+      expect(filename).toBe("diktat-sistem-bilangan-real-pertaksamaan-revisi-2.pdf");
+      expect(filename).not.toMatch(/[:&()]/);
+    });
+
+    it("formats download URLs with download=1 for direct browser file download", () => {
+      const courseId = "ma1101";
+      const diktatId = "diktat-real-analysis-1";
+      const downloadUrl = `/api/courses/${courseId}/diktats/${diktatId}/pdf?download=1`;
+      expect(downloadUrl).toBe("/api/courses/ma1101/diktats/diktat-real-analysis-1/pdf?download=1");
+    });
+  });
 });

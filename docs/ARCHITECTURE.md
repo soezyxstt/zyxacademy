@@ -189,7 +189,7 @@ flowchart LR
 
 `impor_bundle` stores the checksum identity, legacy course association, and immutable validation report. `review_bundle` stores one immutable decision per reviewer. Publication is idempotent and compares existing target versions field by field; conflicts fail rather than overwrite. The transaction also inserts deterministic vector jobs for embedding-eligible source chunks and published Ideas. The Idea Bundle workflow is always-on. Legacy Learning Bundle and Assessment Bundle admin importers are retired and reject new writes.
 
-The admin presentation boundary for this workflow is split into `/admin/materials/review` and `/admin/materials/manual`. The Review page contains separate `Source Pack + Idea` and `Product` tabs, a filtered inventory, and a compact upload dialog. Artifact cards use stored creation time, requested-by identity, and course association as the primary review context; bundle IDs and checksums remain secondary technical details. Review actions navigate to dedicated `/admin/materials/review/idea/[slug]` or `/admin/materials/review/product/[slug]` pages, where the three-step indicator, focused one-item editing, product-family separation, relation and dependency context, KaTeX previews, reviewer notes, server-side draft reconstruction, and lifecycle actions live. The Upload Manual page contains the paginated Source Pack handoff and the preserved Context Pack export as internal process choices.
+The primary presentation boundary for Idea and Product review is course-scoped under `/admin/courses/[slug]/review` with dedicated detail routes `/admin/courses/[slug]/review/idea/[bundleId]` and `/admin/courses/[slug]/review/product/[bundleId]`. Legacy global review routes (`/admin/materials/review` and its detail paths) serve as server-side compatibility redirects. The review page contains separate `Source Pack + Idea` and `Product` tabs, a filtered inventory, and a compact upload dialog. Artifact cards use stored creation time, requested-by identity, and course association as the primary review context; bundle IDs and checksums remain secondary technical details. Former browser-based manual authoring pages (`/admin/materials/manual`) are completely retired and redirect to `/admin/courses`, while the Authoring Context Pack export remains available for external agent workflows.
 
 Plan 006 staging evidence is stored at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-result.json`, with an independent database reconciliation at `artifacts/staging-overhaul/20260803-plan006-bundle-v5/plan-006-reconcile.json`.
 
@@ -295,11 +295,43 @@ flowchart LR
 
 The public lifecycle is `draft -> published -> withdrawn`. A draft may be replaced in place by the same bundle ID or deleted. Publishing creates or refreshes an internal approved review record as accountability evidence and commits canonical products atomically. Published bundles cannot be replaced or deleted. Withdrawal retains rows and audit history, marks learner-facing products inactive, and queues removal for vectorized article, question, and solution content. The Product Bundle workflow is always-on. Legacy assessment-source imports and mutations are retired; existing rows remain readable only for compatibility. Runtime vector jobs are limited to `published_articles`, `published_questions`, and `published_solutions`; there is no generic `product` namespace.
 
-The Product review inventory uses `/admin/materials/review`, while detail review uses `/admin/materials/review/product/[slug]`. Product-family tabs and a searchable navigator keep one product active at a time. Article student mode and the student Material Viewer share `ArticleReadingCanvas`; the admin view omits progress, completion, Zyra, and consumer modals. Block mode adds persistent review controls and a provenance inspector. Diktat uses compact renderer density only in admin preview. The shared Markdown parser protects mathematical, escaped, and inline-code pipe characters when splitting table rows.
+The Product review inventory is course-scoped under `/admin/courses/[slug]/review`, while detail review uses `/admin/courses/[slug]/review/product/[bundleId]`. Legacy paths `/admin/materials/review` and `/admin/materials/review/product/[slug]` operate as server-side compatibility redirects. Product-family tabs and a searchable navigator keep one product active at a time. Article student mode and the student Material Viewer share `ArticleReadingCanvas`; the admin view omits progress, completion, Zyra, and consumer modals. Block mode adds persistent review controls and a provenance inspector. Diktat uses compact renderer density only in admin preview. The shared Markdown parser protects mathematical, escaped, and inline-code pipe characters when splitting table rows.
 
 Question provenance crosses the compatibility boundary as data, not presentation-only state. `soal` and `ai_question_bank` store `origin`, `source_event_name`, and `source_reference_id`. Quiz attempts, tryout submissions, PKA attempts, and live quiz sessions carry the same fields in JSON snapshots. `QuestionSourceCitation` is the shared student renderer and shows a lower-right source line only for `itb_example`. The admin question bank exposes origin filtering, while the tutor tryout action copies a published bank question and its provenance into the per-exam question snapshot.
 
 External authoring has three active MCP instruction skills under `plugins/zyx-authoring-mcp/skills`: `zyx-source-pack-mcp`, `zyx-idea-bundle-mcp`, and `zyx-product-bundle-mcp`. They guide the agent through Source Pack, Idea, and Product workflows while MCP calls canonical repository quality modules. The prior `source-pack-translator`, `zyx-idea-authoring`, and `zyx-product-authoring` directories remain migration references only. Product authoring requires published Idea identity and fresh dependency checks, preventing unpublished candidate Ideas from leaking into products. It copies ITB questions from the Source Pack, matches the exact event label to an allowed context reference, and never substitutes a benchmark ID for the dedicated source reference ID. Preference profiles do not alter source truth, schemas, or quality gates and create no additional pack lifecycle.
+
+### Admin Course Workspace Architecture & Compatibility Boundary
+
+The admin course workspace provides a unified, course-scoped operational environment replacing disconnected global admin pages for academic resources.
+
+1. **Course Workspace Hierarchy (9 Sections)**:
+   Every course workspace is rooted at `/admin/courses/[slug]` and exposes exactly nine contextual sections:
+   - Ringkasan (`/admin/courses/[slug]`): Course overview, quick metrics, and workspace status.
+   - Materi (`/admin/courses/[slug]/materials`): Published learning materials, structured articles, and diktats.
+   - Silabus (`/admin/courses/[slug]/syllabus`): Course syllabus, topics, and learning section hierarchy.
+   - Kuis (`/admin/courses/[slug]/quizzes`): Course-owned quiz management, drafting, and publishing.
+   - Review (`/admin/courses/[slug]/review`): Staged Idea and Product bundle validation, inspection, and publication.
+   - Analitik (`/admin/courses/[slug]/analytics`): Course quiz insights, score distributions, and item discrimination.
+   - Bank Soal (`/admin/courses/[slug]/bank-soal`): Course-associated question bank and assessment items.
+   - Leaderboard (`/admin/courses/[slug]/leaderboard`): Course-specific student ranking and XP standings.
+   - Pengaturan (`/admin/courses/[slug]/settings`): Course metadata, visibility, and configuration.
+
+2. **Unified Reader Modes (Learner vs Admin Preview)**:
+   Reading surfaces (`ArticleReadingCanvas`, `DiktatReader`) share core layout and typography while isolating behavioral concerns via explicit mode flags:
+   - `learner` mode: Student-facing experience with reading progress tracking, section completion mutations, Zyra AI sidecar, and consumer interaction modals.
+   - `admin-preview` mode: Administrative inspection experience with provenance inspectors, block-level quality gate badges, and editorial controls. Learner-side side-effects (progress persistence, session analytics, consumer modals) are completely disabled.
+
+3. **Server-Side Compatibility Redirects and Reverse Resolution**:
+   Legacy global routes (`/admin/quizzes`, `/admin/leaderboard`, `/admin/quiz-insights`, `/admin/materials/review`) no longer render active standalone workspaces. Instead, they act as server-side compatibility redirects:
+   - List routes accepting `courseId` or `courseSlug` query parameters validate the identifier and redirect to the corresponding nested course workspace URL (`/admin/courses/[slug]/*`). Without a valid course parameter, they redirect to the course directory (`/admin/courses`).
+   - Detail routes (`/admin/quizzes/[id]/edit`, `/admin/quiz-insights/[id]`, `/admin/materials/review/idea/[slug]`, `/admin/materials/review/product/[slug]`) resolve owning course identity strictly on the server using reverse resolvers (`resolveQuizCourseIdentity`, `resolveBundleCourseIdentity`). Client-supplied course parameters are never trusted without cryptographic or database ownership verification. If an entity does not exist or has no course association, the server returns a 404 (`notFound()`) or redirects safely to `/admin/courses`.
+   - The contextual navigation sidebar remains locked to the active course workspace, preventing navigation drift back to global administration while working within course-owned assets.
+
+4. **Retirement of Manual Browser Authoring with Preserved MCP Publication Pipeline**:
+   - Legacy browser-based manual file upload interfaces (`/admin/materials/manual`) are retired and redirect to `/admin/courses`.
+   - Browser-facing manual ingestion endpoints return HTTP 410 Gone for authenticated requests.
+   - Authoring operations transition entirely to the deterministic Authoring MCP pipeline (`plugins/zyx-authoring-mcp/skills`), which retains full capability to ingest, validate, stage, and atomically publish Source Packs, Idea Bundles, and Product Bundles.
 
 ### Article and Diktat Quality Compiler
 

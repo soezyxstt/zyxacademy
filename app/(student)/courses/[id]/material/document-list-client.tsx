@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
+  BookOpenCheck,
   CheckCircle2,
   ChevronRight,
   ClipboardList,
+  Download,
   ExternalLink,
+  Eye,
   FileCode,
   FileText,
   Filter,
@@ -16,6 +20,9 @@ import {
   LayoutGrid,
   List,
   MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
   X,
 } from "lucide-react";
 import { Dialog as DialogNs } from "radix-ui";
@@ -25,6 +32,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { AdminUploadDocumentDialog } from "@/components/admin/course-detail/admin-upload-document-dialog";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { deleteCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
+import { toast } from "@/components/ui/toast";
 import { useUrlTab } from "@/hooks/use-url-tab";
 import { cn } from "@/lib/utils";
 import type { CourseMaterial, DocCategory } from "@/lib/student-course-fixtures";
@@ -36,9 +54,13 @@ type TabKey = "materi" | "diktat" | "pdf" | "bank_soal";
 
 type DocumentListClientProps = {
   courseId: string;
+  courseSlug?: string;
+  courseTitle?: string;
   materials: CourseMaterial[];
   chapters: Chapter[];
   defaultTab?: string;
+  forcePageNavigation?: boolean;
+  isAdmin?: boolean;
 };
 
 const tabConfig: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
@@ -340,22 +362,41 @@ function PdfViewerModal({
               {/* Right: Actions */}
               <div className="flex items-center gap-1 shrink-0">
                 {pdfUrl ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 rounded-md text-muted-foreground hover:text-foreground"
-                    asChild
-                  >
-                    <a
-                      href={pdfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Buka di tab baru"
-                      aria-label="Buka di tab baru"
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                      asChild
                     >
-                      <ExternalLink className="size-3.5" />
-                    </a>
-                  </Button>
+                      <a
+                        href={pdfUrl}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Unduh PDF"
+                        aria-label="Unduh PDF"
+                      >
+                        <Download className="size-3.5" />
+                      </a>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                      asChild
+                    >
+                      <a
+                        href={pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Buka di tab baru"
+                        aria-label="Buka di tab baru"
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </a>
+                    </Button>
+                  </>
                 ) : null}
                 <Button
                   variant="ghost"
@@ -412,10 +453,15 @@ function PdfViewerModal({
 
 export function DocumentListClient({
   courseId,
+  courseSlug,
+  courseTitle,
   materials,
   chapters,
   defaultTab = "materi",
+  forcePageNavigation = false,
+  isAdmin = false,
 }: DocumentListClientProps) {
+  const router = useRouter();
   const initialDefaultTab = normalizeTabKey(defaultTab);
   const [urlTab, setUrlTab] = useUrlTab("tab", initialDefaultTab);
   const activeTab: TabKey = normalizeTabKey(urlTab);
@@ -423,6 +469,28 @@ export function DocumentListClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<DocumentFilterState>(emptyFilters);
   const [selectedPdf, setSelectedPdf] = useState<CourseMaterial | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<CourseMaterial | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const res = await deleteCourseMaterial(deleteTarget.id);
+      if (res.success) {
+        toast.success("Dokumen berhasil dihapus.");
+        setDeleteTarget(null);
+        router.refresh();
+      } else {
+        toast.error(res.error || "Gagal menghapus dokumen.");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan jaringan.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Sync filter and search state when tab changes (including browser back/forward)
   const prevTabRef = useRef(activeTab);
@@ -511,7 +579,7 @@ export function DocumentListClient({
           onSearch={setSearchQuery}
           onClear={() => setSearchQuery("")}
           placeholder={`Cari ${tabConfig.find((t) => t.key === activeTab)?.label.toLowerCase()}...`}
-          containerClassName="min-w-[140px] flex-1 sm:max-w-xs"
+          containerClassName="min-w-[140px] flex-1"
         />
 
         {/* Filter Popover */}
@@ -588,7 +656,7 @@ export function DocumentListClient({
         )}
 
         {/* View Mode Toggle */}
-        <div className="ml-auto flex shrink-0 items-center rounded-md border border-border bg-muted/30 p-0.5">
+        <div className="flex shrink-0 items-center rounded-md border border-border bg-muted/30 p-0.5">
           <Button
             type="button"
             size="icon"
@@ -610,6 +678,21 @@ export function DocumentListClient({
             <List className="size-4" />
           </Button>
         </div>
+
+        {/* Upload Button at the far right for Admin */}
+        {isAdmin ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="default"
+            className="size-9 rounded-lg shrink-0 cursor-pointer shadow-xs"
+            onClick={() => setUploadOpen(true)}
+            aria-label="Unggah dokumen PDF"
+            title="Unggah dokumen PDF"
+          >
+            <Plus className="size-4" />
+          </Button>
+        ) : null}
       </div>
 
       {/* Active Filter Indicator */}
@@ -633,7 +716,7 @@ export function DocumentListClient({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
-            const isPageNav = isPageNavigationMaterial(material);
+            const isPageNav = forcePageNavigation || isPageNavigationMaterial(material);
             const subLabel =
               material.subcategory
                 ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
@@ -668,16 +751,111 @@ export function DocumentListClient({
                       {material.fileSize ? ` · ${material.fileSize}` : ""}
                     </p>
                   </div>
-                  {material.completed ? (
-                    <CheckCircle2
-                      className="size-4 shrink-0 text-status-success"
-                      aria-label="Selesai dipelajari"
-                    />
+                  {isAdmin ? (
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {material.status ? (
+                        <Badge
+                          variant={material.status === "published" ? "default" : "secondary"}
+                          className={cn(
+                            "rounded-md px-1.5 py-0 text-[10px] uppercase font-semibold",
+                            material.status === "published"
+                              ? "bg-status-success/15 text-status-success border-status-success/30"
+                              : "bg-muted text-muted-foreground border-border"
+                          )}
+                        >
+                          {material.status === "published" ? "Published" : "Draft"}
+                        </Badge>
+                      ) : null}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                            aria-label="Aksi dokumen"
+                          >
+                            <MoreVertical className="size-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem asChild>
+                            <Link href={`${itemHref}?mode=edit`}>
+                              <Pencil className="size-3.5 mr-2" />
+                              Edit Dokumen
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={itemHref}>
+                              <Eye className="size-3.5 mr-2" />
+                              Pratinjau
+                            </Link>
+                          </DropdownMenuItem>
+                          {material.url ? (
+                            <DropdownMenuItem asChild>
+                              <a href={material.url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="size-3.5 mr-2" />
+                                Buka Berkas PDF
+                              </a>
+                            </DropdownMenuItem>
+                          ) : null}
+                          {material.source === "legacy-pdf" ? (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteTarget(material)}
+                              >
+                                <Trash2 className="size-3.5 mr-2" />
+                                Hapus Dokumen
+                              </DropdownMenuItem>
+                            </>
+                          ) : null}
+                          {material.source === "canonical-article" || material.source === "canonical-diktat" ? (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem asChild>
+                                <Link href={`/admin/courses/${encodeURIComponent(courseSlug || courseId)}/review?tab=product`}>
+                                  <BookOpenCheck className="size-3.5 mr-2" />
+                                  Kelola Review
+                                </Link>
+                              </DropdownMenuItem>
+                            </>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   ) : (
-                    <MoreVertical
-                      className="size-3.5 shrink-0 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground/70"
-                      aria-hidden
-                    />
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {material.completed ? (
+                        <CheckCircle2
+                          className="size-4 shrink-0 text-status-success"
+                          aria-label="Selesai dipelajari"
+                        />
+                      ) : null}
+                      {material.url ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+                          asChild
+                          title="Unduh PDF"
+                          aria-label={`Unduh PDF ${material.title}`}
+                        >
+                          <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                            <Download className="size-3.5" />
+                          </a>
+                        </Button>
+                      ) : (
+                        !material.completed && (
+                          <MoreVertical
+                            className="size-3.5 shrink-0 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground/70"
+                            aria-hidden
+                          />
+                        )
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -694,7 +872,7 @@ export function DocumentListClient({
         <ul className="divide-y divide-border/50 rounded-xl border border-border/50 bg-card overflow-hidden">
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
-            const isPageNav = isPageNavigationMaterial(material);
+            const isPageNav = forcePageNavigation || isPageNavigationMaterial(material);
             const subLabel =
               material.subcategory
                 ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
@@ -731,7 +909,100 @@ export function DocumentListClient({
                   <span className="hidden text-body-xs text-muted-foreground md:block">
                     {material.fileSize ?? (material.year ? String(material.year) : "-")}
                   </span>
-                  <ChevronRight className="size-4 text-muted-foreground/60" />
+                  {isAdmin ? (
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {material.status ? (
+                        <Badge
+                          variant={material.status === "published" ? "default" : "secondary"}
+                          className={cn(
+                            "rounded-md px-1.5 py-0 text-[10px] uppercase font-semibold",
+                            material.status === "published"
+                              ? "bg-status-success/15 text-status-success border-status-success/30"
+                              : "bg-muted text-muted-foreground border-border"
+                          )}
+                        >
+                          {material.status === "published" ? "Published" : "Draft"}
+                        </Badge>
+                      ) : null}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                            aria-label="Aksi dokumen"
+                          >
+                            <MoreVertical className="size-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem asChild>
+                            <Link href={`${itemHref}?mode=edit`}>
+                              <Pencil className="size-3.5 mr-2" />
+                              Edit Dokumen
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={itemHref}>
+                              <Eye className="size-3.5 mr-2" />
+                              Pratinjau
+                            </Link>
+                          </DropdownMenuItem>
+                          {material.url ? (
+                            <DropdownMenuItem asChild>
+                              <a href={material.url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="size-3.5 mr-2" />
+                                Buka Berkas PDF
+                              </a>
+                            </DropdownMenuItem>
+                          ) : null}
+                          {material.source === "legacy-pdf" ? (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteTarget(material)}
+                              >
+                                <Trash2 className="size-3.5 mr-2" />
+                                Hapus Dokumen
+                              </DropdownMenuItem>
+                            </>
+                          ) : null}
+                          {material.source === "canonical-article" || material.source === "canonical-diktat" ? (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem asChild>
+                                <Link href={`/admin/courses/${encodeURIComponent(courseSlug || courseId)}/review?tab=product`}>
+                                  <BookOpenCheck className="size-3.5 mr-2" />
+                                  Kelola Review
+                                </Link>
+                              </DropdownMenuItem>
+                            </>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {material.url ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+                          asChild
+                          title="Unduh PDF"
+                          aria-label={`Unduh PDF ${material.title}`}
+                        >
+                          <a href={material.url} download target="_blank" rel="noopener noreferrer">
+                            <Download className="size-3.5" />
+                          </a>
+                        </Button>
+                      ) : null}
+                      <ChevronRight className="size-4 text-muted-foreground/60" />
+                    </div>
+                  )}
                 </DocumentItemWrapper>
               </li>
             );
@@ -784,6 +1055,30 @@ export function DocumentListClient({
         material={selectedPdf}
         onClose={() => setSelectedPdf(null)}
       />
+
+      {/* Upload Dialog for Admin */}
+      {isAdmin ? (
+        <AdminUploadDocumentDialog
+          open={uploadOpen}
+          onOpenChange={setUploadOpen}
+          courseId={courseId}
+          courseTitle={courseTitle || "Mata Kuliah"}
+          chapters={chapters}
+        />
+      ) : null}
+
+      {/* Delete Confirm Dialog for Admin */}
+      {isAdmin && deleteTarget ? (
+        <AdminConfirmDialog
+          open={Boolean(deleteTarget)}
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          title="Hapus Dokumen"
+          description={`Dokumen "${deleteTarget.title}" akan dihapus secara permanen.`}
+          confirmLabel="Hapus"
+          loading={isDeleting}
+          onConfirm={handleDeleteConfirm}
+        />
+      ) : null}
     </div>
   );
 }

@@ -39,6 +39,9 @@
   ],
   "exclude": [
     "node_modules",
-    "workers"
+    "workers",
+    "tests",
+    "scripts",
+    "artifacts"
   ]
 }

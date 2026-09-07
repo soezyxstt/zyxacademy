@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { quizTemplates, studentQuizAttempts, courses, quizAiInsights } from "@/db/schema";
+import { quizTemplates, studentQuizAttempts, courses, mataKuliah, quizAiInsights } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { eq, sql, desc } from "drizzle-orm";
+import { resolveCourseIdentity, matchesCourseIdentity } from "@/lib/admin/course-identity";
 
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -23,14 +24,15 @@ export async function GET(req: NextRequest) {
       title: quizTemplates.title,
       category: quizTemplates.category,
       courseId: quizTemplates.courseId,
-      courseName: courses.title,
+      legacyCourseName: courses.title,
+      canonicalCourseName: mataKuliah.title,
       status: quizTemplates.status,
-
       timeLimitSeconds: quizTemplates.timeLimitSeconds,
       createdAt: quizTemplates.createdAt,
     })
     .from(quizTemplates)
-    .leftJoin(courses, eq(quizTemplates.courseId, courses.id));
+    .leftJoin(courses, eq(quizTemplates.courseId, courses.id))
+    .leftJoin(mataKuliah, eq(quizTemplates.courseId, mataKuliah.id));
 
   // Aggregate stats per template
   const attemptStats = await db
@@ -85,7 +87,7 @@ export async function GET(req: NextRequest) {
       title: tpl.title,
       category: tpl.category,
       courseId: tpl.courseId,
-      courseName: tpl.courseName || tpl.courseId,
+      courseName: tpl.canonicalCourseName || tpl.legacyCourseName || tpl.courseId,
       status: tpl.status,
       timeLimitSeconds: tpl.timeLimitSeconds,
       createdAt: tpl.createdAt,
@@ -99,7 +101,12 @@ export async function GET(req: NextRequest) {
   // Filter in memory if query params provided
   let filtered = items;
   if (courseIdParam && courseIdParam !== "all") {
-    filtered = filtered.filter((i) => i.courseId === courseIdParam);
+    const identity = await resolveCourseIdentity(courseIdParam);
+    if (identity) {
+      filtered = filtered.filter((i) => matchesCourseIdentity(i.courseId, identity));
+    } else {
+      filtered = filtered.filter((i) => i.courseId === courseIdParam);
+    }
   }
   if (categoryParam && categoryParam !== "all") {
     filtered = filtered.filter((i) => i.category === categoryParam);

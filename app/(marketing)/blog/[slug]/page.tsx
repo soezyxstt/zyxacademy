@@ -35,13 +35,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       description: article.summary,
       type: "article",
       url: `${baseUrl}/blog/${article.slug}`,
-      images: article.thumbnailUrl ? [{ url: article.thumbnailUrl }] : [],
+      images: article.thumbnailUrl
+        ? [{ url: article.thumbnailUrl }]
+        : [{ url: "/og-image.png", width: 1200, height: 630, alt: article.title }],
     },
     twitter: {
       card: "summary_large_image",
       title: article.title,
       description: article.summary,
-      images: article.thumbnailUrl ? [article.thumbnailUrl] : [],
+      images: article.thumbnailUrl ? [article.thumbnailUrl] : ["/og-image.png"],
     }
   };
 }
