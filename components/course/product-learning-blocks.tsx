@@ -37,12 +37,12 @@ export function ProductWorkedExample({
   return (
     <div
       className={cn(
-        "rounded-lg border border-status-success/30 bg-card p-4 sm:p-5 space-y-4",
+        "rounded-r-lg border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card p-4 sm:p-5 space-y-4 shadow-xs",
         className,
       )}
     >
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/80 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
         <div className="flex items-center gap-2">
           <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-status-success/15 text-status-success">
             <BookOpen className="size-3.5" />
@@ -51,6 +51,9 @@ export function ProductWorkedExample({
             {title || "Contoh dan Pembahasan Bertahap"}
           </h3>
         </div>
+        <span className="rounded-md px-2 py-0.5 text-body-xs font-semibold uppercase tracking-wider text-status-success bg-status-success/10">
+          Contoh
+        </span>
       </div>
 
       {/* Problem Prompt */}
@@ -134,12 +137,12 @@ export function ProductFormativeCheck({
   return (
     <div
       className={cn(
-        "rounded-lg border border-status-warning/40 bg-card p-4 sm:p-5 space-y-4",
+        "rounded-r-lg border-l-4 border-l-status-warning border-t border-r border-b border-border/70 bg-card p-4 sm:p-5 space-y-4 shadow-xs",
         className,
       )}
     >
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/80 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3">
         <div className="flex items-center gap-2">
           <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-status-warning/15 text-status-warning">
             <HelpCircle className="size-3.5" />
@@ -148,6 +151,9 @@ export function ProductFormativeCheck({
             {title || "Cek Pemahaman Mandiri"}
           </h3>
         </div>
+        <span className="rounded-md px-2 py-0.5 text-body-xs font-semibold uppercase tracking-wider text-status-warning bg-status-warning/10">
+          Cek Pemahaman
+        </span>
       </div>
 
       {/* Question prompt */}

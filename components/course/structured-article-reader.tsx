@@ -79,84 +79,84 @@ function getBlockMetadata(blockType: string): BlockMetadata {
       return {
         label: "Pengantar Masalah",
         icon: HelpCircle,
-        containerClass: "border-status-warning/40 bg-status-warning/10",
+        containerClass: "border-l-4 border-l-status-warning border-t border-r border-b border-border/60 bg-status-warning/[0.03]",
         badgeClass: "text-status-warning bg-status-warning/10",
       };
     case "prior_knowledge_activation":
       return {
         label: "Aktivasi Pengetahuan Awal",
         icon: Lightbulb,
-        containerClass: "border-primary/30 bg-primary/5",
+        containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/60 bg-primary/[0.03]",
         badgeClass: "text-primary bg-primary/10",
       };
     case "verbal_representation":
       return {
         label: "Representasi Konseptual",
         icon: AlignLeft,
-        containerClass: "border-primary/30 bg-primary/5",
+        containerClass: "",
         badgeClass: "text-primary bg-primary/10",
       };
     case "mathematical_representation":
       return {
         label: "Representasi Matematis",
         icon: Calculator,
-        containerClass: "border-status-success/40 bg-status-success/10",
+        containerClass: "",
         badgeClass: "text-status-success bg-status-success/10",
       };
     case "analogy":
       return {
         label: "Analogi dan Intuisi",
         icon: Sparkles,
-        containerClass: "border-status-warning/40 bg-status-warning/10",
+        containerClass: "border-l-4 border-l-status-warning/70 border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-warning bg-status-warning/10",
       };
     case "worked_example":
       return {
         label: "Contoh dan Pembahasan",
         icon: BookOpen,
-        containerClass: "border-status-success/40 bg-status-success/10",
+        containerClass: "border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-success bg-status-success/10",
       };
     case "misconception":
       return {
         label: "Miskonsepsi Umum",
         icon: AlertTriangle,
-        containerClass: "border-status-error/40 bg-status-error/10",
+        containerClass: "border-l-4 border-l-status-error border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-error bg-status-error/10",
       };
     case "application":
       return {
         label: "Aplikasi dan Penerapan",
         icon: Zap,
-        containerClass: "border-primary/30 bg-primary/5",
+        containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-primary bg-primary/10",
       };
     case "retrieval_prompt":
       return {
         label: "Cek Pemahaman",
         icon: Brain,
-        containerClass: "border-status-warning/40 bg-status-warning/10",
+        containerClass: "border-l-4 border-l-status-warning border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-warning bg-status-warning/10",
       };
     case "cross_idea_synthesis":
       return {
         label: "Sintesis Antarkonsep",
         icon: Layers,
-        containerClass: "border-primary/30 bg-primary/5",
+        containerClass: "border-l-4 border-l-primary/60 border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-primary bg-primary/10",
       };
     case "summary":
       return {
         label: "Ringkasan Bagian",
         icon: BookmarkCheck,
-        containerClass: "border-border bg-muted/40",
+        containerClass: "border-l-4 border-l-border border-t border-r border-b border-border/70 bg-muted/25",
         badgeClass: "text-muted-foreground bg-muted",
       };
     case "retrieval_close":
       return {
         label: "Refleksi Akhir",
         icon: Award,
-        containerClass: "border-status-success/40 bg-status-success/10",
+        containerClass: "border-l-4 border-l-status-success border-t border-r border-b border-border/70 bg-card",
         badgeClass: "text-status-success bg-status-success/10",
       };
     case "explanation":
@@ -164,7 +164,7 @@ function getBlockMetadata(blockType: string): BlockMetadata {
       return {
         label: "Penjelasan",
         icon: AlignLeft,
-        containerClass: "border-border/60 bg-card",
+        containerClass: "",
         badgeClass: "text-muted-foreground bg-muted",
       };
   }
@@ -197,9 +197,9 @@ export function StructuredArticleSectionContent({
             </span>
           ) : null}
         </div>
-        <h1 className="font-heading text-h4 font-bold tracking-tight text-foreground sm:text-h3">
+        <h2 className="font-heading text-h4 font-bold tracking-tight text-foreground sm:text-h3">
           {section.title}
-        </h1>
+        </h2>
 
         {/* Learning Time Estimate Heuristics */}
         {section.learningTimeEstimate ? (
@@ -210,13 +210,13 @@ export function StructuredArticleSectionContent({
         ) : null}
 
         {section.learningObjective ? (
-          <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
+          <div className="mt-4 rounded-r-lg border-l-4 border-primary/60 border-t border-r border-b border-border/60 bg-primary/[0.03] p-4 shadow-2xs">
             <div className="flex items-start gap-2.5">
-              <Compass className="mt-0.5 size-5 shrink-0 text-primary" />
+              <Compass className="mt-0.5 size-4 shrink-0 text-primary" />
               <div>
-                <h2 className="text-body-xs font-bold uppercase tracking-wider text-primary">
+                <h3 className="text-body-xs font-bold uppercase tracking-wider text-primary">
                   Tujuan belajar
-                </h2>
+                </h3>
                 <p className="mt-1 text-body-sm leading-relaxed text-foreground">
                   {section.learningObjective}
                 </p>
@@ -239,12 +239,17 @@ export function StructuredArticleSectionContent({
         {section.blocks.map((block, blockIndex) => {
           if (block.blockType === "worked_example" && block.workedExample) {
             return (
-              <ProductWorkedExample
+              <div
                 key={block.id || blockIndex}
-                title={block.title}
-                content={block.content}
-                workedExample={block.workedExample}
-              />
+                id={block.id ? `block-${block.id}` : undefined}
+                className="scroll-mt-24"
+              >
+                <ProductWorkedExample
+                  title={block.title}
+                  content={block.content}
+                  workedExample={block.workedExample}
+                />
+              </div>
             );
           }
 
@@ -253,43 +258,88 @@ export function StructuredArticleSectionContent({
             block.formativeCheck
           ) {
             return (
-              <ProductFormativeCheck
+              <div
                 key={block.id || blockIndex}
-                title={block.title}
-                content={block.content}
-                formativeCheck={block.formativeCheck}
-              />
+                id={block.id ? `block-${block.id}` : undefined}
+                className="scroll-mt-24"
+              >
+                <ProductFormativeCheck
+                  title={block.title}
+                  content={block.content}
+                  formativeCheck={block.formativeCheck}
+                />
+              </div>
             );
           }
 
           const meta = getBlockMetadata(block.blockType);
           const Icon = meta.icon;
           const displayTitle = block.title || meta.label;
-          const isStandard = block.blockType === "explanation";
+
+          const isCoreDocument =
+            block.blockType === "explanation" ||
+            block.blockType === "verbal_representation" ||
+            block.blockType === "mathematical_representation";
+
+          if (isCoreDocument) {
+            return (
+              <div
+                key={block.id || blockIndex}
+                id={block.id ? `block-${block.id}` : undefined}
+                className="space-y-3 py-1 scroll-mt-24"
+              >
+                {displayTitle &&
+                displayTitle !== section.title &&
+                displayTitle !== "Penjelasan" &&
+                displayTitle !== "Representasi Konseptual" &&
+                displayTitle !== "Representasi Matematis" ? (
+                  <h3 className="font-heading text-h5 font-bold tracking-tight text-foreground pt-3">
+                    {displayTitle}
+                  </h3>
+                ) : null}
+                <div className="text-body-base leading-relaxed text-foreground">
+                  <MarkdownRenderer content={block.content} density="default" />
+                </div>
+              </div>
+            );
+          }
+
           return (
-            <section
+            <div
               key={block.id || blockIndex}
-              className={cn("rounded-lg border p-4 sm:p-5", meta.containerClass)}
+              id={block.id ? `block-${block.id}` : undefined}
+              className={cn(
+                "rounded-r-lg p-4 sm:p-5 space-y-3 shadow-xs my-3 scroll-mt-24",
+                meta.containerClass,
+              )}
             >
-              <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", meta.badgeClass)}>
+                  <span
+                    className={cn(
+                      "flex size-6 shrink-0 items-center justify-center rounded-md",
+                      meta.badgeClass,
+                    )}
+                  >
                     <Icon className="size-3.5" />
                   </span>
-                  <h2 className="font-heading text-body-sm font-bold text-foreground">
+                  <h3 className="font-heading text-body-sm font-bold text-foreground">
                     {displayTitle}
-                  </h2>
+                  </h3>
                 </div>
-                {!isStandard ? (
-                  <span className={cn("rounded-md px-2 py-0.5 text-body-xs font-semibold uppercase tracking-wider", meta.badgeClass)}>
-                    {meta.label}
-                  </span>
-                ) : null}
+                <span
+                  className={cn(
+                    "rounded-md px-2 py-0.5 text-body-xs font-semibold uppercase tracking-wider",
+                    meta.badgeClass,
+                  )}
+                >
+                  {meta.label}
+                </span>
               </div>
               <div className="text-body-base leading-relaxed text-foreground">
-                <MarkdownRenderer content={block.content} density="default" />
+                <MarkdownRenderer content={block.content} density="compact" />
               </div>
-            </section>
+            </div>
           );
         })}
       </div>
@@ -310,13 +360,23 @@ export function StructuredArticleReader({
 
   // Active section resolution
   const requestedSlug = searchParams.get("section");
+  const [activeSectionSlug, setActiveSectionSlug] = useState<string>(
+    () => requestedSlug || article.progress?.lastSectionSlug || article.sections[0]?.slug || "",
+  );
+  const activeSectionSlugRef = useRef(activeSectionSlug);
+  activeSectionSlugRef.current = activeSectionSlug;
+
   const activeSection = useMemo(() => {
-    return resolveActiveSection(
-      article.sections,
-      requestedSlug,
-      article.progress?.lastSectionSlug,
+    return (
+      resolveActiveSection(
+        article.sections,
+        activeSectionSlug || requestedSlug,
+        article.progress?.lastSectionSlug,
+      ) ??
+      article.sections[0] ??
+      null
     );
-  }, [article.sections, requestedSlug, article.progress?.lastSectionSlug]);
+  }, [article.sections, activeSectionSlug, requestedSlug, article.progress?.lastSectionSlug]);
 
   const activeIndex = useMemo(() => {
     if (!activeSection) return 0;
@@ -379,24 +439,114 @@ export function StructuredArticleReader({
   const [selectedText, setSelectedText] = useState("");
   const [selectionCoords, setSelectionCoords] = useState<{ top: number; left: number } | null>(null);
 
-  // Sync URL when section changes
+  // Smooth scroll to section
   const navigateToSection = useCallback(
     (section: PublicSectionReadModel) => {
-      const url = `${pathname}?section=${encodeURIComponent(section.slug)}`;
-      router.push(url, { scroll: false });
+      setActiveSectionSlug(section.slug);
       setIsMobileSheetOpen(false);
-      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+      const el = document.getElementById(`section-${section.slug}`);
+      if (el) {
+        const reduceMotion =
+          typeof window !== "undefined" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      }
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("section", section.slug);
+        window.history.replaceState(null, "", url.toString());
+      } catch {}
     },
-    [pathname, router],
+    [],
   );
 
-  const openSearchResult = useCallback((section: PublicSectionReadModel, query: string) => {
-    navigateToSection(section);
-    setTemporaryHighlight(query);
-    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-    highlightTimerRef.current = setTimeout(() => setTemporaryHighlight(null), 3000);
-  }, [navigateToSection]);
+  const navigateToBlock = useCallback(
+    (blockId: string) => {
+      setIsMobileSheetOpen(false);
+      const el = document.getElementById(`block-${blockId}`);
+      if (el) {
+        const reduceMotion =
+          typeof window !== "undefined" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      }
+    },
+    [],
+  );
+
+  // Initial scroll effect if a specific section was opened via URL
+  const initialScrolledRef = useRef(false);
+  useEffect(() => {
+    if (initialScrolledRef.current) return;
+    const targetSlug = requestedSlug || article.progress?.lastSectionSlug;
+    if (targetSlug) {
+      const el = document.getElementById(`section-${targetSlug}`);
+      if (el) {
+        initialScrolledRef.current = true;
+        const reduceMotion =
+          typeof window !== "undefined" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+        }, 80);
+      }
+    }
+  }, [requestedSlug, article.progress?.lastSectionSlug]);
+
+  // Scroll spy IntersectionObserver for location awareness in continuous reading
+  useEffect(() => {
+    if (!article.sections.length) return;
+    const sectionElements = article.sections
+      .map((s) => document.getElementById(`section-${s.slug}`))
+      .filter(Boolean) as HTMLElement[];
+
+    if (!sectionElements.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const intersecting = entries.filter((e) => e.isIntersecting);
+        if (intersecting.length > 0) {
+          const sorted = intersecting.sort((a, b) => {
+            return Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top);
+          });
+          const currentSlug = sorted[0].target.getAttribute("data-section-slug");
+          if (currentSlug && currentSlug !== activeSectionSlugRef.current) {
+            activeSectionSlugRef.current = currentSlug;
+            setActiveSectionSlug(currentSlug);
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.set("section", currentSlug);
+              window.history.replaceState(null, "", url.toString());
+            } catch {}
+          }
+        }
+      },
+      {
+        root: null,
+        rootMargin: "-15% 0px -60% 0px",
+        threshold: [0, 0.1, 0.25, 0.5, 0.75],
+      },
+    );
+
+    for (const el of sectionElements) {
+      observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, [article.sections]);
+
+  const openSearchResult = useCallback(
+    (section: PublicSectionReadModel, query: string, blockId?: string) => {
+      navigateToSection(section);
+      if (blockId) {
+        setTimeout(() => navigateToBlock(blockId), 150);
+      }
+      setTemporaryHighlight(query);
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+      highlightTimerRef.current = setTimeout(() => setTemporaryHighlight(null), 3000);
+    },
+    [navigateToSection, navigateToBlock],
+  );
 
   useEffect(() => () => {
     if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
@@ -468,7 +618,10 @@ export function StructuredArticleReader({
       const el = contentContainerRef.current;
       if (!el || !activeSection) return;
 
-      const rect = el.getBoundingClientRect();
+      const sectionEl = document.getElementById(`section-${activeSection.slug}`);
+      if (!sectionEl) return;
+
+      const rect = sectionEl.getBoundingClientRect();
       const windowHeight = window.innerHeight;
       const totalHeight = rect.height;
 
@@ -697,7 +850,7 @@ export function StructuredArticleReader({
           <div>
             <div className="flex items-center justify-between px-2 py-1 mb-1">
               <span className="text-body-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Daftar Bagian
+                Bab Ini
               </span>
               <span className="text-body-xs font-semibold text-muted-foreground">
                 {completedCount}/{totalSections} selesai
@@ -706,37 +859,64 @@ export function StructuredArticleReader({
 
             <div className="space-y-1">
               {article.sections.map((section) => {
-                const isCurrent = activeSection?.id === section.id;
+                const isCurrent = activeSectionSlug === section.slug;
                 const prog = sectionProgressMap[section.id];
                 const isDone = prog?.completed || (prog?.maxReadPercent ?? 0) >= 90;
 
                 return (
-                  <button
-                    key={section.id}
-                    type="button"
-                    onClick={() => navigateToSection(section)}
-                    className={cn(
-                      "w-full text-left px-2.5 py-2 rounded-lg transition-colors flex items-start gap-2.5",
-                      isCurrent
-                        ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
-                        : "hover:bg-muted/60 text-foreground",
-                    )}
-                  >
-                    <div className="mt-0.5 shrink-0">
-                      {isDone ? (
-                        <CheckCircle2 className="size-4 text-status-success" />
-                      ) : isCurrent ? (
-                        <Circle className="size-4 text-primary fill-primary/20" />
-                      ) : (
-                        <Circle className="size-4 text-muted-foreground/50" />
+                  <div key={section.id} className="space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => navigateToSection(section)}
+                      className={cn(
+                        "w-full text-left px-2.5 py-2 rounded-lg transition-colors flex items-start gap-2.5",
+                        isCurrent
+                          ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                          : "hover:bg-muted/60 text-foreground",
                       )}
-                    </div>
-                    <div className="min-w-0 flex-1 py-0.5">
-                      <p className="text-body-xs font-semibold line-clamp-2 leading-snug">
-                        {formatReaderTocTitle(section.title)}
-                      </p>
-                    </div>
-                  </button>
+                    >
+                      <div className="mt-0.5 shrink-0">
+                        {isDone ? (
+                          <CheckCircle2 className="size-4 text-status-success" />
+                        ) : isCurrent ? (
+                          <Circle className="size-4 text-primary fill-primary/20" />
+                        ) : (
+                          <Circle className="size-4 text-muted-foreground/50" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1 py-0.5">
+                        <p className="text-body-xs font-semibold line-clamp-2 leading-snug">
+                          {formatReaderTocTitle(section.title)}
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Subheadings / Key blocks expanded only for active section */}
+                    {isCurrent && section.blocks && section.blocks.length > 0 ? (
+                      <div className="ml-6 pl-2.5 border-l border-primary/25 space-y-0.5 py-1">
+                        {section.blocks
+                          .filter(
+                            (b) =>
+                              b.title &&
+                              b.title !== section.title &&
+                              b.title.trim().length > 0 &&
+                              b.title !== "Penjelasan" &&
+                              b.title !== "Representasi Konseptual" &&
+                              b.title !== "Representasi Matematis",
+                          )
+                          .map((b) => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => navigateToBlock(b.id)}
+                              className="block w-full text-left text-body-2xs text-muted-foreground hover:text-foreground line-clamp-1 py-1 transition-colors"
+                            >
+                              {b.title}
+                            </button>
+                          ))}
+                      </div>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>
@@ -757,7 +937,8 @@ export function StructuredArticleReader({
                 Mode Fokus
               </span>
               <h1 className="text-body-sm font-bold text-foreground truncate font-heading">
-                {activeSection ? `${activeSection.sectionNumber}. ${activeSection.title}` : article.title}
+                {article.chapterNumber ? `Bab ${article.chapterNumber}: ` : ""}
+                {article.title}
               </h1>
             </div>
             <Button
@@ -797,6 +978,7 @@ export function StructuredArticleReader({
                   {courseTitle}
                 </p>
                 <h1 className="text-body-sm font-bold text-foreground truncate font-heading">
+                  {article.chapterNumber ? `Bab ${article.chapterNumber}: ` : ""}
                   {article.title}
                 </h1>
               </div>
@@ -886,78 +1068,77 @@ export function StructuredArticleReader({
       <div className={cn("flex-1 flex w-full", isFocusMode && "max-w-4xl mx-auto")}>
         {/* Main Content Area (75 character measure) */}
         <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-8 pb-32">
-          {activeSection ? (
-            <article
+          {article.sections.length > 0 ? (
+            <div
               ref={contentContainerRef}
               id="article-reading-content"
-              className={cn("max-w-[75ch] mx-auto space-y-6 rounded-lg", temporaryHighlight && "ring-2 ring-status-warning/60 ring-offset-4 ring-offset-background")}
+              className={cn(
+                "max-w-[75ch] mx-auto space-y-10",
+                temporaryHighlight && "ring-2 ring-status-warning/60 ring-offset-4 ring-offset-background",
+              )}
             >
               {temporaryHighlight ? (
                 <div role="status" className="rounded-lg border border-status-warning/40 bg-status-warning/10 px-4 py-3 text-body-sm text-foreground">
                   Menampilkan hasil untuk <span className="font-semibold">{temporaryHighlight}</span>. Sorotan akan hilang otomatis.
                 </div>
               ) : null}
-              <StructuredArticleSectionContent
-                section={activeSection}
-                completed={sectionProgressMap[activeSection.id]?.completed}
-              />
 
-              {/* Contextual Bottom Navigation */}
-              <div className="pt-8 border-t border-border/80 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {prevSection ? (
-                    <Button
-                      variant="outline"
-                      onClick={handlePrevSection}
-                      className="justify-start text-left h-auto py-3 px-4 rounded-lg border-border hover:bg-muted/60"
+              {article.sections.map((sec, secIdx) => {
+                const isLast = secIdx === article.sections.length - 1;
+                const isSecDone = sectionProgressMap[sec.id]?.completed;
+                return (
+                  <React.Fragment key={sec.id}>
+                    <article
+                      id={`section-${sec.slug}`}
+                      data-section-slug={sec.slug}
+                      className="scroll-mt-20 space-y-6"
                     >
-                      <ChevronLeft className="size-4 mr-2 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0">
-                        <p className="text-body-xs font-bold uppercase tracking-wider text-muted-foreground">
-                          Bagian Sebelumnya
-                        </p>
-                        <p className="text-body-xs font-semibold text-foreground truncate mt-0.5">
-                          {prevSection.sectionNumber}. {prevSection.title}
-                        </p>
-                      </div>
-                    </Button>
-                  ) : (
-                    <div />
-                  )}
+                      <StructuredArticleSectionContent
+                        section={sec}
+                        completed={isSecDone}
+                      />
+                    </article>
 
-                  {nextSection ? (
-                    <Button
-                      variant="default"
-                      onClick={handleNextSection}
-                      className="justify-between text-right h-auto py-3 px-4 rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold"
-                    >
-                      <div className="min-w-0 text-left">
-                        <p className="text-body-xs font-bold uppercase tracking-wider opacity-80">
-                          Bagian Berikutnya
-                        </p>
-                        <p className="text-body-xs font-semibold truncate mt-0.5">
-                          {nextSection.sectionNumber}. {nextSection.title}
-                        </p>
+                    {!isLast ? (
+                      <div className="py-10 my-4 flex items-center gap-4 text-muted-foreground/60">
+                        <div className="h-px flex-1 bg-border/60" />
+                        <div className="flex items-center gap-1.5 text-body-xs font-semibold px-3 py-1 rounded-md bg-muted/40 border border-border/40 text-muted-foreground">
+                          <CheckCircle2 className="size-3.5 text-status-success" />
+                          <span>Selesai {sec.sectionNumber}</span>
+                        </div>
+                        <div className="h-px flex-1 bg-border/60" />
                       </div>
-                      <ChevronRight className="size-4 ml-2 shrink-0" />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="default"
-                      onClick={handleFinishArticle}
-                      className="justify-center text-center h-auto py-3 px-4 rounded-lg bg-status-success hover:bg-status-success/95 text-white font-bold"
-                    >
-                      <CheckCircle2 className="size-4 mr-2 shrink-0" />
-                      <span>Selesai Membaca Artikel</span>
-                    </Button>
-                  )}
+                    ) : null}
+                  </React.Fragment>
+                );
+              })}
+
+              {/* End of chapter card */}
+              <div className="mt-16 rounded-xl border border-border bg-card p-6 sm:p-8 text-center space-y-4 shadow-sm">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-status-success/15 text-status-success">
+                  <Award className="size-6" />
                 </div>
-
-                <div className="pt-2 text-center text-body-xs text-muted-foreground">
-                  Bagian {activeIndex + 1} dari {totalSections} · Terbaca {overallPercent}%
+                <div className="space-y-1">
+                  <h2 className="font-heading text-h5 font-bold text-foreground">
+                    Bab Selesai
+                  </h2>
+                  <p className="text-body-sm text-muted-foreground max-w-md mx-auto">
+                    Anda telah menyelesaikan seluruh materi dalam bab {article.title}.
+                  </p>
+                </div>
+                <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                  <Button
+                    variant="default"
+                    size="lg"
+                    onClick={handleFinishArticle}
+                    className="rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-semibold"
+                  >
+                    <span>Kembali ke Daftar Materi</span>
+                    <ChevronRight className="size-4 ml-1.5" />
+                  </Button>
                 </div>
               </div>
-            </article>
+            </div>
           ) : (
             <div className="max-w-[75ch] mx-auto text-center py-16 space-y-4">
               <BookOpen className="size-12 text-muted-foreground mx-auto" />
