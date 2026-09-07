@@ -38,6 +38,9 @@ async function authenticate(request: NextRequest): Promise<McpPrincipal | NextRe
     }
   }
 
+  const cookie = request.headers.get("cookie");
+  if (!cookie) return unauthorized(request, "AUTHORING_MCP_LOGIN_REQUIRED");
+
   try {
     const session = await auth.api.getSession({ headers: request.headers });
     if (!session?.user) return unauthorized(request, "AUTHORING_MCP_LOGIN_REQUIRED");
@@ -74,18 +77,32 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    return await handle(request);
-  } catch {
-    return NextResponse.json({ error: "AUTHORING_MCP_INTERNAL_ERROR" }, { status: 500 });
-  }
+export async function GET() {
+  return NextResponse.json(
+    {
+      error: "METHOD_NOT_ALLOWED",
+      message: "Zyx Authoring MCP operates in stateless Streamable HTTP mode via POST. Persistent SSE streaming is not supported.",
+    },
+    {
+      status: 405,
+      headers: {
+        Allow: "POST",
+      },
+    },
+  );
 }
 
-export async function DELETE(request: NextRequest) {
-  try {
-    return await handle(request);
-  } catch {
-    return NextResponse.json({ error: "AUTHORING_MCP_INTERNAL_ERROR" }, { status: 500 });
-  }
+export async function DELETE() {
+  return NextResponse.json(
+    {
+      error: "METHOD_NOT_ALLOWED",
+      message: "Zyx Authoring MCP operates in stateless mode. Sessions are not maintained.",
+    },
+    {
+      status: 405,
+      headers: {
+        Allow: "POST",
+      },
+    },
+  );
 }
