@@ -653,21 +653,27 @@ export function TutorDrawerView({
     ]);
 
     try {
-      const response = await fetch("/api/tutor/chat/stream", {
+      const response = await fetch("/api/zyra/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          courseId,
-          activeConceptId: koId || undefined,
+          courseId: courseId ?? "unknown",
+          conceptId: koId || undefined,
           sessionId: activeSid || undefined,
           attachmentIds: requestedAttachmentIds,
+          pathname,
         }),
         signal: abortController.signal,
       });
 
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+        let errText = `Server returned ${response.status}`;
+        try {
+          const errJson = await response.json();
+          if (errJson.error) errText = errJson.error;
+        } catch {}
+        throw new Error(errText);
       }
 
       const reader = response.body?.getReader();
@@ -680,19 +686,19 @@ export function TutorDrawerView({
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n\n");
+          const lines = buffer.split("\n");
           buffer = lines.pop() || "";
 
           for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed.startsWith("data: ")) continue;
-            const dataStr = trimmed.slice(6);
+            const dataStr = trimmed.slice(6).trim();
             if (dataStr === "[DONE]") break;
 
             try {
               const parsed = JSON.parse(dataStr);
-              if (parsed.type === "chunk" && parsed.text) {
-                accumulatedContent += parsed.text;
+              if ((parsed.type === "text-delta" && parsed.textDelta) || (parsed.type === "chunk" && parsed.text)) {
+                accumulatedContent += (parsed.textDelta || parsed.text);
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === aiMsgId ? { ...m, content: accumulatedContent } : m
