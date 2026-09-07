@@ -432,6 +432,19 @@ export function StructuredArticleReader({
   const activeTimeSpentRef = useRef(0);
   const maxScrollPercentRef = useRef(0);
   const contentContainerRef = useRef<HTMLDivElement | null>(null);
+  const completedSectionsSentRef = useRef<Set<string>>(new Set());
+
+  // Initialize completed sections set from article progress
+  useEffect(() => {
+    const initProg = article.progress?.sectionProgress;
+    if (initProg) {
+      for (const [id, p] of Object.entries(initProg)) {
+        if (p.completed || (p.maxReadPercent ?? 0) >= 90) {
+          completedSectionsSentRef.current.add(id);
+        }
+      }
+    }
+  }, [article.progress]);
 
   // Zyra selection hooks & state
   const { openExplain, openChatWithQuestion } = useTutor();
@@ -611,46 +624,84 @@ export function StructuredArticleReader({
     };
   }, [activeSection, learnerMode, sendProgressUpdate]);
 
-  // Scroll listener to track read percentage within the active section
+  // Manual section completion helper
+  const markSectionCompleted = useCallback(
+    (sectionId: string) => {
+      completedSectionsSentRef.current.add(sectionId);
+      setSectionProgressMap((prev) => ({
+        ...prev,
+        [sectionId]: {
+          maxReadPercent: Math.max(prev[sectionId]?.maxReadPercent ?? 0, 100),
+          completed: true,
+          timeSpentSeconds:
+            (prev[sectionId]?.timeSpentSeconds ?? 0) +
+            (activeSection?.id === sectionId ? activeTimeSpentRef.current : 5),
+        },
+      }));
+      sendProgressUpdate(
+        sectionId,
+        100,
+        activeSection?.id === sectionId ? activeTimeSpentRef.current : 5,
+        true,
+      );
+    },
+    [activeSection, sendProgressUpdate],
+  );
+
+  // Scroll listener to track read percentage and completion across all sections in continuous flow
   useEffect(() => {
     if (!learnerMode) return;
     const handleScroll = () => {
       const el = contentContainerRef.current;
-      if (!el || !activeSection) return;
+      if (!el) return;
 
-      const sectionEl = document.getElementById(`section-${activeSection.slug}`);
-      if (!sectionEl) return;
-
-      const rect = sectionEl.getBoundingClientRect();
       const windowHeight = window.innerHeight;
-      const totalHeight = rect.height;
 
-      if (totalHeight <= 0) return;
+      for (const sec of article.sections) {
+        const sectionEl = document.getElementById(`section-${sec.slug}`);
+        if (!sectionEl) continue;
 
-      const scrolledPast = Math.max(0, windowHeight - rect.top);
-      const percent = Math.min(100, Math.max(0, Math.round((scrolledPast / totalHeight) * 100)));
+        const rect = sectionEl.getBoundingClientRect();
+        const totalHeight = rect.height;
+        if (totalHeight <= 0) continue;
 
-      if (percent > maxScrollPercentRef.current) {
-        maxScrollPercentRef.current = percent;
+        const scrolledPast = Math.max(0, windowHeight - rect.top);
+        const percent = Math.min(100, Math.max(0, Math.round((scrolledPast / totalHeight) * 100)));
 
-        // Auto mark at 90%
-        if (percent >= 90) {
-          const currentProg = sectionProgressMap[activeSection.id];
-          if (!currentProg?.completed) {
+        // Read through if 85%+ scrolled or bottom is near upper viewport
+        const isReadThrough =
+          percent >= 85 || (rect.bottom <= windowHeight * 0.85 && rect.top < windowHeight * 0.4);
+
+        if (isReadThrough) {
+          if (!completedSectionsSentRef.current.has(sec.id)) {
+            completedSectionsSentRef.current.add(sec.id);
+            setSectionProgressMap((prev) => ({
+              ...prev,
+              [sec.id]: {
+                maxReadPercent: Math.max(prev[sec.id]?.maxReadPercent ?? 0, 100),
+                completed: true,
+                timeSpentSeconds:
+                  (prev[sec.id]?.timeSpentSeconds ?? 0) +
+                  (activeSection?.id === sec.id ? activeTimeSpentRef.current : 5),
+              },
+            }));
             sendProgressUpdate(
-              activeSection.id,
-              percent,
-              activeTimeSpentRef.current,
+              sec.id,
+              100,
+              activeSection?.id === sec.id ? activeTimeSpentRef.current : 5,
               true,
             );
           }
+        } else if (activeSection?.id === sec.id && percent > maxScrollPercentRef.current) {
+          maxScrollPercentRef.current = percent;
         }
       }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [activeSection, learnerMode, sectionProgressMap, sendProgressUpdate]);
+  }, [activeSection, article.sections, learnerMode, sendProgressUpdate]);
 
   // Selection change listener for selection-to-Zyra
   useEffect(() => {
@@ -766,13 +817,13 @@ export function StructuredArticleReader({
   };
 
   const handleFinishArticle = () => {
-    if (learnerMode && activeSection) {
-      sendProgressUpdate(
-        activeSection.id,
-        100,
-        activeTimeSpentRef.current,
-        true,
-      );
+    if (learnerMode) {
+      for (const sec of article.sections) {
+        if (!completedSectionsSentRef.current.has(sec.id)) {
+          completedSectionsSentRef.current.add(sec.id);
+          sendProgressUpdate(sec.id, 100, 5, true);
+        }
+      }
     }
     router.push(backHref ?? `/courses/${article.courseId}/material`);
   };
@@ -1085,7 +1136,10 @@ export function StructuredArticleReader({
 
               {article.sections.map((sec, secIdx) => {
                 const isLast = secIdx === article.sections.length - 1;
-                const isSecDone = sectionProgressMap[sec.id]?.completed;
+                const isSecDone = Boolean(
+                  sectionProgressMap[sec.id]?.completed ||
+                  (sectionProgressMap[sec.id]?.maxReadPercent ?? 0) >= 90
+                );
                 return (
                   <React.Fragment key={sec.id}>
                     <article
@@ -1102,10 +1156,21 @@ export function StructuredArticleReader({
                     {!isLast ? (
                       <div className="py-10 my-4 flex items-center gap-4 text-muted-foreground/60">
                         <div className="h-px flex-1 bg-border/60" />
-                        <div className="flex items-center gap-1.5 text-body-xs font-semibold px-3 py-1 rounded-md bg-muted/40 border border-border/40 text-muted-foreground">
-                          <CheckCircle2 className="size-3.5 text-status-success" />
-                          <span>Selesai {sec.sectionNumber}</span>
-                        </div>
+                        {isSecDone ? (
+                          <div className="flex items-center gap-1.5 text-body-xs font-semibold px-3 py-1 rounded-md bg-status-success/10 border border-status-success/30 text-status-success">
+                            <CheckCircle2 className="size-3.5" />
+                            <span>Selesai {sec.sectionNumber}</span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => markSectionCompleted(sec.id)}
+                            className="flex items-center gap-1.5 text-body-xs font-semibold px-3 py-1 rounded-md bg-muted/60 hover:bg-muted border border-border text-muted-foreground transition-colors cursor-pointer"
+                          >
+                            <Circle className="size-3.5" />
+                            <span>Tandai selesai {sec.sectionNumber}</span>
+                          </button>
+                        )}
                         <div className="h-px flex-1 bg-border/60" />
                       </div>
                     ) : null}
