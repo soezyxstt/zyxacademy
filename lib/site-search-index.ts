@@ -104,6 +104,22 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     keywords: "logout sign out akhiri sesi",
     content: "Keluar dari akun",
   },
+  {
+    title: "Syarat & ketentuan",
+    subtitle: "Ketentuan",
+    href: "/terms",
+    group: "Halaman",
+    keywords: "syarat ketentuan aturan hukum terms service legal",
+    content: "Syarat dan ketentuan penggunaan layanan Zyx Academy",
+  },
+  {
+    title: "Kebijakan privasi",
+    subtitle: "Privasi",
+    href: "/privacy",
+    group: "Halaman",
+    keywords: "kebijakan privasi privasi data perlindungan privacy policy",
+    content: "Kebijakan privasi dan perlindungan data pengguna Zyx Academy",
+  },
 
   // Student Dashboard & Fitur Murid
   {
@@ -295,6 +311,14 @@ export const STATIC_PAGES: Omit<SiteSearchDocument, "id">[] = [
     group: "Halaman",
     keywords: "distraktor pilihan ganda opsi jebakan analisis butir",
     content: "Analisis efektivitas opsi pengecoh pada butir soal kuis",
+  },
+  {
+    title: "Papan peringkat",
+    subtitle: "Admin · Evaluasi",
+    href: "/admin/leaderboard",
+    group: "Halaman",
+    keywords: "leaderboard ranking peringkat skor admin evaluasi",
+    content: "Papan peringkat nilai dan performa siswa admin",
   },
 
   // Admin Panels - Alat, Komunikasi & Media
@@ -575,13 +599,51 @@ export function getSiteSearchDocuments(): SiteSearchDocument[] {
  return docs;
 }
 
-/** Shown when the query is empty (quick picks). */
+/** Determines whether a URL path belongs to the public marketing surface. */
+export function isMarketingHref(href: string): boolean {
+  if (!href) return false;
+  const path = href.split("?")[0].split("#")[0] || "/";
+  if (path === "/") return true;
+  return (
+    path === "/plans" ||
+    path.startsWith("/plans/") ||
+    path === "/about" ||
+    path.startsWith("/about/") ||
+    path === "/testimonial" ||
+    path.startsWith("/testimonial/") ||
+    path === "/blog" ||
+    path.startsWith("/blog/") ||
+    path === "/sign-in" ||
+    path.startsWith("/sign-in/") ||
+    path === "/sign-up" ||
+    path.startsWith("/sign-up/") ||
+    path === "/terms" ||
+    path.startsWith("/terms/") ||
+    path === "/privacy" ||
+    path.startsWith("/privacy/")
+  );
+}
+
+export function isMarketingDocument(doc: SiteSearchDocument): boolean {
+  return isMarketingHref(doc.href);
+}
+
+/** Shown when the query is empty for authenticated users. */
 export function getSiteSearchShortcutIds(): string[] {
- return [
- "page:0:/",
- "page:1:/courses",
- "page:2:/plans",
- "page:5:/sign-in",
- "page:7:/dashboard",
- ];
+  return [
+    "page:0:/",
+    "page:1:/courses",
+    "page:2:/plans",
+    "page:6:/sign-in",
+    "page:11:/dashboard",
+  ];
+}
+
+/** Shown when the query is empty for marketing/unauthenticated users. */
+export function getMarketingShortcutDocs(docs: SiteSearchDocument[]): SiteSearchDocument[] {
+  const targetHrefs = ["/plans", "/about", "/testimonial", "/blog", "/sign-in", "/"];
+  const byHref = new Map(docs.map((d) => [d.href, d]));
+  return targetHrefs
+    .map((h) => byHref.get(h))
+    .filter((d): d is SiteSearchDocument => Boolean(d));
 }

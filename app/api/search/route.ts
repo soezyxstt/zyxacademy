@@ -13,6 +13,7 @@ import type {
   SiteSearchMatch,
   SiteSearchResponse,
 } from "@/lib/search/contracts";
+import { isMarketingHref } from "@/lib/site-search-index";
 
 export async function GET(request: NextRequest) {
   try {
@@ -186,10 +187,18 @@ export async function GET(request: NextRequest) {
     }
 
     // 8. Post-filter: If student and item has course_id and item min_role >= 1, verify enrolledCourseIds.includes(item.course_id)
+    //    If public (userRoleLevel === 0), strictly restrict to marketing pages
     const filteredMatches: SiteSearchMatch[] = [];
     for (const item of matches) {
       const itemRole = typeof item.metadata?.min_role === "number" ? item.metadata.min_role : 0;
       const courseId = (item.metadata?.course_id || item.metadata?.courseId) as string | undefined;
+      const href = (item.metadata?.href || item.metadata?.path || "") as string;
+
+      if (userRoleLevel === 0) {
+        if (!isMarketingHref(href)) {
+          continue;
+        }
+      }
 
       if (userRoleLevel === 1 && courseId && itemRole >= 1) {
         if (!enrolledCourseIds.includes(courseId)) {
