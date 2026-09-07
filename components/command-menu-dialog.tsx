@@ -26,16 +26,24 @@ import {
   Loader2,
   Search,
   Star,
+  Tag,
+  Info,
   Users,
   X,
 } from "lucide-react";
 import {
   getSiteSearchDocuments,
   getSiteSearchShortcutIds,
+  getMarketingShortcutDocs,
+  isMarketingHref,
 } from "@/lib/site-search-index";
 import type { SiteSearchDocument } from "@/lib/site-search-index";
 import { cn } from "@/lib/utils";
-import { getStudentSearchDocuments } from "@/app/(student)/dashboard/search-actions";
+import {
+  getStudentSearchDocuments,
+  getMarketingSearchDocuments,
+} from "@/app/(student)/dashboard/search-actions";
+import { useSession } from "@/lib/auth-client";
 import {
   parseSearchQueryString,
   SEARCH_PREFIX_DEFINITIONS,
@@ -353,6 +361,37 @@ const SUGGESTED_TOPICS = [
   },
 ];
 
+const MARKETING_SUGGESTED_TOPICS = [
+  {
+    title: "Paket Belajar & Harga",
+    subtitle: "Pilihan langganan dan biaya",
+    href: "/plans",
+    icon: Tag,
+    group: "Halaman",
+  },
+  {
+    title: "Tentang Zyx Academy",
+    subtitle: "Profil, visi, dan pengajar",
+    href: "/about",
+    icon: Info,
+    group: "Halaman",
+  },
+  {
+    title: "Testimoni Mahasiswa",
+    subtitle: "Pengalaman dan ulasan alumni",
+    href: "/testimonial",
+    icon: Star,
+    group: "Halaman",
+  },
+  {
+    title: "Artikel & Panduan Belajar",
+    subtitle: "Tips, trik, dan wawasan edukasi",
+    href: "/blog",
+    icon: BookOpen,
+    group: "Halaman",
+  },
+];
+
 export function CommandMenuDialog({
   open,
   onOpenChange,
@@ -361,6 +400,9 @@ export function CommandMenuDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAuthenticated = Boolean(session?.user);
+
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [apiResults, setApiResults] = useState<SiteSearchDocument[]>([]);
@@ -370,27 +412,44 @@ export function CommandMenuDialog({
   const [recentItems, setRecentItems] = useState<SearchItem[]>([]);
   const [favoriteItems, setFavoriteItems] = useState<SearchItem[]>([]);
 
-  // Search documents cache
-  const [docs, setDocs] = useState<SiteSearchDocument[]>(() =>
-    getSiteSearchDocuments()
-  );
+  // Search documents cache: initialize with marketing-only if guest, or all static docs if authed
+  const [docs, setDocs] = useState<SiteSearchDocument[]>(() => {
+    const allStatic = getSiteSearchDocuments();
+    return isAuthenticated ? allStatic : allStatic.filter((d) => isMarketingHref(d.href));
+  });
 
   // Sync recent and favorites from localStorage when opened
   useEffect(() => {
     if (open) {
-      setRecentItems(getStoredItems(RECENT_STORAGE_KEY));
-      setFavoriteItems(getStoredItems(FAVORITES_STORAGE_KEY));
+      const storedRecent = getStoredItems(RECENT_STORAGE_KEY);
+      const storedFav = getStoredItems(FAVORITES_STORAGE_KEY);
+      if (isAuthenticated) {
+        setRecentItems(storedRecent);
+        setFavoriteItems(storedFav);
+      } else {
+        // Non-authed user: filter out any private or non-marketing history
+        setRecentItems(storedRecent.filter((i) => isMarketingHref(i.href)));
+        setFavoriteItems(storedFav.filter((i) => isMarketingHref(i.href)));
+      }
     }
-  }, [open]);
+  }, [open, isAuthenticated]);
 
-  // Load student-specific documents on mount
+  // Load documents depending on authentication status
   useEffect(() => {
-    getStudentSearchDocuments()
-      .then(setDocs)
-      .catch(() => {
-        // fallback to static docs
-      });
-  }, []);
+    if (isAuthenticated) {
+      getStudentSearchDocuments()
+        .then(setDocs)
+        .catch(() => {
+          setDocs(getSiteSearchDocuments());
+        });
+    } else {
+      getMarketingSearchDocuments()
+        .then(setDocs)
+        .catch(() => {
+          setDocs(getSiteSearchDocuments().filter((d) => isMarketingHref(d.href)));
+        });
+    }
+  }, [isAuthenticated]);
 
   // Client Fuse instance
   const fuse = useMemo(() => {
@@ -412,11 +471,14 @@ export function CommandMenuDialog({
   }, [docs]);
 
   const shortcutDocs = useMemo(() => {
+    if (!isAuthenticated) {
+      return getMarketingShortcutDocs(docs);
+    }
     const byId = new Map(docs.map((d) => [d.id, d]));
     return getSiteSearchShortcutIds()
       .map((id) => byId.get(id))
       .filter((d): d is SiteSearchDocument => d !== undefined);
-  }, [docs]);
+  }, [docs, isAuthenticated]);
 
   const trimmed = search.trim();
   const parsedQuery = useMemo(() => parseSearchQueryString(trimmed), [trimmed]);
@@ -513,6 +575,9 @@ export function CommandMenuDialog({
 
     for (const item of apiResults) {
       if (item.href && !seenHrefs.has(item.href)) {
+        if (!isAuthenticated && !isMarketingHref(item.href)) {
+          continue;
+        }
         seenHrefs.add(item.href);
         merged.push(item);
       }
@@ -520,6 +585,9 @@ export function CommandMenuDialog({
 
     for (const item of fuseResults) {
       if (item.href && !seenHrefs.has(item.href)) {
+        if (!isAuthenticated && !isMarketingHref(item.href)) {
+          continue;
+        }
         seenHrefs.add(item.href);
         merged.push(item);
       }
@@ -527,7 +595,7 @@ export function CommandMenuDialog({
 
     const rankingQuery = parsedQuery.cleanQuery || trimmed;
     return rankSearchDocuments(rankingQuery, merged);
-  }, [trimmed, isHelpMode, apiResults, fuseResults, parsedQuery.cleanQuery]);
+  }, [trimmed, isHelpMode, apiResults, fuseResults, parsedQuery.cleanQuery, isAuthenticated]);
 
   // Group search hits by normalized category
   const groupedResults = useMemo(() => {
@@ -1013,7 +1081,7 @@ export function CommandMenuDialog({
                           Coba cari topik berikut:
                         </div>
                         <div className="flex flex-col gap-1">
-                          {SUGGESTED_TOPICS.map((topic) => (
+                          {(isAuthenticated ? SUGGESTED_TOPICS : MARKETING_SUGGESTED_TOPICS).map((topic) => (
                             <Command.Item
                               key={topic.title}
                               value={topic.title}
@@ -1078,54 +1146,109 @@ export function CommandMenuDialog({
                             Panduan pencarian
                           </div>
                           <p className="mt-1 text-body-xs text-muted-foreground">
-                            Cari langsung untuk semua hasil, atau pilih prefiks untuk membatasi pencarian.
+                            {isAuthenticated
+                              ? "Cari langsung untuk semua hasil, atau pilih prefiks untuk membatasi pencarian."
+                              : "Cari informasi di situs Zyx Academy seperti paket belajar, tentang kami, testimoni, atau artikel blog."}
                           </p>
                         </div>
                       </div>
 
-                      <Command.Group
-                        heading="Prefiks"
-                        className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
-                      >
-                        {SEARCH_PREFIX_DEFINITIONS.map((definition) => (
-                          <Command.Item
-                            key={definition.type}
-                            value={`help ${definition.aliases.join(" ")} ${definition.label}`}
-                            onSelect={() =>
-                              setSearch(`${definition.aliases[0]}: `)
-                            }
-                            className={cn(
-                              "group flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-body-sm outline-none transition-colors select-none cursor-pointer",
-                              "bg-muted/40 hover:bg-muted/80 text-foreground",
-                              "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20"
-                            )}
-                          >
-                            <kbd className="mt-0.5 min-w-20 shrink-0 rounded-md border border-border bg-background px-2 py-1 font-mono text-body-xs font-semibold text-foreground group-aria-selected:border-primary-foreground/30 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground">
-                              {definition.aliases[0]}:
-                            </kbd>
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate font-medium text-body-sm">
-                                {definition.label}
-                              </div>
-                              {definition.aliases.length > 1 && (
-                                <div className="text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
-                                  Alias lain: {definition.aliases
-                                    .slice(1)
-                                    .map((alias) => `${alias}:`)
-                                    .join(", ")}
-                                </div>
+                      {isAuthenticated ? (
+                        <Command.Group
+                          heading="Prefiks"
+                          className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
+                        >
+                          {SEARCH_PREFIX_DEFINITIONS.map((definition) => (
+                            <Command.Item
+                              key={definition.type}
+                              value={`help ${definition.aliases.join(" ")} ${definition.label}`}
+                              onSelect={() =>
+                                setSearch(`${definition.aliases[0]}: `)
+                              }
+                              className={cn(
+                                "group flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-body-sm outline-none transition-colors select-none cursor-pointer",
+                                "bg-muted/40 hover:bg-muted/80 text-foreground",
+                                "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20"
                               )}
-                              <div className="truncate text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
-                                Contoh: {definition.example}
+                            >
+                              <kbd className="mt-0.5 min-w-20 shrink-0 rounded-md border border-border bg-background px-2 py-1 font-mono text-body-xs font-semibold text-foreground group-aria-selected:border-primary-foreground/30 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground">
+                                {definition.aliases[0]}:
+                              </kbd>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate font-medium text-body-sm">
+                                  {definition.label}
+                                </div>
+                                {definition.aliases.length > 1 && (
+                                  <div className="text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
+                                    Alias lain: {definition.aliases
+                                      .slice(1)
+                                      .map((alias) => `${alias}:`)
+                                      .join(", ")}
+                                  </div>
+                                )}
+                                <div className="truncate text-body-xs text-muted-foreground group-aria-selected:text-primary-foreground/80">
+                                  Contoh: {definition.example}
+                                </div>
                               </div>
-                            </div>
-                            <ChevronRight
-                              className="size-4 shrink-0 text-muted-foreground/50 group-aria-selected:text-primary-foreground"
-                              aria-hidden
-                            />
-                          </Command.Item>
-                        ))}
-                      </Command.Group>
+                              <ChevronRight
+                                className="size-4 shrink-0 text-muted-foreground/50 group-aria-selected:text-primary-foreground"
+                                aria-hidden
+                              />
+                            </Command.Item>
+                          ))}
+                        </Command.Group>
+                      ) : (
+                        <Command.Group
+                          heading="Halaman utama"
+                          className="[&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-body-xs [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider"
+                        >
+                          {MARKETING_SUGGESTED_TOPICS.map((topic) => (
+                            <Command.Item
+                              key={topic.title}
+                              value={`help ${topic.title} ${topic.subtitle}`}
+                              onSelect={() => {
+                                navigate({
+                                  id: `help:${topic.title}`,
+                                  title: topic.title,
+                                  subtitle: topic.subtitle,
+                                  href: topic.href,
+                                  group: topic.group,
+                                });
+                              }}
+                              className={cn(
+                                "group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-body-sm outline-none cursor-pointer transition-colors select-none",
+                                "bg-muted/40 hover:bg-muted/80 text-foreground border border-transparent",
+                                "aria-selected:bg-primary aria-selected:text-primary-foreground aria-selected:border-primary/20 aria-selected:shadow-sm"
+                              )}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div
+                                  className={cn(
+                                    "flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors",
+                                    "border-border/60 bg-background text-muted-foreground",
+                                    "group-hover:border-border group-hover:text-foreground",
+                                    "group-aria-selected:border-primary-foreground/20 group-aria-selected:bg-primary-foreground/15 group-aria-selected:text-primary-foreground"
+                                  )}
+                                >
+                                  <topic.icon className="size-4" aria-hidden />
+                                </div>
+                                <div className="min-w-0 flex flex-col justify-center">
+                                  <span className="truncate font-medium text-foreground text-body-sm leading-snug group-aria-selected:text-primary-foreground">
+                                    {topic.title}
+                                  </span>
+                                  <span className="truncate text-body-xs text-muted-foreground leading-tight mt-0.5 group-aria-selected:text-primary-foreground/80">
+                                    {topic.subtitle}
+                                  </span>
+                                </div>
+                              </div>
+                              <ChevronRight
+                                className="size-4 text-muted-foreground/50 group-hover:text-foreground group-aria-selected:text-primary-foreground shrink-0"
+                                aria-hidden
+                              />
+                            </Command.Item>
+                          ))}
+                        </Command.Group>
+                      )}
 
                       <div className="mx-2 mt-3 border-t border-border/60 px-1 pt-3 text-body-xs text-muted-foreground">
                         Gunakan tombol panah untuk memilih, Enter untuk membuka, dan Esc untuk menutup.

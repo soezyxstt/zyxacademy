@@ -11,7 +11,6 @@ import { storage } from "@/lib/storage";
 import { canPublishDiktat } from "@/lib/diktat/audit-contracts";
 import { joinKey, slugifySegment } from "@/lib/storage/keys";
 import { inngest } from "@/lib/inngest";
-import { generateAndSavePdfThumbnail } from "@/lib/thumbnail";
 
 /**
  * Extracts the unique file key from an UploadThing CDN URL.
@@ -196,43 +195,29 @@ export async function executeDiktatPDFGeneration(
       }
     }
 
-    // 8. Generate thumbnail automatically from the rendered PDF buffer
-    let thumbnailKey: string | null = null;
-    try {
-      thumbnailKey = await generateAndSavePdfThumbnail({
-        courseSlug: diktat.courseId,
-        materialId: diktat.id,
-        pdfBuffer,
-      });
-    } catch (thumbErr) {
-      console.warn(`[diktat-pdf] In-line thumbnail generation failed for ${diktatId}:`, thumbErr);
-    }
-
-    // Save final location to DB with immediately generated thumbnail (or null if failed)
+    // Save final location to DB with thumbnailUrl: null (fresh on-demand thumbnail generation via web tier)
     await db
       .update(diktats)
       .set({
         fileUrl,
-        thumbnailUrl: thumbnailKey,
+        thumbnailUrl: null,
         status: "ready",
         updatedAt: new Date(),
       })
       .where(eq(diktats.id, diktatId));
 
-    // Fallback: if in-line generation did not produce a key, enqueue background job
-    if (!thumbnailKey) {
-      const sourceVersion = diktat.generationHash || "v1";
-      await inngest.send({
-        id: `thumbnail-${diktat.id}-${sourceVersion}`,
-        name: "pdf/thumbnail.requested",
-        data: {
-          materialId: diktat.id,
-          sourceType: "diktat",
-        },
-      }).catch((inngestErr) => {
-        console.warn(`[diktat-pdf] Failed to enqueue fallback thumbnail for ${diktatId}:`, inngestErr);
-      });
-    }
+    // Enqueue thumbnail generation in background with sourceVersion
+    const sourceVersion = diktat.generationHash || "v1";
+    await inngest.send({
+      id: `thumbnail-${diktat.id}-${sourceVersion}`,
+      name: "pdf/thumbnail.requested",
+      data: {
+        materialId: diktat.id,
+        sourceType: "diktat",
+      },
+    }).catch((inngestErr) => {
+      console.warn(`[diktat-pdf] Failed to enqueue thumbnail for ${diktatId}:`, inngestErr);
+    });
 
     return { success: true, fileUrl };
   } catch {
