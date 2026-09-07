@@ -5,6 +5,17 @@ on:
     branches:
       - main
       - staging
+    paths:
+      - 'workers/deno-background/**'
+      - 'jobs/**'
+      - 'db/**'
+      - 'lib/**'
+      - 'deno.json'
+      - 'deno.lock'
+      - 'package.json'
+      - 'bun.lock'
+      - 'scripts/audit-worker-dependencies.ts'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 concurrency:
