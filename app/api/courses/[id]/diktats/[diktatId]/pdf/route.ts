@@ -36,7 +36,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const bytes = await storage.download(row.fileKey);
     const disposition = new URL(request.url).searchParams.get("download") === "1" ? "attachment" : "inline";
     const filename = `${row.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "diktat"}.pdf`;
-    return new Response(bytes, {
+    return new Response(bytes as unknown as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `${disposition}; filename="${filename}"`,

@@ -28,7 +28,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   try {
     const bytes = await storage.download(evidence.storageKey);
     const disposition = new URL(request.url).searchParams.get("download") === "1" ? "attachment" : "inline";
-    return new Response(bytes, {
+    return new Response(bytes as unknown as BodyInit, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `${disposition}; filename="diktat.pdf"`,

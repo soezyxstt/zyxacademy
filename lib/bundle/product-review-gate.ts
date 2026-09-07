@@ -66,12 +66,14 @@ export async function evaluateProductBundleQualityPolicy(
   input: ProductBundleEvaluationInput | readonly ProductEntity[],
   context: ProductBundleEvaluationContext = {},
 ): Promise<QualityEvaluation> {
-  const products: readonly ProductEntity[] = Array.isArray(input)
-    ? input
-    : input.bundle?.products ?? input.products ?? [];
-  const dependencies: readonly ProductDependency[] = Array.isArray(input)
+  const isInputArray = Array.isArray(input);
+  const bundleInput = isInputArray ? undefined : (input as ProductBundleEvaluationInput);
+  const products: readonly ProductEntity[] = isInputArray
+    ? (input as readonly ProductEntity[])
+    : bundleInput?.bundle?.products ?? bundleInput?.products ?? [];
+  const dependencies: readonly ProductDependency[] = isInputArray
     ? []
-    : input.bundle?.dependencies ?? input.dependencies ?? [];
+    : bundleInput?.bundle?.dependencies ?? bundleInput?.dependencies ?? [];
 
   const issues: DiagnosticIssue[] = [];
 
@@ -299,11 +301,11 @@ export async function evaluateProductBundleQualityPolicy(
     reviewDecision = context.pedagogicReview;
   } else if (context.imporBundleId) {
     const txOrDb = context.tx ?? db;
-    const reviewRows = await txOrDb
+    const reviewRows = (await txOrDb
       .select()
       .from(reviewPedagogiBundle)
       .where(eq(reviewPedagogiBundle.imporBundleId, context.imporBundleId))
-      .orderBy(desc(reviewPedagogiBundle.createdAt), desc(reviewPedagogiBundle.id));
+      .orderBy(desc(reviewPedagogiBundle.createdAt), desc(reviewPedagogiBundle.id))) as Array<typeof reviewPedagogiBundle.$inferSelect>;
 
     if (reviewRows.length > 0) {
       let selectedRow = reviewRows.find((row) => {
