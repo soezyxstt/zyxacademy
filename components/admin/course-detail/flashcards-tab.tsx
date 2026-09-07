@@ -484,7 +484,7 @@ export function FlashcardsTab({
           icon={AlertCircle}
           label="Draft"
           value={draftCards}
-          tone="muted"
+          tone="default"
           caption="Belum dipublikasikan"
         />
       </AdminStatStrip>

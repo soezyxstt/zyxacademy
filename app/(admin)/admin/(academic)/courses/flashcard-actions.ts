@@ -171,7 +171,6 @@ export async function getCourseFlashcardsData(
         explanation: flashcards.explanation,
         status: flashcards.status,
         createdAt: flashcards.createdAt,
-        updatedAt: flashcards.updatedAt,
       })
       .from(flashcards)
       .where(inArray(flashcards.setId, missingLegacySetIds))
@@ -187,7 +186,7 @@ export async function getCourseFlashcardsData(
         explanation: card.explanation,
         status: (card.status === "active" ? "published" : "draft") as "published" | "draft",
         createdAt: card.createdAt ?? new Date(),
-        updatedAt: card.updatedAt ?? new Date(),
+        updatedAt: card.createdAt ?? new Date(),
       });
       cardsBySet.set(card.setId, list);
     }
@@ -259,16 +258,20 @@ export async function createFlashcardSetAction(input: {
     });
 
     try {
-      await db.insert(flashcardSets).values({
-        id: setId,
-        courseId: input.courseId,
-        chapterId: input.babId || null,
-        title,
-        status: status === "published" ? "published" : "draft",
-        generationHash: "manual",
-        createdAt: now,
-        updatedAt: now,
-      }).onConflictDoNothing();
+      if (input.babId) {
+        await db.insert(flashcardSets).values({
+          id: setId,
+          courseId: input.courseId,
+          chapterId: input.babId,
+          sourceMtdId: "legacy-manual",
+          sourceMtdVersion: 1,
+          title,
+          status: status === "published" ? "published" : "draft",
+          generationHash: "manual",
+          createdAt: now,
+          updatedAt: now,
+        }).onConflictDoNothing();
+      }
     } catch {
       // Ignore legacy sync failures
     }
@@ -310,7 +313,7 @@ export async function updateFlashcardSetAction(input: {
         .update(flashcardSets)
         .set({
           title,
-          chapterId: input.babId || null,
+          ...(input.babId ? { chapterId: input.babId } : {}),
           status: input.status === "published" ? "published" : "draft",
           updatedAt: now,
         })
@@ -391,9 +394,8 @@ export async function createFlashcardAction(input: {
         front,
         back,
         explanation: input.explanation?.trim() || null,
-        status: status === "published" ? "active" : "draft",
+        status: status === "published" ? "active" : "retired",
         createdAt: now,
-        updatedAt: now,
       }).onConflictDoNothing();
     } catch {
       // Ignore legacy sync failures
@@ -452,8 +454,7 @@ export async function updateFlashcardAction(input: {
           front,
           back,
           explanation: input.explanation?.trim() || null,
-          status: input.status === "published" ? "active" : "draft",
-          updatedAt: now,
+          status: input.status === "published" ? "active" : "retired",
           ...(input.setId ? { setId: input.setId } : {}),
         })
         .where(eq(flashcards.id, input.id));
