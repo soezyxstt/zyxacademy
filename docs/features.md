@@ -50,7 +50,7 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 - Monitors real-time tutor mutations, rejections, and failures with cursor pagination, stats aggregation, and sanitized snapshot inspection (`/admin/ops/tutor-activity`)
 - Monitors real-time statuses for the approved optional feature flags (`/admin/ops/flags`) with status badges, category filters, and env key helpers
 - Manages course-scoped leaderboard (`/admin/courses/[slug]/leaderboard`) for per-student ranking within a single course, with backward compatibility redirects from `/admin/leaderboard`
-- Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan
+- Operates inside unified course workspaces (`/admin/courses/[slug]`) with contextual navigation across Bab, Dokumen, Kuis, Soal, Flashcard, Hasil, Papan Peringkat, Analitik, Review Materi, and Pengaturan
 
 ## Core Pipelines
 
@@ -92,9 +92,10 @@ Canonical access-role codes are `admin`, `tutor`, and `murid`. Admin and tutor l
 1. Admin course management is organized as a nested hierarchy under `/admin/courses/[slug]`, replacing former tab-based client state with direct, addressable routes.
 2. The contextual sidebar automatically switches when navigating inside `/admin/courses/[slug]`, rendering exactly nine course-scoped destinations in order:
    - Bab (`/admin/courses/[slug]`): chapter management, reordering, and canonical projection.
-   - Dokumen (`/admin/courses/[slug]/documents`): combined document list, preview, and legacy PDF management.
+   - Dokumen (`/admin/courses/[slug]/documents`): unified document catalog with responsive search, upload dialog, and full document management workspace for previews, PDF metadata, and article or diktat lifecycle.
    - Kuis (`/admin/courses/[slug]/quizzes`): course quizzes list with inline metrics and nested quiz authoring routes.
    - Soal (`/admin/courses/[slug]/questions`): course-filtered question bank.
+   - Flashcard (`/admin/courses/[slug]/flashcards`): course-locked flashcard set and card CRUD management.
    - Hasil (`/admin/courses/[slug]/results`): student attempt metrics and completion rates.
    - Papan Peringkat (`/admin/courses/[slug]/leaderboard`): course-locked leaderboard ranking with hidden overview selector.
    - Analitik (`/admin/courses/[slug]/analytics`): course-locked quiz analytics and AI diagnostic insights.

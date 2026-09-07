@@ -42,13 +42,14 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
     const slug = "kalkulus-1";
     const items = getAdminCourseNavItems(slug);
 
-    test("returns exactly nine items in the prescribed order", () => {
-      expect(items).toHaveLength(9);
+    test("returns exactly ten items in the prescribed order", () => {
+      expect(items).toHaveLength(10);
       expect(items.map((i) => i.label)).toEqual([
         "Bab",
         "Dokumen",
         "Kuis",
         "Soal",
+        "Flashcard",
         "Hasil",
         "Papan Peringkat",
         "Analitik",
@@ -68,6 +69,7 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
         `/admin/courses/${slug}/documents`,
         `/admin/courses/${slug}/quizzes`,
         `/admin/courses/${slug}/questions`,
+        `/admin/courses/${slug}/flashcards`,
         `/admin/courses/${slug}/results`,
         `/admin/courses/${slug}/leaderboard`,
         `/admin/courses/${slug}/analytics`,
@@ -111,8 +113,8 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
 
       // Settings route: only Settings is active
       const settingsPath = `/admin/courses/${slug}/settings`;
-      expect(isItemActive(items[8], settingsPath)).toBe(true);
-      expect(items.slice(0, 8).every((i) => !isItemActive(i, settingsPath))).toBe(true);
+      expect(isItemActive(items[9], settingsPath)).toBe(true);
+      expect(items.slice(0, 9).every((i) => !isItemActive(i, settingsPath))).toBe(true);
     });
   });
 
@@ -138,7 +140,7 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
       expect(getRouteTitle("/admin/courses/")).toBe("Mata Kuliah");
     });
 
-    test("resolves mobile route titles for all nine contextual course routes", () => {
+    test("resolves mobile route titles for all ten contextual course routes", () => {
       const slug = "aljabar-linear";
       expect(getRouteTitle(`/admin/courses/${slug}`)).toBe("Bab");
       expect(getRouteTitle(`/admin/courses/${slug}/`)).toBe("Bab");
@@ -146,6 +148,7 @@ describe("Admin Course Workspace Navigation & Mobile Route Titles Contract", () 
       expect(getRouteTitle(`/admin/courses/${slug}/quizzes`)).toBe("Kuis");
       expect(getRouteTitle(`/admin/courses/${slug}/quizzes/new`)).toBe("Kuis");
       expect(getRouteTitle(`/admin/courses/${slug}/questions`)).toBe("Soal");
+      expect(getRouteTitle(`/admin/courses/${slug}/flashcards`)).toBe("Flashcard");
       expect(getRouteTitle(`/admin/courses/${slug}/results`)).toBe("Hasil");
       expect(getRouteTitle(`/admin/courses/${slug}/leaderboard`)).toBe("Papan Peringkat");
       expect(getRouteTitle(`/admin/courses/${slug}/analytics`)).toBe("Analitik");

@@ -38,6 +38,7 @@ import {
   MousePointerClick,
   Activity,
   ArrowLeft,
+  Layers,
 } from "lucide-react";
 import {
   SidebarShell,
@@ -80,6 +81,7 @@ export function getAdminCourseNavItems(slug: string): CourseSidebarItem[] {
     { id: "documents", label: "Dokumen", href: `${base}/documents`, icon: FileText },
     { id: "quizzes", label: "Kuis", href: `${base}/quizzes`, icon: NotebookPen },
     { id: "questions", label: "Soal", href: `${base}/questions`, icon: Library },
+    { id: "flashcards", label: "Flashcard", href: `${base}/flashcards`, icon: Layers },
     { id: "results", label: "Hasil", href: `${base}/results`, icon: ListChecks },
     { id: "leaderboard", label: "Papan Peringkat", href: `${base}/leaderboard`, icon: Trophy },
     { id: "analytics", label: "Analitik", href: `${base}/analytics`, icon: BarChart3 },

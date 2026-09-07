@@ -44,6 +44,7 @@ export default async function AdminCourseDetailPage({
     materials: "documents",
     quizzes: "quizzes",
     questions: "questions",
+    flashcards: "flashcards",
     analytics: "results",
     settings: "settings",
   };

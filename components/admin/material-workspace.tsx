@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpenCheck, FileArchive, LayoutGrid } from "lucide-react";
+import { BookOpenCheck, FileArchive } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUrlTab } from "@/hooks/use-url-tab";
@@ -11,8 +11,6 @@ import type { MaterialBundleRow as ProductBundleRow } from "@/components/admin/m
 import { MaterialArtifactList } from "@/components/admin/material-artifact-list";
 import { MaterialBundleUploadDialog } from "@/components/admin/material-bundle-upload-dialog";
 import { IdeaBundleReviewDetail, ProductBundleReviewDetail } from "@/components/admin/material-review-detail";
-import { ProductCatalogPanel } from "@/components/admin/product-catalog-panel";
-
 import type { LockedCourseInfo } from "@/lib/admin/course-identity";
 
 type Props = {
@@ -23,11 +21,12 @@ type Props = {
   ideaEnabled: boolean;
   productEnabled: boolean;
   mode: "review" | "idea-detail" | "product-detail";
-  initialReviewTab?: "idea" | "product" | "catalog";
+  initialReviewTab?: "idea" | "product";
   detailId?: string;
   lockedCourse?: LockedCourseInfo;
   backHref?: string;
   backLabel?: string;
+  hideHeader?: boolean;
 };
 
 export function MaterialWorkspace({
@@ -43,6 +42,7 @@ export function MaterialWorkspace({
   lockedCourse,
   backHref,
   backLabel,
+  hideHeader = Boolean(lockedCourse) && mode === "review",
 }: Props) {
   const router = useRouter();
   const firstReviewTab = initialReviewTab ?? (ideaEnabled ? "idea" : "product");
@@ -63,29 +63,27 @@ export function MaterialWorkspace({
 
   return (
     <div className="space-y-8">
-      <AdminPageHeader
-        icon={BookOpenCheck}
-        title={detailMode ? mode === "idea-detail" ? "Review Source Pack + Idea" : "Review Product" : lockedCourse ? `Review Materi · ${lockedCourse.title}` : "Review materi"}
-        description={detailMode ? "Periksa isi artifact, bukti sumber, dan keputusan review pada halaman khusus." : "Cari hasil generasi MCP berdasarkan mata kuliah, pembuat, status, dan waktu masuk."}
-        backHref={effectiveBackHref}
-        backLabel={effectiveBackLabel}
-      />
+      {!hideHeader && (
+        <AdminPageHeader
+          icon={BookOpenCheck}
+          title={detailMode ? mode === "idea-detail" ? "Review Source Pack + Idea" : "Review Product" : lockedCourse ? `Review Materi · ${lockedCourse.title}` : "Review materi"}
+          description={detailMode ? "Periksa isi artifact, bukti sumber, dan keputusan review pada halaman khusus." : "Cari hasil generasi MCP berdasarkan mata kuliah, pembuat, status, dan waktu masuk."}
+          backHref={effectiveBackHref}
+          backLabel={effectiveBackLabel}
+        />
+      )}
 
       {detailMode ? (
         mode === "idea-detail" ? <IdeaBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} /> : <ProductBundleReviewDetail detailId={detailId ?? ""} courseLabels={courseLabels} />
       ) : (
         <div className="space-y-6">
-          <Tabs value={activeReviewTab} onValueChange={(value) => setActiveReviewTab(value as "idea" | "product" | "catalog")}>
+          <Tabs value={activeReviewTab} onValueChange={(value) => setActiveReviewTab(value as "idea" | "product")}>
             <TabsList>
               {ideaEnabled && <TabsTrigger value="idea"><FileArchive className="size-4" />Source Pack + Idea</TabsTrigger>}
               {productEnabled && <TabsTrigger value="product"><FileArchive className="size-4" />Product Bundle</TabsTrigger>}
-              <TabsTrigger value="catalog"><LayoutGrid className="size-4" />Katalog Produk</TabsTrigger>
             </TabsList>
             {ideaEnabled && <TabsContent value="idea"><MaterialArtifactList rows={initialIdeaImports} kind="idea" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("idea", id)} onUpload={() => setUploadKind("idea")} lockedCourse={lockedCourse} /><MaterialBundleUploadDialog kind="idea" open={uploadKind === "idea"} onOpenChange={(open) => setUploadKind(open ? "idea" : null)} onStaged={(id) => openDetail("idea", id)} /></TabsContent>}
             {productEnabled && <TabsContent value="product"><MaterialArtifactList rows={initialProductImports} kind="product" courseLabels={courseLabels} authorLabels={authorLabels} onInspect={(id) => openDetail("product", id)} onUpload={() => setUploadKind("product")} lockedCourse={lockedCourse} /><MaterialBundleUploadDialog kind="product" open={uploadKind === "product"} onOpenChange={(open) => setUploadKind(open ? "product" : null)} onStaged={(id) => openDetail("product", id)} /></TabsContent>}
-            <TabsContent value="catalog">
-              <ProductCatalogPanel courseLabels={courseLabels} lockedCourse={lockedCourse} />
-            </TabsContent>
           </Tabs>
         </div>
       )}

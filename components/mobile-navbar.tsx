@@ -21,6 +21,7 @@ export function getRouteTitle(
       if (subpath.startsWith("/documents")) return "Dokumen";
       if (subpath.startsWith("/quizzes")) return "Kuis";
       if (subpath.startsWith("/questions")) return "Soal";
+      if (subpath.startsWith("/flashcards")) return "Flashcard";
       if (subpath.startsWith("/results")) return "Hasil";
       if (subpath.startsWith("/leaderboard")) return "Papan Peringkat";
       if (subpath.startsWith("/analytics")) return "Analitik";

@@ -28,9 +28,10 @@ describe("admin course workspace routes", () => {
   test("provides all six direct management pages", () => {
     const pages = [
       ["page.tsx", "ChaptersTab"],
-      ["documents/page.tsx", "MaterialsTab"],
+      ["documents/page.tsx", "DocumentListClient"],
       ["quizzes/page.tsx", "QuizzesTab"],
       ["questions/page.tsx", "QuestionsTab"],
+      ["flashcards/page.tsx", "FlashcardsTab"],
       ["results/page.tsx", "AnalyticsTab"],
       ["settings/page.tsx", "SettingsTab"],
     ] as const;

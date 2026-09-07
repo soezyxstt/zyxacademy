@@ -61,12 +61,7 @@ export default async function AdminCourseReviewPage({ params, searchParams }: Pr
   };
 
   const selectedTab = tab ?? section;
-  const initialReviewTab =
-    selectedTab === "product"
-      ? "product"
-      : selectedTab === "catalog"
-        ? "catalog"
-        : "idea";
+  const initialReviewTab = selectedTab === "product" ? "product" : "idea";
 
   return (
     <div className="space-y-4 font-sans">
@@ -78,6 +73,7 @@ export default async function AdminCourseReviewPage({ params, searchParams }: Pr
         lockedCourse={lockedCourse}
         backHref={`/admin/courses/${encodeURIComponent(identity.slug)}/review`}
         backLabel={`Kembali ke Review ${identity.title}`}
+        hideHeader
       />
     </div>
   );
