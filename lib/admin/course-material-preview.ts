@@ -1,7 +1,8 @@
-import { and, eq, inArray, notLike } from "drizzle-orm";
+import { and, eq, inArray, notLike, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   aiMaterialInstances,
+  artikel,
   bab,
   courseMaterials,
   diktatMateri,
@@ -45,7 +46,25 @@ export async function listAdminCourseMaterials(
 
   const [canonicalArticles, canonicalDiktats, compiledDiktats, webMaterials, pdfMaterials, generatedMaterials] =
     await Promise.all([
-      getCanonicalPublishedArticlesForCourse(canonicalCourseId),
+      identity.canonicalId
+        ? db
+            .select({
+              id: artikel.id,
+              title: artikel.title,
+              slug: artikel.slug,
+              babId: artikel.babId,
+              legacyChapterId: bab.legacyChapterId,
+              status: artikel.status,
+            })
+            .from(artikel)
+            .leftJoin(bab, eq(artikel.babId, bab.id))
+            .where(
+              and(
+                eq(artikel.mataKuliahId, identity.canonicalId),
+                inArray(artikel.status, ["draft", "published", "in_review"]),
+              ),
+            )
+        : Promise.resolve([]),
       identity.canonicalId
         ? db
             .select({
@@ -53,13 +72,14 @@ export async function listAdminCourseMaterials(
               title: diktatMateri.title,
               babId: diktatMateri.babId,
               legacyChapterId: bab.legacyChapterId,
+              status: diktatMateri.status,
             })
             .from(diktatMateri)
             .leftJoin(bab, eq(diktatMateri.babId, bab.id))
             .where(
               and(
                 eq(diktatMateri.mataKuliahId, identity.canonicalId),
-                eq(diktatMateri.status, "published"),
+                inArray(diktatMateri.status, ["draft", "published", "in_review"]),
               ),
             )
         : Promise.resolve([]),
@@ -73,7 +93,7 @@ export async function listAdminCourseMaterials(
         .where(
           and(
             inArray(websiteMaterials.courseId, compatibleIds),
-            eq(websiteMaterials.status, "published"),
+            inArray(websiteMaterials.status, ["published", "draft"]),
           ),
         ),
       db.select().from(courseMaterials).where(inArray(courseMaterials.courseId, compatibleIds)),
@@ -92,9 +112,7 @@ export async function listAdminCourseMaterials(
     `/admin/courses/${encodeURIComponent(identity.slug)}/documents/${encodeURIComponent(id)}`;
   const canonicalArticleChapterIds = new Set(
     canonicalArticles.flatMap((item) =>
-      [item.chapterId, item.legacyChapterId, item.babId].filter(
-        (id): id is string => Boolean(id),
-      ),
+      [item.legacyChapterId, item.babId].filter((id): id is string => Boolean(id)),
     ),
   );
   const canonicalDiktatChapterIds = new Set(
@@ -111,12 +129,14 @@ export async function listAdminCourseMaterials(
       kind: "article" as const,
       docCategory: "materi" as const,
       tabGroup: "materi" as const,
-      fileSize: `${item.totalEstimatedReadingMinutes} menit baca`,
+      fileSize: "Artikel",
       completed: false,
       isPastYear: false,
       isPreview: false,
-      chapterId: item.chapterId ?? undefined,
-      chapterIds: [item.chapterId, item.legacyChapterId, item.babId].filter(
+      status: (item.status === "published" ? "published" : "draft") as "draft" | "published",
+      source: "canonical-article",
+      chapterId: item.legacyChapterId ?? item.babId ?? undefined,
+      chapterIds: [item.legacyChapterId, item.babId].filter(
         (id): id is string => Boolean(id),
       ),
       href: adminHref(item.id),
@@ -132,6 +152,8 @@ export async function listAdminCourseMaterials(
       completed: false,
       isPastYear: false,
       isPreview: false,
+      status: (item.status === "published" ? "published" : "draft") as "draft" | "published",
+      source: "canonical-diktat",
       chapterId: item.legacyChapterId ?? item.babId ?? undefined,
       chapterIds: [item.legacyChapterId, item.babId].filter(
         (id): id is string => Boolean(id),
@@ -214,6 +236,8 @@ export async function listAdminCourseMaterials(
         completed: false,
         isPastYear: Boolean(item.year),
         isPreview: true,
+        status: "published" as const,
+        source: "legacy-pdf" as const,
         url: storage.getUrl(item.fileUrl),
         thumbnailUrl: item.thumbnailUrl ? storage.getUrl(item.thumbnailUrl) : undefined,
         chapterIds: item.chapterIds as string[],
@@ -247,7 +271,83 @@ export async function getAdminCourseMaterialPreview(
         completed: false,
         isPastYear: false,
         isPreview: false,
+        status: "published",
+        source: canonical.productType === "diktat" ? "canonical-diktat" : "canonical-article",
         chapterId: canonical.chapterId ?? undefined,
+      },
+    };
+  }
+
+  // Check direct artikel record (draft or published)
+  const [directArticle] = await db
+    .select({
+      id: artikel.id,
+      title: artikel.title,
+      contentMarkdown: artikel.contentMarkdown,
+      status: artikel.status,
+      babId: artikel.babId,
+      legacyChapterId: bab.legacyChapterId,
+    })
+    .from(artikel)
+    .leftJoin(bab, eq(artikel.babId, bab.id))
+    .where(or(eq(artikel.id, materialId), eq(artikel.slug, materialId)))
+    .limit(1);
+
+  if (directArticle) {
+    return {
+      renderer: "material",
+      source: "canonical-article",
+      material: {
+        id: directArticle.id,
+        courseId: identity.primaryId,
+        title: sanitizeMaterialTitle(directArticle.title),
+        kind: "article",
+        docCategory: "materi",
+        fileSize: "Artikel",
+        body: directArticle.contentMarkdown,
+        status: (directArticle.status === "published" ? "published" : "draft") as "draft" | "published",
+        source: "canonical-article",
+        completed: false,
+        isPastYear: false,
+        isPreview: false,
+        chapterId: directArticle.legacyChapterId ?? directArticle.babId ?? undefined,
+      },
+    };
+  }
+
+  // Check direct diktat record (draft or published)
+  const [directDiktat] = await db
+    .select({
+      id: diktatMateri.id,
+      title: diktatMateri.title,
+      contentMarkdown: diktatMateri.contentMarkdown,
+      status: diktatMateri.status,
+      babId: diktatMateri.babId,
+      legacyChapterId: bab.legacyChapterId,
+    })
+    .from(diktatMateri)
+    .leftJoin(bab, eq(diktatMateri.babId, bab.id))
+    .where(eq(diktatMateri.id, materialId))
+    .limit(1);
+
+  if (directDiktat) {
+    return {
+      renderer: "material",
+      source: "canonical-diktat",
+      material: {
+        id: directDiktat.id,
+        courseId: identity.primaryId,
+        title: sanitizeMaterialTitle(directDiktat.title),
+        kind: "article",
+        docCategory: "diktat",
+        fileSize: "Diktat Resmi",
+        body: directDiktat.contentMarkdown,
+        status: (directDiktat.status === "published" ? "published" : "draft") as "draft" | "published",
+        source: "canonical-diktat",
+        completed: false,
+        isPastYear: false,
+        isPreview: false,
+        chapterId: directDiktat.legacyChapterId ?? directDiktat.babId ?? undefined,
       },
     };
   }
@@ -255,7 +355,7 @@ export async function getAdminCourseMaterialPreview(
   const compatibleIds = legacyIds(identity);
   const [compiled, web, pdf, generated] = await Promise.all([
     db.select().from(diktats).where(and(eq(diktats.id, materialId), inArray(diktats.courseId, compatibleIds))).limit(1),
-    db.select().from(websiteMaterials).where(and(eq(websiteMaterials.id, materialId), inArray(websiteMaterials.courseId, compatibleIds), eq(websiteMaterials.status, "published"))).limit(1),
+    db.select().from(websiteMaterials).where(and(eq(websiteMaterials.id, materialId), inArray(websiteMaterials.courseId, compatibleIds))).limit(1),
     db.select().from(courseMaterials).where(and(eq(courseMaterials.id, materialId), inArray(courseMaterials.courseId, compatibleIds))).limit(1),
     db.query.aiMaterialInstances.findFirst({
       where: and(eq(aiMaterialInstances.id, materialId), inArray(aiMaterialInstances.courseId, compatibleIds), notLike(aiMaterialInstances.title, "[DRAF]%")),
@@ -265,20 +365,40 @@ export async function getAdminCourseMaterialPreview(
 
   if (compiled[0]) {
     const item = compiled[0];
-    return { renderer: "material", source: "legacy-diktat", material: { id: item.id, courseId: identity.primaryId, title: item.title, kind: "pdf", docCategory: "diktat", fileSize: "PDF Diktat", url: item.fileUrl ? storage.getUrl(item.fileUrl) : undefined, completed: false, isPastYear: false, isPreview: true } };
+    return { renderer: "material", source: "legacy-diktat", material: { id: item.id, courseId: identity.primaryId, title: item.title, kind: "pdf", docCategory: "diktat", fileSize: "PDF Diktat", url: item.fileUrl ? storage.getUrl(item.fileUrl) : undefined, status: "published", source: "legacy-diktat", completed: false, isPastYear: false, isPreview: true } };
   }
   if (web[0]) {
     const item = web[0];
-    return { renderer: "material", source: "legacy-article", material: { id: item.id, courseId: identity.primaryId, title: item.title, kind: "article", docCategory: "materi", fileSize: "Artikel Web", body: item.canonicalMarkdown, completed: false, isPastYear: false, isPreview: true, chapterId: item.chapterId } };
+    return { renderer: "material", source: "legacy-article", material: { id: item.id, courseId: identity.primaryId, title: item.title, kind: "article", docCategory: "materi", fileSize: "Artikel Web", body: item.canonicalMarkdown, status: (item.status === "published" ? "published" : "draft") as "draft" | "published", source: "legacy-article", completed: false, isPastYear: false, isPreview: true, chapterId: item.chapterId } };
   }
   if (pdf[0]) {
     const item = pdf[0];
     const docCategory = item.type === "pembahasan_soal" ? "solusi" : item.type === "soal" || item.type === "contoh_soal" ? "soal" : "materi";
-    return { renderer: "material", source: "legacy-pdf", material: { id: item.id, courseId: identity.primaryId, title: item.title, kind: "pdf", docCategory, subcategory: item.subcategory, year: item.year, fileSize: "PDF File", url: storage.getUrl(item.fileUrl), completed: false, isPastYear: Boolean(item.year), isPreview: true } };
+    return {
+      renderer: "material",
+      source: "legacy-pdf",
+      material: {
+        id: item.id,
+        courseId: identity.primaryId,
+        title: item.title,
+        kind: "pdf",
+        docCategory,
+        subcategory: item.subcategory,
+        year: item.year,
+        fileSize: "PDF File",
+        url: storage.getUrl(item.fileUrl),
+        chapterIds: item.chapterIds as string[],
+        status: "published",
+        source: "legacy-pdf",
+        completed: false,
+        isPastYear: Boolean(item.year),
+        isPreview: true,
+      },
+    };
   }
   if (generated) {
     const body = generated.sections.map((section) => `${section.title ? `## ${section.title}\n\n` : ""}${section.chunks.map((chunk) => chunk.chunkText).join("\n\n")}`).join("\n\n");
-    return { renderer: "material", source: "legacy-article", material: { id: generated.id, courseId: identity.primaryId, title: sanitizeMaterialTitle(generated.title), kind: "article", docCategory: "materi", fileSize: "Rangkuman Materi", body, completed: false, isPastYear: false, isPreview: true } };
+    return { renderer: "material", source: "legacy-article", material: { id: generated.id, courseId: identity.primaryId, title: sanitizeMaterialTitle(generated.title), kind: "article", docCategory: "materi", fileSize: "Rangkuman Materi", body, status: "published", source: "legacy-article", completed: false, isPastYear: false, isPreview: true } };
   }
   return null;
 }

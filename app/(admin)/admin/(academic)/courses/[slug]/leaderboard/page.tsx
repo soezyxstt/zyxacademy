@@ -53,6 +53,7 @@ export default async function AdminCourseLeaderboardPage({ params }: Props) {
         }}
         backHref={`/admin/courses/${encodeURIComponent(slug)}`}
         backLabel={`Kembali ke ${data.course.title}`}
+        hideHeader
       />
     </div>
   );

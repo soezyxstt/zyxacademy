@@ -479,3 +479,58 @@ export function detectMetadataFromFilename(
     role,
   };
 }
+
+const LOWERCASE_WORDS = new Set([
+  "dan",
+  "atau",
+  "di",
+  "ke",
+  "dari",
+  "pada",
+  "untuk",
+  "dengan",
+  "oleh",
+  "the",
+  "of",
+  "and",
+  "in",
+  "on",
+]);
+
+const ACRONYM_WORDS = new Set([
+  "itb",
+  "tpb",
+  "uts",
+  "uas",
+  "kbf",
+  "ppt",
+  "pdf",
+  "doc",
+  "mk",
+  "ai",
+]);
+
+export function standardizeDocumentTitle(rawTitle: string): string {
+  if (!rawTitle) return "";
+  const cleaned = rawTitle
+    .replace(/\.pdf$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return "";
+
+  const words = cleaned.split(" ");
+  const formattedWords = words.map((word, index) => {
+    const lower = word.toLowerCase();
+    if (ACRONYM_WORDS.has(lower)) {
+      return lower.toUpperCase();
+    }
+    if (index > 0 && LOWERCASE_WORDS.has(lower)) {
+      return lower;
+    }
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  });
+
+  return formattedWords.join(" ");
+}

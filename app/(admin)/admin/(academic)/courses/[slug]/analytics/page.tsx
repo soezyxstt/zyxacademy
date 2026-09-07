@@ -54,6 +54,7 @@ export default async function AdminCourseAnalyticsPage({ params }: Props) {
         detailHrefPrefix={`/admin/courses/${encodeURIComponent(slug)}/analytics`}
         backHref={`/admin/courses/${encodeURIComponent(slug)}`}
         backLabel={`Kembali ke ${data.course.title}`}
+        hideHeader
       />
     </div>
   );

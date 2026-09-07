@@ -57,6 +57,7 @@ export interface QuizInsightsListClientProps {
   detailHrefPrefix?: string;
   backHref?: string;
   backLabel?: string;
+  hideHeader?: boolean;
 }
 
 export function QuizInsightsListClient({
@@ -64,6 +65,7 @@ export function QuizInsightsListClient({
   detailHrefPrefix = "/admin/quiz-insights",
   backHref,
   backLabel,
+  hideHeader = Boolean(lockedCourse),
 }: QuizInsightsListClientProps = {}) {
   const [items, setItems] = useState<QuizInsightOverviewItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +124,7 @@ export function QuizInsightsListClient({
 
   return (
     <div className="space-y-4">
-      {lockedCourse ? (
+      {hideHeader ? null : lockedCourse ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-heading text-body-base font-bold text-foreground flex items-center gap-2">
@@ -247,6 +249,19 @@ export function QuizInsightsListClient({
             <SelectItem value="premium">Premium</SelectItem>
           </SelectContent>
         </Select>
+
+        {hideHeader && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchItems}
+            disabled={loading}
+            className="h-9 gap-1.5 rounded-lg text-body-sm shrink-0"
+          >
+            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+            <span>Perbarui Data</span>
+          </Button>
+        )}
       </div>
 
       {/* Quizzes Grid / Table */}

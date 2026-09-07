@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BookOpenCheck, Settings2, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, Pencil, Trash2 } from "lucide-react";
 import { deleteCourseMaterial } from "@/app/(admin)/admin/(academic)/courses/actions";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ export function AdminMaterialPreviewBar({ source, materialId, courseSlug, title 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const documentsHref = `/admin/courses/${encodeURIComponent(courseSlug)}/documents`;
+  const editHref = `/admin/courses/${encodeURIComponent(courseSlug)}/documents/${encodeURIComponent(materialId)}?mode=edit`;
   const reviewHref = `/admin/courses/${encodeURIComponent(courseSlug)}/review?tab=product`;
   const canonical = source === "canonical-article" || source === "canonical-diktat";
 
@@ -48,6 +49,12 @@ export function AdminMaterialPreviewBar({ source, materialId, courseSlug, title 
           </Link>
         </Button>
         <span className="min-w-0 flex-1 truncate text-body-xs text-muted-foreground">Preview admin: {title}</span>
+        <Button asChild variant="outline" size="sm" className="text-body-sm">
+          <Link href={editHref}>
+            <Pencil className="size-4" />
+            Edit dokumen
+          </Link>
+        </Button>
         {canonical ? (
           <Button asChild variant="outline" size="sm" className="text-body-sm">
             <Link href={reviewHref}>
@@ -55,20 +62,12 @@ export function AdminMaterialPreviewBar({ source, materialId, courseSlug, title 
               Kelola lifecycle
             </Link>
           </Button>
-        ) : source === "legacy-pdf" ? (
-          <>
-            <Button asChild variant="outline" size="sm" className="text-body-sm">
-              <Link href={`${documentsHref}#legacy-pdf-management`}>
-                <Settings2 className="size-4" />
-                Kelola metadata
-              </Link>
-            </Button>
-            <Button variant="destructive" size="sm" className="text-body-sm" onClick={() => setConfirmOpen(true)}>
-              <Trash2 className="size-4" />
-              Hapus
-            </Button>
-          </>
-        ) : null}
+        ) : (
+          <Button variant="destructive" size="sm" className="text-body-sm" onClick={() => setConfirmOpen(true)}>
+            <Trash2 className="size-4" />
+            Hapus
+          </Button>
+        )}
       </div>
       <AdminConfirmDialog
         open={confirmOpen}

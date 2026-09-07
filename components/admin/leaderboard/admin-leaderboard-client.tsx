@@ -112,7 +112,7 @@ export function AdminLeaderboardClient({
   lockedCourse,
   backHref,
   backLabel,
-  hideHeader = false,
+  hideHeader = Boolean(lockedCourse),
 }: AdminLeaderboardClientProps = {}) {
   const [courses, setCourses] = useState<CourseOption[]>([]);
   const [courseInsights, setCourseInsights] = useState<CourseInsight[]>([]);
@@ -334,6 +334,21 @@ export function AdminLeaderboardClient({
             >
               <X className="size-3.5 mr-1" />
               <span>Reset</span>
+            </Button>
+          )}
+
+          {hideHeader && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchLeaderboard}
+              disabled={loading}
+              className="h-9 gap-1.5 rounded-lg text-body-sm shrink-0"
+            >
+              <RefreshCw
+                className={cn("size-3.5", loading && "animate-spin")}
+              />
+              <span>Perbarui Data</span>
             </Button>
           )}
         </div>
