@@ -15,6 +15,7 @@ const FORBIDDEN_PATTERNS = [
   { pattern: /^react(-dom)?(\/.*)?$/, label: "React (react/react-dom)" },
   { pattern: /^puppeteer(-core)?$/, label: "Puppeteer" },
   { pattern: /^@sentry\/nextjs$/, label: "@sentry/nextjs" },
+  { pattern: /^sharp$/, label: "Sharp (native image processor)" },
 ];
 
 const visited = new Set<string>();
