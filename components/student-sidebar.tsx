@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
   ChevronDown,
@@ -50,14 +50,27 @@ export function StudentSidebar({
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const courseIdFromPath = pathname.startsWith("/courses/")
     ? pathname.split("/")[2]
     : undefined;
-  const courseIdFromSchedule =
-    pathname === "/dashboard/schedule"
-      ? searchParams?.get("course") ?? undefined
-      : undefined;
+  const [courseIdFromSchedule, setCourseIdFromSchedule] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (pathname !== "/dashboard/schedule") {
+      setCourseIdFromSchedule(undefined);
+      return;
+    }
+
+    const readCourseId = () => {
+      setCourseIdFromSchedule(
+        new URLSearchParams(window.location.search).get("course") ?? undefined
+      );
+    };
+
+    readCourseId();
+    window.addEventListener("popstate", readCourseId);
+    return () => window.removeEventListener("popstate", readCourseId);
+  }, [pathname]);
 
   const activeCourseId = courseIdFromPath ?? courseIdFromSchedule;
 
@@ -190,7 +203,7 @@ export function StudentSidebar({
                       href: `/dashboard/schedule?course=${activeCourse.id}`,
                       icon: CalendarRange,
                       label: "Jadwal",
-                      customActive: pathname === "/dashboard/schedule" && searchParams?.get("course") === activeCourse.id,
+                      customActive: pathname === "/dashboard/schedule" && courseIdFromSchedule === activeCourse.id,
                     },
                   ];
 

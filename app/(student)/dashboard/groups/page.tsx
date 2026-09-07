@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { pageTitle } from "@/lib/site";
 import { headers } from "next/headers";
@@ -32,7 +33,9 @@ export default async function StudentGroupsPage() {
         icon={Users}
         title="Kelompok Belajar"
       />
-      <StudentGroupsClient initialGroups={groups} />
+      <Suspense fallback={null}>
+        <StudentGroupsClient initialGroups={groups} />
+      </Suspense>
     </ApplicationPage>
   );
 }
