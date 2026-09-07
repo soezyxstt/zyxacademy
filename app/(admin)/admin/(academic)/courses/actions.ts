@@ -690,7 +690,7 @@ export async function saveCourseMaterial(
 }
 
 export async function deleteCourseMaterial(id: string) {
-  const { user: admin } = await assertAdmin();
+  await assertAdmin();
 
   try {
     const [existing] = await db
@@ -726,4 +726,75 @@ export async function deleteCourseMaterial(id: string) {
     console.error("Failed to delete course material:", err);
     return { success: false, error: err.message || "Gagal menghapus materi" };
   }
+}
+
+// Lightweight Navigation Hub Server Action
+
+export type CourseNavContext = {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+};
+
+export async function getCourseNavContext(slugOrId: string): Promise<CourseNavContext | null> {
+  await assertAdmin();
+
+  const cleanId = typeof slugOrId === "string" ? slugOrId.trim().toLowerCase() : "";
+  if (!cleanId) {
+    return null;
+  }
+
+  const [canonicalCourse, legacyCourse] = await Promise.all([
+    db
+      .select({
+        id: mataKuliah.id,
+        title: mataKuliah.title,
+        legacyCourseId: mataKuliah.legacyCourseId,
+        status: mataKuliah.status,
+      })
+      .from(mataKuliah)
+      .where(
+        and(
+          eq(mataKuliah.status, "active"),
+          or(eq(mataKuliah.id, cleanId), eq(mataKuliah.legacyCourseId, cleanId))
+        )
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    db
+      .select({
+        id: courses.id,
+        title: courses.title,
+        category: courses.category,
+      })
+      .from(courses)
+      .where(eq(courses.id, cleanId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+  ]);
+
+  if (!canonicalCourse && !legacyCourse) {
+    return null;
+  }
+
+  let category = legacyCourse?.category ?? "Umum";
+  if (canonicalCourse && !legacyCourse) {
+    const legacyTargetId = canonicalCourse.legacyCourseId ?? canonicalCourse.id;
+    const [foundLegacy] = await db
+      .select({ category: courses.category })
+      .from(courses)
+      .where(eq(courses.id, legacyTargetId))
+      .limit(1);
+    if (foundLegacy?.category) {
+      category = foundLegacy.category;
+    }
+  }
+
+  return {
+    id: canonicalCourse?.id ?? legacyCourse!.id,
+    slug: cleanId,
+    title: canonicalCourse?.title ?? legacyCourse!.title,
+    category,
+  };
 }

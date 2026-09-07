@@ -1,11 +1,8 @@
 import { asc, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { courses as legacyCourses, mataKuliah, user } from "@/db/schema";
-import { listAuthoringContextExports } from "@/lib/authoring/export";
-import { listAuthoringCourseOptions } from "@/lib/authoring/catalog";
 import { listIdeaBundleImports } from "@/lib/bundle/staging";
 import { listProductBundleImports, productBundleLifecycleStatus } from "@/lib/bundle/product-staging";
-import type { AuthoringContextExportRow } from "@/components/admin/authoring-context-export";
 import type { BundleRow as IdeaBundleRow } from "@/components/admin/idea-bundle-v2-panel";
 import type { MaterialBundleRow as ProductBundleRow } from "@/components/admin/material-workflow-ui";
 
@@ -14,19 +11,16 @@ export type MaterialWorkspaceData = {
   initialProductImports: ProductBundleRow[];
   courseLabels: Record<string, string>;
   authorLabels: Record<string, string>;
-  authoringCourses: Awaited<ReturnType<typeof listAuthoringCourseOptions>>;
-  initialContextExports: AuthoringContextExportRow[];
   ideaEnabled: boolean;
   productEnabled: boolean;
-  authoringEnabled: boolean;
 };
 
-export async function loadMaterialWorkspaceData(): Promise<MaterialWorkspaceData> {
-  const [ideaRows, productRows, authoringCourses, contextRows, legacyCourseRows, canonicalCourseRows] = await Promise.all([
-    listIdeaBundleImports(),
-    listProductBundleImports(),
-    listAuthoringCourseOptions(),
-    listAuthoringContextExports(),
+export async function loadMaterialWorkspaceData(options?: { courseIds?: string[] }): Promise<MaterialWorkspaceData> {
+  const courseIds = options?.courseIds?.filter(Boolean);
+  const bundleOptions = courseIds && courseIds.length > 0 ? { limit: 50, courseIds } : 50;
+  const [ideaRows, productRows, legacyCourseRows, canonicalCourseRows] = await Promise.all([
+    listIdeaBundleImports(bundleOptions),
+    listProductBundleImports(bundleOptions),
     db.select({ id: legacyCourses.id, title: legacyCourses.title }).from(legacyCourses).orderBy(asc(legacyCourses.title)),
     db.select({ id: mataKuliah.id, code: mataKuliah.code, title: mataKuliah.title, legacyCourseId: mataKuliah.legacyCourseId }).from(mataKuliah).orderBy(asc(mataKuliah.title)),
   ]);
@@ -70,18 +64,7 @@ export async function loadMaterialWorkspaceData(): Promise<MaterialWorkspaceData
     })),
     courseLabels,
     authorLabels: Object.fromEntries(authorRows.map((author) => [author.id, author.name || author.email])),
-    authoringCourses,
-    initialContextExports: contextRows.map((row) => ({
-      id: row.id,
-      packId: row.entityId,
-      createdAt: row.createdAt.toISOString(),
-      artifactChecksum: typeof row.afterSnapshot?.artifactChecksum === "string" ? row.afterSnapshot.artifactChecksum : null,
-      courseId: typeof row.afterSnapshot?.courseId === "string" ? row.afterSnapshot.courseId : null,
-      retentionUntil: typeof row.afterSnapshot?.retentionUntil === "string" ? row.afterSnapshot.retentionUntil : null,
-      byteLength: typeof row.afterSnapshot?.byteLength === "number" ? row.afterSnapshot.byteLength : null,
-    })),
     ideaEnabled: true,
     productEnabled: true,
-    authoringEnabled: true,
   };
 }

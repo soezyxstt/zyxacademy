@@ -63,6 +63,7 @@ import { TermPopover } from "@/components/course/term-popover";
 import { matchTerm, type TermIndexEntry } from "@/lib/term-match";
 import { isZyraSelectionAskEnabled, normalizeZyraSelection } from "@/lib/zyra/murid";
 import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
+import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
 
 type MaterialViewerProps = {
   material: CourseMaterial;
@@ -75,6 +76,8 @@ type MaterialViewerProps = {
   /** EIF E3: interactive material popover selection gate, defaults to true. */
   materialLiveEnabled?: boolean;
   course?: { title: string } | null;
+  mode?: MaterialReaderMode;
+  backHref?: string;
 };
 
 interface ChapterSummary {
@@ -579,7 +582,10 @@ export function MaterialViewer({
   termIndex,
   materialLiveEnabled,
   course,
+  mode = "learner",
+  backHref,
 }: MaterialViewerProps) {
+  const learnerMode = isLearnerReaderMode(mode);
   const [done, setDone] = useState(material.completed);
   const doneRef = useRef(material.completed);
   useEffect(() => {
@@ -726,6 +732,7 @@ export function MaterialViewer({
   };
 
   const runTutorExplain = (query: string) => {
+    if (!learnerMode) return;
     dismissPopover();
     if (selectionAskEnabled) {
       const selection = normalizeZyraSelection(query);
@@ -753,6 +760,7 @@ export function MaterialViewer({
   };
 
   useEffect(() => {
+    if (!learnerMode) return;
     const handleSelectionChange = () => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !selection.toString().trim()) {
@@ -810,14 +818,15 @@ export function MaterialViewer({
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [learnerMode]);
 
   // Set document as in progress on mount
   useEffect(() => {
+    if (!learnerMode) return;
     updateMaterialProgress(material.id, "in_progress").catch((err) =>
       console.error("Error updating progress to in_progress:", err)
     );
-  }, [material.id]);
+  }, [learnerMode, material.id]);
 
   const lastSavedCompletionPercentRef = useRef<number | null>(null);
   const lastSavedSectionIdxRef = useRef<number | null>(null);
@@ -825,6 +834,7 @@ export function MaterialViewer({
 
   // Periodic tracking of material reading progress
   useEffect(() => {
+    if (!learnerMode) return;
     let secondsSinceLastSave = 0;
     const interval = setInterval(() => {
       secondsSinceLastSave += 1;
@@ -933,10 +943,11 @@ export function MaterialViewer({
         }
       }
     };
-  }, [material.id, material.kind, articleSections, activeSectionIdx, visitedPages, page]);
+  }, [learnerMode, material.id, material.kind, articleSections, activeSectionIdx, visitedPages, page]);
 
   // Load personalization states from localStorage
   useEffect(() => {
+    if (!learnerMode) return;
     try {
       const storedNotes = localStorage.getItem(`zyx-notes-${material.id}`);
       const storedBookmarks = localStorage.getItem(`zyx-bookmarks-${material.id}`);
@@ -950,7 +961,7 @@ export function MaterialViewer({
     } catch (e) {
       console.error("Could not load reader configurations from localStorage", e);
     }
-  }, [material.id]);
+  }, [learnerMode, material.id]);
 
   // Handle active note loading when page changes
   useEffect(() => {
@@ -972,7 +983,7 @@ export function MaterialViewer({
     setReadingProgress(progress);
     
     // Auto complete triggers when reading all pages
-    if (progress === 100 && !done) {
+    if (learnerMode && progress === 100 && !done) {
       toast("Kamu telah membaca seluruh halaman!", {
         description: "Klik tombol 'Tandai Selesai' untuk mencatat progres kelasmu.",
         action: {
@@ -982,9 +993,10 @@ export function MaterialViewer({
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visitedPages]);
+  }, [learnerMode, visitedPages]);
 
   async function markDone() {
+    if (!learnerMode) return;
     try {
       const res = await updateMaterialProgress(material.id, "completed");
       if (res.success) {
@@ -1026,6 +1038,7 @@ export function MaterialViewer({
 
   // Save Bookmarks
   const toggleBookmark = (pNum: number) => {
+    if (!learnerMode) return;
     let newBookmarks = [...bookmarks];
     if (newBookmarks.includes(pNum)) {
       newBookmarks = newBookmarks.filter((p) => p !== pNum);
@@ -1041,6 +1054,7 @@ export function MaterialViewer({
 
   // Save Personal Note
   const saveNote = (noteText: string) => {
+    if (!learnerMode) return;
     setIsSavingNote(true);
     const newNotes = { ...notes };
     if (noteText.trim() === "") {
@@ -1059,6 +1073,7 @@ export function MaterialViewer({
   };
 
   const deleteNote = (pNum: number) => {
+    if (!learnerMode) return;
     const newNotes = { ...notes };
     delete newNotes[pNum];
     setNotes(newNotes);
@@ -1071,12 +1086,12 @@ export function MaterialViewer({
   const handleSidebarToggle = () => {
     const nextState = !showSidebar;
     setShowSidebar(nextState);
-    localStorage.setItem(`zyx-reader-sidebar`, String(nextState));
+    if (learnerMode) localStorage.setItem(`zyx-reader-sidebar`, String(nextState));
   };
 
   const _handleThemeChange = (newTheme: ThemeMode) => {
     setTheme(newTheme);
-    localStorage.setItem(`zyx-reader-theme`, newTheme);
+    if (learnerMode) localStorage.setItem(`zyx-reader-theme`, newTheme);
   };
 
   // Search filter
@@ -1178,7 +1193,7 @@ export function MaterialViewer({
 
   const openUrl = material.url ?? "#";
 
-  const tutorPopover = selectionCoords && selectedText ? (
+  const tutorPopover = learnerMode && selectionCoords && selectedText ? (
     <div
       style={{
         position: "fixed",
@@ -1302,7 +1317,7 @@ export function MaterialViewer({
               asChild
               className="shrink-0 gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground"
             >
-              <Link href={`/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+              <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
                 <ArrowLeft className="size-4" />
                 <span className="hidden sm:inline">Kembali ke Materi</span>
               </Link>
@@ -1343,19 +1358,21 @@ export function MaterialViewer({
               {isArticleTocOpen ? <PanelRightClose className="size-4" /> : <PanelRight className="size-4" />}
               <span>{isArticleTocOpen ? "Sembunyikan Menu" : "Buka Menu"}</span>
             </Button>
-            {ragEnabled && chapterId && (
+            {learnerMode && ragEnabled && chapterId && (
               <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={markDone}
-              disabled={done}
-              className="interactive gap-1.5 text-body-xs font-semibold"
-            >
-              <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
-              <span className="hidden lg:inline">{done ? "Selesai" : "Tandai Selesai"}</span>
-            </Button>
+            {learnerMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={markDone}
+                disabled={done}
+                className="interactive gap-1.5 text-body-xs font-semibold"
+              >
+                <CheckCircle2 className={cn("size-3.5", done ? "text-emerald-500 fill-emerald-500/10" : "text-muted-foreground")} />
+                <span className="hidden lg:inline">{done ? "Selesai" : "Tandai Selesai"}</span>
+              </Button>
+            )}
           </div>
           <div className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-out" style={{ width: `${progressPercent}%` }} />
         </header>
@@ -1449,7 +1466,7 @@ export function MaterialViewer({
             asChild
             className="h-7 px-2 text-body-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
           >
-            <Link href={`/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
+            <Link href={backHref ?? `/courses/${material.courseId}/material`} aria-label="Kembali ke daftar materi">
               <ArrowLeft className="size-3.5 mr-1" />
               <span>Kembali</span>
             </Link>
@@ -1461,19 +1478,21 @@ export function MaterialViewer({
         </div>
 
         <div className="flex items-center gap-2">
-          {ragEnabled && chapterId && (
+          {learnerMode && ragEnabled && chapterId && (
             <ChapterSummarySheet chapterId={chapterId} chapterTitle={material.title} />
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={markDone}
-            disabled={done}
-            className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
-          >
-            <CheckCircle2 className={cn("size-3.5", done ? "text-status-success fill-status-success/10" : "text-muted-foreground")} />
-            <span>{done ? "Selesai" : "Tandai Selesai"}</span>
-          </Button>
+          {learnerMode && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={markDone}
+              disabled={done}
+              className="h-7 text-body-sm font-semibold flex items-center gap-1.5 rounded-md interactive"
+            >
+              <CheckCircle2 className={cn("size-3.5", done ? "text-status-success fill-status-success/10" : "text-muted-foreground")} />
+              <span>{done ? "Selesai" : "Tandai Selesai"}</span>
+            </Button>
+          )}
         </div>
       </div>
 

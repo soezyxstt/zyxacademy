@@ -8,7 +8,6 @@ import {
   groupMembers,
   aiGenerationJobs,
   aiQuestionBank,
-  quizTemplates,
   notifications,
   userPushTokens,
   aiUsageEvents,
@@ -20,10 +19,7 @@ import { sql, eq, gte, ne } from "drizzle-orm";
 import { pageTitle } from "@/lib/site";
 import {
   KeyRound,
-  BookText,
   Zap,
-  ListChecks,
-  ClipboardList,
   Bell,
   Activity,
   GraduationCap,
@@ -36,6 +32,8 @@ import {
   Link as LinkIcon,
   Trophy,
   MousePointerClick,
+  CalendarDays,
+  Library,
 } from "lucide-react";
 
 import { RefreshAnalyticsButton } from "@/components/admin/refresh-analytics-button";
@@ -59,7 +57,6 @@ export default async function AdminHomePage() {
     tokenStatsRes,
     jobStatsRes,
     questionStatsRes,
-    quizCountRes,
     notificationStatsRes,
     opsStatsRes,
     blogCountRes,
@@ -85,8 +82,6 @@ export default async function AdminHomePage() {
     db.select({ status: aiGenerationJobs.status }).from(aiGenerationJobs),
 
     db.select({ reviewStatus: aiQuestionBank.reviewStatus }).from(aiQuestionBank),
-
-    db.select({ count: sql<number>`count(*)` }).from(quizTemplates),
 
     Promise.all([
       db
@@ -138,9 +133,6 @@ export default async function AdminHomePage() {
   ).length;
   const questionStat = `${pendingQuestions} pending review`;
 
-  const totalQuizzes = quizCountRes[0]?.count ?? 0;
-  const quizStat = `${totalQuizzes} kuis aktif`;
-
   const totalAttempts = attemptCountRes[0]?.count ?? 0;
   const leaderboardStat = `${totalAttempts} pengerjaan`;
 
@@ -168,42 +160,26 @@ export default async function AdminHomePage() {
           stat: courseStat,
         },
         {
-          title: "Review Materi",
-          icon: BookText,
-          iconColor: "text-tertiary-1",
-          href: "/admin/materials/review",
-          label: "Review Idea dan Product Bundle",
-          stat: "Workflow canonical",
+          title: "Jadwal Umum",
+          icon: CalendarDays,
+          iconColor: "text-brand-primary",
+          href: "/admin/schedules",
+          label: "Kelola jadwal umum",
+          stat: null,
         },
         {
-          title: "Kelola Blog",
-          icon: Newspaper,
-          iconColor: "text-brand-primary",
-          href: "/admin/blog",
-          label: "Buka manajemen blog",
-          stat: blogStat,
+          title: "Bank Soal",
+          icon: Library,
+          iconColor: "text-status-success",
+          href: "/admin/questions",
+          label: "Buka bank soal",
+          stat: questionStat,
         },
       ],
     },
     {
       name: "Evaluasi & Asesmen",
       items: [
-        {
-          title: "Bank Soal",
-          icon: ListChecks,
-          iconColor: "text-status-success",
-          href: "/admin/questions",
-          label: "Buka bank soal",
-          stat: questionStat,
-        },
-        {
-          title: "Kuis",
-          icon: ClipboardList,
-          iconColor: "text-brand-primary",
-          href: "/admin/quizzes",
-          label: "Kelola kuis",
-          stat: quizStat,
-        },
         {
           title: "Papan Peringkat",
           icon: Trophy,
@@ -225,6 +201,14 @@ export default async function AdminHomePage() {
     {
       name: "Alat & Komunikasi",
       items: [
+        {
+          title: "Kelola Blog",
+          icon: Newspaper,
+          iconColor: "text-brand-primary",
+          href: "/admin/blog",
+          label: "Buka manajemen blog",
+          stat: blogStat,
+        },
         {
           title: "Form Studio & Visualizer",
           icon: FileText,

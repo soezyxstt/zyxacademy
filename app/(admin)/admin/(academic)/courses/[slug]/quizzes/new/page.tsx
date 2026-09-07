@@ -4,8 +4,9 @@ import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { courses } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { QuizForm } from "@/app/(admin)/admin/(eval)/quizzes/_components/quiz-form";
+import { getCourseDetailData } from "../../../actions";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -31,24 +32,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function NewCourseQuizPage({ params, searchParams }: Props) {
-  await assertTutorOrAdmin();
+  await assertAdmin();
 
   const { slug } = await params;
   const { tags: prefillTags } = await searchParams;
 
-  const [course, allCourses] = await Promise.all([
-    db
-      .select({ id: courses.id, title: courses.title })
-      .from(courses)
-      .where(eq(courses.id, slug))
-      .limit(1)
-      .then((r) => r[0] ?? null),
+  const [courseData, allCourses] = await Promise.all([
+    getCourseDetailData(slug),
     db.select({ id: courses.id, title: courses.title }).from(courses),
   ]);
 
-  if (!course) {
+  if (!courseData) {
     notFound();
   }
+
+  const course = courseData.course;
 
   const initialData = {
     courseId: course.id,
@@ -87,9 +85,9 @@ export default async function NewCourseQuizPage({ params, searchParams }: Props)
       hideCourseSelect={true}
       courseTitle={course.title}
       courseSlug={course.id}
-      backHref={`/admin/courses/${course.id}?tab=quizzes`}
+      backHref={`/admin/courses/${encodeURIComponent(slug)}/quizzes`}
       backLabel={`Kembali ke ${course.title}`}
-      returnUrl={`/admin/courses/${course.id}?tab=quizzes`}
+      returnUrl={`/admin/courses/${encodeURIComponent(slug)}/quizzes`}
     />
   );
 }

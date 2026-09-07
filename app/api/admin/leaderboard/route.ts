@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { quizTemplates, studentQuizAttempts, courses, user } from "@/db/schema";
+import { quizTemplates, studentQuizAttempts, courses, mataKuliah, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { eq, and, ne, desc } from "drizzle-orm";
+import { eq, and, ne, desc, inArray } from "drizzle-orm";
+import { resolveCourseIdentity } from "@/lib/admin/course-identity";
 
 export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -17,20 +18,50 @@ export async function GET(req: NextRequest) {
   const searchParam = searchParams.get("search")?.toLowerCase().trim();
   const isOverviewMode = !courseIdParam || courseIdParam === "all";
 
-  // 1. Fetch all courses for combobox selector
-  const allCourses = await db
-    .select({
-      id: courses.id,
-      title: courses.title,
-    })
-    .from(courses)
-    .orderBy(courses.title);
+  // 1. Fetch all courses for combobox selector (canonical first, fallback to legacy)
+  const [canonicalCourses, legacyList] = await Promise.all([
+    db
+      .select({
+        id: mataKuliah.id,
+        title: mataKuliah.title,
+      })
+      .from(mataKuliah)
+      .where(eq(mataKuliah.status, "active"))
+      .orderBy(mataKuliah.title),
+    db
+      .select({
+        id: courses.id,
+        title: courses.title,
+      })
+      .from(courses)
+      .orderBy(courses.title),
+  ]);
+
+  const courseOptionMap = new Map<string, { id: string; title: string }>();
+  for (const c of legacyList) {
+    courseOptionMap.set(c.id, c);
+  }
+  for (const c of canonicalCourses) {
+    courseOptionMap.set(c.id, c);
+  }
+  const allCourses = Array.from(courseOptionMap.values()).sort((a, b) =>
+    a.title.localeCompare(b.title, "id")
+  );
 
   // 2. Build attempt query conditions
   const conditions = [eq(studentQuizAttempts.status, "completed")];
 
-  if (!isOverviewMode) {
-    conditions.push(eq(quizTemplates.courseId, courseIdParam));
+  let activeCourseIdentity = null;
+  if (!isOverviewMode && courseIdParam) {
+    activeCourseIdentity = await resolveCourseIdentity(courseIdParam);
+    const resolvedIds = activeCourseIdentity
+      ? activeCourseIdentity.allIds
+      : [courseIdParam];
+    conditions.push(
+      resolvedIds.length === 1
+        ? eq(quizTemplates.courseId, resolvedIds[0])
+        : inArray(quizTemplates.courseId, resolvedIds)
+    );
   }
 
   if (typeParam === "quiz") {
@@ -44,7 +75,8 @@ export async function GET(req: NextRequest) {
     const groupedAttempts = await db
       .select({
         courseId: quizTemplates.courseId,
-        courseTitle: courses.title,
+        legacyCourseTitle: courses.title,
+        canonicalCourseTitle: mataKuliah.title,
         studentId: studentQuizAttempts.studentId,
         score: studentQuizAttempts.score,
       })
@@ -52,6 +84,7 @@ export async function GET(req: NextRequest) {
       .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
       .innerJoin(user, eq(studentQuizAttempts.studentId, user.id))
       .leftJoin(courses, eq(quizTemplates.courseId, courses.id))
+      .leftJoin(mataKuliah, eq(quizTemplates.courseId, mataKuliah.id))
       .where(and(...conditions));
 
     // Seed courseMap from allCourses so zero-activity courses appear
@@ -72,7 +105,7 @@ export async function GET(req: NextRequest) {
 
     for (const row of groupedAttempts) {
       const cid = row.courseId;
-      const title = row.courseTitle || row.courseId || "Umum";
+      const title = row.canonicalCourseTitle || row.legacyCourseTitle || row.courseId || "Umum";
       const score = row.score ?? 0;
 
       if (!courseMap.has(cid)) {
@@ -159,12 +192,14 @@ export async function GET(req: NextRequest) {
       quizTitle: quizTemplates.title,
       quizCategory: quizTemplates.category,
       courseId: quizTemplates.courseId,
-      courseTitle: courses.title,
+      legacyCourseTitle: courses.title,
+      canonicalCourseTitle: mataKuliah.title,
     })
     .from(studentQuizAttempts)
     .innerJoin(quizTemplates, eq(studentQuizAttempts.templateId, quizTemplates.id))
     .innerJoin(user, eq(studentQuizAttempts.studentId, user.id))
     .leftJoin(courses, eq(quizTemplates.courseId, courses.id))
+    .leftJoin(mataKuliah, eq(quizTemplates.courseId, mataKuliah.id))
     .where(and(...conditions))
     .orderBy(desc(studentQuizAttempts.submittedAt));
 
@@ -199,7 +234,12 @@ export async function GET(req: NextRequest) {
     const studentId = item.studentId;
     const score = item.score ?? 0;
     const duration = item.durationSeconds ?? 0;
-    const courseTitle = item.courseTitle || item.courseId || "Umum";
+    const courseTitle =
+      activeCourseIdentity?.title ||
+      item.canonicalCourseTitle ||
+      item.legacyCourseTitle ||
+      item.courseId ||
+      "Umum";
     const submittedAtIso = item.submittedAt ? item.submittedAt.toISOString() : null;
 
     if (!studentMap.has(studentId)) {

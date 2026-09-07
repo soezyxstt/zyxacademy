@@ -57,10 +57,13 @@ import {
   ProductLearningTimeBadge,
 } from "@/components/course/product-learning-blocks";
 import { formatReaderTocTitle } from "@/lib/materials/reader-toc";
+import { isLearnerReaderMode, type MaterialReaderMode } from "@/lib/materials/reader-mode";
 
 export interface StructuredArticleReaderProps {
   article: PublicArticleReadModel;
   course?: { id?: string; title: string } | null;
+  mode?: MaterialReaderMode;
+  backHref?: string;
 }
 
 interface BlockMetadata {
@@ -297,7 +300,10 @@ export function StructuredArticleSectionContent({
 export function StructuredArticleReader({
   article,
   course,
+  mode = "learner",
+  backHref,
 }: StructuredArticleReaderProps) {
+  const learnerMode = isLearnerReaderMode(mode);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -404,6 +410,7 @@ export function StructuredArticleReader({
       timeSpent: number,
       markCompleted?: boolean,
     ) => {
+      if (!learnerMode) return;
       try {
         const res = await fetch(`/api/student/articles/${article.id}/progress`, {
           method: "PUT",
@@ -429,11 +436,12 @@ export function StructuredArticleReader({
         }
       } catch {}
     },
-    [article.id],
+    [article.id, learnerMode],
   );
 
   // Reset scroll & timer tracking on active section change
   useEffect(() => {
+    if (!learnerMode) return;
     activeTimeSpentRef.current = 0;
     maxScrollPercentRef.current = 0;
 
@@ -451,10 +459,11 @@ export function StructuredArticleReader({
         );
       }
     };
-  }, [activeSection, sendProgressUpdate]);
+  }, [activeSection, learnerMode, sendProgressUpdate]);
 
   // Scroll listener to track read percentage within the active section
   useEffect(() => {
+    if (!learnerMode) return;
     const handleScroll = () => {
       const el = contentContainerRef.current;
       if (!el || !activeSection) return;
@@ -488,10 +497,11 @@ export function StructuredArticleReader({
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [activeSection, sectionProgressMap, sendProgressUpdate]);
+  }, [activeSection, learnerMode, sectionProgressMap, sendProgressUpdate]);
 
   // Selection change listener for selection-to-Zyra
   useEffect(() => {
+    if (!learnerMode) return;
     const handleSelectionChange = () => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !selection.toString().trim()) {
@@ -541,9 +551,10 @@ export function StructuredArticleReader({
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleWindowScroll, true);
     };
-  }, []);
+  }, [learnerMode]);
 
   const handleAskZyra = () => {
+    if (!learnerMode) return;
     if (!selectedText) return;
     const selection = normalizeZyraSelection(selectedText);
     window.getSelection()?.removeAllRanges();
@@ -602,7 +613,7 @@ export function StructuredArticleReader({
   };
 
   const handleFinishArticle = () => {
-    if (activeSection) {
+    if (learnerMode && activeSection) {
       sendProgressUpdate(
         activeSection.id,
         100,
@@ -610,7 +621,7 @@ export function StructuredArticleReader({
         true,
       );
     }
-    router.push(`/courses/${article.courseId}/material`);
+    router.push(backHref ?? `/courses/${article.courseId}/material`);
   };
 
   const courseTitle = course?.title || "Materi Kuliah";
@@ -775,7 +786,7 @@ export function StructuredArticleReader({
                 asChild
                 className="gap-1.5 text-body-xs font-semibold text-muted-foreground hover:text-foreground shrink-0"
               >
-                <Link href={`/courses/${article.courseId}/material`}>
+                <Link href={backHref ?? `/courses/${article.courseId}/material`}>
                   <ArrowLeft className="size-4" />
                   <span className="hidden sm:inline">Kembali ke Materi</span>
                 </Link>
@@ -955,7 +966,7 @@ export function StructuredArticleReader({
                 Artikel ini belum memiliki bagian materi yang diterbitkan.
               </p>
               <Button asChild variant="outline">
-                <Link href={`/courses/${article.courseId}/material`}>
+                <Link href={backHref ?? `/courses/${article.courseId}/material`}>
                   Kembali ke Daftar Materi
                 </Link>
               </Button>
@@ -972,7 +983,7 @@ export function StructuredArticleReader({
       </div>
 
       {/* Floating Selection-to-Zyra popover */}
-      {selectionCoords && selectedText && (
+      {learnerMode && selectionCoords && selectedText && (
         <div
           style={{
             position: "fixed",

@@ -76,6 +76,7 @@ type Props = {
   courseTitle: string;
   chapters: Chapter[];
   initialMaterials: UploadedMaterial[];
+  showList?: boolean;
 };
 
 export function MaterialsTab({
@@ -83,6 +84,7 @@ export function MaterialsTab({
   courseTitle,
   chapters,
   initialMaterials,
+  showList = true,
 }: Props) {
   const router = useRouter();
   const [materials] = useState<UploadedMaterial[]>(initialMaterials);
@@ -341,7 +343,7 @@ export function MaterialsTab({
   return (
     <div className="space-y-4">
       {/* Direct PDF Upload Form */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs">
+      <div id="legacy-pdf-management" className="rounded-xl border border-border bg-card p-4 shadow-2xs">
         <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
           <h3 className="font-heading text-body-sm font-semibold text-foreground flex items-center gap-2">
             <Upload className="size-4 text-brand-secondary" />
@@ -578,7 +580,7 @@ export function MaterialsTab({
       </div>
 
       {/* Materials List */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-2xs overflow-x-auto">
+      {showList && <div className="rounded-xl border border-border bg-card p-4 shadow-2xs overflow-x-auto">
         <h3 className="font-heading text-body-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <FileText className="size-4 text-brand-primary" />
           Daftar PDF Terunggah ({materials.length})
@@ -680,7 +682,7 @@ export function MaterialsTab({
             </tbody>
           </table>
         )}
-      </div>
+      </div>}
 
       <BatchUploadDialog
         open={batchOpen}

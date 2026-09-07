@@ -39,6 +39,7 @@ type DocumentListClientProps = {
   materials: CourseMaterial[];
   chapters: Chapter[];
   defaultTab?: string;
+  forcePageNavigation?: boolean;
 };
 
 const tabConfig: Array<{ key: TabKey; label: string; icon: typeof FileText }> = [
@@ -415,6 +416,7 @@ export function DocumentListClient({
   materials,
   chapters,
   defaultTab = "materi",
+  forcePageNavigation = false,
 }: DocumentListClientProps) {
   const initialDefaultTab = normalizeTabKey(defaultTab);
   const [urlTab, setUrlTab] = useUrlTab("tab", initialDefaultTab);
@@ -633,7 +635,7 @@ export function DocumentListClient({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
-            const isPageNav = isPageNavigationMaterial(material);
+            const isPageNav = forcePageNavigation || isPageNavigationMaterial(material);
             const subLabel =
               material.subcategory
                 ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory
@@ -694,7 +696,7 @@ export function DocumentListClient({
         <ul className="divide-y divide-border/50 rounded-xl border border-border/50 bg-card overflow-hidden">
           {filteredMaterials.map((material) => {
             const itemHref = material.href ?? `/courses/${courseId}/material/${material.id}`;
-            const isPageNav = isPageNavigationMaterial(material);
+            const isPageNav = forcePageNavigation || isPageNavigationMaterial(material);
             const subLabel =
               material.subcategory
                 ? getSubcategoryLabel(material.subcategory as any) ?? material.subcategory

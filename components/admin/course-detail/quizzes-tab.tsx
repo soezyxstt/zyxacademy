@@ -159,7 +159,7 @@ export function QuizzesTab({
   });
 
   const createQuizHref = courseSlug
-    ? `/admin/courses/${courseSlug}/quizzes/new`
+    ? `/admin/courses/${encodeURIComponent(courseSlug)}/quizzes/new`
     : `/admin/quizzes/new?courseId=${encodeURIComponent(courseId)}`;
 
   return (
@@ -218,7 +218,7 @@ export function QuizzesTab({
             <div className="divide-y divide-border/50">
               {filteredQuizzes.map((quiz) => {
                 const editQuizHref = courseSlug
-                  ? `/admin/courses/${courseSlug}/quizzes/${quiz.id}/edit?returnUrl=${encodeURIComponent(`/admin/courses/${courseSlug}?tab=quizzes`)}&courseSlug=${encodeURIComponent(courseSlug)}`
+                  ? `/admin/courses/${encodeURIComponent(courseSlug)}/quizzes/${encodeURIComponent(quiz.id)}/edit`
                   : `/admin/quizzes/${quiz.id}/edit`;
 
                 return (
@@ -318,7 +318,12 @@ export function QuizzesTab({
                             variant="outline"
                             className="size-7 sm:size-8 rounded-lg border-border text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary"
                           >
-                            <Link href={`/admin/quiz-insights/${quiz.id}`} aria-label="Analisis Kuis">
+                            <Link
+                              href={courseSlug
+                                ? `/admin/courses/${encodeURIComponent(courseSlug)}/analytics/${encodeURIComponent(quiz.id)}`
+                                : `/admin/quiz-insights/${encodeURIComponent(quiz.id)}`}
+                              aria-label="Analisis Kuis"
+                            >
                               <BarChart3 className="size-3.5" />
                             </Link>
                           </Button>

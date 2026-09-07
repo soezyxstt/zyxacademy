@@ -4,8 +4,9 @@ import { pageTitle } from "@/lib/site";
 import { db } from "@/db";
 import { courses, quizTemplates } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
+import { assertAdmin } from "@/lib/auth/admin-guards";
 import { QuizForm, type InitialQuizData } from "@/app/(admin)/admin/(eval)/quizzes/_components/quiz-form";
+import { getCourseDetailData } from "../../../../actions";
 
 type Props = {
   params: Promise<{ slug: string; id: string }>;
@@ -39,19 +40,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function EditCourseQuizPage({ params, searchParams }: Props) {
-  await assertTutorOrAdmin();
+  await assertAdmin();
 
   const { slug, id } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const { returnUrl } = resolvedSearchParams;
 
-  const [course, template, allCourses] = await Promise.all([
-    db
-      .select({ id: courses.id, title: courses.title })
-      .from(courses)
-      .where(eq(courses.id, slug))
-      .limit(1)
-      .then((r) => r[0] ?? null),
+  const [courseData, template, allCourses] = await Promise.all([
+    getCourseDetailData(slug),
     db
       .select()
       .from(quizTemplates)
@@ -61,9 +57,11 @@ export default async function EditCourseQuizPage({ params, searchParams }: Props
     db.select({ id: courses.id, title: courses.title }).from(courses),
   ]);
 
-  if (!course || !template) {
+  if (!courseData || !template || !courseData.quizzes.some((quiz) => quiz.id === template.id)) {
     notFound();
   }
+
+  const course = courseData.course;
 
   const rawRules =
     typeof template.selectionRules === "string"
@@ -103,7 +101,7 @@ export default async function EditCourseQuizPage({ params, searchParams }: Props
     },
   };
 
-  const backUrl = returnUrl || `/admin/courses/${course.id}?tab=quizzes`;
+  const backUrl = returnUrl || `/admin/courses/${encodeURIComponent(slug)}/quizzes`;
 
   return (
     <QuizForm

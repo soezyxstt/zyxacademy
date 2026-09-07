@@ -18,6 +18,7 @@ import type { CourseQuiz } from "./quizzes-tab";
 
 type Props = {
   courseId: string;
+  courseSlug?: string;
   courseTitle: string;
   quizzes: CourseQuiz[];
   stats: {
@@ -29,6 +30,7 @@ type Props = {
 
 export function AnalyticsTab({
   courseId: _courseId,
+  courseSlug,
   courseTitle: _courseTitle,
   quizzes,
   stats,
@@ -155,7 +157,11 @@ export function AnalyticsTab({
                       )}
                     </td>
                     <td className="px-3.5 py-2.5 text-right">
-                      <Link href={`/admin/quiz-insights/${quiz.id}`}>
+                      <Link
+                        href={courseSlug
+                          ? `/admin/courses/${encodeURIComponent(courseSlug)}/analytics/${encodeURIComponent(quiz.id)}`
+                          : `/admin/quiz-insights/${encodeURIComponent(quiz.id)}`}
+                      >
                         <Button
                           size="sm"
                           variant={quiz.lastAiInsight ? "default" : "outline"}

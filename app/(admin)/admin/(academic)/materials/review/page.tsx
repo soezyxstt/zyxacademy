@@ -1,30 +1,31 @@
-import type { Metadata } from "next";
-import { MaterialWorkspace } from "@/components/admin/material-workspace";
+import { redirect } from "next/navigation";
 import { assertAdmin } from "@/lib/auth/admin-guards";
-import { pageTitle } from "@/lib/site";
-import { loadMaterialWorkspaceData } from "../data";
-
-export const metadata: Metadata = {
-  title: pageTitle("Review Materi"),
-  description: "Review hasil generasi MCP untuk materi Zyx.",
-};
-
-export const dynamic = "force-dynamic";
+import { resolveCourseIdentity, getCanonicalCourseSlug } from "@/lib/admin/course-identity";
 
 type Props = {
-  searchParams: Promise<{ section?: string }>;
+  searchParams: Promise<{ courseId?: string; section?: string; tab?: string }>;
 };
 
 export default async function MaterialReviewPage({ searchParams }: Props) {
-  await assertAdmin();
-  const params = await searchParams;
-  const data = await loadMaterialWorkspaceData();
+  try {
+    await assertAdmin();
+  } catch {
+    redirect("/admin");
+  }
 
-  return (
-    <MaterialWorkspace
-      {...data}
-      mode="review"
-      initialReviewTab={params.section === "product" ? "product" : params.section === "catalog" ? "catalog" : "idea"}
-    />
-  );
+  const { courseId, section, tab } = await searchParams;
+
+  if (courseId) {
+    const identity = await resolveCourseIdentity(courseId);
+    if (identity) {
+      const courseSlug = getCanonicalCourseSlug(identity);
+      const params = new URLSearchParams();
+      if (tab) params.set("tab", tab);
+      else if (section) params.set("tab", section === "product" ? "product" : "idea");
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      redirect(`/admin/courses/${encodeURIComponent(courseSlug)}/review${queryString}`);
+    }
+  }
+
+  redirect("/admin/courses");
 }

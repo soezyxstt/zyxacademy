@@ -10,6 +10,8 @@ import { AdminTable } from "@/components/admin/table";
 import { AdminEmptyState } from "@/components/admin/state-panels";
 import { MaterialArtifactCard, type MaterialBundleRow } from "@/components/admin/material-workflow-ui";
 
+import type { LockedCourseInfo } from "@/lib/admin/course-identity";
+
 type Props = {
   rows: MaterialBundleRow[];
   kind: "idea" | "product";
@@ -18,6 +20,7 @@ type Props = {
   onInspect: (id: string) => void;
   onUpload: () => void;
   loading?: boolean;
+  lockedCourse?: LockedCourseInfo;
 };
 
 const statusLabels: Record<string, string> = {
@@ -48,6 +51,7 @@ export function MaterialArtifactList({
   onInspect,
   onUpload,
   loading = false,
+  lockedCourse,
 }: Props) {
   const [query, setQuery] = useState("");
   const [courseFilter, setCourseFilter] = useState("all");
@@ -86,15 +90,17 @@ export function MaterialArtifactList({
           aria-label={`Cari ${label}`}
           containerClassName="flex-1 min-w-0"
         />
-        <Select value={courseFilter} onValueChange={setCourseFilter}>
-          <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0" aria-label="Filter mata kuliah">
-            <SelectValue placeholder="Semua mata kuliah" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua mata kuliah</SelectItem>
-            {courseOptions.map((courseId) => <SelectItem key={courseId} value={courseId}>{courseLabels[courseId] ?? courseId}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {!lockedCourse && (
+          <Select value={courseFilter} onValueChange={setCourseFilter}>
+            <SelectTrigger className="w-[140px] sm:w-[160px] h-9 text-body-sm rounded-lg shrink-0" aria-label="Filter mata kuliah">
+              <SelectValue placeholder="Semua mata kuliah" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua mata kuliah</SelectItem>
+              {courseOptions.map((courseId) => <SelectItem key={courseId} value={courseId}>{courseLabels[courseId] ?? courseId}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={authorFilter} onValueChange={setAuthorFilter}>
           <SelectTrigger className="w-[130px] sm:w-[150px] h-9 text-body-sm rounded-lg shrink-0" aria-label="Filter pembuat">
             <SelectValue placeholder="Semua pembuat" />

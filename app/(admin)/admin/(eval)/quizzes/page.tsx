@@ -1,53 +1,27 @@
-import type { Metadata } from "next";
-import { pageTitle } from "@/lib/site";
-import { db } from "@/db";
-import { quizTemplates, courses, mataKuliah } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { assertTutorOrAdmin } from "@/lib/auth/admin-guards";
-import { QuizzesCurationClient } from "./quizzes-client";
-import { AdminPageHeader } from "@/components/admin/page-header";
-import { NotebookPen } from "lucide-react";
-
-export const metadata: Metadata = {
-  title: pageTitle("Kelola Kuis"),
-};
+import { resolveCourseIdentity, getCanonicalCourseSlug } from "@/lib/admin/course-identity";
 
 type Props = {
   searchParams: Promise<{ courseId?: string; tags?: string }>;
 };
 
 export default async function AIQuizzesPage({ searchParams }: Props) {
-  await assertTutorOrAdmin();
+  try {
+    await assertTutorOrAdmin();
+  } catch {
+    redirect("/");
+  }
 
-  const { courseId: prefillCourseId, tags: prefillTags } = await searchParams;
+  const { courseId } = await searchParams;
 
-  const [templates, allCourses] = await Promise.all([
-    db
-      .select()
-      .from(quizTemplates)
-      .orderBy(desc(quizTemplates.createdAt)),
-    db
-      .select({ id: mataKuliah.id, title: mataKuliah.title })
-      .from(mataKuliah)
-      .where(eq(mataKuliah.status, "active"))
-      .then((rows) => (rows.length > 0 ? rows : db.select({ id: courses.id, title: courses.title }).from(courses))),
-  ]);
+  if (courseId) {
+    const identity = await resolveCourseIdentity(courseId);
+    if (identity) {
+      const courseSlug = getCanonicalCourseSlug(identity);
+      redirect(`/admin/courses/${encodeURIComponent(courseSlug)}/quizzes`);
+    }
+  }
 
-  const courseMap = Object.fromEntries(allCourses.map((c) => [c.id, c.title]));
-
-  return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        icon={NotebookPen}
-        title="Kuis"
-      />
-      <QuizzesCurationClient
-        initialTemplates={templates}
-        courses={allCourses}
-        courseMap={courseMap}
-        prefillCourseId={prefillCourseId}
-        prefillTags={prefillTags}
-      />
-    </div>
-  );
+  redirect("/admin/courses");
 }
